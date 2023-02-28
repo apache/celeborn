@@ -497,6 +497,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
+  def workerReplicateRandomConnectionEnabled: Boolean =
+    get(WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED)
   def workerDeviceStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
@@ -659,6 +661,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushMaxReqsInFlight: Int = get(PUSH_MAX_REQS_IN_FLIGHT)
   def pushMaxReviveTimes: Int = get(PUSH_MAX_REVIVE_TIMES)
   def pushSortMemoryThreshold: Long = get(PUSH_SORT_MEMORY_THRESHOLD)
+  def pushSortPipelineEnabled: Boolean = get(PUSH_SORT_PIPELINE_ENABLED)
+  def pushSortRandomizePartitionIdEnabled: Boolean = get(PUSH_SORT_RANDOMIZE_PARITION_ENABLED)
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
   def pushStageEndTimeout: Long =
     get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
@@ -1857,6 +1861,17 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
+  val WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.replicate.randomConnection.enabled")
+      .categories("worker")
+      .doc("Whether worker will create random connection to peer when replicate data. When false, worker tend to " +
+        "reuse the same cached TransportClient to a specific replicate worker; when true, worker tend to use " +
+        "different cached TransportClient. Netty will use the same thread to serve the same connection, so " +
+        "with more connections replicate server can leverage more netty threads")
+      .version("0.2.1")
+      .booleanConf
+      .createWithDefault(true)
+
   val WORKER_DEVICE_STATUS_CHECK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.disk.check.timeout")
       .withAlternative("rss.worker.status.check.timeout")
@@ -2233,6 +2248,25 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64m")
+
+  val PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.push.sort.pipeline.enabled")
+      .categories("client")
+      .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
+        " will be used to pipeline push")
+      .version("0.2.1")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.push.sort.randomizePartitionId.enabled")
+      .categories("client")
+      .doc(
+        "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
+          "when sort data to avoid skew when push to worker")
+      .version("0.2.1")
+      .booleanConf
+      .createWithDefault(false)
 
   val PUSH_RETRY_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.push.retry.threads")

@@ -35,6 +35,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -366,7 +367,7 @@ public class TransportClient implements Closeable {
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
       handler.removePushRequest(pushRequestId);
-      callback.onFailure(new IOException(errorMsg, cause));
+      callback.onFailure(new CelebornIOException(errorMsg, cause));
     }
   }
 }

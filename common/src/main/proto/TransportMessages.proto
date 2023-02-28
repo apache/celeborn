@@ -252,6 +252,9 @@ message PbGetReducerFileGroupResponse {
 
   // only reduce partition mode need know valid attempts
   repeated int32 attempts = 3;
+
+  // only map partition mode has succeed partitionIds
+  repeated int32 partitionIds = 4;
 }
 
 message PbUnregisterShuffle {

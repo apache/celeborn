@@ -37,7 +37,7 @@ class RssHashSuite extends AnyFunSuite
   }
 
   test("celeborn spark integration test - hash") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[4]")
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)
     val groupbyResult = groupBy(sparkSession)

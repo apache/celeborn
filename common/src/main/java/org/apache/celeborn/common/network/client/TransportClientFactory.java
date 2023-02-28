@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
 import org.apache.celeborn.common.network.util.*;
+import org.apache.celeborn.common.util.JavaUtils;
 
 /**
  * Factory for creating {@link TransportClient}s by using createClient.
@@ -97,12 +98,10 @@ public class TransportClientFactory implements Closeable {
   /**
    * Create a {@link TransportClient} connecting to the given remote host / port.
    *
-   * <p>We maintains an array of clients (size determined by spark.shuffle.io.numConnectionsPerPeer)
-   * and randomly picks one to use. If no client was previously created in the randomly selected
-   * spot, this function creates a new client and places it there.
-   *
-   * <p>Prior to the creation of a new TransportClient, we will execute all {@link
-   * TransportClientBootstrap}s that are registered with this factory.
+   * <p>We maintains an array of clients (size determined by
+   * celeborn.$module.io.numConnectionsPerPeer) and randomly picks one to use. If no client was
+   * previously created in the randomly selected spot, this function creates a new client and places
+   * it there.
    *
    * <p>This blocks until a connection is successfully established and fully bootstrapped.
    *

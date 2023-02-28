@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.util;
+package org.apache.celeborn.common.util;
 
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,6 +33,8 @@ import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.network.util.ByteUnit;
 
 /**
  * General utilities available in the network package. Many of these are sourced from Spark's own
@@ -386,5 +389,33 @@ public class JavaUtils {
       }
     }
     return sb.toString();
+  }
+
+  /**
+   * Shuffle the elements of an array into a random order, modifying the original array. Returns the
+   * original array.
+   */
+  public static void randomizeInPlace(int[] arr) {
+    Random rand = new Random();
+    for (int i = arr.length - 1; i >= 1; i--) {
+      int j = rand.nextInt(i + 1);
+      int tmp = arr[j];
+      arr[j] = arr[i];
+      arr[i] = tmp;
+    }
+  }
+
+  public static void shuffleArray(int[] arr, int[] inversed) {
+    if (arr == null || inversed == null || arr.length != inversed.length) {
+      return;
+    } else {
+      for (int i = 0; i < arr.length; i++) {
+        arr[i] = i;
+      }
+      JavaUtils.randomizeInPlace(arr);
+      for (int i = 0; i < arr.length; i++) {
+        inversed[arr[i]] = i;
+      }
+    }
   }
 }

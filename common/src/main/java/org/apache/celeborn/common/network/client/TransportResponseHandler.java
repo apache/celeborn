@@ -269,10 +269,10 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               NettyUtils.getRemoteAddress(channel),
               resp.errorString);
         } else {
-          listener.onFailure(new RuntimeException(resp.errorString));
+          listener.onFailure(new IOException(resp.errorString));
         }
       } else {
-        info.callback.onFailure(new RuntimeException(resp.errorString));
+        info.callback.onFailure(new CelebornIOException(resp.errorString));
       }
     } else {
       throw new IllegalStateException("Unknown response type: " + message.type());

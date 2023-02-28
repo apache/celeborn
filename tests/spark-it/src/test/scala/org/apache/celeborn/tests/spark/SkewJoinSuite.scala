@@ -48,7 +48,7 @@ class SkewJoinSuite extends AnyFunSuite
   CompressionCodec.values.foreach { codec =>
     test(s"celeborn spark integration test - skew join - $codec") {
       val sparkConf = new SparkConf().setAppName("rss-demo")
-        .setMaster("local[4]")
+        .setMaster("local[2]")
         .set("spark.sql.adaptive.enabled", "true")
         .set("spark.sql.adaptive.skewJoin.enabled", "true")
         .set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "16MB")

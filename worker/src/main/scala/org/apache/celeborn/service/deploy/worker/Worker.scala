@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker
 
-import java.io.IOException
 import java.lang.{Long => JLong}
 import java.util.{HashMap => JHashMap, HashSet => JHashSet}
 import java.util.concurrent._
@@ -432,6 +431,7 @@ private[celeborn] class Worker(
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       partitionLocationInfo.removeMasterPartitions(shuffleKey)
       partitionLocationInfo.removeSlavePartitions(shuffleKey)
+      partitionLocationInfo.removeShuffle(shuffleKey)
       shufflePartitionType.remove(shuffleKey)
       shufflePushDataTimeout.remove(shuffleKey)
       shuffleMapperAttempts.remove(shuffleKey)

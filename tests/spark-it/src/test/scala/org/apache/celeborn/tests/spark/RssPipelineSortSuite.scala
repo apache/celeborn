@@ -24,14 +24,9 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 
-class RetryReviveTest extends AnyFunSuite
+class RssPipelineSortSuite extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
-
-  override def beforeAll(): Unit = {
-    logInfo("test initialized , setup celeborn mini cluster")
-    setUpMiniCluster(masterConfs = null)
-  }
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
@@ -41,13 +36,21 @@ class RetryReviveTest extends AnyFunSuite
     System.gc()
   }
 
-  test("celeborn spark integration test - retry revive as configured times") {
-    val sparkConf = new SparkConf()
-      .set("spark.celeborn.test.retryRevive", "true")
-      .setAppName("rss-demo").setMaster("local[2]")
-    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
-    ss.sparkContext.parallelize(1 to 1000, 2)
-      .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(16).collect()
+  test("celeborn spark integration test - pipeline sort") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+      .set("spark.celeborn.push.sort.pipeline.enabled", "true")
+      .set("spark.celeborn.push.sort.randomizePartitionId.enabled", "true")
+    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, true)).getOrCreate()
+    val value = Range(1, 10000).mkString(",")
+    val tuples = ss.sparkContext.parallelize(1 to 10000, 2)
+      .map { i => (i, value) }.groupByKey(16).collect()
+
+    // verify result
+    assert(tuples.length == 10000)
+    for (elem <- tuples) {
+      assert(elem._2.mkString(",").equals(value))
+    }
+
     ss.stop()
   }
 }

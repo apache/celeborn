@@ -45,8 +45,8 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
-import org.apache.celeborn.common.network.util.{JavaUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.network.util.TransportConf
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 
@@ -499,6 +499,9 @@ object Utils extends Logging {
     val numThreads = defaultNumThreads(numUsableCores)
     conf.setIfMissing(s"celeborn.$module.io.serverThreads", numThreads.toString)
     conf.setIfMissing(s"celeborn.$module.io.clientThreads", numThreads.toString)
+    if (TransportModuleConstants.PUSH_MODULE == module) {
+      conf.setIfMissing(s"celeborn.$module.io.numConnectionsPerPeer", numThreads.toString)
+    }
     // TODO remove after releasing 0.2.0
     conf.setIfMissing(s"rss.$module.io.serverThreads", numThreads.toString)
     conf.setIfMissing(s"rss.$module.io.clientThreads", numThreads.toString)
@@ -859,7 +862,7 @@ object Utils extends Logging {
       case 12 =>
         StatusCode.REVIVE_FAILED
       case 13 =>
-        StatusCode.PUSH_DATA_FAILED
+        StatusCode.REPLICATE_DATA_FAILED
       case 14 =>
         StatusCode.NUM_MAPPER_ZERO
       case 15 =>
@@ -869,9 +872,9 @@ object Utils extends Logging {
       case 17 =>
         StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE
       case 18 =>
-        StatusCode.PUSH_DATA_FAIL_SLAVE
+        StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
       case 19 =>
-        StatusCode.PUSH_DATA_FAIL_MASTER
+        StatusCode.PUSH_DATA_WRITE_FAIL_MASTER
       case 20 =>
         StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND
       case 21 =>
