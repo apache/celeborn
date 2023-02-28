@@ -52,8 +52,8 @@ public class ReadBufferDispatcher extends Thread {
       logger.warn("recycle encounter: {}", buf.refCnt());
     } else {
       buf.release(buf.refCnt());
-      memoryManager.changeReadBufferCounter(-1 * bufferSize);
     }
+    memoryManager.changeReadBufferCounter(-1 * bufferSize);
   }
 
   @Override

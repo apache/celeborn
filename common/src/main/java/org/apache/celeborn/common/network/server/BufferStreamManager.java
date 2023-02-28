@@ -30,11 +30,13 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.DelayQueue;
+import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -63,7 +65,7 @@ public class BufferStreamManager {
   protected int minReadBuffers;
   protected int maxReadBuffers;
   protected int threadsPerMountPoint;
-  private final LinkedBlockingQueue<Long> recycleStreamIds = new LinkedBlockingQueue<>();
+  private final BlockingQueue<DelayedStreamId> recycleStreamIds = new DelayQueue<>();
 
   @GuardedBy("lock")
   private volatile Thread recycleThread;
@@ -150,7 +152,7 @@ public class BufferStreamManager {
   }
 
   public void recycleStream(long streamId) {
-    recycleStreamIds.add(streamId);
+    recycleStreamIds.add(new DelayedStreamId(streamId));
     startRecycleThread(); // lazy start thread
   }
 
@@ -163,10 +165,8 @@ public class BufferStreamManager {
                   () -> {
                     while (true) {
                       try {
-                        Long streamIds = recycleStreamIds.poll(100, TimeUnit.MILLISECONDS);
-                        if (streamIds != null) {
-                          cleanResource(streamIds);
-                        }
+                        DelayedStreamId delayedStreamId = recycleStreamIds.take();
+                        cleanResource(delayedStreamId.streamId);
                       } catch (Throwable e) {
                         logger.warn(e.getMessage(), e);
                       }
@@ -196,9 +196,53 @@ public class BufferStreamManager {
             }
           }
         } else {
-          recycleStreamIds.add(streamId);
+          logger.debug("retry clean stream: {}", streamId);
+          recycleStreamIds.add(new DelayedStreamId(streamId));
         }
       }
+    }
+  }
+
+  public static class DelayedStreamId implements Delayed {
+    private static final long delayTime = 100; // 100ms
+    private long createMillis = System.currentTimeMillis();
+
+    private long streamId;
+
+    public DelayedStreamId(long streamId) {
+      this.createMillis = createMillis + delayTime;
+      this.streamId = streamId;
+    }
+
+    @Override
+    public long getDelay(TimeUnit unit) {
+      long diff = createMillis - System.currentTimeMillis();
+      return unit.convert(diff, TimeUnit.MILLISECONDS);
+    }
+
+    public long getCreateMillis() {
+      return createMillis;
+    }
+
+    @Override
+    public int compareTo(Delayed o) {
+      long otherCreateMillis = ((DelayedStreamId) o).getCreateMillis();
+      if (this.createMillis < otherCreateMillis) {
+        return -1;
+      } else if (this.createMillis > otherCreateMillis) {
+        return 1;
+      }
+
+      return 0;
+    }
+
+    @Override
+    public String toString() {
+      final StringBuilder sb = new StringBuilder("DelayedStreamId{");
+      sb.append("createMillis=").append(createMillis);
+      sb.append(", streamId=").append(streamId);
+      sb.append('}');
+      return sb.toString();
     }
   }
 
@@ -336,7 +380,7 @@ public class BufferStreamManager {
       DataPartitionReader dataPartitionReader = streamReaders.get(streamId);
       dataPartitionReader.release();
       if (dataPartitionReader.isFinished()) {
-        logger.debug("release all for stream: {}", streamId);
+        logger.info("release all for stream: {}", streamId);
         removeStream(streamId);
         streams.remove(streamId);
         servingStreams.remove(streamId);
@@ -347,7 +391,7 @@ public class BufferStreamManager {
     }
 
     public void close() {
-      logger.debug("release map data partition {}", fileInfo);
+      logger.info("release map data partition {}", fileInfo);
 
       IOUtils.closeQuietly(dataFileChanel);
       IOUtils.closeQuietly(indexChannel);

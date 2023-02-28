@@ -397,8 +397,12 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   }
 
   private void recycle() {
-    release();
-    recycleStream.run();
+    synchronized (lock) {
+      if (!isReleased) {
+        release();
+        recycleStream.run();
+      }
+    }
   }
 
   public void recycleOnError(Throwable throwable) {
