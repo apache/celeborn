@@ -23,8 +23,8 @@ import java.util.regex.PatternSyntaxException
 import scala.util.matching.Regex
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.network.util.{ByteUnit, JavaUtils}
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.network.util.ByteUnit
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
 private object ConfigHelpers {
 

@@ -40,8 +40,8 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
-import org.apache.celeborn.common.network.util.JavaUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class RpcIntegrationSuiteJ {
   static TransportConf conf;

@@ -315,8 +315,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             }
           }
           try {
-            val client =
-              pushClientFactory.createClient(peer.getHost, peer.getReplicatePort, location.getId)
+            val client = getClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushData = new PushData(
               PartitionLocation.Mode.SLAVE.mode(),
               shuffleKey,
@@ -569,10 +568,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           }
 
           try {
-            val client = pushClientFactory.createClient(
-              peer.getHost,
-              peer.getReplicatePort,
-              location.getId)
+            val client = getClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushMergedData = new PushMergedData(
               PartitionLocation.Mode.SLAVE.mode(),
               shuffleKey,
@@ -1077,6 +1073,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       partitionUniqueId: String): (Int, Int) = {
     val id = partitionUniqueId.split("-")(0).toInt
     (PackedPartitionId.getRawPartitionId(id), PackedPartitionId.getAttemptId(id))
+  }
+
+  private def getClient(host: String, port: Int, partitionId: Int): TransportClient = {
+    if (conf.workerReplicateRandomConnectionEnabled) {
+      pushClientFactory.createClient(host, port)
+    } else {
+      pushClientFactory.createClient(host, port, partitionId)
+    }
   }
 }
 

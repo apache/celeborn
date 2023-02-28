@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker
 
-import java.io.IOException
 import java.lang.{Long => JLong}
 import java.util.{HashMap => JHashMap, HashSet => JHashSet}
 import java.util.concurrent._

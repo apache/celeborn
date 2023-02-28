@@ -54,7 +54,7 @@ trait SparkTestBase extends AnyFunSuite
     sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
     sparkConf.set("spark.celeborn.master.endpoints", masterInfo._1.rpcEnv.address.toString)
     if (sort) {
-      sparkConf.set("spark.celeborn.shuffle.writer.mode", "sort")
+      sparkConf.set("spark.celeborn.shuffle.writer", "sort")
     }
     sparkConf
   }
