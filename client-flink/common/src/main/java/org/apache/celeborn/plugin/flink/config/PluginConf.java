@@ -45,10 +45,7 @@ public enum PluginConf {
     this.defaultValue = defaultValue;
   }
 
-  public static String colesce(
-      Configuration flinkConf, CelebornConf celebornConf, PluginConf confKey) {
-    String originValue = flinkConf.toMap().get(confKey.name);
-    String alterValue = celebornConf.get(confKey.alterName, confKey.defaultValue);
-    return originValue != null ? originValue : alterValue;
+  public static String getValue(Configuration flinkConf, PluginConf conf) {
+    return flinkConf.getString(conf.name, conf.defaultValue);
   }
 }

@@ -69,13 +69,13 @@ public class RemoteShuffleInputGateFactory {
     this.celebornConf = conf;
     long configuredMemorySize =
         org.apache.celeborn.common.util.Utils.byteStringAsBytes(
-            PluginConf.colesce(flinkConf, celebornConf, PluginConf.MEMORY_PER_INPUT_GATE));
+            PluginConf.getValue(flinkConf, PluginConf.MEMORY_PER_INPUT_GATE));
     if (configuredMemorySize < MIN_BUFFERS_PER_GATE) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per input gate, please increase %s to at " + "least %s.",
               PluginConf.MEMORY_PER_INPUT_GATE.name,
-              PluginConf.colesce(flinkConf, celebornConf, PluginConf.MIN_MEMORY_PER_GATE)));
+              PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_GATE)));
     }
 
     this.numBuffersPerGate = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
@@ -89,8 +89,7 @@ public class RemoteShuffleInputGateFactory {
 
     this.networkBufferSize = networkBufferSize;
     this.numConcurrentReading =
-        Integer.valueOf(
-            PluginConf.colesce(flinkConf, celebornConf, PluginConf.NUM_CONCURRENT_READINGS));
+        Integer.valueOf(PluginConf.getValue(flinkConf, PluginConf.NUM_CONCURRENT_READINGS));
     this.networkBufferPool = networkBufferPool;
   }
 

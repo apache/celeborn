@@ -21,32 +21,24 @@ import org.apache.flink.configuration.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
-import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.config.PluginConf;
 
 public class PluginConfSuiteJ {
   @Test
   public void testColesce() {
     Configuration flinkConf = new Configuration();
-    CelebornConf celebornConf = new CelebornConf();
-    Assert.assertEquals(
-        "8m", PluginConf.colesce(flinkConf, celebornConf, PluginConf.MIN_MEMORY_PER_PARTITION));
-    Assert.assertEquals(
-        "8m", PluginConf.colesce(flinkConf, celebornConf, PluginConf.MIN_MEMORY_PER_GATE));
+    Assert.assertEquals("8m", PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_PARTITION));
+    Assert.assertEquals("8m", PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_GATE));
     Assert.assertTrue(
         Integer.MAX_VALUE
-            == Integer.valueOf(
-                PluginConf.colesce(flinkConf, celebornConf, PluginConf.NUM_CONCURRENT_READINGS)));
+            == Integer.valueOf(PluginConf.getValue(flinkConf, PluginConf.NUM_CONCURRENT_READINGS)));
     Assert.assertEquals(
-        "64m", PluginConf.colesce(flinkConf, celebornConf, PluginConf.MEMORY_PER_RESULT_PARTITION));
-    Assert.assertEquals(
-        "32m", PluginConf.colesce(flinkConf, celebornConf, PluginConf.MEMORY_PER_INPUT_GATE));
+        "64m", PluginConf.getValue(flinkConf, PluginConf.MEMORY_PER_RESULT_PARTITION));
+    Assert.assertEquals("32m", PluginConf.getValue(flinkConf, PluginConf.MEMORY_PER_INPUT_GATE));
 
+    Assert.assertEquals("true", PluginConf.getValue(flinkConf, PluginConf.ENABLE_DATA_COMPRESSION));
     Assert.assertEquals(
-        "true", PluginConf.colesce(flinkConf, celebornConf, PluginConf.ENABLE_DATA_COMPRESSION));
-    Assert.assertEquals(
-        "LZ4",
-        PluginConf.colesce(flinkConf, celebornConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC));
+        "LZ4", PluginConf.getValue(flinkConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC));
 
     flinkConf.setString(PluginConf.MIN_MEMORY_PER_PARTITION.name, "16m");
     flinkConf.setString(PluginConf.MIN_MEMORY_PER_GATE.name, "17m");
@@ -55,52 +47,17 @@ public class PluginConfSuiteJ {
     flinkConf.setString(PluginConf.MEMORY_PER_INPUT_GATE.name, "176m");
     flinkConf.setString(PluginConf.ENABLE_DATA_COMPRESSION.name, "false");
     flinkConf.setString(PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC.name, "lz423");
-    Assert.assertEquals(
-        "16m", PluginConf.colesce(flinkConf, celebornConf, PluginConf.MIN_MEMORY_PER_PARTITION));
-    Assert.assertEquals(
-        "17m", PluginConf.colesce(flinkConf, celebornConf, PluginConf.MIN_MEMORY_PER_GATE));
+    Assert.assertEquals("16m", PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_PARTITION));
+    Assert.assertEquals("17m", PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_GATE));
     Assert.assertTrue(
         12323
-            == Integer.valueOf(
-                PluginConf.colesce(flinkConf, celebornConf, PluginConf.NUM_CONCURRENT_READINGS)));
+            == Integer.valueOf(PluginConf.getValue(flinkConf, PluginConf.NUM_CONCURRENT_READINGS)));
     Assert.assertEquals(
-        "1888m",
-        PluginConf.colesce(flinkConf, celebornConf, PluginConf.MEMORY_PER_RESULT_PARTITION));
+        "1888m", PluginConf.getValue(flinkConf, PluginConf.MEMORY_PER_RESULT_PARTITION));
+    Assert.assertEquals("176m", PluginConf.getValue(flinkConf, PluginConf.MEMORY_PER_INPUT_GATE));
     Assert.assertEquals(
-        "176m", PluginConf.colesce(flinkConf, celebornConf, PluginConf.MEMORY_PER_INPUT_GATE));
+        "false", PluginConf.getValue(flinkConf, PluginConf.ENABLE_DATA_COMPRESSION));
     Assert.assertEquals(
-        "false", PluginConf.colesce(flinkConf, celebornConf, PluginConf.ENABLE_DATA_COMPRESSION));
-    Assert.assertEquals(
-        "lz423",
-        PluginConf.colesce(flinkConf, celebornConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC));
-  }
-
-  @Test
-  public void testColesceCeleborn() {
-    Configuration flinkConf = new Configuration();
-    CelebornConf celebornConf = new CelebornConf();
-    celebornConf.set(PluginConf.MEMORY_PER_RESULT_PARTITION.alterName, "128m");
-    celebornConf.set(PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC.alterName, "ZSTD");
-    Assert.assertEquals(
-        "128m",
-        PluginConf.colesce(flinkConf, celebornConf, PluginConf.MEMORY_PER_RESULT_PARTITION));
-    Assert.assertEquals(
-        "ZSTD",
-        PluginConf.colesce(flinkConf, celebornConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC));
-  }
-
-  @Test
-  public void testColesceFlinkCeleborn() {
-    Configuration flinkConf = new Configuration();
-    flinkConf.setString(PluginConf.MEMORY_PER_RESULT_PARTITION.name, "78m");
-    flinkConf.setString(PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC.name, "ZSTD2");
-    CelebornConf celebornConf = new CelebornConf();
-    celebornConf.set(PluginConf.MEMORY_PER_RESULT_PARTITION.alterName, "128m");
-    celebornConf.set(PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC.alterName, "ZSTD");
-    Assert.assertEquals(
-        "78m", PluginConf.colesce(flinkConf, celebornConf, PluginConf.MEMORY_PER_RESULT_PARTITION));
-    Assert.assertEquals(
-        "ZSTD2",
-        PluginConf.colesce(flinkConf, celebornConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC));
+        "lz423", PluginConf.getValue(flinkConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC));
   }
 }
