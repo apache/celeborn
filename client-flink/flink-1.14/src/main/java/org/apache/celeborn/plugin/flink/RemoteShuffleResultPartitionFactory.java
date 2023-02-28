@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.CompressionCodec;
+import org.apache.celeborn.plugin.flink.config.PluginConf;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create {@link RemoteShuffleResultPartition}. */
@@ -62,18 +64,20 @@ public class RemoteShuffleResultPartitionFactory {
    */
   private final int numBuffersPerPartition;
 
-  private final String minMemorySize = "8m";
+  private String compressionCodec;
 
   public RemoteShuffleResultPartitionFactory(
+      Configuration flinkConf,
       CelebornConf celebornConf,
       ResultPartitionManager partitionManager,
       BufferPoolFactory bufferPoolFactory,
       int networkBufferSize) {
     long configuredMemorySize =
         org.apache.celeborn.common.util.Utils.byteStringAsBytes(
-            celebornConf.memoryPerResultPartition());
+            PluginConf.colesce(flinkConf, celebornConf, PluginConf.MEMORY_PER_RESULT_PARTITION));
     long minConfiguredMemorySize =
-        org.apache.celeborn.common.util.Utils.byteStringAsBytes(minMemorySize);
+        org.apache.celeborn.common.util.Utils.byteStringAsBytes(
+            PluginConf.colesce(flinkConf, celebornConf, PluginConf.MIN_MEMORY_PER_PARTITION));
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
@@ -95,6 +99,12 @@ public class RemoteShuffleResultPartitionFactory {
     this.partitionManager = partitionManager;
     this.bufferPoolFactory = bufferPoolFactory;
     this.networkBufferSize = networkBufferSize;
+    if (PluginConf.colesce(flinkConf, celebornConf, PluginConf.ENABLE_DATA_COMPRESSION)
+        .equals("false")) {
+      throw new RuntimeException("remote-shuffle.job.enable-data-compression must be true");
+    }
+    this.compressionCodec =
+        PluginConf.colesce(flinkConf, celebornConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC);
   }
 
   public ResultPartition create(
@@ -134,9 +144,8 @@ public class RemoteShuffleResultPartitionFactory {
       int numMappers) {
 
     // in flink1.14/1.15, just support LZ4
-    if (celebornConf.shuffleCompressionCodec() != CompressionCodec.LZ4) {
-      throw new IllegalStateException(
-          "Unknown CompressionMethod " + celebornConf.shuffleCompressionCodec());
+    if (!compressionCodec.equals(CompressionCodec.LZ4)) {
+      throw new IllegalStateException("Unknown CompressionMethod " + compressionCodec);
     }
     final BufferCompressor bufferCompressor =
         new BufferCompressor(networkBufferSize, celebornConf.shuffleCompressionCodec().name());
