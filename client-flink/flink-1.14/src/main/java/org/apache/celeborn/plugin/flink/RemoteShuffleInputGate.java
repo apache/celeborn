@@ -124,14 +124,11 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   /** Number of pending {@link EndOfData} events to be received. */
   private long pendingEndOfDataEvents;
   /** Max concurrent reader count */
-  private int numConcurrentReading = Integer.MAX_VALUE;
-  /** Keep compatibility with streaming mode. */
-  private boolean shouldDrainOnEndOfData = true;
-
+  private final int numConcurrentReading = Integer.MAX_VALUE;
   /** Data decompressor. */
   private final BufferDecompressor bufferDecompressor;
 
-  private FlinkShuffleClientImpl shuffleClient;
+  private final FlinkShuffleClientImpl shuffleClient;
 
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
@@ -349,11 +346,6 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   @Override
   public List<InputChannelInfo> getChannelInfos() {
     return channelsInfo;
-  }
-
-  /** Each one corresponds to a reading channel. */
-  public List<RemoteBufferStreamReader> getBufferReaders() {
-    return bufferReaders;
   }
 
   private List<InputChannelInfo> createChannelInfos() {

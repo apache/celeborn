@@ -81,6 +81,10 @@ public class MessageDecoderExt {
         backlog = in.readInt();
         return new BacklogAnnouncement(streamId, backlog);
 
+      case END_OF_STREAM:
+        streamId = in.readLong();
+        return new EndOfStream(streamId);
+
       default:
         throw new IllegalArgumentException("Unexpected message type: " + type);
     }

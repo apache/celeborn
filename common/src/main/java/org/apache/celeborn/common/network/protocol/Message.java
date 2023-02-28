@@ -92,7 +92,8 @@ public abstract class Message implements Encodable {
     READ_ADD_CREDIT(16),
     READ_DATA(17),
     OPEN_STREAM_WITH_CREDIT(18),
-    BACKLOG_ANNOUNCEMENT(19);
+    BACKLOG_ANNOUNCEMENT(19),
+    END_OF_STREAM(20);
     private final byte id;
 
     Type(int id) {
@@ -158,6 +159,8 @@ public abstract class Message implements Encodable {
           return OPEN_STREAM_WITH_CREDIT;
         case 19:
           return BACKLOG_ANNOUNCEMENT;
+        case 20:
+          return END_OF_STREAM;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:
@@ -222,6 +225,9 @@ public abstract class Message implements Encodable {
 
       case BACKLOG_ANNOUNCEMENT:
         return BacklogAnnouncement.decode(in);
+
+      case END_OF_STREAM:
+        return EndOfStream.decode(in);
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);

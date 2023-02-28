@@ -30,10 +30,10 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class ReadClientHandler extends BaseMessageHandler {
-  private static Logger logger = LoggerFactory.getLogger(ReadClientHandler.class);
-  private ConcurrentHashMap<Long, Consumer<RequestMessage>> streamHandlers =
+  private static final Logger logger = LoggerFactory.getLogger(ReadClientHandler.class);
+  private final ConcurrentHashMap<Long, Consumer<RequestMessage>> streamHandlers =
       new ConcurrentHashMap<>();
-  private ConcurrentHashMap<Long, TransportClient> streamClients = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<Long, TransportClient> streamClients = new ConcurrentHashMap<>();
 
   public void registerHandler(
       long streamId, Consumer<RequestMessage> handle, TransportClient client) {
@@ -75,6 +75,8 @@ public class ReadClientHandler extends BaseMessageHandler {
           logger.warn("Unexpected streamId received: {}", streamId);
         }
         break;
+      case END_OF_STREAM:
+        streamHandlers.get(streamId).accept(msg);
       case ONE_WAY_MESSAGE:
         // ignore it.
         break;

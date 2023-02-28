@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.protocol.EndOfStream;
 import org.apache.celeborn.common.network.protocol.ReadAddCredit;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
@@ -33,20 +34,20 @@ import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.readclient.RssBufferStream;
 
 public class RemoteBufferStreamReader extends CreditListener {
-  private static Logger logger = LoggerFactory.getLogger(RemoteBufferStreamReader.class);
-  private TransferBufferPool bufferPool;
-  private FlinkShuffleClientImpl client;
-  private String applicationId;
-  private int shuffleId;
-  private int partitionId;
-  private int subPartitionIndexStart;
-  private int subPartitionIndexEnd;
+  private static final Logger logger = LoggerFactory.getLogger(RemoteBufferStreamReader.class);
+  private final TransferBufferPool bufferPool;
+  private final FlinkShuffleClientImpl client;
+  private final String applicationId;
+  private final int shuffleId;
+  private final int partitionId;
+  private final int subPartitionIndexStart;
+  private final int subPartitionIndexEnd;
   private boolean isOpen;
-  private Consumer<ByteBuf> dataListener;
-  private Consumer<Throwable> failureListener;
+  private final Consumer<ByteBuf> dataListener;
   private RssBufferStream bufferStream;
   private volatile boolean closed = false;
-  private Consumer<RequestMessage> messageConsumer;
+  private final Consumer<RequestMessage> messageConsumer;
+  private final Consumer<Throwable> failureListener;
 
   public RemoteBufferStreamReader(
       FlinkShuffleClientImpl client,
@@ -72,6 +73,8 @@ public class RemoteBufferStreamReader extends CreditListener {
             dataReceived((ReadData) requestMessage);
           } else if (requestMessage instanceof BacklogAnnouncement) {
             backlogReceived(((BacklogAnnouncement) requestMessage).getBacklog());
+          } else if (requestMessage instanceof EndOfStream) {
+            endOfStreamReceived(((EndOfStream) requestMessage));
           }
         };
   }
@@ -81,8 +84,13 @@ public class RemoteBufferStreamReader extends CreditListener {
       this.bufferStream =
           client.readBufferedPartition(
               applicationId, shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
-      bufferStream.open(
-          RemoteBufferStreamReader.this::requestBuffer, initialCredit, client, messageConsumer);
+      bufferStream.initByReader(
+          RemoteBufferStreamReader.this::requestBuffer,
+          initialCredit,
+          client,
+          messageConsumer,
+          failureListener);
+      bufferStream.open();
     } catch (InterruptedException e) {
       throw new RuntimeException("Failed to openStream.", e);
     }
@@ -135,5 +143,10 @@ public class RemoteBufferStreamReader extends CreditListener {
       return;
     }
     dataListener.accept(readData.getFlinkBuffer());
+  }
+
+  public void endOfStreamReceived(EndOfStream endOfStream) {
+    bufferStream.endStream(endOfStream.getStreamId());
+    client.getReadClientHandler().removeHandler(endOfStream.getStreamId());
   }
 }

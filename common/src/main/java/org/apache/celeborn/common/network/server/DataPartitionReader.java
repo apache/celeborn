@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.protocol.EndOfStream;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.server.memory.Recycler;
 import org.apache.celeborn.common.network.server.memory.WrappedDataBuffer;
@@ -51,12 +52,12 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   private int currentDataRegion = -1;
   private long dataConsumingOffset;
   private volatile long currentPartitionRemainingBytes;
-  private FileInfo fileInfo;
-  private int INDEX_ENTRY_SIZE = 16;
-  private long streamId;
+  private final FileInfo fileInfo;
+  private final int INDEX_ENTRY_SIZE = 16;
+  private final long streamId;
   protected final Object lock = new Object();
 
-  private AtomicInteger credits = new AtomicInteger();
+  private final AtomicInteger credits = new AtomicInteger();
 
   @GuardedBy("lock")
   protected final Queue<WrappedDataBuffer> buffersRead = new ArrayDeque<>();
@@ -80,11 +81,11 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   private FileChannel dataFileChannel;
   private FileChannel indexFileChannel;
 
-  private Channel associatedChannel;
+  private final Channel associatedChannel;
 
-  private Runnable recycleStream;
+  private final Runnable recycleStream;
 
-  private AtomicInteger numInFlightRequests = new AtomicInteger(0);
+  private final AtomicInteger numInFlightRequests = new AtomicInteger(0);
 
   public DataPartitionReader(
       int startPartitionIndex,
@@ -121,11 +122,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   public boolean sendWithCredit(int credit) {
     int oldCredit = credits.getAndAdd(credit);
-    if (oldCredit == 0) {
-      return true;
-    }
-
-    return false;
+    return oldCredit == 0;
   }
 
   public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
@@ -438,11 +435,17 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   @Override
   public String toString() {
-    final StringBuilder sb = new StringBuilder("DataPartitionReader{");
-    sb.append("startPartitionIndex=").append(startPartitionIndex);
-    sb.append(", endPartitionIndex=").append(endPartitionIndex);
-    sb.append(", streamId=").append(streamId);
-    sb.append('}');
-    return sb.toString();
+    return "DataPartitionReader{"
+        + "startPartitionIndex="
+        + startPartitionIndex
+        + ", endPartitionIndex="
+        + endPartitionIndex
+        + ", streamId="
+        + streamId
+        + '}';
+  }
+
+  public void notifyEndOfStream(long streamId) {
+    this.associatedChannel.writeAndFlush(new EndOfStream(streamId));
   }
 }

@@ -37,8 +37,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public static final Logger logger = LoggerFactory.getLogger(FlinkShuffleClientImpl.class);
   private static volatile FlinkShuffleClientImpl _instance;
   private static volatile boolean initialized = false;
-  private FlinkTransportClientFactory flinkTransportClientFactory;
-  private ReadClientHandler readClientHandler = new ReadClientHandler();
+  private final FlinkTransportClientFactory flinkTransportClientFactory;
+  private final ReadClientHandler readClientHandler = new ReadClientHandler();
 
   public static FlinkShuffleClientImpl get(
       String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
@@ -98,7 +98,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       return RssBufferStream.empty();
     } else {
       return RssBufferStream.create(
-          conf,
           flinkTransportClientFactory,
           shuffleKey,
           fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]),

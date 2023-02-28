@@ -384,6 +384,7 @@ public class BufferStreamManager {
         removeStream(streamId);
         streams.remove(streamId);
         servingStreams.remove(streamId);
+        dataPartitionReader.notifyEndOfStream(streamId);
         return true;
       }
 

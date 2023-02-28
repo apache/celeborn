@@ -26,7 +26,6 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.*;
@@ -35,27 +34,29 @@ import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 
 public class RssBufferStream {
 
-  private static Logger logger = LoggerFactory.getLogger(RssBufferStream.class);
-  private CelebornConf conf;
+  private static final Logger logger = LoggerFactory.getLogger(RssBufferStream.class);
   private FlinkTransportClientFactory clientFactory;
   private String shuffleKey;
   private PartitionLocation[] locations;
   private int subIndexStart;
   private int subIndexEnd;
   private TransportClient client;
-  private int currentLocationIndex = 0;
-  private long streamId = 0;
+  private volatile int currentLocationIndex = 0;
+  private volatile long streamId = 0;
+  private Supplier<ByteBuf> supplier;
+  private int initialCredit;
+  private FlinkShuffleClientImpl mapShuffleClient;
+  private Consumer<RequestMessage> messageConsumer;
+  private Consumer<Throwable> failureListener;
 
   public RssBufferStream() {}
 
   public RssBufferStream(
-      CelebornConf conf,
       FlinkTransportClientFactory dataClientFactory,
       String shuffleKey,
       PartitionLocation[] locations,
       int subIndexStart,
       int subIndexEnd) {
-    this.conf = conf;
     this.clientFactory = dataClientFactory;
     this.shuffleKey = shuffleKey;
     this.locations = locations;
@@ -63,12 +64,20 @@ public class RssBufferStream {
     this.subIndexEnd = subIndexEnd;
   }
 
-  public void open(
+  public void initByReader(
       Supplier<ByteBuf> supplier,
       int initialCredit,
       FlinkShuffleClientImpl mapShuffleClient,
-      Consumer<RequestMessage> messageConsumer)
-      throws IOException, InterruptedException {
+      Consumer<RequestMessage> messageConsumer,
+      Consumer<Throwable> failureListener) {
+    this.supplier = supplier;
+    this.initialCredit = initialCredit;
+    this.mapShuffleClient = mapShuffleClient;
+    this.messageConsumer = messageConsumer;
+    this.failureListener = failureListener;
+  }
+
+  public void open() throws IOException, InterruptedException {
     this.client =
         clientFactory.createClient(
             locations[currentLocationIndex].getHost(),
@@ -105,9 +114,8 @@ public class RssBufferStream {
         .writeAndFlush(addCredit)
         .addListener(
             future -> {
-              if (future.isSuccess()) {
+              if (!future.isSuccess()) {
                 // Send ReadAddCredit do not expect response.
-              } else {
                 logger.warn(
                     "Send ReadAddCredit to {} failed, detail {}",
                     this.client.getSocketAddress().toString(),
@@ -125,7 +133,6 @@ public class RssBufferStream {
   }
 
   public static RssBufferStream create(
-      CelebornConf conf,
       FlinkTransportClientFactory dataClientFactory,
       String shuffleKey,
       PartitionLocation[] locations,
@@ -135,7 +142,7 @@ public class RssBufferStream {
       return empty();
     } else {
       return new RssBufferStream(
-          conf, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
+          dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
     }
   }
 
@@ -146,6 +153,37 @@ public class RssBufferStream {
   }
 
   public void close() {
-    clientFactory.unregisterSupplier(this.getStreamId());
+    freeSupplier(streamId);
+  }
+
+  private void freeSupplier(long streamId) {
+    clientFactory.unregisterSupplier(streamId);
+  }
+
+  public void endStream(long streamId) {
+    if (this.streamId != streamId) {
+      logger.error("Unexpected end of stream with {}", streamId);
+      return;
+    }
+
+    if (currentLocationIndex >= locations.length) {
+      return;
+    }
+
+    currentLocationIndex++;
+    freeSupplier(streamId);
+    // release netty thread
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                this.open();
+              } catch (Exception e) {
+                this.failureListener.accept(
+                    new IOException(
+                        "Read location " + locations[currentLocationIndex] + " failed.", e));
+              }
+            });
+    thread.start();
   }
 }
