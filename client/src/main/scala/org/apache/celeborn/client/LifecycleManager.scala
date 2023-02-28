@@ -533,11 +533,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     if (oldPartition != null) {
       cause match {
-        case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
-        case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
+        case StatusCode.PUSH_DATA_FAIL_MASTER =>
+          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_FAIL_MASTER)
+        case StatusCode.PUSH_DATA_FAIL_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
+          blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
           blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
