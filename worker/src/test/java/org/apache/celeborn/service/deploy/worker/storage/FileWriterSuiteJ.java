@@ -126,6 +126,11 @@ public class FileWriterSuiteJ {
     FetchHandler handler =
         new FetchHandler(transConf) {
           @Override
+          public StorageManager storageManager() {
+            return new StorageManager(CONF, source);
+          }
+
+          @Override
           public FileInfo getRawFileInfo(String shuffleKey, String fileName) {
             return info;
           }
