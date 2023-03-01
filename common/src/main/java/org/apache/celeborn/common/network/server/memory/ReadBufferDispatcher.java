@@ -71,7 +71,7 @@ public class ReadBufferDispatcher extends Thread {
         int bufferSize = request.getBufferSize();
         while (buffers.size() < request.getMin()) {
           if (memoryManager.readBufferAvailable(bufferSize)) {
-            memoryManager.incrementDiskBuffer(bufferSize);
+            memoryManager.changeReadBufferCounter(bufferSize);
             ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
             buffers.add(buf);
           } else {
