@@ -155,7 +155,7 @@ object DeviceInfo {
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
     val dfResult = runCommand("df -ah").trim
-    logger.info(s"df result $dfResult")
+    logger.info(s"df result\n$dfResult")
     // (/dev/vdb, /mnt/disk1)
     val fsMounts = dfResult
       .split("[\n\r]")
@@ -167,7 +167,7 @@ object DeviceInfo {
 
     // (vda, vdb)
     val lsBlockResult = runCommand("ls /sys/block/").trim
-    logger.info(s"ls block $lsBlockResult")
+    logger.info(s"ls block\n$lsBlockResult")
     val blocks = lsBlockResult.split("[ \n\r\t]+")
 
     fsMounts.foreach { case (fileSystem, mountPoint) =>
