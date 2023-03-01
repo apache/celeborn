@@ -40,7 +40,6 @@ function runJavaClass {
 }
 
 function main {
-  BIN=$(cd "$( dirname "$( readlink "$0" || echo "$0" )" )" || exit; pwd)
 
   if [[ $# == 0 ]]; then
     printUsage
@@ -50,7 +49,7 @@ function main {
   COMMAND=$1
   shift
 
-  . "${BIN}"/../sbin/celeborn-ratis-shell-config.sh
+  . "${CELEBORN_HOME}"/sbin/celeborn-ratis-shell-config.sh
 
   PARAMETER=""
 

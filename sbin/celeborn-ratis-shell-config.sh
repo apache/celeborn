@@ -26,18 +26,14 @@ script=$(basename "${this}")
 config_bin=$(cd "${config_bin}"; pwd)
 this="${config_bin}/${script}"
 
-if [[ -e "${CELEBORN_CONF_DIR}/celeborn-ratis-shell-env.sh" ]]; then
-  . "${CELEBORN_CONF_DIR}/celeborn-ratis-shell-env.sh"
-fi
-
-# Check if java is found
-if [[ -z "${JAVA}" ]]; then
-  if [[ -n "${JAVA_HOME}" ]] && [[ -x "${JAVA_HOME}/bin/java" ]];  then
-    JAVA="${JAVA_HOME}/bin/java"
-  elif [[ -n "$(which java 2>/dev/null)" ]]; then
-    JAVA=$(which java)
+# Find the java binary
+if [ -n "${JAVA_HOME}" ]; then
+  JAVA="${JAVA_HOME}/bin/java"
+else
+  if [ "$(command -v java)" ]; then
+    JAVA="java"
   else
-    echo "Error: Cannot find 'java' on path or under \$JAVA_HOME/bin/. Please set JAVA_HOME in ratis-shell-env.sh or user bash profile."
+    echo "JAVA_HOME is not set" >&2
     exit 1
   fi
 fi
@@ -47,7 +43,7 @@ JAVA_VERSION=$(${JAVA} -version 2>&1 | awk -F '"' '/version/ {print $2}')
 JAVA_MAJORMINOR=$(echo "${JAVA_VERSION}" | awk -F. '{printf("%03d%03d",$1,$2);}')
 JAVA_MAJOR=$(echo "${JAVA_VERSION}" | awk -F. '{printf("%03d",$1);}')
 if [[ ${JAVA_MAJORMINOR} != 001008 && ${JAVA_MAJOR} != 011 ]]; then
-  echo "Error: ratis-shell requires Java 8 or Java 11, currently Java $JAVA_VERSION found."
+  echo "Error: celeborn-ratis-shell requires Java 8 or Java 11, currently Java $JAVA_VERSION found."
   exit 1
 fi
 
