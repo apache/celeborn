@@ -54,7 +54,7 @@ class MapPartitionCommitHandler(
   extends CommitHandler(appId, conf, allocatedWorkers, committedPartitionInfo)
   with Logging {
 
-  private val shuffleSuccessPartitionIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
+  private val shuffleSucceedPartitionIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
 
   // shuffleId -> in processing partitionId set
   private val inProcessMapPartitionEndIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
@@ -123,6 +123,7 @@ class MapPartitionCommitHandler(
 
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
     inProcessMapPartitionEndIds.remove(shuffleId)
+    shuffleSucceedPartitionIds.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 
@@ -218,7 +219,7 @@ class MapPartitionCommitHandler(
     inProcessingPartitionIds.remove(partitionId)
     if (dataCommitSuccess) {
       val resultPartitions =
-        shuffleSuccessPartitionIds.computeIfAbsent(
+        shuffleSucceedPartitionIds.computeIfAbsent(
           shuffleId,
           (k: Int) => ConcurrentHashMap.newKeySet[Integer]())
       resultPartitions.add(partitionId)
@@ -228,10 +229,15 @@ class MapPartitionCommitHandler(
   }
 
   override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    // we need obtain the last succeed partitionIds
+    val lastSucceedPartitionIds =
+      shuffleSucceedPartitionIds.getOrDefault(shuffleId, new util.HashSet[Integer]())
+    val succeedPartitionIds = new util.HashSet[Integer](lastSucceedPartitionIds)
+
     context.reply(GetReducerFileGroupResponse(
       StatusCode.SUCCESS,
       reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
       getMapperAttempts(shuffleId),
-      shuffleSuccessPartitionIds.get(shuffleId)))
+      succeedPartitionIds))
   }
 }

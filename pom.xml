@@ -257,6 +257,11 @@
         <version>${ratis.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.apache.ratis</groupId>
+        <artifactId>ratis-shell</artifactId>
+        <version>${ratis.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.scala-lang</groupId>
         <artifactId>scala-library</artifactId>
         <version>${scala.version}</version>
