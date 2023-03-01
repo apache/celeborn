@@ -17,22 +17,24 @@
 
 package org.apache.celeborn.common.meta
 
+import java.util
+import java.util.{Map => jMap}
+import java.util.concurrent.{ConcurrentHashMap, Future, ThreadLocalRandom}
+import java.util.concurrent.atomic.AtomicInteger
+
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration._
+import scala.reflect.ClassTag
+
+import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
 import org.apache.celeborn.common.rpc._
+import org.apache.celeborn.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
 import org.apache.celeborn.common.util.ThreadUtils
-import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
-
-import java.util
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{ConcurrentHashMap, Future, ThreadLocalRandom}
-import java.util.{Map => jMap}
-import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration._
-import scala.reflect.ClassTag
 
 class TimeWindowSuite extends CelebornFunSuite {
 
