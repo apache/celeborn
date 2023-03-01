@@ -20,10 +20,14 @@ package org.apache.celeborn.common.meta
 import java.util.concurrent.atomic.LongAdder
 
 class TimeWindow(windowSize: Int, minWindowCount: Int) {
-  protected val totalCount = new LongAdder
-  protected val totalTime = new LongAdder
-  protected val timeWindow = new Array[(Long, Long)](windowSize)
-  protected var index = 0
+  val totalCount = new LongAdder
+  val totalTime = new LongAdder
+  val timeWindow = new Array[(Long, Long)](windowSize)
+  var index = 0
+
+  for (i <- 0 until windowSize) {
+    timeWindow(i) = (0L, 0L)
+  }
 
   def update(delta: Long): Unit = {
     totalTime.add(delta)
