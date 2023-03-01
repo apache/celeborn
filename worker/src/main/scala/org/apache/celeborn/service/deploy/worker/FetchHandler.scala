@@ -127,7 +127,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           } else {
             val buffers = new FileManagedBuffers(fileInfo, conf)
-            val fetchTimeMetrics = storageManager.getDiskInfo(fileInfo.getFile).fetchTimeMetrics
+            val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
             val streamId = chunkStreamManager.registerStream(
               shuffleKey,
               buffers,

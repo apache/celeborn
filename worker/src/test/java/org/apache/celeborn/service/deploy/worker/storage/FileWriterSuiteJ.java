@@ -336,7 +336,7 @@ public class FileWriterSuiteJ {
 
   @Test
   public void testWriteAndChunkRead() throws Exception {
-    final int threadsNum = 8;
+    final int threadsNum = 16;
     File file = getTemporaryFile();
     FileInfo fileInfo = new FileInfo(file, userIdentifier);
     FileWriter fileWriter =

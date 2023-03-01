@@ -39,7 +39,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.server.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
@@ -395,8 +395,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  def getDiskInfo(file: File): DiskInfo = {
-    diskInfos.get(DeviceInfo.getMountPoint(file.getAbsolutePath, diskInfos))
+  def getFetchTimeMetric(file: File): TimeWindow = {
+    if (diskInfos != null) {
+      val diskInfo = diskInfos.get(DeviceInfo.getMountPoint(file.getAbsolutePath, diskInfos))
+      if (diskInfo != null) {
+        diskInfo.fetchTimeMetrics
+      } else null
+    } else null
   }
 
   def shuffleKeySet(): util.HashSet[String] = {
