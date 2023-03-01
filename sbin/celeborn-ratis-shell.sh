@@ -75,8 +75,4 @@ fi
 
 . "${CELEBORN_HOME}/sbin/celeborn-config.sh"
 
-if [ "$CELEBORN_MASTER_MEMORY" = "" ]; then
-  CELEBORN_MASTER_MEMORY="1g"
-fi
-
 main "$@"
