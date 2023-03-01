@@ -54,11 +54,12 @@ class DiskInfo(
       mountPoint: String,
       dirs: List[File],
       deviceInfo: DeviceInfo,
-      windowSize: Int,
-      minWindowCount: Int) = {
+      conf: CelebornConf) = {
     this(mountPoint, 0, 0, 0, 0, dirs, deviceInfo)
-    flushTimeMetrics = new TimeWindow(windowSize, minWindowCount)
-    fetchTimeMetrics = new TimeWindow(windowSize, minWindowCount)
+    flushTimeMetrics =
+      new TimeWindow(conf.diskTimeSlidingWindowSize, conf.diskTimeSlidingWindowMinFlushCount)
+    fetchTimeMetrics =
+      new TimeWindow(conf.diskTimeSlidingWindowSize, conf.diskTimeSlidingWindowMinFetchCount)
   }
 
   var flushTimeMetrics: TimeWindow = _
@@ -234,8 +235,7 @@ object DeviceInfo {
           mountPoint,
           dirs.map(_._1).toList,
           deviceInfo,
-          conf.diskTimeSlidingWindowSize,
-          conf.diskTimeSlidingWindowMinCount)
+          conf)
         val (_, maxUsableSpace, threadCount, storageType) = dirs(0)
         diskInfo.configuredUsableSpace = maxUsableSpace
         diskInfo.threadCount = threadCount

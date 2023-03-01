@@ -730,8 +730,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def ssdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
   def hdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
   def diskTimeSlidingWindowSize: Int = get(WORKER_DISK_TIME_SLIDINGWINDOW_SIZE)
-  def diskTimeSlidingWindowMinCount: Int =
-    get(WORKER_DISKTIME_SLIDINGWINDOW_MINCOUNT)
+  def diskTimeSlidingWindowMinFlushCount: Int =
+    get(WORKER_DISKTIME_SLIDINGWINDOW_MINFLUSHCOUNT)
+  def diskTimeSlidingWindowMinFetchCount: Int =
+    get(WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT)
   def diskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
   def diskMonitorEnabled: Boolean = get(WORKER_DISK_MONITOR_ENABLED)
   def diskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
@@ -2038,8 +2040,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(20)
 
-  val WORKER_DISKTIME_SLIDINGWINDOW_MINCOUNT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.diskTime.slidingWindow.minCount")
+  val WORKER_DISKTIME_SLIDINGWINDOW_MINFLUSHCOUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.diskTime.slidingWindow.minFlushCount")
       .withAlternative("celeborn.worker.flusher.avgFlushTime.slidingWindow.minCount")
       .withAlternative("rss.flusher.avg.time.minimum.count")
       .categories("worker")
@@ -2048,7 +2050,17 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .internal
       .intConf
-      .createWithDefault(1000)
+      .createWithDefault(500)
+
+  val WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.diskTime.slidingWindow.minFetchCount")
+      .categories("worker")
+      .doc("The minimum fetch count to enter a sliding window" +
+        " to calculate statistics about flushed time and count.")
+      .version("0.2.0")
+      .internal
+      .intConf
+      .createWithDefault(100)
 
   val SLOTS_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =
     buildConf("celeborn.slots.assign.loadAware.numDiskGroups")
