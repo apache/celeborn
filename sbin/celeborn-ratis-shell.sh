@@ -36,7 +36,6 @@ function runJavaClass {
               CLASS_ARGS+=("${arg}")
       esac
   done
-  echo "${JAVA}" -cp "${CLASSPATH}" ${CELEBORN_RATIS_SHELL_JAVA_OPTS} "${CLASS}" ${PARAMETER} "${CLASS_ARGS[@]}"
   "${JAVA}" -cp "${CLASSPATH}" ${CELEBORN_RATIS_SHELL_JAVA_OPTS} "${CLASS}" ${PARAMETER} "${CLASS_ARGS[@]}"
 }
 
@@ -69,6 +68,7 @@ function main {
   esac
 }
 
+# Load Celeborn related env
 if [ -z "${CELEBORN_HOME}" ]; then
   export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi

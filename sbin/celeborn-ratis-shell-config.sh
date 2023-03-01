@@ -51,18 +51,18 @@ if [[ ${JAVA_MAJORMINOR} != 001008 && ${JAVA_MAJOR} != 011 ]]; then
   exit 1
 fi
 
-local RATIS_SHELL_CLASSPATH
+local CELEBORN_RATIS_SHELL_CLASSPATH
 
 # load master jars since all ratis related in master
 while read -d '' -r jarfile ; do
-    if [[ "$RATIS_SHELL_CLASSPATH" == "" ]]; then
-        RATIS_SHELL_CLASSPATH="$jarfile";
+    if [[ "$CELEBORN_RATIS_SHELL_CLASSPATH" == "" ]]; then
+        CELEBORN_RATIS_SHELL_CLASSPATH="$jarfile";
     else
-        RATIS_SHELL_CLASSPATH="$RATIS_SHELL_CLASSPATH":"$jarfile"
+        CELEBORN_RATIS_SHELL_CLASSPATH="$CELEBORN_RATIS_SHELL_CLASSPATH":"$jarfile"
     fi
 done < <(find "$CELEBORN_HOME/master-jars" ! -type d -name '*.jar' -print0 | sort -z)
 
-CELEBORN_RATIS_SHELL_CLIENT_CLASSPATH="${CELEBORN_CONF_DIR}/:${RATIS_SHELL_CLASSPATH}"
+CELEBORN_RATIS_SHELL_CLIENT_CLASSPATH="${CELEBORN_CONF_DIR}/:${CELEBORN_RATIS_SHELL_CLASSPATH}"
 
 if [[ -n "${CELEBORN_HOME}" ]]; then
   CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dratis.shell.home=${CELEBORN_HOME}"
