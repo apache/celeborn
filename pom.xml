@@ -32,7 +32,7 @@
 
   <modules>
     <module>common</module>
-    <module>common-shade</module>
+    <module>common-shaded</module>
     <module>client</module>
     <module>service</module>
     <module>master</module>
