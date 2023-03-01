@@ -68,8 +68,8 @@ abstract private[worker] class Flusher(
                   val flushBeginTime = System.nanoTime()
                   lastBeginFlushTime.set(index, flushBeginTime)
                   task.flush()
-                  val delta = System.nanoTime() - flushBeginTime
                   if (flushTimeMetric != null) {
+                    val delta = System.nanoTime() - flushBeginTime
                     flushTimeMetric.update(delta)
                   }
                 } catch {

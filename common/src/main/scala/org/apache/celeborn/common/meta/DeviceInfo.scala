@@ -80,14 +80,12 @@ class DiskInfo(
     this
   }
 
-  def setFlushTime(avgFlushTime: Long): this.type = this.synchronized {
-    this.avgFlushTime = avgFlushTime
-    this
+  def updateFlushTime(): Unit = {
+    avgFlushTime = flushTimeMetrics.getAverage()
   }
 
-  def setFetchTime(avgFetchTime: Long): this.type = this.synchronized {
-    this.avgFetchTime = avgFetchTime
-    this
+  def updateFetchTime(): Unit = {
+    avgFetchTime = fetchTimeMetrics.getAverage()
   }
 
   def availableSlots(): Long = this.synchronized {

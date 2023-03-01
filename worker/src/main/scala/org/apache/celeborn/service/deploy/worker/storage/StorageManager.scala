@@ -680,11 +680,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val workingDirUsableSpace =
         Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
       logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage")
-      val flushTimeAverage = diskInfo.flushTimeMetrics.getAverage()
-      val fetchTimeAverage = diskInfo.fetchTimeMetrics.getAverage()
       diskInfo.setUsableSpace(workingDirUsableSpace)
-      diskInfo.setFlushTime(flushTimeAverage)
-      diskInfo.setFetchTime(fetchTimeAverage)
+      diskInfo.updateFlushTime()
+      diskInfo.updateFetchTime()
     }
     logInfo(s"Updated diskInfos: ${disksSnapshot()}")
   }
