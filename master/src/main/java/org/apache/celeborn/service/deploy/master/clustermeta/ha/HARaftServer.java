@@ -115,7 +115,9 @@ public class HARaftServer {
     this.raftPeerId = localRaftPeerId;
     this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
-    RaftProperties serverProperties = newRaftProperties(conf);
+    // Set role checker time
+    this.roleCheckIntervalMs = conf.haMasterRatisRoleCheckInterval();
+    RaftProperties serverProperties = newRaftProperties(conf, ratisAddr);
     this.server =
         RaftServer.newBuilder()
             .setServerId(this.raftPeerId)
@@ -285,7 +287,7 @@ public class HARaftServer {
     }
   }
 
-  private RaftProperties newRaftProperties(CelebornConf conf) {
+  public static RaftProperties newRaftProperties(CelebornConf conf, InetSocketAddress ratisAddr) {
     final RaftProperties properties = new RaftProperties();
     // Set RPC type
     final String rpcType = conf.haMasterRatisRpcType();
@@ -353,9 +355,6 @@ public class HARaftServer {
     TimeDuration slownessTimeout =
         TimeDuration.valueOf(conf.haMasterRatisRpcSlownessTimeout(), TimeUnit.SECONDS);
     RaftServerConfigKeys.Rpc.setSlownessTimeout(properties, slownessTimeout);
-
-    // Set role checker time
-    this.roleCheckIntervalMs = conf.haMasterRatisRoleCheckInterval();
 
     // snapshot retention
     int numSnapshotRetentionFileNum = conf.haMasterRatisSnapshotRetentionFileNum();
