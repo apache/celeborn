@@ -59,7 +59,7 @@ while read -d '' -r jarfile ; do
     else
         RATIS_SHELL_CLASSPATH="$RATIS_SHELL_CLASSPATH":"$jarfile"
     fi
-done < <(find "$CELEBORN_HOME/jars" ! -type d -name '*.jar' -print0 | sort -z)
+done < <(find "$CELEBORN_HOME/master-jars" ! -type d -name '*.jar' -print0 | sort -z)
 
 CELEBORN_RATIS_SHELL_CLIENT_CLASSPATH="${CELEBORN_CONF_DIR}/:${RATIS_SHELL_CLASSPATH}"
 
