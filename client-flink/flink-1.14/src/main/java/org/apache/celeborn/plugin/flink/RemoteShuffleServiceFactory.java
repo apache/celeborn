@@ -73,10 +73,9 @@ public class RemoteShuffleServiceFactory
     CelebornConf celebornConf = FlinkUtils.toCelebornConf(configuration);
     RemoteShuffleResultPartitionFactory resultPartitionFactory =
         new RemoteShuffleResultPartitionFactory(
-            configuration, celebornConf, resultPartitionManager, networkBufferPool, bufferSize);
+            celebornConf, resultPartitionManager, networkBufferPool, bufferSize);
     RemoteShuffleInputGateFactory inputGateFactory =
-        new RemoteShuffleInputGateFactory(
-            configuration, celebornConf, networkBufferPool, bufferSize);
+        new RemoteShuffleInputGateFactory(celebornConf, networkBufferPool, bufferSize);
 
     return new RemoteShuffleEnvironment(
         networkBufferPool,

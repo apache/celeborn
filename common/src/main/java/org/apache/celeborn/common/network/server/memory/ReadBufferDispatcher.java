@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.network.util.NettyUtils;
 
 public class ReadBufferDispatcher extends Thread {
-  private final Logger logger = LoggerFactory.getLogger(ReadBufferDispatcher.class);
+  private Logger logger = LoggerFactory.getLogger(ReadBufferDispatcher.class);
   private final LinkedBlockingQueue<ReadBufferRequest> requests = new LinkedBlockingQueue<>();
   private final MemoryManager memoryManager;
   private final PooledByteBufAllocator readBufferAllocator;
@@ -48,11 +48,7 @@ public class ReadBufferDispatcher extends Thread {
 
   public void recycle(ByteBuf buf) {
     int bufferSize = buf.capacity();
-    if (buf.refCnt() == 0) {
-      logger.warn("recycle encounter: {}", buf.refCnt());
-    } else {
-      buf.release(buf.refCnt());
-    }
+    buf.release();
     memoryManager.changeReadBufferCounter(-1 * bufferSize);
   }
 
@@ -65,14 +61,14 @@ public class ReadBufferDispatcher extends Thread {
       } catch (InterruptedException e) {
         logger.info("Buffer dispatcher is closing");
       }
-
       if (request != null) {
         List<ByteBuf> buffers = new ArrayList<>();
         int bufferSize = request.getBufferSize();
         while (buffers.size() < request.getMin()) {
           if (memoryManager.readBufferAvailable(bufferSize)) {
-            memoryManager.changeReadBufferCounter(bufferSize);
+            memoryManager.incrementDiskBuffer(bufferSize);
             ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
+            buf.retain();
             buffers.add(buf);
           } else {
             try {
@@ -90,6 +86,7 @@ public class ReadBufferDispatcher extends Thread {
             && buffers.size() < request.getMax()) {
           memoryManager.changeReadBufferCounter(bufferSize);
           ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
+          buf.retain();
           buffers.add(buf);
         }
         request.getBufferListener().notifyBuffers(buffers, null);
