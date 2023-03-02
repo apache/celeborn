@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client;
+package org.apache.celeborn.plugin.flink;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -26,27 +25,48 @@ import java.nio.ByteBuffer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Matchers;
+import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
-import org.apache.celeborn.common.protocol.CompressionCodec;
+import org.apache.celeborn.common.network.client.TransportClient;
+import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.message.StatusCode;
+import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 
-public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
+public class FlinkShuffleClientImplSuiteJ {
   static int BufferSize = 64;
   static byte[] TEST_BUF1 = new byte[BufferSize];
+  protected ChannelFuture mockedFuture = mock(ChannelFuture.class);
   static CelebornConf conf;
+  static FlinkShuffleClientImpl shuffleClient;
+  protected static final TransportClientFactory clientFactory = mock(TransportClientFactory.class);
+  protected final TransportClient client = mock(TransportClient.class);
+  protected static final PartitionLocation masterLocation =
+      new PartitionLocation(0, 1, "localhost", 1, 1, 1, 1, PartitionLocation.Mode.MASTER);
 
   @Before
   public void setup() throws IOException, InterruptedException {
-    conf = setupEnv(CompressionCodec.LZ4);
+    conf = new CelebornConf();
+    shuffleClient =
+        new FlinkShuffleClientImpl("localhost", 1232, conf, null) {
+          @Override
+          public void setupMetaServiceRef(String host, int port) {}
+        };
+    when(clientFactory.createClient(masterLocation.getHost(), masterLocation.getPushPort(), 1))
+        .thenAnswer(t -> client);
+
+    shuffleClient.setDataClientFactory(clientFactory);
   }
 
   public ByteBuf createByteBuf() {
-    for (int i = BATCH_HEADER_SIZE; i < BufferSize; i++) {
+    for (int i = 16; i < BufferSize; i++) {
       TEST_BUF1[i] = 1;
     }
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
@@ -57,7 +77,7 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
   @Test
   public void testPushDataByteBufSuccess() throws IOException {
     ByteBuf byteBuf = createByteBuf();
-    when(client.pushData(any(), anyLong(), any()))
+    Mockito.when(client.pushData(Matchers.any(), Matchers.anyLong(), Matchers.any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
@@ -68,22 +88,14 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
             });
 
     int pushDataLen =
-        shuffleClient.pushDataToLocation(
-            TEST_APPLICATION_ID,
-            TEST_SHUFFLE_ID,
-            TEST_ATTEMPT_ID,
-            TEST_ATTEMPT_ID,
-            TEST_REDUCRE_ID,
-            byteBuf,
-            masterLocation,
-            () -> {});
+        shuffleClient.pushDataToLocation("1", 2, 3, 4, 5, byteBuf, masterLocation, () -> {});
     Assert.assertEquals(BufferSize, pushDataLen);
   }
 
   @Test
   public void testPushDataByteBufHardSplit() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    when(client.pushData(any(), anyLong(), any()))
+    Mockito.when(client.pushData(Matchers.any(), Matchers.anyLong(), Matchers.any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
@@ -94,21 +106,14 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
               return mockedFuture;
             });
     int pushDataLen =
-        shuffleClient.pushDataToLocation(
-            TEST_APPLICATION_ID,
-            TEST_SHUFFLE_ID,
-            TEST_ATTEMPT_ID,
-            TEST_ATTEMPT_ID,
-            TEST_REDUCRE_ID,
-            byteBuf,
-            masterLocation,
-            () -> {});
+        shuffleClient.pushDataToLocation("1", 2, 3, 4, 5, byteBuf, masterLocation, () -> {});
   }
 
   @Test
   public void testPushDataByteBufFail() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    when(client.pushData(any(), anyLong(), any(), any()))
+    Mockito.when(
+            client.pushData(Matchers.any(), Matchers.anyLong(), Matchers.any(), Matchers.any()))
         .thenAnswer(
             t -> {
               RpcResponseCallback rpcResponseCallback =
@@ -117,28 +122,12 @@ public class ShuffleClientImplSuiteJ extends ShuffleClientBaseSuiteJ {
               return mockedFuture;
             });
     // first push just  set pushdata.exception
-    shuffleClient.pushDataToLocation(
-        TEST_APPLICATION_ID,
-        TEST_SHUFFLE_ID,
-        TEST_ATTEMPT_ID,
-        TEST_ATTEMPT_ID,
-        TEST_REDUCRE_ID,
-        byteBuf,
-        masterLocation,
-        () -> {});
+    shuffleClient.pushDataToLocation("1", 2, 3, 4, 5, byteBuf, masterLocation, () -> {});
 
     boolean isFailed = false;
     // second push will throw exception
     try {
-      shuffleClient.pushDataToLocation(
-          TEST_APPLICATION_ID,
-          TEST_SHUFFLE_ID,
-          TEST_ATTEMPT_ID,
-          TEST_ATTEMPT_ID,
-          TEST_REDUCRE_ID,
-          byteBuf,
-          masterLocation,
-          () -> {});
+      shuffleClient.pushDataToLocation("1", 2, 3, 4, 5, byteBuf, masterLocation, () -> {});
     } catch (IOException e) {
       isFailed = true;
     } finally {

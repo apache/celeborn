@@ -18,10 +18,8 @@
 package org.apache.celeborn.client;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
@@ -195,44 +193,6 @@ public abstract class ShuffleClient {
   public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
 
   public abstract void shutdown();
-
-  // Write data to a specific map partition, input data's type is Bytebuf.
-  // data's type is Bytebuf to avoid copy between application and netty
-  // closecallback will do some clean operations like memory release.
-  public abstract int pushDataToLocation(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int partitionId,
-      ByteBuf data,
-      PartitionLocation location,
-      Runnable closeCallBack)
-      throws IOException;
-
-  public abstract Optional<PartitionLocation> regionStart(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      PartitionLocation location,
-      int currentRegionIdx,
-      boolean isBroadcast)
-      throws IOException;
-
-  public abstract void regionFinish(
-      String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
-      throws IOException;
-
-  public abstract void pushDataHandShake(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int numPartitions,
-      int bufferSize,
-      PartitionLocation location)
-      throws IOException;
 
   public abstract PartitionLocation registerMapPartitionTask(
       String appId, int shuffleId, int numMappers, int mapId, int attemptId) throws IOException;

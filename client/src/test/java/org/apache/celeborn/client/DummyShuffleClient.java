@@ -28,10 +28,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,48 +147,6 @@ public class DummyShuffleClient extends ShuffleClient {
       LOG.error("Closing file failed.", e);
     }
   }
-
-  @Override
-  public int pushDataToLocation(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int partitionId,
-      ByteBuf data,
-      PartitionLocation location,
-      Runnable closeCallBack) {
-    return 0;
-  }
-
-  @Override
-  public Optional<PartitionLocation> regionStart(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      PartitionLocation location,
-      int currentRegionIdx,
-      boolean isBroadcast)
-      throws IOException {
-    return Optional.empty();
-  }
-
-  @Override
-  public void regionFinish(
-      String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
-      throws IOException {}
-
-  @Override
-  public void pushDataHandShake(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int numPartitions,
-      int bufferSize,
-      PartitionLocation location)
-      throws IOException {}
 
   @Override
   public PartitionLocation registerMapPartitionTask(
