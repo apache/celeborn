@@ -1960,7 +1960,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.flusher.avg.time.window")
       .categories("worker")
       .doc("The size of sliding windows used to calculate statistics about flushed time and count.")
-      .version("0.2.0")
+      .version("0.2.1")
       .intConf
       .createWithDefault(20)
 
@@ -1971,7 +1971,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("The minimum flush count to enter a sliding window" +
         " to calculate statistics about flushed time and count.")
-      .version("0.2.0")
+      .version("0.2.1")
       .internal
       .intConf
       .createWithDefault(500)
@@ -1981,7 +1981,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("The minimum fetch count to enter a sliding window" +
         " to calculate statistics about flushed time and count.")
-      .version("0.2.0")
+      .version("0.2.1")
       .internal
       .intConf
       .createWithDefault(100)
