@@ -64,7 +64,6 @@ function main {
 
   if [ ! -f "${CELEBORN_CONF_DIR}/ratis-log4j.properties" ]; then
     echo "${CELEBORN_CONF_DIR}/ratis-log4j.properties not exists!" >&2
-    exit 1
   fi
 
   CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dratis.shell.logs.dir=${CELEBORN_LOG_DIR}"
