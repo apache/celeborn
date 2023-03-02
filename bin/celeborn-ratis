@@ -62,6 +62,11 @@ function main {
 
   CELEBORN_RATIS_SHELL_CLIENT_CLASSPATH="${CELEBORN_CONF_DIR}/:${CELEBORN_RATIS_SHELL_CLASSPATH}"
 
+  if [ ! -f "${CELEBORN_CONF_DIR}/ratis-log4j.properties" ]; then
+    echo "${CELEBORN_CONF_DIR}/ratis-log4j.properties not exists!" >&2
+    exit 1
+  fi
+
   CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dratis.shell.logs.dir=${CELEBORN_LOG_DIR}"
   CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dlog4j.configuration=file:${CELEBORN_CONF_DIR}/ratis-log4j.properties"
   CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dorg.apache.jasper.compiler.disablejsr199=true"
