@@ -1,4 +1,4 @@
-/*
+package org.apache.ratis.cli.sh;/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -18,17 +18,18 @@
 import org.apache.ratis.shell.cli.sh.RatisShell;
 import org.junit.Test;
 
-public class CelebornRatisShellSuitJ {
+public class CelebornRatisShellTest{
   @Test
-  public void testLoadSefDefinedUtil() {
+  public void testLoadDefaultCelebornRaftProperties() {
     RatisShell shell = new RatisShell(System.out);
     shell.run(
         "election",
         "transfer",
         "-peers",
-        "ip-10-169-48-202.idata-server.shopee.io:9872,ip-10-169-48-203.idata-server.shopee.io:9872,ip-10-169-48-204.idata-server.shopee.io:9872",
+        "ip-xx-xx-xx-001:9872,ip-xx-xx-xx-002:9872,ip-xx-xx-xx-003:9872",
         "-groupid",
-        "3ab29dc7-61dd-3e52-9a8d-f9c189140641",
-        "-address", "ip-10-169-48-204.idata-server.shopee.io:9872");
+        "xxx-xxx-xxx-xxx-xxx",
+        "-address",
+        "ip-xx-xx-xx-003:9872");
   }
 }

@@ -21,7 +21,6 @@ package org.apache.ratis.shell.cli;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.celeborn.common.util.Utils;
 import org.apache.ratis.client.RaftClient;
 import org.apache.ratis.client.RaftClientConfigKeys;
 import org.apache.ratis.conf.RaftProperties;
@@ -31,8 +30,8 @@ import org.apache.ratis.retry.ExponentialBackoffRetry;
 import org.apache.ratis.util.TimeDuration;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.HARaftServer;
-import org.apache.celeborn.service.deploy.master.clustermeta.ha.MasterClusterInfo;
 
 /** Helper class for raft operations. */
 public final class RaftUtils {
@@ -71,9 +70,20 @@ public final class RaftUtils {
   public static RaftClient createClient(RaftGroup raftGroup) {
     CelebornConf conf = new CelebornConf();
     Utils.loadDefaultRssProperties(conf, null);
+    System.out.println("xxxxxx");
     RaftProperties properties = HARaftServer.newRaftProperties(conf, null);
-    RaftClientConfigKeys.Rpc.setRequestTimeout(
-        properties, TimeDuration.valueOf(15, TimeUnit.SECONDS));
+
+    if (RaftClientConfigKeys.Rpc.requestTimeout(properties).toLong(TimeUnit.MILLISECONDS) < 15000) {
+      RaftClientConfigKeys.Rpc.setRequestTimeout(
+          properties, TimeDuration.valueOf(15, TimeUnit.SECONDS));
+    }
+
+    // Since Celeborn ratis-shell support GENERIC_COMMAND_OPTIONS, here we should
+    // set these options to raft properties to make it work.
+    System.getProperties()
+        .stringPropertyNames()
+        .forEach(key -> properties.set(key, System.getProperty(key)));
+
     ExponentialBackoffRetry retryPolicy =
         ExponentialBackoffRetry.newBuilder()
             .setBaseSleepTime(TimeDuration.valueOf(1000, TimeUnit.MILLISECONDS))
