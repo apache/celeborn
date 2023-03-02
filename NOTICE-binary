@@ -9,6 +9,9 @@ The Apache Software Foundation (https://www.apache.org/).
 = NOTICE file corresponding to section 4d of the Apache License Version 2.0 =
 =============================================================================
 
+Apache Commons CLI
+Copyright 2002-2021 The Apache Software Foundation
+
 Apache Commons IO
 Copyright 2002-2020 The Apache Software Foundation
 
@@ -55,6 +58,9 @@ Apache Ratis Server
 Copyright 2017-2020 The Apache Software Foundation
 
 Apache Ratis Server API
+Copyright 2017-2020 The Apache Software Foundation
+
+Apache Ratis Shell
 Copyright 2017-2020 The Apache Software Foundation
 
 Apache Ratis Thirdparty Miscellaneous
