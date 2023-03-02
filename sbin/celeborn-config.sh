@@ -39,3 +39,33 @@ if [ -z "$CELEBORN_ENV_LOADED" ]; then
     set +a
   fi
 fi
+
+# Find the java binary
+if [ -n "${JAVA_HOME}" ]; then
+  JAVA="${JAVA_HOME}/bin/java"
+else
+  if [ "$(command -v java)" ]; then
+    JAVA="java"
+  else
+    echo "JAVA_HOME is not set" >&2
+    exit 1
+  fi
+fi
+
+# Get log directory
+if [ "$CELEBORN_LOG_DIR" = "" ]; then
+  export CELEBORN_LOG_DIR="${CELEBORN_HOME}/logs"
+fi
+mkdir -p "$CELEBORN_LOG_DIR"
+touch "$CELEBORN_LOG_DIR"/.celeborn_test > /dev/null 2>&1
+TEST_LOG_DIR=$?
+if [ "${TEST_LOG_DIR}" = "0" ]; then
+  rm -f "$CELEBORN_LOG_DIR"/.celeborn_test
+else
+  chown "$CELEBORN_IDENT_STRING" "$CELEBORN_LOG_DIR"
+fi
+
+if [ "$CELEBORN_PID_DIR" = "" ]; then
+  CELEBORN_PID_DIR="${CELEBORN_HOME}/pids"
+fi
+
