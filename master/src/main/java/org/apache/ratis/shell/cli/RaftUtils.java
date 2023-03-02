@@ -21,6 +21,7 @@ package org.apache.ratis.shell.cli;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.ratis.client.RaftClient;
 import org.apache.ratis.client.RaftClientConfigKeys;
 import org.apache.ratis.conf.RaftProperties;
@@ -35,6 +36,8 @@ import org.apache.celeborn.service.deploy.master.clustermeta.ha.HARaftServer;
 
 /** Helper class for raft operations. */
 public final class RaftUtils {
+
+  @VisibleForTesting public static RaftProperties testProperties = null;
 
   private RaftUtils() {
     // prevent instantiation
@@ -70,7 +73,6 @@ public final class RaftUtils {
   public static RaftClient createClient(RaftGroup raftGroup) {
     CelebornConf conf = new CelebornConf();
     Utils.loadDefaultRssProperties(conf, null);
-    System.out.println("xxxxxx");
     RaftProperties properties = HARaftServer.newRaftProperties(conf, null);
 
     if (RaftClientConfigKeys.Rpc.requestTimeout(properties).toLong(TimeUnit.MILLISECONDS) < 15000) {
@@ -83,6 +85,9 @@ public final class RaftUtils {
     System.getProperties()
         .stringPropertyNames()
         .forEach(key -> properties.set(key, System.getProperty(key)));
+
+    // For testing
+    testProperties = properties;
 
     ExponentialBackoffRetry retryPolicy =
         ExponentialBackoffRetry.newBuilder()
