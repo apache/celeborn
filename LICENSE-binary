@@ -277,14 +277,14 @@ See licenses-binary/LICENSE-BSD-3.txt for details.
 ------------
 See licenses-binary/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
+------------
 See licenses-binary/LICENSE-leveldbjni.txt for details.
 org.fusesource.leveldbjni:leveldbjni-all
-
+------------
 Common Development and Distribution License (CDDL) 1.0
 See licenses-binary/LICENSE-CDDL.txt for details.
-------------
 javax.servlet:javax.servlet-api
-
+------------
 MIT License
 See licenses-binary/LICENSE-MIT.txt for details.
 ------------
