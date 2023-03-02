@@ -1,4 +1,4 @@
-package org.apache.ratis.cli.sh;/*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -15,10 +15,12 @@ package org.apache.ratis.cli.sh;/*
  * limitations under the License.
  */
 
+package org.apache.ratis.cli.sh;
+
 import org.apache.ratis.shell.cli.sh.RatisShell;
 import org.junit.Test;
 
-public class CelebornRatisShellTest{
+public class CelebornRatisShellTest {
   @Test
   public void testLoadDefaultCelebornRaftProperties() {
     RatisShell shell = new RatisShell(System.out);
@@ -26,7 +28,7 @@ public class CelebornRatisShellTest{
         "election",
         "transfer",
         "-peers",
-        "ip-xx-xx-xx-001:9872,ip-xx-xx-xx-002:9872,ip-xx-xx-xx-003:9872",
+        "ip-xx-xx-xx-001:9872,ip-xMx-xx-xx-002:9872,ip-xx-xx-xx-003:9872",
         "-groupid",
         "xxx-xxx-xxx-xxx-xxx",
         "-address",
