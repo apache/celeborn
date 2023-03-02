@@ -26,6 +26,7 @@ import scala.collection.mutable.ListBuffer
 
 import org.slf4j.LoggerFactory
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.Utils.runCommand
@@ -35,18 +36,34 @@ class DiskInfo(
     var actualUsableSpace: Long,
     // avgFlushTime is nano seconds
     var avgFlushTime: Long,
+    var avgFetchTime: Long,
     var activeSlots: Long,
     val dirs: List[File],
     val deviceInfo: DeviceInfo) extends Serializable with Logging {
 
-  def this(mountPoint: String, usableSpace: Long, avgFlushTime: Long, activeSlots: Long) = {
-    this(mountPoint, usableSpace, avgFlushTime, activeSlots, List.empty, null)
+  def this(
+      mountPoint: String,
+      usableSpace: Long,
+      avgFlushTime: Long,
+      avgFetchTime: Long,
+      activeSlots: Long) = {
+    this(mountPoint, usableSpace, avgFlushTime, avgFetchTime, activeSlots, List.empty, null)
   }
 
-  def this(mountPoint: String, dirs: List[File], deviceInfo: DeviceInfo) = {
-    this(mountPoint, 0, 0, 0, dirs, deviceInfo)
+  def this(
+      mountPoint: String,
+      dirs: List[File],
+      deviceInfo: DeviceInfo,
+      conf: CelebornConf) = {
+    this(mountPoint, 0, 0, 0, 0, dirs, deviceInfo)
+    flushTimeMetrics =
+      new TimeWindow(conf.diskTimeSlidingWindowSize, conf.diskTimeSlidingWindowMinFlushCount)
+    fetchTimeMetrics =
+      new TimeWindow(conf.diskTimeSlidingWindowSize, conf.diskTimeSlidingWindowMinFetchCount)
   }
 
+  var flushTimeMetrics: TimeWindow = _
+  var fetchTimeMetrics: TimeWindow = _
   var status: DiskStatus = DiskStatus.HEALTHY
   var threadCount = 1
   var configuredUsableSpace = 0L
@@ -64,9 +81,12 @@ class DiskInfo(
     this
   }
 
-  def setFlushTime(avgFlushTime: Long): this.type = this.synchronized {
-    this.avgFlushTime = avgFlushTime
-    this
+  def updateFlushTime(): Unit = {
+    avgFlushTime = flushTimeMetrics.getAverage()
+  }
+
+  def updateFetchTime(): Unit = {
+    avgFetchTime = fetchTimeMetrics.getAverage()
   }
 
   def availableSlots(): Long = this.synchronized {
@@ -112,6 +132,7 @@ class DiskInfo(
       s" mountPoint: $mountPoint," +
       s" usableSpace: $actualUsableSpace," +
       s" avgFlushTime: $avgFlushTime," +
+      s" avgFetchTime: $avgFetchTime," +
       s" activeSlots: $activeSlots)" +
       s" status: $status" +
       s" dirs ${dirs.mkString("\t")}"
@@ -145,12 +166,13 @@ object DeviceInfo {
 
   /**
    * @param workingDirs array of (workingDir, max usable space, flush thread count, storage type)
-   * @return it will return three maps
+   * @return it will return two maps
    *         (deviceName -> deviceInfo)
    *         (mount point -> diskInfo)
    */
-  def getDeviceAndDiskInfos(workingDirs: Seq[(File, Long, Int, StorageInfo.Type)])
-      : (util.Map[String, DeviceInfo], util.Map[String, DiskInfo]) = {
+  def getDeviceAndDiskInfos(
+      workingDirs: Seq[(File, Long, Int, StorageInfo.Type)],
+      conf: CelebornConf): (util.Map[String, DeviceInfo], util.Map[String, DiskInfo]) = {
     val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
@@ -209,7 +231,11 @@ object DeviceInfo {
     }.foreach {
       case (mountPoint, dirs) =>
         val deviceInfo = mountPointToDeviceInfo.get(mountPoint)
-        val diskInfo = new DiskInfo(mountPoint, dirs.map(_._1).toList, deviceInfo)
+        val diskInfo = new DiskInfo(
+          mountPoint,
+          dirs.map(_._1).toList,
+          deviceInfo,
+          conf)
         val (_, maxUsableSpace, threadCount, storageType) = dirs(0)
         diskInfo.configuredUsableSpace = maxUsableSpace
         diskInfo.threadCount = threadCount

@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.FileManagedBuffers;
+import org.apache.celeborn.common.meta.TimeWindow;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 
 /**
@@ -53,13 +54,15 @@ public class ChunkStreamManager {
     // Used to keep track of the index of the buffer that the user has retrieved, just to ensure
     // that the caller only requests each chunk one at a time, in order.
     int curChunk = 0;
+    final TimeWindow fetchTimeMetric;
 
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
-    StreamState(FileManagedBuffers buffers, Channel channel) {
+    StreamState(FileManagedBuffers buffers, Channel channel, TimeWindow fetchTimeMetric) {
       this.buffers = Preconditions.checkNotNull(buffers);
       this.associatedChannel = channel;
+      this.fetchTimeMetric = fetchTimeMetric;
     }
   }
 
@@ -97,6 +100,15 @@ public class ChunkStreamManager {
     }
 
     return nextChunk;
+  }
+
+  public TimeWindow getFetchTimeMetric(long streamId) {
+    StreamState state = streams.get(streamId);
+    if (state != null) {
+      return state.fetchTimeMetric;
+    } else {
+      return null;
+    }
   }
 
   public static String genStreamChunkId(long streamId, int chunkId) {
@@ -158,9 +170,10 @@ public class ChunkStreamManager {
    * to be the only reader of the stream. Once the connection is closed, the stream will never be
    * used again, enabling cleanup by `connectionTerminated`.
    */
-  public long registerStream(FileManagedBuffers buffers, Channel channel) {
+  public long registerStream(
+      FileManagedBuffers buffers, Channel channel, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
-    streams.put(myStreamId, new StreamState(buffers, channel));
+    streams.put(myStreamId, new StreamState(buffers, channel, fetchTimeMetric));
     return myStreamId;
   }
 

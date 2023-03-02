@@ -68,6 +68,7 @@ object PbSerDeUtils {
       pbDiskInfo.getMountPoint,
       pbDiskInfo.getUsableSpace,
       pbDiskInfo.getAvgFlushTime,
+      pbDiskInfo.getAvgFetchTime,
       pbDiskInfo.getUsedSlots)
       .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
 
@@ -76,6 +77,7 @@ object PbSerDeUtils {
       .setMountPoint(diskInfo.mountPoint)
       .setUsableSpace(diskInfo.actualUsableSpace)
       .setAvgFlushTime(diskInfo.avgFlushTime)
+      .setAvgFetchTime(diskInfo.avgFetchTime)
       .setUsedSlots(diskInfo.activeSlots)
       .setStatus(diskInfo.status.getValue)
       .build

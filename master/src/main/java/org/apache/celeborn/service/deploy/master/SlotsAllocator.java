@@ -90,7 +90,9 @@ public class SlotsAllocator {
           boolean shouldReplicate,
           long minimumUsableSize,
           int diskGroupCount,
-          double diskGroupGradient) {
+          double diskGroupGradient,
+          double flushTimeWeight,
+          double fetchTimeWeight) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -130,7 +132,7 @@ public class SlotsAllocator {
 
     Map<WorkerInfo, List<UsableDiskInfo>> restriction =
         getRestriction(
-            placeDisksToGroups(usableDisks, diskGroupCount),
+            placeDisksToGroups(usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight),
             diskToWorkerMap,
             shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
 
@@ -254,9 +256,18 @@ public class SlotsAllocator {
   }
 
   private static List<List<DiskInfo>> placeDisksToGroups(
-      List<DiskInfo> usableDisks, int diskGroupCount) {
+      List<DiskInfo> usableDisks,
+      int diskGroupCount,
+      double flushTimeWeight,
+      double fetchTimeWeight) {
     List<List<DiskInfo>> diskGroups = new ArrayList<>();
-    usableDisks.sort((o1, o2) -> Math.toIntExact(o1.avgFlushTime() - o2.avgFlushTime()));
+    usableDisks.sort(
+        (o1, o2) ->
+            Math.toIntExact(
+                (long)
+                    ((o1.avgFlushTime() * flushTimeWeight + o1.avgFetchTime() * fetchTimeWeight)
+                        - (o2.avgFlushTime() * flushTimeWeight
+                            + o2.avgFetchTime() * fetchTimeWeight))));
     int diskCount = usableDisks.size();
     int startIndex = 0;
     int groupSizeSize = (int) Math.ceil(usableDisks.size() / (double) diskGroupCount);
@@ -363,6 +374,8 @@ public class SlotsAllocator {
               .append(diskInfo.mountPoint())
               .append(" flushtime:")
               .append(diskInfo.avgFlushTime())
+              .append(" fetchtime:")
+              .append(diskInfo.avgFetchTime())
               .append(" allocation: ")
               .append(allocation)
               .append(" ");

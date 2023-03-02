@@ -183,8 +183,7 @@ public class SortBasedPusher extends MemoryConsumer {
       throws IOException {
 
     if (getUsed() > pushSortMemoryThreshold
-        && pageCursor + size8k
-            > currentPage.getBaseOffset() + currentPage.size()) {
+        && pageCursor + size8k > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
           "Memory Used across threshold, trigger push. Memory: "
               + getUsed()

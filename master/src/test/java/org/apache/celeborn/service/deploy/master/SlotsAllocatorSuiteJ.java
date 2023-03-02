@@ -45,13 +45,25 @@ public class SlotsAllocatorSuiteJ {
     Map<String, DiskInfo> disks1 = new HashMap<>();
     DiskInfo diskInfo1 =
         new DiskInfo(
-            "/mnt/disk1", random.nextInt() + 100 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk1",
+            random.nextInt() + 100 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     DiskInfo diskInfo2 =
         new DiskInfo(
-            "/mnt/disk2", random.nextInt() + 95 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk2",
+            random.nextInt() + 95 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     DiskInfo diskInfo3 =
         new DiskInfo(
-            "/mnt/disk3", random.nextInt() + 90 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk3",
+            random.nextInt() + 90 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     diskInfo1.maxSlots_$eq(diskInfo1.actualUsableSpace() / assumedPartitionSize);
     diskInfo2.maxSlots_$eq(diskInfo2.actualUsableSpace() / assumedPartitionSize);
     diskInfo3.maxSlots_$eq(diskInfo3.actualUsableSpace() / assumedPartitionSize);
@@ -62,13 +74,25 @@ public class SlotsAllocatorSuiteJ {
     Map<String, DiskInfo> disks2 = new HashMap<>();
     DiskInfo diskInfo4 =
         new DiskInfo(
-            "/mnt/disk1", random.nextInt() + 100 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk1",
+            random.nextInt() + 100 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     DiskInfo diskInfo5 =
         new DiskInfo(
-            "/mnt/disk2", random.nextInt() + 95 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk2",
+            random.nextInt() + 95 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     DiskInfo diskInfo6 =
         new DiskInfo(
-            "/mnt/disk3", random.nextInt() + 90 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk3",
+            random.nextInt() + 90 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     diskInfo4.maxSlots_$eq(diskInfo4.actualUsableSpace() / assumedPartitionSize);
     diskInfo5.maxSlots_$eq(diskInfo5.actualUsableSpace() / assumedPartitionSize);
     diskInfo6.maxSlots_$eq(diskInfo6.actualUsableSpace() / assumedPartitionSize);
@@ -79,13 +103,25 @@ public class SlotsAllocatorSuiteJ {
     Map<String, DiskInfo> disks3 = new HashMap<>();
     DiskInfo diskInfo7 =
         new DiskInfo(
-            "/mnt/disk1", random.nextInt() + 100 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk1",
+            random.nextInt() + 100 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     DiskInfo diskInfo8 =
         new DiskInfo(
-            "/mnt/disk2", random.nextInt() + 95 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk2",
+            random.nextInt() + 95 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     DiskInfo diskInfo9 =
         new DiskInfo(
-            "/mnt/disk3", random.nextInt() + 90 * 1024 * 1024 * 1024L, random.nextInt(1000), 0);
+            "/mnt/disk3",
+            random.nextInt() + 90 * 1024 * 1024 * 1024L,
+            random.nextInt(1000),
+            random.nextInt(1000),
+            0);
     diskInfo7.maxSlots_$eq(diskInfo7.actualUsableSpace() / assumedPartitionSize);
     diskInfo8.maxSlots_$eq(diskInfo8.actualUsableSpace() / assumedPartitionSize);
     diskInfo9.maxSlots_$eq(diskInfo9.actualUsableSpace() / assumedPartitionSize);
@@ -194,7 +230,9 @@ public class SlotsAllocatorSuiteJ {
             shouldReplicate,
             10 * 1024 * 1024 * 1024L,
             conf.slotsAssignLoadAwareDiskGroupNum(),
-            conf.slotsAssignLoadAwareDiskGroupGradient());
+            conf.slotsAssignLoadAwareDiskGroupGradient(),
+            conf.slotsAssignLoadAwareFlushTimeWeight(),
+            conf.slotsAssignLoadAwareFetchTimeWeight());
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(
