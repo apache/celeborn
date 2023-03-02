@@ -15,7 +15,7 @@
 # limitations under the License.
 
 function printUsage {
-  echo "Usage: Celeborn ratis COMMAND [GENERIC_COMMAND_OPTIONS] [COMMAND_ARGS]"
+  echo "Usage: celeborn-ratis COMMAND [GENERIC_COMMAND_OPTIONS] [COMMAND_ARGS]"
   echo
   echo "COMMAND is one of:"
   echo -e "  sh    \t Command line tool for Celeborn ratis"

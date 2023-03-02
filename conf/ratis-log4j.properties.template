@@ -22,7 +22,7 @@ log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender
 log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout
 log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [%t] %-5p %c{2} (%F:%M) - %m%n
 
-#SHELL Logger
+# SHELL Logger
 log4j.appender.SHELL_LOGGER=org.apache.log4j.RollingFileAppender
 log4j.appender.SHELL_LOGGER.File=${ratis.shell.logs.dir}/celeborn-ratis-shell.log
 log4j.appender.SHELL_LOGGER.MaxFileSize=100MB
