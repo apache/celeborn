@@ -29,11 +29,11 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
+import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
@@ -58,7 +58,7 @@ public class RemoteShuffleOutputGate {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleOutputGate.class);
   private final RemoteShuffleDescriptor shuffleDesc;
   protected final int numSubs;
-  protected ShuffleClient shuffleWriteClient;
+  protected FlinkShuffleClientImpl shuffleWriteClient;
   protected final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
   protected BufferPool bufferPool;
   private CelebornConf celebornConf;
@@ -212,8 +212,9 @@ public class RemoteShuffleOutputGate {
   }
 
   @VisibleForTesting
-  ShuffleClient createWriteClient() {
-    return ShuffleClient.get(rssMetaServiceHost, rssMetaServicePort, celebornConf, userIdentifier);
+  FlinkShuffleClientImpl createWriteClient() {
+    return FlinkShuffleClientImpl.get(
+        rssMetaServiceHost, rssMetaServicePort, celebornConf, userIdentifier);
   }
 
   /** Writes a piece of data to a subpartition. */

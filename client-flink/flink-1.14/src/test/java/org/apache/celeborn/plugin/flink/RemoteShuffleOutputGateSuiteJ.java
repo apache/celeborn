@@ -36,12 +36,12 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import org.apache.celeborn.client.ShuffleClientImpl;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 
 public class RemoteShuffleOutputGateSuiteJ {
   private RemoteShuffleOutputGate remoteShuffleOutputGate = mock(RemoteShuffleOutputGate.class);
-  private ShuffleClientImpl shuffleClient = mock(ShuffleClientImpl.class);
+  private FlinkShuffleClientImpl shuffleClient = mock(FlinkShuffleClientImpl.class);
   private static final int BUFFER_SIZE = 20;
   private NetworkBufferPool networkBufferPool;
   private BufferPool bufferPool;
