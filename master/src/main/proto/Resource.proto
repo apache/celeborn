@@ -57,6 +57,7 @@ message DiskInfo {
   required int64 avgFlushTime = 3;
   required int64 usedSlots = 4;
   required int32 status = 5;
+  required int64 avgFetchTime = 6;
 }
 
 message RequestSlotsRequest {

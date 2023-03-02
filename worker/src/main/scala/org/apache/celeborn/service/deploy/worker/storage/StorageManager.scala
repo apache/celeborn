@@ -39,7 +39,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.server.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
@@ -63,7 +63,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       throw new IOException("Empty working directory configuration!")
     }
 
-    DeviceInfo.getDeviceAndDiskInfos(workingDirInfos)
+    DeviceInfo.getDeviceAndDiskInfos(workingDirInfos, conf)
   }
   val mountPoints = new util.HashSet[String](diskInfos.keySet())
 
@@ -108,9 +108,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           deviceMonitor,
           diskInfo.threadCount,
           diskInfo.mountPoint,
-          conf.avgFlushTimeSlidingWindowSize,
-          conf.avgFlushTimeSlidingWindowMinCount,
-          diskInfo.storageType)
+          diskInfo.storageType,
+          diskInfo.flushTimeMetrics)
         flushers.put(diskInfo.mountPoint, flusher)
         totalThread = totalThread + diskInfo.threadCount
       }
@@ -141,9 +140,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       (
         Some(new HdfsFlusher(
           workerSource,
-          conf.hdfsFlusherThreads,
-          conf.avgFlushTimeSlidingWindowSize,
-          conf.avgFlushTimeSlidingWindowMinCount)),
+          conf.hdfsFlusherThreads)),
         conf.hdfsFlusherThreads)
     } else {
       (None, 0)
@@ -396,6 +393,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     } else {
       null
     }
+  }
+
+  def getFetchTimeMetric(file: File): TimeWindow = {
+    if (diskInfos != null) {
+      val diskInfo = diskInfos.get(DeviceInfo.getMountPoint(file.getAbsolutePath, diskInfos))
+      if (diskInfo != null) {
+        diskInfo.fetchTimeMetrics
+      } else null
+    } else null
   }
 
   def shuffleKeySet(): util.HashSet[String] = {
@@ -679,9 +685,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val workingDirUsableSpace =
         Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
       logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage")
-      val flushTimeAverage = localFlushers.get(diskInfo.mountPoint).averageFlushTime()
       diskInfo.setUsableSpace(workingDirUsableSpace)
-      diskInfo.setFlushTime(flushTimeAverage)
+      diskInfo.updateFlushTime()
+      diskInfo.updateFetchTime()
     }
     logInfo(s"Updated diskInfos: ${disksSnapshot()}")
   }

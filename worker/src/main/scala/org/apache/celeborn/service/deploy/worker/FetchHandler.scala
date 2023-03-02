@@ -127,7 +127,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           } else {
             val buffers = new FileManagedBuffers(fileInfo, conf)
-            val streamId = chunkStreamManager.registerStream(shuffleKey, buffers)
+            val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
+            val streamId = chunkStreamManager.registerStream(
+              shuffleKey,
+              buffers,
+              fetchTimeMetrics)
             val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
             if (fileInfo.numChunks() == 0)
               logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
@@ -188,7 +192,6 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
-    workerSource.startTimer(WorkerSource.FetchChunkTime, req.toString)
     logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
@@ -200,8 +203,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       logError(message)
       client.getChannel.writeAndFlush(
         new ChunkFetchFailure(req.streamChunkSlice, message))
-      workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
     } else {
+      workerSource.startTimer(WorkerSource.FetchChunkTime, req.toString)
+      val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(req.streamChunkSlice.streamId)
+      val fetchBeginTime = System.nanoTime()
       try {
         val buf = chunkStreamManager.getChunk(
           req.streamChunkSlice.streamId,
@@ -213,6 +218,9 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           .addListener(new GenericFutureListener[Future[_ >: Void]] {
             override def operationComplete(future: Future[_ >: Void]): Unit = {
               chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
+              if (fetchTimeMetric != null) {
+                fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
+              }
               workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
             }
           })

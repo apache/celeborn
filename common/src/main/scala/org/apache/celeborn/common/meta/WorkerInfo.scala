@@ -200,6 +200,7 @@ class WorkerInfo(
         curDisk.actualUsableSpace_$eq(newDisk.actualUsableSpace)
         curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
         curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
+        curDisk.avgFetchTime_$eq(newDisk.avgFetchTime)
         curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
         curDisk.setStatus(newDisk.status)
       } else {

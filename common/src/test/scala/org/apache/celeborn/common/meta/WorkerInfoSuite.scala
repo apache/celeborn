@@ -64,9 +64,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
   test("multi-thread modify same WorkerInfo.") {
     val numSlots = 10000
     val disks = new util.HashMap[String, DiskInfo]()
-    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 0))
-    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1, 0))
-    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1, 0))
+    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 1, 0))
+    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1, 1, 0))
+    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1, 1, 0))
     val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
     userResourceConsumption.put(UserIdentifier("tenant1", "name1"), ResourceConsumption(1, 1, 1, 1))
     val worker =
@@ -224,9 +224,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
       null)
 
     val disks = new util.HashMap[String, DiskInfo]()
-    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 10))
-    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 2, 20))
-    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 3, 30))
+    disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 1, 10))
+    disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 2, 2, 20))
+    disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 3, 3, 30))
     val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
     userResourceConsumption.put(
       UserIdentifier("tenant1", "name1"),
@@ -297,9 +297,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
          |SlotsUsed: 60
          |LastHeartbeat: 0
          |Disks: $placeholder
-         |  DiskInfo0: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2147483647, avgFlushTime: 3, activeSlots: 30) status: HEALTHY dirs $placeholder
-         |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2147483647, avgFlushTime: 1, activeSlots: 10) status: HEALTHY dirs $placeholder
-         |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2147483647, avgFlushTime: 2, activeSlots: 20) status: HEALTHY dirs $placeholder
+         |  DiskInfo0: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2147483647, avgFlushTime: 3, avgFetchTime: 3, activeSlots: 30) status: HEALTHY dirs $placeholder
+         |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2147483647, avgFlushTime: 1, avgFetchTime: 1, activeSlots: 10) status: HEALTHY dirs $placeholder
+         |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2147483647, avgFlushTime: 2, avgFetchTime: 2, activeSlots: 20) status: HEALTHY dirs $placeholder
          |UserResourceConsumption: $placeholder
          |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MB, diskFileCount: 1, hdfsBytesWritten: 50.0 MB, hdfsFileCount: 1)
          |WorkerRef: NettyRpcEndpointRef(rss://mockRpc@localhost:12345)

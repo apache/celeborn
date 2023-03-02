@@ -467,6 +467,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def slotsAssignLoadAwareDiskGroupNum: Int = get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def slotsAssignLoadAwareDiskGroupGradient: Double =
     get(SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
+  def slotsAssignLoadAwareFlushTimeWeight: Double =
+    get(SLOTS_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT)
+  def slotsAssignLoadAwareFetchTimeWeight: Double =
+    get(SLOTS_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: SlotsAssignPolicy = SlotsAssignPolicy.valueOf(get(SLOTS_ASSIGN_POLICY))
   def initialEstimatedPartitionSize: Long = get(SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE)
@@ -725,9 +729,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def hddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def ssdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
   def hdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
-  def avgFlushTimeSlidingWindowSize: Int = get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_SIZE)
-  def avgFlushTimeSlidingWindowMinCount: Int =
-    get(WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT)
+  def diskTimeSlidingWindowSize: Int = get(WORKER_DISKTIME_SLIDINGWINDOW_SIZE)
+  def diskTimeSlidingWindowMinFlushCount: Int =
+    get(WORKER_DISKTIME_SLIDINGWINDOW_MINFLUSHCOUNT)
+  def diskTimeSlidingWindowMinFetchCount: Int =
+    get(WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT)
   def diskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
   def diskMonitorEnabled: Boolean = get(WORKER_DISK_MONITOR_ENABLED)
   def diskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
@@ -2023,25 +2029,37 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
 
-  val WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
+  val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.diskTime.slidingWindow.size")
+      .withAlternative("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
       .withAlternative("rss.flusher.avg.time.window")
       .categories("worker")
       .doc("The size of sliding windows used to calculate statistics about flushed time and count.")
-      .version("0.2.0")
+      .version("0.2.1")
       .intConf
       .createWithDefault(20)
 
-  val WORKER_FLUSHER_AVGFLUSHTIME_SLIDINGWINDOW_MINCOUNT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.flusher.avgFlushTime.slidingWindow.minCount")
+  val WORKER_DISKTIME_SLIDINGWINDOW_MINFLUSHCOUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.diskTime.slidingWindow.minFlushCount")
+      .withAlternative("celeborn.worker.flusher.avgFlushTime.slidingWindow.minCount")
       .withAlternative("rss.flusher.avg.time.minimum.count")
       .categories("worker")
       .doc("The minimum flush count to enter a sliding window" +
         " to calculate statistics about flushed time and count.")
-      .version("0.2.0")
+      .version("0.2.1")
       .internal
       .intConf
-      .createWithDefault(1000)
+      .createWithDefault(500)
+
+  val WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.diskTime.slidingWindow.minFetchCount")
+      .categories("worker")
+      .doc("The minimum fetch count to enter a sliding window" +
+        " to calculate statistics about flushed time and count.")
+      .version("0.2.1")
+      .internal
+      .intConf
+      .createWithDefault(100)
 
   val SLOTS_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =
     buildConf("celeborn.slots.assign.loadAware.numDiskGroups")
@@ -2062,6 +2080,24 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doubleConf
       .createWithDefault(0.1)
+
+  val SLOTS_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT: ConfigEntry[Double] =
+    buildConf("celeborn.slots.assign.loadAware.flushTimeWeight")
+      .categories("master")
+      .doc(
+        "Weight of average flush time when calculating ordering in load-aware assignment strategy")
+      .version("0.2.1")
+      .doubleConf
+      .createWithDefault(0)
+
+  val SLOTS_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT: ConfigEntry[Double] =
+    buildConf("celeborn.slots.assign.loadAware.fetchTimeWeight")
+      .categories("master")
+      .doc(
+        "Weight of average fetch time when calculating ordering in load-aware assignment strategy")
+      .version("0.2.1")
+      .doubleConf
+      .createWithDefault(1)
 
   val SLOTS_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
     buildConf("celeborn.slots.assign.extraSlots")

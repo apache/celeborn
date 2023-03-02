@@ -107,9 +107,10 @@ private[celeborn] class Master(
 
   private def diskReserveSize = conf.diskReserveSize
 
-  private def slotsAssignLoadAwareDiskGroupNum = conf.slotsAssignLoadAwareDiskGroupNum
-
-  private def slotsAssignLoadAwareDiskGroupGradient = conf.slotsAssignLoadAwareDiskGroupGradient
+  private val slotsAssignLoadAwareDiskGroupNum = conf.slotsAssignLoadAwareDiskGroupNum
+  private val slotsAssignLoadAwareDiskGroupGradient = conf.slotsAssignLoadAwareDiskGroupGradient
+  private val loadAwareFlushTimeWeight = conf.slotsAssignLoadAwareFlushTimeWeight
+  private val loadAwareFetchTimeWeight = conf.slotsAssignLoadAwareFetchTimeWeight
 
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay
@@ -515,7 +516,9 @@ private[celeborn] class Master(
               requestSlots.shouldReplicate,
               diskReserveSize,
               slotsAssignLoadAwareDiskGroupNum,
-              slotsAssignLoadAwareDiskGroupGradient)
+              slotsAssignLoadAwareDiskGroupGradient,
+              loadAwareFlushTimeWeight,
+              loadAwareFetchTimeWeight)
           }
         }
       }

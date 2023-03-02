@@ -81,7 +81,7 @@ public class MapPartitionFileWriterSuiteJ {
     dirs.$plus$eq(tempDir);
     localFlusher =
         new LocalFlusher(
-            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", 20, 1, StorageInfo.Type.HDD);
+            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", StorageInfo.Type.HDD, null);
     MemoryManager.initialize(0.8, 0.9, 0.5, 0.6, 0.1, 0.1, 10, 10);
   }
 
