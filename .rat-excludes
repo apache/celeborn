@@ -34,3 +34,4 @@ assets/**
 build/apache-maven-*/**
 build/scala-*/**
 **/benchmarks/**
+LimitedInputStream.java
