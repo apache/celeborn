@@ -90,23 +90,6 @@ if [ "$CELEBORN_IDENT_STRING" = "" ]; then
   export CELEBORN_IDENT_STRING="$USER"
 fi
 
-# get log directory
-if [ "$CELEBORN_LOG_DIR" = "" ]; then
-  export CELEBORN_LOG_DIR="${CELEBORN_HOME}/logs"
-fi
-mkdir -p "$CELEBORN_LOG_DIR"
-touch "$CELEBORN_LOG_DIR"/.celeborn_test > /dev/null 2>&1
-TEST_LOG_DIR=$?
-if [ "${TEST_LOG_DIR}" = "0" ]; then
-  rm -f "$CELEBORN_LOG_DIR"/.celeborn_test
-else
-  chown "$CELEBORN_IDENT_STRING" "$CELEBORN_LOG_DIR"
-fi
-
-if [ "$CELEBORN_PID_DIR" = "" ]; then
-  CELEBORN_PID_DIR="${CELEBORN_HOME}/pids"
-fi
-
 # some variables
 log="$CELEBORN_LOG_DIR/celeborn-$CELEBORN_IDENT_STRING-$command-$instance-$HOSTNAME.out"
 pid="$CELEBORN_PID_DIR/celeborn-$CELEBORN_IDENT_STRING-$command-$instance.pid"

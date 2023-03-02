@@ -36,18 +36,6 @@ if [ -z "$CELEBORN_ENV_LOADED" ]; then
   fi
 fi
 
-# Find the java binary
-if [ -n "${JAVA_HOME}" ]; then
-  RUNNER="${JAVA_HOME}/bin/java"
-else
-  if [ "$(command -v java)" ]; then
-    RUNNER="java"
-  else
-    echo "JAVA_HOME is not set" >&2
-    exit 1
-  fi
-fi
-
 # Find CELEBORN jars.
 
 for i in "$@"
@@ -87,7 +75,7 @@ fi
 # Turn off posix mode since it does not allow process substitution
 set +o posix
 CMD=()
-CMD+=("$RUNNER")
+CMD+=("$JAVA")
 CMD=(${CMD[@]} "$CELEBORN_JAVA_OPTS")
 CMD+=("-cp")
 CMD+=("$CELEBORN_CLASSPATH")
