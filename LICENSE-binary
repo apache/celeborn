@@ -273,21 +273,21 @@ for text of these licenses.
 
 
 BSD 3-clause
-See license/LICENSE-BSD-3.txt for details.
+See licenses-binary/LICENSE-BSD-3.txt for details.
 ------------
-See license/LICENSE-protobuf.txt for details.
+See licenses-binary/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
-See license/LICENSE-leveldbjni.txt for details.
+See licenses-binary/LICENSE-leveldbjni.txt for details.
 org.fusesource.leveldbjni:leveldbjni-all
 
 Common Development and Distribution License (CDDL) 1.0
-See license/LICENSE-CDDL.txt for details.
+See licenses-binary/LICENSE-CDDL.txt for details.
 ------------
 javax.servlet:javax.servlet-api
 
 MIT License
-See license/LICENSE-MIT.txt for details.
+See licenses-binary/LICENSE-MIT.txt for details.
 ------------
-See license/LICENSE-slf4j.txt for details.
+See licenses-binary/LICENSE-slf4j.txt for details.
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
