@@ -57,7 +57,11 @@ public class MetaUtil {
         (k, v) -> {
           DiskInfo diskInfo =
               new DiskInfo(
-                  v.getMountPoint(), v.getUsableSpace(), v.getAvgFlushTime(), v.getUsedSlots());
+                  v.getMountPoint(),
+                  v.getUsableSpace(),
+                  v.getAvgFlushTime(),
+                  v.getAvgFetchTime(),
+                  v.getUsedSlots());
           diskInfo.setStatus(Utils.toDiskStatus(v.getStatus()));
           map.put(k, diskInfo);
         });
@@ -75,6 +79,7 @@ public class MetaUtil {
                     .setMountPoint(v.mountPoint())
                     .setUsableSpace(v.actualUsableSpace())
                     .setAvgFlushTime(v.avgFlushTime())
+                    .setAvgFetchTime(v.avgFetchTime())
                     .setUsedSlots(v.activeSlots())
                     .setStatus(v.status().getValue())
                     .build()));

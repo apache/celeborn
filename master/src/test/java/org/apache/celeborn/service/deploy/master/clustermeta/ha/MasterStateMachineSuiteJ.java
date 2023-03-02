@@ -207,9 +207,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     File tmpFile = File.createTempFile("tef", "test" + System.currentTimeMillis());
 
     Map<String, DiskInfo> disks1 = new HashMap<>();
-    disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
-    disks1.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
-    disks1.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 100, 0));
+    disks1.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 100, 0));
+    disks1.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 = new ConcurrentHashMap<>();
     userResourceConsumption1.put(
         new UserIdentifier("tenant1", "name1"), new ResourceConsumption(1000, 1, 1000, 1));
@@ -219,9 +219,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
         new UserIdentifier("tenant1", "name3"), new ResourceConsumption(3000, 3, 3000, 3));
 
     Map<String, DiskInfo> disks2 = new HashMap<>();
-    disks2.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
-    disks2.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
-    disks2.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks2.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 100, 0));
+    disks2.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 100, 0));
+    disks2.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 = new ConcurrentHashMap<>();
     userResourceConsumption2.put(
         new UserIdentifier("tenant2", "name1"), new ResourceConsumption(1000, 1, 1000, 1));
@@ -231,9 +231,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
         new UserIdentifier("tenant2", "name3"), new ResourceConsumption(3000, 3, 3000, 3));
 
     Map<String, DiskInfo> disks3 = new HashMap<>();
-    disks3.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 0));
-    disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 0));
-    disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 0));
+    disks3.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 100, 0));
+    disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 100, 0));
+    disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 = new ConcurrentHashMap<>();
     userResourceConsumption3.put(
         new UserIdentifier("tenant3", "name1"), new ResourceConsumption(1000, 1, 1000, 1));

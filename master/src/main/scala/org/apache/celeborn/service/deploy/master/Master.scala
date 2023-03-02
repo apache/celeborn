@@ -510,7 +510,9 @@ private[celeborn] class Master(
               requestSlots.shouldReplicate,
               diskReserveSize,
               slotsAssignLoadAwareDiskGroupNum,
-              slotsAssignLoadAwareDiskGroupGradient)
+              slotsAssignLoadAwareDiskGroupGradient,
+              conf.slotsAssignLoadAwareFlushTimeWeight,
+              conf.slotsAssignLoadAwareFetchTimeWeight)
           }
         }
       }

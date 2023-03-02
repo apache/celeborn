@@ -76,8 +76,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
   withObjectMocked[org.apache.celeborn.common.util.Utils.type] {
     when(Utils.runCommand(dfCmd)) thenReturn dfOut
     when(Utils.runCommand(lsCmd)) thenReturn lsOut
-    val (tdeviceInfos, tdiskInfos) = DeviceInfo.getDeviceAndDiskInfos(dirs.asScala.toArray.map(f =>
-      (f, Long.MaxValue, 1, StorageInfo.Type.HDD)))
+    val (tdeviceInfos, tdiskInfos) = DeviceInfo.getDeviceAndDiskInfos(
+      dirs.asScala.toArray.map(f =>
+        (f, Long.MaxValue, 1, StorageInfo.Type.HDD)),
+      conf)
     deviceInfos = tdeviceInfos
     diskInfos = tdiskInfos
   }

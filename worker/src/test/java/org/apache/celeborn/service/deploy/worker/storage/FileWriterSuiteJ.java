@@ -118,13 +118,18 @@ public class FileWriterSuiteJ {
     dirs.$plus$eq(tempDir);
     localFlusher =
         new LocalFlusher(
-            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", 20, 1, StorageInfo.Type.HDD);
+            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", StorageInfo.Type.HDD, null);
     MemoryManager.initialize(0.8, 0.9, 0.5, 0.6, 0.1, 0.1, 10, 10);
   }
 
   public static void setupChunkServer(FileInfo info) throws Exception {
     FetchHandler handler =
         new FetchHandler(transConf) {
+          @Override
+          public StorageManager storageManager() {
+            return new StorageManager(CONF, source);
+          }
+
           @Override
           public FileInfo getRawFileInfo(String shuffleKey, String fileName) {
             return info;
@@ -328,12 +333,12 @@ public class FileWriterSuiteJ {
     dirs.$plus$eq(file);
     localFlusher =
         new LocalFlusher(
-            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk2", 20, 1, StorageInfo.Type.HDD);
+            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk2", StorageInfo.Type.HDD, null);
   }
 
   @Test
   public void testWriteAndChunkRead() throws Exception {
-    final int threadsNum = 8;
+    final int threadsNum = 16;
     File file = getTemporaryFile();
     FileInfo fileInfo = new FileInfo(file, userIdentifier);
     FileWriter fileWriter =
