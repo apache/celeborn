@@ -267,7 +267,6 @@ org.roaringbitmap:shims
 org.scala-lang:scala-library
 org.scala-lang:scala-reflect
 org.slf4j:jcl-over-slf4j
-org.slf4j:slf4j-simple
 org.yaml:snakeyaml
 
 
