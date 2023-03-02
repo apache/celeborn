@@ -35,23 +35,23 @@ class TimeWindow(windowSize: Int, minWindowCount: Int) {
   }
 
   def getAverage(): Long = {
-    val currentFlushTime = totalTime.sumThenReset()
-    val currentFlushCount = totalCount.sumThenReset()
+    val currentTime = totalTime.sumThenReset()
+    val currentCount = totalCount.sumThenReset()
 
-    var totalFlushTime = 0L
-    var totalFlushCount = 0L
-    if (currentFlushCount >= minWindowCount) {
-      timeWindow(index) = (currentFlushTime, currentFlushCount)
+    if (currentCount >= minWindowCount) {
+      timeWindow(index) = (currentTime, currentCount)
       index = (index + 1) % windowSize
     }
 
+    var time = 0L
+    var count = 0L
     timeWindow.foreach { case (flushTime, flushCount) =>
-      totalFlushTime = totalFlushTime + flushTime
-      totalFlushCount = totalFlushCount + flushCount
+      time = time + flushTime
+      count = count + flushCount
     }
 
-    if (totalFlushCount != 0) {
-      totalFlushTime / totalFlushCount
+    if (count != 0) {
+      time / count
     } else {
       0L
     }
