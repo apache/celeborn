@@ -71,9 +71,7 @@ public final class RaftUtils {
   public static RaftClient createClient(RaftGroup raftGroup) {
     CelebornConf conf = new CelebornConf();
     Utils.loadDefaultRssProperties(conf, null);
-    RaftProperties properties =
-        HARaftServer.newRaftProperties(
-            conf, MasterClusterInfo.loadHAConfig(conf).localNode().ratisAddr());
+    RaftProperties properties = HARaftServer.newRaftProperties(conf, null);
     RaftClientConfigKeys.Rpc.setRequestTimeout(
         properties, TimeDuration.valueOf(15, TimeUnit.SECONDS));
     ExponentialBackoffRetry retryPolicy =

@@ -294,11 +294,13 @@ public class HARaftServer {
     final RpcType rpc = SupportedRpcType.valueOfIgnoreCase(rpcType);
     RaftConfigKeys.Rpc.setType(properties, rpc);
 
-    // Set the ratis port number
-    if (rpc == SupportedRpcType.GRPC) {
-      GrpcConfigKeys.Server.setPort(properties, ratisAddr.getPort());
-    } else if (rpc == SupportedRpcType.NETTY) {
-      NettyConfigKeys.Server.setPort(properties, ratisAddr.getPort());
+    if (ratisAddr != null) {
+      // Set the ratis port number
+      if (rpc == SupportedRpcType.GRPC) {
+        GrpcConfigKeys.Server.setPort(properties, ratisAddr.getPort());
+      } else if (rpc == SupportedRpcType.NETTY) {
+        NettyConfigKeys.Server.setPort(properties, ratisAddr.getPort());
+      }
     }
 
     // Set Ratis storage directory
