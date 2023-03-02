@@ -60,12 +60,7 @@ done < <(find "$CELEBORN_HOME/master-jars" ! -type d -name '*.jar' -print0 | sor
 
 CELEBORN_RATIS_SHELL_CLIENT_CLASSPATH="${CELEBORN_CONF_DIR}/:${CELEBORN_RATIS_SHELL_CLASSPATH}"
 
-if [[ -n "${CELEBORN_HOME}" ]]; then
-  CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dratis.shell.home=${CELEBORN_HOME}"
-fi
-
 CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dratis.shell.logs.dir=${CELEBORN_LOG_DIR}"
-
 CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dlog4j.configuration=file:${CELEBORN_CONF_DIR}/ratis-log4j.properties"
 CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dorg.apache.jasper.compiler.disablejsr199=true"
 CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Djava.net.preferIPv4Stack=true"
