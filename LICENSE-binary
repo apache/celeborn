@@ -205,6 +205,7 @@ This project bundles the following dependencies under the Apache Software Licens
 
 com.google.code.findbugs:jsr305
 com.google.guava:guava
+commons-cli:commons-cli
 commons-io:commons-io
 commons-logging:commons-logging
 io.dropwizard.metrics:metrics-core
@@ -257,7 +258,10 @@ org.apache.ratis:ratis-netty
 org.apache.ratis:ratis-proto
 org.apache.ratis:ratis-server
 org.apache.ratis:ratis-server-api
+org.apache.ratis:ratis-shell
 org.apache.ratis:ratis-thirdparty-misc
+org.javassist:javassist
+org.reflections:reflections
 org.roaringbitmap:RoaringBitmap
 org.roaringbitmap:shims
 org.scala-lang:scala-library
@@ -291,3 +295,6 @@ See license/LICENSE-MIT.txt for details.
 See license/LICENSE-slf4j.txt for details.
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
+------------
+See license/LICENSE-javassist.txt for detail.
+org.javassist:javassist
