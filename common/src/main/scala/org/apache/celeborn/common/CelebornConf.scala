@@ -729,7 +729,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def hddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def ssdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
   def hdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
-  def diskTimeSlidingWindowSize: Int = get(WORKER_DISK_TIME_SLIDINGWINDOW_SIZE)
+  def diskTimeSlidingWindowSize: Int = get(WORKER_DISKTIME_SLIDINGWINDOW_SIZE)
   def diskTimeSlidingWindowMinFlushCount: Int =
     get(WORKER_DISKTIME_SLIDINGWINDOW_MINFLUSHCOUNT)
   def diskTimeSlidingWindowMinFetchCount: Int =
@@ -2030,7 +2030,7 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
 
-  val WORKER_DISK_TIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
+  val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.worker.diskTime.slidingWindow.size")
       .withAlternative("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
       .withAlternative("rss.flusher.avg.time.window")
