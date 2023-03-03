@@ -53,9 +53,10 @@ public class ReadClientHandler extends BaseMessageHandler {
   }
 
   private void processMessageInternal(long streamId, RequestMessage msg) {
-    if (streamHandlers.containsKey(streamId)) {
+    Consumer<RequestMessage> handler = streamHandlers.get(streamId);
+    if (handler != null) {
       logger.debug("received streamId: {}, msg :{}", streamId, msg);
-      streamHandlers.get(streamId).accept(msg);
+      handler.accept(msg);
     } else {
       logger.warn("Unexpected streamId received: {}", streamId);
     }

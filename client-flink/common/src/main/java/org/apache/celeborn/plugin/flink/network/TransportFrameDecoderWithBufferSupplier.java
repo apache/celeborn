@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
+import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -121,6 +123,8 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
     ReadData readData = (ReadData) curMsg;
     if (externalBuf == null) {
+      Supplier<ByteBuf> supplier = bufferSuppliers.get(readData.getStreamId());
+      checkState(supplier == null, "Stream " + readData.getStreamId() + " buffer supplier is null");
       externalBuf = bufferSuppliers.get(readData.getStreamId()).get();
     }
     copyByteBuf(buf, externalBuf, bodySize);
