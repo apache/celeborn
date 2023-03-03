@@ -19,9 +19,13 @@ name: Style check
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - branch-*
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - branch-*
 
 concurrency:
   group: style-${{ github.ref }}
