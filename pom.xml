@@ -859,6 +859,7 @@
         <module>client-spark/common</module>
         <module>client-spark/spark-2</module>
         <module>client-spark/spark-2-shaded</module>
+        <module>tests/spark-it</module>
       </modules>
       <properties>
         <jackson.version>2.6.7</jackson.version>
