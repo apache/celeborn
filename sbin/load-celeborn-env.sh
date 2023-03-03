@@ -42,10 +42,10 @@ fi
 
 # Find the java binary
 if [ -n "${JAVA_HOME}" ]; then
-  export RUNNER="${JAVA_HOME}/bin/java"
+  export JAVA="${JAVA_HOME}/bin/java"
 else
   if [ "$(command -v java)" ]; then
-    export RUNNER="java"
+    export JAVA="java"
   else
     echo "JAVA_HOME is not set" >&2
     exit 1

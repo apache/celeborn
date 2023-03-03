@@ -75,7 +75,7 @@ fi
 # Turn off posix mode since it does not allow process substitution
 set +o posix
 CMD=()
-CMD+=("$RUNNER")
+CMD+=("$JAVA")
 CMD=(${CMD[@]} "$CELEBORN_JAVA_OPTS")
 CMD+=("-cp")
 CMD+=("$CELEBORN_CLASSPATH")
