@@ -63,11 +63,10 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.client.LifecycleManager;
-import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.client.ShuffleClientImpl;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
+import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class RemoteShuffleResultPartitionSuiteJ {
@@ -456,9 +455,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     }
 
     @Override
-    ShuffleClient createWriteClient() {
-      ShuffleClient client = mock(ShuffleClientImpl.class);
-
+    FlinkShuffleClientImpl createWriteClient() {
+      FlinkShuffleClientImpl client = mock(FlinkShuffleClientImpl.class);
       doNothing().when(client).cleanup(anyString(), anyInt(), anyInt(), anyInt());
       return client;
     }
