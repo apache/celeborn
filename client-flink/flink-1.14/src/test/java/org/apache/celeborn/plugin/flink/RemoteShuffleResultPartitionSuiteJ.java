@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyBoolean;
@@ -456,8 +457,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     }
 
     @Override
-    ShuffleClient createWriteClient() {
-      ShuffleClient client = mock(ShuffleClientImpl.class);
+    FlinkShuffleClientImpl createWriteClient() {
+      FlinkShuffleClientImpl client = mock(FlinkShuffleClientImpl.class);
 
       doNothing().when(client).cleanup(anyString(), anyInt(), anyInt(), anyInt());
       return client;
