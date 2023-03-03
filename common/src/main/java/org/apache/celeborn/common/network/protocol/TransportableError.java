@@ -20,8 +20,7 @@ package org.apache.celeborn.common.network.protocol;
 import java.nio.charset.StandardCharsets;
 
 import io.netty.buffer.ByteBuf;
-
-import org.apache.celeborn.common.util.ExceptionUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 public class TransportableError extends RequestMessage {
   private long streamId;
@@ -29,8 +28,7 @@ public class TransportableError extends RequestMessage {
 
   public TransportableError(long streamId, Throwable throwable) {
     this.streamId = streamId;
-    this.errorMessage =
-        ExceptionUtils.summaryErrorMessageStack(throwable).getBytes(StandardCharsets.UTF_8);
+    this.errorMessage = ExceptionUtils.getStackTrace(throwable).getBytes(StandardCharsets.UTF_8);
   }
 
   public TransportableError(long streamId, byte[] errorMessage) {

@@ -335,14 +335,12 @@ public class BufferStreamManager {
             logger.error("reader exception, reader: {}, message: {}", reader, e.getMessage(), e);
             readers.remove(reader);
             reader.recycleOnError(e);
-            recycleStream(reader.getStreamId());
           }
         }
       } catch (Throwable e) {
         logger.error("Fatal: failed to read partition data. {}", e.getMessage(), e);
         for (DataPartitionReader reader : readers) {
           reader.recycleOnError(e);
-          recycleStream(reader.getStreamId());
         }
 
         readers.clear();
