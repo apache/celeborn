@@ -25,7 +25,9 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
@@ -43,7 +45,21 @@ public class ReadClientHandler extends BaseMessageHandler {
 
   public void removeHandler(long streamId) {
     streamHandlers.remove(streamId);
-    streamClients.remove(streamId);
+    TransportClient client = streamClients.remove(streamId);
+    // If read handler is removed, we should notify worker to release resource.
+    if (client.isActive()) {
+      client.getChannel().writeAndFlush(new BufferStreamEnd(streamId));
+    }
+  }
+
+  private void processMessageInternal(long streamId, RequestMessage msg) {
+    Consumer<RequestMessage> handler = streamHandlers.get(streamId);
+    if (handler != null) {
+      logger.debug("received streamId: {}, msg :{}", streamId, msg);
+      handler.accept(msg);
+    } else {
+      logger.warn("Unexpected streamId received: {}", streamId);
+    }
   }
 
   @Override
@@ -53,27 +69,17 @@ public class ReadClientHandler extends BaseMessageHandler {
       case READ_DATA:
         ReadData readData = (ReadData) msg;
         streamId = readData.getStreamId();
-        if (streamHandlers.containsKey(streamId)) {
-          logger.debug(
-              "received streamId: {}, readData size:{}",
-              streamId,
-              readData.getFlinkBuffer().readableBytes());
-          streamHandlers.get(streamId).accept(msg);
-        } else {
-          logger.warn("Unexpected streamId received: {}", streamId);
-        }
+        processMessageInternal(streamId, readData);
         break;
       case BACKLOG_ANNOUNCEMENT:
         BacklogAnnouncement backlogAnnouncement = (BacklogAnnouncement) msg;
         streamId = backlogAnnouncement.getStreamId();
-        Consumer<RequestMessage> consumer = streamHandlers.get(streamId);
-        if (consumer != null) {
-          logger.debug(
-              "received streamId: {}, backlog: {}", streamId, backlogAnnouncement.getBacklog());
-          consumer.accept(msg);
-        } else {
-          logger.warn("Unexpected streamId received: {}", streamId);
-        }
+        processMessageInternal(streamId, backlogAnnouncement);
+        break;
+      case TRANSPORTABLE_ERROR:
+        TransportableError transportableError = ((TransportableError) msg);
+        streamId = transportableError.getStreamId();
+        processMessageInternal(streamId, transportableError);
         break;
       case ONE_WAY_MESSAGE:
         // ignore it.

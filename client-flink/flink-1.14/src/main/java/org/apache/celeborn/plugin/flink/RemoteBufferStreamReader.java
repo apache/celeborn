@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadAddCredit;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
@@ -72,6 +73,8 @@ public class RemoteBufferStreamReader extends CreditListener {
             dataReceived((ReadData) requestMessage);
           } else if (requestMessage instanceof BacklogAnnouncement) {
             backlogReceived(((BacklogAnnouncement) requestMessage).getBacklog());
+          } else if (requestMessage instanceof TransportableError) {
+            errorReceived(((TransportableError) requestMessage).getErrorMessage());
           }
         };
   }
@@ -122,6 +125,13 @@ public class RemoteBufferStreamReader extends CreditListener {
   public void backlogReceived(int backlog) {
     if (!closed) {
       bufferPool.reserveBuffers(this, backlog);
+    }
+  }
+
+  public void errorReceived(String errorMsg) {
+    if (!closed) {
+      closed = true;
+      failureListener.accept(new IOException(errorMsg));
     }
   }
 

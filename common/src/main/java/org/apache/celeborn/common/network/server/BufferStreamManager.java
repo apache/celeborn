@@ -151,6 +151,10 @@ public class BufferStreamManager {
     }
   }
 
+  public void notifyStreamEndByClient(long streamId) {
+    recycleStream(streamId);
+  }
+
   public void recycleStream(long streamId) {
     recycleStreamIds.add(new DelayedStreamId(streamId));
     startRecycleThread(); // lazy start thread
@@ -380,7 +384,7 @@ public class BufferStreamManager {
       DataPartitionReader dataPartitionReader = streamReaders.get(streamId);
       dataPartitionReader.release();
       if (dataPartitionReader.isFinished()) {
-        logger.info("release all for stream: {}", streamId);
+        logger.debug("release all for stream: {}", streamId);
         removeStream(streamId);
         streams.remove(streamId);
         servingStreams.remove(streamId);

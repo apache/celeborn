@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
+import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -24,13 +26,18 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.util.FrameDecoder;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandlerAdapter
     implements FrameDecoder {
+  public static final Logger logger =
+      LoggerFactory.getLogger(TransportFrameDecoderWithBufferSupplier.class);
   private int msgSize = -1;
   private int bodySize = -1;
   private Message.Type curType = Message.Type.UNKNOWN_TYPE;
@@ -116,6 +123,8 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
     ReadData readData = (ReadData) curMsg;
     if (externalBuf == null) {
+      Supplier<ByteBuf> supplier = bufferSuppliers.get(readData.getStreamId());
+      checkState(supplier == null, "Stream " + readData.getStreamId() + " buffer supplier is null");
       externalBuf = bufferSuppliers.get(readData.getStreamId()).get();
     }
     copyByteBuf(buf, externalBuf, bodySize);
@@ -143,6 +152,13 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
             nettyBuf = decodeBody(nettyBuf, ctx);
           }
         }
+      }
+    } catch (IllegalStateException e) {
+      // Decode ReadData might encounter IllegalStateException.
+      long streamId = ((ReadData) curMsg).getStreamId();
+      logger.info("Stream {} is closed,reply to server", streamId);
+      if (ctx.channel().isActive()) {
+        ctx.channel().writeAndFlush(new BufferStreamEnd(streamId));
       }
     } finally {
       if (nettyBuf != null) {

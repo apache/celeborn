@@ -81,6 +81,13 @@ public class MessageDecoderExt {
         backlog = in.readInt();
         return new BacklogAnnouncement(streamId, backlog);
 
+      case TRANSPORTABLE_ERROR:
+        streamId = in.readLong();
+        int len = in.readInt();
+        byte[] errorBytes = new byte[len];
+        in.readBytes(errorBytes);
+        return new TransportableError(streamId, errorBytes);
+
       default:
         throw new IllegalArgumentException("Unexpected message type: " + type);
     }
