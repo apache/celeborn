@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
+import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.memory.Recycler;
 import org.apache.celeborn.common.network.server.memory.WrappedDataBuffer;
 import org.apache.celeborn.common.util.Utils;
@@ -372,7 +373,11 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   private void notifyError(Throwable throwable) {
     logger.error("read error stream id {} message:{}", streamId, throwable.getMessage(), throwable);
-    // TODO notify client the exception
+    if (this.associatedChannel.isActive()) {
+      // If a stream is failed, send exceptions with the best effort, do not expect response.
+      // And do not close channel because multiple streams are using the very same channel.
+      this.associatedChannel.writeAndFlush(new TransportableError(streamId, throwable));
+    }
   }
 
   public long getPriority() {
@@ -444,5 +449,9 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     sb.append(", streamId=").append(streamId);
     sb.append('}');
     return sb.toString();
+  }
+
+  public long getStreamId() {
+    return streamId;
   }
 }

@@ -74,6 +74,9 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
+      case r: BufferStreamEnd =>
+        rpcSource.updateMessageMetrics(r, 0)
+        handleEndStreamFromClient(client, r)
       case r: ReadAddCredit =>
         rpcSource.updateMessageMetrics(r, 0)
         handleReadAddCredit(client, r)
@@ -181,6 +184,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           request.requestId,
           Throwables.getStackTraceAsString(ioe)))
     }
+  }
+
+  def handleEndStreamFromClient(client: TransportClient, req: BufferStreamEnd): Unit = {
+    bufferStreamManager.notifyStreamEndByClient(req.getStreamId)
   }
 
   def handleReadAddCredit(client: TransportClient, req: ReadAddCredit): Unit = {

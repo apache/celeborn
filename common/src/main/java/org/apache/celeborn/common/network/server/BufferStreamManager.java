@@ -151,6 +151,10 @@ public class BufferStreamManager {
     }
   }
 
+  public void notifyStreamEndByClient(long streamId) {
+    recycleStream(streamId);
+  }
+
   public void recycleStream(long streamId) {
     recycleStreamIds.add(new DelayedStreamId(streamId));
     startRecycleThread(); // lazy start thread
@@ -331,12 +335,14 @@ public class BufferStreamManager {
             logger.error("reader exception, reader: {}, message: {}", reader, e.getMessage(), e);
             readers.remove(reader);
             reader.recycleOnError(e);
+            recycleStream(reader.getStreamId());
           }
         }
       } catch (Throwable e) {
         logger.error("Fatal: failed to read partition data. {}", e.getMessage(), e);
         for (DataPartitionReader reader : readers) {
           reader.recycleOnError(e);
+          recycleStream(reader.getStreamId());
         }
 
         readers.clear();
@@ -380,7 +386,7 @@ public class BufferStreamManager {
       DataPartitionReader dataPartitionReader = streamReaders.get(streamId);
       dataPartitionReader.release();
       if (dataPartitionReader.isFinished()) {
-        logger.info("release all for stream: {}", streamId);
+        logger.debug("release all for stream: {}", streamId);
         removeStream(streamId);
         streams.remove(streamId);
         servingStreams.remove(streamId);
