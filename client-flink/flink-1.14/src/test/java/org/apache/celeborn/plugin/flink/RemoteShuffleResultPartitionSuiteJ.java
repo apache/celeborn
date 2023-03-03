@@ -457,7 +457,6 @@ public class RemoteShuffleResultPartitionSuiteJ {
     @Override
     FlinkShuffleClientImpl createWriteClient() {
       FlinkShuffleClientImpl client = mock(FlinkShuffleClientImpl.class);
-
       doNothing().when(client).cleanup(anyString(), anyInt(), anyInt(), anyInt());
       return client;
     }
