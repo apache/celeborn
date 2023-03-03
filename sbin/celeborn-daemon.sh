@@ -40,7 +40,7 @@ if [ -z "${CELEBORN_HOME}" ]; then
   export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-. "${CELEBORN_HOME}/sbin/celeborn-config.sh"
+. "${CELEBORN_HOME}/sbin/load-celeborn-env.sh"
 
 # get arguments
 

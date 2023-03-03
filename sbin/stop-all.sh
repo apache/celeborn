@@ -22,7 +22,7 @@ if [ -z "${CELEBORN_HOME}" ]; then
   export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi
 
-. "${CELEBORN_HOME}/sbin/celeborn-config.sh"
+. "${CELEBORN_HOME}/sbin/load-celeborn-env.sh"
 
 if [ -f "${CELEBORN_CONF_DIR}/hosts" ]; then
   HOST_LIST=$(awk '/\[/{prefix=$0; next} $1{print prefix,$0}' "${CELEBORN_CONF_DIR}/hosts")

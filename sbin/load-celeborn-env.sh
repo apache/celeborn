@@ -42,10 +42,10 @@ fi
 
 # Find the java binary
 if [ -n "${JAVA_HOME}" ]; then
-  JAVA="${JAVA_HOME}/bin/java"
+  export RUNNER="${JAVA_HOME}/bin/java"
 else
   if [ "$(command -v java)" ]; then
-    JAVA="java"
+    export RUNNER="java"
   else
     echo "JAVA_HOME is not set" >&2
     exit 1
@@ -66,6 +66,6 @@ else
 fi
 
 if [ "$CELEBORN_PID_DIR" = "" ]; then
-  CELEBORN_PID_DIR="${CELEBORN_HOME}/pids"
+  export CELEBORN_PID_DIR="${CELEBORN_HOME}/pids"
 fi
 
