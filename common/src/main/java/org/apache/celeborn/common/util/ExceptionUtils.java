@@ -32,15 +32,4 @@ public class ExceptionUtils {
       throw new CelebornIOException(exception.getMessage(), exception);
     }
   }
-
-  public static String summaryErrorMessageStack(Throwable t) {
-    StringBuilder sb = new StringBuilder();
-    do {
-      if (sb.length() != 0) {
-        sb.append(" -> ");
-      }
-      sb.append("[").append(t.getClass().getName()).append(": ").append(t.getMessage()).append("]");
-    } while ((t = t.getCause()) != null);
-    return sb.toString();
-  }
 }
