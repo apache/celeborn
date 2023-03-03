@@ -261,13 +261,11 @@ public class SlotsAllocator {
       double flushTimeWeight,
       double fetchTimeWeight) {
     List<List<DiskInfo>> diskGroups = new ArrayList<>();
-    usableDisks.sort(
-        (o1, o2) ->
-            Math.toIntExact(
-                (long)
-                    ((o1.avgFlushTime() * flushTimeWeight + o1.avgFetchTime() * fetchTimeWeight)
-                        - (o2.avgFlushTime() * flushTimeWeight
-                            + o2.avgFetchTime() * fetchTimeWeight))));
+    usableDisks.sort((o1, o2) -> {
+      double delta = (o1.avgFlushTime() * flushTimeWeight + o1.avgFetchTime() * fetchTimeWeight)
+        - (o2.avgFlushTime() * flushTimeWeight + o2.avgFetchTime() * fetchTimeWeight);
+      return delta < 0 ? -1 : (delta > 0 ? 1 : 0);
+    });
     int diskCount = usableDisks.size();
     int startIndex = 0;
     int groupSizeSize = (int) Math.ceil(usableDisks.size() / (double) diskGroupCount);
