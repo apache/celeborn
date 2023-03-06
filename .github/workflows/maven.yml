@@ -102,7 +102,7 @@ jobs:
       - name: Test with Maven
         run: |
           PROFILES="-Pgoogle-mirror,flink-${{ matrix.flink }}"
-          TEST_MODULES="client-flink/common,client-flink/flink-${{ matrix.flink }},client-flink/flink-${{ matrix.flink }}-shaded"
+          TEST_MODULES="client-flink/common,client-flink/flink-${{ matrix.flink }},client-flink/flink-${{ matrix.flink }}-shaded,tests/flink-it"
           build/mvn $PROFILES -pl $TEST_MODULES -am clean install -DskipTests
           build/mvn $PROFILES -pl $TEST_MODULES test
       - name: Upload test log
