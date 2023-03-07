@@ -225,7 +225,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
-    if(checkDiskFullAndSplit(fileWriter, isMaster, softSplit, callbackWithTimer)) return
+    if (checkDiskFullAndSplit(fileWriter, isMaster, softSplit, callbackWithTimer)) return
 
     fileWriter.incrementPendingWrites()
 
