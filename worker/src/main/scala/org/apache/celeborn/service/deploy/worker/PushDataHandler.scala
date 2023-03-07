@@ -224,14 +224,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callbackWithTimer.onFailure(new CelebornIOException(cause))
       return
     }
-    val diskFull =
-      if (fileWriter.flusher.isInstanceOf[LocalFlusher]) {
-        workerInfo.diskInfos
-          .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
-          .actualUsableSpace < diskReserveSize
-      } else {
-        false
-      }
+    val diskFull = checkDiskFull(fileWriter)
     if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
       (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
       if (fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
