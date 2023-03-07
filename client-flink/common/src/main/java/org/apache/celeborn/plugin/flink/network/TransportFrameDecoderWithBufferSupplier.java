@@ -124,7 +124,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     ReadData readData = (ReadData) curMsg;
     if (externalBuf == null) {
       Supplier<ByteBuf> supplier = bufferSuppliers.get(readData.getStreamId());
-      checkState(supplier == null, "Stream " + readData.getStreamId() + " buffer supplier is null");
+      checkState(supplier != null, "Stream " + readData.getStreamId() + " buffer supplier is null");
       externalBuf = bufferSuppliers.get(readData.getStreamId()).get();
     }
     copyByteBuf(buf, externalBuf, bodySize);
