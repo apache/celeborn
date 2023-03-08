@@ -40,6 +40,7 @@
             <DefaultRolloverStrategy max="7"/>
         </RollingRandomAccessFile>
     </Appenders>
+
     <Loggers>
         <Root level="INFO">
             <!--
