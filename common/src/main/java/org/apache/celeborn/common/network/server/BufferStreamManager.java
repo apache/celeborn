@@ -284,7 +284,6 @@ public class BufferStreamManager {
               streamId,
               channel,
               () -> recycleStream(streamId));
-      dataPartitionReader.open(dataFileChanel, indexChannel);
       // allocate resources when the first reader is registered
       boolean allocateResources = readers.isEmpty();
       readers.add(dataPartitionReader);
@@ -323,6 +322,9 @@ public class BufferStreamManager {
 
       try {
         PriorityQueue<DataPartitionReader> sortedReaders = new PriorityQueue<>(readers);
+        for (DataPartitionReader reader : readers) {
+          reader.open(dataFileChanel, indexChannel);
+        }
         while (buffers != null && buffers.size() > 0 && !sortedReaders.isEmpty()) {
           BufferRecycler bufferRecycler =
               new BufferRecycler(memoryManager, (buffer) -> this.recycle(buffer, buffers));

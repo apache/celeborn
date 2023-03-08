@@ -86,6 +86,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   private Runnable recycleStream;
 
   private AtomicInteger numInFlightRequests = new AtomicInteger(0);
+  private boolean isOpen = false;
 
   public DataPartitionReader(
       int startPartitionIndex,
@@ -110,14 +111,17 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   }
 
   public void open(FileChannel dataFileChannel, FileChannel indexFileChannel) throws IOException {
-    this.dataFileChannel = dataFileChannel;
-    this.indexFileChannel = indexFileChannel;
-    long indexFileSize = indexFileChannel.size();
-    // index is (offset,length)
-    long indexRegionSize = fileInfo.getNumReducerPartitions() * (long) INDEX_ENTRY_SIZE;
-    this.numRegions = Utils.checkedDownCast(indexFileSize / indexRegionSize);
+    if (!isOpen) {
+      this.dataFileChannel = dataFileChannel;
+      this.indexFileChannel = indexFileChannel;
+      long indexFileSize = indexFileChannel.size();
+      // index is (offset,length)
+      long indexRegionSize = fileInfo.getNumReducerPartitions() * (long) INDEX_ENTRY_SIZE;
+      this.numRegions = Utils.checkedDownCast(indexFileSize / indexRegionSize);
 
-    updateConsumingOffset();
+      updateConsumingOffset();
+      isOpen = true;
+    }
   }
 
   public boolean sendWithCredit(int credit) {
