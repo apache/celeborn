@@ -22,24 +22,20 @@
   -->
 <Configuration status="INFO">
     <Appenders>
-        <Console name="stdout" target="SYSTEM_OUT">
-            <!--
-              ~ In the pattern layout configuration below, we specify an explicit `%ex` conversion
-              ~ pattern for logging Throwables. If this was omitted, then (by default) Log4J would
-              ~ implicitly add an `%xEx` conversion pattern which logs stacktraces with additional
-              ~ class packaging information. That extra information can sometimes add a substantial
-              ~ performance overhead, so we disable it in our default logging config.
-              -->
+        <RollingRandomAccessFile name="rollingBySize" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log" filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d" ignoreExceptions="false" append="true">
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
-        </Console>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="200 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7"/>
+        </RollingRandomAccessFile>
     </Appenders>
-
     <Loggers>
         <Root level="INFO">
-            <AppenderRef ref="stdout"/>
+            <AppenderRef ref="rollingBySize"/>
         </Root>
         <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
-            <Appender-ref ref="stdout" level="WARN" />
+            <Appender-ref ref="rollingBySize" level="WARN"/>
         </Logger>
     </Loggers>
 </Configuration>
