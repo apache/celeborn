@@ -59,7 +59,7 @@ public abstract class RssInputStream extends InputStream {
           conf,
           clientFactory,
           shuffleKey,
-          locations,
+          Arrays.copyOf(locations, locations.length),
           attempts,
           attemptNumber,
           startMapIndex,
