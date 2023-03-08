@@ -31,7 +31,7 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ .Chart.Name }}
-      app.kubernetes.io/instance: { { .Release.Name } }
+      app.kubernetes.io/instance: {{ .Release.Name }}
       app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
       app.kubernetes.io/role: master
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
@@ -45,7 +45,7 @@ spec:
       {{- end }}
       labels:
         app.kubernetes.io/name: {{ .Chart.Name }}
-        app.kubernetes.io/instance: { { .Release.Name } }
+        app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
         app.kubernetes.io/role: master
         {{- include "celeborn.selectorLabels" . | nindent 8 }}
