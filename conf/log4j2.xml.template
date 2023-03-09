@@ -32,7 +32,7 @@
               -->
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
         </Console>
-        <RollingRandomAccessFile name="file" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log" filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d" ignoreExceptions="false" append="true">
+        <RollingRandomAccessFile name="file" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log" filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d">
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
             <Policies>
                 <SizeBasedTriggeringPolicy size="200 MB"/>
