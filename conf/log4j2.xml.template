@@ -32,14 +32,26 @@
               -->
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
         </Console>
+        <RollingRandomAccessFile name="file" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log" filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d">
+            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="200 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7"/>
+        </RollingRandomAccessFile>
     </Appenders>
 
     <Loggers>
         <Root level="INFO">
+            <!--
+              ~ Here are appender templates, keep the appender as your need.
+              -->
             <AppenderRef ref="stdout"/>
+            <AppenderRef ref="file"/>
         </Root>
         <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
             <Appender-ref ref="stdout" level="WARN" />
+            <Appender-ref ref="file" level="WARN"/>
         </Logger>
     </Loggers>
 </Configuration>
