@@ -472,8 +472,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         return null;
       }
       pushState = getPushState(mapKey);
-      // force data has been send
-      limitZeroInFlight(mapKey, pushState);
 
       // add inFlight requests
       batchId = pushState.nextBatchId();
