@@ -111,35 +111,41 @@ public class BufferStreamManager {
     long streamId = nextStreamId.getAndIncrement();
     streams.put(streamId, new StreamState(channel, fileInfo.getBufferSize()));
     logger.debug("Register stream start streamId: {}, fileInfo: {}", streamId, fileInfo);
+    MapDataPartition mapDataPartition;
     synchronized (activeMapPartitions) {
-      MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
+      mapDataPartition = activeMapPartitions.get(fileInfo);
       if (mapDataPartition == null) {
         mapDataPartition = new MapDataPartition(fileInfo);
         activeMapPartitions.put(fileInfo, mapDataPartition);
       }
       mapDataPartition.addStream(streamId);
-      addCredit(initialCredit, streamId);
-      servingStreams.put(streamId, mapDataPartition);
-      // response streamId to channel first
-      callback.accept(streamId);
-      mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
     }
+
+    addCredit(initialCredit, streamId);
+    servingStreams.put(streamId, mapDataPartition);
+    // response streamId to channel first
+    callback.accept(streamId);
+    mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
 
     logger.debug("Register stream streamId: {}, fileInfo: {}", streamId, fileInfo);
 
     return streamId;
   }
 
-  public void addCredit(int numCredit, long streamId) {
+  private void addCredit(MapDataPartition mapDataPartition, int numCredit, long streamId) {
     logger.debug("streamId: {}, add credit: {}", streamId, numCredit);
     try {
-      MapDataPartition mapDataPartition = servingStreams.get(streamId);
-      if (mapDataPartition != null) {
+      if (mapDataPartition != null && numCredit > 0) {
         mapDataPartition.addReaderCredit(numCredit, streamId);
       }
     } catch (Throwable e) {
       logger.error("streamId: {}, add credit end: {}", streamId, numCredit);
     }
+  }
+
+  public void addCredit(int numCredit, long streamId) {
+    MapDataPartition mapDataPartition = servingStreams.get(streamId);
+    addCredit(mapDataPartition, numCredit, streamId);
   }
 
   public void connectionTerminated(Channel channel) {
@@ -191,7 +197,8 @@ public class BufferStreamManager {
     if (streams.containsKey(streamId)) {
       MapDataPartition mapDataPartition = servingStreams.get(streamId);
       if (mapDataPartition != null) {
-        if (mapDataPartition.releaseStream(streamId)) {
+        if (mapDataPartition.releaseStream(streamId)
+            && mapDataPartition.activeStreamIds.isEmpty()) {
           synchronized (activeMapPartitions) {
             if (mapDataPartition.activeStreamIds.isEmpty()) {
               mapDataPartition.close();
