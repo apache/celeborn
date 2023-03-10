@@ -91,11 +91,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   protected final AbstractSource source;
 
-  private final ExecutorService fileSorterExecutors =
-      ThreadUtils.newDaemonCachedThreadPool(
-          "worker-file-sorter-execute",
-          Math.max(Runtime.getRuntime().availableProcessors(), 8),
-          120);
+  private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
 
   public PartitionFilesSorter(
@@ -122,6 +118,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     } else {
       this.sortedFilesDb = null;
     }
+
+    fileSorterExecutors =
+        ThreadUtils.newDaemonCachedThreadPool(
+            "worker-file-sorter-execute",
+            Math.max(Runtime.getRuntime().availableProcessors(), conf.partitionSorterThreads()),
+            120);
 
     fileSorterSchedulerThread =
         new Thread(
