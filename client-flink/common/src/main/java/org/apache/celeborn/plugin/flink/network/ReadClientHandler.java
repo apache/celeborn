@@ -47,7 +47,6 @@ public class ReadClientHandler extends BaseMessageHandler {
     streamHandlers.remove(streamId);
     TransportClient client = streamClients.remove(streamId);
     // If read handler is removed, we should notify worker to release resource.
-    // client might be null because stream clients might be cleared by close method
     if (client != null && client.isActive()) {
       client.getChannel().writeAndFlush(new BufferStreamEnd(streamId));
     }
