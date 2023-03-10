@@ -514,6 +514,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
   def partitionSorterReservedMemoryPerPartition: Long =
     get(PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
+  def partitionSorterThreads: Int =
+    get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -1956,6 +1958,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1mb")
+
+  val PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.partitionSorter.threads")
+      .categories("worker")
+      .doc("PartitionSorter's thread counts.")
+      .version("0.3.0")
+      .intConf
+      .createOptional
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")
