@@ -68,7 +68,6 @@ public class MetaHandler {
   public ResourceResponse handleReadRequest(ResourceProtos.ResourceRequest request) {
     ResourceProtos.Type cmdType = request.getCmdType();
     ResourceResponse.Builder responseBuilder = getMasterMetaResponseBuilder(request);
-    responseBuilder.setCmdType(cmdType);
     try {
       switch (cmdType) {
         default:
@@ -88,7 +87,6 @@ public class MetaHandler {
   public ResourceResponse handleWriteRequest(ResourceProtos.ResourceRequest request) {
     ResourceProtos.Type cmdType = request.getCmdType();
     ResourceResponse.Builder responseBuilder = getMasterMetaResponseBuilder(request);
-    responseBuilder.setCmdType(cmdType);
     try {
       String shuffleKey;
       String appId;
