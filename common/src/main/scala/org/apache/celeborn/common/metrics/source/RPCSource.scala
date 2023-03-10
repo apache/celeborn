@@ -18,7 +18,7 @@
 package org.apache.celeborn.common.metrics.source
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.network.protocol.{ChunkFetchRequest, PushData, PushMergedData}
+import org.apache.celeborn.common.network.protocol.{ChunkFetchRequest, OpenStream, PushData, PushMergedData}
 import org.apache.celeborn.common.protocol.{PbRegisterWorker, PbUnregisterShuffle}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 
@@ -38,6 +38,7 @@ class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
   addCounter(RPCPushDataSize)
   addCounter(RPCPushMergedDataNum)
   addCounter(RPCPushMergedDataSize)
+  addCounter(RPCOpenStreamNum)
   addCounter(RPCChunkFetchRequestNum)
 
   // Master RPC
@@ -72,6 +73,8 @@ class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
         incCounter(RPCPushMergedDataSize, messageLen)
       case _: ChunkFetchRequest =>
         incCounter(RPCChunkFetchRequestNum)
+      case _: OpenStream =>
+        incCounter(RPCOpenStreamNum)
       case _: HeartbeatFromApplication =>
         incCounter(RPCHeartbeatFromApplicationNum)
       case _: HeartbeatFromWorker =>
@@ -109,6 +112,7 @@ object RPCSource {
   val RPCPushDataSize = "RPCPushDataSize"
   val RPCPushMergedDataNum = "RPCPushMergedDataNum"
   val RPCPushMergedDataSize = "RPCPushMergedDataSize"
+  val RPCOpenStreamNum = "RPCOpenStreamNum"
   val RPCChunkFetchRequestNum = "RPCChunkFetchRequestNum"
 
   // Master RPC
