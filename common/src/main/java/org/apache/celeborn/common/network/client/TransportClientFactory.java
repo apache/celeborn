@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.base.Preconditions;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import org.slf4j.Logger;
@@ -76,7 +76,7 @@ public class TransportClientFactory implements Closeable {
 
   private final Class<? extends Channel> socketChannelClass;
   private EventLoopGroup workerGroup;
-  private PooledByteBufAllocator pooledAllocator;
+  protected ByteBufAllocator pooledAllocator;
 
   public TransportClientFactory(TransportContext context) {
     this.context = Preconditions.checkNotNull(context);
@@ -90,6 +90,10 @@ public class TransportClientFactory implements Closeable {
     logger.info("mode " + ioMode + " threads " + conf.clientThreads());
     this.workerGroup =
         NettyUtils.createEventLoop(ioMode, conf.clientThreads(), conf.getModuleName() + "-client");
+    initializeMemoryAllocator();
+  }
+
+  protected void initializeMemoryAllocator() {
     this.pooledAllocator =
         NettyUtils.createPooledByteBufAllocator(
             conf.preferDirectBufs(), false /* allowCache */, conf.clientThreads());
