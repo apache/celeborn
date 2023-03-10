@@ -18,6 +18,8 @@
 package org.apache.celeborn.common.util;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 
@@ -30,6 +32,22 @@ public class ExceptionUtils {
       throw new CelebornIOException(exception);
     } else {
       throw new CelebornIOException(exception.getMessage(), exception);
+    }
+  }
+
+  public static String stringifyException(Throwable exception) {
+    if (exception == null) {
+      return "(null)";
+    }
+
+    try {
+      StringWriter stm = new StringWriter();
+      PrintWriter wrt = new PrintWriter(stm);
+      exception.printStackTrace(wrt);
+      wrt.close();
+      return stm.toString();
+    } catch (Throwable throwable) {
+      return exception.getClass().getName() + " (error while printing stack trace)";
     }
   }
 }

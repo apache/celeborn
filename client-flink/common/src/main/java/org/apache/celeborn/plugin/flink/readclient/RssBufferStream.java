@@ -94,7 +94,7 @@ public class RssBufferStream {
 
           @Override
           public void onFailure(Throwable e) {
-            throw new RuntimeException("OpenStream failed.", e);
+            messageConsumer.accept(new TransportableError(streamId, e));
           }
         });
   }
