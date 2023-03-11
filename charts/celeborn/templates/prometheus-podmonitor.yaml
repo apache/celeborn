@@ -40,7 +40,7 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: celeborn-master
+      app.kubernetes.io/role: master
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
@@ -65,6 +65,6 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: celeborn-worker
+      app.kubernetes.io/role: worker
 {{ end }}
 {{- end }}
