@@ -66,6 +66,8 @@ class HttpRequestHandler(
         service.getWorkerInfo
       case "/lostWorkers" if service.serviceName == Service.MASTER =>
         service.getLostWorkers
+      case "/blacklistedWorkers" if service.serviceName == Service.MASTER =>
+        service.getBlacklistedWorkers
       case "/threadDump" =>
         service.getThreadDump
       case "/hostnames" if service.serviceName == Service.MASTER =>

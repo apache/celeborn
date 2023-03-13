@@ -451,6 +451,8 @@ private[celeborn] class Worker(
 
   override def getLostWorkers: String = throw new UnsupportedOperationException()
 
+  override def getBlacklistedWorkers: String = throw new UnsupportedOperationException()
+
   override def getThreadDump: String = Utils.getThreadDump()
 
   override def getHostnameList: String = throw new UnsupportedOperationException()

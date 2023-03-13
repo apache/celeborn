@@ -29,6 +29,8 @@ abstract class HttpService extends Service with Logging {
 
   def getLostWorkers: String
 
+  def getBlacklistedWorkers: String
+
   def getThreadDump: String
 
   def getHostnameList: String
