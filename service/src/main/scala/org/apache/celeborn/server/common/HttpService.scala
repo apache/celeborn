@@ -41,6 +41,8 @@ abstract class HttpService extends Service with Logging {
 
   def listTopDiskUseApps: String
 
+  def listPartitionLocationInfo: String
+
   def startHttpServer(): Unit = {
     val handlers =
       if (metricsSystem.running) {

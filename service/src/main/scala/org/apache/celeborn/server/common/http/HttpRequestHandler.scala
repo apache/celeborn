@@ -78,6 +78,8 @@ class HttpRequestHandler(
         service.getShuffleList
       case "/listTopDiskUsedApps" =>
         service.listTopDiskUseApps
+      case "/listPartitionLocationInfo" if service.serviceName == Service.WORKER =>
+        service.listPartitionLocationInfo
       case _ => INVALID
     }
   }
