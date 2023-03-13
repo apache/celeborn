@@ -313,7 +313,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       snapshotMetaInfo
           .getLostWorkersMap()
           .entrySet()
-          .forEach(entry -> lostWorkers.put(WorkerInfo.fromUniqueId(entry.getKey()), entry.getValue()));
+          .forEach(
+              entry -> lostWorkers.put(WorkerInfo.fromUniqueId(entry.getKey()), entry.getValue()));
 
       partitionTotalWritten.reset();
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
