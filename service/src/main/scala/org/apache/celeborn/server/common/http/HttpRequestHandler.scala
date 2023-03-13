@@ -64,6 +64,8 @@ class HttpRequestHandler(
     uri match {
       case "/workerInfo" =>
         service.getWorkerInfo
+      case "blacklistedWorkers" if service.serviceName == Service.MASTER =>
+        service.getBlacklistedWorkers
       case "/threadDump" =>
         service.getThreadDump
       case "/hostnames" if service.serviceName == Service.MASTER =>

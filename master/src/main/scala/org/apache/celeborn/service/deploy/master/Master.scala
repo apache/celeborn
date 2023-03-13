@@ -717,6 +717,15 @@ private[celeborn] class Master(
     sb.toString()
   }
 
+  override def getBlacklistedWorkers: String = {
+    val sb = new StringBuilder
+    sb.append("==========Blacklisted WorkerInfos in Master==========\n")
+    statusSystem.blacklist.asScala.map { worker =>
+      sb.append(s"${worker.toUniqueId()}\n")
+    }
+    sb.toString()
+  }
+
   override def getThreadDump: String = {
     val sb = new StringBuilder
     val threadDump = Utils.getThreadDump()
