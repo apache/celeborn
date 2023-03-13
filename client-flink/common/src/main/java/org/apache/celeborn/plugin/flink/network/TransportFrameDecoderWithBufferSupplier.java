@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -29,7 +27,6 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.util.FrameDecoder;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
@@ -46,6 +43,8 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   private ByteBuf externalBuf = null;
   private final ByteBuf msgBuf = Unpooled.buffer(8);
   private Message curMsg = null;
+  private int remainingSize = -1;
+
   private final ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
 
   public TransportFrameDecoderWithBufferSupplier(
@@ -57,6 +56,18 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     int bytes = Math.min(source.readableBytes(), targetSize - target.readableBytes());
     for (int i = 0; i < bytes; i++) {
       target.writeByte(source.readByte());
+    }
+  }
+
+  private void dropUnusedBytes(io.netty.buffer.ByteBuf source) {
+    if (source.readableBytes() > 0) {
+      if (remainingSize > source.readableBytes()) {
+        remainingSize = remainingSize - source.readableBytes();
+        source.skipBytes(source.readableBytes());
+      } else {
+        source.skipBytes(remainingSize);
+        clear();
+      }
     }
   }
 
@@ -121,12 +132,24 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
 
   private io.netty.buffer.ByteBuf decodeBodyCopyOut(
       io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
-    ReadData readData = (ReadData) curMsg;
-    if (externalBuf == null) {
-      Supplier<ByteBuf> supplier = bufferSuppliers.get(readData.getStreamId());
-      checkState(supplier != null, "Stream " + readData.getStreamId() + " buffer supplier is null");
-      externalBuf = bufferSuppliers.get(readData.getStreamId()).get();
+    if (remainingSize > 0) {
+      dropUnusedBytes(buf);
+      return buf;
     }
+
+    ReadData readData = (ReadData) curMsg;
+    long streamId = readData.getStreamId();
+    if (externalBuf == null) {
+      Supplier<ByteBuf> supplier = bufferSuppliers.get(streamId);
+      if (supplier == null) {
+        logger.warn("Need drop unused bytes, streamId: {}, bodySize: {}", streamId, bodySize);
+        remainingSize = bodySize;
+        dropUnusedBytes(buf);
+        return buf;
+      }
+      externalBuf = supplier.get();
+    }
+
     copyByteBuf(buf, externalBuf, bodySize);
     if (externalBuf.readableBytes() == bodySize) {
       ((ReadData) curMsg).setFlinkBuffer(externalBuf);
@@ -146,19 +169,12 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
           decodeMsg(nettyBuf, ctx);
         } else if (bodySize > 0) {
           if (curMsg.needCopyOut()) {
-            // Only readdata will enter this branch
+            // Only read data will enter this branch
             nettyBuf = decodeBodyCopyOut(nettyBuf, ctx);
           } else {
             nettyBuf = decodeBody(nettyBuf, ctx);
           }
         }
-      }
-    } catch (IllegalStateException e) {
-      // Decode ReadData might encounter IllegalStateException.
-      long streamId = ((ReadData) curMsg).getStreamId();
-      logger.info("Stream {} is closed,reply to server", streamId);
-      if (ctx.channel().isActive()) {
-        ctx.channel().writeAndFlush(new BufferStreamEnd(streamId));
       }
     } finally {
       if (nettyBuf != null) {
@@ -174,6 +190,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     headerBuf.clear();
     bodyBuf = null;
     bodySize = -1;
+    remainingSize = -1;
   }
 
   @Override
@@ -184,10 +201,9 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
   @Override
   public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
     clear();
-    if (externalBuf != null) {
-      externalBuf.clear();
-    }
+
     headerBuf.release();
+    msgBuf.release();
     super.handlerRemoved(ctx);
   }
 
