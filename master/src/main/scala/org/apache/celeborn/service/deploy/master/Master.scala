@@ -719,12 +719,11 @@ private[celeborn] class Master(
     sb.toString()
   }
 
-
   override def getLostWorkers: String = {
     val sb = new StringBuilder
     sb.append("========== Lost WorkerInfos in Master==========\n")
     lostWorkersSnapshot.asScala.map { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId()}      $time\n"  )
+      sb.append(s"${worker.toUniqueId()}      $time\n")
     }
     sb.toString()
   }
