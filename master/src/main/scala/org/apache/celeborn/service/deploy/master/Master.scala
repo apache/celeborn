@@ -145,6 +145,7 @@ private[celeborn] class Master(
   // worker count
   masterSource.addGauge(MasterSource.WORKER_COUNT, _ => statusSystem.workers.size())
   masterSource.addGauge(MasterSource.PARTITION_SIZE, _ => statusSystem.estimatedPartitionSize)
+  masterSource.addGauge(MasterSource.LostWorkerCount, _ => statusSystem.lostWorkers.size())
   // is master active under HA mode
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER, _ => isMasterActive)
 
