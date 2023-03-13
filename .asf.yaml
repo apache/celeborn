@@ -34,6 +34,7 @@ github:
     discussions: true
     wiki: false
     projects: false
+  autolink_jira: CELEBORN
 notifications:
   commits: commits@celeborn.apache.org
   issues: issues@celeborn.apache.org
