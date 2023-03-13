@@ -464,4 +464,5 @@ message PbSnapshotMetaInfo {
   int64 partitionTotalFileCount = 9;
   repeated PbAppDiskUsageSnapshot appDiskUsageMetricSnapshots = 10;
   optional PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
+  map<string, int64> lostWorkers = 12;
 }

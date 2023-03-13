@@ -369,7 +369,8 @@ object PbSerDeUtils {
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
-      currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot): PbSnapshotMetaInfo = {
+      currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
+      lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -384,6 +385,9 @@ object PbSerDeUtils {
       // protobuf repeated value can't support null value in list.
       .addAllAppDiskUsageMetricSnapshots(appDiskUsageMetricSnapshots.filter(_ != null)
         .map(toPbAppDiskUsageSnapshot).toList.asJava)
+      .putAllLostWorkers(lostWorkers.asScala.map {
+        case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
+      }.asJava)
     if (currentAppDiskUsageMetricsSnapshot != null) {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))

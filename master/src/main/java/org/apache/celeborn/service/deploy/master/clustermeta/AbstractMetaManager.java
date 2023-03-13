@@ -52,6 +52,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Set<String> registeredShuffle = ConcurrentHashMap.newKeySet();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final ArrayList<WorkerInfo> workers = new ArrayList<>();
+  public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = new ConcurrentHashMap<>();
   public final ConcurrentHashMap<String, Long> appHeartbeatTime = new ConcurrentHashMap<>();
   // blacklist
   public final Set<WorkerInfo> blacklist = ConcurrentHashMap.newKeySet();
@@ -145,6 +146,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     // remove worker from workers
     synchronized (workers) {
       workers.remove(worker);
+      lostWorkers.put(worker, System.currentTimeMillis());
     }
     // delete from blacklist
     blacklist.remove(worker);
@@ -157,6 +159,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     // remove worker from workers
     synchronized (workers) {
       workers.remove(worker);
+      lostWorkers.put(worker, System.currentTimeMillis());
     }
     // delete from blacklist
     blacklist.remove(worker);
@@ -240,6 +243,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {
         workers.add(workerInfo);
+        lostWorkers.remove(workerInfo);
       }
     }
   }
@@ -263,7 +267,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
                 appDiskUsageMetric.snapShots(),
-                appDiskUsageMetric.currentSnapShot().get())
+                appDiskUsageMetric.currentSnapShot().get(),
+                lostWorkers)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -304,6 +309,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           snapshotMetaInfo.getWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet()));
+
+      snapshotMetaInfo
+          .getLostWorkersMap()
+          .entrySet()
+          .forEach(
+              entry -> lostWorkers.put(WorkerInfo.fromUniqueId(entry.getKey()), entry.getValue()));
 
       partitionTotalWritten.reset();
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
