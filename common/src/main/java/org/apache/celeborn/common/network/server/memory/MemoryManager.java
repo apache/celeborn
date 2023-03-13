@@ -160,6 +160,8 @@ public class MemoryManager {
             MemoryManagerStat lastAction = memoryManagerStat;
             memoryManagerStat = currentMemoryAction();
             if (lastAction != memoryManagerStat) {
+              logger.info(
+                  "Memory manager actions transformed {} -> {}", lastAction, memoryManagerStat);
               if (memoryManagerStat == MemoryManagerStat.pausePushDataAndResumeReplicate) {
                 pausePushDataCounter.increment();
                 actionService.submit(
@@ -203,7 +205,7 @@ public class MemoryManager {
                   actionService.submit(
                       () -> {
                         try {
-                          logger.info("Trigger trim action");
+                          logger.debug("Trigger trim action");
                           memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
                         } finally {
                           trimInProcess.set(false);
@@ -223,11 +225,12 @@ public class MemoryManager {
     reportService.scheduleWithFixedDelay(
         () ->
             logger.info(
-                "Direct memory usage: {}/{}, disk buffer size: {}, sort memory size: {}",
+                "Direct memory usage: {}/{}, disk buffer size: {}, sort memory size: {}, read buffer size: {}",
                 Utils.bytesToString(nettyMemoryCounter.get()),
                 Utils.bytesToString(maxDirectorMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
-                Utils.bytesToString(sortMemoryCounter.get())),
+                Utils.bytesToString(sortMemoryCounter.get()),
+                Utils.bytesToString(readBufferCounter.get())),
         reportInterval,
         reportInterval,
         TimeUnit.SECONDS);
@@ -237,11 +240,13 @@ public class MemoryManager {
     logger.info(
         "Memory tracker initialized with: "
             + "max direct memory: {}, pause pushdata memory: {}, "
-            + "pause replication memory: {}, resume memory: {}",
+            + "pause replication memory: {}, resume memory: {},"
+            + "read buffer memory limit: {}",
         Utils.bytesToString(maxDirectorMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
-        Utils.bytesToString(resumeThreshold));
+        Utils.bytesToString(resumeThreshold),
+        Utils.bytesToString(readBufferThreshold));
   }
 
   private void initDirectMemoryIndicator() {
