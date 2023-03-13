@@ -116,14 +116,14 @@ public class TestCongestionController {
 
     Assert.assertTrue(
         isGaugeExist(
-            WorkerSource.UserProduceSpeed(),
+            WorkerSource.USER_PRODUCE_SPEED(),
             JavaConverters.mapAsJavaMapConverter(user.toMap()).asJava()));
 
     Thread.sleep(userInactiveTimeMills * 2);
 
     Assert.assertFalse(
         isGaugeExist(
-            WorkerSource.UserProduceSpeed(),
+            WorkerSource.USER_PRODUCE_SPEED(),
             JavaConverters.mapAsJavaMapConverter(user.toMap()).asJava()));
   }
 

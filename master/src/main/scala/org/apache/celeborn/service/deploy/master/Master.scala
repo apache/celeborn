@@ -52,7 +52,7 @@ private[celeborn] class Master(
   override def serviceName: String = Service.MASTER
 
   override val metricsSystem: MetricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, MasterSource.ServletPath)
+    MetricsSystem.createMetricsSystem(serviceName, conf, MasterSource.SERVLET_PATH)
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,
@@ -138,15 +138,15 @@ private[celeborn] class Master(
   val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
   masterSource.addGauge(
-    MasterSource.RegisteredShuffleCount,
+    MasterSource.REGISTERED_SHUFFLE_COUNT,
     _ => statusSystem.registeredShuffle.size())
   // blacklist worker count
-  masterSource.addGauge(MasterSource.BlacklistedWorkerCount, _ => statusSystem.blacklist.size())
+  masterSource.addGauge(MasterSource.BLACKLISTED_WORKER_COUNT, _ => statusSystem.blacklist.size())
   // worker count
-  masterSource.addGauge(MasterSource.WorkerCount, _ => statusSystem.workers.size())
-  masterSource.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
+  masterSource.addGauge(MasterSource.WORKER_COUNT, _ => statusSystem.workers.size())
+  masterSource.addGauge(MasterSource.PARTITION_SIZE, _ => statusSystem.estimatedPartitionSize)
   // is master active under HA mode
-  masterSource.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
+  masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER, _ => isMasterActive)
 
   metricsSystem.registerSource(rpcSource)
   metricsSystem.registerSource(resourceConsumptionSource)
@@ -502,7 +502,7 @@ private[celeborn] class Master(
 
     // offer slots
     val slots =
-      masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
+      masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
             SlotsAllocator.offerSlotsRoundRobin(

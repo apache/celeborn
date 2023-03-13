@@ -142,13 +142,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (isMaster) {
         new RpcResponseCallbackWithTimer(
           workerSource,
-          WorkerSource.MasterPushDataTime,
+          WorkerSource.MASTER_PUSH_DATA_TIME,
           key,
           callback)
       } else {
         new RpcResponseCallbackWithTimer(
           workerSource,
-          WorkerSource.SlavePushDataTime,
+          WorkerSource.SLAVE_PUSH_DATA_TIME,
           key,
           callback)
       }
@@ -243,7 +243,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
-            workerSource.incCounter(WorkerSource.PushDataFailCount)
+            workerSource.incCounter(WorkerSource.PUSH_DATA_FAIL_COUNT)
             logError(
               s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
@@ -287,7 +287,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
             override def onFailure(e: Throwable): Unit = {
               logError(s"PushData replication failed for partitionLocation: $location", e)
-              workerSource.incCounter(WorkerSource.PushDataFailCount)
+              workerSource.incCounter(WorkerSource.PUSH_DATA_FAIL_COUNT)
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
@@ -312,7 +312,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              workerSource.incCounter(WorkerSource.PushDataFailCount)
+              workerSource.incCounter(WorkerSource.PUSH_DATA_FAIL_COUNT)
               logError(
                 s"PushData replication failed during connecting peer for partitionLocation: $location",
                 e)
@@ -385,13 +385,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (isMaster) {
         new RpcResponseCallbackWithTimer(
           workerSource,
-          WorkerSource.MasterPushDataTime,
+          WorkerSource.MASTER_PUSH_DATA_TIME,
           key,
           callback)
       } else {
         new RpcResponseCallbackWithTimer(
           workerSource,
-          WorkerSource.SlavePushDataTime,
+          WorkerSource.SLAVE_PUSH_DATA_TIME,
           key,
           callback)
       }
@@ -501,7 +501,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
-            workerSource.incCounter(WorkerSource.PushDataFailCount)
+            workerSource.incCounter(WorkerSource.PUSH_DATA_FAIL_COUNT)
             logError(
               s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
@@ -539,7 +539,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
             override def onFailure(e: Throwable): Unit = {
               logError(s"PushMergedData replicate failed for partitionLocation: $location", e)
-              workerSource.incCounter(WorkerSource.PushDataFailCount)
+              workerSource.incCounter(WorkerSource.PUSH_DATA_FAIL_COUNT)
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
@@ -569,7 +569,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              workerSource.incCounter(WorkerSource.PushDataFailCount)
+              workerSource.incCounter(WorkerSource.PUSH_DATA_FAIL_COUNT)
               logError(
                 s"PushMergedData replication failed during connecting peer for partitionLocation: $location",
                 e)
@@ -714,9 +714,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     val key = s"${pushData.requestId}"
     if (isMaster) {
-      workerSource.startTimer(WorkerSource.MasterPushDataTime, key)
+      workerSource.startTimer(WorkerSource.MASTER_PUSH_DATA_TIME, key)
     } else {
-      workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
+      workerSource.startTimer(WorkerSource.SLAVE_PUSH_DATA_TIME, key)
     }
 
     // find FileWriter responsible for the data
@@ -734,7 +734,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         pushData.requestId,
         null,
         location,
-        if (isMaster) WorkerSource.MasterPushDataTime else WorkerSource.SlavePushDataTime,
+        if (isMaster) WorkerSource.MASTER_PUSH_DATA_TIME else WorkerSource.SLAVE_PUSH_DATA_TIME,
         callback)
 
     if (checkLocationNull(
@@ -831,11 +831,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val (workerSourceMaster, workerSourceSlave) =
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
-          (WorkerSource.MasterPushDataHandshakeTime, WorkerSource.SlavePushDataHandshakeTime)
+          (
+            WorkerSource.MASTER_PUSH_DATA_HAND_SHAKE_TIME,
+            WorkerSource.SLAVE_PUSH_DATA_HAND_SHAKE_TIME)
         case Type.REGION_START =>
-          (WorkerSource.MasterRegionStartTime, WorkerSource.SlaveRegionStartTime)
+          (WorkerSource.MASTER_REGION_START_TIME, WorkerSource.SLAVE_REGION_START_TIME)
         case Type.REGION_FINISH =>
-          (WorkerSource.MasterRegionFinishTime, WorkerSource.SlaveRegionFinishTime)
+          (WorkerSource.MASTER_REGION_FINISH_TIME, WorkerSource.SLAVE_REGION_FINISH_TIME)
       }
 
     val location = isMaster match {
@@ -932,18 +934,18 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
-          workerSource.incCounter(WorkerSource.PushDataHandshakeFailCount)
+          workerSource.incCounter(WorkerSource.PUSH_DATA_HAND_SHAKE_FAIL_COUNT)
           callback.onFailure(new CelebornIOException(
             StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE,
             e))
         case Type.REGION_START =>
-          workerSource.incCounter(WorkerSource.RegionStartFailCount)
+          workerSource.incCounter(WorkerSource.REGION_START_FAIL_COUNT)
           callback.onFailure(new CelebornIOException(StatusCode.REGION_START_FAIL_SLAVE, e))
         case Type.REGION_FINISH =>
-          workerSource.incCounter(WorkerSource.RegionFinishFailCount)
+          workerSource.incCounter(WorkerSource.REGION_FINISH_FAIL_COUNT)
           callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_SLAVE, e))
         case _ =>
-          workerSource.incCounter(WorkerSource.PushDataFailCount)
+          workerSource.incCounter(WorkerSource.PUSH_DATA_FAIL_COUNT)
           if (e.isInstanceOf[CelebornIOException]) {
             callback.onFailure(e)
           } else {

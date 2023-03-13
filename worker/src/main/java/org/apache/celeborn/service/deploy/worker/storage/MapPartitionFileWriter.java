@@ -98,7 +98,7 @@ public final class MapPartitionFileWriter extends FileWriter {
     String metricsName = null;
     String fileAbsPath = null;
     if (source.metricsCollectCriticalEnabled()) {
-      metricsName = WorkerSource.TakeBufferTimeIndex();
+      metricsName = WorkerSource.TAKE_BUFFER_TIME_INDEX();
       fileAbsPath = fileInfo.getIndexPath();
       source.startTimer(metricsName, fileAbsPath);
     }

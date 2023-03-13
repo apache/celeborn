@@ -87,16 +87,16 @@ class LocalDeviceMonitor(
       .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfo]) =>
         def usage = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
         workerSource.addGauge(
-          s"${WorkerSource.DeviceOSTotalCapacity}_${deviceInfo.name}",
+          s"${WorkerSource.DEVICE_OS_TOTAL_CAPACITY}_${deviceInfo.name}",
           _ => usage(usage.length - 5).toLong)
         workerSource.addGauge(
-          s"${WorkerSource.DeviceOSFreeCapacity}_${deviceInfo.name}",
+          s"${WorkerSource.DEVICE_OS_FREE_CAPACITY}_${deviceInfo.name}",
           _ => usage(usage.length - 3).toLong)
         workerSource.addGauge(
-          s"${WorkerSource.DeviceCelebornTotalCapacity}_${deviceInfo.name}",
+          s"${WorkerSource.DEVICE_CELEBORN_TOTAL_CAPACITY}_${deviceInfo.name}",
           _ => diskInfos.map(_.configuredUsableSpace).sum)
         workerSource.addGauge(
-          s"${WorkerSource.DeviceCelebornFreeCapacity}_${deviceInfo.name}",
+          s"${WorkerSource.DEVICE_CELEBORN_FREE_CAPACITY}_${deviceInfo.name}",
           _ => diskInfos.map(_.actualUsableSpace).sum)
       }
   }

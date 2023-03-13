@@ -28,73 +28,73 @@ class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
   import RPCSource._
 
   // Worker RPC
-  addCounter(RPCReserveSlotsNum)
-  addCounter(RPCReserveSlotsSize)
-  addCounter(RPCCommitFilesNum)
-  addCounter(RPCCommitFilesSize)
-  addCounter(RPCDestroyNum)
-  addCounter(RPCDestroySize)
-  addCounter(RPCPushDataNum)
-  addCounter(RPCPushDataSize)
-  addCounter(RPCPushMergedDataNum)
-  addCounter(RPCPushMergedDataSize)
-  addCounter(RPCOpenStreamNum)
-  addCounter(RPCChunkFetchRequestNum)
+  addCounter(RPC_RESERVE_SLOTS_NUM)
+  addCounter(RPC_RESERVE_SLOTS_SIZE)
+  addCounter(RPC_COMMIT_FILES_NUM)
+  addCounter(RPC_COMMIT_FILES_SIZE)
+  addCounter(RPC_DESTROY_NUM)
+  addCounter(RPC_DESTROY_SIZE)
+  addCounter(RPC_PUSH_DATA_NUM)
+  addCounter(RPC_PUSH_DATA_SIZE)
+  addCounter(RPC_PUSH_MERGED_DATA_NUM)
+  addCounter(RPC_PUSH_MERGED_DATA_SIZE)
+  addCounter(RPC_OPEN_STREAM_NUM)
+  addCounter(RPC_CHUNK_FETCH_REQUEST_NUM)
 
   // Master RPC
-  addCounter(RPCHeartbeatFromApplicationNum)
-  addCounter(RPCHeartbeatFromWorkerNum)
-  addCounter(RPCRegisterWorkerNum)
-  addCounter(RPCRequestSlotsNum)
-  addCounter(RPCReleaseSlotsNum)
-  addCounter(RPCReleaseSlotsSize)
-  addCounter(RPCUnregisterShuffleNum)
-  addCounter(RPCGetBlacklistNum)
-  addCounter(RPCReportWorkerUnavailableNum)
-  addCounter(RPCReportWorkerUnavailableSize)
-  addCounter(RPCCheckQuotaNum)
+  addCounter(RPC_HEARTBEAT_FROM_APPLICATION_NUM)
+  addCounter(RPC_HEARTBEAT_FROM_WORKER_NUM)
+  addCounter(RPC_REGISTER_WORKER_NUM)
+  addCounter(RPC_REQUEST_SLOTS_NUM)
+  addCounter(RPC_RELEASE_SLOTS_NUM)
+  addCounter(RPC_RELEASE_SLOTS_SIZE)
+  addCounter(RPC_UNREGISTER_SHUFFLE_NUM)
+  addCounter(RPC_GET_BLACKLIST_NUM)
+  addCounter(RPC_REPORT_WORKER_UNAVAILABLE_NUM)
+  addCounter(RPC_REPORT_UNAVAILABLE_SIZE)
+  addCounter(RPC_CHECK_QUOTA_NUM)
 
   def updateMessageMetrics(message: Any, messageLen: Long): Unit = {
     message match {
       case _: ReserveSlots =>
-        incCounter(RPCReserveSlotsNum)
-        incCounter(RPCReserveSlotsSize, messageLen)
+        incCounter(RPC_RESERVE_SLOTS_NUM)
+        incCounter(RPC_RESERVE_SLOTS_SIZE, messageLen)
       case _: CommitFiles =>
-        incCounter(RPCCommitFilesNum)
-        incCounter(RPCCommitFilesSize, messageLen)
+        incCounter(RPC_COMMIT_FILES_NUM)
+        incCounter(RPC_COMMIT_FILES_SIZE, messageLen)
       case _: Destroy =>
-        incCounter(RPCDestroyNum)
-        incCounter(RPCDestroySize, messageLen)
+        incCounter(RPC_DESTROY_NUM)
+        incCounter(RPC_DESTROY_SIZE, messageLen)
       case _: PushData =>
-        incCounter(RPCPushDataNum)
-        incCounter(RPCPushDataSize, messageLen)
+        incCounter(RPC_PUSH_DATA_NUM)
+        incCounter(RPC_PUSH_DATA_SIZE, messageLen)
       case _: PushMergedData =>
-        incCounter(RPCPushMergedDataNum)
-        incCounter(RPCPushMergedDataSize, messageLen)
+        incCounter(RPC_PUSH_MERGED_DATA_NUM)
+        incCounter(RPC_PUSH_MERGED_DATA_SIZE, messageLen)
       case _: ChunkFetchRequest =>
-        incCounter(RPCChunkFetchRequestNum)
+        incCounter(RPC_CHUNK_FETCH_REQUEST_NUM)
       case _: OpenStream =>
-        incCounter(RPCOpenStreamNum)
+        incCounter(RPC_OPEN_STREAM_NUM)
       case _: HeartbeatFromApplication =>
-        incCounter(RPCHeartbeatFromApplicationNum)
+        incCounter(RPC_HEARTBEAT_FROM_APPLICATION_NUM)
       case _: HeartbeatFromWorker =>
-        incCounter(RPCHeartbeatFromWorkerNum)
+        incCounter(RPC_HEARTBEAT_FROM_WORKER_NUM)
       case _: PbRegisterWorker =>
-        incCounter(RPCRegisterWorkerNum)
+        incCounter(RPC_REGISTER_WORKER_NUM)
       case _: RequestSlots =>
-        incCounter(RPCRequestSlotsNum)
+        incCounter(RPC_REQUEST_SLOTS_NUM)
       case _: ReleaseSlots =>
-        incCounter(RPCReleaseSlotsNum)
-        incCounter(RPCReleaseSlotsSize, messageLen)
+        incCounter(RPC_RELEASE_SLOTS_NUM)
+        incCounter(RPC_RELEASE_SLOTS_SIZE, messageLen)
       case _: PbUnregisterShuffle =>
-        incCounter(RPCUnregisterShuffleNum)
+        incCounter(RPC_UNREGISTER_SHUFFLE_NUM)
       case _: GetBlacklist =>
-        incCounter(RPCGetBlacklistNum)
+        incCounter(RPC_GET_BLACKLIST_NUM)
       case _: ReportWorkerUnavailable =>
-        incCounter(RPCReportWorkerUnavailableNum)
-        incCounter(RPCReportWorkerUnavailableSize, messageLen)
+        incCounter(RPC_REPORT_WORKER_UNAVAILABLE_NUM)
+        incCounter(RPC_REPORT_UNAVAILABLE_SIZE, messageLen)
       case CheckQuota =>
-        incCounter(RPCCheckQuotaNum)
+        incCounter(RPC_CHECK_QUOTA_NUM)
       case _ => // Do nothing
     }
   }
@@ -102,29 +102,29 @@ class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
 
 object RPCSource {
   // Worker RPC
-  val RPCReserveSlotsNum = "RPCReserveSlotsNum"
-  val RPCReserveSlotsSize = "RPCReserveSlotsSize"
-  val RPCCommitFilesNum = "RPCCommitFilesNum"
-  val RPCCommitFilesSize = "RPCCommitFilesSize"
-  val RPCDestroyNum = "RPCDestroyNum"
-  val RPCDestroySize = "RPCDestroySize"
-  val RPCPushDataNum = "RPCPushDataNum"
-  val RPCPushDataSize = "RPCPushDataSize"
-  val RPCPushMergedDataNum = "RPCPushMergedDataNum"
-  val RPCPushMergedDataSize = "RPCPushMergedDataSize"
-  val RPCOpenStreamNum = "RPCOpenStreamNum"
-  val RPCChunkFetchRequestNum = "RPCChunkFetchRequestNum"
+  val RPC_RESERVE_SLOTS_NUM = "RPCReserveSlotsNum"
+  val RPC_RESERVE_SLOTS_SIZE = "RPCReserveSlotsSize"
+  val RPC_COMMIT_FILES_NUM = "RPCCommitFilesNum"
+  val RPC_COMMIT_FILES_SIZE = "RPCCommitFilesSize"
+  val RPC_DESTROY_NUM = "RPCDestroyNum"
+  val RPC_DESTROY_SIZE = "RPCDestroySize"
+  val RPC_PUSH_DATA_NUM = "RPCPushDataNum"
+  val RPC_PUSH_DATA_SIZE = "RPCPushDataSize"
+  val RPC_PUSH_MERGED_DATA_NUM = "RPCPushMergedDataNum"
+  val RPC_PUSH_MERGED_DATA_SIZE = "RPCPushMergedDataSize"
+  val RPC_OPEN_STREAM_NUM = "RPCOpenStreamNum"
+  val RPC_CHUNK_FETCH_REQUEST_NUM = "RPCChunkFetchRequestNum"
 
   // Master RPC
-  val RPCHeartbeatFromApplicationNum = "RPCHeartbeatFromApplicationNum"
-  val RPCHeartbeatFromWorkerNum = "RPCHeartbeatFromWorkerNum"
-  val RPCRegisterWorkerNum = "RPCRegisterWorkerNum"
-  val RPCRequestSlotsNum = "RPCRequestSlotsNum"
-  val RPCReleaseSlotsNum = "RPCReleaseSlotsNum"
-  val RPCReleaseSlotsSize = "RPCReleaseSlotsSize"
-  val RPCUnregisterShuffleNum = "RPCUnregisterShuffleNum"
-  val RPCGetBlacklistNum = "RPCGetBlacklistNum"
-  val RPCReportWorkerUnavailableNum = "RPCReportWorkerUnavailableNum"
-  val RPCReportWorkerUnavailableSize = "RPCReportWorkerUnavailableSize"
-  val RPCCheckQuotaNum = "RPCCheckQuotaNum"
+  val RPC_HEARTBEAT_FROM_APPLICATION_NUM = "RPCHeartbeatFromApplicationNum"
+  val RPC_HEARTBEAT_FROM_WORKER_NUM = "RPCHeartbeatFromWorkerNum"
+  val RPC_REGISTER_WORKER_NUM = "RPCRegisterWorkerNum"
+  val RPC_REQUEST_SLOTS_NUM = "RPCRequestSlotsNum"
+  val RPC_RELEASE_SLOTS_NUM = "RPCReleaseSlotsNum"
+  val RPC_RELEASE_SLOTS_SIZE = "RPCReleaseSlotsSize"
+  val RPC_UNREGISTER_SHUFFLE_NUM = "RPCUnregisterShuffleNum"
+  val RPC_GET_BLACKLIST_NUM = "RPCGetBlacklistNum"
+  val RPC_REPORT_WORKER_UNAVAILABLE_NUM = "RPCReportWorkerUnavailableNum"
+  val RPC_REPORT_UNAVAILABLE_SIZE = "RPCReportWorkerUnavailableSize"
+  val RPC_CHECK_QUOTA_NUM = "RPCCheckQuotaNum"
 }

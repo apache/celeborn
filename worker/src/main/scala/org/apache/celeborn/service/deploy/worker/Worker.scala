@@ -58,7 +58,7 @@ private[celeborn] class Worker(
   override def serviceName: String = Service.WORKER
 
   override val metricsSystem: MetricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, WorkerSource.ServletPath)
+    MetricsSystem.createMetricsSystem(serviceName, conf, WorkerSource.SERVLET_PATH)
 
   val rpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
@@ -225,24 +225,30 @@ private[celeborn] class Worker(
   var cleaner: Thread = _
 
   workerSource.addGauge(
-    WorkerSource.RegisteredShuffleCount,
+    WorkerSource.REGISTERED_SHUFFLE_COUNT,
     _ => workerInfo.getShuffleKeySet.size())
-  workerSource.addGauge(WorkerSource.SlotsAllocated, _ => workerInfo.allocationsInLastHour())
-  workerSource.addGauge(WorkerSource.SortMemory, _ => memoryManager.getSortMemoryCounter.get())
-  workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
-  workerSource.addGauge(WorkerSource.SortedFiles, _ => partitionsSorter.getSortedCount)
-  workerSource.addGauge(WorkerSource.SortedFileSize, _ => partitionsSorter.getSortedSize)
-  workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryManager.getDiskBufferCounter.get())
-  workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryManager.getNettyMemoryCounter.get())
-  workerSource.addGauge(WorkerSource.PausePushDataCount, _ => memoryManager.getPausePushDataCounter)
+  workerSource.addGauge(WorkerSource.SLOTS_ALLOCATED, _ => workerInfo.allocationsInLastHour())
   workerSource.addGauge(
-    WorkerSource.PausePushDataAndReplicateCount,
+    WorkerSource.PARTITION_SORTER_MEMORY,
+    _ => memoryManager.getSortMemoryCounter.get())
+  workerSource.addGauge(WorkerSource.PARTITION_SORTING_FILES, _ => partitionsSorter.getSortingCount)
+  workerSource.addGauge(WorkerSource.PARTITION_SORTED_FILES, _ => partitionsSorter.getSortedCount)
+  workerSource.addGauge(
+    WorkerSource.PARTITION_SORTED_FILES_SIZE,
+    _ => partitionsSorter.getSortedSize)
+  workerSource.addGauge(WorkerSource.DISK_BUFFER, _ => memoryManager.getDiskBufferCounter.get())
+  workerSource.addGauge(WorkerSource.NETTY_MEMORY, _ => memoryManager.getNettyMemoryCounter.get())
+  workerSource.addGauge(
+    WorkerSource.PAUSE_PUSH_DATA_COUNT,
+    _ => memoryManager.getPausePushDataCounter)
+  workerSource.addGauge(
+    WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT,
     _ => memoryManager.getPausePushDataAndReplicateCounter)
   workerSource.addGauge(
-    WorkerSource.BufferStreamReadBuffer,
+    WorkerSource.BUFFER_STREAM_READ_BUFFER,
     _ => memoryManager.getReadBufferCounter.get())
   workerSource.addGauge(
-    WorkerSource.readBufferDispatcherRequestsLength,
+    WorkerSource.READ_BUFFER_DISPATCHER_REQUEST_LENGTH,
     _ => memoryManager.dispatchRequestsLength)
 
   private def heartBeatToMaster(): Unit = {

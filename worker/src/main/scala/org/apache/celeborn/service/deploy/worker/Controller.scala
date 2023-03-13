@@ -91,7 +91,7 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-      workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
+      workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"master partitions: ${masterLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"slave partitions: ${slaveLocations.asScala.map(_.getUniqueId).mkString(",")}.")
@@ -387,7 +387,7 @@ private[deploy] class Controller(
       } else {
         logInfo(s"Start commitFiles for ${shuffleKey}")
         commitInfo.status = CommitInfo.COMMIT_INPROCESS
-        workerSource.startTimer(WorkerSource.CommitFilesTime, shuffleKey)
+        workerSource.startTimer(WorkerSource.COMMIT_FILES_TIME, shuffleKey)
       }
     }
 
@@ -507,7 +507,7 @@ private[deploy] class Controller(
       }
       context.reply(response)
 
-      workerSource.stopTimer(WorkerSource.CommitFilesTime, shuffleKey)
+      workerSource.stopTimer(WorkerSource.COMMIT_FILES_TIME, shuffleKey)
     }
 
     if (future != null) {

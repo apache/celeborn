@@ -27,87 +27,87 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   import WorkerSource._
   // add counters
-  addCounter(PushDataFailCount)
+  addCounter(PUSH_DATA_FAIL_COUNT)
 
   // add Timers
-  addTimer(CommitFilesTime)
-  addTimer(ReserveSlotsTime)
-  addTimer(FlushDataTime)
-  addTimer(MasterPushDataTime)
-  addTimer(SlavePushDataTime)
+  addTimer(COMMIT_FILES_TIME)
+  addTimer(RESERVE_SLOTS_TIME)
+  addTimer(FLUSH_DATA_TIME)
+  addTimer(MASTER_PUSH_DATA_TIME)
+  addTimer(SLAVE_PUSH_DATA_TIME)
 
-  addTimer(MasterPushDataHandshakeTime)
-  addTimer(SlavePushDataHandshakeTime)
-  addTimer(MasterRegionStartTime)
-  addTimer(SlaveRegionStartTime)
-  addTimer(MasterRegionFinishTime)
-  addTimer(SlaveRegionFinishTime)
+  addTimer(MASTER_PUSH_DATA_HAND_SHAKE_TIME)
+  addTimer(SLAVE_PUSH_DATA_HAND_SHAKE_TIME)
+  addTimer(MASTER_REGION_START_TIME)
+  addTimer(SLAVE_REGION_START_TIME)
+  addTimer(MASTER_REGION_FINISH_TIME)
+  addTimer(SLAVE_REGION_FINISH_TIME)
 
-  addTimer(FetchChunkTime)
-  addTimer(OpenStreamTime)
-  addTimer(TakeBufferTime)
-  addTimer(SortTime)
+  addTimer(FETCH_CHUNK_TIME)
+  addTimer(OPEN_STREAM_TIME)
+  addTimer(TAKE_BUFFER_TIME)
+  addTimer(PARTITION_SORT_TIME)
 
   // start cleaner thread
   startCleaner()
 }
 
 object WorkerSource {
-  val ServletPath = "/metrics/prometheus"
+  val SERVLET_PATH = "/metrics/prometheus"
 
-  val CommitFilesTime = "CommitFilesTime"
+  val COMMIT_FILES_TIME = "CommitFilesTime"
 
-  val ReserveSlotsTime = "ReserveSlotsTime"
+  val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
 
-  val FlushDataTime = "FlushDataTime"
+  val FLUSH_DATA_TIME = "FlushDataTime"
 
-  val OpenStreamTime = "OpenStreamTime"
+  val OPEN_STREAM_TIME = "OpenStreamTime"
 
-  val FetchChunkTime = "FetchChunkTime"
+  val FETCH_CHUNK_TIME = "FetchChunkTime"
 
   // push data
-  val MasterPushDataTime = "MasterPushDataTime"
-  val SlavePushDataTime = "SlavePushDataTime"
-  val PushDataFailCount = "PushDataFailCount"
-  val PushDataHandshakeFailCount = "PushDataHandshakeFailCount"
-  val RegionStartFailCount = "RegionStartFailCount"
-  val RegionFinishFailCount = "RegionFinishFailCount"
-  val MasterPushDataHandshakeTime = "MasterPushDataHandshakeTime"
-  val SlavePushDataHandshakeTime = "SlavePushDataHandshakeTime"
-  val MasterRegionStartTime = "MasterRegionStartTime"
-  val SlaveRegionStartTime = "SlaveRegionStartTime"
-  val MasterRegionFinishTime = "MasterRegionFinishTime"
-  val SlaveRegionFinishTime = "SlaveRegionFinishTime"
+  val MASTER_PUSH_DATA_TIME = "MasterPushDataTime"
+  val SLAVE_PUSH_DATA_TIME = "SlavePushDataTime"
+  val PUSH_DATA_FAIL_COUNT = "PushDataFailCount"
+  val PUSH_DATA_HAND_SHAKE_FAIL_COUNT = "PushDataHandshakeFailCount"
+  val REGION_START_FAIL_COUNT = "RegionStartFailCount"
+  val REGION_FINISH_FAIL_COUNT = "RegionFinishFailCount"
+  val MASTER_PUSH_DATA_HAND_SHAKE_TIME = "MasterPushDataHandshakeTime"
+  val SLAVE_PUSH_DATA_HAND_SHAKE_TIME = "SlavePushDataHandshakeTime"
+  val MASTER_REGION_START_TIME = "MasterRegionStartTime"
+  val SLAVE_REGION_START_TIME = "SlaveRegionStartTime"
+  val MASTER_REGION_FINISH_TIME = "MasterRegionFinishTime"
+  val SLAVE_REGION_FINISH_TIME = "SlaveRegionFinishTime"
 
   // flush
-  val TakeBufferTime = "TakeBufferTime"
-  val TakeBufferTimeIndex = "TakeBufferTimeIndex"
+  val TAKE_BUFFER_TIME = "TakeBufferTime"
+  val TAKE_BUFFER_TIME_INDEX = "TakeBufferTimeIndex"
 
-  val RegisteredShuffleCount = "RegisteredShuffleCount"
+  val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
 
   // slots
-  val SlotsAllocated = "SlotsAllocated"
+  val SLOTS_ALLOCATED = "SlotsAllocated"
 
   // memory
-  val NettyMemory = "NettyMemory"
-  val SortTime = "SortTime"
-  val SortMemory = "SortMemory"
-  val SortingFiles = "SortingFiles"
-  val SortedFiles = "SortedFiles"
-  val SortedFileSize = "SortedFileSize"
-  val DiskBuffer = "DiskBuffer"
-  val PausePushDataCount = "PausePushData"
-  val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
-  val BufferStreamReadBuffer = "BufferStreamReadBuffer"
-  val readBufferDispatcherRequestsLength = "ReadBufferDispatcherRequestsLength"
+  val NETTY_MEMORY = "NettyMemory"
+  val PARTITION_SORT_TIME = "SortTime"
+  val PARTITION_SORTER_MEMORY = "SortMemory"
+  val PARTITION_SORTING_FILES = "SortingFiles"
+  val PARTITION_SORTED_FILES = "SortedFiles"
+  val PARTITION_SORTED_FILES_SIZE = "SortedFileSize"
+  val DISK_BUFFER = "DiskBuffer"
+  val PAUSE_PUSH_DATA_COUNT = "PausePushData"
+  val PAUSE_PUSH_DATA_AND_REPLICATE_COUNT = "PausePushDataAndReplicate"
+  val BUFFER_STREAM_READ_BUFFER = "BufferStreamReadBuffer"
+  val READ_BUFFER_DISPATCHER_REQUEST_LENGTH = "ReadBufferDispatcherRequestsLength"
 
   // local device
-  val DeviceOSFreeCapacity = "DeviceOSFreeCapacity(B)"
-  val DeviceOSTotalCapacity = "DeviceOSTotalCapacity(B)"
-  val DeviceCelebornFreeCapacity = "DeviceCelebornFreeCapacity(B)"
-  val DeviceCelebornTotalCapacity = "DeviceCelebornTotalCapacity(B)"
+  val DEVICE_OS_FREE_CAPACITY = "DeviceOSFreeCapacity(B)"
+  val DEVICE_OS_TOTAL_CAPACITY = "DeviceOSTotalCapacity(B)"
+  val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeCapacity(B)"
+  val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalCapacity(B)"
 
   // Congestion control
-  val PotentialConsumeSpeed = "PotentialConsumeSpeed"
-  val UserProduceSpeed = "UserProduceSpeed"
+  val POTENTIAL_CONSUME_SPEED = "PotentialConsumeSpeed"
+  val USER_PRODUCE_SPEED = "UserProduceSpeed"
 }

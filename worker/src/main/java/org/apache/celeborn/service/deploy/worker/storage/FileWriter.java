@@ -347,7 +347,7 @@ public abstract class FileWriter implements DeviceObserver {
     String metricsName = null;
     String fileAbsPath = null;
     if (source.metricsCollectCriticalEnabled()) {
-      metricsName = WorkerSource.TakeBufferTime();
+      metricsName = WorkerSource.TAKE_BUFFER_TIME();
       fileAbsPath = fileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
     }

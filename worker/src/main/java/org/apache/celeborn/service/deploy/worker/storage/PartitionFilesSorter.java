@@ -529,7 +529,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     public void sort() throws InterruptedException {
-      source.startTimer(WorkerSource.SortTime(), fileId);
+      source.startTimer(WorkerSource.PARTITION_SORT_TIME(), fileId);
 
       try {
         initializeFiles();
@@ -598,7 +598,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sorting.remove(fileId);
         }
       }
-      source.stopTimer(WorkerSource.SortTime(), fileId);
+      source.stopTimer(WorkerSource.PARTITION_SORT_TIME(), fileId);
     }
 
     private void initializeFiles() throws IOException {

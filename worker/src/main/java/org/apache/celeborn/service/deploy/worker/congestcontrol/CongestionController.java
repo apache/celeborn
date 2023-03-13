@@ -74,7 +74,7 @@ public class CongestionController {
         this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.MILLISECONDS);
 
     this.workerSource.addGauge(
-        WorkerSource.PotentialConsumeSpeed(), this::getPotentialConsumeSpeed);
+        WorkerSource.POTENTIAL_CONSUME_SPEED(), this::getPotentialConsumeSpeed);
   }
 
   public static synchronized CongestionController initialize(
@@ -182,7 +182,7 @@ public class CongestionController {
               BufferStatusHub bufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
               UserBufferInfo userInfo = new UserBufferInfo(currentTimeMillis, bufferStatusHub);
               workerSource.addGauge(
-                  WorkerSource.UserProduceSpeed(),
+                  WorkerSource.USER_PRODUCE_SPEED(),
                   () -> getUserProduceSpeed(userInfo),
                   userIdentifier.toMap());
               return userInfo;
@@ -239,7 +239,7 @@ public class CongestionController {
         UserBufferInfo userBufferInfo = next.getValue();
         if (currentTimeMillis - userBufferInfo.getTimestamp() >= userInactiveTimeMills) {
           userBufferStatuses.remove(userIdentifier);
-          workerSource.removeGauge(WorkerSource.UserProduceSpeed(), userIdentifier.toMap());
+          workerSource.removeGauge(WorkerSource.USER_PRODUCE_SPEED(), userIdentifier.toMap());
           logger.info(
               String.format(
                   "User: %s has been expired, remove it from rate limit list", userIdentifier));

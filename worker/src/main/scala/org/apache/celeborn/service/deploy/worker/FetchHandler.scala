@@ -107,7 +107,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
       }
     // metrics start
-    workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
+    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       try fileInfo.getPartitionType() match {
@@ -179,12 +179,12 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               new CelebornException("Chunk offsets meta exception", e))))
       } finally {
         // metrics end
-        workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
         request.body().release()
       }
     } catch {
       case ioe: IOException =>
-        workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
         client.getChannel.writeAndFlush(new RpcFailure(
           request.requestId,
           Throwables.getStackTraceAsString(ioe)))
@@ -212,7 +212,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       client.getChannel.writeAndFlush(
         new ChunkFetchFailure(req.streamChunkSlice, message))
     } else {
-      workerSource.startTimer(WorkerSource.FetchChunkTime, req.toString)
+      workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
       val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(req.streamChunkSlice.streamId)
       val fetchBeginTime = System.nanoTime()
       try {
@@ -229,7 +229,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               if (fetchTimeMetric != null) {
                 fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
               }
-              workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+              workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
             }
           })
       } catch {
@@ -241,7 +241,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           client.getChannel.writeAndFlush(new ChunkFetchFailure(
             req.streamChunkSlice,
             Throwables.getStackTraceAsString(e)))
-          workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+          workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
       }
     }
   }
