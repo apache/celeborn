@@ -142,11 +142,11 @@ public class StateMachine extends BaseStateMachine {
                 continue;
               }
               File file = fileInfo.getFile().getPath().toFile();
+              File md5File = new File(file.getAbsolutePath() + MD5FileUtil.MD5_SUFFIX);
               if (onlyCleanupMD5Files) {
                 LOG.info("Deleting old md5 file at {}.", file.getAbsolutePath());
-                FileUtils.deleteFileQuietly(file);
+                FileUtils.deleteFileQuietly(md5File);
               } else {
-                File md5File = new File(file.getAbsolutePath() + MD5FileUtil.MD5_SUFFIX);
                 LOG.info(
                     "Deleting old snapshot at {}, md5 file at {}.",
                     file.getAbsolutePath(),
