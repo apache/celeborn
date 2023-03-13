@@ -38,7 +38,7 @@ object MasterSource {
   val WORKER_COUNT = "WorkerCount"
 
   val BLACKLISTED_WORKER_COUNT = "BlacklistedWorkerCount"
-  
+
   val LOST_WORKERS_COUNT = "LostWorkers"
 
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
