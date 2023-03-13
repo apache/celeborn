@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+import io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.network.TransportContext;
@@ -40,6 +41,11 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
       throws IOException, InterruptedException {
     return createClient(
         remoteHost, remotePort, -1, new TransportFrameDecoderWithBufferSupplier(bufferSuppliers));
+  }
+
+  @Override
+  protected void initializeMemoryAllocator() {
+    this.pooledAllocator = new UnpooledByteBufAllocator(true);
   }
 
   public void registerSupplier(long streamId, Supplier<ByteBuf> supplier) {
