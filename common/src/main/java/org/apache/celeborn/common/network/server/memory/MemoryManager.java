@@ -370,6 +370,10 @@ public class MemoryManager {
     return pausePushDataAndReplicateCounter.sum();
   }
 
+  public int dispatchRequestsLength() {
+    return readBufferDispatcher.requestsLength();
+  }
+
   enum MemoryManagerStat {
     resumeAll,
     pausePushDataAndReplicate,
