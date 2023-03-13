@@ -2752,7 +2752,7 @@ object CelebornConf extends Logging {
       .doc("Max ratio of direct memory for read buffer")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1, "should be in [0.0, 0.4].")
+      .checkValue(v => v >= 0.0 && v <= 0.4, "should be in [0.0, 0.4].")
       .createWithDefault(0.1)
 
   val WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE: ConfigEntry[Double] =
