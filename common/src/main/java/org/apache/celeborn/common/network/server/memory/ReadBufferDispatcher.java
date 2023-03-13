@@ -99,4 +99,8 @@ public class ReadBufferDispatcher extends Thread {
       }
     }
   }
+
+  public int requestsLength() {
+    return requests.size();
+  }
 }
