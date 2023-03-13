@@ -447,16 +447,6 @@ private[celeborn] class Worker(
     fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 
-  override def getConf: String = {
-    val sb = new StringBuilder
-    val maxKeyLength = conf.getAll.toMap.keys.map(_.length).max
-    conf.getAll.foreach { case (key, value) =>
-      sb.append("=========Configurations in Master=========\n")
-      sb.append(key.padTo(maxKeyLength + 10, " ") + value + "\n")
-    }
-    sb.toString()
-  }
-
   override def getWorkerInfo: String = workerInfo.toString()
 
   override def getLostWorkers: String = throw new UnsupportedOperationException()
