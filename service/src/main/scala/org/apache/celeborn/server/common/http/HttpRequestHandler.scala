@@ -64,6 +64,8 @@ class HttpRequestHandler(
     uri match {
       case "/workerInfo" =>
         service.getWorkerInfo
+      case "/lostWorkers" if service.serviceName == Service.MASTER =>
+        service.getLostWorkers
       case "/threadDump" =>
         service.getThreadDump
       case "/hostnames" if service.serviceName == Service.MASTER =>
