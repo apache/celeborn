@@ -104,6 +104,8 @@ private[celeborn] class Master(
   // States
   private def workersSnapShot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
+  private def lostWorkersSnapshot: ConcurrentHashMap[WorkerInfo, java.lang.Long] =
+    statusSystem.workers.synchronized(new ConcurrentHashMap(statusSystem.lostWorkers))
 
   private def diskReserveSize = conf.diskReserveSize
 
@@ -714,6 +716,15 @@ private[celeborn] class Master(
       }
     }
 
+    sb.toString()
+  }
+
+  override def getLostWorkers: String = {
+    val sb = new StringBuilder
+    sb.append("========== Lost WorkerInfos in Master==========\n")
+    lostWorkersSnapshot.asScala.map { case (worker, time) =>
+      sb.append(s"${worker.toUniqueId()}      $time\n")
+    }
     sb.toString()
   }
 
