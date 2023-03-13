@@ -25,6 +25,8 @@ abstract class HttpService extends Service with Logging {
 
   private var httpServer: HttpServer = _
 
+  def getConf: String
+
   def getWorkerInfo: String
 
   def getLostWorkers: String

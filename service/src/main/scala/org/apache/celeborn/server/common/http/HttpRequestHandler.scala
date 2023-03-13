@@ -62,6 +62,8 @@ class HttpRequestHandler(
 
   def handleRequest(uri: String): String = {
     uri match {
+      case "/conf" =>
+        service.getConf
       case "/workerInfo" =>
         service.getWorkerInfo
       case "/lostWorkers" if service.serviceName == Service.MASTER =>
