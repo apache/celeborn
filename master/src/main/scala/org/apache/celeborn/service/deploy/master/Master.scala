@@ -753,6 +753,8 @@ private[celeborn] class Master(
     statusSystem.appDiskUsageMetric.summary
   }
 
+  override def listPartitionLocationInfo: String = throw new UnsupportedOperationException()
+
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
     try {
       if (endpoint != null) {

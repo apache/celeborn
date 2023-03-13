@@ -467,6 +467,10 @@ private[celeborn] class Worker(
     stringBuilder.toString()
   }
 
+  override def listPartitionLocationInfo: String = {
+    partitionLocationInfo.toString
+  }
+
   @VisibleForTesting
   def isRegistered(): Boolean = {
     registered.get()
