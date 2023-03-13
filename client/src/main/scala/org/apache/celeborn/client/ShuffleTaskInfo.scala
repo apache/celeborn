@@ -71,7 +71,7 @@ class ShuffleTaskInfo {
       } else {
         val index = map.get(mapId)
         map.put(mapId, index + 1)
-        return index
+        return index + 1
       }
     }
   }
