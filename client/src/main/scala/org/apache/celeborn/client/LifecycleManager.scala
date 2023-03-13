@@ -207,7 +207,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       mapId: Int,
       taskAttemptId: String): ShuffleTask = {
     val shuffleId = shuffleTaskInfo.getShuffleId(taskShuffleId)
-    val attemptId = shuffleTaskInfo.getAttemptId(taskShuffleId, mapId, taskAttemptId)
+    val attemptId = shuffleTaskInfo.getAttemptId(taskShuffleId, mapId)
     logInfo(
       s"encode task from " + s"($taskShuffleId, $mapId, $taskAttemptId) to ($shuffleId, $mapId, " +
         s"$attemptId)")

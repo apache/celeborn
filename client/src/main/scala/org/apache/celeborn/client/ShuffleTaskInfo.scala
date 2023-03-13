@@ -26,11 +26,8 @@ import javax.annotation.concurrent.ThreadSafe
 class ShuffleTaskInfo {
 
   private var currentShuffleIndex: Int = 0
-  // task shuffle id -> mapId_taskAttemptId -> attemptIdx
-  private val taskShuffleAttemptIdToAttemptId =
-    new ConcurrentHashMap[String, ConcurrentHashMap[String, Int]]
-  // map attemptId index
-  private val taskShuffleAttemptIdIndex =
+  // task shuffle id -> mapId -> current attemptId
+  private val newestAttemptIdMap =
     new ConcurrentHashMap[String, ConcurrentHashMap[Int, Int]]
   // task shuffle id -> celeborn shuffle id
   private val taskShuffleIdToShuffleId = new ConcurrentHashMap[String, Int]
@@ -65,33 +62,25 @@ class ShuffleTaskInfo {
     }
   }
 
-  def getAttemptId(taskShuffleId: String, mapId: Int, attemptId: String): Int = {
-    val attemptIndex = taskShuffleAttemptIdIndex.computeIfAbsent(taskShuffleId, newMapFunc)
-    val attemptIdMap =
-      taskShuffleAttemptIdToAttemptId.computeIfAbsent(taskShuffleId, newMapFunc2)
-    val mapAttemptId = mapId + "_" + attemptId
-    attemptIndex.synchronized {
-      if (!attemptIdMap.containsKey(mapAttemptId)) {
-        if (attemptIndex.containsKey(mapId)) {
-          val index = attemptIndex.get(mapId)
-          attemptIdMap.put(mapAttemptId, index + 1)
-          attemptIndex.put(mapId, index + 1)
-        } else {
-          attemptIdMap.put(mapAttemptId, 0)
-          attemptIndex.put(mapId, 0)
-        }
+  def getAttemptId(taskShuffleId: String, mapId: Int): Int = {
+    val map = newestAttemptIdMap.computeIfAbsent(taskShuffleId, newMapFunc)
+    map.synchronized {
+      if (!map.containsKey(mapId)) {
+        map.put(mapId, 0)
+        return 0
+      } else {
+        val index = map.get(mapId)
+        map.put(mapId, index + 1)
+        return index
       }
     }
-
-    attemptIdMap.get(mapAttemptId)
   }
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     if (shuffleIdToTaskShuffleId.containsKey(shuffleId)) {
       val taskShuffleId = shuffleIdToTaskShuffleId.remove(shuffleId)
       taskShuffleIdToShuffleId.remove(taskShuffleId)
-      taskShuffleAttemptIdIndex.remove(shuffleId)
-      taskShuffleAttemptIdToAttemptId.remove(taskShuffleId)
+      newestAttemptIdMap.remove(shuffleId)
     }
   }
 }
