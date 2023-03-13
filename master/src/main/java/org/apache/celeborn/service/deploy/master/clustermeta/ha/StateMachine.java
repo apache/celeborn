@@ -144,7 +144,7 @@ public class StateMachine extends BaseStateMachine {
               File file = fileInfo.getFile().getPath().toFile();
               File md5File = new File(file.getAbsolutePath() + MD5FileUtil.MD5_SUFFIX);
               if (onlyCleanupMD5Files) {
-                LOG.info("Deleting old md5 file at {}.", file.getAbsolutePath());
+                LOG.info("Deleting old md5 file at {}.", md5File.getAbsolutePath());
                 FileUtils.deleteFileQuietly(md5File);
               } else {
                 LOG.info(
