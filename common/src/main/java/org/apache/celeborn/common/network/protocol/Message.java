@@ -28,7 +28,7 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 
 /** An on-the-wire transmittable message. */
 public abstract class Message implements Encodable {
-  private ManagedBuffer body;
+  protected ManagedBuffer body;
 
   protected Message() {
     this(null);

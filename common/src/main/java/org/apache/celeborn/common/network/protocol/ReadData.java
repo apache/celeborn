@@ -27,38 +27,24 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 // It doesn't need decode in worker.
 public class ReadData extends RequestMessage {
   private long streamId;
-  private int backlog;
-  private long offset;
 
-  public ReadData(long streamId, int backlog, long offset, ByteBuf buf) {
+  public ReadData(long streamId, ByteBuf buf) {
     super(new NettyManagedBuffer(buf));
     this.streamId = streamId;
-    this.backlog = backlog;
-    this.offset = offset;
   }
 
   @Override
   public int encodedLength() {
-    return 8 + 4 + 8;
+    return 8;
   }
 
   @Override
   public void encode(ByteBuf buf) {
     buf.writeLong(streamId);
-    buf.writeInt(backlog);
-    buf.writeLong(offset);
   }
 
   public long getStreamId() {
     return streamId;
-  }
-
-  public int getBacklog() {
-    return backlog;
-  }
-
-  public long getOffset() {
-    return offset;
   }
 
   @Override
@@ -71,25 +57,16 @@ public class ReadData extends RequestMessage {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ReadData readData = (ReadData) o;
-    return streamId == readData.streamId
-        && backlog == readData.backlog
-        && offset == readData.offset;
+    return streamId == readData.streamId && body == readData.body;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(streamId, backlog, offset);
+    return Objects.hash(streamId, body);
   }
 
   @Override
   public String toString() {
-    return "ReadData{"
-        + "streamId="
-        + streamId
-        + ", backlog="
-        + backlog
-        + ", offset="
-        + offset
-        + '}';
+    return "ReadData{" + "streamId=" + streamId + '}';
   }
 }
