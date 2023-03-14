@@ -211,8 +211,9 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       }
 
       ByteBuf byteBuf = wrappedBuffer.byteBuf;
+      int backlog = buffersRead.size();
       int readableBytes = byteBuf.readableBytes();
-      logger.debug("send data start: {}, {}", streamId, readableBytes);
+      logger.debug("send data start: {}, {}, {}", streamId, readableBytes, backlog);
       ReadData readData = new ReadData(streamId, byteBuf);
       associatedChannel
           .writeAndFlush(readData)
