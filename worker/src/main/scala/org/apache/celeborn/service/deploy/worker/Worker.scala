@@ -479,6 +479,20 @@ private[celeborn] class Worker(
     partitionLocationInfo.toString
   }
 
+  override def getUnavailablePeers: String = {
+    val sb = new StringBuilder
+    sb.append("==========Unavailable Peers of Worker==========\n")
+    unavailablePeers.asScala.foreach { case (peer, time) =>
+      sb.append(s"${peer.toUniqueId().padTo(55, "")}$time\n");
+    }
+    sb.toString()
+  }
+
+  @VisibleForTesting
+  def isRegistered(): Boolean = {
+    registered.get()
+  }
+
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {

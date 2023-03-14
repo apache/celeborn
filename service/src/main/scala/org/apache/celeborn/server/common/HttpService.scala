@@ -25,6 +25,16 @@ abstract class HttpService extends Service with Logging {
 
   private var httpServer: HttpServer = _
 
+  def getConf: String = {
+    val sb = new StringBuilder
+    val maxKeyLength = conf.getAll.toMap.keys.map(_.length).max
+    sb.append("==============Configurations==============\n")
+    conf.getAll.foreach { case (key, value) =>
+      sb.append(key.padTo(maxKeyLength + 10, " ") + value + "\n")
+    }
+    sb.toString()
+  }
+
   def getWorkerInfo: String
 
   def getLostWorkers: String
@@ -42,6 +52,8 @@ abstract class HttpService extends Service with Logging {
   def listTopDiskUseApps: String
 
   def listPartitionLocationInfo: String
+
+  def getUnavailablePeers: String
 
   def isShutdown: Boolean
 

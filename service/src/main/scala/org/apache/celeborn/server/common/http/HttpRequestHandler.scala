@@ -62,6 +62,8 @@ class HttpRequestHandler(
 
   def handleRequest(uri: String): String = {
     uri match {
+      case "/conf" =>
+        service.getConf
       case "/workerInfo" =>
         service.getWorkerInfo
       case "/lostWorkers" if service.serviceName == Service.MASTER =>
@@ -80,6 +82,8 @@ class HttpRequestHandler(
         service.listTopDiskUseApps
       case "/listPartitionLocationInfo" if service.serviceName == Service.WORKER =>
         service.listPartitionLocationInfo
+      case "/unavailablePeers" if service.serviceName == Service.WORKER =>
+        service.getUnavailablePeers
       case "/isShutdown" if service.serviceName == Service.WORKER =>
         service.isShutdown.toString
       case "/isRegistered" if service.serviceName == Service.WORKER =>
