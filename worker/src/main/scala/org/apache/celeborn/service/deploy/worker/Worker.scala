@@ -478,7 +478,7 @@ private[celeborn] class Worker(
   override def getUnavailablePeers: String = {
     val sb = new StringBuilder
     sb.append("==========Unavailable Workers in Worker==========\n")
-    unavailablePeers.asScala.map { case (worker, time) =>
+    unavailablePeers.asScala.foreach { case (worker, time) =>
       sb.append(s"${worker.toUniqueId()}      $time\n")
     }
     sb.toString()
