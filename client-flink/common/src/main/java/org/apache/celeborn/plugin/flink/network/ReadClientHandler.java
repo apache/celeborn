@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -103,7 +104,15 @@ public class ReadClientHandler extends BaseMessageHandler {
     streamClients.forEach(
         (streamId, savedClient) -> {
           if (savedClient == client) {
-            logger.warn("Client {} is lost, remove related stream {}", savedClient, streamId);
+            String message =
+                "Client "
+                    + client.getSocketAddress()
+                    + " is lost, notify related stream "
+                    + streamId;
+            logger.warn(message);
+            processMessageInternal(
+                streamId,
+                new TransportableError(streamId, message.getBytes(StandardCharsets.UTF_8)));
           }
         });
   }
