@@ -94,7 +94,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     if (bodyBuf == null) {
       if (buf.readableBytes() >= bodySize) {
         io.netty.buffer.ByteBuf body = buf.retain().readSlice(bodySize);
-        curMsg.setBody(body.nioBuffer());
+        curMsg.setBody(body);
         ctx.fireChannelRead(curMsg);
         clear();
         return buf;
@@ -112,7 +112,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     }
     bodyBuf.addComponent(next).writerIndex(bodyBuf.writerIndex() + next.readableBytes());
     if (bodyBuf.readableBytes() == bodySize) {
-      curMsg.setBody(bodyBuf.nioBuffer());
+      curMsg.setBody(bodyBuf);
       ctx.fireChannelRead(curMsg);
       clear();
     }
