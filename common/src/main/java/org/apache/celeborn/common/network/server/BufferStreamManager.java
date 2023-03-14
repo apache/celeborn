@@ -43,6 +43,7 @@ import java.util.function.Consumer;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -57,14 +58,14 @@ import org.apache.celeborn.common.network.server.memory.MemoryManager;
 public class BufferStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(BufferStreamManager.class);
   private final AtomicLong nextStreamId;
-  protected final ConcurrentHashMap<Long, StreamState> streams;
-  protected final ConcurrentHashMap<Long, MapDataPartition> servingStreams;
-  protected final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
-  protected final MemoryManager memoryManager = MemoryManager.instance();
-  protected final StorageFetcherPool storageFetcherPool = new StorageFetcherPool();
-  protected int minReadBuffers;
-  protected int maxReadBuffers;
-  protected int threadsPerMountPoint;
+  private final ConcurrentHashMap<Long, StreamState> streams;
+  private final ConcurrentHashMap<Long, MapDataPartition> servingStreams;
+  private final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
+  private final MemoryManager memoryManager = MemoryManager.instance();
+  private final StorageFetcherPool storageFetcherPool = new StorageFetcherPool();
+  private int minReadBuffers;
+  private int maxReadBuffers;
+  private int threadsPerMountPoint;
   private final BlockingQueue<DelayedStreamId> recycleStreamIds = new DelayQueue<>();
 
   @GuardedBy("lock")
@@ -72,7 +73,7 @@ public class BufferStreamManager {
 
   private final Object lock = new Object();
 
-  protected class StreamState {
+  private class StreamState {
     private Channel associatedChannel;
     private int bufferSize;
 
@@ -110,7 +111,11 @@ public class BufferStreamManager {
       throws IOException {
     long streamId = nextStreamId.getAndIncrement();
     streams.put(streamId, new StreamState(channel, fileInfo.getBufferSize()));
-    logger.debug("Register stream start streamId: {}, fileInfo: {}", streamId, fileInfo);
+    logger.debug(
+        "Register stream start from {}, streamId: {}, fileInfo: {}",
+        channel.remoteAddress(),
+        streamId,
+        fileInfo);
     MapDataPartition mapDataPartition;
     synchronized (activeMapPartitions) {
       mapDataPartition = activeMapPartitions.get(fileInfo);
@@ -166,6 +171,21 @@ public class BufferStreamManager {
     startRecycleThread(); // lazy start thread
   }
 
+  @VisibleForTesting
+  public int numStreamStates() {
+    return streams.size();
+  }
+
+  @VisibleForTesting
+  public int numRecycleStreams() {
+    return recycleStreamIds.size();
+  }
+
+  @VisibleForTesting
+  public ConcurrentHashMap<Long, MapDataPartition> getServingStreams() {
+    return servingStreams;
+  }
+
   private void startRecycleThread() {
     if (recycleThread == null) {
       synchronized (lock) {
@@ -197,13 +217,14 @@ public class BufferStreamManager {
     if (streams.containsKey(streamId)) {
       MapDataPartition mapDataPartition = servingStreams.get(streamId);
       if (mapDataPartition != null) {
-        if (mapDataPartition.releaseStream(streamId)
-            && mapDataPartition.activeStreamIds.isEmpty()) {
-          synchronized (activeMapPartitions) {
-            if (mapDataPartition.activeStreamIds.isEmpty()) {
-              mapDataPartition.close();
-              FileInfo fileInfo = mapDataPartition.fileInfo;
-              activeMapPartitions.remove(fileInfo);
+        if (mapDataPartition.releaseStream(streamId)) {
+          if (mapDataPartition.activeStreamIds.isEmpty()) {
+            synchronized (activeMapPartitions) {
+              if (mapDataPartition.activeStreamIds.isEmpty()) {
+                mapDataPartition.close();
+                FileInfo fileInfo = mapDataPartition.fileInfo;
+                activeMapPartitions.remove(fileInfo);
+              }
             }
           }
         } else {
@@ -282,7 +303,7 @@ public class BufferStreamManager {
     }
 
     public synchronized void setupDataPartitionReader(
-        int startSubIndex, int endSubIndex, long streamId, Channel channel) throws IOException {
+        int startSubIndex, int endSubIndex, long streamId, Channel channel) {
       DataPartitionReader dataPartitionReader =
           new DataPartitionReader(
               startSubIndex,
