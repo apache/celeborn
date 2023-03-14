@@ -84,6 +84,10 @@ class HttpRequestHandler(
         service.listPartitionLocationInfo
       case "/unavailablePeers" if service.serviceName == Service.WORKER =>
         service.getUnavailablePeers
+      case "/isShutdown" if service.serviceName == Service.WORKER =>
+        service.isShutdown.toString
+      case "/isRegistered" if service.serviceName == Service.WORKER =>
+        service.isRegistered.toString
       case _ => INVALID
     }
   }
