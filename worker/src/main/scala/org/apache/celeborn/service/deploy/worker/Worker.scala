@@ -488,11 +488,6 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
-  @VisibleForTesting
-  def isRegistered(): Boolean = {
-    registered.get()
-  }
-
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
