@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.network;
 
 import java.net.InetAddress;
+import java.util.concurrent.Callable;
 
 public class TestUtils {
   public static String getLocalHost() {
@@ -25,6 +26,18 @@ public class TestUtils {
       return InetAddress.getLocalHost().getHostAddress();
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  public static void timeOutOrMeetCondition(Callable<Boolean> callable) throws Exception {
+    int timeout = 10000; // 10s
+    while (true) {
+      if (callable.call() || timeout < 0) {
+        break;
+      }
+
+      timeout = timeout - 100;
+      Thread.sleep(100);
     }
   }
 }
