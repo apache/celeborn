@@ -53,6 +53,8 @@ abstract class HttpService extends Service with Logging {
 
   def listPartitionLocationInfo: String
 
+  def getUnavailablePeers: String
+
   def startHttpServer(): Unit = {
     val handlers =
       if (metricsSystem.running) {
