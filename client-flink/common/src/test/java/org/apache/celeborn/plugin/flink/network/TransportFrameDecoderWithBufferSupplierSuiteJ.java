@@ -57,11 +57,11 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
     ChannelHandlerContext context = Mockito.mock(ChannelHandlerContext.class);
 
     BacklogAnnouncement announcement = new BacklogAnnouncement(0, 0);
-    ReadData unUsedReadData = new ReadData(1, 8, 0, generateData(1024));
-    ReadData readData = new ReadData(2, 8, 0, generateData(1024));
+    ReadData unUsedReadData = new ReadData(1, generateData(1024));
+    ReadData readData = new ReadData(2, generateData(1024));
     BacklogAnnouncement announcement1 = new BacklogAnnouncement(0, 0);
-    ReadData unUsedReadData1 = new ReadData(1, 8, 0, generateData(1024));
-    ReadData readData1 = new ReadData(2, 8, 0, generateData(8));
+    ReadData unUsedReadData1 = new ReadData(1, generateData(1024));
+    ReadData readData1 = new ReadData(2, generateData(8));
 
     ByteBuf buffer = Unpooled.buffer(5000);
     encodeMessage(announcement, buffer);

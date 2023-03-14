@@ -59,18 +59,6 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     }
   }
 
-  private void dropUnusedBytes(io.netty.buffer.ByteBuf source) {
-    if (source.readableBytes() > 0) {
-      if (remainingSize > source.readableBytes()) {
-        remainingSize = remainingSize - source.readableBytes();
-        source.skipBytes(source.readableBytes());
-      } else {
-        source.skipBytes(remainingSize);
-        clear();
-      }
-    }
-  }
-
   private void decodeHeader(io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {
     copyByteBuf(buf, headerBuf, HEADER_SIZE);
     if (!headerBuf.isWritable()) {
@@ -142,12 +130,14 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     if (externalBuf == null) {
       Supplier<ByteBuf> supplier = bufferSuppliers.get(streamId);
       if (supplier == null) {
-        logger.warn("Need drop unused bytes, streamId: {}, bodySize: {}", streamId, bodySize);
-        remainingSize = bodySize;
-        dropUnusedBytes(buf);
-        return buf;
+        return needDropUnusedBytes(streamId, buf);
+      } else {
+        try {
+          externalBuf = supplier.get();
+        } catch (Exception e) {
+          return needDropUnusedBytes(streamId, buf);
+        }
       }
-      externalBuf = supplier.get();
     }
 
     copyByteBuf(buf, externalBuf, bodySize);
@@ -157,6 +147,26 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
       clear();
     }
     return buf;
+  }
+
+  private io.netty.buffer.ByteBuf needDropUnusedBytes(
+      long streamId, io.netty.buffer.ByteBuf byteBuf) {
+    logger.warn("Need drop unused bytes, streamId: {}, bodySize: {}", streamId, bodySize);
+    remainingSize = bodySize;
+    dropUnusedBytes(byteBuf);
+    return byteBuf;
+  }
+
+  private void dropUnusedBytes(io.netty.buffer.ByteBuf source) {
+    if (source.readableBytes() > 0) {
+      if (remainingSize > source.readableBytes()) {
+        remainingSize = remainingSize - source.readableBytes();
+        source.skipBytes(source.readableBytes());
+      } else {
+        source.skipBytes(remainingSize);
+        clear();
+      }
+    }
   }
 
   public void channelRead(ChannelHandlerContext ctx, Object data) {
