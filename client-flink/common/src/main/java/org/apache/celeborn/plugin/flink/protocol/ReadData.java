@@ -25,8 +25,6 @@ import org.apache.celeborn.common.network.protocol.RequestMessage;
 
 public final class ReadData extends RequestMessage {
   private final long streamId;
-  private final int backlog;
-  private final long offset;
   private ByteBuf flinkBuffer;
 
   @Override
@@ -34,35 +32,23 @@ public final class ReadData extends RequestMessage {
     return true;
   }
 
-  public ReadData(long streamId, int backlog, long offset) {
+  public ReadData(long streamId) {
     this.streamId = streamId;
-    this.backlog = backlog;
-    this.offset = offset;
   }
 
   @Override
   public int encodedLength() {
-    return 8 + 4 + 8;
+    return 8;
   }
 
   // This method will not be called because ReadData won't be created at flink client.
   @Override
   public void encode(io.netty.buffer.ByteBuf buf) {
     buf.writeLong(streamId);
-    buf.writeInt(backlog);
-    buf.writeLong(offset);
   }
 
   public long getStreamId() {
     return streamId;
-  }
-
-  public int getBacklog() {
-    return backlog;
-  }
-
-  public long getOffset() {
-    return offset;
   }
 
   @Override
@@ -75,26 +61,17 @@ public final class ReadData extends RequestMessage {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ReadData readData = (ReadData) o;
-    return streamId == readData.streamId
-        && backlog == readData.backlog
-        && offset == readData.offset;
+    return streamId == readData.streamId && Objects.equals(flinkBuffer, readData.flinkBuffer);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(streamId, backlog, offset);
+    return Objects.hash(streamId, flinkBuffer);
   }
 
   @Override
   public String toString() {
-    return "ReadData{"
-        + "streamId="
-        + streamId
-        + ", backlog="
-        + backlog
-        + ", offset="
-        + offset
-        + '}';
+    return "ReadData{" + "streamId=" + streamId + ", flinkBuffer=" + flinkBuffer + '}';
   }
 
   public ByteBuf getFlinkBuffer() {

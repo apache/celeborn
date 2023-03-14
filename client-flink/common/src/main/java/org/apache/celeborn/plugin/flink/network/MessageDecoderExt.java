@@ -72,13 +72,11 @@ public class MessageDecoderExt {
 
       case READ_DATA:
         streamId = in.readLong();
-        int backlog = in.readInt();
-        long offset = in.readLong();
-        return new ReadData(streamId, backlog, offset);
+        return new ReadData(streamId);
 
       case BACKLOG_ANNOUNCEMENT:
         streamId = in.readLong();
-        backlog = in.readInt();
+        int backlog = in.readInt();
         return new BacklogAnnouncement(streamId, backlog);
 
       case TRANSPORTABLE_ERROR:
