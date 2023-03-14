@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -201,8 +202,12 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     while (!buffersRead.isEmpty() && credits.get() > 0) {
       WrappedDataBuffer wrappedBuffer;
       synchronized (lock) {
-        wrappedBuffer = buffersRead.poll();
-        numInFlightRequests.incrementAndGet();
+        if (!isReleased) {
+          wrappedBuffer = buffersRead.poll();
+          numInFlightRequests.incrementAndGet();
+        } else {
+          return;
+        }
       }
 
       ByteBuf byteBuf = wrappedBuffer.byteBuf;
@@ -222,7 +227,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
                         wrappedBuffer.recycle();
                       }
                     } finally {
-                      logger.debug("send data start: {}, {}", streamId, readableBytes);
+                      logger.debug("send data end: {}, {}", streamId, readableBytes);
                       numInFlightRequests.decrementAndGet();
                     }
                   });
@@ -404,7 +409,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     logger.debug("Closed read for stream {}", this.streamId);
   }
 
-  private void recycle() {
+  public void recycle() {
     synchronized (lock) {
       if (!isReleased) {
         release();
@@ -456,5 +461,10 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   public long getStreamId() {
     return streamId;
+  }
+
+  @VisibleForTesting
+  public AtomicInteger getNumInFlightRequests() {
+    return numInFlightRequests;
   }
 }
