@@ -698,7 +698,7 @@ private[celeborn] class Master(
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
-    sb.append("======================== Workers in Master =============================")
+    sb.append("====================== Workers Info in Master ===========================")
     workersSnapShot.asScala.foreach { w =>
       sb.append(s"${w.toUniqueId().padTo(50, " ")}in Master\n")
       sb.append(w).append("\n")
@@ -726,8 +726,8 @@ private[celeborn] class Master(
   override def getLostWorkers: String = {
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
-    lostWorkersSnapshot.asScala.map { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(5, " ")}$time\n")
+    lostWorkersSnapshot.asScala.foreach { case (worker, time) =>
+      sb.append(s"${worker.toUniqueId().padTo(50, " ")}$time\n")
     }
     sb.toString()
   }
@@ -735,7 +735,7 @@ private[celeborn] class Master(
   override def getBlacklistedWorkers: String = {
     val sb = new StringBuilder
     sb.append("==================== Blacklisted Workers in Master =====================\n")
-    statusSystem.blacklist.asScala.map { worker =>
+    statusSystem.blacklist.asScala.foreach { worker =>
       sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
@@ -786,9 +786,9 @@ private[celeborn] class Master(
 
   override def getUnavailablePeers: String = throw new UnsupportedOperationException()
 
-  override def isShutdown: Boolean = throw new UnsupportedOperationException()
+  override def isShutdown: String = throw new UnsupportedOperationException()
 
-  override def isRegistered: Boolean = throw new UnsupportedOperationException()
+  override def isRegistered: String = throw new UnsupportedOperationException()
 
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
     try {

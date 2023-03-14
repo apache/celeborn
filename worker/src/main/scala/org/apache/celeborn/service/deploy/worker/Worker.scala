@@ -447,43 +447,72 @@ private[celeborn] class Worker(
     fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 
-  override def getWorkerInfo: String = workerInfo.toString()
+  override def getWorkerInfo: String = {
+    val sb = new StringBuilder
+    sb.append("======================= WorkerInfo of Worker ============================")
+    sb.append(workerInfo.toString()).append("\n")
+    sb.toString()
+  }
 
   override def getLostWorkers: String = throw new UnsupportedOperationException()
 
   override def getBlacklistedWorkers: String = throw new UnsupportedOperationException()
 
-  override def getThreadDump: String = Utils.getThreadDump()
+  override def getThreadDump: String = {
+    val sb = new StringBuilder
+    sb.append("========================= Worker ThreadDump ==========================\n")
+    sb.append(Utils.getThreadDump()).append("\n")
+    sb.toString()
+  }
 
   override def getHostnameList: String = throw new UnsupportedOperationException()
 
   override def getApplicationList: String = throw new UnsupportedOperationException()
 
   override def getShuffleList: String = {
-    storageManager.shuffleKeySet().asScala.mkString("\n")
+    val sb = new StringBuilder
+    sb.append("======================= Shuffle Key List ============================\n")
+    storageManager.shuffleKeySet().asScala.foreach { shuffleKey =>
+      sb.append(s"$shuffleKey\n")
+    }
+    sb.toString()
   }
 
-  override def isShutdown: Boolean = shutdown.get()
+  override def isShutdown: String = {
+    val sb = new StringBuilder
+    sb.append("========================= Worker Shutdown ==========================\n")
+    sb.append(shutdown.get()).append("\n")
+    sb.toString()
+  }
 
-  override def isRegistered: Boolean = registered.get()
+  override def isRegistered: String = {
+    val sb = new StringBuilder
+    sb.append("========================= Worker Registered ==========================\n")
+    sb.append(registered.get()).append("\n")
+    sb.toString()
+  }
 
   override def listTopDiskUseApps: String = {
-    val stringBuilder = new StringBuilder()
+    val sb = new StringBuilder
+    sb.append("================== Top Disk Usage Applications =======================\n")
     storageManager.topAppDiskUsage.asScala.foreach { case (appId, usage) =>
-      stringBuilder.append(s"application ${appId} used ${Utils.bytesToString(usage)} ")
+      sb.append(s"Application $appId used ${Utils.bytesToString(usage)}\n")
     }
-    stringBuilder.toString()
+    sb.toString()
   }
 
   override def listPartitionLocationInfo: String = {
-    partitionLocationInfo.toString
+    val sb = new StringBuilder
+    sb.append("==================== Partition Location Info =========================\n")
+    sb.append(partitionLocationInfo.toString).append("\n")
+    sb.toString()
   }
 
   override def getUnavailablePeers: String = {
     val sb = new StringBuilder
-    sb.append("==========Unavailable Peers of Worker==========\n")
+    sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
-      sb.append(s"${peer.toUniqueId().padTo(50, " ")}$time\n");
+      sb.append(s"${peer.toUniqueId().padTo(50, " ")}$time\n")
     }
     sb.toString()
   }
