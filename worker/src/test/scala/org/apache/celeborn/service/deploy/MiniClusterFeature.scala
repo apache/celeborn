@@ -114,7 +114,7 @@ trait MiniClusterFeature extends Logging {
     Thread.sleep(5000L)
 
     workerInfos.foreach {
-      case (worker, _) => assert(worker.isRegistered())
+      case (worker, _) => assert(worker.isRegistered)
     }
     (master, workerInfos.keySet)
   }
