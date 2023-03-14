@@ -698,22 +698,26 @@ private[celeborn] class Master(
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
+    sb.append("======================== Workers in Master =============================")
     workersSnapShot.asScala.foreach { w =>
-      sb.append("==========WorkerInfos in Master==========\n")
+      sb.append(s"${w.toUniqueId().padTo(50, " ")}in Master\n")
       sb.append(w).append("\n")
 
+      sb.append("\n")
       val workerInfo = requestGetWorkerInfos(w.endpoint)
         .workerInfos.asJava
         .get(0)
 
-      sb.append("==========WorkerInfos in Workers==========\n")
+      sb.append(s"${w.toUniqueId().padTo(50, " ")}in Worker\n")
       sb.append(workerInfo).append("\n")
+      sb.append("\n")
 
       if (w.hasSameInfoWith(workerInfo)) {
-        sb.append("Consist!").append("\n")
+        sb.append(s"${w.toUniqueId().padTo(50, " ")}status consist!\n")
       } else {
-        sb.append("[ERROR] Inconsistent!").append("\n")
+        sb.append(s"${w.toUniqueId().padTo(50, " ")}status not consist!\n")
       }
+      sb.append("======================================================================")
     }
 
     sb.toString()
@@ -721,16 +725,16 @@ private[celeborn] class Master(
 
   override def getLostWorkers: String = {
     val sb = new StringBuilder
-    sb.append("========== Lost WorkerInfos in Master==========\n")
+    sb.append("======================= Lost Workers in Master ========================\n")
     lostWorkersSnapshot.asScala.map { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId()}      $time\n")
+      sb.append(s"${worker.toUniqueId().padTo(5, " ")}$time\n")
     }
     sb.toString()
   }
 
   override def getBlacklistedWorkers: String = {
     val sb = new StringBuilder
-    sb.append("==========Blacklisted WorkerInfos in Master==========\n")
+    sb.append("==================== Blacklisted Workers in Master =====================\n")
     statusSystem.blacklist.asScala.map { worker =>
       sb.append(s"${worker.toUniqueId()}\n")
     }
@@ -739,38 +743,43 @@ private[celeborn] class Master(
 
   override def getThreadDump: String = {
     val sb = new StringBuilder
-    val threadDump = Utils.getThreadDump()
-    sb.append("==========Master ThreadDump==========\n")
-    sb.append(threadDump).append("\n")
-    workersSnapShot.asScala.foreach(w => {
-      sb.append(s"==========Worker ${w.readableAddress()} ThreadDump==========\n")
-      if (w.endpoint == null) {
-        w.setupEndpoint(this.rpcEnv.setupEndpointRef(
-          RpcAddress
-            .apply(w.host, w.rpcPort),
-          RpcNameConstants.WORKER_EP))
-      }
-      val res = requestThreadDump(w.endpoint)
-      sb.append(res.threadDump).append("\n")
-    })
-
+    sb.append("========================= Master ThreadDump ==========================\n")
+    sb.append(Utils.getThreadDump()).append("\n")
     sb.toString()
   }
 
   override def getHostnameList: String = {
-    statusSystem.hostnameSet.asScala.mkString("\n")
+    val sb = new StringBuilder
+    sb.append("================= LifecycleManager Hostname List ======================\n")
+    statusSystem.hostnameSet.asScala.foreach { host =>
+      sb.append(s"$host\n")
+    }
+    sb.toString()
   }
 
   override def getApplicationList: String = {
-    statusSystem.appHeartbeatTime.keys().asScala.mkString("\n")
+    val sb = new StringBuilder
+    sb.append("================= LifecycleManager Hostname List ======================\n")
+    statusSystem.appHeartbeatTime.asScala.foreach { case (appId, time) =>
+      sb.append(s"${appId.padTo(40, " ")}$time\n")
+    }
+    sb.toString()
   }
 
   override def getShuffleList: String = {
-    statusSystem.registeredShuffle.asScala.mkString("\n")
+    val sb = new StringBuilder
+    sb.append("======================= Shuffle Key List ============================\n")
+    statusSystem.registeredShuffle.asScala.foreach { shuffleKey =>
+      sb.append(s"$shuffleKey\n")
+    }
+    sb.toString()
   }
 
   override def listTopDiskUseApps: String = {
-    statusSystem.appDiskUsageMetric.summary
+    val sb = new StringBuilder
+    sb.append("================== Top Disk Usage Applications =======================\n")
+    sb.append(statusSystem.appDiskUsageMetric.summary)
+    sb.toString()
   }
 
   override def listPartitionLocationInfo: String = throw new UnsupportedOperationException()
