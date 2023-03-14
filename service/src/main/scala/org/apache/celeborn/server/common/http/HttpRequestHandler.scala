@@ -81,9 +81,9 @@ class HttpRequestHandler(
       case "/listPartitionLocationInfo" if service.serviceName == Service.WORKER =>
         service.listPartitionLocationInfo
       case "/isShutdown" if service.serviceName == Service.WORKER =>
-        service.getThreadDump
+        service.isShutdown.toString
       case "/isRegistered" if service.serviceName == Service.WORKER =>
-        service
+        service.isRegistered.toString
       case _ => INVALID
     }
   }

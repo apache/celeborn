@@ -465,7 +465,7 @@ private[celeborn] class Worker(
 
   override def isShutdown: Boolean = shutdown.get()
 
-  override def isRegistered(): Boolean = registered.get()
+  override def isRegistered: Boolean = registered.get()
 
   override def listTopDiskUseApps: String = {
     val stringBuilder = new StringBuilder()
