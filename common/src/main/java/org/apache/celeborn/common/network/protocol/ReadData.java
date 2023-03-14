@@ -57,12 +57,12 @@ public class ReadData extends RequestMessage {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ReadData readData = (ReadData) o;
-    return streamId == readData.streamId && Objects.equals(body, readData.body);
+    return streamId == readData.streamId && super.equals(o);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(streamId);
+    return Objects.hash(streamId, super.hashCode());
   }
 
   @Override
