@@ -775,6 +775,10 @@ private[celeborn] class Master(
 
   override def listPartitionLocationInfo: String = throw new UnsupportedOperationException()
 
+  override def isShutdown: Boolean = throw new UnsupportedOperationException()
+
+  override def isRegistered: Boolean = throw new UnsupportedOperationException()
+
   private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
     try {
       if (endpoint != null) {

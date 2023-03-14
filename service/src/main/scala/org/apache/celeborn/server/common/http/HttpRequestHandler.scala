@@ -80,6 +80,10 @@ class HttpRequestHandler(
         service.listTopDiskUseApps
       case "/listPartitionLocationInfo" if service.serviceName == Service.WORKER =>
         service.listPartitionLocationInfo
+      case "/isShutdown" if service.serviceName == Service.WORKER =>
+        service.getThreadDump
+      case "/isRegistered" if service.serviceName == Service.WORKER =>
+        service
       case _ => INVALID
     }
   }

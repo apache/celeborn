@@ -463,6 +463,10 @@ private[celeborn] class Worker(
     storageManager.shuffleKeySet().asScala.mkString("\n")
   }
 
+  override def isShutdown: Boolean = shutdown.get()
+
+  override def isRegistered(): Boolean = registered.get()
+
   override def listTopDiskUseApps: String = {
     val stringBuilder = new StringBuilder()
     storageManager.topAppDiskUsage.asScala.foreach { case (appId, usage) =>
@@ -473,11 +477,6 @@ private[celeborn] class Worker(
 
   override def listPartitionLocationInfo: String = {
     partitionLocationInfo.toString
-  }
-
-  @VisibleForTesting
-  def isRegistered(): Boolean = {
-    registered.get()
   }
 
   ShutdownHookManager.get().addShutdownHook(
