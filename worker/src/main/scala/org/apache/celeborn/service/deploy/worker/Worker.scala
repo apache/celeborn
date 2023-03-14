@@ -475,6 +475,15 @@ private[celeborn] class Worker(
     partitionLocationInfo.toString
   }
 
+  override def getUnavailablePeers: String = {
+    val sb = new StringBuilder
+    sb.append("==========Unavailable Workers in Worker==========\n")
+    unavailablePeers.asScala.map { case (worker, time) =>
+      sb.append(s"${worker.toUniqueId()}      $time\n")
+    }
+    sb.toString()
+  }
+
   @VisibleForTesting
   def isRegistered(): Boolean = {
     registered.get()

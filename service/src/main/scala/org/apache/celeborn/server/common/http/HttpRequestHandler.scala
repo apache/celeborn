@@ -80,6 +80,8 @@ class HttpRequestHandler(
         service.listTopDiskUseApps
       case "/listPartitionLocationInfo" if service.serviceName == Service.WORKER =>
         service.listPartitionLocationInfo
+      case "/unavailablePeers" if service.serviceName == Service.WORKER =>
+        service.getUnavailablePeers
       case _ => INVALID
     }
   }
