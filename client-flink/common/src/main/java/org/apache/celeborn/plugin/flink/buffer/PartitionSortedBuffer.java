@@ -201,18 +201,18 @@ public class PartitionSortedBuffer implements SortBuffer {
 
   private boolean allocateBuffersForRecord(int numRecordBytes) throws IOException {
     int numBytesRequired = INDEX_ENTRY_SIZE + numRecordBytes;
-    int availableBytes = writeSegmentIndex == buffers.size() ? 0 : bufferSize - writeSegmentOffset;
+    int currentBufferAvailableBytes = writeSegmentIndex == buffers.size() ? 0 : bufferSize - writeSegmentOffset;
 
     // return directly if current available bytes is adequate
-    if (availableBytes >= numBytesRequired) {
+    if (currentBufferAvailableBytes >= numBytesRequired) {
       return true;
     }
 
     // skip the remaining free space if the available bytes is not enough for an index entry
-    if (availableBytes < INDEX_ENTRY_SIZE) {
-      updateWriteSegmentIndexAndOffset(availableBytes);
-      availableBytes = 0;
+    if (currentBufferAvailableBytes < INDEX_ENTRY_SIZE) {
+      updateWriteSegmentIndexAndOffset(currentBufferAvailableBytes);
     }
+    int totalAvailableBytes = (buffers.size() - writeSegmentIndex) * bufferSize - writeSegmentOffset;
 
     // allocate exactly enough buffers for the appended record
     do {
@@ -222,9 +222,9 @@ public class PartitionSortedBuffer implements SortBuffer {
         return false;
       }
 
-      availableBytes += bufferSize;
+      totalAvailableBytes += bufferSize;
       addBuffer(segment);
-    } while (availableBytes < numBytesRequired);
+    } while (totalAvailableBytes < numBytesRequired);
 
     return true;
   }
