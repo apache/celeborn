@@ -59,7 +59,6 @@ public class PartitionSortedBuffer implements SortBuffer {
    */
   private static final int INDEX_ENTRY_SIZE = 4 + 4 + 8;
 
-  private final Object lock;
   /** A buffer pool to request memory segments from. */
   private final BufferPool bufferPool;
 
