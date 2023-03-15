@@ -128,13 +128,16 @@ celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
 celeborn.worker.monitor.disk.enabled false
 ```
 4. Copy Celeborn and configurations to all nodes
-5. Start Celeborn master
-   `$CELEBORN_HOME/sbin/start-master.sh`
-6. Start Celeborn worker
-   For single master cluster : `$CELEBORN_HOME/sbin/start-worker.sh rss://<master-host>:<master-port>`
-   For HA cluster :`$CELEBORN_HOME/sbin/start-worker.sh`
-7. If Celeborn start success, the output of Master's log should be like this:
-```angular2html
+5. Start all services. If you install Celeborn distribution in same path on every node and your
+   cluster can perform SSH login then you can fill `$CELEBORN_HOME/conf/hosts` and
+   use `$CELEBORN_HOME/sbin/start-all.sh` to start all
+   services. If the installation paths are not identical, you will need to start service manually.  
+   Start Celeborn master  
+   `$CELEBORN_HOME/sbin/start-master.sh`  
+   Start Celeborn worker  
+   `$CELEBORN_HOME/sbin/start-worker.sh`
+6. If Celeborn start success, the output of Master's log should be like this:
+```
 22/10/08 19:29:11,805 INFO [main] Dispatcher: Dispatcher numThreads: 64
 22/10/08 19:29:11,875 INFO [main] TransportClientFactory: mode NIO threads 64
 22/10/08 19:29:12,057 INFO [main] Utils: Successfully started service 'MasterSys' on port 9097.
@@ -172,7 +175,8 @@ spark.shuffle.service.enabled false
 # Sort shuffle writer use less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
 spark.celeborn.shuffle.writer hash
 
-# we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication 
+# we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication
+# If you have only one worker, this setting must be false 
 spark.celeborn.push.replicate.enabled true
 
 # Support for Spark AQE only tested under Spark 3
