@@ -700,7 +700,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("====================== Workers Info in Master ===========================")
     workersSnapShot.asScala.foreach { w =>
-      sb.append(s"${w.toUniqueId().padTo(50, " ")}in Master\n")
+      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString("")}in Master\n")
       sb.append(w).append("\n")
 
       sb.append("\n")
@@ -708,16 +708,16 @@ private[celeborn] class Master(
         .workerInfos.asJava
         .get(0)
 
-      sb.append(s"${w.toUniqueId().padTo(50, " ")}in Worker\n")
+      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString("")}in Worker\n")
       sb.append(workerInfo).append("\n")
       sb.append("\n")
 
       if (w.hasSameInfoWith(workerInfo)) {
-        sb.append(s"${w.toUniqueId().padTo(50, " ")}status consist!\n")
+        sb.append(s"${w.toUniqueId().padTo(50, " ").mkString("")}status consist!\n")
       } else {
-        sb.append(s"${w.toUniqueId().padTo(50, " ")}status not consist!\n")
+        sb.append(s"${w.toUniqueId().padTo(50, " ").mkString("")}status not consist!\n")
       }
-      sb.append("======================================================================")
+      sb.append("=====================================================================\n")
     }
 
     sb.toString()
@@ -727,7 +727,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
     lostWorkersSnapshot.asScala.foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(50, " ")}$time\n")
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString("")}$time\n")
     }
     sb.toString()
   }
@@ -761,7 +761,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Hostname List ======================\n")
     statusSystem.appHeartbeatTime.asScala.foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ")}$time\n")
+      sb.append(s"${appId.padTo(40, " ").mkString("")}$time\n")
     }
     sb.toString()
   }

@@ -30,7 +30,7 @@ abstract class HttpService extends Service with Logging {
     val maxKeyLength = conf.getAll.toMap.keys.map(_.length).max
     sb.append("=========================== Configuration ============================\n")
     conf.getAll.foreach { case (key, value) =>
-      sb.append(key.padTo(maxKeyLength + 10, " ") + value + "\n")
+      sb.append(s"${key.padTo(maxKeyLength + 10, " ").mkString("")}$value\n")
     }
     sb.toString()
   }
