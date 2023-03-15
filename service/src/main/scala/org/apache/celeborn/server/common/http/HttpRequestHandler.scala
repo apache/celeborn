@@ -85,9 +85,9 @@ class HttpRequestHandler(
       case "/unavailablePeers" if service.serviceName == Service.WORKER =>
         service.getUnavailablePeers
       case "/isShutdown" if service.serviceName == Service.WORKER =>
-        service.isShutdown.toString
+        service.isShutdown
       case "/isRegistered" if service.serviceName == Service.WORKER =>
-        service.isRegistered.toString
+        service.isRegistered
       case _ => INVALID
     }
   }

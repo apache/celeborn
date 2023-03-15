@@ -55,9 +55,9 @@ abstract class HttpService extends Service with Logging {
 
   def getUnavailablePeers: String
 
-  def isShutdown: Boolean
+  def isShutdown: String
 
-  def isRegistered: Boolean
+  def isRegistered: String
 
   def startHttpServer(): Unit = {
     val handlers =
