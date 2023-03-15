@@ -449,7 +449,7 @@ private[celeborn] class Worker(
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
-    sb.append("======================= WorkerInfo of Worker ============================")
+    sb.append("====================== WorkerInfo of Worker ===========================\n")
     sb.append(workerInfo.toString()).append("\n")
     sb.toString()
   }
@@ -512,7 +512,7 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
-      sb.append(s"${peer.toUniqueId().padTo(50, " ")}$time\n")
+      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}$time\n")
     }
     sb.toString()
   }
