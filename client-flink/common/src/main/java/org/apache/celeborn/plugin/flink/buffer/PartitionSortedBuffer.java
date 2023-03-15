@@ -119,7 +119,6 @@ public class PartitionSortedBuffer implements SortBuffer {
       @Nullable int[] customReadOrder) {
     checkArgument(bufferSize > INDEX_ENTRY_SIZE, "Buffer size is too small.");
 
-    this.lock = new Object();
     this.bufferPool = checkNotNull(bufferPool);
     this.bufferSize = bufferSize;
     this.firstIndexEntryAddresses = new long[numSubpartitions];
@@ -232,19 +231,17 @@ public class PartitionSortedBuffer implements SortBuffer {
   }
 
   private void addBuffer(MemorySegment segment) {
-    synchronized (lock) {
-      if (segment.size() != bufferSize) {
-        bufferPool.recycle(segment);
-        throw new IllegalStateException("Illegal memory segment size.");
-      }
-
-      if (isReleased) {
-        bufferPool.recycle(segment);
-        throw new IllegalStateException("Sort buffer is already released.");
-      }
-
-      buffers.add(segment);
+    if (segment.size() != bufferSize) {
+      bufferPool.recycle(segment);
+      throw new IllegalStateException("Illegal memory segment size.");
     }
+
+    if (isReleased) {
+      bufferPool.recycle(segment);
+      throw new IllegalStateException("Sort buffer is already released.");
+    }
+
+    buffers.add(segment);
   }
 
   private MemorySegment requestBufferFromPool() throws IOException {
@@ -273,57 +270,55 @@ public class PartitionSortedBuffer implements SortBuffer {
   @Override
   public BufferWithChannel copyIntoSegment(
       MemorySegment target, BufferRecycler recycler, int offset) {
-    synchronized (lock) {
-      checkState(hasRemaining(), "No data remaining.");
-      checkState(isFinished, "Should finish the sort buffer first before coping any data.");
-      checkState(!isReleased, "Sort buffer is already released.");
+    checkState(hasRemaining(), "No data remaining.");
+    checkState(isFinished, "Should finish the sort buffer first before coping any data.");
+    checkState(!isReleased, "Sort buffer is already released.");
 
-      int numBytesCopied = 0;
-      DataType bufferDataType = DataType.DATA_BUFFER;
-      int channelIndex = subpartitionReadOrder[readOrderIndex];
+    int numBytesCopied = 0;
+    DataType bufferDataType = DataType.DATA_BUFFER;
+    int channelIndex = subpartitionReadOrder[readOrderIndex];
 
-      do {
-        int sourceSegmentIndex = getSegmentIndexFromPointer(readIndexEntryAddress);
-        int sourceSegmentOffset = getSegmentOffsetFromPointer(readIndexEntryAddress);
-        MemorySegment sourceSegment = buffers.get(sourceSegmentIndex);
+    do {
+      int sourceSegmentIndex = getSegmentIndexFromPointer(readIndexEntryAddress);
+      int sourceSegmentOffset = getSegmentOffsetFromPointer(readIndexEntryAddress);
+      MemorySegment sourceSegment = buffers.get(sourceSegmentIndex);
 
-        long lengthAndDataType = sourceSegment.getLong(sourceSegmentOffset);
-        int length = getSegmentIndexFromPointer(lengthAndDataType);
-        DataType dataType = DataType.values()[getSegmentOffsetFromPointer(lengthAndDataType)];
+      long lengthAndDataType = sourceSegment.getLong(sourceSegmentOffset);
+      int length = getSegmentIndexFromPointer(lengthAndDataType);
+      DataType dataType = DataType.values()[getSegmentOffsetFromPointer(lengthAndDataType)];
 
-        // return the data read directly if the next to read is an event
-        if (dataType.isEvent() && numBytesCopied > 0) {
+      // return the data read directly if the next to read is an event
+      if (dataType.isEvent() && numBytesCopied > 0) {
+        break;
+      }
+      bufferDataType = dataType;
+
+      // get the next index entry address and move the read position forward
+      long nextReadIndexEntryAddress = sourceSegment.getLong(sourceSegmentOffset + 8);
+      sourceSegmentOffset += INDEX_ENTRY_SIZE;
+
+      // throws if the event is too big to be accommodated by a buffer.
+      if (bufferDataType.isEvent() && target.size() - offset < length) {
+        throw new FlinkRuntimeException("Event is too big to be accommodated by a buffer");
+      }
+
+      numBytesCopied +=
+          copyRecordOrEvent(
+              target, numBytesCopied + offset, sourceSegmentIndex, sourceSegmentOffset, length);
+
+      if (recordRemainingBytes == 0) {
+        // move to next channel if the current channel has been finished
+        if (readIndexEntryAddress == lastIndexEntryAddresses[channelIndex]) {
+          updateReadChannelAndIndexEntryAddress();
           break;
         }
-        bufferDataType = dataType;
+        readIndexEntryAddress = nextReadIndexEntryAddress;
+      }
+    } while (numBytesCopied < target.size() - offset && bufferDataType.isBuffer());
 
-        // get the next index entry address and move the read position forward
-        long nextReadIndexEntryAddress = sourceSegment.getLong(sourceSegmentOffset + 8);
-        sourceSegmentOffset += INDEX_ENTRY_SIZE;
-
-        // throws if the event is too big to be accommodated by a buffer.
-        if (bufferDataType.isEvent() && target.size() < length) {
-          throw new FlinkRuntimeException("Event is too big to be accommodated by a buffer");
-        }
-
-        numBytesCopied +=
-            copyRecordOrEvent(
-                target, numBytesCopied + offset, sourceSegmentIndex, sourceSegmentOffset, length);
-
-        if (recordRemainingBytes == 0) {
-          // move to next channel if the current channel has been finished
-          if (readIndexEntryAddress == lastIndexEntryAddresses[channelIndex]) {
-            updateReadChannelAndIndexEntryAddress();
-            break;
-          }
-          readIndexEntryAddress = nextReadIndexEntryAddress;
-        }
-      } while (numBytesCopied < target.size() - offset && bufferDataType.isBuffer());
-
-      numTotalBytesRead += numBytesCopied;
-      Buffer buffer = new NetworkBuffer(target, recycler, bufferDataType, numBytesCopied + offset);
-      return new BufferWithChannel(buffer, channelIndex);
-    }
+    numTotalBytesRead += numBytesCopied;
+    Buffer buffer = new NetworkBuffer(target, recycler, bufferDataType, numBytesCopied + offset);
+    return new BufferWithChannel(buffer, channelIndex);
   }
 
   private int copyRecordOrEvent(
@@ -416,27 +411,23 @@ public class PartitionSortedBuffer implements SortBuffer {
   @Override
   public void release() {
     // the sort buffer can be released by other threads
-    synchronized (lock) {
-      if (isReleased) {
-        return;
-      }
-
-      isReleased = true;
-
-      for (MemorySegment segment : buffers) {
-        bufferPool.recycle(segment);
-      }
-      buffers.clear();
-
-      numTotalBytes = 0;
-      numTotalRecords = 0;
+    if (isReleased) {
+      return;
     }
+
+    isReleased = true;
+
+    for (MemorySegment segment : buffers) {
+      bufferPool.recycle(segment);
+    }
+    buffers.clear();
+
+    numTotalBytes = 0;
+    numTotalRecords = 0;
   }
 
   @Override
   public boolean isReleased() {
-    synchronized (lock) {
-      return isReleased;
-    }
+    return isReleased;
   }
 }
