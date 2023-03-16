@@ -71,8 +71,8 @@ public class RemoteShuffleInputGateFactory {
         org.apache.celeborn.common.util.Utils.byteStringAsBytes(
             PluginConf.getValue(flinkConf, PluginConf.MEMORY_PER_INPUT_GATE));
     long minConfiguredMemorySize =
-      org.apache.celeborn.common.util.Utils.byteStringAsBytes(
-        PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_GATE));
+        org.apache.celeborn.common.util.Utils.byteStringAsBytes(
+            PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_GATE));
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
