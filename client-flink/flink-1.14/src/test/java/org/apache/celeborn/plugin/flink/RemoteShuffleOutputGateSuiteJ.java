@@ -48,7 +48,7 @@ public class RemoteShuffleOutputGateSuiteJ {
 
   @Before
   public void setup() throws IOException {
-    remoteShuffleOutputGate.shuffleWriteClient = shuffleClient;
+    remoteShuffleOutputGate.flinkShuffleClient = shuffleClient;
     networkBufferPool = new NetworkBufferPool(10, BUFFER_SIZE);
     bufferPool = networkBufferPool.createBufferPool(10, 10);
   }
@@ -61,12 +61,12 @@ public class RemoteShuffleOutputGateSuiteJ {
     when(shuffleClient.registerMapPartitionTask(any(), anyInt(), anyInt(), anyInt(), anyInt()))
         .thenAnswer(t -> partitionLocation);
     doNothing()
-        .when(remoteShuffleOutputGate.shuffleWriteClient)
+        .when(remoteShuffleOutputGate.flinkShuffleClient)
         .pushDataHandShake(anyString(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
 
     remoteShuffleOutputGate.handshake(true);
 
-    when(remoteShuffleOutputGate.shuffleWriteClient.regionStart(
+    when(remoteShuffleOutputGate.flinkShuffleClient.regionStart(
             any(), anyInt(), anyInt(), anyInt(), any(), anyInt(), anyBoolean()))
         .thenAnswer(t -> Optional.empty());
     remoteShuffleOutputGate.regionStart(false);
@@ -74,16 +74,16 @@ public class RemoteShuffleOutputGateSuiteJ {
     remoteShuffleOutputGate.write(bufferPool.requestBuffer(), 0);
 
     doNothing()
-        .when(remoteShuffleOutputGate.shuffleWriteClient)
+        .when(remoteShuffleOutputGate.flinkShuffleClient)
         .regionFinish(any(), anyInt(), anyInt(), anyInt(), any());
     remoteShuffleOutputGate.regionFinish();
 
     doNothing()
-        .when(remoteShuffleOutputGate.shuffleWriteClient)
+        .when(remoteShuffleOutputGate.flinkShuffleClient)
         .mapperEnd(any(), anyInt(), anyInt(), anyInt(), anyInt());
     remoteShuffleOutputGate.finish();
 
-    doNothing().when(remoteShuffleOutputGate.shuffleWriteClient).shutdown();
+    doNothing().when(remoteShuffleOutputGate.flinkShuffleClient).shutdown();
     remoteShuffleOutputGate.close();
   }
 
