@@ -58,7 +58,7 @@ public class RemoteShuffleOutputGate {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleOutputGate.class);
   private final RemoteShuffleDescriptor shuffleDesc;
   protected final int numSubs;
-  protected FlinkShuffleClientImpl shuffleWriteClient;
+  protected FlinkShuffleClientImpl flinkShuffleClient;
   protected final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
   protected BufferPool bufferPool;
   private CelebornConf celebornConf;
@@ -104,11 +104,9 @@ public class RemoteShuffleOutputGate {
     this.mapId = shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getMapId();
     this.attemptId =
         shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getAttemptId();
-    this.rssMetaServiceHost =
-        ((RemoteShuffleResource) shuffleDesc.getShuffleResource()).getRssMetaServiceHost();
-    this.rssMetaServicePort =
-        ((RemoteShuffleResource) shuffleDesc.getShuffleResource()).getRssMetaServicePort();
-    this.shuffleWriteClient = createWriteClient();
+    this.rssMetaServiceHost = shuffleDesc.getShuffleResource().getRssMetaServiceHost();
+    this.rssMetaServicePort = shuffleDesc.getShuffleResource().getRssMetaServicePort();
+    this.flinkShuffleClient = getShuffleClient();
   }
 
   /** Initialize transportation gate. */
@@ -139,16 +137,16 @@ public class RemoteShuffleOutputGate {
    * @param isBroadcast Whether it's a broadcast region.
    */
   public void regionStart(boolean isBroadcast) {
-    Optional<PartitionLocation> newPartitionLoc = null;
+    Optional<PartitionLocation> newPartitionLoc;
     try {
       if (isFirstHandShake) {
-        handshake(isFirstHandShake);
+        handshake(true);
         isFirstHandShake = false;
         LOG.info("send firstHandShake:" + isBroadcast);
       }
 
       newPartitionLoc =
-          shuffleWriteClient.regionStart(
+          flinkShuffleClient.regionStart(
               applicationId,
               shuffleId,
               mapId,
@@ -162,7 +160,7 @@ public class RemoteShuffleOutputGate {
         // send handshake again
         handshake(false);
         // send regionstart again
-        shuffleWriteClient.regionStart(
+        flinkShuffleClient.regionStart(
             applicationId,
             shuffleId,
             mapId,
@@ -183,7 +181,7 @@ public class RemoteShuffleOutputGate {
   public void regionFinish() throws InterruptedException {
     bufferPacker.drain();
     try {
-      shuffleWriteClient.regionFinish(
+      flinkShuffleClient.regionFinish(
           applicationId, shuffleId, mapId, attemptId, partitionLocation);
       currentRegionIndex++;
     } catch (IOException e) {
@@ -193,7 +191,7 @@ public class RemoteShuffleOutputGate {
 
   /** Indicates the writing/spilling is finished. */
   public void finish() throws InterruptedException, IOException {
-    shuffleWriteClient.mapPartitionMapperEnd(
+    flinkShuffleClient.mapPartitionMapperEnd(
         applicationId, shuffleId, mapId, attemptId, numMappers, partitionLocation.getId());
   }
 
@@ -203,7 +201,7 @@ public class RemoteShuffleOutputGate {
       bufferPool.lazyDestroy();
     }
     bufferPacker.close();
-    shuffleWriteClient.cleanup(applicationId, shuffleId, mapId, attemptId);
+    flinkShuffleClient.cleanup(applicationId, shuffleId, mapId, attemptId);
   }
 
   /** Returns shuffle descriptor. */
@@ -212,15 +210,15 @@ public class RemoteShuffleOutputGate {
   }
 
   @VisibleForTesting
-  FlinkShuffleClientImpl createWriteClient() {
+  FlinkShuffleClientImpl getShuffleClient() {
     return FlinkShuffleClientImpl.get(
         rssMetaServiceHost, rssMetaServicePort, celebornConf, userIdentifier);
   }
 
   /** Writes a piece of data to a subpartition. */
-  public void write(ByteBuf byteBuf, int subIdx) throws InterruptedException {
+  public void write(ByteBuf byteBuf, int subIdx) {
     try {
-      shuffleWriteClient.pushDataToLocation(
+      flinkShuffleClient.pushDataToLocation(
           applicationId,
           shuffleId,
           mapId,
@@ -235,17 +233,16 @@ public class RemoteShuffleOutputGate {
   }
 
   public void handshake(boolean isFirstHandShake) throws IOException {
-    if (partitionLocation == null) {
+    if (isFirstHandShake) {
       partitionLocation =
-          shuffleWriteClient.registerMapPartitionTask(
+          flinkShuffleClient.registerMapPartitionTask(
               applicationId, shuffleId, numMappers, mapId, attemptId);
       Utils.checkNotNull(partitionLocation);
-    }
-    if (isFirstHandShake) {
+
       currentRegionIndex = 0;
     }
     try {
-      shuffleWriteClient.pushDataHandShake(
+      flinkShuffleClient.pushDataHandShake(
           applicationId, shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
