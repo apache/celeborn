@@ -47,6 +47,8 @@ do
     sleep $CELEBORN_SLEEP
   fi
 done
+# pause 5 seconds to make sure that master is ready.
+sleep 5s
 
 # start workers
 for host in `echo "$HOST_LIST" | sed  "s/#.*$//;/^$/d" | grep '\[worker\]' | awk '{print $NF}'`
