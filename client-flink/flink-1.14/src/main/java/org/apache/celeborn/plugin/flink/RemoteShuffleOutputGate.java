@@ -104,8 +104,8 @@ public class RemoteShuffleOutputGate {
     this.mapId = shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getMapId();
     this.attemptId =
         shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getAttemptId();
-    this.rssMetaServiceHost = (shuffleDesc.getShuffleResource()).getRssMetaServiceHost();
-    this.rssMetaServicePort = (shuffleDesc.getShuffleResource()).getRssMetaServicePort();
+    this.rssMetaServiceHost = shuffleDesc.getShuffleResource().getRssMetaServiceHost();
+    this.rssMetaServicePort = shuffleDesc.getShuffleResource().getRssMetaServicePort();
     this.flinkShuffleClient = getShuffleClient();
   }
 
