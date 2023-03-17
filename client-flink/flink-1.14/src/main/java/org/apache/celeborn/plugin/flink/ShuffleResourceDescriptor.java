@@ -19,7 +19,6 @@ package org.apache.celeborn.plugin.flink;
 
 import java.io.Serializable;
 
-import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.common.util.PackedPartitionId;
 
 public class ShuffleResourceDescriptor implements Serializable {
@@ -31,10 +30,10 @@ public class ShuffleResourceDescriptor implements Serializable {
   private final int attemptId;
   private final int partitionId;
 
-  public ShuffleResourceDescriptor(LifecycleManager.ShuffleTask shuffleTask) {
-    this.shuffleId = shuffleTask.shuffleId();
-    this.mapId = shuffleTask.mapId();
-    this.attemptId = shuffleTask.attemptId();
+  public ShuffleResourceDescriptor(ShuffleTask shuffleTask) {
+    this.shuffleId = shuffleTask.shuffleId;
+    this.mapId = shuffleTask.mapId;
+    this.attemptId = shuffleTask.attemptId;
     this.partitionId = PackedPartitionId.packedPartitionId(mapId, attemptId);
   }
 

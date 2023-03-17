@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client
+package org.apache.celeborn.plugin.flink
 
 import org.scalatest.funsuite.AnyFunSuite
 
 class ShuffleTaskInfoSuite extends AnyFunSuite {
 
   test("encode shuffle id & map attemptId") {
-    val shuffleTaskInfo = new ShuffleTaskInfo
+    val shuffleTaskInfo = new ShuffleTaskInfo()
     val encodeShuffleId = shuffleTaskInfo.getShuffleId("shuffleId")
     assert(encodeShuffleId == 0)
 

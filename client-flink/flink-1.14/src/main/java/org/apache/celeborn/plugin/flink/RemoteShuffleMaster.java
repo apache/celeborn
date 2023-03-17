@@ -46,6 +46,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private Map<JobID, Set<Integer>> jobShuffleIds = new ConcurrentHashMap<>();
   private String celebornAppId;
   private volatile LifecycleManager lifecycleManager;
+  private ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
 
   private final ScheduledThreadPoolExecutor executor =
       new ScheduledThreadPoolExecutor(
@@ -86,10 +87,9 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       executor.execute(
           () -> {
             try {
-              synchronized (shuffleIds) {
-                for (Integer shuffleId : shuffleIds) {
-                  lifecycleManager.handleUnregisterShuffle(celebornAppId, shuffleId);
-                }
+              for (Integer shuffleId : shuffleIds) {
+                lifecycleManager.handleUnregisterShuffle(celebornAppId, shuffleId);
+                shuffleTaskInfo.removeExpiredShuffle(shuffleId);
               }
             } catch (Throwable throwable) {
               LOG.error("Encounter an error when unregistering job: {}.", jobID, throwable);
@@ -111,14 +111,14 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
               FlinkResultPartitionInfo resultPartitionInfo =
                   new FlinkResultPartitionInfo(jobID, partitionDescriptor, producerDescriptor);
-              LifecycleManager.ShuffleTask shuffleTask =
-                  lifecycleManager.encodeExternalShuffleTask(
+              ShuffleTask shuffleTask =
+                  encodeExternalShuffleTask(
                       resultPartitionInfo.getShuffleId(),
                       resultPartitionInfo.getTaskId(),
                       resultPartitionInfo.getAttemptId());
 
               synchronized (shuffleIds) {
-                shuffleIds.add(shuffleTask.shuffleId());
+                shuffleIds.add(shuffleTask.shuffleId);
               }
 
               ShuffleResourceDescriptor shuffleResourceDescriptor =
@@ -154,5 +154,20 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     }
 
     ThreadUtils.shutdownExecutors(10, executor);
+  }
+
+  private ShuffleTask encodeExternalShuffleTask(
+      String taskShuffleId, int mapId, String taskAttemptId) {
+    int shuffleId = shuffleTaskInfo.getShuffleId(taskShuffleId);
+    int attemptId = shuffleTaskInfo.getAttemptId(taskShuffleId, mapId, taskAttemptId);
+    LOG.info(
+        "encode task from ({}, {}, {}) to ({}, {},, {})",
+        taskShuffleId,
+        mapId,
+        taskAttemptId,
+        shuffleId,
+        mapId,
+        attemptId);
+    return new ShuffleTask(shuffleId, mapId, attemptId);
   }
 }

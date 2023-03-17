@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client
+package org.apache.celeborn.plugin.flink
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.function
 import javax.annotation.concurrent.ThreadSafe
 
