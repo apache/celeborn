@@ -33,7 +33,7 @@ if [ "$CELEBORN_WORKER_OFFHEAP_MEMORY" = "" ]; then
 fi
 
 export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_WORKER_MEMORY -XX:MaxDirectMemorySize=$CELEBORN_WORKER_OFFHEAP_MEMORY $CELEBORN_WORKER_JAVA_OPTS"
-JAVA_VERSION=$(java -version 2>&1 | grep " version " | head -1 | awk '{print $3}' | tr -d '"')
+JAVA_VERSION=$(${JAVA} -version 2>&1 | grep " version " | head -1 | awk '{print $3}' | tr -d '"')
 if [[ ! "$JAVA_VERSION" == 1.8.* ]]; then
   export CELEBORN_JAVA_OPTS="${CELEBORN_JAVA_OPTS} --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --illegal-access=warn -Dio.netty.tryReflectionSetAccessible=true"
 fi
