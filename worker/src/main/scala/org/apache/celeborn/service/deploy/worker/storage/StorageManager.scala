@@ -130,13 +130,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val hdfsWriters = new ConcurrentHashMap[String, FileWriter]()
   val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (!hdfsDir.isEmpty) {
+      val path = new Path(hdfsDir)
+      val scheme = path.toUri.getScheme
+      val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme);
       val hdfsConfiguration = new Configuration
-      hdfsConfiguration.set("fs.defaultFS", hdfsDir)
       hdfsConfiguration.set("dfs.replication", "2")
-      hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false")
-      logInfo("Celeborn will ignore cluster settings" +
-        " about fs.hdfs.impl.disable.cache and set it to false")
-      StorageManager.hadoopFs = FileSystem.get(hdfsConfiguration)
+      hdfsConfiguration.set(disableCacheName, "false")
+      logInfo("Celeborn will ignore cluster settings " +
+        disableCacheName + " and set it to false")
+      StorageManager.hadoopFs = path.getFileSystem(hdfsConfiguration)
       (
         Some(new HdfsFlusher(
           workerSource,
