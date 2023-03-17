@@ -40,7 +40,7 @@ license: |
 | celeborn.worker.congestionControl.low.watermark | &lt;undefined&gt; | Will stop congest users if the total pending bytes of disk buffer is lower than this configuration | 0.3.0 | 
 | celeborn.worker.congestionControl.sample.time.window | 10s | The worker holds a time sliding list to calculate users' produce/consume rate | 0.3.0 | 
 | celeborn.worker.congestionControl.user.inactive.interval | 10min | How long will consider this user is inactive if it doesn't send data | 0.3.0 | 
-| celeborn.worker.directMemoryRatioForMemoryShuffleStorage | 0.1 | Max ratio of direct memory to store shuffle data | 0.2.0 | 
+| celeborn.worker.directMemoryRatioForMemoryShuffleStorage | 0.0 | Max ratio of direct memory to store shuffle data | 0.2.0 | 
 | celeborn.worker.directMemoryRatioForReadBuffer | 0.1 | Max ratio of direct memory for read buffer | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToPauseReceive | 0.85 | If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients. | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToPauseReplicate | 0.95 | If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. | 0.2.0 | 
