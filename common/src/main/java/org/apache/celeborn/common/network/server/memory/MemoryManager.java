@@ -145,6 +145,10 @@ public class MemoryManager {
       }
     }
     Preconditions.checkArgument(maxDirectorMemory > 0);
+    Preconditions.checkArgument(pauseReplicateRatio > pausePushDataRatio);
+    Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
+    Preconditions.checkArgument(resumeRatio > (readBufferRatio + shuffleStorageRatio));
+
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
@@ -241,12 +245,13 @@ public class MemoryManager {
         "Memory tracker initialized with: "
             + "max direct memory: {}, pause pushdata memory: {}, "
             + "pause replication memory: {}, resume memory: {},"
-            + "read buffer memory limit: {}",
+            + "read buffer memory limit: {}, memory shuffle storage limit : {}",
         Utils.bytesToString(maxDirectorMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
         Utils.bytesToString(resumeThreshold),
-        Utils.bytesToString(readBufferThreshold));
+        Utils.bytesToString(readBufferThreshold),
+        Utils.bytesToString(memoryShuffleStorageThreshold));
   }
 
   private void initDirectMemoryIndicator() {
