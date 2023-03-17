@@ -2752,7 +2752,6 @@ object CelebornConf extends Logging {
       .doc("Max ratio of direct memory for read buffer")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 0.4, "should be in [0.0, 0.4].")
       .createWithDefault(0.1)
 
   val WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE: ConfigEntry[Double] =
@@ -2761,8 +2760,7 @@ object CelebornConf extends Logging {
       .doc("Max ratio of direct memory to store shuffle data")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 0.4, "should be in [0.0, 0.4].")
-      .createWithDefault(0.1)
+      .createWithDefault(0.0)
 
   val WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioToPauseReceive")
@@ -2771,7 +2769,6 @@ object CelebornConf extends Logging {
       .doc("If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients.")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(0.85)
 
   val WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE: ConfigEntry[Double] =
@@ -2781,7 +2778,6 @@ object CelebornConf extends Logging {
       .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers.")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(0.95)
 
   val WORKER_DIRECT_MEMORY_RATIO_RESUME: ConfigEntry[Double] =
@@ -2791,7 +2787,6 @@ object CelebornConf extends Logging {
       .doc("If direct memory usage is less than this limit, worker will resume.")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
       .createWithDefault(0.5)
 
   val WORKER_DIRECT_MEMORY_CHECK_INTERVAL: ConfigEntry[Long] =
