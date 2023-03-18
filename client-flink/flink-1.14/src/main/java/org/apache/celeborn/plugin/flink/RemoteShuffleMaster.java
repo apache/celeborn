@@ -118,7 +118,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
                       resultPartitionInfo.getAttemptId());
 
               synchronized (shuffleIds) {
-                shuffleIds.add(shuffleTask.shuffleId);
+                shuffleIds.add(shuffleTask.getShuffleId());
               }
 
               ShuffleResourceDescriptor shuffleResourceDescriptor =

@@ -31,9 +31,9 @@ public class ShuffleResourceDescriptor implements Serializable {
   private final int partitionId;
 
   public ShuffleResourceDescriptor(ShuffleTask shuffleTask) {
-    this.shuffleId = shuffleTask.shuffleId;
-    this.mapId = shuffleTask.mapId;
-    this.attemptId = shuffleTask.attemptId;
+    this.shuffleId = shuffleTask.getShuffleId();
+    this.mapId = shuffleTask.getMapId();
+    this.attemptId = shuffleTask.getAttemptId();
     this.partitionId = PackedPartitionId.packedPartitionId(mapId, attemptId);
   }
 

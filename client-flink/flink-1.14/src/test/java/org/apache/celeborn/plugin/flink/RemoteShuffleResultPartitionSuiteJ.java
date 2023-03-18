@@ -558,9 +558,9 @@ public class RemoteShuffleResultPartitionSuiteJ {
     byte[] bytes = new byte[16];
     random.nextBytes(bytes);
     ShuffleTask shuffleTask = Mockito.mock(ShuffleTask.class);
-    Mockito.when(shuffleTask.attemptId).thenReturn(1);
-    Mockito.when(shuffleTask.mapId).thenReturn(1);
-    Mockito.when(shuffleTask.shuffleId).thenReturn(1);
+    Mockito.when(shuffleTask.getAttemptId()).thenReturn(1);
+    Mockito.when(shuffleTask.getMapId()).thenReturn(1);
+    Mockito.when(shuffleTask.getShuffleId()).thenReturn(1);
     return new RemoteShuffleDescriptor(
         new JobID(bytes).toString(),
         new JobID(bytes).toString(),
