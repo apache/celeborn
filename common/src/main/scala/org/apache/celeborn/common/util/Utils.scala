@@ -957,9 +957,10 @@ object Utils extends Logging {
   val SORTED_SUFFIX = ".sorted"
   val INDEX_SUFFIX = ".index"
   val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
+  val COMPATIBLE_HDFS_REGEX = "^[a-zA-z0-9]+://((\\w)+/?)+$"
 
   def isHdfsPath(path: String): Boolean = {
-    path.startsWith("hdfs://")
+    path.matches(COMPATIBLE_HDFS_REGEX)
   }
 
   def getSortedFilePath(path: String): String = {
