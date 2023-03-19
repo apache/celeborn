@@ -49,9 +49,9 @@ import org.apache.celeborn.common.util.Utils
 class MapPartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
-    allocatedWorkers: ShuffleAllocatedWorkers,
+    shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
     committedPartitionInfo: CommittedPartitionInfo)
-  extends CommitHandler(appId, conf, allocatedWorkers, committedPartitionInfo)
+  extends CommitHandler(appId, conf, committedPartitionInfo)
   with Logging {
 
   private val shuffleSucceedPartitionIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
@@ -63,31 +63,17 @@ class MapPartitionCommitHandler(
     PartitionType.MAP
   }
 
-  override def setStageEnd(shuffleId: Int): Unit = {
-    throw new UnsupportedOperationException(
-      "Failed when do setStageEnd Operation, MapPartition shuffleType don't " +
-        "support set stage end")
-  }
-
   override def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = {
     inProcessMapPartitionEndIds.containsKey(shuffleId) && inProcessMapPartitionEndIds.get(
       shuffleId).contains(partitionId)
   }
 
-  override def tryFinalCommit(
-      shuffleId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean = {
-    throw new UnsupportedOperationException(
-      "Failed when do final Commit Operation, MapPartition shuffleType only " +
-        "support final partition Commit")
-  }
-
-  override def getUnHandledPartitionLocations(
+  override def getUnhandledPartitionLocations(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
-    shuffleCommittedInfo.unHandledPartitionLocations.asScala.filterNot { partitionLocation =>
+    shuffleCommittedInfo.unhandledPartitionLocations.asScala.filterNot { partitionLocation =>
       shuffleCommittedInfo.handledPartitionLocations.contains(partitionLocation) &&
-      this.isPartitionInProcess(shuffleId, partitionLocation.getId)
+      isPartitionInProcess(shuffleId, partitionLocation.getId)
     }
   }
 
@@ -98,7 +84,7 @@ class MapPartitionCommitHandler(
       case (_, partitions) =>
         partitions.groupBy(_.getId).foreach { case (id, _) =>
           val atomicInteger = shuffleCommittedInfo.partitionInFlightCommitRequestNum
-            .computeIfAbsent(id, (k: Int) => new AtomicInteger(0))
+            .computeIfAbsent(id, (_: Int) => new AtomicInteger(0))
           atomicInteger.incrementAndGet()
         }
     }
@@ -197,7 +183,7 @@ class MapPartitionCommitHandler(
         (k: Int) => ConcurrentHashMap.newKeySet[Integer]())
     inProcessingPartitionIds.add(partitionId)
 
-    val partitionAllocatedWorkers = allocatedWorkers.get(shuffleId).asScala.filter(p =>
+    val partitionAllocatedWorkers = shuffleAllocatedWorkers.get(shuffleId).asScala.filter(p =>
       p._2.containsPartition(partitionId)).asJava
 
     var dataCommitSuccess = true

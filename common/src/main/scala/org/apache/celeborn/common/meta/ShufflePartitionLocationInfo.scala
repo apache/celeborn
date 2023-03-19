@@ -72,7 +72,7 @@ class ShufflePartitionLocationInfo {
 
   private def addPartitions(
       partitionInfo: PartitionInfo,
-      locations: util.List[PartitionLocation]): Unit = {
+      locations: util.List[PartitionLocation]): Unit = synchronized {
     if (locations != null && locations.size() > 0) {
       locations.asScala.foreach { loc =>
         partitionInfo.putIfAbsent(loc.getId, new util.ArrayList)

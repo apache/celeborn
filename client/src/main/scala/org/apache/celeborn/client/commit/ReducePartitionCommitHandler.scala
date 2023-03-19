@@ -48,9 +48,9 @@ import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNet
 class ReducePartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
-    allocatedWorkers: ShuffleAllocatedWorkers,
+    shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
     committedPartitionInfo: CommittedPartitionInfo)
-  extends CommitHandler(appId, conf, allocatedWorkers, committedPartitionInfo)
+  extends CommitHandler(appId, conf, committedPartitionInfo)
   with Logging {
 
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
@@ -106,7 +106,7 @@ class ReducePartitionCommitHandler(
   override def tryFinalCommit(
       shuffleId: Int,
       recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean = {
-    if (this.isStageEnd(shuffleId)) {
+    if (isStageEnd(shuffleId)) {
       logInfo(s"[handleStageEnd] Shuffle $shuffleId already ended!")
       return false
     } else {
@@ -121,8 +121,8 @@ class ReducePartitionCommitHandler(
     }
 
     // ask allLocations workers holding partitions to commit files
-    val shuffleAllocatedWorkers = allocatedWorkers.get(shuffleId)
-    val (dataLost, commitFailedWorkers) = handleFinalCommitFiles(shuffleId, shuffleAllocatedWorkers)
+    val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
+    val (dataLost, commitFailedWorkers) = handleFinalCommitFiles(shuffleId, allocatedWorkers)
     recordWorkerFailure(commitFailedWorkers)
     // reply
     if (!dataLost) {
@@ -171,10 +171,10 @@ class ReducePartitionCommitHandler(
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)
   }
 
-  override def getUnHandledPartitionLocations(
+  override def getUnhandledPartitionLocations(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
-    shuffleCommittedInfo.unHandledPartitionLocations.asScala.filterNot { partitionLocation =>
+    shuffleCommittedInfo.unhandledPartitionLocations.asScala.filterNot { partitionLocation =>
       shuffleCommittedInfo.handledPartitionLocations.contains(partitionLocation)
     }
   }
