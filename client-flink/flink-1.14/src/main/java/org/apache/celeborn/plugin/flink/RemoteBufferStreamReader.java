@@ -42,7 +42,8 @@ public class RemoteBufferStreamReader extends CreditListener {
   private int partitionId;
   private int subPartitionIndexStart;
   private int subPartitionIndexEnd;
-  private boolean isOpen;
+  // To indicate that this reader has opened.
+  private boolean isOpened;
   private Consumer<ByteBuf> dataListener;
   private Consumer<Throwable> failureListener;
   private RssBufferStream bufferStream;
@@ -89,11 +90,10 @@ public class RemoteBufferStreamReader extends CreditListener {
     } catch (InterruptedException e) {
       throw new RuntimeException("Failed to openStream.", e);
     }
-    isOpen = true;
+    isOpened = true;
   }
 
   public void close() {
-    isOpen = false;
     // need set closed first before remove Handler
     closed = true;
     if (this.bufferStream != null) {
@@ -108,7 +108,7 @@ public class RemoteBufferStreamReader extends CreditListener {
   }
 
   public boolean isOpened() {
-    return isOpen;
+    return isOpened;
   }
 
   public void notifyAvailableCredits(int numCredits) {

@@ -96,6 +96,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       new TransferBufferPool(Collections.emptySet());
 
   private final List<RemoteBufferStreamReader> bufferReaders = new ArrayList<>();
+
   private final List<InputChannelInfo> channelsInfo;
   /** Map from channel index to shuffle client index. */
   private final int[] channelIndexToReaderIndex;
@@ -123,10 +124,9 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
 
   /** Number of pending {@link EndOfData} events to be received. */
   private long pendingEndOfDataEvents;
+
   /** Max concurrent reader count */
-  private int numConcurrentReading = Integer.MAX_VALUE;
-  /** Keep compatibility with streaming mode. */
-  private boolean shouldDrainOnEndOfData = true;
+  private final int numConcurrentReading;
 
   /** Data decompressor. */
   private final BufferDecompressor bufferDecompressor;
@@ -139,7 +139,8 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       int gateIndex,
       InputGateDeploymentDescriptor gateDescriptor,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
-      BufferDecompressor bufferDecompressor) {
+      BufferDecompressor bufferDecompressor,
+      int numConcurrentReading) {
 
     this.taskName = taskName;
     this.gateIndex = gateIndex;
@@ -163,6 +164,8 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
 
     initShuffleReadClients();
     channelsInfo = createChannelInfos();
+    this.numConcurrentReading = numConcurrentReading;
+    LOG.debug("Initial input gate with numConcurrentReading {}", this.numConcurrentReading);
   }
 
   private void initShuffleReadClients() {
@@ -542,7 +545,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       } else {
         // the real end.
         bufferReaders.get(channelIndexToReaderIndex[channelInfo.getInputChannelIdx()]).close();
-        //         tryOpenSomeChannels();
+        tryOpenSomeChannels();
         if (allReadersEOF()) {
           availabilityHelper.getUnavailableToResetAvailable().complete(null);
         }
