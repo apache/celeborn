@@ -62,7 +62,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
@@ -558,10 +557,10 @@ public class RemoteShuffleResultPartitionSuiteJ {
     Random random = new Random();
     byte[] bytes = new byte[16];
     random.nextBytes(bytes);
-    LifecycleManager.ShuffleTask shuffleTask = Mockito.mock(LifecycleManager.ShuffleTask.class);
-    Mockito.when(shuffleTask.attemptId()).thenReturn(1);
-    Mockito.when(shuffleTask.mapId()).thenReturn(1);
-    Mockito.when(shuffleTask.shuffleId()).thenReturn(1);
+    ShuffleTask shuffleTask = Mockito.mock(ShuffleTask.class);
+    Mockito.when(shuffleTask.getAttemptId()).thenReturn(1);
+    Mockito.when(shuffleTask.getMapId()).thenReturn(1);
+    Mockito.when(shuffleTask.getShuffleId()).thenReturn(1);
     return new RemoteShuffleDescriptor(
         new JobID(bytes).toString(),
         new JobID(bytes).toString(),

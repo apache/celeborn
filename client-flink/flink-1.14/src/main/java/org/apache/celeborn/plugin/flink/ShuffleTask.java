@@ -17,24 +17,15 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import java.io.Serializable;
-
-import org.apache.celeborn.common.util.PackedPartitionId;
-
-public class ShuffleResourceDescriptor implements Serializable {
-
-  private static final long serialVersionUID = -1251659747395561342L;
-
+public class ShuffleTask {
   private final int shuffleId;
   private final int mapId;
   private final int attemptId;
-  private final int partitionId;
 
-  public ShuffleResourceDescriptor(ShuffleTask shuffleTask) {
-    this.shuffleId = shuffleTask.getShuffleId();
-    this.mapId = shuffleTask.getMapId();
-    this.attemptId = shuffleTask.getAttemptId();
-    this.partitionId = PackedPartitionId.packedPartitionId(mapId, attemptId);
+  public ShuffleTask(int shuffleId, int mapId, int attemptId) {
+    this.shuffleId = shuffleId;
+    this.mapId = mapId;
+    this.attemptId = attemptId;
   }
 
   public int getShuffleId() {
@@ -47,20 +38,5 @@ public class ShuffleResourceDescriptor implements Serializable {
 
   public int getAttemptId() {
     return attemptId;
-  }
-
-  public int getPartitionId() {
-    return partitionId;
-  }
-
-  @Override
-  public String toString() {
-    final StringBuilder sb = new StringBuilder("ShuffleResourceDescriptor{");
-    sb.append("shuffleId=").append(shuffleId);
-    sb.append(", mapId=").append(mapId);
-    sb.append(", attemptId=").append(attemptId);
-    sb.append(", partitionId=").append(partitionId);
-    sb.append('}');
-    return sb.toString();
   }
 }
