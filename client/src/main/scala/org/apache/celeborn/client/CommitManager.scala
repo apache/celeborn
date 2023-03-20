@@ -40,17 +40,27 @@ import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils
 
 case class ShuffleCommittedInfo(
+    // partition id -> unique partition ids
     committedMasterIds: ConcurrentHashMap[Int, util.List[String]],
+    // partition id -> unique partition ids
     committedSlaveIds: ConcurrentHashMap[Int, util.List[String]],
+    // unique partition id -> worker info
     failedMasterPartitionIds: ConcurrentHashMap[String, WorkerInfo],
+    // unique partition id -> worker info
     failedSlavePartitionIds: ConcurrentHashMap[String, WorkerInfo],
+    // unique partition id -> storage info
     committedMasterStorageInfos: ConcurrentHashMap[String, StorageInfo],
+    // unique partition id -> storage info
     committedSlaveStorageInfos: ConcurrentHashMap[String, StorageInfo],
+    // unique partition id -> mapid bitmat
     committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
+    // number of partition files
     currentShuffleFileCount: LongAdder,
-    unHandledPartitionLocations: util.Set[PartitionLocation],
+    unhandledPartitionLocations: util.Set[PartitionLocation],
     handledPartitionLocations: util.Set[PartitionLocation],
+    // for ReducePartition, number of in flight commit requests to worker
     allInFlightCommitRequestNum: AtomicInteger,
+    // for MapPartition, partition id -> number of in flight commit requests
     partitionInFlightCommitRequestNum: ConcurrentHashMap[Int, AtomicInteger])
 
 object CommitManager {
@@ -91,7 +101,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                     var workerToRequests: Map[WorkerInfo, collection.Set[PartitionLocation]] = null
                     shuffleCommittedInfo.synchronized {
                       workerToRequests =
-                        commitHandler.batchUnHandledRequests(shuffleId, shuffleCommittedInfo)
+                        commitHandler.batchUnhandledRequests(shuffleId, shuffleCommittedInfo)
                       // when batch commit thread starts to commit these requests, we should increment inFlightNum,
                       // then stage/partition end would be able to recognize all requests are over.
                       commitHandler.incrementInFlightNum(shuffleCommittedInfo, workerToRequests)
@@ -113,7 +123,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                                 .find(_._1.equals(worker))
                                 .get
                                 ._1
-                            val mastersIds =
+                            val masterIds =
                               requests
                                 .filter(_.getMode == PartitionLocation.Mode.MASTER)
                                 .map(_.getUniqueId)
@@ -131,7 +141,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                               shuffleId,
                               shuffleCommittedInfo,
                               workerInfo,
-                              mastersIds,
+                              masterIds,
                               slaveIds,
                               commitFilesFailedWorkers)
                         }
@@ -214,7 +224,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
       val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
       shuffleCommittedInfo.synchronized {
-        shuffleCommittedInfo.unHandledPartitionLocations.add(partitionLocation)
+        shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
       }
     }
   }

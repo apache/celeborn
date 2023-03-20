@@ -46,7 +46,6 @@ case class CommitResult(
 abstract class CommitHandler(
     appId: String,
     conf: CelebornConf,
-    allocatedWorkers: ShuffleAllocatedWorkers,
     committedPartitionInfo: CommittedPartitionInfo) extends Logging {
 
   private val pushReplicateEnabled = conf.pushReplicateEnabled
@@ -65,7 +64,11 @@ abstract class CommitHandler(
 
   def isStageDataLost(shuffleId: Int): Boolean = false
 
-  def setStageEnd(shuffleId: Int): Unit
+  def setStageEnd(shuffleId: Int): Unit = {
+    throw new UnsupportedOperationException(
+      "Failed when do setStageEnd Operation, MapPartition shuffleType don't " +
+        "support set stage end")
+  }
 
   /**
    * return (waitStage isTimeOut, waitTime)
@@ -74,20 +77,20 @@ abstract class CommitHandler(
 
   def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = false
 
-  def batchUnHandledRequests(shuffleId: Int, shuffleCommittedInfo: ShuffleCommittedInfo)
+  def batchUnhandledRequests(shuffleId: Int, shuffleCommittedInfo: ShuffleCommittedInfo)
       : Map[WorkerInfo, collection.Set[PartitionLocation]] = {
     // When running to here, if handleStageEnd got lock first and commitFiles,
     // then this batch get this lock, commitPartitionRequests may contains
     // partitions which are already committed by stageEnd process.
     // But inProcessStageEndShuffleSet should have contain this shuffle id,
     // can directly return empty.
-    if (this.isStageEndOrInProcess(shuffleId)) {
+    if (isStageEndOrInProcess(shuffleId)) {
       logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
-      shuffleCommittedInfo.unHandledPartitionLocations.clear()
+      shuffleCommittedInfo.unhandledPartitionLocations.clear()
       Map.empty[WorkerInfo, Set[PartitionLocation]]
     } else {
-      val currentBatch = this.getUnHandledPartitionLocations(shuffleId, shuffleCommittedInfo)
-      shuffleCommittedInfo.unHandledPartitionLocations.clear()
+      val currentBatch = getUnhandledPartitionLocations(shuffleId, shuffleCommittedInfo)
+      shuffleCommittedInfo.unhandledPartitionLocations.clear()
       currentBatch.foreach { partitionLocation =>
         shuffleCommittedInfo.handledPartitionLocations.add(partitionLocation)
         if (partitionLocation.getPeer != null) {
@@ -112,7 +115,7 @@ abstract class CommitHandler(
     }
   }
 
-  protected def getUnHandledPartitionLocations(
+  protected def getUnhandledPartitionLocations(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation]
 
@@ -136,7 +139,11 @@ abstract class CommitHandler(
    */
   def tryFinalCommit(
       shuffleId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean
+      recordWorkerFailure: ShuffleFailedWorkers => Unit): Boolean = {
+    throw new UnsupportedOperationException(
+      "Failed when do final Commit Operation, MapPartition shuffleType only " +
+        "support final partition Commit")
+  }
 
   /**
    * Only Reduce partition mode supports cache all file groups for reducer. Map partition doesn't guarantee that all
@@ -349,10 +356,11 @@ abstract class CommitHandler(
       slavePartMap: ConcurrentHashMap[String, PartitionLocation]): Unit = {
     val committedPartitions = new util.HashMap[String, PartitionLocation]
     masterPartitionUniqueIds.asScala.foreach { id =>
-      masterPartMap.get(id).setStorageInfo(
+      val partitionLocation = masterPartMap.get(id)
+      partitionLocation.setStorageInfo(
         shuffleCommittedInfo.committedMasterStorageInfos.get(id))
-      masterPartMap.get(id).setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
-      committedPartitions.put(id, masterPartMap.get(id))
+      partitionLocation.setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
+      committedPartitions.put(id, partitionLocation)
     }
 
     slavePartitionUniqueIds.asScala.foreach { id =>
@@ -411,12 +419,12 @@ abstract class CommitHandler(
 
   def checkDataLost(
       shuffleId: Int,
-      masterPartitionUniqueIdMap: util.Map[String, WorkerInfo],
-      slavePartitionUniqueIdMap: util.Map[String, WorkerInfo]): Boolean = {
+      failedMasters: util.Map[String, WorkerInfo],
+      failedSlaves: util.Map[String, WorkerInfo]): Boolean = {
     val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
-    if (!pushReplicateEnabled && masterPartitionUniqueIdMap.size() != 0) {
+    if (!pushReplicateEnabled && failedMasters.size() != 0) {
       val msg =
-        masterPartitionUniqueIdMap.asScala.map {
+        failedMasters.asScala.map {
           case (partitionUniqueId, workerInfo) =>
             s"Lost partition $partitionUniqueId in worker [${workerInfo.readableAddress()}]"
         }.mkString("\n")
@@ -427,10 +435,10 @@ abstract class CommitHandler(
            |""".stripMargin)
       true
     } else {
-      val failedBothPartitionIdsToWorker = masterPartitionUniqueIdMap.asScala.flatMap {
+      val failedBothPartitionIdsToWorker = failedMasters.asScala.flatMap {
         case (partitionUniqueId, worker) =>
-          if (slavePartitionUniqueIdMap.asScala.contains(partitionUniqueId)) {
-            Some(partitionUniqueId -> (worker, slavePartitionUniqueIdMap.get(partitionUniqueId)))
+          if (failedSlaves.asScala.contains(partitionUniqueId)) {
+            Some(partitionUniqueId -> (worker, failedSlaves.get(partitionUniqueId)))
           } else {
             None
           }
