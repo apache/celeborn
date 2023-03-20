@@ -53,8 +53,6 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 }
 
 object WorkerSource {
-  val ServletPath = "/metrics/prometheus"
-
   val CommitFilesTime = "CommitFilesTime"
 
   val ReserveSlotsTime = "ReserveSlotsTime"

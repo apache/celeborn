@@ -52,7 +52,7 @@ private[celeborn] class Master(
   override def serviceName: String = Service.MASTER
 
   override val metricsSystem: MetricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, MasterSource.ServletPath)
+    MetricsSystem.createMetricsSystem(serviceName, conf, MetricsSystem.SERVLET_PATH)
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,

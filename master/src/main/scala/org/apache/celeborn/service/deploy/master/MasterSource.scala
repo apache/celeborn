@@ -33,8 +33,6 @@ class MasterSource(conf: CelebornConf)
 }
 
 object MasterSource {
-  val ServletPath = "/metrics/prometheus"
-
   val WorkerCount = "WorkerCount"
 
   val LostWorkerCount = "LostWorkers"

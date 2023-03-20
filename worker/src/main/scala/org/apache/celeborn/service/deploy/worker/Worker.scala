@@ -58,7 +58,7 @@ private[celeborn] class Worker(
   override def serviceName: String = Service.WORKER
 
   override val metricsSystem: MetricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, WorkerSource.ServletPath)
+    MetricsSystem.createMetricsSystem(serviceName, conf, MetricsSystem.SERVLET_PATH)
 
   val rpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
