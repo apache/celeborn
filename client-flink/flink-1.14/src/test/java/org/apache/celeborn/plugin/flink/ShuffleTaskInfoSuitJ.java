@@ -25,11 +25,11 @@ public class ShuffleTaskInfoSuitJ {
   public void testEncode() {
     ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
     int encodeShuffleId = shuffleTaskInfo.getShuffleId("shuffleId");
-    assert (encodeShuffleId == 0);
+    Assert.assertEquals(encodeShuffleId, 0);
 
     // another shuffle
     int encodeShuffleId1 = shuffleTaskInfo.getShuffleId("shuffleId1");
-    assert (encodeShuffleId1 == 1);
+    Assert.assertEquals(encodeShuffleId1, 1);
 
     int encodeShuffleId0 = shuffleTaskInfo.getShuffleId("shuffleId");
     Assert.assertEquals(encodeShuffleId0, 0);
