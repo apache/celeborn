@@ -126,7 +126,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   private long pendingEndOfDataEvents;
 
   /** Max concurrent reader count */
-  private int numConcurrentReading = Integer.MAX_VALUE;
+  private final int numConcurrentReading;
 
   /** Data decompressor. */
   private final BufferDecompressor bufferDecompressor;
