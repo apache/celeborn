@@ -158,6 +158,8 @@ object MetricsSystem {
   val ROLE_WORKER = "Worker"
   val ROLE_MASTER = "Master"
 
+  val SERVLET_PATH = "/metrics/prometheus"
+
   private[this] val MINIMAL_POLL_UNIT = TimeUnit.SECONDS
   private[this] val MINIMAL_POLL_PERIOD = 1
 
