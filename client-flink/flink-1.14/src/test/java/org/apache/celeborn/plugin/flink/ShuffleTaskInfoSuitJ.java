@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 public class ShuffleTaskInfoSuitJ {
@@ -31,21 +32,21 @@ public class ShuffleTaskInfoSuitJ {
     assert (encodeShuffleId1 == 1);
 
     int encodeShuffleId0 = shuffleTaskInfo.getShuffleId("shuffleId");
-    assert (encodeShuffleId0 == 0);
+    Assert.assertEquals(encodeShuffleId0, 0);
 
     int encodeAttemptId011 = shuffleTaskInfo.getAttemptId("shuffleId", 1, "attempt1");
     int encodeAttemptId112 = shuffleTaskInfo.getAttemptId("shuffleId1", 1, "attempt2");
     int encodeAttemptId021 = shuffleTaskInfo.getAttemptId("shuffleId", 2, "attempt1");
     int encodeAttemptId012 = shuffleTaskInfo.getAttemptId("shuffleId", 1, "attempt2");
-    assert (encodeAttemptId011 == 0);
-    assert (encodeAttemptId112 == 0);
-    assert (encodeAttemptId021 == 0);
-    assert (encodeAttemptId012 == 1);
+    Assert.assertEquals(encodeAttemptId011, 0);
+    Assert.assertEquals(encodeAttemptId112, 0);
+    Assert.assertEquals(encodeAttemptId021, 0);
+    Assert.assertEquals(encodeAttemptId012, 1);
 
     // remove shuffleId and reEncode
     shuffleTaskInfo.removeExpiredShuffle(encodeShuffleId);
     int encodeShuffleIdNew = shuffleTaskInfo.getShuffleId("shuffleId");
-    assert (encodeShuffleIdNew == 2);
+    Assert.assertEquals(encodeShuffleIdNew, 2);
   }
 
   @Test
