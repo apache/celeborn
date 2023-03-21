@@ -200,7 +200,7 @@ public abstract class FileWriter implements DeviceObserver {
         mapIdBitMap.add(mapId);
       }
       if (flushBuffer.readableBytes() != 0
-          && flushBuffer.readableBytes() + numBytes >= this.flusherBufferSize) {
+          && flushBuffer.readableBytes() + numBytes >= flusherBufferSize) {
         flush(false);
         takeBuffer();
       }
