@@ -175,7 +175,7 @@ public abstract class FileWriter implements DeviceObserver {
 
     int mapId = 0;
     if (rangeReadFilter) {
-      byte[] header = new byte[16];
+      byte[] header = new byte[4];
       data.markReaderIndex();
       data.readBytes(header);
       data.resetReaderIndex();
@@ -200,7 +200,7 @@ public abstract class FileWriter implements DeviceObserver {
         mapIdBitMap.add(mapId);
       }
       if (flushBuffer.readableBytes() != 0
-          && flushBuffer.readableBytes() + numBytes >= this.flusherBufferSize) {
+          && flushBuffer.readableBytes() + numBytes >= flusherBufferSize) {
         flush(false);
         takeBuffer();
       }
