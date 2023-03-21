@@ -104,7 +104,7 @@ public abstract class FileWriter implements DeviceObserver {
       channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
     } else {
       // We open the stream and close immediately because HDFS output stream will
-      // create a DataStreamer that is a threaed.
+      // create a DataStreamer that is a thread.
       // If we reuse HDFS output stream, we will exhaust the memory soon.
       try {
         StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
@@ -358,12 +358,6 @@ public abstract class FileWriter implements DeviceObserver {
     // metrics end
     if (source.metricsCollectCriticalEnabled()) {
       source.stopTimer(metricsName, fileAbsPath);
-    }
-
-    if (flushBuffer == null) {
-      IOException e =
-          new IOException("Take buffer encounter error from Flusher: " + flusher.bufferQueueInfo());
-      notifier.setException(e);
     }
   }
 
