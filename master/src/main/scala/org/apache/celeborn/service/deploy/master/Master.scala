@@ -32,6 +32,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, RPCSource}
+import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -158,6 +159,8 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
 
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this, Some(rpcSource))
+
+  val rackResolver = new CelebornRackResolver(conf)
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
@@ -511,7 +514,9 @@ private[celeborn] class Master(
             SlotsAllocator.offerSlotsRoundRobin(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
-              requestSlots.shouldReplicate)
+              requestSlots.shouldReplicate,
+              conf.slotsAssignRackAwareEnabled,
+              rackResolver)
           } else {
             SlotsAllocator.offerSlotsLoadAware(
               workersNotBlacklisted(),

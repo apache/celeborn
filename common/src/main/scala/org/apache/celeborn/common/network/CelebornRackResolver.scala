@@ -46,8 +46,8 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
     }
   }
 
-  def resolve(hostName: String): String = {
-    coreResolve(Seq(hostName)).head.getNetworkLocation
+  def resolve(hostName: String): Node = {
+    coreResolve(Seq(hostName)).head
   }
 
   def resolve(hostNames: Seq[String]): Seq[Node] = {

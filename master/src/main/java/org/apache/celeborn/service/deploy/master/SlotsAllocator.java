@@ -22,6 +22,8 @@ import java.util.*;
 import scala.Tuple2;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.net.NetworkTopology;
+import org.apache.hadoop.net.Node;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
 
@@ -50,7 +53,11 @@ public class SlotsAllocator {
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       offerSlotsRoundRobin(
-          List<WorkerInfo> workers, List<Integer> partitionIds, boolean shouldReplicate) {
+          List<WorkerInfo> workers,
+          List<Integer> partitionIds,
+          boolean shouldReplicate,
+          boolean shouldRackAware,
+          CelebornRackResolver rackResolver) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -71,9 +78,23 @@ public class SlotsAllocator {
         }
       }
     }
-    List<Integer> remain = roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate);
+    List<Integer> remain =
+        roundRobin(
+            slots,
+            partitionIds,
+            workers,
+            restrictions,
+            shouldReplicate,
+            shouldRackAware,
+            rackResolver);
     if (!remain.isEmpty()) {
-      roundRobin(slots, remain, workers, null, shouldReplicate);
+      remain =
+          roundRobin(slots, remain, workers, null, shouldReplicate, shouldRackAware, rackResolver);
+    }
+
+    // If enable shouldRackAware and still can't allocate, disable shouldRackAware
+    if (shouldRackAware && !remain.isEmpty()) {
+      roundRobin(slots, remain, workers, null, shouldReplicate, false, rackResolver);
     }
     return slots;
   }
@@ -174,7 +195,9 @@ public class SlotsAllocator {
       List<Integer> partitionIds,
       List<WorkerInfo> workers,
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
-      boolean shouldReplicate) {
+      boolean shouldReplicate,
+      boolean shouldRackAware,
+      CelebornRackResolver rackResolver) {
     // workerInfo -> (diskIndexForMaster, diskIndexForSlave)
     Map<WorkerInfo, Integer> workerDiskIndexForMaster = new HashMap<>();
     Map<WorkerInfo, Integer> workerDiskIndexForSlave = new HashMap<>();
@@ -207,9 +230,11 @@ public class SlotsAllocator {
         int nextSlaveInd = (nextMasterInd + 1) % workers.size();
         if (restrictions != null) {
           while (restrictions.get(workers.get(nextSlaveInd)).stream()
-                  .mapToLong(i -> i.usableSlots)
-                  .sum()
-              <= 0) {
+                      .mapToLong(i -> i.usableSlots)
+                      .sum()
+                  <= 0
+              || (shouldRackAware
+                  && getDistinct(workers, masterIndex, nextSlaveInd, rackResolver) <= 0)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -217,6 +242,13 @@ public class SlotsAllocator {
           }
           storageInfo =
               getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
+        } else if (shouldRackAware) {
+          while (getDistinct(workers, masterIndex, nextSlaveInd, rackResolver) <= 0) {
+            nextSlaveInd = (nextSlaveInd + 1) % workers.size();
+            if (nextSlaveInd == nextMasterInd) {
+              break outer;
+            }
+          }
         }
         PartitionLocation slavePartition =
             createLocation(
@@ -236,6 +268,13 @@ public class SlotsAllocator {
       iter.remove();
     }
     return partitionIdList;
+  }
+
+  private static int getDistinct(
+      List<WorkerInfo> workers, int masterId, int slaveId, CelebornRackResolver resolver) {
+    Node masterNode = resolver.resolve(workers.get(masterId).host());
+    Node slaveNode = resolver.resolve(workers.get(slaveId).host());
+    return NetworkTopology.getDistanceByPath(masterNode, slaveNode);
   }
 
   private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {
