@@ -175,7 +175,7 @@ public abstract class FileWriter implements DeviceObserver {
 
     int mapId = 0;
     if (rangeReadFilter) {
-      byte[] header = new byte[16];
+      byte[] header = new byte[4];
       data.markReaderIndex();
       data.readBytes(header);
       data.resetReaderIndex();
