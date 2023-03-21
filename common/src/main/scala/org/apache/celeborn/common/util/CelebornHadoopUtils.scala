@@ -1,7 +1,8 @@
 package org.apache.celeborn.common.util
 
-import org.apache.celeborn.common.CelebornConf
 import org.apache.hadoop.conf.Configuration
+
+import org.apache.celeborn.common.CelebornConf
 
 object CelebornHadoopUtils {
   private[celeborn] def newConfiguration(conf: CelebornConf): Configuration = {
