@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.network
 
 import java.io.File
+
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY}
 import org.apache.hadoop.net.{Node, TableMapping}
 import org.apache.hadoop.shaded.com.google.common.base.Charsets
