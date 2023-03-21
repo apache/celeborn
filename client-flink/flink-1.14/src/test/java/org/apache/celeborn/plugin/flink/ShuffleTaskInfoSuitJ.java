@@ -47,10 +47,13 @@ public class ShuffleTaskInfoSuitJ {
     shuffleTaskInfo.removeExpiredShuffle(encodeShuffleId);
     int encodeShuffleIdNew = shuffleTaskInfo.getShuffleId("shuffleId");
     Assert.assertEquals(encodeShuffleIdNew, 2);
+
+    int encodeAttemptId211 = shuffleTaskInfo.getAttemptId("shuffleId", 1, "attempt1");
+    Assert.assertEquals(encodeAttemptId211, 0);
   }
 
   @Test
-  public void testRemoveNonExistShuffl() {
+  public void testRemoveNonExistShuffle() {
     ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
     // remove none exist shuffle
     shuffleTaskInfo.removeExpiredShuffle(0);
