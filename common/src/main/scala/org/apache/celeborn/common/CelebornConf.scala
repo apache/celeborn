@@ -18,7 +18,7 @@
 package org.apache.celeborn.common
 
 import java.io.IOException
-import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
+import java.util.{Collections, Locale, Collection => JCollection, HashMap => JHashMap, Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -26,10 +26,10 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 import org.apache.hadoop.security.UserGroupInformation
-
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
+import org.apache.celeborn.common.network.ScriptBasedMapping
 import org.apache.celeborn.common.network.util.ByteUnit
 import org.apache.celeborn.common.protocol.{CompressionCodec, PartitionSplitMode, PartitionType, ShuffleMode, SlotsAssignPolicy, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
@@ -3030,4 +3030,52 @@ object CelebornConf extends Logging {
       .doc("Threads count for read buffer per mount point.")
       .intConf
       .createWithDefault(8)
+
+  val NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.net.topology.script.file.name")
+      .categories("network")
+      .version("0.3.0")
+      .doc("")
+      .stringConf
+      .createOptional
+
+  val NET_TOPOLOGY_SCRIPT_NUMBER_ARGS_KEY: ConfigEntry[Int] =
+    buildConf("celeborn.net.topology.script.number.args")
+      .categories("network")
+      .version("0.3.0")
+      .doc("")
+      .intConf
+      .createWithDefault(100)
+
+  val NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY: ConfigEntry[String] =
+    buildConf("celeborn.net.topology.node.switch.mapping.impl")
+      .categories("network")
+      .version("0.3.0")
+      .doc("")
+      .stringConf
+      .createWithDefault(classOf[ScriptBasedMapping].getName)
+
+  val NET_TOPOLOGY_IMPL_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.net.topology.impl")
+      .categories("network")
+      .version("0.3.0")
+      .doc("")
+      .stringConf
+      .createOptional
+
+  val NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.net.topology.table.file.name")
+      .categories("network")
+      .version("0.3.0")
+      .doc("")
+      .stringConf
+      .createOptional
+
+  val NET_DEPENDENCY_SCRIPT_FILE_NAME_KEY: OptionalConfigEntry[String] =
+    buildConf("celeborn.net.topology.dependency.script.file.name")
+      .categories("network")
+      .version("0.3.0")
+      .doc("")
+      .stringConf
+      .createOptional
 }
