@@ -21,13 +21,14 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 import com.google.common.base.Strings
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic
+import org.apache.hadoop.net.{CachedDNSToSwitchMapping, DNSToSwitchMapping, NetworkTopology, Node, NodeBase, ScriptBasedMapping}
+import org.apache.hadoop.util.ReflectionUtils
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.CelebornHadoopUtils
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic
-import org.apache.hadoop.net.{Node, NodeBase}
-import org.apache.hadoop.util.ReflectionUtils
 
 class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
 
