@@ -73,7 +73,7 @@ public class ShuffleTaskInfo {
     if (shuffleIdToTaskShuffleId.containsKey(shuffleId)) {
       String taskShuffleId = shuffleIdToTaskShuffleId.remove(shuffleId);
       taskShuffleIdToShuffleId.remove(taskShuffleId);
-      taskShuffleAttemptIdIndex.remove(shuffleId);
+      taskShuffleAttemptIdIndex.remove(taskShuffleId);
       taskShuffleAttemptIdToAttemptId.remove(taskShuffleId);
     }
   }
