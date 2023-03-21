@@ -12,7 +12,7 @@ object CelebornHadoopUtils {
   }
 
   private def appendSparkHadoopConfigs(conf: CelebornConf, hadoopConf: Configuration): Unit = {
-    // Copy any "spark.hadoop.foo=bar" spark properties into conf as "foo=bar"
+    // Copy any "celeborn.hadoop.foo=bar" celeborn properties into conf as "foo=bar"
     for ((key, value) <- conf.getAll if key.startsWith("celeborn.hadoop.")) {
       hadoopConf.set(key.substring("celeborn.hadoop.".length), value)
     }
