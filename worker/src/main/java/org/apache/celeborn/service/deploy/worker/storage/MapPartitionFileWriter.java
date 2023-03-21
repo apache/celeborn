@@ -109,10 +109,10 @@ public final class MapPartitionFileWriter extends FileWriter {
 
     if (partitionId < currentSubpartition) {
       throw new IOException(
-        "Must writing data in reduce partition index order, but now partitionId is "
-          + partitionId
-          + " and pre partitionId is "
-          + currentSubpartition);
+          "Must writing data in reduce partition index order, but now partitionId is "
+              + partitionId
+              + " and pre partitionId is "
+              + currentSubpartition);
     }
 
     if (partitionId > currentSubpartition) {

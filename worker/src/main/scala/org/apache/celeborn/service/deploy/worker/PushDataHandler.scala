@@ -817,13 +817,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   private def handleRpcRequestCore(
-                                    mode: Byte,
-                                    message: Message,
-                                    shuffleKey: String,
-                                    partitionUniqueId: String,
-                                    requestId: Long,
-                                    checkSplit: Boolean,
-                                    callback: RpcResponseCallback): Unit = {
+      mode: Byte,
+      message: Message,
+      shuffleKey: String,
+      partitionUniqueId: String,
+      requestId: Long,
+      checkSplit: Boolean,
+      callback: RpcResponseCallback): Unit = {
     val isMaster = PartitionLocation.getMode(mode) == PartitionLocation.Mode.MASTER
     val messageType = message.`type`()
     log.info(s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, partitionUniqueId:$partitionUniqueId")
@@ -837,11 +837,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           (WorkerSource.MasterRegionFinishTime, WorkerSource.SlaveRegionFinishTime)
       }
 
-    val location = if (isMaster) {
-      partitionLocationInfo.getMasterLocation(shuffleKey, partitionUniqueId)
-    } else {
-      partitionLocationInfo.getSlaveLocation(shuffleKey, partitionUniqueId)
-    }
+    val location =
+      if (isMaster) {
+        partitionLocationInfo.getMasterLocation(shuffleKey, partitionUniqueId)
+      } else {
+        partitionLocationInfo.getSlaveLocation(shuffleKey, partitionUniqueId)
+      }
     workerSource.startTimer(if (isMaster) workerSourceMaster else workerSourceSlave, s"$requestId")
     val wrappedCallback =
       new WrappedRpcResponseCallback(
