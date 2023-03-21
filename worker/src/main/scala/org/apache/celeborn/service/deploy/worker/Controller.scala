@@ -49,7 +49,7 @@ private[deploy] class Controller(
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
-  // shuffleKe -> (epoch -> CommitInfo)
+  // shuffleKey -> (epoch -> CommitInfo)
   var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
@@ -286,7 +286,7 @@ private[deploy] class Controller(
                 val bytes = fileWriter.close()
                 if (bytes > 0L) {
                   if (fileWriter.getStorageInfo == null) {
-                    // This branch means that this partition location is deleted.
+                    // Only HDFS can be null, means that this partition location is deleted.
                     logDebug(s"Location $uniqueId is deleted.")
                   } else {
                     committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
