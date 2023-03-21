@@ -66,7 +66,7 @@ private[celeborn] class Worker(
     workerArgs.host,
     workerArgs.port,
     conf,
-    Math.min(64, Runtime.getRuntime.availableProcessors()))
+    Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())))
 
   private val host = rpcEnv.address.host
   private val rpcPort = rpcEnv.address.port
