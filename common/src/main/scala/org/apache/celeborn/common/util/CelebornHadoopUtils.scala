@@ -16,8 +16,5 @@ object CelebornHadoopUtils {
     for ((key, value) <- conf.getAll if key.startsWith("celeborn.hadoop.")) {
       hadoopConf.set(key.substring("celeborn.hadoop.".length), value)
     }
-    if (conf.getOption("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version").isEmpty) {
-      hadoopConf.set("mapreduce.fileoutputcommitter.algorithm.version", "1")
-    }
   }
 }
