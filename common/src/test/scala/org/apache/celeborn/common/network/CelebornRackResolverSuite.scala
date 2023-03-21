@@ -29,6 +29,7 @@ import org.apache.hadoop.net.{Node, TableMapping}
 import org.apache.hadoop.shaded.com.google.common.base.Charsets
 import org.apache.hadoop.shaded.com.google.common.io.Files
 import org.junit.Assert.assertEquals
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 
@@ -43,7 +44,9 @@ class CelebornRackResolverSuite extends CelebornFunSuite {
     mapFile.deleteOnExit()
 
     val conf = new CelebornConf
-    conf.set("celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, classOf[TableMapping].getName)
+    conf.set(
+      "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
+      classOf[TableMapping].getName)
     conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath)
     val resolver = new CelebornRackResolver(conf)
 
