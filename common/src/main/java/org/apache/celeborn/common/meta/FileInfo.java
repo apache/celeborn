@@ -35,14 +35,17 @@ import org.apache.celeborn.common.util.Utils;
 
 public class FileInfo {
   private static Logger logger = LoggerFactory.getLogger(FileInfo.class);
-  private final String filePath;
-  private final List<Long> chunkOffsets;
-  private final UserIdentifier userIdentifier;
-  private final PartitionType partitionType;
-  private int bufferSize;
   private String mountPoint;
-  // Map partition related param
-  private int numReducerPartitions;
+  private final String filePath;
+  private final PartitionType partitionType;
+  private final UserIdentifier userIdentifier;
+
+  // members for ReducePartition
+  private final List<Long> chunkOffsets;
+
+  // members for MapPartition
+  private int bufferSize;
+  private int numSubpartitions;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
@@ -190,12 +193,12 @@ public class FileInfo {
     return bufferSize;
   }
 
-  public int getNumReducerPartitions() {
-    return numReducerPartitions;
+  public int getNumSubpartitions() {
+    return numSubpartitions;
   }
 
-  public void setNumReducerPartitions(int numReducerPartitions) {
-    this.numReducerPartitions = numReducerPartitions;
+  public void setNumSubpartitions(int numSubpartitions) {
+    this.numSubpartitions = numSubpartitions;
   }
 
   public String getMountPoint() {

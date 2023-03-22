@@ -65,7 +65,7 @@ public class BufferStreamManagerSuiteJ {
     Channel channel = Mockito.mock(Channel.class);
     FileInfo fileInfo =
         new FileInfo(createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"));
-    fileInfo.setNumReducerPartitions(10);
+    fileInfo.setNumSubpartitions(10);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);
 
     long registerStream1 =

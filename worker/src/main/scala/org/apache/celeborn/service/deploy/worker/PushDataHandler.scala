@@ -104,7 +104,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                   callback)
             }
           })
-      case pushMergedData: PushMergedData => {
+      case pushMergedData: PushMergedData =>
         handleCore(
           client,
           pushMergedData,
@@ -116,7 +116,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 client,
                 pushMergedData.requestId,
                 pushMergedData.shuffleKey)))
-      }
       case rpcRequest: RpcRequest => handleRpcRequest(client, rpcRequest)
     }
 
@@ -365,7 +364,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           } else -1
         // TODO just info log for ended attempt
         logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by ${e.getMessage}")
+          s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
         logError("Exception encountered when write.", e)
     }
@@ -633,7 +632,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             } else -1
           // TODO just info log for ended attempt
           logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by ${e.getMessage}")
+            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
         case e: Exception =>
           logError("Exception encountered when write.", e)
       }
@@ -737,7 +736,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         if (isMaster) WorkerSource.MasterPushDataTime else WorkerSource.SlavePushDataTime,
         callback)
 
-    if (checkLocationNull(
+    if (locationIsNull(
         pushData.`type`(),
         shuffleKey,
         pushData.partitionUniqueId,
@@ -747,7 +746,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         wrappedCallback)) return
 
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
-    // This should before return exception to make current push data can revive and retry.
+    // This should before return exception to make current push request revive and retry.
     if (shutdown.get()) {
       logInfo(s"Push data return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
       callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
@@ -784,7 +783,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           } else -1
         // TODO just info log for ended attempt
         logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by ${e.getMessage}")
+          s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
         logError("Exception encountered when write.", e)
     }
@@ -793,7 +792,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   private def handleRpcRequest(client: TransportClient, rpcRequest: RpcRequest): Unit = {
     val msg = Message.decode(rpcRequest.body().nioByteBuffer())
     val requestId = rpcRequest.requestId
-    val (mode, shuffleKey, partitionUniqueId, isCheckSplit) = msg match {
+    val (mode, shuffleKey, partitionUniqueId, checkSplit) = msg match {
       case p: PushDataHandShake => (p.mode, p.shuffleKey, p.partitionUniqueId, false)
       case rs: RegionStart => (rs.mode, rs.shuffleKey, rs.partitionUniqueId, true)
       case rf: RegionFinish => (rf.mode, rf.shuffleKey, rf.partitionUniqueId, false)
@@ -809,7 +808,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           shuffleKey,
           partitionUniqueId,
           requestId,
-          isCheckSplit,
+          checkSplit,
           new SimpleRpcResponseCallback(
             client,
             requestId,
@@ -823,7 +822,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       shuffleKey: String,
       partitionUniqueId: String,
       requestId: Long,
-      isCheckSplit: Boolean,
+      checkSplit: Boolean,
       callback: RpcResponseCallback): Unit = {
     val isMaster = PartitionLocation.getMode(mode) == PartitionLocation.Mode.MASTER
     val messageType = message.`type`()
@@ -838,10 +837,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           (WorkerSource.MasterRegionFinishTime, WorkerSource.SlaveRegionFinishTime)
       }
 
-    val location = isMaster match {
-      case true => partitionLocationInfo.getMasterLocation(shuffleKey, partitionUniqueId)
-      case false => partitionLocationInfo.getSlaveLocation(shuffleKey, partitionUniqueId)
-    }
+    val location =
+      if (isMaster) {
+        partitionLocationInfo.getMasterLocation(shuffleKey, partitionUniqueId)
+      } else {
+        partitionLocationInfo.getSlaveLocation(shuffleKey, partitionUniqueId)
+      }
     workerSource.startTimer(if (isMaster) workerSourceMaster else workerSourceSlave, s"$requestId")
     val wrappedCallback =
       new WrappedRpcResponseCallback(
@@ -853,7 +854,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         if (isMaster) workerSourceMaster else workerSourceSlave,
         callback)
 
-    if (checkLocationNull(
+    if (locationIsNull(
         messageType,
         shuffleKey,
         partitionUniqueId,
@@ -868,27 +869,24 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         case (false, f: FileWriter) => f
       }
 
-    if (isCheckSplit && checkDiskFullAndSplit(fileWriter, isMaster, null, callback)) return
+    if (checkSplit && checkDiskFullAndSplit(fileWriter, isMaster, null, callback)) return
 
     try {
       messageType match {
-        case Type.PUSH_DATA_HAND_SHAKE => {
+        case Type.PUSH_DATA_HAND_SHAKE =>
           fileWriter.asInstanceOf[MapPartitionFileWriter].pushDataHandShake(
             message.asInstanceOf[PushDataHandShake].numPartitions,
             message.asInstanceOf[PushDataHandShake].bufferSize)
-        }
-        case Type.REGION_START => {
+        case Type.REGION_START =>
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionStart(
             message.asInstanceOf[RegionStart].currentRegionIndex,
             message.asInstanceOf[RegionStart].isBroadcast)
-        }
-        case Type.REGION_FINISH => {
+        case Type.REGION_FINISH =>
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionFinish()
-        }
       }
       // for master, send data to slave
       if (location.getPeer != null && isMaster) {
-        // to do replica
+        // TODO replica
         wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
       } else {
         wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -953,7 +951,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
   }
 
-  private def checkLocationNull(
+  private def locationIsNull(
       messageType: Message.Type,
       shuffleKey: String,
       partitionUniqueId: String,

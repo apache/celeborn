@@ -37,15 +37,15 @@ abstract class HttpService extends Service with Logging {
 
   def getWorkerInfo: String
 
-  def getLostWorkers: String
+  def getLostWorkers: String = throw new UnsupportedOperationException()
 
-  def getBlacklistedWorkers: String
+  def getBlacklistedWorkers: String = throw new UnsupportedOperationException()
 
   def getThreadDump: String
 
-  def getHostnameList: String
+  def getHostnameList: String = throw new UnsupportedOperationException()
 
-  def getApplicationList: String
+  def getApplicationList: String = throw new UnsupportedOperationException()
 
   def getShuffleList: String
 

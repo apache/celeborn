@@ -117,7 +117,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       this.indexFileChannel = indexFileChannel;
       long indexFileSize = indexFileChannel.size();
       // index is (offset,length)
-      long indexRegionSize = fileInfo.getNumReducerPartitions() * (long) INDEX_ENTRY_SIZE;
+      long indexRegionSize = fileInfo.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
       this.numRegions = Utils.checkedDownCast(indexFileSize / indexRegionSize);
 
       updateConsumingOffset();
@@ -242,7 +242,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   }
 
   private long getIndexRegionSize() {
-    return fileInfo.getNumReducerPartitions() * (long) INDEX_ENTRY_SIZE;
+    return fileInfo.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
   }
 
   private void readHeaderOrIndexBuffer(FileChannel channel, ByteBuffer buffer, int length)

@@ -66,7 +66,7 @@ private[celeborn] class Worker(
     workerArgs.host,
     workerArgs.port,
     conf,
-    Math.max(64, Runtime.getRuntime.availableProcessors()))
+    Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())))
 
   private val host = rpcEnv.address.host
   private val rpcPort = rpcEnv.address.port
@@ -454,20 +454,12 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
-  override def getLostWorkers: String = throw new UnsupportedOperationException()
-
-  override def getBlacklistedWorkers: String = throw new UnsupportedOperationException()
-
   override def getThreadDump: String = {
     val sb = new StringBuilder
     sb.append("========================= Worker ThreadDump ==========================\n")
     sb.append(Utils.getThreadDump()).append("\n")
     sb.toString()
   }
-
-  override def getHostnameList: String = throw new UnsupportedOperationException()
-
-  override def getApplicationList: String = throw new UnsupportedOperationException()
 
   override def getShuffleList: String = {
     val sb = new StringBuilder
