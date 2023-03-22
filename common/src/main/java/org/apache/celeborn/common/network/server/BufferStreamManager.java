@@ -22,7 +22,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -62,11 +61,12 @@ public class BufferStreamManager {
   private final ConcurrentHashMap<Long, MapDataPartition> servingStreams;
   private final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
   private final MemoryManager memoryManager = MemoryManager.instance();
-  private final StorageFetcherPool storageFetcherPool = new StorageFetcherPool();
   private int minReadBuffers;
   private int maxReadBuffers;
   private int threadsPerMountPoint;
   private final BlockingQueue<DelayedStreamId> recycleStreamIds = new DelayQueue<>();
+
+  private final ConcurrentHashMap<String, ExecutorService> executorPools = new ConcurrentHashMap<>();
 
   @GuardedBy("lock")
   private volatile Thread recycleThread;
@@ -137,7 +137,8 @@ public class BufferStreamManager {
     return streamId;
   }
 
-  private void addCredit(MapDataPartition mapDataPartition, int numCredit, long streamId) {
+  public void addCredit(int numCredit, long streamId) {
+    MapDataPartition mapDataPartition = servingStreams.get(streamId);
     logger.debug("streamId: {}, add credit: {}", streamId, numCredit);
     try {
       if (mapDataPartition != null && numCredit > 0) {
@@ -148,11 +149,6 @@ public class BufferStreamManager {
     }
   }
 
-  public void addCredit(int numCredit, long streamId) {
-    MapDataPartition mapDataPartition = servingStreams.get(streamId);
-    addCredit(mapDataPartition, numCredit, streamId);
-  }
-
   public void connectionTerminated(Channel channel) {
     for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
       if (entry.getValue().getAssociatedChannel() == channel) {
@@ -160,10 +156,6 @@ public class BufferStreamManager {
         recycleStream(entry.getKey());
       }
     }
-  }
-
-  public void notifyStreamEndByClient(long streamId) {
-    recycleStream(streamId);
   }
 
   public void recycleStream(long streamId) {
@@ -297,7 +289,18 @@ public class BufferStreamManager {
 
     public MapDataPartition(FileInfo fileInfo) throws FileNotFoundException {
       this.fileInfo = fileInfo;
-      readExecutor = storageFetcherPool.getExecutorPool(fileInfo.getMountPoint());
+      readExecutor = executorPools.computeIfAbsent(
+        fileInfo.getMountPoint(),
+        k ->
+          Executors.newFixedThreadPool(
+            threadsPerMountPoint,
+            new ThreadFactoryBuilder()
+              .setNameFormat("reader-thread-%d")
+              .setUncaughtExceptionHandler(
+                (t1, t2) -> {
+                  logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
+                })
+              .build()));
       this.dataFileChanel = new FileInputStream(fileInfo.getFile()).getChannel();
       this.indexChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
     }
@@ -355,7 +358,7 @@ public class BufferStreamManager {
         }
         while (buffers != null && buffers.size() > 0 && !sortedReaders.isEmpty()) {
           BufferRecycler bufferRecycler =
-              new BufferRecycler(memoryManager, (buffer) -> this.recycle(buffer, buffers));
+              new BufferRecycler(memoryManager, (buffer) -> recycle(buffer, buffers));
           DataPartitionReader reader = sortedReaders.poll();
           try {
             if (!reader.readAndSend(buffers, bufferRecycler)) {
@@ -379,10 +382,9 @@ public class BufferStreamManager {
 
     // for one reader only the associated channel can access
     public void addReaderCredit(int numCredit, long streamId) {
-      DataPartitionReader streamReader = this.getStreamReader(streamId);
+      DataPartitionReader streamReader = getStreamReader(streamId);
       if (streamReader != null) {
-        boolean canSendWithCredit = streamReader.sendWithCredit(numCredit);
-        if (canSendWithCredit) {
+        if (streamReader.triggerSendAfterAddingCredit(numCredit)) {
           readExecutor.submit(() -> streamReader.sendData());
         }
       }
@@ -430,35 +432,15 @@ public class BufferStreamManager {
       IOUtils.closeQuietly(dataFileChanel);
       IOUtils.closeQuietly(indexChannel);
 
-      if (this.buffers != null) {
-        for (ByteBuf buffer : this.buffers) {
+      if (buffers != null) {
+        for (ByteBuf buffer : buffers) {
           memoryManager.recycleReadBuffer(buffer);
         }
       }
 
-      this.buffers = null;
+      buffers = null;
 
       isReleased = true;
-    }
-  }
-
-  class StorageFetcherPool {
-    private final HashMap<String, ExecutorService> executorPools = new HashMap<>();
-
-    public ExecutorService getExecutorPool(String mountPoint) {
-      // it's ok if the mountpoint is unknown
-      return executorPools.computeIfAbsent(
-          mountPoint,
-          k ->
-              Executors.newFixedThreadPool(
-                  threadsPerMountPoint,
-                  new ThreadFactoryBuilder()
-                      .setNameFormat("reader-thread-%d")
-                      .setUncaughtExceptionHandler(
-                          (t1, t2) -> {
-                            logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
-                          })
-                      .build()));
     }
   }
 }

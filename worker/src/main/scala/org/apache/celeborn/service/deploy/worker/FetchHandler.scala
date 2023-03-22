@@ -76,10 +76,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     msg match {
       case r: BufferStreamEnd =>
         rpcSource.updateMessageMetrics(r, 0)
-        handleEndStreamFromClient(client, r)
+        handleEndStreamFromClient(r)
       case r: ReadAddCredit =>
         rpcSource.updateMessageMetrics(r, 0)
-        handleReadAddCredit(client, r)
+        handleReadAddCredit(r)
       case r: ChunkFetchRequest =>
         rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
@@ -92,7 +92,6 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     }
   }
 
-  // here are BackLogAnnouncement,OpenStream and OpenStreamWithCredit RPCs to handle
   def handleOpenStream(client: TransportClient, request: RpcRequest, msg: Message): Unit = {
     val (shuffleKey, fileName) =
       if (msg.`type`() == Type.OPEN_STREAM) {
@@ -191,11 +190,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     }
   }
 
-  def handleEndStreamFromClient(client: TransportClient, req: BufferStreamEnd): Unit = {
-    bufferStreamManager.notifyStreamEndByClient(req.getStreamId)
+  def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {
+    bufferStreamManager.recycleStream(req.getStreamId)
   }
 
-  def handleReadAddCredit(client: TransportClient, req: ReadAddCredit): Unit = {
+  def handleReadAddCredit(req: ReadAddCredit): Unit = {
     bufferStreamManager.addCredit(req.getCredit, req.getStreamId)
   }
 

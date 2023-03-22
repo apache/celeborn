@@ -23,9 +23,9 @@ public class WrappedDataBuffer {
 
   public final ByteBuf byteBuf;
 
-  public final Recycler bufferRecycler;
+  public final BufferRecycler bufferRecycler;
 
-  public WrappedDataBuffer(ByteBuf byteBuf, Recycler bufferRecycler) {
+  public WrappedDataBuffer(ByteBuf byteBuf, BufferRecycler bufferRecycler) {
     this.byteBuf = byteBuf;
     this.bufferRecycler = bufferRecycler;
   }

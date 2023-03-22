@@ -21,7 +21,7 @@ import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
 
-public class BufferRecycler implements Recycler {
+public class BufferRecycler {
 
   private MemoryManager memoryManager;
 
@@ -32,12 +32,10 @@ public class BufferRecycler implements Recycler {
     this.recycleConsumer = recycleConsumer;
   }
 
-  @Override
   public void recycle(ByteBuf byteBuf) {
     recycleConsumer.accept(byteBuf);
   }
 
-  @Override
   public void release(ByteBuf byteBuf) {
     memoryManager.recycleReadBuffer(byteBuf);
   }
