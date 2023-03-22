@@ -73,11 +73,12 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.outstandingPushes = new ConcurrentHashMap<>();
     this.timeOfLastRequestNs = new AtomicLong(0);
     pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
-    scheduleFuture = pushTimeoutChecker.scheduleAtFixedRate(
-        () -> failExpiredPushRequest(),
-        pushTimeoutCheckerInterval,
-        pushTimeoutCheckerInterval,
-        TimeUnit.MILLISECONDS);
+    scheduleFuture =
+        pushTimeoutChecker.scheduleAtFixedRate(
+            () -> failExpiredPushRequest(),
+            pushTimeoutCheckerInterval,
+            pushTimeoutCheckerInterval,
+            TimeUnit.MILLISECONDS);
   }
 
   public void failExpiredPushRequest() {
