@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -59,8 +60,10 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
   private final AtomicLong timeOfLastRequestNs;
 
-  private final ScheduledExecutorService pushTimeoutChecker;
   private final long pushTimeoutCheckerInterval;
+  private static final ScheduledExecutorService pushTimeoutChecker =
+      ThreadUtils.newDaemonThreadPoolScheduledExecutor("push-timeout-checker-", 16);
+  private ScheduledFuture scheduleFuture;
 
   public TransportResponseHandler(TransportConf conf, Channel channel) {
     this.conf = conf;
@@ -70,9 +73,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.outstandingPushes = new ConcurrentHashMap<>();
     this.timeOfLastRequestNs = new AtomicLong(0);
     pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
-    pushTimeoutChecker =
-        ThreadUtils.newDaemonSingleThreadScheduledExecutor("push-timeout-checker-" + this);
-    pushTimeoutChecker.scheduleAtFixedRate(
+    scheduleFuture = pushTimeoutChecker.scheduleAtFixedRate(
         () -> failExpiredPushRequest(),
         pushTimeoutCheckerInterval,
         pushTimeoutCheckerInterval,
@@ -186,6 +187,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           remoteAddress);
       failOutstandingRequests(new IOException("Connection from " + remoteAddress + " closed"));
     }
+    scheduleFuture.cancel(false);
   }
 
   @Override
@@ -198,6 +200,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           remoteAddress);
       failOutstandingRequests(cause);
     }
+    scheduleFuture.cancel(false);
   }
 
   @Override
