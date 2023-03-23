@@ -194,9 +194,9 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       bufferRecycler.release(buffer);
       throw new RuntimeException("Partition reader has been failed or finished.", throwable);
     }
-    if (notifyDataAvailable) {
-      sendData();
-    }
+//    if (notifyDataAvailable) {
+//      sendData();
+//    }
   }
 
   public synchronized void sendData() {

@@ -383,7 +383,7 @@ public class BufferStreamManager {
       if (streamReader != null) {
         streamReader.addCredit(numCredit);
 //        if (canSendWithCredit) {
-//          readExecutor.submit(() -> streamReader.sendData());
+          readExecutor.submit(() -> streamReader.sendData());
 //        }
       }
     }
