@@ -135,6 +135,13 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     return false;
   }
 
+  /**
+   *
+   * @param bufferQueue
+   * @param bufferRecycler
+   * @return true if file has more data for the subpartition to read
+   * @throws IOException
+   */
   public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, BufferRecycler bufferRecycler)
       throws IOException {
     boolean fileHasRemaining = hasRemaining();
