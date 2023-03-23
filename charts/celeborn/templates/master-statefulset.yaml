@@ -48,6 +48,7 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
         app.kubernetes.io/role: master
+        app.kubernetes.io/tag: {{ .Values.image.tag }}
         {{- include "celeborn.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.affinity.master }}
