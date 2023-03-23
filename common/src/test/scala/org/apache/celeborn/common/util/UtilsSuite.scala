@@ -105,6 +105,34 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd == mapperEndTrans)
   }
 
+  test("validate hdfs compatible fs path") {
+    val hdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x"
+    val simpleHdfsPath = "hdfs:///xxxx/xx-xx/x-x-x"
+    val sortedHdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x.sorted"
+    val indexHdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x.index"
+    assert(true == Utils.isHdfsPath(hdfsPath))
+    assert(true == Utils.isHdfsPath(sortedHdfsPath))
+    assert(true == Utils.isHdfsPath(indexHdfsPath))
+    assert(true == Utils.isHdfsPath(simpleHdfsPath))
+
+    val juicePath = "jfs://xxxx/xx-xx/x-x-x"
+    val sortedJuicePath = "jfs://xxxx/xx-xx/x-x-x.sorted"
+    val indexJuicePath = "jfs://xxxx/xx-xx/x-x-x.index"
+    assert(true == Utils.isHdfsPath(juicePath))
+    assert(true == Utils.isHdfsPath(sortedJuicePath))
+    assert(true == Utils.isHdfsPath(indexJuicePath))
+
+    val ossPath = "oss://xxxx/xx-xx/x-x-x"
+    val sortedOssPath = "oss://xxxx/xx-xx/x-x-x.sorted"
+    val indexOssPath = "oss://xxxx/xx-xx/x-x-x.index"
+    assert(true == Utils.isHdfsPath(ossPath))
+    assert(true == Utils.isHdfsPath(sortedOssPath))
+    assert(true == Utils.isHdfsPath(indexOssPath))
+
+    val localPath = "/xxx/xxx/xx-xx/x-x-x"
+    assert(false == Utils.isHdfsPath(localPath))
+  }
+
   test("GetReducerFileGroupResponse class convert with pb") {
     val fileGroup = new util.HashMap[Integer, util.Set[PartitionLocation]]
     fileGroup.put(0, partitionLocation(0))
