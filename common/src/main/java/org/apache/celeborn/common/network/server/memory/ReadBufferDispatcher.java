@@ -48,10 +48,12 @@ public class ReadBufferDispatcher extends Thread {
 
   public void recycle(ByteBuf buf) {
     int bufferSize = buf.capacity();
-    if (buf.refCnt() == 0) {
-      logger.warn("recycle encounter: {}", buf.refCnt());
-    } else {
-      buf.release(buf.refCnt());
+    int refCnt = buf.refCnt();
+    if (refCnt != 1) {
+      logger.error("recycle buffer refCnt: {} not equal to 1!", buf.refCnt());
+    }
+    if (refCnt > 0) {
+      buf.release(refCnt);
     }
     memoryManager.changeReadBufferCounter(-1 * bufferSize);
   }
