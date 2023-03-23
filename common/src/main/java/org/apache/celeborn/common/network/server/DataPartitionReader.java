@@ -125,13 +125,14 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     }
   }
 
-  public boolean sendWithCredit(int credit) {
-    int oldCredit = credits.getAndAdd(credit);
-    if (oldCredit == 0) {
-      return true;
-    }
-
-    return false;
+  public void addCredit(int credit) {
+            credits.getAndAdd(credit);
+//    int oldCredit =
+//    if (oldCredit == 0) {
+//      return true;
+//    }
+//
+//    return false;
   }
 
   public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
