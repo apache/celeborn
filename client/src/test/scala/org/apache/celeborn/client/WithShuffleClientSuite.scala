@@ -18,14 +18,15 @@
 package org.apache.celeborn.client
 
 import scala.collection.JavaConverters._
-
 import org.junit.Assert
-
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.network.TestUtils
 import org.apache.celeborn.common.util.PackedPartitionId
+
+import java.lang
+import java.util.concurrent.Callable
 
 trait WithShuffleClientSuite extends CelebornFunSuite {
 
@@ -100,8 +101,11 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       shuffleId,
       PackedPartitionId.packedPartitionId(mapId, attemptId + 1))
 
-    TestUtils.timeOutOrMeetCondition(() =>
-      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum == numMappers)
+    TestUtils.timeOutOrMeetCondition(new Callable[java.lang.Boolean] {
+      override def call(): lang.Boolean = {
+        partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum == numMappers
+      }
+    })
   }
 
   test("test release single partition") {
