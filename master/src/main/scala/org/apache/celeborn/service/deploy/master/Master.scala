@@ -526,7 +526,9 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupNum,
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
-              loadAwareFetchTimeWeight)
+              loadAwareFetchTimeWeight,
+              conf.slotsAssignRackAwareEnabled,
+              rackResolver)
           }
         }
       }

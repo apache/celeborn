@@ -113,7 +113,9 @@ public class SlotsAllocator {
           int diskGroupCount,
           double diskGroupGradient,
           double flushTimeWeight,
-          double fetchTimeWeight) {
+          double fetchTimeWeight,
+          boolean shouldRackAware,
+          CelebornRackResolver rackResolver) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -144,7 +146,8 @@ public class SlotsAllocator {
       logger.warn(
           "offer slots for {} fallback to roundrobin because there is no usable disks",
           StringUtils.join(partitionIds, ','));
-      return offerSlotsRoundRobin(workers, partitionIds, shouldReplicate);
+      return offerSlotsRoundRobin(
+          workers, partitionIds, shouldReplicate, shouldRackAware, rackResolver);
     }
 
     if (!initialized) {
@@ -165,9 +168,18 @@ public class SlotsAllocator {
             partitionIds,
             new ArrayList<>(restriction.keySet()),
             restriction,
-            shouldReplicate);
+            shouldReplicate,
+            shouldRackAware,
+            rackResolver);
     if (!remainPartitions.isEmpty()) {
-      roundRobin(slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate);
+      roundRobin(
+          slots,
+          remainPartitions,
+          new ArrayList<>(workers),
+          null,
+          shouldReplicate,
+          shouldRackAware,
+          rackResolver);
     }
 
     return slots;
