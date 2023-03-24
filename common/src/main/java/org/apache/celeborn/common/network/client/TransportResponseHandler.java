@@ -62,7 +62,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   private final long pushTimeoutCheckerInterval;
   private static final ScheduledExecutorService pushTimeoutChecker =
-      ThreadUtils.newDaemonThreadPoolScheduledExecutor("push-timeout-checker-", 16);
+      ThreadUtils.newDaemonThreadPoolScheduledExecutor("push-timeout-checker", 16);
   private ScheduledFuture scheduleFuture;
 
   public TransportResponseHandler(TransportConf conf, Channel channel) {
