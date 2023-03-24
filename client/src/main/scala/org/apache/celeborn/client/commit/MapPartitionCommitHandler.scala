@@ -197,11 +197,6 @@ class MapPartitionCommitHandler(
       recordWorkerFailure(commitFailedWorkers)
     }
 
-    // release resources and clear related info
-    partitionAllocatedWorkers.asScala.foreach { case (_, partitionLocationInfo) =>
-      partitionLocationInfo.removePartitions(partitionId)
-    }
-
     inProcessingPartitionIds.remove(partitionId)
     if (dataCommitSuccess) {
       val resultPartitions =
@@ -225,5 +220,14 @@ class MapPartitionCommitHandler(
       reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
       getMapperAttempts(shuffleId),
       succeedPartitionIds))
+  }
+
+  override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
+    val succeedPartitionIds = shuffleSucceedPartitionIds.get(shuffleId)
+    if (succeedPartitionIds != null) {
+      succeedPartitionIds.remove(partitionId)
+    }
+
+    super.releasePartitionResource(shuffleId, partitionId)
   }
 }
