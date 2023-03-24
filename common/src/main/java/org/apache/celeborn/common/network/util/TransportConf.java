@@ -145,6 +145,10 @@ public class TransportConf {
     return celebornConf;
   }
 
+  public int pushDataTimeoutCheckerThreads() {
+    return celebornConf.pushDataTimeoutCheckerThreads();
+  }
+
   public long pushDataTimeoutCheckIntervalMs() {
     return celebornConf.pushTimeoutCheckInterval();
   }

@@ -61,8 +61,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private final AtomicLong timeOfLastRequestNs;
 
   private final long pushTimeoutCheckerInterval;
-  private static final ScheduledExecutorService pushTimeoutChecker =
-      ThreadUtils.newDaemonThreadPoolScheduledExecutor("push-timeout-checker", 16);
+  private static ScheduledExecutorService pushTimeoutChecker = null;
   private ScheduledFuture scheduleFuture;
 
   public TransportResponseHandler(TransportConf conf, Channel channel) {
@@ -73,6 +72,13 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.outstandingPushes = new ConcurrentHashMap<>();
     this.timeOfLastRequestNs = new AtomicLong(0);
     pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
+    synchronized (pushTimeoutChecker) {
+      if (pushTimeoutChecker == null) {
+        pushTimeoutChecker =
+            ThreadUtils.newDaemonThreadPoolScheduledExecutor(
+                "push-timeout-checker", conf.pushDataTimeoutCheckerThreads());
+      }
+    }
     scheduleFuture =
         pushTimeoutChecker.scheduleAtFixedRate(
             () -> failExpiredPushRequest(),

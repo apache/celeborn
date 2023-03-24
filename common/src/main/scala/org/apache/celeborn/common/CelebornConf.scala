@@ -695,6 +695,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
+  def pushDataTimeoutCheckerThreads: Int = get(PUSH_TIMEOUT_CHECK_THREADS)
   def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
@@ -1328,6 +1329,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val PUSH_TIMEOUT_CHECK_THREADS: ConfigEntry[Long] =
+    buildConf("celeborn.push.timeoutCheck.threads")
+      .categories("common")
+      .doc("Threads num for checking push data timeout.")
+      .version("0.3.0")
+      .intConf
+      .createWithDefault(16)
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")
