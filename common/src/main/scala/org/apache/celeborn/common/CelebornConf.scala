@@ -1330,7 +1330,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val PUSH_TIMEOUT_CHECK_THREADS: ConfigEntry[Long] =
+  val PUSH_TIMEOUT_CHECK_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.push.timeoutCheck.threads")
       .categories("common")
       .doc("Threads num for checking push data timeout.")
