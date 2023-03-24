@@ -24,6 +24,7 @@ import org.junit.Assert
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.network.TestUtils
 import org.apache.celeborn.common.util.PackedPartitionId
 
 trait WithShuffleClientSuite extends CelebornFunSuite {
@@ -32,22 +33,27 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
   protected val APP = "app-1"
   protected val userIdentifier: UserIdentifier = UserIdentifier("mock", "mock")
-
-  protected lazy val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
-  protected lazy val shuffleClient: ShuffleClientImpl = {
-    val client = new ShuffleClientImpl(celebornConf, userIdentifier)
-    client.setupMetaServiceRef(lifecycleManager.self)
-    client
-  }
-
   private val numMappers = 8
   private val mapId = 1
   private val attemptId = 0
 
-  test("test register & release map partition task") {
-    Assert.assertNotNull(lifecycleManager)
-    Assert.assertNotNull(shuffleClient)
-    val shuffleId = 1
+  private var lifecycleManager: LifecycleManager = _
+  private var shuffleClient: ShuffleClientImpl = _
+  private var shuffleId = 0
+
+  override protected def afterEach() {
+    if (lifecycleManager != null) {
+      lifecycleManager.stop()
+    }
+
+    if (shuffleClient != null) {
+      shuffleClient.shutdown()
+    }
+  }
+
+  test("test register map partition task") {
+    prepareService()
+    shuffleId = 1
     var location =
       shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
     Assert.assertEquals(location.getId, PackedPartitionId.packedPartitionId(mapId, attemptId))
@@ -77,32 +83,75 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // check all allocated all slots
     partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
     logInfo(partitionLocationInfos.toString())
-    count =
-      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
+    count = partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
     Assert.assertEquals(count, numMappers + 1)
+  }
 
-    celebornConf.set(CelebornConf.BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "false")
+  test("test batch release partition") {
+    shuffleId = 2
+    celebornConf.set(CelebornConf.BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "true")
+    prepareService()
+    registerAndFinishPartition()
+
+    val partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
+
+    // check batch release
     lifecycleManager.releasePartition(
       shuffleId,
-      PackedPartitionId.packedPartitionId(mapId + 1, attemptId + 1))
+      PackedPartitionId.packedPartitionId(mapId, attemptId + 1))
 
-    // check all allocated all slots after release one slot
-    partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
-    logInfo(partitionLocationInfos.toString())
-    count =
-      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
-    Assert.assertEquals(count, numMappers)
+    TestUtils.timeOutOrMeetCondition(() =>
+      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum == numMappers)
+  }
 
-    count =
-      partitionLocationInfos.map(r => r.getSlavePartitions().size()).sum
-    Assert.assertEquals(count, numMappers)
+  test("test release single partition") {
+    shuffleId = 3
+    celebornConf.set(CelebornConf.BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "false")
+    celebornConf.set(CelebornConf.BATCH_HANDLED_RELEASE_PARTITION_INTERVAL.key, "1s")
+    prepareService()
+    registerAndFinishPartition()
+
+    val partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
+
+    // check single release
+    lifecycleManager.releasePartition(
+      shuffleId,
+      PackedPartitionId.packedPartitionId(mapId, attemptId + 1))
+
+    Assert.assertEquals(
+      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum,
+      numMappers)
   }
 
   test("test map end & get reducer file group") {
-    val shuffleId = 2
+    shuffleId = 4
+    prepareService()
+    registerAndFinishPartition()
+
+    // reduce file group size (for empty partitions)
+    Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
+
+    // reduce normal empty RssInputStream
+    var stream = shuffleClient.readPartition(APP, shuffleId, 1, 1)
+    Assert.assertEquals(stream.read(), -1)
+
+    // reduce normal null partition for RssInputStream
+    stream = shuffleClient.readPartition(APP, shuffleId, 3, 1)
+    Assert.assertEquals(stream.read(), -1)
+  }
+
+  private def prepareService(): Unit = {
+    lifecycleManager = new LifecycleManager(APP, celebornConf)
+    shuffleClient = new ShuffleClientImpl(celebornConf, userIdentifier)
+    shuffleClient.setupMetaServiceRef(lifecycleManager.self)
+  }
+
+  private def registerAndFinishPartition(): Unit = {
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId)
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 2, attemptId)
+
+    // task number incr to numMappers + 1
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId + 1)
     shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, mapId)
     // retry
@@ -118,16 +167,5 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
         .packedPartitionId(mapId, attemptId + 1))
     // another mapper
     shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
-
-    // reduce file group size (for empty partitions)
-    Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
-
-    // reduce normal empty RssInputStream
-    var stream = shuffleClient.readPartition(APP, shuffleId, 1, 1)
-    Assert.assertEquals(stream.read(), -1)
-
-    // reduce normal null partition for RssInputStream
-    stream = shuffleClient.readPartition(APP, shuffleId, 3, 1)
-    Assert.assertEquals(stream.read(), -1)
   }
 }
