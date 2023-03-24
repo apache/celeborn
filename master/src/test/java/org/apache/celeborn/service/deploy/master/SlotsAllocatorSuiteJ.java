@@ -35,6 +35,7 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class SlotsAllocatorSuiteJ {
@@ -232,7 +233,9 @@ public class SlotsAllocatorSuiteJ {
             conf.slotsAssignLoadAwareDiskGroupNum(),
             conf.slotsAssignLoadAwareDiskGroupGradient(),
             conf.slotsAssignLoadAwareFlushTimeWeight(),
-            conf.slotsAssignLoadAwareFetchTimeWeight());
+            conf.slotsAssignLoadAwareFetchTimeWeight(),
+            conf.slotsAssignRackAwareEnabled(),
+            new CelebornRackResolver(conf));
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(
