@@ -72,7 +72,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.outstandingPushes = new ConcurrentHashMap<>();
     this.timeOfLastRequestNs = new AtomicLong(0);
     pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
-    synchronized (pushTimeoutChecker) {
+    synchronized (TransportResponseHandler.class) {
       if (pushTimeoutChecker == null) {
         pushTimeoutChecker =
             ThreadUtils.newDaemonThreadPoolScheduledExecutor(
