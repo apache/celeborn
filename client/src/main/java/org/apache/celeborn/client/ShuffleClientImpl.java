@@ -623,7 +623,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           null,
           StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
         throw new CelebornIOException(
-            String.format("Revive for shuffle %d partition %d failed.", shuffleKey, partitionId));
+            String.format("Revive for shuffle %s partition %d failed.", shuffleKey, partitionId));
       }
     }
 
@@ -645,7 +645,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (loc == null) {
       throw new CelebornIOException(
           String.format(
-              "Partition location for shuffle %d partition %d is NULL!", shuffleKey, partitionId));
+              "Partition location for shuffle %s partition %d is NULL!", shuffleKey, partitionId));
     }
 
     PushState pushState = getPushState(mapKey);
@@ -705,7 +705,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             public void onFailure(Throwable e) {
               String errorMsg =
                   String.format(
-                      "Push data to %s failed for shuffle $d map %d attempt %d partition %d batch %d.",
+                      "Push data to %s failed for shuffle %d map %d attempt %d partition %d batch %d.",
                       loc, shuffleId, mapId, attemptId, partitionId, nextBatchId);
               pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             }
@@ -1356,13 +1356,13 @@ public class ShuffleClientImpl extends ShuffleClient {
           logger.warn(
               "Request {} return {} for {}.",
               getReducerFileGroup,
-              StatusCode.STAGE_END_TIME_OUT.toString(),
+              StatusCode.STAGE_END_TIME_OUT,
               shuffleKey);
         } else if (response.status() == StatusCode.SHUFFLE_DATA_LOST) {
           logger.warn(
               "Request {} return {} for {}.",
               getReducerFileGroup,
-              StatusCode.SHUFFLE_DATA_LOST.toString(),
+              StatusCode.SHUFFLE_DATA_LOST,
               shuffleKey);
         }
       } catch (Exception e) {
