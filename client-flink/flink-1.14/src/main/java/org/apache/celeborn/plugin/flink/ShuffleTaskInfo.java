@@ -19,18 +19,22 @@ package org.apache.celeborn.plugin.flink;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.celeborn.common.util.JavaUtils;
+
 public class ShuffleTaskInfo {
   private int currentShuffleIndex = 0;
   // task shuffle id -> mapId_taskAttemptId -> attemptIdx
   private ConcurrentHashMap<String, ConcurrentHashMap<String, Integer>>
-      taskShuffleAttemptIdToAttemptId = new ConcurrentHashMap<>();
+      taskShuffleAttemptIdToAttemptId = JavaUtils.newConcurrentHashMap();
   // map attemptId index
   private ConcurrentHashMap<String, ConcurrentHashMap<Integer, Integer>> taskShuffleAttemptIdIndex =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
   // task shuffle id -> celeborn shuffle id
-  private ConcurrentHashMap<String, Integer> taskShuffleIdToShuffleId = new ConcurrentHashMap<>();
+  private ConcurrentHashMap<String, Integer> taskShuffleIdToShuffleId =
+      JavaUtils.newConcurrentHashMap();
   // celeborn shuffle id -> task shuffle id
-  private ConcurrentHashMap<Integer, String> shuffleIdToTaskShuffleId = new ConcurrentHashMap<>();
+  private ConcurrentHashMap<Integer, String> shuffleIdToTaskShuffleId =
+      JavaUtils.newConcurrentHashMap();
 
   public int getShuffleId(String taskShuffleId) {
     synchronized (taskShuffleIdToShuffleId) {
@@ -48,10 +52,11 @@ public class ShuffleTaskInfo {
 
   public int getAttemptId(String taskShuffleId, int mapId, String attemptId) {
     ConcurrentHashMap<Integer, Integer> attemptIndex =
-        taskShuffleAttemptIdIndex.computeIfAbsent(taskShuffleId, (id) -> new ConcurrentHashMap<>());
+        taskShuffleAttemptIdIndex.computeIfAbsent(
+            taskShuffleId, (id) -> JavaUtils.newConcurrentHashMap());
     ConcurrentHashMap<String, Integer> attemptIdMap =
         taskShuffleAttemptIdToAttemptId.computeIfAbsent(
-            taskShuffleId, (id) -> new ConcurrentHashMap<>());
+            taskShuffleId, (id) -> JavaUtils.newConcurrentHashMap());
     String mapAttemptId = mapId + "_" + attemptId;
     synchronized (attemptIndex) {
       if (!attemptIdMap.containsKey(mapAttemptId)) {

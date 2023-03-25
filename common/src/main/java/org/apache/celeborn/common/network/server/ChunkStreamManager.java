@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.meta.FileManagedBuffers;
 import org.apache.celeborn.common.meta.TimeWindow;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
+import org.apache.celeborn.common.util.JavaUtils;
 
 /**
  * StreamManager which allows registration of an Iterator&lt;ManagedBuffer&gt;, which are
@@ -66,8 +67,8 @@ public class ChunkStreamManager {
     // For debugging purposes, start with a random stream id to help identifying different streams.
     // This does not need to be globally unique, only unique to this class.
     nextStreamId = new AtomicLong((long) new Random().nextInt(Integer.MAX_VALUE) * 1000);
-    streams = new ConcurrentHashMap<>();
-    shuffleStreamIds = new ConcurrentHashMap<>();
+    streams = JavaUtils.newConcurrentHashMap();
+    shuffleStreamIds = JavaUtils.newConcurrentHashMap();
   }
 
   public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {

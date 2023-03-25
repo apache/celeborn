@@ -55,10 +55,7 @@ import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.unsafe.Platform;
-import org.apache.celeborn.common.util.PackedPartitionId;
-import org.apache.celeborn.common.util.PbSerDeUtils;
-import org.apache.celeborn.common.util.ThreadUtils;
-import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.write.DataBatches;
 import org.apache.celeborn.common.write.PushState;
 
@@ -90,17 +87,18 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   // key: shuffleId, value: (partitionId, PartitionLocation)
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
 
-  protected final ConcurrentHashMap<Integer, Set<String>> mapperEndMap = new ConcurrentHashMap<>();
+  protected final ConcurrentHashMap<Integer, Set<String>> mapperEndMap =
+      JavaUtils.newConcurrentHashMap();
 
   // key: shuffleId-mapId-attemptId
-  protected final Map<String, PushState> pushStates = new ConcurrentHashMap<>();
+  protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
   private final ExecutorService pushDataRetryPool;
 
   private final ExecutorService partitionSplitPool;
-  private final Map<Integer, Set<Integer>> splitting = new ConcurrentHashMap<>();
+  private final Map<Integer, Set<Integer>> splitting = JavaUtils.newConcurrentHashMap();
 
   ThreadLocal<Compressor> compressorThreadLocal =
       new ThreadLocal<Compressor>() {
@@ -138,7 +136,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   // key: shuffleId
-  protected final Map<Integer, ReduceFileGroups> reduceFileGroupsMap = new ConcurrentHashMap<>();
+  protected final Map<Integer, ReduceFileGroups> reduceFileGroupsMap =
+      JavaUtils.newConcurrentHashMap();
 
   public ShuffleClientImpl(CelebornConf conf, UserIdentifier userIdentifier) {
     super();
@@ -413,7 +412,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         PbRegisterShuffleResponse response = callable.call();
         StatusCode respStatus = Utils.toStatusCode(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
-          ConcurrentHashMap<Integer, PartitionLocation> result = new ConcurrentHashMap<>();
+          ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
           for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
             PartitionLocation partitionLoc =
                 PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));

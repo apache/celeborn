@@ -54,11 +54,8 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.unsafe.Platform;
-import org.apache.celeborn.common.util.PbSerDeUtils;
-import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
+import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
-import org.apache.celeborn.common.util.ThreadUtils;
-import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.LevelDBProvider;
 import org.apache.celeborn.service.deploy.worker.ShuffleRecoverHelper;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -72,11 +69,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private File recoverFile;
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Map<String, Map<Integer, List<ShuffleBlockInfo>>>>
-      cachedIndexMaps = new ConcurrentHashMap<>();
+      cachedIndexMaps = JavaUtils.newConcurrentHashMap();
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
 
   private final AtomicInteger sortedFileCount = new AtomicInteger();
@@ -470,7 +467,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         indexBuf.rewind();
         indexMap = ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
         Map<String, Map<Integer, List<ShuffleBlockInfo>>> cacheMap =
-            cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
+            cachedIndexMaps.computeIfAbsent(shuffleKey, v -> JavaUtils.newConcurrentHashMap());
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
         logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);

@@ -27,6 +27,7 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class FlinkTransportClientFactory extends TransportClientFactory {
 
@@ -34,7 +35,7 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
 
   public FlinkTransportClientFactory(TransportContext context) {
     super(context);
-    bufferSuppliers = new ConcurrentHashMap<>();
+    bufferSuppliers = JavaUtils.newConcurrentHashMap();
   }
 
   public TransportClient createClient(String remoteHost, int remotePort)

@@ -30,7 +30,7 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 case class ChangePartitionRequest(
     context: RequestLocationCallContext,
@@ -121,7 +121,7 @@ class ChangePartitionManager(
       Int,
       ConcurrentHashMap[Integer, util.Set[ChangePartitionRequest]]]() {
       override def apply(s: Int): ConcurrentHashMap[Integer, util.Set[ChangePartitionRequest]] =
-        new ConcurrentHashMap()
+        JavaUtils.newConcurrentHashMap()
     }
 
   private val inBatchShuffleIdRegisterFunc = new util.function.Function[Int, util.Set[Integer]]() {

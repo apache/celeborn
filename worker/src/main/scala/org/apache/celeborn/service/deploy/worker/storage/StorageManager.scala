@@ -43,7 +43,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.server.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
@@ -248,7 +248,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private val newMapFunc =
     new java.util.function.Function[String, ConcurrentHashMap[String, FileInfo]]() {
       override def apply(key: String): ConcurrentHashMap[String, FileInfo] =
-        new ConcurrentHashMap()
+        JavaUtils.newConcurrentHashMap()
     }
 
   private val workingDirWriterListFunc =

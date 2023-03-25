@@ -34,7 +34,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
-import org.apache.celeborn.common.util.{CollectionUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 
@@ -176,7 +176,7 @@ abstract class CommitHandler(
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
 
   def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
-    reducerFileGroupsMap.put(shuffleId, new ConcurrentHashMap())
+    reducerFileGroupsMap.put(shuffleId, JavaUtils.newConcurrentHashMap())
   }
 
   def parallelCommitFiles(

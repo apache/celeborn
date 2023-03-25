@@ -37,6 +37,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFil
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
+import org.apache.celeborn.common.util.JavaUtils
 
 /**
  * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition contains all data
@@ -254,7 +255,7 @@ class ReducePartitionCommitHandler(
       logError(s"[handleGetReducerFileGroup] Wait for handleStageEnd Timeout! $shuffleId.")
       context.reply(GetReducerFileGroupResponse(
         StatusCode.STAGE_END_TIME_OUT,
-        new ConcurrentHashMap(),
+        JavaUtils.newConcurrentHashMap(),
         Array.empty))
     } else {
       logDebug("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
@@ -263,14 +264,14 @@ class ReducePartitionCommitHandler(
         context.reply(
           GetReducerFileGroupResponse(
             StatusCode.SHUFFLE_DATA_LOST,
-            new ConcurrentHashMap(),
+            JavaUtils.newConcurrentHashMap(),
             Array.empty))
       } else {
         // LocalNettyRpcCallContext is for the UTs
         if (context.isInstanceOf[LocalNettyRpcCallContext]) {
           context.reply(GetReducerFileGroupResponse(
             StatusCode.SUCCESS,
-            reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+            reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
             getMapperAttempts(shuffleId)))
         } else {
           val cachedMsg = getReducerFileGroupRpcCache.get(
@@ -279,7 +280,7 @@ class ReducePartitionCommitHandler(
               override def call(): ByteBuffer = {
                 val returnedMsg = GetReducerFileGroupResponse(
                   StatusCode.SUCCESS,
-                  reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+                  reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
                   getMapperAttempts(shuffleId))
                 context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
               }

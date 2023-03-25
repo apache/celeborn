@@ -43,6 +43,7 @@ import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
@@ -210,7 +211,8 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     disks1.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     disks1.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 100, 0));
-    Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 = new ConcurrentHashMap<>();
+    Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
+        JavaUtils.newConcurrentHashMap();
     userResourceConsumption1.put(
         new UserIdentifier("tenant1", "name1"), new ResourceConsumption(1000, 1, 1000, 1));
     userResourceConsumption1.put(
@@ -222,7 +224,8 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     disks2.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     disks2.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     disks2.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 100, 0));
-    Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 = new ConcurrentHashMap<>();
+    Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
+        JavaUtils.newConcurrentHashMap();
     userResourceConsumption2.put(
         new UserIdentifier("tenant2", "name1"), new ResourceConsumption(1000, 1, 1000, 1));
     userResourceConsumption2.put(
@@ -234,7 +237,8 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     disks3.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024, 100, 100, 0));
     disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024, 100, 100, 0));
-    Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 = new ConcurrentHashMap<>();
+    Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
+        JavaUtils.newConcurrentHashMap();
     userResourceConsumption3.put(
         new UserIdentifier("tenant3", "name1"), new ResourceConsumption(1000, 1, 1000, 1));
     userResourceConsumption3.put(
