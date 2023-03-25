@@ -421,6 +421,10 @@ public class JavaUtils {
     }
   }
 
+  /**
+   * For jdk8, there is bug for ConcurrentHashMap#computeIfAbsent, checking the key existence to
+   * speed up. See details in CELEBORN-474.
+   */
   public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap() {
     return new ConcurrentHashMap<K, V>() {
       @Override
