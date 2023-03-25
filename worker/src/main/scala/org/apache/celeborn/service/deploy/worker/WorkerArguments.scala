@@ -26,7 +26,6 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
 
   private var _host: Option[String] = None
   private var _port: Option[Int] = None
-  // var master: String = null
   // for local testing.
   private var _master: Option[String] = None
   private var _propertiesFile: Option[String] = None

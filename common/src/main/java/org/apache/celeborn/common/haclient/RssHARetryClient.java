@@ -69,7 +69,7 @@ public class RssHARetryClient {
     this.oneWayMessageSender = ThreadUtils.newDaemonSingleThreadExecutor("One-Way-Message-Sender");
   }
 
-  private static final String SPLITER = "#";
+  private static final String SPLITTER = "#";
   private static final AtomicLong CALL_ID_COUNTER = new AtomicLong();
 
   static long nextCallId() {
@@ -77,15 +77,15 @@ public class RssHARetryClient {
   }
 
   public static Tuple2<String, Long> decodeRequestId(String requestId) {
-    if (requestId.contains(SPLITER)) {
-      return new Tuple2<>(requestId.split(SPLITER)[0], Long.valueOf(requestId.split(SPLITER)[1]));
+    if (requestId.contains(SPLITTER)) {
+      return new Tuple2<>(requestId.split(SPLITTER)[0], Long.valueOf(requestId.split(SPLITTER)[1]));
     } else {
       return null;
     }
   }
 
   public static String encodeRequestId(String uuid, long callId) {
-    return String.format("%s%s%d", uuid, SPLITER, callId);
+    return String.format("%s%s%d", uuid, SPLITTER, callId);
   }
 
   /**
@@ -184,8 +184,8 @@ public class RssHARetryClient {
   }
 
   private void setRpcEndpointRef(String masterEndpoint) {
-    // This method should never care newer or old value, we just set the suggest master endpoint.
-    // If an error occurs when setting the suggest Master, it means that the Master may be down.
+    // This method should never care newer or old value, we just set the suggested master endpoint.
+    // If an error occurs when setting the suggested Master, it means that the Master may be down.
     // At this time, we just set `rpcEndpointRef` to null. Then next time, we will re-select the
     // Master and get the correct leader.
     rpcEndpointRef.set(setupEndpointRef(masterEndpoint));
@@ -206,7 +206,7 @@ public class RssHARetryClient {
    * return directly.
    *
    * <p>When `rpcEndpointRef` is empty, we need to assign a value to it and return this value; but
-   * because it is a multi-threaded environment, we need to ensure that the old value is still empty
+   * because it is a multi-thread environment, we need to ensure that the old value is still empty
    * when setting the value of `rpcEndpointRef`, otherwise we should use the new value of
    * `rpcEndpointRef`. Only if the setting is successful, update `currentIndex` to ensure that all
    * Masters can be used.

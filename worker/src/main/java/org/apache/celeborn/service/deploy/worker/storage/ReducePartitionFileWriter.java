@@ -30,7 +30,7 @@ import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 
 /*
- * reduce partition file writer, it will create chunkindex
+ * reduce partition file writer, it will create chunk index
  */
 public final class ReducePartitionFileWriter extends FileWriter {
   private static final Logger logger = LoggerFactory.getLogger(ReducePartitionFileWriter.class);

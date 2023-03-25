@@ -28,8 +28,6 @@ public abstract class RssLz4Trait {
           + 4 // decompressed length
           + 4; // checksum
 
-  protected static final int COMPRESSION_LEVEL_BASE = 10;
-
   protected static final int COMPRESSION_METHOD_RAW = 0x10;
   protected static final int COMPRESSION_METHOD_LZ4 = 0x20;
 

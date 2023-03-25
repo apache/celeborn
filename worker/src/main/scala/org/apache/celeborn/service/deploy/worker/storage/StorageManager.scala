@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.concurrent.duration._
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder
@@ -50,7 +49,7 @@ import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
-  // mount point -> filewriter
+  // mount point -> file writer
   val workingDirWriters = new ConcurrentHashMap[File, ConcurrentHashMap[String, FileWriter]]()
 
   val (deviceInfos, diskInfos) = {
