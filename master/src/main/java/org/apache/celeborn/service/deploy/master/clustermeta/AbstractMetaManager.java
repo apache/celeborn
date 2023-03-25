@@ -48,7 +48,7 @@ import org.apache.celeborn.common.util.Utils;
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
 
-  // Meta data for master service
+  // Metadata for master service
   public final Set<String> registeredShuffle = ConcurrentHashMap.newKeySet();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final ArrayList<WorkerInfo> workers = new ArrayList<>();
