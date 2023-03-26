@@ -50,6 +50,7 @@ import org.apache.celeborn.common.protocol.PbChangeLocationResponse;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
@@ -62,7 +63,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private static volatile boolean initialized = false;
   private FlinkTransportClientFactory flinkTransportClientFactory;
   private ReadClientHandler readClientHandler = new ReadClientHandler();
-  private ConcurrentHashMap<String, TransportClient> currentClient = new ConcurrentHashMap<>();
+  private ConcurrentHashMap<String, TransportClient> currentClient =
+      JavaUtils.newConcurrentHashMap();
 
   public static FlinkShuffleClientImpl get(
       String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {

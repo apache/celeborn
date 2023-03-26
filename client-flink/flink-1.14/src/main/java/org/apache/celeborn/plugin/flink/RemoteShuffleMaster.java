@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.apache.flink.api.common.JobID;
@@ -36,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.celeborn.plugin.flink.utils.ThreadUtils;
 
@@ -43,7 +43,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMaster.class);
   private final ShuffleMasterContext shuffleMasterContext;
   // Flink JobId -> Celeborn register shuffleIds
-  private Map<JobID, Set<Integer>> jobShuffleIds = new ConcurrentHashMap<>();
+  private Map<JobID, Set<Integer>> jobShuffleIds = JavaUtils.newConcurrentHashMap();
   private String celebornAppId;
   private volatile LifecycleManager lifecycleManager;
   private ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();

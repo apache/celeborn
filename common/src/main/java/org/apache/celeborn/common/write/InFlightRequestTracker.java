@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.util.JavaUtils;
 
 /*
  * This class is for track in flight request and limit request.
@@ -42,7 +43,7 @@ public class InFlightRequestTracker {
 
   private final AtomicInteger batchId = new AtomicInteger();
   private final ConcurrentHashMap<String, Set<Integer>> inflightBatchesPerAddress =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
 
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();

@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
@@ -65,7 +66,7 @@ public class CongestionController {
     this.lowWatermark = lowWatermark;
     this.userInactiveTimeMills = userInactiveTimeMills;
     this.consumedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
-    this.userBufferStatuses = new ConcurrentHashMap<>();
+    this.userBufferStatuses = JavaUtils.newConcurrentHashMap();
 
     this.removeUserExecutorService =
         ThreadUtils.newDaemonSingleThreadScheduledExecutor("remove-inactive-user");

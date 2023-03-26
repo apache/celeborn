@@ -42,6 +42,7 @@ import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -52,8 +53,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Set<String> registeredShuffle = ConcurrentHashMap.newKeySet();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final ArrayList<WorkerInfo> workers = new ArrayList<>();
-  public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = new ConcurrentHashMap<>();
-  public final ConcurrentHashMap<String, Long> appHeartbeatTime = new ConcurrentHashMap<>();
+  public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
+  public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
   // blacklist
   public final Set<WorkerInfo> blacklist = ConcurrentHashMap.newKeySet();
   // workerLost events

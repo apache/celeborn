@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class SlowStartPushStrategy extends PushStrategy {
 
@@ -92,7 +93,7 @@ public class SlowStartPushStrategy extends PushStrategy {
     this.maxInFlight = conf.pushMaxReqsInFlight();
     this.initialSleepMills = conf.pushSlowStartInitialSleepTime();
     this.maxSleepMills = conf.pushSlowStartMaxSleepMills();
-    this.congestControlInfoPerAddress = new ConcurrentHashMap<>();
+    this.congestControlInfoPerAddress = JavaUtils.newConcurrentHashMap();
   }
 
   @VisibleForTesting

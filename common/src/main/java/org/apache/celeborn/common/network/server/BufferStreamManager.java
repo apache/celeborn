@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.server.memory.BufferRecycler;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class BufferStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(BufferStreamManager.class);
@@ -93,9 +94,9 @@ public class BufferStreamManager {
 
   public BufferStreamManager(int minReadBuffers, int maxReadBuffers, int threadsPerMountpoint) {
     nextStreamId = new AtomicLong((long) new Random().nextInt(Integer.MAX_VALUE) * 1000);
-    streams = new ConcurrentHashMap<>();
-    servingStreams = new ConcurrentHashMap<>();
-    activeMapPartitions = new ConcurrentHashMap<>();
+    streams = JavaUtils.newConcurrentHashMap();
+    servingStreams = JavaUtils.newConcurrentHashMap();
+    activeMapPartitions = JavaUtils.newConcurrentHashMap();
     this.minReadBuffers = minReadBuffers;
     this.maxReadBuffers = maxReadBuffers;
     this.threadsPerMountPoint = threadsPerMountpoint;
@@ -285,7 +286,7 @@ public class BufferStreamManager {
     private final Set<DataPartitionReader> readers = new HashSet<>();
     private final ExecutorService readExecutor;
     private final ConcurrentHashMap<Long, DataPartitionReader> streamReaders =
-        new ConcurrentHashMap<>();
+        JavaUtils.newConcurrentHashMap();
 
     /** All available buffers can be used by the partition readers for reading. */
     private Queue<ByteBuf> buffers;

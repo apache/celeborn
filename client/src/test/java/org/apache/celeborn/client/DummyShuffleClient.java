@@ -37,6 +37,7 @@ import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.write.PushState;
 
 public class DummyShuffleClient extends ShuffleClient {
@@ -166,7 +167,7 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   public void initReducePartitionMap(int shuffleId, int numPartitions, int workerNum) {
-    ConcurrentHashMap<Integer, PartitionLocation> map = new ConcurrentHashMap<>();
+    ConcurrentHashMap<Integer, PartitionLocation> map = JavaUtils.newConcurrentHashMap();
     String host = "host";
     List<PartitionLocation> partitionLocationList = new ArrayList<>();
     for (int i = 0; i < workerNum; i++) {

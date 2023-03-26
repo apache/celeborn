@@ -30,13 +30,14 @@ import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class ReadClientHandler extends BaseMessageHandler {
   private static Logger logger = LoggerFactory.getLogger(ReadClientHandler.class);
   private ConcurrentHashMap<Long, Consumer<RequestMessage>> streamHandlers =
-      new ConcurrentHashMap<>();
-  private ConcurrentHashMap<Long, TransportClient> streamClients = new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
+  private ConcurrentHashMap<Long, TransportClient> streamClients = JavaUtils.newConcurrentHashMap();
 
   public void registerHandler(
       long streamId, Consumer<RequestMessage> handle, TransportClient client) {

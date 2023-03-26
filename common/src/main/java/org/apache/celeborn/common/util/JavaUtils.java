@@ -23,7 +23,9 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -417,5 +419,22 @@ public class JavaUtils {
         inversed[arr[i]] = i;
       }
     }
+  }
+
+  /**
+   * For jdk8, there is bug for ConcurrentHashMap#computeIfAbsent, checking the key existence to
+   * speed up. See details in CELEBORN-474.
+   */
+  public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap() {
+    return new ConcurrentHashMap<K, V>() {
+      @Override
+      public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+        V result;
+        if (null == (result = get(key))) {
+          result = super.computeIfAbsent(key, mappingFunction);
+        }
+        return result;
+      }
+    };
   }
 }

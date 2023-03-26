@@ -37,6 +37,7 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.StatusCode;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.write.PushRequestInfo;
 
@@ -67,9 +68,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   public TransportResponseHandler(TransportConf conf, Channel channel) {
     this.conf = conf;
     this.channel = channel;
-    this.outstandingFetches = new ConcurrentHashMap<>();
-    this.outstandingRpcs = new ConcurrentHashMap<>();
-    this.outstandingPushes = new ConcurrentHashMap<>();
+    this.outstandingFetches = JavaUtils.newConcurrentHashMap();
+    this.outstandingRpcs = JavaUtils.newConcurrentHashMap();
+    this.outstandingPushes = JavaUtils.newConcurrentHashMap();
     this.timeOfLastRequestNs = new AtomicLong(0);
     pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
     synchronized (TransportResponseHandler.class) {
