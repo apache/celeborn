@@ -106,9 +106,10 @@ public abstract class ShuffleClient {
           Configuration hdfsConfiguration = new Configuration();
           // enable fs cache to avoid too many fs instances
           hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
+          hdfsConfiguration.set("fs.viewfs.impl.disable.cache", "false");
           logger.info(
               "Celeborn client will ignore cluster"
-                  + " settings about fs.hdfs.impl.disable.cache and set it to false");
+                  + " settings about fs.hdfs/viewfs.impl.disable.cache and set it to false");
           try {
             hdfsFs = FileSystem.get(hdfsConfiguration);
           } catch (IOException e) {
