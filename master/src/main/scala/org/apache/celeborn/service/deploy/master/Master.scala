@@ -634,7 +634,7 @@ private[celeborn] class Master(
       appId: String,
       totalWritten: Long,
       fileCount: Long,
-      localBlacklist: util.List[WorkerInfo],
+      needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
@@ -642,11 +642,12 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    localBlacklist.removeAll(workersSnapShot)
+    // unknown workers will retain in needCheckedWorkerList
+    needCheckedWorkerList.removeAll(workersSnapShot)
     context.reply(HeartbeatFromApplicationResponse(
       StatusCode.SUCCESS,
       new util.ArrayList(statusSystem.blacklist),
-      localBlacklist,
+      needCheckedWorkerList,
       shutdownWorkerSnapshot))
   }
 

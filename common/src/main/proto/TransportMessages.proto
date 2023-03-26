@@ -283,7 +283,7 @@ message PbHeartbeatFromApplication {
   int64 totalWritten = 2;
   int64 fileCount = 3 ;
   string requestId = 4;
-  repeated PbWorkerInfo localBlackList = 5;
+  repeated PbWorkerInfo needCheckedWorkerList = 5;
 }
 
 message PbHeartbeatFromApplicationResponse {
