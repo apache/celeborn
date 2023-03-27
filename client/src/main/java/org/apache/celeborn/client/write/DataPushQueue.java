@@ -123,7 +123,7 @@ public class DataPushQueue {
         ExceptionUtils.wrapAndThrowIOException(ie);
       }
     }
-    return null;
+    return tasks;
   }
 
   public boolean addPushTask(PushTask pushTask) throws InterruptedException {

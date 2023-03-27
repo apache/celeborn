@@ -123,9 +123,6 @@ public class DataPusher {
             while (stillRunning()) {
               try {
                 ArrayList<PushTask> tasks = dataPushQueue.takePushTasks();
-                if (Objects.isNull(tasks)) {
-                  continue;
-                }
                 for (int i = 0; i < tasks.size(); i++) {
                   PushTask task = tasks.get(i);
                   pushData(task);
