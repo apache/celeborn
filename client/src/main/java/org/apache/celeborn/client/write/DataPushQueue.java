@@ -18,10 +18,7 @@
 package org.apache.celeborn.client.write;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -31,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 
@@ -55,7 +53,6 @@ public class DataPushQueue {
   private final int numMappers;
   private final int numPartitions;
   private final ShuffleClient client;
-  private final Set<String> reachLimitWorker = new HashSet<>();
 
   public DataPushQueue(
       CelebornConf conf,
@@ -84,9 +81,11 @@ public class DataPushQueue {
    * Now, `takePushTask` is only used by one thread,
    * so it is not thread-safe.
    * */
-  public PushTask takePushTask() throws IOException {
+  public ArrayList<PushTask> takePushTasks() throws IOException {
+    ArrayList<PushTask> tasks = new ArrayList<>();
+    HashMap<String, Integer> workerCapacity = new HashMap<>();
     while (dataPusher.stillRunning()) {
-      reachLimitWorker.clear();
+      workerCapacity.clear();
       Iterator<PushTask> iterator = workingQueue.iterator();
       while (iterator.hasNext()) {
         PushTask task = iterator.next();
@@ -95,18 +94,28 @@ public class DataPushQueue {
             client.getPartitionLocation(appId, shuffleId, numMappers, numPartitions);
         if (partitionLocationMap != null) {
           PartitionLocation loc = partitionLocationMap.get(partitionId);
-          if (!reachLimitWorker.contains(loc.hostAndPushPort())) {
-            boolean reachLimit = pushState.reachLimit(loc.hostAndPushPort(), maxInFlight);
-            if (!reachLimit) {
-              iterator.remove();
-              return task;
-            } else {
-              reachLimitWorker.add(loc.hostAndPushPort());
-            }
+          Integer oldCapacity = workerCapacity.get(loc.hostAndPushPort());
+          if (oldCapacity == null) {
+            oldCapacity = pushState.pushCapacity(loc.hostAndPushPort(), maxInFlight);
+            workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
+          }
+          if (oldCapacity > 0) {
+            iterator.remove();
+            tasks.add(task);
+            workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
           }
         } else {
-          return task;
+          tasks.add(task);
         }
+      }
+      if (!tasks.isEmpty()) {
+        return tasks;
+      }
+      try {
+        // Reaching here means no available tasks can be pushed to any worker, wait for a while
+        Thread.sleep(100);
+      } catch (InterruptedException ie) {
+        ExceptionUtils.wrapAndThrowIOException(ie);
       }
     }
     return null;

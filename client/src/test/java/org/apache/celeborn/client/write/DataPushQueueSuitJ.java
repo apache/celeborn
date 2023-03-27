@@ -129,13 +129,16 @@ public class DataPushQueueSuitJ {
             () -> {
               while (running.get()) {
                 try {
-                  PushTask task = dataPushQueue.takePushTask();
-                  byte[] buffer = task.getBuffer();
-                  int partitionId = task.getPartitionId();
-                  tarWorkerData.get(partitionId % numWorker).add(bytesToInt(buffer));
-                  pushState.removeBatch(
-                      partitionBatchIdMap.get(partitionId),
-                      reducePartitionMap.get(partitionId).hostAndPushPort());
+                  ArrayList<PushTask> tasks = dataPushQueue.takePushTasks();
+                  for (int i = 0; i < tasks.size(); i++) {
+                    PushTask task = tasks.get(i);
+                    byte[] buffer = task.getBuffer();
+                    int partitionId = task.getPartitionId();
+                    tarWorkerData.get(partitionId % numWorker).add(bytesToInt(buffer));
+                    pushState.removeBatch(
+                        partitionBatchIdMap.get(partitionId),
+                        reducePartitionMap.get(partitionId).hostAndPushPort());
+                  }
                 } catch (IOException e) {
                   throw new RuntimeException(e);
                 }

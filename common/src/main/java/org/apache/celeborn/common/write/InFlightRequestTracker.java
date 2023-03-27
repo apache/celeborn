@@ -160,13 +160,13 @@ public class InFlightRequestTracker {
     return times <= 0;
   }
 
-  public boolean reachLimit(String hostAndPushPort, int maxInFlight) throws IOException {
+  public int pushCapacity(String hostAndPushPort, int maxInFlight) throws IOException {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
 
     Set<Integer> batchIdSet = getBatchIdSetByAddressPair(hostAndPushPort);
-    return batchIdSet.size() > maxInFlight;
+    return maxInFlight - batchIdSet.size();
   }
 
   protected int nextBatchId() {
