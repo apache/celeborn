@@ -18,6 +18,7 @@
 package org.apache.celeborn.client.write;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -121,12 +122,12 @@ public class DataPusher {
           public void run() {
             while (stillRunning()) {
               try {
-                PushTask task = dataPushQueue.takePushTask();
-                if (Objects.isNull(task)) {
-                  continue;
+                ArrayList<PushTask> tasks = dataPushQueue.takePushTasks();
+                for (int i = 0; i < tasks.size(); i++) {
+                  PushTask task = tasks.get(i);
+                  pushData(task);
+                  reclaimTask(task);
                 }
-                pushData(task);
-                reclaimTask(task);
               } catch (CelebornIOException e) {
                 exceptionRef.set(e);
               } catch (InterruptedException | IOException e) {

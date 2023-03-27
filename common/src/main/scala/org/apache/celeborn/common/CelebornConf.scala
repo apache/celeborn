@@ -683,6 +683,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
+  def pushTakeTaskWaitTimeMs: Long = get(PUSH_TAKE_TASK_WAIT_TIME)
   def partitionSplitMode: PartitionSplitMode = PartitionSplitMode.valueOf(get(PARTITION_SPLIT_MODE))
   def partitionSplitThreshold: Long = get(PARTITION_SPLIT_THRESHOLD)
   def batchHandleChangePartitionEnabled: Boolean = get(BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
@@ -2343,6 +2344,14 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .intConf
       .createWithDefault(8)
+
+  val PUSH_TAKE_TASK_WAIT_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.push.takeTaskWaitTime")
+      .categories("client")
+      .doc("Wait time if no task available to push to worker.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("50ms")
 
   val PARTITION_SPLIT_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.partitionSplit.threshold")
