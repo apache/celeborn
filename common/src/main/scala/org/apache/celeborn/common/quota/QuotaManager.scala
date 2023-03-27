@@ -21,11 +21,12 @@ import java.util.concurrent.ConcurrentHashMap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.JavaUtils
 
 abstract class QuotaManager(conf: CelebornConf) extends Logging {
 
   val userQuotas: ConcurrentHashMap[UserIdentifier, Quota] =
-    new ConcurrentHashMap[UserIdentifier, Quota]()
+    JavaUtils.newConcurrentHashMap[UserIdentifier, Quota]()
 
   /**
    * Initialize user quota settings.

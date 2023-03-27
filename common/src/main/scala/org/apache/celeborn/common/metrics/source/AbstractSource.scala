@@ -28,7 +28,7 @@ import com.codahale.metrics._
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.{MetricLabels, ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 case class NamedCounter(name: String, counter: Counter, labels: Map[String, String])
   extends MetricLabels
@@ -90,7 +90,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   protected val namedTimers =
-    new ConcurrentHashMap[String, (NamedTimer, ConcurrentHashMap[String, Long])]()
+    JavaUtils.newConcurrentHashMap[String, (NamedTimer, ConcurrentHashMap[String, Long])]()
 
   def addTimer(name: String): Unit = addTimer(name, Map.empty[String, String])
 
@@ -100,12 +100,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         metricRegistry.timer(metricNameWithLabels(name, labels + roleLabel), timerSupplier)
       namedTimers.putIfAbsent(
         metricNameWithLabels(name, labels + roleLabel),
-        (NamedTimer(name, timer, labels + roleLabel), new ConcurrentHashMap[String, Long]()))
+        (
+          NamedTimer(name, timer, labels + roleLabel),
+          JavaUtils.newConcurrentHashMap[String, Long]()))
     }
   }
 
   protected val namedCounters: ConcurrentHashMap[String, NamedCounter] =
-    new ConcurrentHashMap[String, NamedCounter]()
+    JavaUtils.newConcurrentHashMap[String, NamedCounter]()
 
   def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
 

@@ -48,9 +48,9 @@ class ChangePartitionManager(
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
-    new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
   // shuffleId -> set of partition id
-  private val inBatchPartitions = new ConcurrentHashMap[Int, JSet[Integer]]()
+  private val inBatchPartitions = JavaUtils.newConcurrentHashMap[Int, JSet[Integer]]()
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(

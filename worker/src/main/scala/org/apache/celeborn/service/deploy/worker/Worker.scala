@@ -43,7 +43,7 @@ import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerRespo
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
@@ -169,13 +169,13 @@ private[celeborn] class Worker(
 
   storageManager.updateDiskInfos()
   // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
-  val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
+  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
   storageManager.disksSnapshot().foreach { case diskInfo =>
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
 
   // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
-  val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption](
+  val userResourceConsumption = JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](
     storageManager.userResourceConsumptionSnapshot().asJava)
 
   val workerInfo =
@@ -191,17 +191,18 @@ private[celeborn] class Worker(
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
-  val shuffleMapperAttempts = new ConcurrentHashMap[String, AtomicIntegerArray]()
-  val shufflePartitionType = new ConcurrentHashMap[String, PartitionType]
-  var shufflePushDataTimeout = new ConcurrentHashMap[String, Long]
+  val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[String, AtomicIntegerArray]()
+  val shufflePartitionType = JavaUtils.newConcurrentHashMap[String, PartitionType]
+  var shufflePushDataTimeout = JavaUtils.newConcurrentHashMap[String, Long]
   val partitionLocationInfo = new WorkerPartitionLocationInfo
 
-  val shuffleCommitInfos = new ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
+  val shuffleCommitInfos =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
 
   // (workerInfo -> last connect timeout timestamp)
-  val unavailablePeers = new ConcurrentHashMap[WorkerInfo, Long]()
+  val unavailablePeers = JavaUtils.newConcurrentHashMap[WorkerInfo, Long]()
 
   // Threads
   private val forwardMessageScheduler =

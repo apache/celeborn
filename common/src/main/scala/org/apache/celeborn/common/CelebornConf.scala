@@ -36,7 +36,7 @@ import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
 import org.apache.celeborn.common.rpc.RpcTimeout
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
 class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
 
@@ -45,7 +45,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   /** Create a CelebornConf that loads defaults from system properties and the classpath */
   def this() = this(true)
 
-  private val settings = new ConcurrentHashMap[String, String]()
+  private val settings = JavaUtils.newConcurrentHashMap[String, String]()
 
   @transient private lazy val reader: ConfigReader = {
     val _reader = new ConfigReader(new CelebornConfigProvider(settings))

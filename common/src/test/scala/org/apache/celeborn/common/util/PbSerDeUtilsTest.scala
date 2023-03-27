@@ -19,7 +19,6 @@ package org.apache.celeborn.common.util
 
 import java.io.File
 import java.util
-import java.util.concurrent.ConcurrentHashMap
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -57,10 +56,10 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
   val fileInfo1 = new FileInfo("/tmp/1", chunkOffsets1, userIdentifier1)
   val fileInfo2 = new FileInfo("/tmp/2", chunkOffsets2, userIdentifier2)
-  val fileInfoMap = new ConcurrentHashMap[String, FileInfo]()
+  val fileInfoMap = JavaUtils.newConcurrentHashMap[String, FileInfo]()
   fileInfoMap.put("file1", fileInfo1)
   fileInfoMap.put("file2", fileInfo2)
-  val cache = new ConcurrentHashMap[String, UserIdentifier]()
+  val cache = JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
   val resourceConsumption1 = ResourceConsumption(1000, 2000, 3000, 4000)
   val resourceConsumption2 = ResourceConsumption(2000, 4000, 6000, 8000)

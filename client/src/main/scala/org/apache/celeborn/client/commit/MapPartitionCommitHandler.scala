@@ -55,10 +55,10 @@ class MapPartitionCommitHandler(
   extends CommitHandler(appId, conf, committedPartitionInfo)
   with Logging {
 
-  private val shuffleSucceedPartitionIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
+  private val shuffleSucceedPartitionIds = JavaUtils.newConcurrentHashMap[Int, util.Set[Integer]]()
 
   // shuffleId -> in processing partitionId set
-  private val inProcessMapPartitionEndIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
+  private val inProcessMapPartitionEndIds = JavaUtils.newConcurrentHashMap[Int, util.Set[Integer]]()
 
   override def getPartitionType(): PartitionType = {
     PartitionType.MAP

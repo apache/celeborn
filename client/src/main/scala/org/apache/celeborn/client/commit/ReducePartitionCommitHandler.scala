@@ -57,7 +57,7 @@ class ReducePartitionCommitHandler(
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
-  private val shuffleMapperAttempts = new ConcurrentHashMap[Int, Array[Int]]()
+  private val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[Int, Array[Int]]()
   private val stageEndTimeout = conf.pushStageEndTimeout
 
   private val rpcCacheSize = conf.rpcCacheSize

@@ -449,7 +449,7 @@ object Utils extends Logging {
 
   // Typically, this will be of order of number of nodes in cluster
   // If not, we should change it to LRUCache or something.
-  private val hostPortParseResults = new ConcurrentHashMap[String, (String, Int)]()
+  private val hostPortParseResults = JavaUtils.newConcurrentHashMap[String, (String, Int)]()
 
   def parseHostPort(hostPort: String): (String, Int) = {
     // Check cache first.
