@@ -69,6 +69,7 @@ class CelebornSourceSuite extends CelebornFunSuite {
   test("test getMetrics with customized label by conf") {
     val conf = new CelebornConf()
     conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "l1:v1,l2:v2,l3:v3")
+
     val mockSource = createAbstractSource(conf)
 
     val res = mockSource.getMetrics()
