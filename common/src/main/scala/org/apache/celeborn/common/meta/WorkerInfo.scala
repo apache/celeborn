@@ -218,9 +218,7 @@ class WorkerInfo(
         diskInfos.remove(nonExistsMountPoint)
       }
     }
-    val diskInfoMap = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
-    diskInfoMap.putAll(diskInfos)
-    diskInfoMap
+    JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
   }
 
   def updateThenGetUserResourceConsumption(consumption: util.Map[

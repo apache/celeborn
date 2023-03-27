@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -430,11 +431,28 @@ public class JavaUtils {
     }
   }
 
+  public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap(
+      Map<? extends K, ? extends V> m) {
+    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+      return new ConcurrentHashMap(m);
+    } else {
+      return new ConcurrentHashMapForJDK8(m);
+    }
+  }
+
   /**
    * For JDK8, there is bug for ConcurrentHashMap#computeIfAbsent, checking the key existence to
    * speed up. See details in CELEBORN-474.
    */
   private static class ConcurrentHashMapForJDK8<K, V> extends ConcurrentHashMap<K, V> {
+    public ConcurrentHashMapForJDK8() {
+      super();
+    }
+
+    public ConcurrentHashMapForJDK8(Map<? extends K, ? extends V> m) {
+      super(m);
+    }
+
     @Override
     public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
       V result;
