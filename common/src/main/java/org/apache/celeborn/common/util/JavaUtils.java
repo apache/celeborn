@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -421,20 +422,26 @@ public class JavaUtils {
     }
   }
 
+  public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap() {
+    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+      return new ConcurrentHashMap();
+    } else {
+      return new ConcurrentHashMapForJDK8();
+    }
+  }
+
   /**
-   * For jdk8, there is bug for ConcurrentHashMap#computeIfAbsent, checking the key existence to
+   * For JDK8, there is bug for ConcurrentHashMap#computeIfAbsent, checking the key existence to
    * speed up. See details in CELEBORN-474.
    */
-  public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap() {
-    return new ConcurrentHashMap<K, V>() {
-      @Override
-      public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
-        V result;
-        if (null == (result = get(key))) {
-          result = super.computeIfAbsent(key, mappingFunction);
-        }
-        return result;
+  private static class ConcurrentHashMapForJDK8<K, V> extends ConcurrentHashMap<K, V> {
+    @Override
+    public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+      V result;
+      if (null == (result = get(key))) {
+        result = super.computeIfAbsent(key, mappingFunction);
       }
-    };
+      return result;
+    }
   }
 }
