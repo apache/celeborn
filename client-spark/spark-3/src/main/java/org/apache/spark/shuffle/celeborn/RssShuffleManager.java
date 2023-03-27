@@ -155,12 +155,16 @@ public class RssShuffleManager implements ShuffleManager {
   public void stop() {
     if (rssShuffleClient != null) {
       rssShuffleClient.shutdown();
+      ShuffleClient.reset();
+      rssShuffleClient = null;
     }
     if (lifecycleManager != null) {
       lifecycleManager.stop();
+      lifecycleManager = null;
     }
     if (sortShuffleManager() != null) {
       sortShuffleManager().stop();
+      _sortShuffleManager = null;
     }
   }
 
