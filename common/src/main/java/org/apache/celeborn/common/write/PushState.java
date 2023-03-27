@@ -90,7 +90,7 @@ public class PushState {
     return inFlightRequestTracker.limitZeroInFlight();
   }
 
-  public int pushCapacity(String hostAndPushPort, int maxInFlight) throws IOException {
-    return inFlightRequestTracker.pushCapacity(hostAndPushPort, maxInFlight);
+  public int inflightPushes(String hostAndPushPort) {
+    return inFlightRequestTracker.getBatchIdSetByAddressPair(hostAndPushPort).size();
   }
 }

@@ -100,7 +100,7 @@ public class DataPushQueue {
           PartitionLocation loc = partitionLocationMap.get(partitionId);
           Integer oldCapacity = workerCapacity.get(loc.hostAndPushPort());
           if (oldCapacity == null) {
-            oldCapacity = pushState.pushCapacity(loc.hostAndPushPort(), maxInFlight);
+            oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
             workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
           }
           if (oldCapacity > 0) {
