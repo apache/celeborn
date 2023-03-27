@@ -1022,4 +1022,12 @@ object Utils extends Logging {
       parentFile.lastIndexOf("/"),
       parentFile.length) + "/" + fileInfo.getFile.getName
   }
+
+  def parseMetricLabels(label: String): Tuple2[String, String] = {
+    val labelPart = label.split(":")
+    if (labelPart.size != 2) {
+      throw new IllegalArgumentException(s"Illegal metric extra labels: $label")
+    }
+    labelPart(0) -> labelPart(1)
+  }
 }

@@ -641,6 +641,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
   def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
+  def metricsExtraLabels: Map[String, String] =
+    get(METRICS_EXTRA_LABELS) match {
+      case None => Map[String, String]()
+      case Some(labels: Seq[String]) => labels.map(label => Utils.parseMetricLabels(label)).toMap
+    }
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -3078,4 +3083,17 @@ object CelebornConf extends Logging {
       .doc("Threads count for read buffer per mount point.")
       .intConf
       .createWithDefault(8)
+
+  val METRICS_EXTRA_LABELS: OptionalConfigEntry[Seq[String]] =
+    buildConf("celeborn.metrics.extraLabels")
+      .categories("master", "worker", "metrics")
+      .doc("if default metric labels are not enough, extra metric lables can be customized." +
+        "lables's pattern is: `<label1_key>:<label1_value> [,<label2_key>:<label2_value> ]*`; e.g. `env:prod,version:1`")
+      .version("0.3.0")
+      .stringConf
+      .toSequence
+      .checkValue(
+        labels => labels.map(_ => Try(Utils.parseMetricLabels(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<label1_key>:<label1_value> [,<label2_key>:<label2_value> ]*`")
+      .createOptional
 }
