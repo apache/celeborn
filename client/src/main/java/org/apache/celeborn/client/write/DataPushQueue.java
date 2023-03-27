@@ -80,7 +80,7 @@ public class DataPushQueue {
   }
 
   /*
-   * Now, `takePushTask` is only used by one thread,
+   * Now, `takePushTasks` is only used by one thread,
    * so it is not thread-safe.
    * */
   public ArrayList<PushTask> takePushTasks() throws IOException {
