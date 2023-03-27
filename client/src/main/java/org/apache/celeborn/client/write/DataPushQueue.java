@@ -87,7 +87,8 @@ public class DataPushQueue {
     ArrayList<PushTask> tasks = new ArrayList<>();
     HashMap<String, Integer> workerCapacity = new HashMap<>();
     while (dataPusher.stillRunning()) {
-      // clear() here is necessary since pushCapacity might change after sleeping takeTaskWaitTimeMs
+      // clear() here is necessary since inflight pushes might change after sleeping
+      // takeTaskWaitTimeMs
       // in last loop
       workerCapacity.clear();
       Iterator<PushTask> iterator = workingQueue.iterator();
