@@ -2351,7 +2351,7 @@ object CelebornConf extends Logging {
       .doc("Wait time if no task available to push to worker.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("100ms")
+      .createWithDefaultString("50ms")
 
   val PARTITION_SPLIT_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.partitionSplit.threshold")
