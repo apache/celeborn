@@ -53,6 +53,7 @@ public class DataPushQueue {
   private final int numMappers;
   private final int numPartitions;
   private final ShuffleClient client;
+  private final long takeTaskWaitTimeMs;
 
   public DataPushQueue(
       CelebornConf conf,
@@ -73,6 +74,7 @@ public class DataPushQueue {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     this.pushState = client.getPushState(mapKey);
     this.maxInFlight = conf.pushMaxReqsInFlight();
+    this.takeTaskWaitTimeMs = conf.pushTakeTaskWaitTimeMs();
     final int capacity = conf.pushQueueCapacity();
     workingQueue = new LinkedBlockingQueue<>(capacity);
   }
@@ -85,6 +87,8 @@ public class DataPushQueue {
     ArrayList<PushTask> tasks = new ArrayList<>();
     HashMap<String, Integer> workerCapacity = new HashMap<>();
     while (dataPusher.stillRunning()) {
+      // clear() here is necessary since pushCapacity might change after sleeping takeTaskWaitTimeMs
+      // in last loop
       workerCapacity.clear();
       Iterator<PushTask> iterator = workingQueue.iterator();
       while (iterator.hasNext()) {
@@ -113,7 +117,7 @@ public class DataPushQueue {
       }
       try {
         // Reaching here means no available tasks can be pushed to any worker, wait for a while
-        Thread.sleep(100);
+        Thread.sleep(takeTaskWaitTimeMs);
       } catch (InterruptedException ie) {
         ExceptionUtils.wrapAndThrowIOException(ie);
       }
