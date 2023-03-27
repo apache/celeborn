@@ -27,7 +27,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 class ReleasePartitionManager(
     appId: String,
@@ -36,7 +36,7 @@ class ReleasePartitionManager(
   extends Logging {
 
   // shuffleId -> (partitionId set of release)
-  private val shuffleReleasePartitionRequests = new ConcurrentHashMap[Int, util.Set[Int]]
+  private val shuffleReleasePartitionRequests = JavaUtils.newConcurrentHashMap[Int, util.Set[Int]]
   private val batchHandleReleasePartitionEnabled = conf.batchHandleReleasePartitionEnabled
   private val batchHandleReleasePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "rss-lifecycle-manager-release-partition-executor",

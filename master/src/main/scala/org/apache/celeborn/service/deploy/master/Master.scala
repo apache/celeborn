@@ -37,7 +37,7 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -99,13 +99,13 @@ private[celeborn] class Master(
   private val quotaManager = QuotaManager.instantiate(conf)
   private val metricsResourceConsumptionInterval = conf.metricsResourceConsumptionInterval
   private val userResourceConsumptions =
-    new ConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
+    JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   // States
   private def workersSnapShot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
   private def lostWorkersSnapshot: ConcurrentHashMap[WorkerInfo, java.lang.Long] =
-    statusSystem.workers.synchronized(new ConcurrentHashMap(statusSystem.lostWorkers))
+    statusSystem.workers.synchronized(JavaUtils.newConcurrentHashMap(statusSystem.lostWorkers))
 
   private def diskReserveSize = conf.diskReserveSize
 
@@ -417,7 +417,7 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       null)
     val worker: WorkerInfo = workersSnapShot
       .asScala
@@ -807,7 +807,7 @@ private[celeborn] class Master(
       -1,
       -1,
       new util.HashMap[String, DiskInfo](),
-      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       null))
     GetWorkerInfosResponse(StatusCode.REQUEST_FAILED, result.asScala: _*)
   }

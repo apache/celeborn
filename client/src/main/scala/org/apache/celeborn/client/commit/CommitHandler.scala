@@ -184,8 +184,8 @@ abstract class CommitHandler(
       allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
       partitionIdOpt: Option[Int] = None): CommitResult = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
-    val masterPartMap = new ConcurrentHashMap[String, PartitionLocation]
-    val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
+    val masterPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
+    val slavePartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
     val commitFilesFailedWorkers = new ShuffleFailedWorkers()
 
     if (CollectionUtils.isEmpty(allocatedWorkers)) {

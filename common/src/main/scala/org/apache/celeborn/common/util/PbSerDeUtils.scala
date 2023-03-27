@@ -109,7 +109,7 @@ object PbSerDeUtils {
       data: Array[Byte],
       cache: ConcurrentHashMap[String, UserIdentifier]): ConcurrentHashMap[String, FileInfo] = {
     val pbFileInfoMap = PbFileInfoMap.parseFrom(data)
-    val fileInfoMap = new ConcurrentHashMap[String, FileInfo]
+    val fileInfoMap = JavaUtils.newConcurrentHashMap[String, FileInfo]
     pbFileInfoMap.getValuesMap.entrySet().asScala.foreach { entry =>
       val fileName = entry.getKey
       val pbFileInfo = entry.getValue
@@ -128,7 +128,7 @@ object PbSerDeUtils {
   }
 
   def toPbFileInfoMap(fileInfoMap: ConcurrentHashMap[String, FileInfo]): Array[Byte] = {
-    val pbFileInfoMap = new ConcurrentHashMap[String, PbFileInfo]()
+    val pbFileInfoMap = JavaUtils.newConcurrentHashMap[String, PbFileInfo]()
     fileInfoMap.entrySet().asScala.foreach { entry =>
       pbFileInfoMap.put(entry.getKey, toPbFileInfo(entry.getValue))
     }
@@ -177,7 +177,7 @@ object PbSerDeUtils {
   }
 
   def fromPbWorkerInfo(pbWorkerInfo: PbWorkerInfo): WorkerInfo = {
-    val disks = new ConcurrentHashMap[String, DiskInfo]
+    val disks = JavaUtils.newConcurrentHashMap[String, DiskInfo]
     if (pbWorkerInfo.getDisksCount > 0) {
       pbWorkerInfo.getDisksList.asScala.foreach(pbDiskInfo =>
         disks.put(pbDiskInfo.getMountPoint, fromPbDiskInfo(pbDiskInfo)))

@@ -30,12 +30,13 @@ import org.slf4j.LoggerFactory
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.util.JavaUtils
 
 class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSource: AbstractSource) {
 
   val logger = LoggerFactory.getLogger(classOf[ObservedDevice])
 
-  val diskInfos = new ConcurrentHashMap[String, DiskInfo]()
+  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
   deviceInfo.diskInfos.foreach { case diskInfo =>
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
@@ -45,7 +46,7 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
   val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
   val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
-  val nonCriticalErrors = new ConcurrentHashMap[DiskStatus, util.Set[Long]]()
+  val nonCriticalErrors = JavaUtils.newConcurrentHashMap[DiskStatus, util.Set[Long]]()
   val notifyErrorThreshold = conf.diskMonitorNotifyErrorThreshold
   val notifyErrorExpireTimeout = conf.diskMonitorNotifyErrorExpireTimeout
 

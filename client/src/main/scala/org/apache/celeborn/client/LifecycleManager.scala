@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 
@@ -62,16 +62,16 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val partitionSplitThreshold = conf.partitionSplitThreshold
   private val partitionSplitMode = conf.partitionSplitMode
   // shuffle id -> partition type
-  private val shufflePartitionType = new ConcurrentHashMap[Int, PartitionType]()
+  private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
-  private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
+  private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
   // shuffle id -> (partitionId -> newest PartitionLocation)
   val latestPartitionLocation =
-    new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   @VisibleForTesting
@@ -81,7 +81,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   val newMapFunc: function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]] =
     new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
       override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocation] = {
-        new ConcurrentHashMap[Int, PartitionLocation]()
+        JavaUtils.newConcurrentHashMap[Int, PartitionLocation]()
       }
     }
 
@@ -100,7 +100,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   // register shuffle request waiting for response
   private val registeringShuffleRequest =
-    new ConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
+    JavaUtils.newConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
 
   // blacklist
   val blacklist = new ShuffleFailedWorkers()
@@ -478,7 +478,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       logInfo(s"ReserveSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} success!")
       logDebug(s"Allocated Slots: $slots")
       // Forth, register shuffle success, update status
-      val allocatedWorkers = new ConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+      val allocatedWorkers =
+        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
       slots.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
         val partitionLocationInfo = new ShufflePartitionLocationInfo()
         partitionLocationInfo.addMasterPartitions(masterLocations)

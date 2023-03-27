@@ -37,6 +37,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
+import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.ThreadUtils
 
 case class ShuffleCommittedInfo(
@@ -86,7 +87,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       None
     }
   private var batchHandleCommitPartition: Option[ScheduledFuture[_]] = _
-  private val commitHandlers = new ConcurrentHashMap[PartitionType, CommitHandler]()
+  private val commitHandlers = JavaUtils.newConcurrentHashMap[PartitionType, CommitHandler]()
 
   def start(): Unit = {
     batchHandleCommitPartition = batchHandleCommitPartitionSchedulerThread.map {
@@ -172,18 +173,18 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     committedPartitionInfo.put(
       shuffleId,
       ShuffleCommittedInfo(
-        new ConcurrentHashMap[Int, util.List[String]](),
-        new ConcurrentHashMap[Int, util.List[String]](),
-        new ConcurrentHashMap[String, WorkerInfo](),
-        new ConcurrentHashMap[String, WorkerInfo](),
-        new ConcurrentHashMap[String, StorageInfo](),
-        new ConcurrentHashMap[String, StorageInfo](),
-        new ConcurrentHashMap[String, RoaringBitmap](),
+        JavaUtils.newConcurrentHashMap[Int, util.List[String]](),
+        JavaUtils.newConcurrentHashMap[Int, util.List[String]](),
+        JavaUtils.newConcurrentHashMap[String, WorkerInfo](),
+        JavaUtils.newConcurrentHashMap[String, WorkerInfo](),
+        JavaUtils.newConcurrentHashMap[String, StorageInfo](),
+        JavaUtils.newConcurrentHashMap[String, StorageInfo](),
+        JavaUtils.newConcurrentHashMap[String, RoaringBitmap](),
         new LongAdder,
         new util.HashSet[PartitionLocation](),
         new util.HashSet[PartitionLocation](),
         new AtomicInteger(),
-        new ConcurrentHashMap[Int, AtomicInteger]()))
+        JavaUtils.newConcurrentHashMap[Int, AtomicInteger]()))
 
     getCommitHandler(shuffleId).registerShuffle(shuffleId, numMappers);
   }

@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 
@@ -264,7 +263,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
     // Wait for update snapshot
     Thread.sleep(60000);
-    Map<String, Long> appDiskUsage = new ConcurrentHashMap<String, Long>();
+    Map<String, Long> appDiskUsage = JavaUtils.newConcurrentHashMap();
     appDiskUsage.put("app-1", 100L);
     appDiskUsage.put("app-2", 200L);
     masterStatusSystem.appDiskUsageMetric.update(appDiskUsage);

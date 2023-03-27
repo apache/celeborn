@@ -34,7 +34,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEndpointRef, RpcEnv, RpcTimeout}
 import org.apache.celeborn.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 class WorkerInfoSuite extends CelebornFunSuite {
 
@@ -67,7 +67,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
     disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 1, 0))
     disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 1, 1, 0))
     disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 1, 1, 0))
-    val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
+    val userResourceConsumption =
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]()
     userResourceConsumption.put(UserIdentifier("tenant1", "name1"), ResourceConsumption(1, 1, 1, 1))
     val worker =
       new WorkerInfo("localhost", 10000, 10001, 10002, 10003, disks, userResourceConsumption, null)
@@ -227,7 +228,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
     disks.put("disk1", new DiskInfo("disk1", Int.MaxValue, 1, 1, 10))
     disks.put("disk2", new DiskInfo("disk2", Int.MaxValue, 2, 2, 20))
     disks.put("disk3", new DiskInfo("disk3", Int.MaxValue, 3, 3, 30))
-    val userResourceConsumption = new ConcurrentHashMap[UserIdentifier, ResourceConsumption]()
+    val userResourceConsumption =
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]()
     userResourceConsumption.put(
       UserIdentifier("tenant1", "name1"),
       ResourceConsumption(20971520, 1, 52428800, 1))

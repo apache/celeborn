@@ -42,7 +42,7 @@ import org.apache.celeborn.common.network.server._
 import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
-import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, JavaUtils, ThreadUtils, Utils}
 
 class NettyRpcEnv(
     val conf: CelebornConf,
@@ -83,7 +83,7 @@ class NettyRpcEnv(
    * A map for [[RpcAddress]] and [[Outbox]]. When we are connecting to a remote [[RpcAddress]],
    * we just put messages to its [[Outbox]] to implement a non-blocking `send` method.
    */
-  private val outboxes = new ConcurrentHashMap[RpcAddress, Outbox]()
+  private val outboxes = JavaUtils.newConcurrentHashMap[RpcAddress, Outbox]()
 
   /**
    * Remove the address's Outbox and stop it.
@@ -537,7 +537,7 @@ private[celeborn] class NettyRpcHandler(
     nettyEnv: NettyRpcEnv) extends BaseMessageHandler with Logging {
 
   // A variable to track the remote RpcEnv addresses of all clients
-  private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
+  private val remoteAddresses = JavaUtils.newConcurrentHashMap[RpcAddress, RpcAddress]()
 
   override def receive(
       client: TransportClient,
