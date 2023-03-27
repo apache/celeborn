@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server;
+package org.apache.celeborn.common.network.server.credit;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,8 +41,8 @@ import org.apache.celeborn.common.network.server.memory.Recycler;
 import org.apache.celeborn.common.network.server.memory.WrappedDataBuffer;
 import org.apache.celeborn.common.util.Utils;
 
-public class DataPartitionReader implements Comparable<DataPartitionReader> {
-  private static final Logger logger = LoggerFactory.getLogger(DataPartitionReader.class);
+public class MapDataPartitionReader implements Comparable<MapDataPartitionReader> {
+  private static final Logger logger = LoggerFactory.getLogger(MapDataPartitionReader.class);
 
   private final ByteBuffer indexBuffer;
   private final ByteBuffer headerBuffer;
@@ -89,7 +89,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   private AtomicInteger numInFlightRequests = new AtomicInteger(0);
   private boolean isOpen = false;
 
-  public DataPartitionReader(
+  public MapDataPartitionReader(
       int startPartitionIndex,
       int endPartitionIndex,
       FileInfo fileInfo,
@@ -125,13 +125,8 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     }
   }
 
-  public boolean sendWithCredit(int credit) {
-    int oldCredit = credits.getAndAdd(credit);
-    if (oldCredit == 0) {
-      return true;
-    }
-
-    return false;
+  public void addCredit(int credit) {
+    credits.getAndAdd(credit);
   }
 
   public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
@@ -176,7 +171,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       return;
     }
     final boolean recycleBuffer;
-    boolean notifyDataAvailable = false;
     final Throwable throwable;
     synchronized (lock) {
       recycleBuffer = isReleased || isClosed || isError;
@@ -184,7 +178,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       isClosed = !hasRemaining;
 
       if (!recycleBuffer) {
-        notifyDataAvailable = buffersRead.isEmpty();
         buffersRead.add(new WrappedDataBuffer(buffer, bufferRecycler));
       }
     }
@@ -192,9 +185,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     if (recycleBuffer) {
       bufferRecycler.release(buffer);
       throw new RuntimeException("Partition reader has been failed or finished.", throwable);
-    }
-    if (notifyDataAvailable) {
-      sendData();
     }
   }
 
@@ -394,7 +384,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   }
 
   @Override
-  public int compareTo(DataPartitionReader that) {
+  public int compareTo(MapDataPartitionReader that) {
     return Long.compare(getPriority(), that.getPriority());
   }
 

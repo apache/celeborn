@@ -34,7 +34,8 @@ import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
-import org.apache.celeborn.common.network.server.{BaseMessageHandler, BufferStreamManager, ChunkStreamManager}
+import org.apache.celeborn.common.network.server.{BaseMessageHandler, ChunkStreamManager}
+import org.apache.celeborn.common.network.server.credit.BufferStreamManager
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.PartitionType
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}

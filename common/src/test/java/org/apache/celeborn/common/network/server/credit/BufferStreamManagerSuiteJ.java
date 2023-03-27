@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server;
+package org.apache.celeborn.common.network.server.credit;
 
 import static org.apache.celeborn.common.network.TestUtils.timeOutOrMeetCondition;
 
@@ -81,13 +81,16 @@ public class BufferStreamManagerSuiteJ {
     bufferStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
     bufferStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
 
-    BufferStreamManager.MapDataPartition mapDataPartition1 =
-        bufferStreamManager.getServingStreams().get(registerStream1);
-    BufferStreamManager.MapDataPartition mapDataPartition2 =
-        bufferStreamManager.getServingStreams().get(registerStream2);
+    MapDataPartition mapDataPartition1 =
+        bufferStreamManager.getStreams().get(registerStream1).getMapDataPartition();
+    MapDataPartition mapDataPartition2 =
+        bufferStreamManager.getStreams().get(registerStream2).getMapDataPartition();
     Assert.assertEquals(mapDataPartition1, mapDataPartition2);
 
     mapDataPartition1.getStreamReader(registerStream1).recycle();
+
+    // delayed queue
+    Thread.sleep(100);
 
     timeOutOrMeetCondition(() -> bufferStreamManager.numRecycleStreams() == 0);
     Assert.assertEquals(bufferStreamManager.numRecycleStreams(), 0);
