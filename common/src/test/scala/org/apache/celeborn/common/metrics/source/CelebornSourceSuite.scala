@@ -24,24 +24,10 @@ class CelebornSourceSuite extends CelebornFunSuite {
 
   test("test getMetrics with customized label") {
     val conf = new CelebornConf()
-    val mockSource = createAbstractSource(conf)
-    val res = mockSource.getMetrics()
-    val exp1 = "metrics_Gauge1_Value{role=\"mock\"} 1000"
-    val exp2 = "metrics_Gauge2_Value{role=\"mock\" user=\"user1\"} 2000"
-    val exp3 = "metrics_Counter1_Count{role=\"mock\"} 3000"
-    val exp4 = "metrics_Counter2_Count{role=\"mock\" user=\"user2\"} 4000"
-    val exp5 = "metrics_Timer1_Count{role=\"mock\"} 1"
-    val exp6 = "metrics_Timer2_Count{role=\"mock\" user=\"user3\"} 1"
-
-    assert(res.contains(exp1))
-    assert(res.contains(exp2))
-    assert(res.contains(exp3))
-    assert(res.contains(exp4))
-    assert(res.contains(exp5))
-    assert(res.contains(exp6))
+    createAbstractSourceAndCheck(conf, "")
   }
 
-  def createAbstractSource(conf: CelebornConf): AbstractSource = {
+  def createAbstractSourceAndCheck(conf: CelebornConf, extraLabels: String): Unit = {
     val mockSource = new AbstractSource(conf, "mock") {
       override def sourceName: String = "mockSource"
     }
@@ -63,24 +49,16 @@ class CelebornSourceSuite extends CelebornFunSuite {
     Thread.sleep(10)
     mockSource.stopTimer("Timer1", "key1")
     mockSource.stopTimer("Timer2", "key2", user3)
-    mockSource
-  }
-
-  test("test getMetrics with customized label by conf") {
-    val conf = new CelebornConf()
-    conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "l1:v1,l2:v2,l3:v3")
-    val mockSource = createAbstractSource(conf)
 
     val res = mockSource.getMetrics()
-    val extraLabels = """l1="v1" l2="v2" l3="v3""""
-    val exp1 = s"""metrics_Gauge1_Value{$extraLabels role="mock"} 1000"""
+    val exp1 = s"""metrics_Gauge1_Value{${extraLabels}role="mock"} 1000"""
     val exp2 =
-      s"""metrics_Gauge2_Value{$extraLabels role="mock" user="user1"} 2000"""
-    val exp3 = s"""metrics_Counter1_Count{$extraLabels role="mock"} 3000"""
+      s"""metrics_Gauge2_Value{${extraLabels}role="mock" user="user1"} 2000"""
+    val exp3 = s"""metrics_Counter1_Count{${extraLabels}role="mock"} 3000"""
     val exp4 =
-      s"""metrics_Counter2_Count{$extraLabels role="mock" user="user2"} 4000"""
-    val exp5 = s"""metrics_Timer1_Count{$extraLabels role="mock"} 1"""
-    val exp6 = s"""metrics_Timer2_Count{$extraLabels role="mock" user="user3"} 1"""
+      s"""metrics_Counter2_Count{${extraLabels}role="mock" user="user2"} 4000"""
+    val exp5 = s"""metrics_Timer1_Count{${extraLabels}role="mock"} 1"""
+    val exp6 = s"""metrics_Timer2_Count{${extraLabels}role="mock" user="user3"} 1"""
 
     assert(res.contains(exp1))
     assert(res.contains(exp2))
@@ -88,5 +66,19 @@ class CelebornSourceSuite extends CelebornFunSuite {
     assert(res.contains(exp4))
     assert(res.contains(exp5))
     assert(res.contains(exp6))
+  }
+
+  test("test getMetrics with customized label by conf") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "l1=v1,l2=v2,l3=v3")
+    val extraLabels = """l1="v1" l2="v2" l3="v3" """
+    createAbstractSourceAndCheck(conf, extraLabels)
+
+    assertThrows[IllegalArgumentException]({
+      conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "l1=v1,l2=")
+      val extraLabels2 = """l1="v1" l2="v2" l3="v3" """
+      createAbstractSourceAndCheck(conf, extraLabels2)
+    })
+
   }
 }
