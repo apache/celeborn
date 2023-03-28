@@ -3084,7 +3084,7 @@ object CelebornConf extends Logging {
   val METRICS_EXTRA_LABELS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.metrics.extraLabels")
       .categories("master", "worker", "metrics")
-      .doc("if default metric labels are not enough, extra metric labels can be customized." +
+      .doc("if default metric labels are not enough, extra metric labels can be customized. " +
         "labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1`")
       .version("0.3.0")
       .stringConf
