@@ -15,22 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network;
-
-import static org.junit.Assert.*;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+package org.apache.celeborn.service.deploy.worker.fetch;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -39,9 +28,20 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
-import org.apache.celeborn.common.network.server.ChunkStreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.TestUtils;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.*;
 
 /**
  * Suite which ensures that requests that go without a response for the network timeout period are

@@ -33,10 +33,10 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.AlreadyClosedException;
+import org.apache.celeborn.common.memory.MemoryManager;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network;
+package org.apache.celeborn.service.deploy.worker.fetch;
 
 import static org.junit.Assert.*;
 
@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
+import org.apache.celeborn.common.network.TransportContext;
+import org.apache.celeborn.common.util.TestUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -44,7 +46,6 @@ import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
-import org.apache.celeborn.common.network.server.ChunkStreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
 

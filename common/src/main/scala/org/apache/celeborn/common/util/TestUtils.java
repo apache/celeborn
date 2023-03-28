@@ -15,13 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.memory;
+package org.apache.celeborn.common.util;
 
-import java.util.List;
+import java.net.InetAddress;
+import java.util.concurrent.Callable;
 
-import io.netty.buffer.ByteBuf;
+public class TestUtils {
+  public static String getLocalHost() {
+    try {
+      return InetAddress.getLocalHost().getHostAddress();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
 
-// Do not execute blocking task here.
-public interface ReadBufferListener {
-  void notifyBuffers(List<ByteBuf> allocatedBuffers, Throwable throwable);
+  public static void timeOutOrMeetCondition(Callable<Boolean> callable) throws Exception {
+    int timeout = 10000; // 10s
+    while (true) {
+      if (callable.call() || timeout < 0) {
+        break;
+      }
+
+      timeout = timeout - 100;
+      Thread.sleep(100);
+    }
+  }
 }

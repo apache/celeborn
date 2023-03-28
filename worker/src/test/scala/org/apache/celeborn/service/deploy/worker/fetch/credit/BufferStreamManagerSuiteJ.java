@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.credit;
+package org.apache.celeborn.service.deploy.worker.fetch.credit;
 
-import static org.apache.celeborn.common.network.TestUtils.timeOutOrMeetCondition;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import io.netty.channel.Channel;
+import org.apache.celeborn.common.util.TestUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
+import org.apache.celeborn.common.memory.MemoryManager;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -92,7 +92,7 @@ public class BufferStreamManagerSuiteJ {
     // delayed queue
     Thread.sleep(100);
 
-    timeOutOrMeetCondition(() -> bufferStreamManager.numRecycleStreams() == 0);
+    TestUtils.timeOutOrMeetCondition(() -> bufferStreamManager.numRecycleStreams() == 0);
     Assert.assertEquals(bufferStreamManager.numRecycleStreams(), 0);
     Assert.assertEquals(3, bufferStreamManager.numStreamStates());
 
@@ -108,7 +108,7 @@ public class BufferStreamManagerSuiteJ {
     // recycle all channel
     numInFlightRequests.decrementAndGet();
     bufferStreamManager.connectionTerminated(channel);
-    timeOutOrMeetCondition(() -> bufferStreamManager.numRecycleStreams() == 0);
+    TestUtils.timeOutOrMeetCondition(() -> bufferStreamManager.numRecycleStreams() == 0);
     Assert.assertEquals(bufferStreamManager.numStreamStates(), 0);
   }
 

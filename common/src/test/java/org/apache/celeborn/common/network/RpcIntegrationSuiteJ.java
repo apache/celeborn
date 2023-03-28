@@ -42,6 +42,7 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.TestUtils;
 
 public class RpcIntegrationSuiteJ {
   static TransportConf conf;

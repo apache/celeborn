@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.credit;
+package org.apache.celeborn.service.deploy.worker.fetch.credit;
 
 import java.io.IOException;
 import java.util.HashMap;

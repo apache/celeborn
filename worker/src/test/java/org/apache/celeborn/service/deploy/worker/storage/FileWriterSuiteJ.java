@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.memory.MemoryManager;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.MetricsSystem;
 import org.apache.celeborn.common.metrics.source.RPCSource;
@@ -68,7 +69,6 @@ import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.server.TransportServer;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;

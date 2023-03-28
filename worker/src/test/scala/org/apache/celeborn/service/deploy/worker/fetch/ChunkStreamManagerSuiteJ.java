@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server;
+package org.apache.celeborn.service.deploy.worker.fetch;
 
 import java.util.Arrays;
 import java.util.HashSet;

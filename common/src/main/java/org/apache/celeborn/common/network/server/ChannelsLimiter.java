@@ -29,7 +29,7 @@ import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
+import org.apache.celeborn.common.memory.MemoryManager;
 
 @ChannelHandler.Sharable
 public class ChannelsLimiter extends ChannelDuplexHandler

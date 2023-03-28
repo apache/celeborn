@@ -27,8 +27,7 @@ import org.junit.Assert
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.network.TestUtils
-import org.apache.celeborn.common.util.PackedPartitionId
+import org.apache.celeborn.common.util.{PackedPartitionId, TestUtils}
 
 trait WithShuffleClientSuite extends CelebornFunSuite {
 
