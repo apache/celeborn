@@ -74,8 +74,7 @@ public class RssBufferStream {
     try {
       this.client = clientFactory.createClient(targetHost, targetPort);
     } catch (IOException | InterruptedException e) {
-      logger.warn(
-          "buffer stream create client to {}:{} failed and retry", targetHost, targetPort, e);
+      logger.warn("Retry to create buffer stream to {}:{}", targetHost, targetPort, e);
       this.client = clientFactory.createClient(targetHost, targetPort);
     }
 
