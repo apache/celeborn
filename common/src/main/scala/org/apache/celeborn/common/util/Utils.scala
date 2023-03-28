@@ -1028,6 +1028,6 @@ object Utils extends Logging {
     if (labelPart.size != 2) {
       throw new IllegalArgumentException(s"Illegal metric extra labels: $label")
     }
-    labelPart(0) -> labelPart(1)
+    labelPart(0).trim -> labelPart(1).trim
   }
 }

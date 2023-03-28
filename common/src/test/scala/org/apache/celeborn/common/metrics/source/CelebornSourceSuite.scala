@@ -70,15 +70,22 @@ class CelebornSourceSuite extends CelebornFunSuite {
 
   test("test getMetrics with customized label by conf") {
     val conf = new CelebornConf()
+    //label's is normal
     conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "l1=v1,l2=v2,l3=v3")
     val extraLabels = """l1="v1" l2="v2" l3="v3" """
     createAbstractSourceAndCheck(conf, extraLabels)
 
+    //labels' kv not correct
     assertThrows[IllegalArgumentException]({
       conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "l1=v1,l2=")
       val extraLabels2 = """l1="v1" l2="v2" l3="v3" """
       createAbstractSourceAndCheck(conf, extraLabels2)
     })
+
+    //there are spaces in labels
+    conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, " l1 = v1, l2  =v2  ,l3 =v3  ")
+    val extraLabels3 = """l1="v1" l2="v2" l3="v3" """
+    createAbstractSourceAndCheck(conf, extraLabels3)
 
   }
 }
