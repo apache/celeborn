@@ -23,6 +23,8 @@ import java.util.function.Supplier;
 
 import io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -31,11 +33,19 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 public class FlinkTransportClientFactory extends TransportClientFactory {
 
+  public static final Logger logger = LoggerFactory.getLogger(FlinkTransportClientFactory.class);
+
   private ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
 
   public FlinkTransportClientFactory(TransportContext context) {
     super(context);
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
+  }
+
+  public TransportClient createClientWithRetry(String remoteHost, int remotePort)
+      throws IOException, InterruptedException {
+    return createClientWithRetry(
+        remoteHost, remotePort, -1, new TransportFrameDecoderWithBufferSupplier(bufferSuppliers));
   }
 
   public TransportClient createClient(String remoteHost, int remotePort)

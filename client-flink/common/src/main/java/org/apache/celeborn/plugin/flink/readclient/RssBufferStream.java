@@ -70,10 +70,9 @@ public class RssBufferStream {
       Consumer<RequestMessage> messageConsumer)
       throws IOException, InterruptedException {
     this.client =
-        clientFactory.createClient(
+        clientFactory.createClientWithRetry(
             locations[currentLocationIndex].getHost(),
             locations[currentLocationIndex].getFetchPort());
-
     String fileName = locations[currentLocationIndex].getFileName();
     OpenStreamWithCredit openBufferStream =
         new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);

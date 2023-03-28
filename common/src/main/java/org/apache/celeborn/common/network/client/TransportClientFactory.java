@@ -116,6 +116,17 @@ public class TransportClientFactory implements Closeable {
     return createClient(remoteHost, remotePort, partitionId, new TransportFrameDecoder());
   }
 
+  public TransportClient createClientWithRetry(
+      String remoteHost, int remotePort, int partitionId, ChannelInboundHandlerAdapter decoder)
+      throws IOException, InterruptedException {
+    try {
+      return createClient(remoteHost, remotePort, partitionId, decoder);
+    } catch (IOException | InterruptedException e) {
+      logger.warn("Retrying create client to {}:{}", remoteHost, remotePort, e);
+      return createClient(remoteHost, remotePort, partitionId, decoder);
+    }
+  }
+
   public TransportClient createClient(
       String remoteHost, int remotePort, int partitionId, ChannelInboundHandlerAdapter decoder)
       throws IOException, InterruptedException {
