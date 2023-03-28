@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.memory;
+package org.apache.celeborn.common.network.server.memory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;

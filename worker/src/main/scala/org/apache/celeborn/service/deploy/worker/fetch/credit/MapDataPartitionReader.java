@@ -30,7 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
-import org.apache.celeborn.common.memory.Recycler;
+import org.apache.celeborn.common.network.server.memory.Recycler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +38,7 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.TransportableError;
-import org.apache.celeborn.common.memory.WrappedDataBuffer;
+import org.apache.celeborn.common.network.server.memory.WrappedDataBuffer;
 import org.apache.celeborn.common.util.Utils;
 
 public class MapDataPartitionReader implements Comparable<MapDataPartitionReader> {

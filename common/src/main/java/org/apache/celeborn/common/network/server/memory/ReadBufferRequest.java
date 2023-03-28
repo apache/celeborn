@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.memory;
+package org.apache.celeborn.common.network.server.memory;
 
 import static com.google.common.base.Preconditions.checkArgument;
 

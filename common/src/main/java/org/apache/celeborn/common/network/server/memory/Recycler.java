@@ -15,13 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.memory;
-
-import java.util.List;
+package org.apache.celeborn.common.network.server.memory;
 
 import io.netty.buffer.ByteBuf;
 
-// Do not execute blocking task here.
-public interface ReadBufferListener {
-  void notifyBuffers(List<ByteBuf> allocatedBuffers, Throwable throwable);
+/** manager bytebuf lifecycle */
+public interface Recycler {
+
+  /** recycle bytebuf to buffer pool */
+  void recycle(ByteBuf byteBuf);
+
+  /** release the bytebuf */
+  void release(ByteBuf byteBuf);
 }

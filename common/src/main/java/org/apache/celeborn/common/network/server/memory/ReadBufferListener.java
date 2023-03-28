@@ -15,30 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.memory;
+package org.apache.celeborn.common.network.server.memory;
 
-import java.util.function.Consumer;
+import java.util.List;
 
 import io.netty.buffer.ByteBuf;
 
-public class BufferRecycler implements Recycler {
-
-  private MemoryManager memoryManager;
-
-  private Consumer<ByteBuf> recycleConsumer;
-
-  public BufferRecycler(MemoryManager memoryManager, Consumer<ByteBuf> recycleConsumer) {
-    this.memoryManager = memoryManager;
-    this.recycleConsumer = recycleConsumer;
-  }
-
-  @Override
-  public void recycle(ByteBuf byteBuf) {
-    recycleConsumer.accept(byteBuf);
-  }
-
-  @Override
-  public void release(ByteBuf byteBuf) {
-    memoryManager.recycleReadBuffer(byteBuf);
-  }
+// Do not execute blocking task here.
+public interface ReadBufferListener {
+  void notifyBuffers(List<ByteBuf> allocatedBuffers, Throwable throwable);
 }

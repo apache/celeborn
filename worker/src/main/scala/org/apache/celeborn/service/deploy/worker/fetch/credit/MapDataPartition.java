@@ -27,8 +27,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import org.apache.celeborn.common.memory.BufferRecycler;
-import org.apache.celeborn.common.memory.MemoryManager;
+import org.apache.celeborn.common.network.server.memory.BufferRecycler;
+import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
