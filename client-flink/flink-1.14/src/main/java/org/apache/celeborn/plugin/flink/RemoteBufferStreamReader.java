@@ -88,7 +88,8 @@ public class RemoteBufferStreamReader extends CreditListener {
       bufferStream.open(
           RemoteBufferStreamReader.this::requestBuffer, initialCredit, client, messageConsumer);
     } catch (InterruptedException e) {
-      throw new RuntimeException("Failed to openStream.", e);
+      logger.warn("Failed to open stream and report to flink framework. ", e);
+      messageConsumer.accept(new TransportableError(0L, e));
     }
     isOpened = true;
   }

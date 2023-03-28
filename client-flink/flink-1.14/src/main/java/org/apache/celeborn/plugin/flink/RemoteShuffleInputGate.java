@@ -475,12 +475,8 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
         if (cause != null) {
           return;
         }
-        Class<?> clazz = PartitionNotFoundException.class;
-        if (throwable.getMessage() != null && throwable.getMessage().contains(clazz.getName())) {
-          cause = new PartitionNotFoundException(rpID);
-        } else {
-          cause = throwable;
-        }
+        LOG.error("Input {} gate failed ", this, throwable);
+        cause = new PartitionNotFoundException(rpID);
         availabilityHelper.getUnavailableToResetAvailable().complete(null);
       }
     };
