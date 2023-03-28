@@ -69,15 +69,10 @@ public class RssBufferStream {
       FlinkShuffleClientImpl mapShuffleClient,
       Consumer<RequestMessage> messageConsumer)
       throws IOException, InterruptedException {
-    String targetHost = locations[currentLocationIndex].getHost();
-    int targetPort = locations[currentLocationIndex].getFetchPort();
-    try {
-      this.client = clientFactory.createClient(targetHost, targetPort);
-    } catch (IOException | InterruptedException e) {
-      logger.warn("Retry to create buffer stream to {}:{}", targetHost, targetPort, e);
-      this.client = clientFactory.createClient(targetHost, targetPort);
-    }
-
+    this.client =
+        clientFactory.createClientWithRetry(
+            locations[currentLocationIndex].getHost(),
+            locations[currentLocationIndex].getFetchPort());
     String fileName = locations[currentLocationIndex].getFileName();
     OpenStreamWithCredit openBufferStream =
         new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);
