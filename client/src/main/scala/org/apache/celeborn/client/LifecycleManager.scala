@@ -1236,20 +1236,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  def resolveShutdownWorkers(shutdownWorkers: JList[WorkerInfo]): Unit = {
-    if (!shutdownWorkers.isEmpty) {
+  private def resolveShutdownWorkers(workers: JList[WorkerInfo]): Unit = {
+    if (!workers.isEmpty) {
       // shutdownWorkers only retain workers appeared in response.
-      logError(
-        s"Current shutdown workers ${shutdownWorkers.asScala.map(_.readableAddress()).mkString("[", ",", "]")}")
-      logError(
-        s"All shutdown workers ${shutdownWorkers.asScala.map(_.readableAddress()).mkString("[", ",", "]")}")
       shutdownWorkers.retainAll(shutdownWorkers)
-      logError(s"After retained shutdown workers ${shutdownWorkers.asScala.map(
-        _.readableAddress()).mkString("[", ",", "]")}")
-      val newShutdownWorkers = shutdownWorkers.asScala.filterNot(shutdownWorkers.asScala.contains)
-      shutdownWorkers.addAll(shutdownWorkers)
-      logError(
-        s"Latest shutdown workers ${newShutdownWorkers.map(_.readableAddress()).mkString("[", ",", "]")}")
+      val newShutdownWorkers = workers.asScala.filterNot(shutdownWorkers.asScala.contains)
+      shutdownWorkers.addAll(workers)
       if (newShutdownWorkers.nonEmpty) {
         newShutdownWorkers.foreach { workerInfo =>
           commitManager.handleShutdownWorker(workerInfo)

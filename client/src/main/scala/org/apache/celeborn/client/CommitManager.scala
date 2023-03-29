@@ -294,8 +294,8 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
   }
 
   def handleShutdownWorker(shutdownWorker: WorkerInfo): Unit = {
-    logError(
-      s"Worker ${shutdownWorker.readableAddress()} shutdown, commit all it's partition location")
+    logError(s"Worker ${shutdownWorker.toUniqueId()} shutdown, " +
+      "commit all it's partition location.")
     lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
       case (shuffleId, workerToPartitions) =>
         val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
