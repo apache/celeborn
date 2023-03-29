@@ -105,7 +105,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     TransportContext context =
         new TransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
-    this.flinkTransportClientFactory = new FlinkTransportClientFactory(context);
+    this.flinkTransportClientFactory =
+        new FlinkTransportClientFactory(context, conf.fetchMaxRetries());
   }
 
   public RssBufferStream readBufferedPartition(
