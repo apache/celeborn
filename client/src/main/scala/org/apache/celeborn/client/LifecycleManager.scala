@@ -130,7 +130,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       conf,
       rssHARetryClient,
       () => commitManager.commitMetrics(),
-      (shutdownWorkers: JList[WorkerInfo]) => resolveShutdownWorkers(shutdownWorkers))
+      resolveShutdownWorkers)
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(appId, conf, this)
 
