@@ -233,12 +233,14 @@ public abstract class RssInputStream extends InputStream {
             logger.warn(
                 "CreatePartitionReader failed {}/{} times, change to peer",
                 fetchChunkRetryCnt,
-                fetchChunkMaxRetry);
+                fetchChunkMaxRetry,
+                e);
           } else {
             logger.warn(
                 "CreatePartitionReader failed {}/{} times, retry the same location",
                 fetchChunkRetryCnt,
-                fetchChunkMaxRetry);
+                fetchChunkMaxRetry,
+                e);
             Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
           }
         }
@@ -254,18 +256,19 @@ public abstract class RssInputStream extends InputStream {
           fetchChunkRetryCnt++;
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
-            logger.warn("Fetch chunk fail exceeds max retry {}", fetchChunkRetryCnt);
+            logger.warn("Fetch chunk fail exceeds max retry {}", fetchChunkRetryCnt, e);
             throw new CelebornIOException(
-                "Fetch chunk failed for " + fetchChunkRetryCnt + " times");
+                "Fetch chunk failed for " + fetchChunkRetryCnt + " times", e);
           } else {
             if (currentReader.getLocation().getPeer() != null) {
               logger.warn(
                   "Fetch chunk failed {}/{} times, change to peer",
                   fetchChunkRetryCnt,
-                  fetchChunkMaxRetry);
+                  fetchChunkMaxRetry,
+                  e);
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
             } else {
-              logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry);
+              logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry, e);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               currentReader = createReaderWithRetry(currentReader.getLocation());
             }
