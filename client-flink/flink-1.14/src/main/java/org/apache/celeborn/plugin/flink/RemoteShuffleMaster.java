@@ -24,18 +24,22 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
+import org.apache.flink.runtime.shuffle.TaskInputsOutputsDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.plugin.flink.config.PluginConf;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.celeborn.plugin.flink.utils.ThreadUtils;
 
@@ -165,6 +169,37 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
             LOG.debug("Failed to release data partition {}.", shuffleDescriptor, throwable);
           }
         });
+  }
+
+  @Override
+  public MemorySize computeShuffleMemorySizeForTask(
+      TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
+    for (ResultPartitionType partitionType :
+        taskInputsOutputsDescriptor.getPartitionTypes().values()) {
+      if (!partitionType.isBlocking()) {
+        throw new RuntimeException(
+            "Blocking result partition type expected but found " + partitionType);
+      }
+    }
+
+    int numResultPartitions = taskInputsOutputsDescriptor.getSubpartitionNums().size();
+    long numBytesPerPartition =
+        FlinkUtils.byteStringValueAsBytes(
+            shuffleMasterContext.getConfiguration(), PluginConf.MEMORY_PER_RESULT_PARTITION);
+    long numBytesForOutput = numBytesPerPartition * numResultPartitions;
+
+    int numInputGates = taskInputsOutputsDescriptor.getInputChannelNums().size();
+    long numBytesPerGate =
+        FlinkUtils.byteStringValueAsBytes(
+            shuffleMasterContext.getConfiguration(), PluginConf.MEMORY_PER_INPUT_GATE);
+    long numBytesForInput = numBytesPerGate * numInputGates;
+
+    LOG.debug(
+        "Announcing number of bytes {} for output and {} for input.",
+        numBytesForOutput,
+        numBytesForInput);
+
+    return new MemorySize(numBytesForInput + numBytesForOutput);
   }
 
   @Override

@@ -25,6 +25,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.plugin.flink.config.PluginConf;
 
 public class FlinkUtils {
 
@@ -51,5 +53,9 @@ public class FlinkUtils {
 
   public static String toAttemptId(ExecutionAttemptID attemptID) {
     return attemptID.toString();
+  }
+
+  public static long byteStringValueAsBytes(Configuration flinkConf, PluginConf pluginConf) {
+    return Utils.byteStringAsBytes(PluginConf.getValue(flinkConf, pluginConf));
   }
 }
