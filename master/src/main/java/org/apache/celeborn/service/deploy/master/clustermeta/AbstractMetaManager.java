@@ -57,6 +57,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
   // blacklist
   public final Set<WorkerInfo> blacklist = ConcurrentHashMap.newKeySet();
+  // shutdown workers
+  public final Set<WorkerInfo> shutdownWorkers = ConcurrentHashMap.newKeySet();
+
   // workerLost events
   public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
 
@@ -244,6 +247,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {
         workers.add(workerInfo);
+        shutdownWorkers.remove(workerInfo);
         lostWorkers.remove(workerInfo);
       }
     }
@@ -269,7 +273,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 partitionTotalFileCount.sum(),
                 appDiskUsageMetric.snapShots(),
                 appDiskUsageMetric.currentSnapShot().get(),
-                lostWorkers)
+                lostWorkers,
+                shutdownWorkers)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -317,6 +322,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           .forEach(
               entry -> lostWorkers.put(WorkerInfo.fromUniqueId(entry.getKey()), entry.getValue()));
 
+      shutdownWorkers.addAll(
+          snapshotMetaInfo.getShutdownWorkersList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
+
       partitionTotalWritten.reset();
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
       partitionTotalFileCount.reset();
@@ -344,6 +354,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public void updateBlacklistByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
     synchronized (this.workers) {
+      shutdownWorkers.addAll(failedWorkers);
       failedWorkers.retainAll(this.workers);
       this.blacklist.addAll(failedWorkers);
     }

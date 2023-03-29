@@ -67,6 +67,7 @@ enum MessageType {
   STAGE_END_RESPONSE = 46;
   PARTITION_SPLIT = 47;
   REGISTER_MAP_PARTITION_TASK = 48;
+  HEARTBEAT_FROM_APPLICATION_RESPONSE=49;
 }
 
 message PbStorageInfo {
@@ -284,6 +285,10 @@ message PbHeartbeatFromApplication {
   string requestId = 4;
 }
 
+message PbHeartbeatFromApplicationResponse {
+  repeated PbWorkerInfo shutdownWorkers = 1;
+}
+
 message PbGetBlacklist {
   repeated PbWorkerInfo localBlackList = 1;
 }
@@ -465,4 +470,5 @@ message PbSnapshotMetaInfo {
   repeated PbAppDiskUsageSnapshot appDiskUsageMetricSnapshots = 10;
   optional PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
   map<string, int64> lostWorkers = 12;
+  repeated PbWorkerInfo shutdownWorkers = 13;
 }

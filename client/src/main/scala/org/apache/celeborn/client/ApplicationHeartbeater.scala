@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.client
 
+import java.util.{List => JList}
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
 import scala.concurrent.duration.DurationInt
@@ -24,14 +25,16 @@ import scala.concurrent.duration.DurationInt
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, ZERO_UUID}
+import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
 import org.apache.celeborn.common.util.ThreadUtils
 
 class ApplicationHeartbeater(
     appId: String,
     conf: CelebornConf,
     rssHARetryClient: RssHARetryClient,
-    shuffleMetrics: () => (Long, Long)) extends Logging {
+    shuffleMetrics: () => (Long, Long),
+    resolveShutdownWorkers: JList[WorkerInfo] => Unit) extends Logging {
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -49,7 +52,10 @@ class ApplicationHeartbeater(
             logDebug(s"Send app heartbeat with $tmpTotalWritten $tmpFileCount")
             val appHeartbeat =
               HeartbeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
-            rssHARetryClient.send(appHeartbeat)
+            val response = rssHARetryClient.askSync[HeartbeatFromApplicationResponse](
+              appHeartbeat,
+              classOf[HeartbeatFromApplicationResponse])
+            resolveShutdownWorkers(response.shutdownWorkers)
             logDebug("Successfully send app heartbeat.")
           } catch {
             case it: InterruptedException =>

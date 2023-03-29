@@ -319,6 +319,9 @@ object ControlMessages extends Logging {
       fileCount: Long,
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
+  case class HeartbeatFromApplicationResponse(shutdownWorkers: util.List[WorkerInfo])
+    extends MasterMessage
+
   case class GetBlacklist(localBlacklist: util.List[WorkerInfo]) extends MasterMessage
 
   case class GetBlacklistResponse(
@@ -610,6 +613,13 @@ object ControlMessages extends Logging {
         .setFileCount(fileCount)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
+
+    case HeartbeatFromApplicationResponse(shutdownWorkers) =>
+      val payload = PbHeartbeatFromApplicationResponse.newBuilder()
+        .addAllShutdownWorkers(
+          shutdownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .build().toByteArray
+      new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
     case GetBlacklist(localBlacklist) =>
       val payload = PbGetBlacklist.newBuilder()
@@ -942,6 +952,13 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplication.getTotalWritten,
           pbHeartbeatFromApplication.getFileCount,
           pbHeartbeatFromApplication.getRequestId)
+
+      case HEARTBEAT_FROM_APPLICATION_RESPONSE =>
+        val pbHeartbeatFromApplicationResponse =
+          PbHeartbeatFromApplicationResponse.parseFrom(message.getPayload)
+        HeartbeatFromApplicationResponse(new util.ArrayList[WorkerInfo](
+          pbHeartbeatFromApplicationResponse.getShutdownWorkersList.asScala.map(
+            PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)

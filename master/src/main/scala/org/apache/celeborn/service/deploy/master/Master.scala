@@ -106,6 +106,8 @@ private[celeborn] class Master(
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
   private def lostWorkersSnapshot: ConcurrentHashMap[WorkerInfo, java.lang.Long] =
     statusSystem.workers.synchronized(JavaUtils.newConcurrentHashMap(statusSystem.lostWorkers))
+  private def shutdownWorkerSnapshot: util.List[WorkerInfo] =
+    statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers))
 
   private def diskReserveSize = conf.diskReserveSize
 
@@ -635,7 +637,9 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    context.reply(OneWayMessageResponse)
+    logInfo(
+      s"Current shutdown workers ${shutdownWorkerSnapshot.asScala.map(_.toUniqueId()).mkString("[", ", ", "]")}")
+    context.reply(HeartbeatFromApplicationResponse(shutdownWorkerSnapshot))
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
@@ -728,6 +732,15 @@ private[celeborn] class Master(
     sb.append("======================= Lost Workers in Master ========================\n")
     lostWorkersSnapshot.asScala.foreach { case (worker, time) =>
       sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$time\n")
+    }
+    sb.toString()
+  }
+
+  override def getShutdownWorkers: String = {
+    val sb = new StringBuilder
+    sb.append("===================== Shutdown Workers in Master ======================\n")
+    shutdownWorkerSnapshot.asScala.foreach { worker =>
+      sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
   }

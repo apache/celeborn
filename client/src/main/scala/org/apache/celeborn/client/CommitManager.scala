@@ -39,6 +39,7 @@ import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.Utils
 
 case class ShuffleCommittedInfo(
     // partition id -> unique partition ids
@@ -290,5 +291,28 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       totalFileCount += commitHandler.commitMetrics._2
     }
     (totalWritten, totalFileCount)
+  }
+
+  def handleShutdownWorker(shutdownWorker: WorkerInfo): Unit = {
+    logError(
+      s"Worker ${shutdownWorker.readableAddress()} shutdown, commit all it's partition location")
+    lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
+      case (shuffleId, workerToPartitions) =>
+        val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
+        val partitionLocation = workerToPartitions.get(shutdownWorker)
+        if (partitionLocation != null) {
+          partitionLocation.getMasterPartitions().asScala.foreach { partitionLocation =>
+            shuffleCommittedInfo.synchronized {
+              shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
+            }
+          }
+
+          partitionLocation.getSlavePartitions().asScala.foreach { partitionLocation =>
+            shuffleCommittedInfo.synchronized {
+              shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
+            }
+          }
+        }
+    }
   }
 }

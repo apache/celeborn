@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.{function, List => JList}
+import java.util.{function, List => JList, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -72,6 +72,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   // shuffle id -> (partitionId -> newest PartitionLocation)
   val latestPartitionLocation =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+  private val shutdownWorkers: JSet[WorkerInfo] = ConcurrentHashMap.newKeySet()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   @VisibleForTesting
@@ -124,7 +125,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
   val commitManager = new CommitManager(appId, conf, this)
   private val heartbeater =
-    new ApplicationHeartbeater(appId, conf, rssHARetryClient, () => commitManager.commitMetrics())
+    new ApplicationHeartbeater(
+      appId,
+      conf,
+      rssHARetryClient,
+      () => commitManager.commitMetrics(),
+      (shutdownWorkers: JList[WorkerInfo]) => resolveShutdownWorkers(shutdownWorkers))
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(appId, conf, this)
 
@@ -1227,6 +1233,28 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         val msg = s"AskSync Cluster check quota for $userIdentifier failed."
         logError(msg, e)
         CheckQuotaResponse(false, msg)
+    }
+  }
+
+  def resolveShutdownWorkers(shutdownWorkers: JList[WorkerInfo]): Unit = {
+    if (!shutdownWorkers.isEmpty) {
+      // shutdownWorkers only retain workers appeared in response.
+      logError(
+        s"Current shutdown workers ${shutdownWorkers.asScala.map(_.readableAddress()).mkString("[", ",", "]")}")
+      logError(
+        s"All shutdown workers ${shutdownWorkers.asScala.map(_.readableAddress()).mkString("[", ",", "]")}")
+      shutdownWorkers.retainAll(shutdownWorkers)
+      logError(s"After retained shutdown workers ${shutdownWorkers.asScala.map(
+        _.readableAddress()).mkString("[", ",", "]")}")
+      val newShutdownWorkers = shutdownWorkers.asScala.filterNot(shutdownWorkers.asScala.contains)
+      shutdownWorkers.addAll(shutdownWorkers)
+      logError(
+        s"Latest shutdown workers ${newShutdownWorkers.map(_.readableAddress()).mkString("[", ",", "]")}")
+      if (newShutdownWorkers.nonEmpty) {
+        newShutdownWorkers.foreach { workerInfo =>
+          commitManager.handleShutdownWorker(workerInfo)
+        }
+      }
     }
   }
 
