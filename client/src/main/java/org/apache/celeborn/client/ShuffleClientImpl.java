@@ -95,6 +95,9 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId-mapId-attemptId
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
+  private final boolean shuffleClientBlacklistEnabled;
+  private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
+
   private final ExecutorService pushDataRetryPool;
 
   private final ExecutorService partitionSplitPool;
@@ -148,6 +151,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     maxReviveTimes = conf.pushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.pushBufferMaxSize();
+    shuffleClientBlacklistEnabled = conf.shuffleClientBlacklistEnabled();
     if (conf.pushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -213,18 +217,29 @@ public class ShuffleClientImpl extends ShuffleClient {
           batchId,
           newLoc);
       try {
-        if (!testRetryRevive || remainReviveTimes < 1) {
-          TransportClient client =
-              dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
-          NettyManagedBuffer newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
-          String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
-
-          PushData newPushData =
-              new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
-          client.pushData(newPushData, pushDataTimeout, wrappedCallback);
+        if (blacklist.contains(newLoc.hostAndPushPort())) {
+          wrappedCallback.onFailure(
+              new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
+        } else if (newLoc.getPeer() != null
+            && blacklist.contains(newLoc.getPeer().hostAndPushPort())) {
+          wrappedCallback.onFailure(
+              new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
         } else {
-          throw new RuntimeException(
-              "Mock push data submit retry failed. remainReviveTimes = " + remainReviveTimes + ".");
+          if (!testRetryRevive || remainReviveTimes < 1) {
+            TransportClient client =
+                dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
+            NettyManagedBuffer newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
+            String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+
+            PushData newPushData =
+                new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
+            client.pushData(newPushData, pushDataTimeout, wrappedCallback);
+          } else {
+            throw new RuntimeException(
+                "Mock push data submit retry failed. remainReviveTimes = "
+                    + remainReviveTimes
+                    + ".");
+          }
         }
       } catch (Exception e) {
         logger.error(
@@ -505,6 +520,23 @@ public class ShuffleClientImpl extends ShuffleClient {
       int epoch,
       PartitionLocation oldLocation,
       StatusCode cause) {
+    // Add ShuffleClient side blacklist
+    if (shuffleClientBlacklistEnabled) {
+      if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
+        blacklist.add(oldLocation.hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
+        blacklist.add(oldLocation.hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_MASTER) {
+        blacklist.add(oldLocation.hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE) {
+        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE) {
+        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_SLAVE) {
+        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+      }
+    }
+
     ConcurrentHashMap<Integer, PartitionLocation> map = reducePartitionMap.get(shuffleId);
     if (waitRevivedLocation(map, partitionId, epoch)) {
       logger.debug(
@@ -815,7 +847,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
-                remainReviveTimes = remainReviveTimes - 1;
+                if (!isPushBlacklisted(cause)) {
+                  remainReviveTimes = remainReviveTimes - 1;
+                }
                 pushDataRetryPool.submit(
                     () ->
                         submitRetryPushData(
@@ -847,15 +881,23 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       // do push data
       try {
-        if (!testRetryRevive) {
-          TransportClient client =
-              dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
-          client.pushData(pushData, pushDataTimeout, wrappedCallback);
-        } else {
+        if (blacklist.contains(loc.hostAndPushPort())) {
           wrappedCallback.onFailure(
-              new CelebornIOException(
-                  StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE,
-                  new RuntimeException("Mock push data first time failed.")));
+              new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
+        } else if (loc.getPeer() != null && blacklist.contains(loc.getPeer().hostAndPushPort())) {
+          wrappedCallback.onFailure(
+              new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
+        } else {
+          if (!testRetryRevive) {
+            TransportClient client =
+                dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
+            client.pushData(pushData, pushDataTimeout, wrappedCallback);
+          } else {
+            wrappedCallback.onFailure(
+                new CelebornIOException(
+                    StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE,
+                    new RuntimeException("Mock push data first time failed.")));
+          }
         }
       } catch (Exception e) {
         logger.error(
@@ -1022,7 +1064,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       ArrayList<DataBatches.DataBatch> batches,
       PushState pushState,
       int remainReviveTimes) {
-    String hostPort = addressPair.split("-")[0];
+    String[] tokens = addressPair.split("-");
+    String hostPort = tokens[0];
     final String[] splits = hostPort.split(":");
     final String host = splits[0];
     final int port = Integer.parseInt(splits[1]);
@@ -1196,6 +1239,11 @@ public class ShuffleClientImpl extends ShuffleClient {
                 remainReviveTimes,
                 e);
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
+              int tmpRemainReviveTimes = remainReviveTimes;
+              if (!isPushBlacklisted(cause)) {
+                tmpRemainReviveTimes = tmpRemainReviveTimes - 1;
+              }
+              int finalRemainReviveTimes = tmpRemainReviveTimes;
               pushDataRetryPool.submit(
                   () ->
                       submitRetryPushMergedData(
@@ -1207,21 +1255,27 @@ public class ShuffleClientImpl extends ShuffleClient {
                           batches,
                           cause,
                           groupedBatchId,
-                          remainReviveTimes - 1));
+                          finalRemainReviveTimes));
             }
           }
         };
 
     // do push merged data
     try {
-      if (!testRetryRevive || remainReviveTimes < 1) {
-        TransportClient client = dataClientFactory.createClient(host, port);
-        client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
+      if (blacklist.contains(hostPort)) {
+        wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
+      } else if (tokens.length == 2 && blacklist.contains(tokens[1])) {
+        wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       } else {
-        wrappedCallback.onFailure(
-            new CelebornIOException(
-                StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE,
-                new RuntimeException("Mock push merge data failed.")));
+        if (!testRetryRevive || remainReviveTimes < 1) {
+          TransportClient client = dataClientFactory.createClient(host, port);
+          client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
+        } else {
+          wrappedCallback.onFailure(
+              new CelebornIOException(
+                  StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE,
+                  new RuntimeException("Mock push merge data failed.")));
+        }
       }
     } catch (Exception e) {
       logger.error(
@@ -1460,6 +1514,11 @@ public class ShuffleClientImpl extends ShuffleClient {
         && mapperEndMap.get(shuffleId).contains(Utils.makeMapKey(shuffleId, mapId, attemptId));
   }
 
+  private boolean isPushBlacklisted(StatusCode cause) {
+    return cause == StatusCode.PUSH_DATA_MASTER_BLACKLISTED
+        || cause == StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
+  }
+
   private StatusCode getPushDataFailCause(String message) {
     logger.debug("Push data failed cause message: " + message);
     StatusCode cause;
@@ -1481,6 +1540,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_TIMEOUT_SLAVE;
     } else if (message.startsWith(StatusCode.REPLICATE_DATA_FAILED.name())) {
       cause = StatusCode.REPLICATE_DATA_FAILED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_MASTER_BLACKLISTED.name())) {
+      cause = StatusCode.PUSH_DATA_MASTER_BLACKLISTED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED.name())) {
+      cause = StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
     } else if (connectFail(message)) {
       // Throw when push to master worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
