@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.{function, List => JList, Set => JSet}
+import java.util.{function, HashSet => JHashSet, List => JList, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -72,7 +72,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   // shuffle id -> (partitionId -> newest PartitionLocation)
   val latestPartitionLocation =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
-  private val shuttingWorkers: JSet[WorkerInfo] = ConcurrentHashMap.newKeySet()
+  private val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   @VisibleForTesting
