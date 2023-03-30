@@ -72,7 +72,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   // shuffle id -> (partitionId -> newest PartitionLocation)
   val latestPartitionLocation =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
-  private val shutdownWorkers: JSet[WorkerInfo] = ConcurrentHashMap.newKeySet()
+  private val shuttingWorkers: JSet[WorkerInfo] = ConcurrentHashMap.newKeySet()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   @VisibleForTesting
@@ -1236,17 +1236,15 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def resolveShutdownWorkers(workers: JList[WorkerInfo]): Unit = {
-    if (!workers.isEmpty) {
+  private def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): Unit = {
+    if (!newShutdownWorkers.isEmpty) {
       // shutdownWorkers only retain workers appeared in response.
-      shutdownWorkers.retainAll(shutdownWorkers)
-      val newShutdownWorkers = workers.asScala.filterNot(shutdownWorkers.asScala.contains)
-      shutdownWorkers.addAll(workers)
-      if (newShutdownWorkers.nonEmpty) {
-        newShutdownWorkers.foreach { workerInfo =>
+      shuttingWorkers.retainAll(newShutdownWorkers)
+      newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains)
+        .foreach { workerInfo =>
           commitManager.handleShutdownWorker(workerInfo)
         }
-      }
+      shuttingWorkers.addAll(newShutdownWorkers)
     }
   }
 
