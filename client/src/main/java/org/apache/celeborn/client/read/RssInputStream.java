@@ -268,7 +268,8 @@ public abstract class RssInputStream extends InputStream {
                   e);
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
             } else {
-              logger.warn("Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry, e);
+              logger.warn(
+                  "Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry, e);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               currentReader = createReaderWithRetry(currentReader.getLocation());
             }
