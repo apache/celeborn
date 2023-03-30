@@ -36,16 +36,37 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
   public static final Logger logger = LoggerFactory.getLogger(FlinkTransportClientFactory.class);
 
   private ConcurrentHashMap<Long, Supplier<ByteBuf>> bufferSuppliers;
+  private final int fetchMaxRetries;
 
-  public FlinkTransportClientFactory(TransportContext context) {
+  public FlinkTransportClientFactory(TransportContext context, int fetchMaxRetries) {
     super(context);
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
+    this.fetchMaxRetries = fetchMaxRetries;
   }
 
   public TransportClient createClientWithRetry(String remoteHost, int remotePort)
       throws IOException, InterruptedException {
-    return createClientWithRetry(
-        remoteHost, remotePort, -1, new TransportFrameDecoderWithBufferSupplier(bufferSuppliers));
+    int retryCount = fetchMaxRetries;
+
+    while (retryCount > 0) {
+      try {
+        return createClient(remoteHost, remotePort);
+      } catch (IOException e) {
+        retryCount--;
+        logger.warn(
+            "Retrying ({}/{}) times create client to {}:{}",
+            retryCount,
+            fetchMaxRetries,
+            remoteHost,
+            remotePort,
+            e);
+        if (retryCount == 0) {
+          throw e;
+        }
+      }
+    }
+
+    return null;
   }
 
   public TransportClient createClient(String remoteHost, int remotePort)
