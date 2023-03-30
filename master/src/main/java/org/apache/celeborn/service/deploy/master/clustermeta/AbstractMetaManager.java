@@ -352,7 +352,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
   }
 
-  public void updateBlacklistByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
+  public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
     synchronized (this.workers) {
       shutdownWorkers.addAll(failedWorkers);
       failedWorkers.retainAll(this.workers);
