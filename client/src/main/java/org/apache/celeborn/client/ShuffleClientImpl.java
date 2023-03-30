@@ -847,6 +847,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
+                // For blacklisted partition location, Celeborn should not use retry quota.
                 if (!isPushBlacklisted(cause)) {
                   remainReviveTimes = remainReviveTimes - 1;
                 }
@@ -1240,6 +1241,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 e);
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               int tmpRemainReviveTimes = remainReviveTimes;
+              // For blacklisted partition location, Celeborn should not use retry quota.
               if (!isPushBlacklisted(cause)) {
                 tmpRemainReviveTimes = tmpRemainReviveTimes - 1;
               }
