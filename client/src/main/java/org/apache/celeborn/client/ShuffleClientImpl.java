@@ -217,6 +217,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           batchId,
           newLoc);
       try {
+        // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
         if (blacklist.contains(newLoc.hostAndPushPort())) {
           wrappedCallback.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
@@ -882,6 +883,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       // do push data
       try {
+        // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
         if (blacklist.contains(loc.hostAndPushPort())) {
           wrappedCallback.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
@@ -1264,6 +1266,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // do push merged data
     try {
+      // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
       if (blacklist.contains(hostPort)) {
         wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       } else if (tokens.length == 2 && blacklist.contains(tokens[1])) {
