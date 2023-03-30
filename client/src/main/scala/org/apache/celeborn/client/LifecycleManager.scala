@@ -129,8 +129,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       appId,
       conf,
       rssHARetryClient,
-      () => commitManager.commitMetrics(),
-      resolveShutdownWorkers)
+      () => commitManager.commitMetrics())
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(appId, conf, this)
 
@@ -709,7 +708,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val res = requestGetBlacklist(rssHARetryClient, msg)
     if (res.statusCode == StatusCode.SUCCESS) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
-        s"unknown workers: ${res.unknownWorkers}")
+        s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shutdownWorkers}")
+      resolveShutdownWorkers(res.shutdownWorkers)
       val current = System.currentTimeMillis()
       val reserved = blacklist.asScala
         .filter { case (_, entry) =>
@@ -1200,7 +1200,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } catch {
       case e: Exception =>
         logError(s"AskSync GetBlacklist failed.", e)
-        GetBlacklistResponse(StatusCode.REQUEST_FAILED, List.empty.asJava, List.empty.asJava)
+        GetBlacklistResponse(
+          StatusCode.REQUEST_FAILED,
+          List.empty.asJava,
+          List.empty.asJava,
+          List.empty.asJava)
     }
   }
 

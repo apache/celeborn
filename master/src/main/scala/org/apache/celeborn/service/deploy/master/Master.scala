@@ -598,7 +598,8 @@ private[celeborn] class Master(
       GetBlacklistResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(statusSystem.blacklist),
-        msg.localBlacklist))
+        msg.localBlacklist,
+        shutdownWorkerSnapshot))
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
@@ -637,9 +638,7 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    logInfo(
-      s"Current shutdown workers ${shutdownWorkerSnapshot.asScala.map(_.toUniqueId()).mkString("[", ", ", "]")}")
-    context.reply(HeartbeatFromApplicationResponse(shutdownWorkerSnapshot))
+    context.reply(OneWayMessageResponse)
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)

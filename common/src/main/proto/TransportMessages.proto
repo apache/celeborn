@@ -285,10 +285,6 @@ message PbHeartbeatFromApplication {
   string requestId = 4;
 }
 
-message PbHeartbeatFromApplicationResponse {
-  repeated PbWorkerInfo shutdownWorkers = 1;
-}
-
 message PbGetBlacklist {
   repeated PbWorkerInfo localBlackList = 1;
 }
@@ -297,6 +293,7 @@ message PbGetBlacklistResponse {
   int32 status = 1;
   repeated PbWorkerInfo blacklist = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
+  repeated PbWorkerInfo shutdownWorkers = 4;
 }
 
 message PbCheckQuota {
