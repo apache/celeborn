@@ -144,7 +144,6 @@ public class MemoryManager {
       System.out.println("exception " + ignored);
       // Ignore Exception
     }
-    System.out.println(maxDirectorMemory);
     Preconditions.checkArgument(maxDirectorMemory > 0);
     Preconditions.checkArgument(pauseReplicateRatio > pausePushDataRatio);
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
