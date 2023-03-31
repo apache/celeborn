@@ -1511,7 +1511,7 @@ object CelebornConf extends Logging {
       .doc("Whether to enable shuffle client blacklist.")
       .version("0.3.0")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
