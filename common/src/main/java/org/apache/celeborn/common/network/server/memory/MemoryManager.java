@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.LongAdder;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
+import org.apache.commons.lang3.JavaVersion;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,29 +122,27 @@ public class MemoryManager {
       double shuffleStorageRatio,
       long checkInterval,
       long reportInterval) {
-    String[][] providers =
-        new String[][] {
-          {"sun.misc.VM", "maxDirectMemory"},
-          {"jdk.internal.misc.VM", "maxDirectMemory"}
-        };
+    String[] provider;
+    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_10)) {
+      provider = new String[] {"jdk.internal.misc.VM", "maxDirectMemory"};
+    } else {
+      provider = new String[] {"sun.misc.VM", "maxDirectMemory"};
+    }
 
-    Method maxMemMethod = null;
-    for (String[] provider : providers) {
-      String clazz = provider[0];
-      String method = provider[1];
-      try {
-        Class<?> vmClass = Class.forName(clazz);
-        maxMemMethod = vmClass.getDeclaredMethod(method);
+    Method maxMemMethod;
+    String clazz = provider[0];
+    String method = provider[1];
+    try {
+      Class<?> vmClass = Class.forName(clazz);
+      maxMemMethod = vmClass.getDeclaredMethod(method);
 
-        maxMemMethod.setAccessible(true);
-        maxDirectorMemory = (long) maxMemMethod.invoke(null);
-        break;
-      } catch (ClassNotFoundException
-          | NoSuchMethodException
-          | IllegalAccessException
-          | InvocationTargetException ignored) {
-        // Ignore Exception
-      }
+      maxDirectorMemory = (long) maxMemMethod.invoke(null);
+    } catch (ClassNotFoundException
+        | NoSuchMethodException
+        | IllegalAccessException
+        | InvocationTargetException ignored) {
+      System.out.println("exception " + ignored);
+      // Ignore Exception
     }
     Preconditions.checkArgument(maxDirectorMemory > 0);
     Preconditions.checkArgument(pauseReplicateRatio > pausePushDataRatio);
