@@ -20,6 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         java:
+          - 8
           - 11
     steps:
     - uses: actions/checkout@v2
@@ -40,7 +41,7 @@ jobs:
         path: |
           **/target/unit-tests.log
     - name: Upload coverage to Codecov
-      if: matrix.java == 11
+      if: matrix.java == 8
       uses: codecov/codecov-action@v3
 
   spark:
@@ -49,6 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         java:
+          - 8
           - 11
         spark:
           - '2.4'
@@ -87,6 +89,7 @@ jobs:
       fail-fast: false
       matrix:
         java:
+          - 8
           - 11
         flink:
           - '1.14'
