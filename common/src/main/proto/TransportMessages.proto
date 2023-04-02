@@ -292,6 +292,7 @@ message PbGetBlacklistResponse {
   int32 status = 1;
   repeated PbWorkerInfo blacklist = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
+  repeated PbWorkerInfo shutdownWorkers = 4;
 }
 
 message PbCheckQuota {
@@ -465,4 +466,5 @@ message PbSnapshotMetaInfo {
   repeated PbAppDiskUsageSnapshot appDiskUsageMetricSnapshots = 10;
   optional PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
   map<string, int64> lostWorkers = 12;
+  repeated PbWorkerInfo shutdownWorkers = 13;
 }

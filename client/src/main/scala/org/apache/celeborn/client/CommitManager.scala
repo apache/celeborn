@@ -291,4 +291,27 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     }
     (totalWritten, totalFileCount)
   }
+
+  def handleShutdownWorker(shuttingWorker: WorkerInfo): Unit = {
+    logError(s"Worker ${shuttingWorker.toUniqueId()} shutdown, " +
+      "commit all it's partition location.")
+    lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
+      case (shuffleId, workerToPartitionLocationInfos) =>
+        val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
+        val partitionLocationInfo = workerToPartitionLocationInfos.get(shuttingWorker)
+        if (partitionLocationInfo != null) {
+          partitionLocationInfo.getMasterPartitions().asScala.foreach { partitionLocation =>
+            shuffleCommittedInfo.synchronized {
+              shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
+            }
+          }
+
+          partitionLocationInfo.getSlavePartitions().asScala.foreach { partitionLocation =>
+            shuffleCommittedInfo.synchronized {
+              shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
+            }
+          }
+        }
+    }
+  }
 }

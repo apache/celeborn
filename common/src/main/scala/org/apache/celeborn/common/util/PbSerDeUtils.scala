@@ -370,7 +370,8 @@ object PbSerDeUtils {
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
-      lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long]): PbSnapshotMetaInfo = {
+      lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
+      shutdownWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -388,6 +389,7 @@ object PbSerDeUtils {
       .putAllLostWorkers(lostWorkers.asScala.map {
         case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
       }.asJava)
+      .addAllShutdownWorkers(shutdownWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
     if (currentAppDiskUsageMetricsSnapshot != null) {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))

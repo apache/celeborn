@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.{function, List => JList}
+import java.util.{function, HashSet => JHashSet, List => JList, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -72,6 +72,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   // shuffle id -> (partitionId -> newest PartitionLocation)
   val latestPartitionLocation =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+  private val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   @VisibleForTesting
@@ -703,7 +704,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val res = requestGetBlacklist(rssHARetryClient, msg)
     if (res.statusCode == StatusCode.SUCCESS) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
-        s"unknown workers: ${res.unknownWorkers}")
+        s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shutdownWorkers}")
+      resolveShutdownWorkers(res.shutdownWorkers)
       val current = System.currentTimeMillis()
       val reserved = blacklist.asScala
         .filter { case (_, entry) =>
@@ -1194,7 +1196,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     } catch {
       case e: Exception =>
         logError(s"AskSync GetBlacklist failed.", e)
-        GetBlacklistResponse(StatusCode.REQUEST_FAILED, List.empty.asJava, List.empty.asJava)
+        GetBlacklistResponse(
+          StatusCode.REQUEST_FAILED,
+          List.empty.asJava,
+          List.empty.asJava,
+          List.empty.asJava)
     }
   }
 
@@ -1227,6 +1233,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         val msg = s"AskSync Cluster check quota for $userIdentifier failed."
         logError(msg, e)
         CheckQuotaResponse(false, msg)
+    }
+  }
+
+  private def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): Unit = {
+    if (!newShutdownWorkers.isEmpty) {
+      // shutdownWorkers only retain workers appeared in response.
+      shuttingWorkers.retainAll(newShutdownWorkers)
+      newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains)
+        .foreach { workerInfo =>
+          commitManager.handleShutdownWorker(workerInfo)
+        }
+      shuttingWorkers.addAll(newShutdownWorkers)
     }
   }
 
