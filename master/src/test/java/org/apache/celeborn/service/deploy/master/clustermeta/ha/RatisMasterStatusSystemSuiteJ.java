@@ -862,9 +862,7 @@ public class RatisMasterStatusSystemSuiteJ {
             .getMasterStateMachine()
             .notifyLogFailed(new Exception("test leader step down"), null);
         Assert.assertFalse(haRaftServer.isLeader());
-        while(pickLeaderStatusSystem() != null) {
-          break;
-        }
+        break;
       }
     }
   }
