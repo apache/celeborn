@@ -179,6 +179,24 @@ public class ShuffleClientImpl extends ShuffleClient {
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
   }
 
+
+  private boolean checkPushBlacklisted(
+      PartitionLocation location,
+      RpcResponseCallback wrappedCallback) {
+    // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
+    if (blacklist.contains(location.hostAndPushPort())) {
+      wrappedCallback.onFailure(
+          new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
+      return true;
+    } else if (location.getPeer() != null
+        && blacklist.contains(location.getPeer().hostAndPushPort())) {
+      wrappedCallback.onFailure(
+          new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
+      return true;
+    } else {
+      return false;
+    }
+  }
   private void submitRetryPushData(
       String applicationId,
       int shuffleId,
@@ -217,15 +235,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           batchId,
           newLoc);
       try {
-        // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
-        if (blacklist.contains(newLoc.hostAndPushPort())) {
-          wrappedCallback.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
-        } else if (newLoc.getPeer() != null
-            && blacklist.contains(newLoc.getPeer().hostAndPushPort())) {
-          wrappedCallback.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
-        } else {
+        if (!checkPushBlacklisted(newLoc, wrappedCallback)) {
           if (!testRetryRevive || remainReviveTimes < 1) {
             TransportClient client =
                 dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
@@ -849,7 +859,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
                 // For blacklisted partition location, Celeborn should not use retry quota.
-                if (!isPushBlacklisted(cause)) {
+                if (!pushStatusIsBlacklisted(cause)) {
                   remainReviveTimes = remainReviveTimes - 1;
                 }
                 pushDataRetryPool.submit(
@@ -883,14 +893,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       // do push data
       try {
-        // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
-        if (blacklist.contains(loc.hostAndPushPort())) {
-          wrappedCallback.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
-        } else if (loc.getPeer() != null && blacklist.contains(loc.getPeer().hostAndPushPort())) {
-          wrappedCallback.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
-        } else {
+        if (!checkPushBlacklisted(loc, wrappedCallback)) {
           if (!testRetryRevive) {
             TransportClient client =
                 dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
@@ -1067,8 +1070,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       ArrayList<DataBatches.DataBatch> batches,
       PushState pushState,
       int remainReviveTimes) {
-    String[] tokens = addressPair.split("-");
-    String hostPort = tokens[0];
+    String hostPort = addressPair.split("-")[0];
     final String[] splits = hostPort.split(":");
     final String host = splits[0];
     final int port = Integer.parseInt(splits[1]);
@@ -1244,7 +1246,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               int tmpRemainReviveTimes = remainReviveTimes;
               // For blacklisted partition location, Celeborn should not use retry quota.
-              if (!isPushBlacklisted(cause)) {
+              if (!pushStatusIsBlacklisted(cause)) {
                 tmpRemainReviveTimes = tmpRemainReviveTimes - 1;
               }
               int finalRemainReviveTimes = tmpRemainReviveTimes;
@@ -1266,12 +1268,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // do push merged data
     try {
-      // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
-      if (blacklist.contains(hostPort)) {
-        wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
-      } else if (tokens.length == 2 && blacklist.contains(tokens[1])) {
-        wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
-      } else {
+      if (!checkPushBlacklisted(batches.get(0).loc, wrappedCallback)) {
         if (!testRetryRevive || remainReviveTimes < 1) {
           TransportClient client = dataClientFactory.createClient(host, port);
           client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
@@ -1519,7 +1516,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         && mapperEndMap.get(shuffleId).contains(Utils.makeMapKey(shuffleId, mapId, attemptId));
   }
 
-  private boolean isPushBlacklisted(StatusCode cause) {
+  private boolean pushStatusIsBlacklisted(StatusCode cause) {
     return cause == StatusCode.PUSH_DATA_MASTER_BLACKLISTED
         || cause == StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
   }
