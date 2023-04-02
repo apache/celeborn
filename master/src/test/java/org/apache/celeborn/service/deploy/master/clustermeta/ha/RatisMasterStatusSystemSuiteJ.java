@@ -855,4 +855,18 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleUpdatePartitionSize();
     Thread.sleep(3000L);
   }
+
+  @Test
+  public void testNotifyLogFailed() {
+    List<HARaftServer> list = Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3);
+    for (HARaftServer haRaftServer : list) {
+      if (haRaftServer.isLeader()) {
+        haRaftServer
+            .getMasterStateMachine()
+            .notifyLogFailed(new Exception("test leader step down"), null);
+        Assert.assertFalse(haRaftServer.isLeader());
+        break;
+      }
+    }
+  }
 }
