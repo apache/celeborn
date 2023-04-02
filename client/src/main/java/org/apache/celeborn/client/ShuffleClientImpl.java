@@ -95,7 +95,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId-mapId-attemptId
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
-  private final boolean shuffleClientBlacklistEnabled;
+  private final boolean shuffleClientPushBlacklistEnabled;
   private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
 
   private final ExecutorService pushDataRetryPool;
@@ -151,7 +151,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     maxReviveTimes = conf.pushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.pushBufferMaxSize();
-    shuffleClientBlacklistEnabled = conf.shuffleClientBlacklistEnabled();
+    shuffleClientPushBlacklistEnabled = conf.shuffleClientPushBlacklistEnabled();
     if (conf.pushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -179,24 +179,21 @@ public class ShuffleClientImpl extends ShuffleClient {
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
   }
 
-
   private boolean checkPushBlacklisted(
-      PartitionLocation location,
-      RpcResponseCallback wrappedCallback) {
+      PartitionLocation location, RpcResponseCallback wrappedCallback) {
     // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
     if (blacklist.contains(location.hostAndPushPort())) {
-      wrappedCallback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
+      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       return true;
     } else if (location.getPeer() != null
         && blacklist.contains(location.getPeer().hostAndPushPort())) {
-      wrappedCallback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
+      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       return true;
     } else {
       return false;
     }
   }
+
   private void submitRetryPushData(
       String applicationId,
       int shuffleId,
@@ -532,7 +529,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation oldLocation,
       StatusCode cause) {
     // Add ShuffleClient side blacklist
-    if (shuffleClientBlacklistEnabled) {
+    if (shuffleClientPushBlacklistEnabled) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
         blacklist.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
