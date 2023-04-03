@@ -541,6 +541,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def requestCommitFilesMaxRetries: Int = get(COMMIT_FILE_REQUEST_MAX_RETRY)
+  def shuffleClientPushBlacklistEnabled: Boolean = get(SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -1501,6 +1502,14 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("Fail commitFile request for test")
       .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
+    buildConf(" celeborn.client.push.blacklist.enabled")
+      .categories("client")
+      .doc("Whether to enable shuffle client-side push blacklist of workers.")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
