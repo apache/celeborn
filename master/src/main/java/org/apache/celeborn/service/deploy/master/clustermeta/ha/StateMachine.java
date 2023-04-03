@@ -372,6 +372,14 @@ public class StateMachine extends BaseStateMachine {
     return lastTermIndex.getIndex();
   }
 
+  @Override
+  public void notifyLogFailed(Throwable cause, RaftProtos.LogEntryProto failedEntry) {
+    LOG.warn("Log failed {}", cause.getMessage());
+    if (masterRatisServer != null && masterRatisServer.isLeader()) {
+      masterRatisServer.stepDown();
+    }
+  }
+
   /** Notifies the state machine that the raft peer is no longer leader. */
   @Override
   public void notifyNotLeader(Collection<TransactionContext> pendingEntries) throws IOException {
