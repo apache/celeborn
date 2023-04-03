@@ -854,7 +854,7 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @AfterClass
-  public void testNotifyLogFailed() {
+  public static void testNotifyLogFailed() {
     List<HARaftServer> list = Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3);
     for (HARaftServer haRaftServer : list) {
       if (haRaftServer.isLeader()) {
