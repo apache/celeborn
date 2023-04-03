@@ -20,7 +20,9 @@ package org.apache.celeborn.client.read;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
 
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -38,10 +40,14 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
+
+  private static final ConcurrentHashMap<String, Set<String>> reducerBlacklist =
+      JavaUtils.newConcurrentHashMap();
 
   public static RssInputStream create(
       CelebornConf conf,
@@ -56,6 +62,7 @@ public abstract class RssInputStream extends InputStream {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
     } else {
+      reducerBlacklist.putIfAbsent(shuffleKey, ConcurrentHashMap.newKeySet());
       return new RssInputStreamImpl(
           conf,
           clientFactory,
@@ -125,6 +132,8 @@ public abstract class RssInputStream extends InputStream {
     private LongAdder skipCount = new LongAdder();
     private final boolean rangeReadFilter;
 
+    private boolean shuffleClientFetchBlacklistEnabled;
+
     RssInputStreamImpl(
         CelebornConf conf,
         TransportClientFactory clientFactory,
@@ -144,6 +153,7 @@ public abstract class RssInputStream extends InputStream {
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
+      this.shuffleClientFetchBlacklistEnabled = conf.shuffleClientFetchBlacklistEnabled();
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = conf.pushBufferMaxSize() + headerLen;
@@ -222,11 +232,33 @@ public abstract class RssInputStream extends InputStream {
       currentChunk = getNextChunk();
     }
 
+    private boolean criticalCause(Exception e) {
+      boolean isConnectTimeout =
+          e instanceof IOException
+              && e.getMessage().startsWith("Connecting to")
+              && e.getMessage().contains("timed out");
+      boolean rpcTimeout =
+          e instanceof IOException
+              && e.getCause() != null
+              && e.getCause() instanceof TimeoutException;
+      boolean fetchChunkTimeout =
+          e instanceof CelebornIOException
+              && e.getCause() != null
+              && e.getCause() instanceof IOException;
+      return isConnectTimeout || rpcTimeout || fetchChunkTimeout;
+    }
+
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
+          if (reducerBlacklist.get(shuffleKey).contains(location.hostAndFetchPort())) {
+            throw new CelebornIOException("Fetch data from blacklisted location! " + location);
+          }
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
+          if (shuffleClientFetchBlacklistEnabled && criticalCause(e)) {
+            reducerBlacklist.get(shuffleKey).add(location.hostAndFetchPort());
+          }
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
             location = location.getPeer();
@@ -251,8 +283,17 @@ public abstract class RssInputStream extends InputStream {
     private ByteBuf getNextChunk() throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
+          if (reducerBlacklist
+              .get(shuffleKey)
+              .contains(currentReader.getLocation().hostAndFetchPort())) {
+            throw new CelebornIOException(
+                "Fetch data from blacklisted location! " + currentReader.getLocation());
+          }
           return currentReader.next();
         } catch (Exception e) {
+          if (shuffleClientFetchBlacklistEnabled && criticalCause(e)) {
+            reducerBlacklist.get(shuffleKey).add(currentReader.getLocation().hostAndFetchPort());
+          }
           fetchChunkRetryCnt++;
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
