@@ -1269,7 +1269,7 @@ object CelebornConf extends Logging {
         "asynchronously to ensure the pushed shuffle data won't be lost after the node failure.")
       .version("0.2.0")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val PUSH_BUFFER_INITIAL_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.push.buffer.initial.size")
