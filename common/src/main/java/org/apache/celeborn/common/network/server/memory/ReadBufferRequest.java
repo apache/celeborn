@@ -20,26 +20,19 @@ package org.apache.celeborn.common.network.server.memory;
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class ReadBufferRequest {
-  private final int min;
-  private final int max;
+  private final int number;
   private final int bufferSize;
   private final ReadBufferListener readBufferListener;
 
-  ReadBufferRequest(int min, int max, int bufferSize, ReadBufferListener readBufferListener) {
-    checkArgument(
-        min > 0 && max > 0 && max >= min, String.format("Invalid min=%d, max=%d.", min, max));
-    this.min = min;
-    this.max = max;
+  public ReadBufferRequest(int number, int bufferSize, ReadBufferListener readBufferListener) {
+    checkArgument(number > 0);
+    this.number = number;
     this.bufferSize = bufferSize;
     this.readBufferListener = readBufferListener;
   }
 
-  public int getMin() {
-    return min;
-  }
-
-  public int getMax() {
-    return max;
+  public int getNumber() {
+    return number;
   }
 
   public int getBufferSize() {

@@ -62,6 +62,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
@@ -476,7 +477,12 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
           return;
         }
         LOG.error("Input {} gate failed ", this, throwable);
-        cause = new PartitionNotFoundException(rpID);
+        Class<?> clazz = CelebornIOException.class;
+        if (throwable.getMessage().contains(clazz.getName())) {
+          cause = new PartitionNotFoundException(rpID);
+        } else {
+          cause = throwable;
+        }
         availabilityHelper.getUnavailableToResetAvailable().complete(null);
       }
     };

@@ -23,6 +23,7 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadAddCredit;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
@@ -89,7 +90,7 @@ public class RemoteBufferStreamReader extends CreditListener {
           RemoteBufferStreamReader.this::requestBuffer, initialCredit, client, messageConsumer);
     } catch (Exception e) {
       logger.warn("Failed to open stream and report to flink framework. ", e);
-      messageConsumer.accept(new TransportableError(0L, e));
+      messageConsumer.accept(new TransportableError(0L, new CelebornIOException(e)));
     }
     isOpened = true;
   }

@@ -37,6 +37,8 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.server.CreditStreamManager;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -69,37 +71,27 @@ public class MemoryManager {
   private boolean underPressure;
   private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
-  // For buffer stream
+  // For credit stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
   private long readBufferThreshold = 0;
-  private final ReadBufferDispatcher readBufferDispatcher;
+  private long readBufferTarget = 0;
+  private ReadBufferDispatcher readBufferDispatcher;
+  private List<ReadBufferTargetChangeListener> readBufferTargetChangeListeners;
+  private Object readBufferTargetChangeLock = new Object();
+  private long lastNotifiedTarget = 0;
+  private final ScheduledExecutorService readBufferTargetUpdateService =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+          "memory-mananger-readBufferTarget-updater");
+  private CreditStreamManager creditStreamManager = null;
 
   // For memory shuffle storage
   private final AtomicLong memoryShuffleStorageCounter = new AtomicLong(0);
   private long memoryShuffleStorageThreshold = 0;
 
-  public static MemoryManager initialize(
-      double pausePushDataRatio,
-      double pauseReplicateRatio,
-      double resumeRatio,
-      double maxSortRatio,
-      double readBufferRatio,
-      double shuffleStorageRatio,
-      long checkInterval,
-      long reportInterval) {
+  public static MemoryManager initialize(CelebornConf conf) {
     if (_INSTANCE == null) {
-      _INSTANCE =
-          new MemoryManager(
-              pausePushDataRatio,
-              pauseReplicateRatio,
-              resumeRatio,
-              maxSortRatio,
-              readBufferRatio,
-              shuffleStorageRatio,
-              checkInterval,
-              reportInterval);
+      _INSTANCE = new MemoryManager(conf);
     }
-
     return _INSTANCE;
   }
 
@@ -113,15 +105,20 @@ public class MemoryManager {
     return _INSTANCE;
   }
 
-  private MemoryManager(
-      double pausePushDataRatio,
-      double pauseReplicateRatio,
-      double resumeRatio,
-      double maxSortMemRatio,
-      double readBufferRatio,
-      double shuffleStorageRatio,
-      long checkInterval,
-      long reportInterval) {
+  private MemoryManager(CelebornConf conf) {
+    double pausePushDataRatio = conf.workerDirectMemoryRatioToPauseReceive();
+    double pauseReplicateRatio = conf.workerDirectMemoryRatioToPauseReplicate();
+    double resumeRatio = conf.workerDirectMemoryRatioToResume();
+    double maxSortMemRatio = conf.partitionSorterDirectMemoryRatioThreshold();
+    double readBufferRatio = conf.workerDirectMemoryRatioForReadBuffer();
+    double shuffleStorageRatio = conf.workerDirectMemoryRatioForShuffleStorage();
+    long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();
+    long reportInterval = conf.workerDirectMemoryReportIntervalSecond();
+    long readBufferAllocationWait = conf.readBufferAllocationWait();
+    double readBufferTargetRatio = conf.readBufferTargetRatio();
+    long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
+    long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
+
     String[] provider;
     if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_10)) {
       provider = new String[] {"jdk.internal.misc.VM", "maxDirectMemory"};
@@ -154,6 +151,7 @@ public class MemoryManager {
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
     resumeThreshold = (long) (maxDirectorMemory * resumeRatio);
     readBufferThreshold = (long) (maxDirectorMemory * readBufferRatio);
+    readBufferTarget = (long) (readBufferThreshold * readBufferTargetRatio);
     memoryShuffleStorageThreshold = (long) (maxDirectorMemory * shuffleStorageRatio);
 
     initDirectMemoryIndicator();
@@ -239,18 +237,48 @@ public class MemoryManager {
         reportInterval,
         TimeUnit.SECONDS);
 
-    readBufferDispatcher = new ReadBufferDispatcher(this);
+    if (readBufferThreshold > 0) {
+      // if read buffer threshold is zero means that there will be no map data partitions
+      readBufferDispatcher = new ReadBufferDispatcher(this, readBufferAllocationWait);
+      readBufferTargetChangeListeners = new ArrayList<>();
+      readBufferTargetUpdateService.scheduleWithFixedDelay(
+          () -> {
+            if (creditStreamManager != null) {
+              int mapDataPartitionCount = creditStreamManager.getActiveMapPartitionCount();
+              if (mapDataPartitionCount > 0) {
+                long currentTarget =
+                    (long) Math.ceil(readBufferTarget * 1.0 / mapDataPartitionCount);
+                if (Math.abs(readBufferTargetUpdateInterval - currentTarget)
+                    > readBufferTargetNotifyThreshold) {
+                  synchronized (readBufferTargetChangeLock) {
+                    logger.debug(
+                        "read buffer target changed {} -> {}", lastNotifiedTarget, currentTarget);
+                    for (ReadBufferTargetChangeListener changeListener :
+                        readBufferTargetChangeListeners) {
+                      changeListener.onChange(currentTarget);
+                    }
+                    lastNotifiedTarget = currentTarget;
+                  }
+                }
+              }
+            }
+          },
+          readBufferTargetUpdateInterval,
+          readBufferTargetUpdateInterval,
+          TimeUnit.MILLISECONDS);
+    }
 
     logger.info(
         "Memory tracker initialized with: "
             + "max direct memory: {}, pause pushdata memory: {}, "
             + "pause replication memory: {}, resume memory: {},"
-            + "read buffer memory limit: {}, memory shuffle storage limit : {}",
+            + "read buffer memory limit: {} target :{} , memory shuffle storage limit : {}",
         Utils.bytesToString(maxDirectorMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
         Utils.bytesToString(resumeThreshold),
         Utils.bytesToString(readBufferThreshold),
+        Utils.bytesToString(readBufferTarget),
         Utils.bytesToString(memoryShuffleStorageThreshold));
   }
 
@@ -295,14 +323,6 @@ public class MemoryManager {
         }
       }
     }
-  }
-
-  public interface MemoryPressureListener {
-    void onPause(String moduleName);
-
-    void onResume(String moduleName);
-
-    void onTrim();
   }
 
   public void trimAllListeners() {
@@ -352,16 +372,16 @@ public class MemoryManager {
     return diskBufferCounter;
   }
 
-  public AtomicLong getReadBufferCounter() {
-    return readBufferCounter;
+  public long getReadBufferCounter() {
+    return readBufferCounter.get();
   }
 
   public long getPausePushDataCounter() {
     return pausePushDataCounter.sum();
   }
 
-  public void requestReadBuffers(int min, int max, int bufferSize, ReadBufferListener listener) {
-    readBufferDispatcher.addBufferRequest(new ReadBufferRequest(min, max, bufferSize, listener));
+  public void requestReadBuffers(ReadBufferRequest request) {
+    readBufferDispatcher.addBufferRequest(request);
   }
 
   public void recycleReadBuffer(ByteBuf readBuf) {
@@ -380,8 +400,50 @@ public class MemoryManager {
     return pausePushDataAndReplicateCounter.sum();
   }
 
+  public long getAllocatedReadBuffers() {
+    return readBufferDispatcher.getAllocatedReadBuffers();
+  }
+
   public int dispatchRequestsLength() {
     return readBufferDispatcher.requestsLength();
+  }
+
+  public void addReadBufferTargetChangeListener(ReadBufferTargetChangeListener listener) {
+    synchronized (readBufferTargetChangeLock) {
+      readBufferTargetChangeListeners.add(listener);
+    }
+  }
+
+  public void removeReadBufferTargetChangeListener(ReadBufferTargetChangeListener listener) {
+    synchronized (readBufferTargetChangeLock) {
+      readBufferTargetChangeListeners.remove(listener);
+    }
+  }
+
+  public void setCreditStreamManager(CreditStreamManager creditStreamManager) {
+    this.creditStreamManager = creditStreamManager;
+  }
+
+  public void close() {
+    checkService.shutdown();
+    reportService.shutdown();
+    actionService.shutdown();
+    readBufferTargetUpdateService.shutdown();
+    memoryPressureListeners.clear();
+    readBufferTargetChangeListeners.clear();
+    readBufferDispatcher.close();
+  }
+
+  public interface MemoryPressureListener {
+    void onPause(String moduleName);
+
+    void onResume(String moduleName);
+
+    void onTrim();
+  }
+
+  public interface ReadBufferTargetChangeListener {
+    void onChange(long nVal);
   }
 
   enum MemoryManagerStat {

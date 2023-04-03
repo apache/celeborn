@@ -21,24 +21,15 @@ import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
 
-public class BufferRecycler implements Recycler {
-
-  private MemoryManager memoryManager;
+public class BufferRecycler {
 
   private Consumer<ByteBuf> recycleConsumer;
 
-  public BufferRecycler(MemoryManager memoryManager, Consumer<ByteBuf> recycleConsumer) {
-    this.memoryManager = memoryManager;
+  public BufferRecycler(Consumer<ByteBuf> recycleConsumer) {
     this.recycleConsumer = recycleConsumer;
   }
 
-  @Override
   public void recycle(ByteBuf byteBuf) {
     recycleConsumer.accept(byteBuf);
-  }
-
-  @Override
-  public void release(ByteBuf byteBuf) {
-    memoryManager.recycleReadBuffer(byteBuf);
   }
 }

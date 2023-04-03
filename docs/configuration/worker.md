@@ -77,14 +77,19 @@ license: |
 | celeborn.worker.monitor.disk.notifyError.threshold | 64 | Device monitor will only notify critical error once the accumulated valid non-critical error number exceeding this threshold. | 0.3.0 | 
 | celeborn.worker.monitor.disk.sys.block.dir | /sys/block | The directory where linux file block information is stored. | 0.2.0 | 
 | celeborn.worker.noneEmptyDirExpireDuration | 1d | If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired. | 0.2.0 | 
-| celeborn.worker.partition.initial.readBuffersMax | 8 | Max number of initial read buffers | 0.3.0 | 
-| celeborn.worker.partition.initial.readBuffersMin | 8 | Min number of initial read buffers | 0.3.0 | 
+| celeborn.worker.partition.initial.readBuffersMax | 1024 | Max number of initial read buffers | 0.3.0 | 
+| celeborn.worker.partition.initial.readBuffersMin | 1 | Min number of initial read buffers | 0.3.0 | 
 | celeborn.worker.partitionSorter.directMemoryRatioThreshold | 0.1 | Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition sorter memory, partition sorter will stop sorting. | 0.2.0 | 
 | celeborn.worker.partitionSorter.reservedMemoryPerPartition | 1mb | Reserved memory when sorting a shuffle file off-heap. | 0.2.0 | 
 | celeborn.worker.partitionSorter.sort.timeout | 220s | Timeout for a shuffle file to sort. | 0.2.0 | 
 | celeborn.worker.partitionSorter.threads | &lt;undefined&gt; | PartitionSorter's thread counts. | 0.3.0 | 
 | celeborn.worker.push.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to handle client push data. The default threads number is the number of flush thread. | 0.2.0 | 
 | celeborn.worker.push.port | 0 | Server port for Worker to receive push data request from ShuffleClient. | 0.2.0 | 
+| celeborn.worker.readBuffer.allocationWait | 50ms | The time to wait when buffer dispatcher can not allocate a buffer. | 0.3.0 | 
+| celeborn.worker.readBuffer.readAhead.min | 32 | Min buffers count for map data partition to per read ahead operation. | 0.3.0 | 
+| celeborn.worker.readBuffer.target.changeThreshold | 1mb | The target ratio for pre read memory usage. | 0.3.0 | 
+| celeborn.worker.readBuffer.target.ratio | 0.9 | The target ratio for read ahead buffer's memory usage. | 0.3.0 | 
+| celeborn.worker.readBuffer.target.updateInterval | 100ms | The interval for memory manager to calculate new read buffer's target memory. | 0.3.0 | 
 | celeborn.worker.register.timeout | 180s | Worker register timeout. | 0.2.0 | 
 | celeborn.worker.replicate.fastFail.duration | 60s | If a replicate request not replied during the duration, worker will mark the replicate data request as failed. | 0.2.0 | 
 | celeborn.worker.replicate.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to replicate shuffle data. The default threads number is the number of flush thread. | 0.2.0 | 

@@ -19,12 +19,18 @@ package org.apache.celeborn.common.network.server.memory;
 
 import io.netty.buffer.ByteBuf;
 
-/** manager bytebuf lifecycle */
-public interface Recycler {
+public class RecyclableBuffer {
 
-  /** recycle bytebuf to buffer pool */
-  void recycle(ByteBuf byteBuf);
+  public final ByteBuf byteBuf;
 
-  /** release the bytebuf */
-  void release(ByteBuf byteBuf);
+  public final BufferRecycler bufferRecycler;
+
+  public RecyclableBuffer(ByteBuf byteBuf, BufferRecycler bufferRecycler) {
+    this.byteBuf = byteBuf;
+    this.bufferRecycler = bufferRecycler;
+  }
+
+  public void recycle() {
+    bufferRecycler.recycle(byteBuf);
+  }
 }

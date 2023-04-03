@@ -90,15 +90,7 @@ private[celeborn] class Worker(
 
   val storageManager = new StorageManager(conf, workerSource)
 
-  val memoryManager = MemoryManager.initialize(
-    conf.workerDirectMemoryRatioToPauseReceive,
-    conf.workerDirectMemoryRatioToPauseReplicate,
-    conf.workerDirectMemoryRatioToResume,
-    conf.partitionSorterDirectMemoryRatioThreshold,
-    conf.workerDirectMemoryRatioForReadBuffer,
-    conf.workerDirectMemoryRatioForShuffleStorage,
-    conf.workerDirectMemoryPressureCheckIntervalMs,
-    conf.workerDirectMemoryReportIntervalSecond)
+  val memoryManager = MemoryManager.initialize(conf)
   memoryManager.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
@@ -241,10 +233,13 @@ private[celeborn] class Worker(
     _ => memoryManager.getPausePushDataAndReplicateCounter)
   workerSource.addGauge(
     WorkerSource.BufferStreamReadBuffer,
-    _ => memoryManager.getReadBufferCounter.get())
+    _ => memoryManager.getReadBufferCounter())
   workerSource.addGauge(
-    WorkerSource.readBufferDispatcherRequestsLength,
+    WorkerSource.ReadBufferDispatcherRequestsLength,
     _ => memoryManager.dispatchRequestsLength)
+  workerSource.addGauge(
+    WorkerSource.ReadBufferAllocatedCount,
+    _ => memoryManager.getAllocatedReadBuffers)
 
   private def heartBeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
@@ -376,6 +371,7 @@ private[celeborn] class Worker(
       if (null != storageManager) {
         storageManager.close()
       }
+      memoryManager.close();
 
       rssHARetryClient.close()
       replicateServer.close()

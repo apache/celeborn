@@ -34,20 +34,31 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 
-public class BufferStreamManagerSuiteJ {
-  private static final Logger LOG = LoggerFactory.getLogger(BufferStreamManagerSuiteJ.class);
+public class CreditStreamManagerSuiteJ {
+  private static final Logger LOG = LoggerFactory.getLogger(CreditStreamManagerSuiteJ.class);
   private static File tempDir =
       Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn");
 
   @BeforeClass
   public static void beforeAll() {
-    MemoryManager.initialize(0.8, 0.9, 0.5, 0.6, 0.1, 0.1, 10, 10);
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.worker.directMemoryRatioToPauseReceive", "0.8");
+    conf.set("celeborn.worker.directMemoryRatioToPauseReplicate", "0.9");
+    conf.set("celeborn.worker.directMemoryRatioToResume", "0.5");
+    conf.set("celeborn.worker.partitionSorter.directMemoryRatioThreshold", "0.6");
+    conf.set("celeborn.worker.directMemoryRatioForReadBuffer", "0.1");
+    conf.set("celeborn.worker.directMemoryRatioForMemoryShuffleStorage", "0.1");
+    conf.set("celeborn.worker.memory.checkInterval", "10");
+    conf.set("celeborn.worker.memory.reportInterval", "10");
+    conf.set("celeborn.worker.readBuffer.allocationWait", "10ms");
+    MemoryManager.initialize(conf);
   }
 
   private File createTemporaryFileWithIndexFile() throws IOException {
@@ -61,52 +72,54 @@ public class BufferStreamManagerSuiteJ {
 
   @Test
   public void testStreamRegisterAndCleanup() throws Exception {
-    BufferStreamManager bufferStreamManager = new BufferStreamManager(10, 10, 1);
+    CreditStreamManager creditStreamManager = new CreditStreamManager(10, 10, 1, 32);
     Channel channel = Mockito.mock(Channel.class);
     FileInfo fileInfo =
         new FileInfo(createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"));
     fileInfo.setNumSubpartitions(10);
+    fileInfo.setFileSize(100);
+    fileInfo.setBufferSize(1024);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);
 
     long registerStream1 =
-        bufferStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
     Assert.assertTrue(registerStream1 > 0);
-    Assert.assertEquals(1, bufferStreamManager.numStreamStates());
+    Assert.assertEquals(1, creditStreamManager.numStreamStates());
 
     long registerStream2 =
-        bufferStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
     Assert.assertNotEquals(registerStream1, registerStream2);
-    Assert.assertEquals(2, bufferStreamManager.numStreamStates());
+    Assert.assertEquals(2, creditStreamManager.numStreamStates());
 
-    bufferStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
-    bufferStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
 
-    BufferStreamManager.MapDataPartition mapDataPartition1 =
-        bufferStreamManager.getServingStreams().get(registerStream1);
-    BufferStreamManager.MapDataPartition mapDataPartition2 =
-        bufferStreamManager.getServingStreams().get(registerStream2);
+    MapDataPartition mapDataPartition1 =
+        creditStreamManager.getStreams().get(registerStream1).getMapDataPartition();
+    MapDataPartition mapDataPartition2 =
+        creditStreamManager.getStreams().get(registerStream2).getMapDataPartition();
     Assert.assertEquals(mapDataPartition1, mapDataPartition2);
 
     mapDataPartition1.getStreamReader(registerStream1).recycle();
 
-    timeOutOrMeetCondition(() -> bufferStreamManager.numRecycleStreams() == 0);
-    Assert.assertEquals(bufferStreamManager.numRecycleStreams(), 0);
-    Assert.assertEquals(3, bufferStreamManager.numStreamStates());
+    timeOutOrMeetCondition(() -> creditStreamManager.numRecycleStreams() == 0);
+    Assert.assertEquals(creditStreamManager.numRecycleStreams(), 0);
+    Assert.assertEquals(3, creditStreamManager.numStreamStates());
 
     // registerStream2 can't be cleaned as registerStream2 is not finished
     AtomicInteger numInFlightRequests =
         mapDataPartition2.getStreamReader(registerStream2).getNumInFlightRequests();
     numInFlightRequests.incrementAndGet();
 
-    bufferStreamManager.cleanResource(registerStream2);
-    Assert.assertEquals(bufferStreamManager.numRecycleStreams(), 1);
-    Assert.assertEquals(3, bufferStreamManager.numStreamStates());
+    creditStreamManager.cleanResource(registerStream2);
+    Assert.assertEquals(creditStreamManager.numRecycleStreams(), 1);
+    Assert.assertEquals(3, creditStreamManager.numStreamStates());
 
     // recycle all channel
     numInFlightRequests.decrementAndGet();
-    bufferStreamManager.connectionTerminated(channel);
-    timeOutOrMeetCondition(() -> bufferStreamManager.numRecycleStreams() == 0);
-    Assert.assertEquals(bufferStreamManager.numStreamStates(), 0);
+    creditStreamManager.connectionTerminated(channel);
+    timeOutOrMeetCondition(() -> creditStreamManager.numRecycleStreams() == 0);
+    Assert.assertEquals(creditStreamManager.numStreamStates(), 0);
   }
 
   @AfterClass
