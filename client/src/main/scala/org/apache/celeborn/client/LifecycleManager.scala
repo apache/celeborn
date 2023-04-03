@@ -1237,15 +1237,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   }
 
   private def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): Unit = {
-    if (!newShutdownWorkers.isEmpty) {
-      // shutdownWorkers only retain workers appeared in response.
-      shuttingWorkers.retainAll(newShutdownWorkers)
-      newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains)
-        .foreach { workerInfo =>
-          commitManager.handleShutdownWorker(workerInfo)
-        }
-      shuttingWorkers.addAll(newShutdownWorkers)
-    }
+    // shutdownWorkers only retain workers appeared in response.
+    shuttingWorkers.retainAll(newShutdownWorkers)
+    newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains)
+      .foreach { workerInfo =>
+        commitManager.handleShutdownWorker(workerInfo)
+      }
+    shuttingWorkers.addAll(newShutdownWorkers)
   }
 
   private def shuffleResourceExists(shuffleId: Int): Boolean = {
