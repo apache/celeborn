@@ -853,7 +853,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Thread.sleep(3000L);
   }
 
-  @After
+  @AfterClass
   public void testNotifyLogFailed() {
     List<HARaftServer> list = Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3);
     for (HARaftServer haRaftServer : list) {
