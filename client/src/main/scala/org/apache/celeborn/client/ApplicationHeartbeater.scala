@@ -57,9 +57,11 @@ class ApplicationHeartbeater(
                 tmpFileCount,
                 blacklistManager.blacklist.asScala.keys.toList.asJava,
                 ZERO_UUID)
-            val res = requestHeartbeat(rssHARetryClient, appHeartbeat)
-            logDebug("Successfully send app heartbeat.")
-            blacklistManager.handleHeartbeatResponse(res)
+            val response = requestHeartbeat(appHeartbeat)
+            if (response.statusCode == StatusCode.SUCCESS) {
+              logDebug("Successfully send app heartbeat.")
+            }
+            blacklistManager.handleHeartbeatResponse(response)
           } catch {
             case it: InterruptedException =>
               logWarning("Interrupted while sending app heartbeat.")
@@ -75,9 +77,8 @@ class ApplicationHeartbeater(
       TimeUnit.MILLISECONDS)
   }
 
-  private def requestHeartbeat(
-      rssHARetryClient: RssHARetryClient,
-      message: HeartbeatFromApplication): HeartbeatFromApplicationResponse = {
+  private def requestHeartbeat(message: HeartbeatFromApplication)
+      : HeartbeatFromApplicationResponse = {
     try {
       rssHARetryClient.askSync[HeartbeatFromApplicationResponse](
         message,

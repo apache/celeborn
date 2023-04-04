@@ -105,7 +105,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val forwardMessageThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
-  private var getBlacklist: ScheduledFuture[_] = _
 
   // init driver rss meta rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
@@ -160,7 +159,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     import scala.concurrent.duration._
 
     checkForShuffleRemoval.cancel(true)
-    getBlacklist.cancel(true)
     ThreadUtils.shutdown(forwardMessageThread, 800.millis)
 
     commitManager.stop()
