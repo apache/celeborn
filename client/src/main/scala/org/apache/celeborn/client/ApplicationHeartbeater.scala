@@ -19,19 +19,22 @@ package org.apache.celeborn.client
 
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration.DurationInt
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, ZERO_UUID}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
+import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.ThreadUtils
 
 class ApplicationHeartbeater(
     appId: String,
     conf: CelebornConf,
     rssHARetryClient: RssHARetryClient,
-    shuffleMetrics: () => (Long, Long)) extends Logging {
+    shuffleMetrics: () => (Long, Long),
+    blacklistManager: LifecycleBlacklistManager) extends Logging {
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -48,9 +51,15 @@ class ApplicationHeartbeater(
             val (tmpTotalWritten, tmpFileCount) = shuffleMetrics()
             logDebug(s"Send app heartbeat with $tmpTotalWritten $tmpFileCount")
             val appHeartbeat =
-              HeartbeatFromApplication(appId, tmpTotalWritten, tmpFileCount, ZERO_UUID)
-            rssHARetryClient.send(appHeartbeat)
+              HeartbeatFromApplication(
+                appId,
+                tmpTotalWritten,
+                tmpFileCount,
+                blacklistManager.blacklist.asScala.keys.toList.asJava,
+                ZERO_UUID)
+            val res = requestHeartbeat(rssHARetryClient, appHeartbeat)
             logDebug("Successfully send app heartbeat.")
+            blacklistManager.handleGetBlacklist(res)
           } catch {
             case it: InterruptedException =>
               logWarning("Interrupted while sending app heartbeat.")
@@ -64,6 +73,24 @@ class ApplicationHeartbeater(
       0,
       appHeartbeatIntervalMs,
       TimeUnit.MILLISECONDS)
+  }
+
+  private def requestHeartbeat(
+      rssHARetryClient: RssHARetryClient,
+      message: HeartbeatFromApplication): HeartbeatFromApplicationResponse = {
+    try {
+      rssHARetryClient.askSync[HeartbeatFromApplicationResponse](
+        message,
+        classOf[HeartbeatFromApplicationResponse])
+    } catch {
+      case e: Exception =>
+        logError(s"AskSync HeartbeatFromApplication failed.", e)
+        HeartbeatFromApplicationResponse(
+          StatusCode.REQUEST_FAILED,
+          List.empty.asJava,
+          List.empty.asJava,
+          List.empty.asJava)
+    }
   }
 
   def stop(): Unit = {

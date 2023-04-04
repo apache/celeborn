@@ -535,7 +535,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
-  def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
   def workerExcludedExpireTimeout: Long = get(WORKER_EXCLUDED_EXPIRE_TIMEOUT)
   def blacklistSlaveEnabled: Boolean = get(BLACKLIST_SLAVE_ENABLED)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
@@ -1415,15 +1414,6 @@ object CelebornConf extends Logging {
       .doc("Interval for client to check expired shuffles.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
-
-  val WORKER_EXCLUDED_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.excluded.checkInterval")
-      .withAlternative("rss.get.blacklist.delay")
-      .categories("client")
-      .version("0.2.0")
-      .doc("Interval for client to refresh excluded worker list.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
 
   val WORKER_EXCLUDED_EXPIRE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.excluded.expireTimeout")

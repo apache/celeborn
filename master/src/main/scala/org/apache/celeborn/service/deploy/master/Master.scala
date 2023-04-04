@@ -223,11 +223,17 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+    case HeartbeatFromApplication(appId, totalWritten, fileCount, localBlacklist, requestId) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
-        handleHeartbeatFromApplication(context, appId, totalWritten, fileCount, requestId))
+        handleHeartbeatFromApplication(
+          context,
+          appId,
+          totalWritten,
+          fileCount,
+          localBlacklist,
+          requestId))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -276,9 +282,6 @@ private[celeborn] class Master(
       executeWithLeaderChecker(
         context,
         handleUnregisterShuffle(context, applicationId, shuffleId, requestId))
-
-    case msg: GetBlacklist =>
-      executeWithLeaderChecker(context, handleGetBlacklist(context, msg))
 
     case ApplicationLost(appId, requestId) =>
       logDebug(s"Received ApplicationLost request $requestId, $appId.")
@@ -592,16 +595,6 @@ private[celeborn] class Master(
     context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
   }
 
-  def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {
-    msg.localBlacklist.removeAll(workersSnapShot)
-    context.reply(
-      GetBlacklistResponse(
-        StatusCode.SUCCESS,
-        new util.ArrayList(statusSystem.blacklist),
-        msg.localBlacklist,
-        shutdownWorkerSnapshot))
-  }
-
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
     context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, workersSnapShot.asScala: _*))
   }
@@ -631,6 +624,7 @@ private[celeborn] class Master(
       appId: String,
       totalWritten: Long,
       fileCount: Long,
+      localBlacklist: util.List[WorkerInfo],
       requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
@@ -638,7 +632,11 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    context.reply(OneWayMessageResponse)
+    context.reply(HeartbeatFromApplicationResponse(
+      StatusCode.SUCCESS,
+      new util.ArrayList(statusSystem.blacklist),
+      localBlacklist,
+      shutdownWorkerSnapshot))
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)

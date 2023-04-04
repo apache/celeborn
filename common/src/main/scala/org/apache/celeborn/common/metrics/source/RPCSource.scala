@@ -49,7 +49,6 @@ class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
   addCounter(RPCReleaseSlotsNum)
   addCounter(RPCReleaseSlotsSize)
   addCounter(RPCUnregisterShuffleNum)
-  addCounter(RPCGetBlacklistNum)
   addCounter(RPCReportWorkerUnavailableNum)
   addCounter(RPCReportWorkerUnavailableSize)
   addCounter(RPCCheckQuotaNum)
@@ -88,8 +87,6 @@ class RPCSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
         incCounter(RPCReleaseSlotsSize, messageLen)
       case _: PbUnregisterShuffle =>
         incCounter(RPCUnregisterShuffleNum)
-      case _: GetBlacklist =>
-        incCounter(RPCGetBlacklistNum)
       case _: ReportWorkerUnavailable =>
         incCounter(RPCReportWorkerUnavailableNum)
         incCounter(RPCReportWorkerUnavailableSize, messageLen)
@@ -123,7 +120,6 @@ object RPCSource {
   val RPCReleaseSlotsNum = "RPCReleaseSlotsNum"
   val RPCReleaseSlotsSize = "RPCReleaseSlotsSize"
   val RPCUnregisterShuffleNum = "RPCUnregisterShuffleNum"
-  val RPCGetBlacklistNum = "RPCGetBlacklistNum"
   val RPCReportWorkerUnavailableNum = "RPCReportWorkerUnavailableNum"
   val RPCReportWorkerUnavailableSize = "RPCReportWorkerUnavailableSize"
   val RPCCheckQuotaNum = "RPCCheckQuotaNum"
