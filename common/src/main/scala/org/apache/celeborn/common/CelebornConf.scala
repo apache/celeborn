@@ -526,7 +526,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleManagerPort: Int = get(SHUFFLE_MANAGER_PORT)
-  def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
+  def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWaitMs: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
   def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
@@ -1442,8 +1442,8 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val SHUFFLE_CHUCK_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.chuck.size")
+  val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.chunk.size")
       .withAlternative("rss.chunk.size")
       .categories("client", "worker")
       .version("0.2.0")
