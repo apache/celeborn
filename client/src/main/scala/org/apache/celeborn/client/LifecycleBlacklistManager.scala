@@ -111,7 +111,7 @@ class LifecycleBlacklistManager(
     }
   }
 
-  def handleGetBlacklist(res: HeartbeatFromApplicationResponse): Unit = {
+  def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shutdownWorkers}")

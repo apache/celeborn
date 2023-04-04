@@ -59,7 +59,7 @@ class ApplicationHeartbeater(
                 ZERO_UUID)
             val res = requestHeartbeat(rssHARetryClient, appHeartbeat)
             logDebug("Successfully send app heartbeat.")
-            blacklistManager.handleGetBlacklist(res)
+            blacklistManager.handleHeartbeatResponse(res)
           } catch {
             case it: InterruptedException =>
               logWarning("Interrupted while sending app heartbeat.")
