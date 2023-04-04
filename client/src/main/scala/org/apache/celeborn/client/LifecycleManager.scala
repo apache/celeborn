@@ -398,7 +398,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                     applicationId,
                     shuffleId,
                     context.context,
-                    partitionId,
+                    context.partitionId,
                     partitionLocations)
                 } else {
                   // when register not success, need reply origin response,
