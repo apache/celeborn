@@ -103,7 +103,7 @@ public class FileWriterSuiteJ {
   @BeforeClass
   public static void beforeAll() {
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn");
-    CONF.set("celeborn.shuffle.chuck.size", "1k");
+    CONF.set("celeborn.shuffle.chunk.size", "1k");
 
     source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(
