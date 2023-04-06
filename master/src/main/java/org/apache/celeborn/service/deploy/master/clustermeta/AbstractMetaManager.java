@@ -17,9 +17,10 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta;
 
-import static org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP;
-
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,10 +38,12 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.*;
+import org.apache.celeborn.common.meta.AppDiskUsageMetric;
+import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
+import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
-import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
@@ -230,19 +233,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             userResourceConsumption,
             null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
-
-    try {
-      workerInfo.setupEndpoint(rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
-    } catch (Exception e) {
-      LOG.warn("Worker register setupEndpoint failed {}, will retry", e);
-      try {
-        workerInfo.setupEndpoint(
-            rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
-      } catch (Exception e1) {
-        workerInfo.setupEndpoint(null);
-      }
-    }
-
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {
