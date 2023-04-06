@@ -252,11 +252,19 @@ public abstract class RssInputStream extends InputStream {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           if (reducerBlacklist.get(shuffleKey).contains(location.hostAndFetchPort())) {
+            if (location.getPeer() != null
+                && reducerBlacklist
+                    .get(shuffleKey)
+                    .contains(location.getPeer().hostAndFetchPort())) {
+              reducerBlacklist.get(shuffleKey).remove(location.getPeer().hostAndFetchPort());
+            }
             throw new CelebornIOException("Fetch data from blacklisted location! " + location);
           }
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
-          if (shuffleClientFetchBlacklistEnabled && criticalCause(e)) {
+          if (shuffleClientFetchBlacklistEnabled
+              && criticalCause(e)
+              && location.getPeer() != null) {
             reducerBlacklist.get(shuffleKey).add(location.hostAndFetchPort());
           }
           fetchChunkRetryCnt++;
@@ -286,12 +294,22 @@ public abstract class RssInputStream extends InputStream {
           if (reducerBlacklist
               .get(shuffleKey)
               .contains(currentReader.getLocation().hostAndFetchPort())) {
+            if (currentReader.getLocation().getPeer() != null
+                && reducerBlacklist
+                    .get(shuffleKey)
+                    .contains(currentReader.getLocation().getPeer().hostAndFetchPort())) {
+              reducerBlacklist
+                  .get(shuffleKey)
+                  .remove(currentReader.getLocation().getPeer().hostAndFetchPort());
+            }
             throw new CelebornIOException(
                 "Fetch data from blacklisted location! " + currentReader.getLocation());
           }
           return currentReader.next();
         } catch (Exception e) {
-          if (shuffleClientFetchBlacklistEnabled && criticalCause(e)) {
+          if (shuffleClientFetchBlacklistEnabled
+              && criticalCause(e)
+              && currentReader.getLocation().getPeer() != null) {
             reducerBlacklist.get(shuffleKey).add(currentReader.getLocation().hostAndFetchPort());
           }
           fetchChunkRetryCnt++;
