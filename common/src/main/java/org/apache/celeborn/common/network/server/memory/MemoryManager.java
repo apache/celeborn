@@ -243,24 +243,31 @@ public class MemoryManager {
       readBufferTargetChangeListeners = new ArrayList<>();
       readBufferTargetUpdateService.scheduleWithFixedDelay(
           () -> {
-            if (creditStreamManager != null) {
-              int mapDataPartitionCount = creditStreamManager.getActiveMapPartitionCount();
-              if (mapDataPartitionCount > 0) {
-                long currentTarget =
-                    (long) Math.ceil(readBufferTarget * 1.0 / mapDataPartitionCount);
-                if (Math.abs(readBufferTargetUpdateInterval - currentTarget)
-                    > readBufferTargetNotifyThreshold) {
-                  synchronized (readBufferTargetChangeLock) {
-                    logger.debug(
-                        "read buffer target changed {} -> {}", lastNotifiedTarget, currentTarget);
-                    for (ReadBufferTargetChangeListener changeListener :
-                        readBufferTargetChangeListeners) {
-                      changeListener.onChange(currentTarget);
+            try {
+              if (creditStreamManager != null) {
+                int mapDataPartitionCount = creditStreamManager.getActiveMapPartitionCount();
+                if (mapDataPartitionCount > 0) {
+                  long currentTarget =
+                      (long) Math.ceil(readBufferTarget * 1.0 / mapDataPartitionCount);
+                  if (Math.abs(lastNotifiedTarget - currentTarget)
+                      > readBufferTargetNotifyThreshold) {
+                    synchronized (readBufferTargetChangeLock) {
+                      logger.debug(
+                          "read buffer target changed {} -> {} active map partition count {}",
+                          lastNotifiedTarget,
+                          currentTarget,
+                          mapDataPartitionCount);
+                      for (ReadBufferTargetChangeListener changeListener :
+                          readBufferTargetChangeListeners) {
+                        changeListener.onChange(currentTarget);
+                      }
+                      lastNotifiedTarget = currentTarget;
                     }
-                    lastNotifiedTarget = currentTarget;
                   }
                 }
               }
+            } catch (Exception e) {
+              logger.warn("Failed update buffer target", e);
             }
           },
           readBufferTargetUpdateInterval,

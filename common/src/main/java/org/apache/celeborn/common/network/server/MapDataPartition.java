@@ -123,7 +123,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     if (target > definedMaxReadAheadMemory) {
       target = definedMaxReadAheadMemory;
     }
-    if (target < fileSize) {
+    if (target > fileSize) {
       target = fileSize;
     }
     localBuffersTarget = (int) Math.ceil(target * 1.0 / fileInfo.getBufferSize());
@@ -171,7 +171,9 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       return;
     }
 
-    triggerRead();
+    if (bufferQueue.size() > Math.min(localBuffersTarget, readAheadMin / 2 + 1)) {
+      triggerRead();
+    }
   }
 
   public void recycle(ByteBuf buffer) {
