@@ -337,6 +337,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
               buffer,
               headerBuffer.capacity());
       currentPartitionRemainingBytes -= readSize;
+      dataFileChannelWithPosition.position += readSize;
 
       logger.debug(
           "readBuffer data: {}, {}, {}, {}, {}, {}",
@@ -362,7 +363,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       }
 
       dataConsumingOffset += readSize;
-      dataFileChannelWithPosition.position = dataConsumingOffset;
 
       logger.debug(
           "readBuffer run: {}, {}, {}",
