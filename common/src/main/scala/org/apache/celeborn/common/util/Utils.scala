@@ -1010,16 +1010,6 @@ object Utils extends Logging {
     downCast
   }
 
-  @throws[IOException]
-  def checkFileIntegrity(fileChannel: FileChannel, length: Int): Unit = {
-    val remainingBytes = fileChannel.size - fileChannel.position
-    if (remainingBytes < length) {
-      logError(
-        s"File remaining bytes not not enough, remaining: ${remainingBytes}, wanted: ${length}.")
-      throw new RuntimeException(s"File is corrupted ${fileChannel}")
-    }
-  }
-
   def getShortFormattedFileName(fileInfo: FileInfo): String = {
     val parentFile = fileInfo.getFile.getParent
     parentFile.substring(

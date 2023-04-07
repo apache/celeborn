@@ -283,15 +283,15 @@ public class BufferStreamManager {
   protected class MapDataPartition {
     private final List<Long> activeStreamIds = new ArrayList<>();
     private final FileInfo fileInfo;
-    private final Set<DataPartitionReader> readers = new HashSet<>();
+    private final Set<MapPartitionStreamReader> readers = new HashSet<>();
     private final ExecutorService readExecutor;
-    private final ConcurrentHashMap<Long, DataPartitionReader> streamReaders =
+    private final ConcurrentHashMap<Long, MapPartitionStreamReader> streamReaders =
         JavaUtils.newConcurrentHashMap();
 
     /** All available buffers can be used by the partition readers for reading. */
     private Queue<ByteBuf> buffers;
 
-    private FileChannel dataFileChanel;
+    private FileChannelWithPosition dataFileChanelWithPosition;
     private FileChannel indexChannel;
 
     private boolean isReleased;
@@ -299,14 +299,15 @@ public class BufferStreamManager {
     public MapDataPartition(FileInfo fileInfo) throws FileNotFoundException {
       this.fileInfo = fileInfo;
       readExecutor = storageFetcherPool.getExecutorPool(fileInfo.getMountPoint());
-      this.dataFileChanel = new FileInputStream(fileInfo.getFile()).getChannel();
+      this.dataFileChanelWithPosition =
+          new FileChannelWithPosition(new FileInputStream(fileInfo.getFile()).getChannel());
       this.indexChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
     }
 
     public synchronized void setupDataPartitionReader(
         int startSubIndex, int endSubIndex, long streamId, Channel channel) {
-      DataPartitionReader dataPartitionReader =
-          new DataPartitionReader(
+      MapPartitionStreamReader mapPartitionStreamReader =
+          new MapPartitionStreamReader(
               startSubIndex,
               endSubIndex,
               fileInfo,
@@ -315,8 +316,8 @@ public class BufferStreamManager {
               () -> recycleStream(streamId));
       // allocate resources when the first reader is registered
       boolean allocateResources = readers.isEmpty();
-      readers.add(dataPartitionReader);
-      streamReaders.put(streamId, dataPartitionReader);
+      readers.add(mapPartitionStreamReader);
+      streamReaders.put(streamId, mapPartitionStreamReader);
 
       // create initial buffers for read
       if (allocateResources && buffers == null) {
@@ -350,14 +351,14 @@ public class BufferStreamManager {
       }
 
       try {
-        PriorityQueue<DataPartitionReader> sortedReaders = new PriorityQueue<>(readers);
-        for (DataPartitionReader reader : readers) {
-          reader.open(dataFileChanel, indexChannel);
+        PriorityQueue<MapPartitionStreamReader> sortedReaders = new PriorityQueue<>(readers);
+        for (MapPartitionStreamReader reader : readers) {
+          reader.open(dataFileChanelWithPosition, indexChannel);
         }
         while (buffers != null && buffers.size() > 0 && !sortedReaders.isEmpty()) {
           BufferRecycler bufferRecycler =
               new BufferRecycler(memoryManager, (buffer) -> this.recycle(buffer, buffers));
-          DataPartitionReader reader = sortedReaders.poll();
+          MapPartitionStreamReader reader = sortedReaders.poll();
           try {
             if (!reader.readAndSend(buffers, bufferRecycler)) {
               readers.remove(reader);
@@ -370,7 +371,7 @@ public class BufferStreamManager {
         }
       } catch (Throwable e) {
         logger.error("Fatal: failed to read partition data. {}", e.getMessage(), e);
-        for (DataPartitionReader reader : readers) {
+        for (MapPartitionStreamReader reader : readers) {
           reader.recycleOnError(e);
         }
 
@@ -380,7 +381,7 @@ public class BufferStreamManager {
 
     // for one reader only the associated channel can access
     public void addReaderCredit(int numCredit, long streamId) {
-      DataPartitionReader streamReader = this.getStreamReader(streamId);
+      MapPartitionStreamReader streamReader = this.getStreamReader(streamId);
       if (streamReader != null) {
         boolean canSendWithCredit = streamReader.sendWithCredit(numCredit);
         if (canSendWithCredit) {
@@ -407,14 +408,14 @@ public class BufferStreamManager {
       }
     }
 
-    public DataPartitionReader getStreamReader(long streamId) {
+    public MapPartitionStreamReader getStreamReader(long streamId) {
       return streamReaders.get(streamId);
     }
 
     public boolean releaseStream(Long streamId) {
-      DataPartitionReader dataPartitionReader = streamReaders.get(streamId);
-      dataPartitionReader.release();
-      if (dataPartitionReader.isFinished()) {
+      MapPartitionStreamReader mapPartitionStreamReader = streamReaders.get(streamId);
+      mapPartitionStreamReader.release();
+      if (mapPartitionStreamReader.isFinished()) {
         logger.debug("release all for stream: {}", streamId);
         removeStream(streamId);
         streams.remove(streamId);
@@ -428,7 +429,7 @@ public class BufferStreamManager {
     public void close() {
       logger.info("release map data partition {}", fileInfo);
 
-      IOUtils.closeQuietly(dataFileChanel);
+      IOUtils.closeQuietly(dataFileChanelWithPosition.channel);
       IOUtils.closeQuietly(indexChannel);
 
       if (this.buffers != null) {

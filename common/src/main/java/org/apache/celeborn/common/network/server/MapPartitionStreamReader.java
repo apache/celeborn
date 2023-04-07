@@ -41,15 +41,15 @@ import org.apache.celeborn.common.network.server.memory.Recycler;
 import org.apache.celeborn.common.network.server.memory.WrappedDataBuffer;
 import org.apache.celeborn.common.util.Utils;
 
-public class DataPartitionReader implements Comparable<DataPartitionReader> {
-  private static final Logger logger = LoggerFactory.getLogger(DataPartitionReader.class);
+public class MapPartitionStreamReader implements Comparable<MapPartitionStreamReader> {
+  private static final Logger logger = LoggerFactory.getLogger(MapPartitionStreamReader.class);
 
   private final ByteBuffer indexBuffer;
   private final ByteBuffer headerBuffer;
   private final int startPartitionIndex;
   private final int endPartitionIndex;
   private int numRegions;
-  private int numRemainingPartitions;
+  private int numRemainingPartitionsInCurrentRegion;
   private int currentDataRegion = -1;
   private long dataConsumingOffset;
   private volatile long currentPartitionRemainingBytes;
@@ -59,6 +59,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   protected final Object lock = new Object();
 
   private AtomicInteger credits = new AtomicInteger();
+  private ByteBuffer cachedTmpBuffer = ByteBuffer.allocate(8 * 1024);
 
   @GuardedBy("lock")
   protected final Queue<WrappedDataBuffer> buffersRead = new ArrayDeque<>();
@@ -79,7 +80,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   @GuardedBy("lock")
   protected boolean isError;
 
-  private FileChannel dataFileChannel;
+  private FileChannelWithPosition dataFileChannelWithPosition;
   private FileChannel indexFileChannel;
 
   private Channel associatedChannel;
@@ -89,7 +90,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   private AtomicInteger numInFlightRequests = new AtomicInteger(0);
   private boolean isOpen = false;
 
-  public DataPartitionReader(
+  public MapPartitionStreamReader(
       int startPartitionIndex,
       int endPartitionIndex,
       FileInfo fileInfo,
@@ -111,9 +112,10 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     this.isClosed = false;
   }
 
-  public void open(FileChannel dataFileChannel, FileChannel indexFileChannel) throws IOException {
+  public void open(FileChannelWithPosition dataFileChannel, FileChannel indexFileChannel)
+      throws IOException {
     if (!isOpen) {
-      this.dataFileChannel = dataFileChannel;
+      this.dataFileChannelWithPosition = dataFileChannel;
       this.indexFileChannel = indexFileChannel;
       long indexFileSize = indexFileChannel.size();
       // index is (offset,length)
@@ -136,7 +138,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
       throws IOException {
-    boolean hasRemaining = hasRemaining();
+    boolean hasRemaining = fileHasRemainingData();
     boolean continueReading = hasRemaining;
     int numDataBuffers = 0;
     while (continueReading) {
@@ -156,7 +158,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
         throw throwable;
       }
 
-      hasRemaining = hasRemaining();
+      hasRemaining = fileHasRemainingData();
       addBuffer(buffer, hasRemaining, bufferRecycler);
       ++numDataBuffers;
     }
@@ -245,9 +247,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     return fileInfo.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
   }
 
-  private void readHeaderOrIndexBuffer(FileChannel channel, ByteBuffer buffer, int length)
-      throws IOException {
-    Utils.checkFileIntegrity(channel, length);
+  private void readFully(FileChannel channel, ByteBuffer buffer, int length) throws IOException {
     buffer.clear();
     buffer.limit(length);
     while (buffer.hasRemaining()) {
@@ -258,19 +258,18 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   private void readBufferIntoReadBuffer(FileChannel channel, ByteBuf buf, int length)
       throws IOException {
-    Utils.checkFileIntegrity(channel, length);
-    ByteBuffer tmpBuffer = ByteBuffer.allocate(length);
-    while (tmpBuffer.hasRemaining()) {
-      channel.read(tmpBuffer);
+    if (cachedTmpBuffer.capacity() < length) {
+      cachedTmpBuffer = ByteBuffer.allocate(length);
     }
-    tmpBuffer.flip();
-    buf.writeBytes(tmpBuffer);
+    readFully(channel, cachedTmpBuffer, length);
+    cachedTmpBuffer.flip();
+    buf.writeBytes(cachedTmpBuffer);
   }
 
   private int readBuffer(
       String filename, FileChannel channel, ByteBuffer header, ByteBuf buffer, int headerSize)
       throws IOException {
-    readHeaderOrIndexBuffer(channel, header, headerSize);
+    readFully(channel, header, headerSize);
     // header is combined of mapId(4),attemptId(4),nextBatchId(4) and total Compresszed Length(4)
     // we need size here,so we read length directly
     int bufferLength = header.getInt(12);
@@ -285,47 +284,56 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   private void updateConsumingOffset() throws IOException {
     while (currentPartitionRemainingBytes == 0
-        && (currentDataRegion < numRegions - 1 || numRemainingPartitions > 0)) {
-      if (numRemainingPartitions <= 0) {
+        && (currentDataRegion < numRegions - 1 || numRemainingPartitionsInCurrentRegion > 0)) {
+      if (numRemainingPartitionsInCurrentRegion <= 0) {
         ++currentDataRegion;
-        numRemainingPartitions = endPartitionIndex - startPartitionIndex + 1;
+        numRemainingPartitionsInCurrentRegion = endPartitionIndex - startPartitionIndex + 1;
 
         // read the target index entry to the target index buffer
         indexFileChannel.position(
             currentDataRegion * getIndexRegionSize()
                 + (long) startPartitionIndex * INDEX_ENTRY_SIZE);
-        readHeaderOrIndexBuffer(indexFileChannel, indexBuffer, indexBuffer.capacity());
+        readFully(indexFileChannel, indexBuffer, indexBuffer.capacity());
       }
 
       // get the data file offset and the data size
       dataConsumingOffset = indexBuffer.getLong();
       currentPartitionRemainingBytes = indexBuffer.getLong();
-      --numRemainingPartitions;
+      --numRemainingPartitionsInCurrentRegion;
 
       logger.debug(
           "readBuffer updateConsumingOffset, {},  {}, {}, {}",
           streamId,
-          dataFileChannel.size(),
+          dataFileChannelWithPosition.channel.size(),
           dataConsumingOffset,
           currentPartitionRemainingBytes);
 
       // if these checks fail, the partition file must be corrupted
       if (dataConsumingOffset < 0
-          || dataConsumingOffset + currentPartitionRemainingBytes > dataFileChannel.size()
+          || dataConsumingOffset + currentPartitionRemainingBytes
+              > dataFileChannelWithPosition.channel.size()
           || currentPartitionRemainingBytes < 0) {
         throw new RuntimeException("File " + fileInfo.getFilePath() + " is corrupted");
       }
     }
   }
 
+  /**
+   * @param buffer
+   * @return true if current region has more data after reading
+   * @throws IOException
+   */
   private boolean readBuffer(ByteBuf buffer) throws IOException {
     try {
-      dataFileChannel.position(dataConsumingOffset);
+      if (dataFileChannelWithPosition.position != dataConsumingOffset) {
+        dataFileChannelWithPosition.channel.position(dataConsumingOffset);
+        dataFileChannelWithPosition.position = dataConsumingOffset;
+      }
 
       int readSize =
           readBuffer(
               fileInfo.getFilePath(),
-              dataFileChannel,
+              dataFileChannelWithPosition.channel,
               headerBuffer,
               buffer,
               headerBuffer.capacity());
@@ -347,7 +355,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
         logger.debug(
             "readBuffer end, {},  {}, {}, {}",
             streamId,
-            dataFileChannel.size(),
+            dataFileChannelWithPosition.channel.size(),
             dataConsumingOffset,
             currentPartitionRemainingBytes);
         int prevDataRegion = currentDataRegion;
@@ -355,23 +363,32 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
         return prevDataRegion == currentDataRegion && currentPartitionRemainingBytes > 0;
       }
 
-      dataConsumingOffset = dataFileChannel.position();
+      dataConsumingOffset += readSize;
+      dataFileChannelWithPosition.position = dataConsumingOffset;
 
       logger.debug(
           "readBuffer run: {}, {}, {}, {}",
           streamId,
-          dataFileChannel.size(),
+          dataFileChannelWithPosition.channel.size(),
           dataConsumingOffset,
           currentPartitionRemainingBytes);
       return true;
     } catch (Throwable throwable) {
       logger.debug("Failed to read partition file.", throwable);
       isReleased = true;
+      dataFileChannelWithPosition.position = -1;
       throw throwable;
     }
   }
 
-  public boolean hasRemaining() {
+  /**
+   * updateConsumingOffset will be called when current region has no data to be read,
+   * currentPartitionRemainingBytes indicates whether the file has more data to be read for this
+   * stream
+   *
+   * @return true if the file has more data to be read for this stream
+   */
+  public boolean fileHasRemainingData() {
     return currentPartitionRemainingBytes > 0;
   }
 
@@ -394,7 +411,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   }
 
   @Override
-  public int compareTo(DataPartitionReader that) {
+  public int compareTo(MapPartitionStreamReader that) {
     return Long.compare(getPriority(), that.getPriority());
   }
 
