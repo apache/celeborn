@@ -262,7 +262,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       cachedTmpBuffer = ByteBuffer.allocate(length);
     }
     readFully(channel, cachedTmpBuffer, length);
-    cachedTmpBuffer.flip();
     buf.writeBytes(cachedTmpBuffer);
   }
 
