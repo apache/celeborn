@@ -352,9 +352,8 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
         throw new RuntimeException("File is corrupted");
       } else if (currentPartitionRemainingBytes == 0) {
         logger.debug(
-            "readBuffer end, {},  {}, {}, {}",
+            "readBuffer end, {}, {}, {}",
             streamId,
-            dataFileChannelWithPosition.channel.size(),
             dataConsumingOffset,
             currentPartitionRemainingBytes);
         int prevDataRegion = currentDataRegion;
@@ -366,9 +365,8 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       dataFileChannelWithPosition.position = dataConsumingOffset;
 
       logger.debug(
-          "readBuffer run: {}, {}, {}, {}",
+          "readBuffer run: {}, {}, {}",
           streamId,
-          dataFileChannelWithPosition.channel.size(),
           dataConsumingOffset,
           currentPartitionRemainingBytes);
       return true;
