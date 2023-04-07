@@ -254,6 +254,7 @@ class WorkerInfo(
        |ReplicatePort: $replicatePort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
+       |HeartBeatElapsedSeconds: ${(System.currentTimeMillis() - lastHeartbeat) / 1000}
        |Disks: $diskInfosString
        |UserResourceConsumption: $userResourceConsumptionString
        |WorkerRef: $endpoint

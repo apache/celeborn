@@ -650,22 +650,11 @@ private[celeborn] class Master(
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
+    sb.append("====================== Workers Info in Master ===========================")
+
     workersSnapShot.asScala.foreach { w =>
-      sb.append("==========WorkerInfos in Master==========\n")
+      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}\n")
       sb.append(w).append("\n")
-
-      val workerInfo = requestGetWorkerInfos(w.endpoint)
-        .workerInfos.asJava
-        .get(0)
-
-      sb.append("==========WorkerInfos in Workers==========\n")
-      sb.append(workerInfo).append("\n")
-
-      if (w.hasSameInfoWith(workerInfo)) {
-        sb.append("Consist!").append("\n")
-      } else {
-        sb.append("[ERROR] Inconsistent!").append("\n")
-      }
     }
 
     sb.toString()
