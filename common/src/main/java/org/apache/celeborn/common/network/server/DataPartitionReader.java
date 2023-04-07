@@ -303,14 +303,14 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       logger.debug(
           "readBuffer updateConsumingOffset, {},  {}, {}, {}",
           streamId,
-          dataFileChannelWithPosition.channel.size(),
+          dataFileChannelWithPosition.getChannel().size(),
           dataConsumingOffset,
           currentPartitionRemainingBytes);
 
       // if these checks fail, the partition file must be corrupted
       if (dataConsumingOffset < 0
           || dataConsumingOffset + currentPartitionRemainingBytes
-              > dataFileChannelWithPosition.channel.size()
+              > dataFileChannelWithPosition.getChannel().size()
           || currentPartitionRemainingBytes < 0) {
         throw new RuntimeException("File " + fileInfo.getFilePath() + " is corrupted");
       }
@@ -324,20 +324,20 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
    */
   private boolean readBuffer(ByteBuf buffer) throws IOException {
     try {
-      if (dataFileChannelWithPosition.position != dataConsumingOffset) {
-        dataFileChannelWithPosition.channel.position(dataConsumingOffset);
-        dataFileChannelWithPosition.position = dataConsumingOffset;
+      if (dataFileChannelWithPosition.getPosition() != dataConsumingOffset) {
+        dataFileChannelWithPosition.getChannel().position(dataConsumingOffset);
+        dataFileChannelWithPosition.setPosition(dataConsumingOffset);
       }
 
       int readSize =
           readBuffer(
               fileInfo.getFilePath(),
-              dataFileChannelWithPosition.channel,
+              dataFileChannelWithPosition.getChannel(),
               headerBuffer,
               buffer,
               headerBuffer.capacity());
       currentPartitionRemainingBytes -= readSize;
-      dataFileChannelWithPosition.position += readSize;
+      dataFileChannelWithPosition.incrementPosition(readSize);
 
       logger.debug(
           "readBuffer data: {}, {}, {}, {}, {}, {}",
@@ -373,7 +373,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     } catch (Throwable throwable) {
       logger.debug("Failed to read partition file.", throwable);
       isReleased = true;
-      dataFileChannelWithPosition.position = -1;
+      dataFileChannelWithPosition.setPosition(-1);
       throw throwable;
     }
   }

@@ -20,11 +20,31 @@ package org.apache.celeborn.common.network.server;
 import java.nio.channels.FileChannel;
 
 public class FileChannelWithPosition {
-  public FileChannel channel;
-  public long position;
+  private FileChannel channel;
+  private long position;
 
   public FileChannelWithPosition(FileChannel channel) {
     this.channel = channel;
     this.position = 0;
+  }
+
+  public FileChannel getChannel() {
+    return channel;
+  }
+
+  public void setChannel(FileChannel channel) {
+    this.channel = channel;
+  }
+
+  public long getPosition() {
+    return position;
+  }
+
+  public void setPosition(long position) {
+    this.position = position;
+  }
+
+  public void incrementPosition(long delta) {
+    this.position += delta;
   }
 }
