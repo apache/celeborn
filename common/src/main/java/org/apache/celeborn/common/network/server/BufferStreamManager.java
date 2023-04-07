@@ -429,8 +429,8 @@ public class BufferStreamManager {
     public void close() {
       logger.info("release map data partition {}", fileInfo);
 
-      IOUtils.closeQuietly(dataFileChanelWithPosition.channel);
-      IOUtils.closeQuietly(indexChannel);
+      IOUtils.closeQuietly(dataFileChanelWithPosition, null);
+      IOUtils.closeQuietly(indexChannel, null);
 
       if (this.buffers != null) {
         for (ByteBuf buffer : this.buffers) {

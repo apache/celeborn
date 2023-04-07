@@ -17,9 +17,11 @@
 
 package org.apache.celeborn.common.network.server;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-public class FileChannelWithPosition {
+public class FileChannelWithPosition implements Closeable {
   private FileChannel channel;
   private long position;
 
@@ -46,5 +48,11 @@ public class FileChannelWithPosition {
 
   public void incrementPosition(long delta) {
     this.position += delta;
+  }
+
+  @Override
+  public void close() throws IOException {
+    channel.close();
+    position = 0;
   }
 }
