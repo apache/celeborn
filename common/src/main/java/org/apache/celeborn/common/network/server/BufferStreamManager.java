@@ -359,7 +359,7 @@ public class BufferStreamManager {
               new BufferRecycler(memoryManager, (buffer) -> this.recycle(buffer, buffers));
           DataPartitionReader reader = sortedReaders.poll();
           try {
-            if (!reader.readAndSend(buffers, bufferRecycler)) {
+            if (!reader.readData(buffers, bufferRecycler)) {
               readers.remove(reader);
             }
           } catch (Throwable e) {
@@ -382,10 +382,8 @@ public class BufferStreamManager {
     public void addReaderCredit(int numCredit, long streamId) {
       DataPartitionReader streamReader = this.getStreamReader(streamId);
       if (streamReader != null) {
-        boolean canSendWithCredit = streamReader.sendWithCredit(numCredit);
-        if (canSendWithCredit) {
-          readExecutor.submit(() -> streamReader.sendData());
-        }
+        streamReader.addCredit(numCredit);
+        readExecutor.submit(() -> streamReader.sendData());
       }
     }
 

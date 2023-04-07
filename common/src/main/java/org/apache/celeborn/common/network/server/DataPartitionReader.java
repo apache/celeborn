@@ -125,16 +125,11 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     }
   }
 
-  public boolean sendWithCredit(int credit) {
-    int oldCredit = credits.getAndAdd(credit);
-    if (oldCredit == 0) {
-      return true;
-    }
-
-    return false;
+  public void addCredit(int credit) {
+    credits.getAndAdd(credit);
   }
 
-  public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
+  public synchronized boolean readData(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
       throws IOException {
     boolean hasRemaining = hasRemaining();
     boolean continueReading = hasRemaining;
@@ -176,7 +171,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       return;
     }
     final boolean recycleBuffer;
-    boolean notifyDataAvailable = false;
     final Throwable throwable;
     synchronized (lock) {
       recycleBuffer = isReleased || isClosed || isError;
@@ -184,7 +178,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
       isClosed = !hasRemaining;
 
       if (!recycleBuffer) {
-        notifyDataAvailable = buffersRead.isEmpty();
         buffersRead.add(new WrappedDataBuffer(buffer, bufferRecycler));
       }
     }
@@ -192,9 +185,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     if (recycleBuffer) {
       bufferRecycler.release(buffer);
       throw new RuntimeException("Partition reader has been failed or finished.", throwable);
-    }
-    if (notifyDataAvailable) {
-      sendData();
     }
   }
 
