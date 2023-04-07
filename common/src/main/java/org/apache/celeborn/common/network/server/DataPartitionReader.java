@@ -129,7 +129,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     credits.getAndAdd(credit);
   }
 
-  public synchronized boolean readAndSend(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
+  public synchronized boolean readData(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
       throws IOException {
     boolean hasRemaining = hasRemaining();
     boolean continueReading = hasRemaining;

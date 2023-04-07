@@ -359,7 +359,7 @@ public class BufferStreamManager {
               new BufferRecycler(memoryManager, (buffer) -> this.recycle(buffer, buffers));
           DataPartitionReader reader = sortedReaders.poll();
           try {
-            if (!reader.readAndSend(buffers, bufferRecycler)) {
+            if (!reader.readData(buffers, bufferRecycler)) {
               readers.remove(reader);
             }
           } catch (Throwable e) {
