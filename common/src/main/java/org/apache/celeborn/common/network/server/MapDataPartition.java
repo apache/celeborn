@@ -203,7 +203,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
         localBuffersTarget);
     synchronized (applyBufferLock) {
       if (!readers.isEmpty()
-          && bufferQueue.numBuffersOccupied() + inFlightBuffers <= localBuffersTarget) {
+          && bufferQueue.numBuffersOccupied() + inFlightBuffers < localBuffersTarget) {
         int newBuffersCount =
             (localBuffersTarget - bufferQueue.numBuffersOccupied() - inFlightBuffers);
         logger.debug(
