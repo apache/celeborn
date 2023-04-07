@@ -171,7 +171,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       return;
     }
 
-    if (bufferQueue.size() > Math.min(localBuffersTarget, readAheadMin / 2 + 1)) {
+    if (bufferQueue.size() > Math.min(localBuffersTarget / 2 + 1, readAheadMin)) {
       triggerRead();
     }
   }
@@ -187,7 +187,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       return;
     }
 
-    if (bufferQueue.size() > Math.min(localBuffersTarget, readAheadMin / 2 + 1)) {
+    if (bufferQueue.size() > Math.min(localBuffersTarget / 2 + 1, readAheadMin)) {
       triggerRead();
     }
 
