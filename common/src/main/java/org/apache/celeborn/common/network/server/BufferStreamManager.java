@@ -283,9 +283,9 @@ public class BufferStreamManager {
   protected class MapDataPartition {
     private final List<Long> activeStreamIds = new ArrayList<>();
     private final FileInfo fileInfo;
-    private final Set<MapPartitionStreamReader> readers = new HashSet<>();
+    private final Set<DataPartitionReader> readers = new HashSet<>();
     private final ExecutorService readExecutor;
-    private final ConcurrentHashMap<Long, MapPartitionStreamReader> streamReaders =
+    private final ConcurrentHashMap<Long, DataPartitionReader> streamReaders =
         JavaUtils.newConcurrentHashMap();
 
     /** All available buffers can be used by the partition readers for reading. */
@@ -306,8 +306,8 @@ public class BufferStreamManager {
 
     public synchronized void setupDataPartitionReader(
         int startSubIndex, int endSubIndex, long streamId, Channel channel) {
-      MapPartitionStreamReader mapPartitionStreamReader =
-          new MapPartitionStreamReader(
+      DataPartitionReader dataPartitionReader =
+          new DataPartitionReader(
               startSubIndex,
               endSubIndex,
               fileInfo,
@@ -316,8 +316,8 @@ public class BufferStreamManager {
               () -> recycleStream(streamId));
       // allocate resources when the first reader is registered
       boolean allocateResources = readers.isEmpty();
-      readers.add(mapPartitionStreamReader);
-      streamReaders.put(streamId, mapPartitionStreamReader);
+      readers.add(dataPartitionReader);
+      streamReaders.put(streamId, dataPartitionReader);
 
       // create initial buffers for read
       if (allocateResources && buffers == null) {
@@ -351,14 +351,14 @@ public class BufferStreamManager {
       }
 
       try {
-        PriorityQueue<MapPartitionStreamReader> sortedReaders = new PriorityQueue<>(readers);
-        for (MapPartitionStreamReader reader : readers) {
+        PriorityQueue<DataPartitionReader> sortedReaders = new PriorityQueue<>(readers);
+        for (DataPartitionReader reader : readers) {
           reader.open(dataFileChanelWithPosition, indexChannel);
         }
         while (buffers != null && buffers.size() > 0 && !sortedReaders.isEmpty()) {
           BufferRecycler bufferRecycler =
               new BufferRecycler(memoryManager, (buffer) -> this.recycle(buffer, buffers));
-          MapPartitionStreamReader reader = sortedReaders.poll();
+          DataPartitionReader reader = sortedReaders.poll();
           try {
             if (!reader.readAndSend(buffers, bufferRecycler)) {
               readers.remove(reader);
@@ -371,7 +371,7 @@ public class BufferStreamManager {
         }
       } catch (Throwable e) {
         logger.error("Fatal: failed to read partition data. {}", e.getMessage(), e);
-        for (MapPartitionStreamReader reader : readers) {
+        for (DataPartitionReader reader : readers) {
           reader.recycleOnError(e);
         }
 
@@ -381,7 +381,7 @@ public class BufferStreamManager {
 
     // for one reader only the associated channel can access
     public void addReaderCredit(int numCredit, long streamId) {
-      MapPartitionStreamReader streamReader = this.getStreamReader(streamId);
+      DataPartitionReader streamReader = this.getStreamReader(streamId);
       if (streamReader != null) {
         boolean canSendWithCredit = streamReader.sendWithCredit(numCredit);
         if (canSendWithCredit) {
@@ -408,14 +408,14 @@ public class BufferStreamManager {
       }
     }
 
-    public MapPartitionStreamReader getStreamReader(long streamId) {
+    public DataPartitionReader getStreamReader(long streamId) {
       return streamReaders.get(streamId);
     }
 
     public boolean releaseStream(Long streamId) {
-      MapPartitionStreamReader mapPartitionStreamReader = streamReaders.get(streamId);
-      mapPartitionStreamReader.release();
-      if (mapPartitionStreamReader.isFinished()) {
+      DataPartitionReader dataPartitionReader = streamReaders.get(streamId);
+      dataPartitionReader.release();
+      if (dataPartitionReader.isFinished()) {
         logger.debug("release all for stream: {}", streamId);
         removeStream(streamId);
         streams.remove(streamId);
