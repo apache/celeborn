@@ -382,10 +382,8 @@ public class BufferStreamManager {
     public void addReaderCredit(int numCredit, long streamId) {
       DataPartitionReader streamReader = this.getStreamReader(streamId);
       if (streamReader != null) {
-        boolean canSendWithCredit = streamReader.sendWithCredit(numCredit);
-        if (canSendWithCredit) {
-          readExecutor.submit(() -> streamReader.sendData());
-        }
+        streamReader.addCredit(numCredit);
+        readExecutor.submit(() -> streamReader.sendData());
       }
     }
 
