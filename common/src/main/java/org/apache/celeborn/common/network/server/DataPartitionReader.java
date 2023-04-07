@@ -325,7 +325,6 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   private boolean readBuffer(ByteBuf buffer) throws IOException {
     try {
       if (dataFileChannelWithPosition.getPosition() != dataConsumingOffset) {
-        dataFileChannelWithPosition.getChannel().position(dataConsumingOffset);
         dataFileChannelWithPosition.setPosition(dataConsumingOffset);
       }
 
@@ -373,7 +372,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     } catch (Throwable throwable) {
       logger.debug("Failed to read partition file.", throwable);
       isReleased = true;
-      dataFileChannelWithPosition.setPosition(-1);
+      dataFileChannelWithPosition.setPosition(0);
       throw throwable;
     }
   }

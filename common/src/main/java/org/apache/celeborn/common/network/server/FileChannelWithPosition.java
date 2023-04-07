@@ -42,7 +42,8 @@ public class FileChannelWithPosition implements Closeable {
     return position;
   }
 
-  public void setPosition(long position) {
+  public void setPosition(long position) throws IOException {
+    this.channel.position(position);
     this.position = position;
   }
 
