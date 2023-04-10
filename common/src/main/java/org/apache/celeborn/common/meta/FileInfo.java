@@ -63,6 +63,23 @@ public class FileInfo {
     this.partitionType = partitionType;
   }
 
+  public FileInfo(
+      String filePath,
+      List<Long> chunkOffsets,
+      UserIdentifier userIdentifier,
+      PartitionType partitionType,
+      int bufferSize,
+      int numSubpartitions,
+      long fileSize) {
+    this.filePath = filePath;
+    this.chunkOffsets = chunkOffsets;
+    this.userIdentifier = userIdentifier;
+    this.partitionType = partitionType;
+    this.bufferSize = bufferSize;
+    this.numSubpartitions = numSubpartitions;
+    this.fileSize = fileSize;
+  }
+
   public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
     this(filePath, new ArrayList(Arrays.asList(0L)), userIdentifier, partitionType);
   }

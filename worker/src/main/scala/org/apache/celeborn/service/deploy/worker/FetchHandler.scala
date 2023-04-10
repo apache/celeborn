@@ -86,10 +86,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     msg match {
       case r: BufferStreamEnd =>
         rpcSource.updateMessageMetrics(r, 0)
-        handleEndStreamFromClient(client, r)
+        handleEndStreamFromClient(r)
       case r: ReadAddCredit =>
         rpcSource.updateMessageMetrics(r, 0)
-        handleReadAddCredit(client, r)
+        handleReadAddCredit(r)
       case r: ChunkFetchRequest =>
         rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
@@ -201,11 +201,11 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     }
   }
 
-  def handleEndStreamFromClient(client: TransportClient, req: BufferStreamEnd): Unit = {
+  def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {
     creditStreamManager.notifyStreamEndByClient(req.getStreamId)
   }
 
-  def handleReadAddCredit(client: TransportClient, req: ReadAddCredit): Unit = {
+  def handleReadAddCredit(req: ReadAddCredit): Unit = {
     creditStreamManager.addCredit(req.getCredit, req.getStreamId)
   }
 

@@ -83,18 +83,17 @@ object PbSerDeUtils {
       .build
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo): FileInfo =
-    new FileInfo(
-      pbFileInfo.getFilePath,
-      pbFileInfo.getChunkOffsetsList,
-      fromPbUserIdentifier(pbFileInfo.getUserIdentifier),
-      Utils.toPartitionType(pbFileInfo.getPartitionType))
+    fromPbFileInfo(pbFileInfo, fromPbUserIdentifier(pbFileInfo.getUserIdentifier))
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) =
     new FileInfo(
       pbFileInfo.getFilePath,
       pbFileInfo.getChunkOffsetsList,
       userIdentifier,
-      Utils.toPartitionType(pbFileInfo.getPartitionType))
+      Utils.toPartitionType(pbFileInfo.getPartitionType),
+      pbFileInfo.getBufferSize,
+      pbFileInfo.getNumSubpartitions,
+      pbFileInfo.getFileSize)
 
   def toPbFileInfo(fileInfo: FileInfo): PbFileInfo =
     PbFileInfo.newBuilder
@@ -102,6 +101,9 @@ object PbSerDeUtils {
       .addAllChunkOffsets(fileInfo.getChunkOffsets)
       .setUserIdentifier(toPbUserIdentifier(fileInfo.getUserIdentifier))
       .setPartitionType(fileInfo.getPartitionType.getValue)
+      .setBufferSize(fileInfo.getBufferSize)
+      .setNumSubpartitions(fileInfo.getNumSubpartitions)
+      .setFileSize(fileInfo.getFileSize)
       .build
 
   @throws[InvalidProtocolBufferException]
