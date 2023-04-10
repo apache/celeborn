@@ -81,7 +81,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     minReadAheadMemory = minReadBuffers * bufferSize;
     maxReadAheadMemory = maxReadBuffers * bufferSize;
 
-    updateLocalTarget(0, fileInfo.getFileSize(), minReadAheadMemory, maxReadAheadMemory);
+    updateBuffersTarget(0, fileInfo.getFileSize());
 
     logger.debug(
         "read map partition {} with {} {} {}",
@@ -108,19 +108,18 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     this.indexChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
   }
 
-  private synchronized void updateLocalTarget(
-      long nTarget, long fileSize, long definedMinReadAheadMemory, long definedMaxReadAheadMemory) {
-    long target = nTarget;
-    if (target < definedMinReadAheadMemory) {
-      target = definedMinReadAheadMemory;
+  private synchronized void updateBuffersTarget(long memoryTarget, long fileSize) {
+    long currentMemoryTarget = memoryTarget;
+    if (currentMemoryTarget < minReadAheadMemory) {
+      currentMemoryTarget = minReadAheadMemory;
     }
-    if (target > definedMaxReadAheadMemory) {
-      target = definedMaxReadAheadMemory;
+    if (currentMemoryTarget > maxReadAheadMemory) {
+      currentMemoryTarget = maxReadAheadMemory;
     }
-    if (target > fileSize) {
-      target = fileSize;
+    if (currentMemoryTarget > fileSize) {
+      currentMemoryTarget = fileSize;
     }
-    localBuffersTarget = (int) Math.ceil(target * 1.0 / fileInfo.getBufferSize());
+    localBuffersTarget = (int) Math.ceil(currentMemoryTarget * 1.0 / fileInfo.getBufferSize());
   }
 
   public synchronized void setupDataPartitionReader(
@@ -170,14 +169,15 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   }
 
   public void recycle(ByteBuf buffer) {
+    if (isReleased || readers.isEmpty() || bufferQueue.isReleased()) {
+      bufferQueue.recycleDirectly(buffer);
+      return;
+    }
     if (bufferQueue.numBuffersOccupied() > localBuffersTarget) {
       bufferQueue.recycle(buffer);
     } else {
       buffer.clear();
       bufferQueue.add(buffer);
-    }
-    if (isReleased || readers.isEmpty() || bufferQueue.isReleased()) {
-      return;
     }
 
     if (bufferQueue.size() >= Math.min(localBuffersTarget / 2 + 1, minBuffersToTriggerRead)) {
@@ -320,8 +320,8 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   }
 
   @Override
-  public void onChange(long nVal) {
-    updateLocalTarget(nVal, fileInfo.getFileSize(), minReadAheadMemory, maxReadAheadMemory);
+  public void onChange(long newMemoryTarget) {
+    updateBuffersTarget(newMemoryTarget, fileInfo.getFileSize());
     logger.debug("local buffers target {}", localBuffersTarget);
     while (bufferQueue.numBuffersOccupied() > localBuffersTarget) {
       recycle(bufferQueue.poll());

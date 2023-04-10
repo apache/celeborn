@@ -449,7 +449,7 @@ public class MemoryManager {
   }
 
   public interface ReadBufferTargetChangeListener {
-    void onChange(long nVal);
+    void onChange(long newMemoryTarget);
   }
 
   enum MemoryManagerStat {

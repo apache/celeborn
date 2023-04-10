@@ -85,6 +85,10 @@ public class BufferQueue {
     memoryManager.recycleReadBuffer(buffer);
   }
 
+  public void recycleDirectly(ByteBuf buffer) {
+    memoryManager.recycleReadBuffer(buffer);
+  }
+
   /**
    * Releases this buffer queue and recycles all available buffers. After released, no buffer can be
    * added to or polled from this buffer queue.
