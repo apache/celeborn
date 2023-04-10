@@ -236,7 +236,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
         BufferRecycler bufferRecycler = new BufferRecycler(MapDataPartition.this::recycle);
         MapDataPartitionReader reader = sortedReaders.poll();
         try {
-          reader.readAndSend(bufferQueue, bufferRecycler);
+          reader.readData(bufferQueue, bufferRecycler);
         } catch (Throwable e) {
           logger.error("reader exception, reader: {}, message: {}", reader, e.getMessage(), e);
           // this reader failed , recycle stream id
@@ -255,10 +255,8 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   public void addReaderCredit(int numCredit, long streamId) {
     MapDataPartitionReader streamReader = getStreamReader(streamId);
     if (streamReader != null) {
-      boolean canSendWithCredit = streamReader.sendWithCredit(numCredit);
-      if (canSendWithCredit) {
-        readExecutor.submit(() -> streamReader.sendData());
-      }
+      streamReader.addCredit(numCredit);
+      readExecutor.submit(() -> streamReader.sendData());
     }
   }
 

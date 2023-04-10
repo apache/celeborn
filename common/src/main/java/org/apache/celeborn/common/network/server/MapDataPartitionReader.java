@@ -131,7 +131,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     credits.getAndAdd(credit);
   }
 
-  public synchronized void readAndSend(BufferQueue bufferQueue, BufferRecycler bufferRecycler)
+  public synchronized void readData(BufferQueue bufferQueue, BufferRecycler bufferRecycler)
       throws IOException {
     boolean hasRemaining = hasRemaining();
     boolean continueReading = hasRemaining;
@@ -178,7 +178,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       isClosed = !hasRemaining;
 
       if (!recycleBuffer) {
-        buffersRead.add(new WrappedDataBuffer(buffer, bufferRecycler));
+        buffersToSend.add(new RecyclableBuffer(buffer, bufferRecycler));
       }
     }
 
