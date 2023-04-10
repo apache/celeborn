@@ -127,13 +127,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     }
   }
 
-  public boolean sendWithCredit(int credit) {
-    int oldCredit = credits.getAndAdd(credit);
-    if (oldCredit == 0) {
-      return true;
-    }
-
-    return false;
+  public void addCredit(int credit) {
+    credits.getAndAdd(credit);
   }
 
   public synchronized void readAndSend(BufferQueue bufferQueue, BufferRecycler bufferRecycler)
@@ -176,7 +171,6 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       return;
     }
     final boolean recycleBuffer;
-    boolean notifyDataAvailable = false;
     final Throwable throwable;
     synchronized (lock) {
       recycleBuffer = isReleased || isClosed || isError;
@@ -184,17 +178,13 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       isClosed = !hasRemaining;
 
       if (!recycleBuffer) {
-        notifyDataAvailable = buffersToSend.isEmpty();
-        buffersToSend.add(new RecyclableBuffer(buffer, bufferRecycler));
+        buffersRead.add(new WrappedDataBuffer(buffer, bufferRecycler));
       }
     }
 
     if (recycleBuffer) {
       bufferRecycler.recycle(buffer);
       throw new RuntimeException("Partition reader has been failed or finished.", throwable);
-    }
-    if (notifyDataAvailable) {
-      sendData();
     }
   }
 
