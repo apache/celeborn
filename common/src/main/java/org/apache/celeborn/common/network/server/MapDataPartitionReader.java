@@ -67,7 +67,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   /** Whether all the data has been successfully read or not. */
   @GuardedBy("lock")
-  private boolean isClosed;
+  private boolean readFinished;
 
   /** Whether this partition reader has been released or not. */
   @GuardedBy("lock")
@@ -79,7 +79,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   /** Whether there is any error at the consumer side or not. */
   @GuardedBy("lock")
-  protected boolean isError;
+  protected boolean errorNotified;
 
   private FileChannel dataFileChannel;
   private FileChannel indexFileChannel;
@@ -110,7 +110,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     this.recycleStream = recycleStream;
 
     this.fileInfo = fileInfo;
-    this.isClosed = false;
+    this.readFinished = false;
   }
 
   public void open(FileChannel dataFileChannel, FileChannel indexFileChannel) throws IOException {
@@ -154,7 +154,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       }
 
       hasRemaining = hasRemaining();
-      addBuffer(buffer, hasRemaining, bufferRecycler);
+      addBuffer(buffer, bufferRecycler);
       ++numDataBuffers;
     }
     if (numDataBuffers > 0) {
@@ -166,25 +166,17 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     }
   }
 
-  private void addBuffer(ByteBuf buffer, boolean hasRemaining, BufferRecycler bufferRecycler) {
+  private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
     if (buffer == null) {
       return;
     }
-    final boolean recycleBuffer;
-    final Throwable throwable;
     synchronized (lock) {
-      recycleBuffer = isReleased || isClosed || isError;
-      throwable = errorCause;
-      isClosed = !hasRemaining;
-
-      if (!recycleBuffer) {
+      if (!isReleased) {
         buffersToSend.add(new RecyclableBuffer(buffer, bufferRecycler));
+      } else {
+        bufferRecycler.recycle(buffer);
+        throw new RuntimeException("Partition reader has been failed or finished.", errorCause);
       }
-    }
-
-    if (recycleBuffer) {
-      bufferRecycler.recycle(buffer);
-      throw new RuntimeException("Partition reader has been failed or finished.", throwable);
     }
   }
 
@@ -224,7 +216,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       logger.debug("stream {} credit {}", streamId, currentCredit);
     }
 
-    if (isClosed && buffersToSend.isEmpty()) {
+    if (readFinished && buffersToSend.isEmpty()) {
       recycle();
     }
   }
@@ -400,7 +392,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   public void closeReader() {
     synchronized (lock) {
-      isClosed = true;
+      readFinished = true;
     }
 
     logger.debug("Closed read for stream {}", this.streamId);
@@ -417,8 +409,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   public void recycleOnError(Throwable throwable) {
     synchronized (lock) {
-      if (!isError) {
-        isError = true;
+      if (!errorNotified) {
+        errorNotified = true;
         errorCause = throwable;
         notifyError(throwable);
         recycle();
