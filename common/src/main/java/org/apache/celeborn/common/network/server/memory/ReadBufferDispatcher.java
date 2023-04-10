@@ -84,7 +84,7 @@ public class ReadBufferDispatcher extends Thread {
             allocatedReadBuffers.increment();
           } else {
             try {
-              // If dispatcher can not allocate minimum buffers, it will wait here until necessary
+              // If dispatcher can not allocate requested buffers, it will wait here until necessary
               // buffers are get.
               Thread.sleep(this.readBufferAllocationWait);
             } catch (InterruptedException e) {
