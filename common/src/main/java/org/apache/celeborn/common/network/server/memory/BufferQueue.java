@@ -105,6 +105,9 @@ public class BufferQueue {
       ByteBuf buffer = poll();
       if (buffer != null) {
         recycleToGlobalPool(buffer);
+      } else {
+        // there are no unused buffers here
+        break;
       }
     }
   }
