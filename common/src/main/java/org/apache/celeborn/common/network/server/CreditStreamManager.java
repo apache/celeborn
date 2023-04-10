@@ -45,10 +45,10 @@ public class CreditStreamManager {
   private final ConcurrentHashMap<Long, StreamState> streams;
   private final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
   private final HashMap<String, ExecutorService> storageFetcherPool = new HashMap<>();
-  private int definedMinReadBuffers;
-  private int definedMaxReadBuffers;
+  private int minReadBuffers;
+  private int maxReadBuffers;
   private int threadsPerMountPoint;
-  private int readAheadMin;
+  private int minBuffersToTriggerRead;
   private final BlockingQueue<DelayedStreamId> recycleStreamIds = new DelayQueue<>();
 
   @GuardedBy("lock")
@@ -57,19 +57,22 @@ public class CreditStreamManager {
   private final Object lock = new Object();
 
   public CreditStreamManager(
-      int minReadBuffers, int maxReadBuffers, int threadsPerMountpoint, int readAheadMin) {
+      int minReadBuffers,
+      int maxReadBuffers,
+      int threadsPerMountpoint,
+      int minBuffersToTriggerRead) {
     nextStreamId = new AtomicLong((long) new Random().nextInt(Integer.MAX_VALUE) * 1000);
     streams = JavaUtils.newConcurrentHashMap();
     activeMapPartitions = JavaUtils.newConcurrentHashMap();
-    definedMinReadBuffers = minReadBuffers;
-    definedMaxReadBuffers = maxReadBuffers;
+    this.minReadBuffers = minReadBuffers;
+    this.maxReadBuffers = maxReadBuffers;
     threadsPerMountPoint = threadsPerMountpoint;
-    this.readAheadMin = readAheadMin;
+    this.minBuffersToTriggerRead = minBuffersToTriggerRead;
     MemoryManager.instance().setCreditStreamManager(this);
     logger.debug(
         "Initialize buffer stream manager with {} {} {}",
-        definedMinReadBuffers,
-        definedMaxReadBuffers,
+        this.minReadBuffers,
+        this.maxReadBuffers,
         threadsPerMountpoint);
   }
 
@@ -95,21 +98,21 @@ public class CreditStreamManager {
       if (mapDataPartition == null) {
         mapDataPartition =
             new MapDataPartition(
-                definedMinReadBuffers,
-                definedMaxReadBuffers,
+                minReadBuffers,
+                maxReadBuffers,
                 storageFetcherPool,
                 threadsPerMountPoint,
                 fileInfo,
                 id -> recycleStream(id),
-                readAheadMin);
+                minBuffersToTriggerRead);
         activeMapPartitions.put(fileInfo, mapDataPartition);
+        MemoryManager.instance().addReadBufferTargetChangeListener(mapDataPartition);
       }
       mapDataPartition.addStream(streamId);
     }
 
-    addCredit(initialCredit, streamId);
     streamState.setMapDataPartition(mapDataPartition);
-    MemoryManager.instance().addReadBufferTargetChangeListener(mapDataPartition);
+    addCredit(initialCredit, streamId);
     // response streamId to channel first
     callback.accept(streamId);
     mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
@@ -201,14 +204,14 @@ public class CreditStreamManager {
       if (mapDataPartition != null) {
         if (mapDataPartition.releaseStream(streamId)) {
           StreamState state = streams.remove(streamId);
-          MemoryManager.instance()
-              .removeReadBufferTargetChangeListener(state.getMapDataPartition());
           if (mapDataPartition.getActiveStreamIds().isEmpty()) {
             synchronized (activeMapPartitions) {
               if (mapDataPartition.getActiveStreamIds().isEmpty()) {
                 mapDataPartition.close();
                 FileInfo fileInfo = mapDataPartition.getFileInfo();
                 activeMapPartitions.remove(fileInfo);
+                MemoryManager.instance()
+                    .removeReadBufferTargetChangeListener(state.getMapDataPartition());
               }
             }
           }

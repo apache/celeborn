@@ -45,7 +45,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     conf.getCelebornConf.partitionReadBuffersMin,
     conf.getCelebornConf.partitionReadBuffersMax,
     conf.getCelebornConf.creditStreamThreadsPerMountpoint,
-    conf.getCelebornConf.readBufferReadAheadMin)
+    conf.getCelebornConf.readBuffersToTriggerReadMin)
   var workerSource: WorkerSource = _
   var rpcSource: RPCSource = _
   var storageManager: StorageManager = _

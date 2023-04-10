@@ -77,7 +77,6 @@ public class MemoryManager {
   private long readBufferTarget = 0;
   private ReadBufferDispatcher readBufferDispatcher;
   private List<ReadBufferTargetChangeListener> readBufferTargetChangeListeners;
-  private Object readBufferTargetChangeLock = new Object();
   private long lastNotifiedTarget = 0;
   private final ScheduledExecutorService readBufferTargetUpdateService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
@@ -251,7 +250,7 @@ public class MemoryManager {
                       (long) Math.ceil(readBufferTarget * 1.0 / mapDataPartitionCount);
                   if (Math.abs(lastNotifiedTarget - currentTarget)
                       > readBufferTargetNotifyThreshold) {
-                    synchronized (readBufferTargetChangeLock) {
+                    synchronized (readBufferTargetChangeListeners) {
                       logger.debug(
                           "read buffer target changed {} -> {} active map partition count {}",
                           lastNotifiedTarget,
@@ -416,13 +415,13 @@ public class MemoryManager {
   }
 
   public void addReadBufferTargetChangeListener(ReadBufferTargetChangeListener listener) {
-    synchronized (readBufferTargetChangeLock) {
+    synchronized (readBufferTargetChangeListeners) {
       readBufferTargetChangeListeners.add(listener);
     }
   }
 
   public void removeReadBufferTargetChangeListener(ReadBufferTargetChangeListener listener) {
-    synchronized (readBufferTargetChangeLock) {
+    synchronized (readBufferTargetChangeListeners) {
       readBufferTargetChangeListeners.remove(listener);
     }
   }

@@ -778,7 +778,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBufferTargetRatio: Double = get(WORKER_READBUFFER_TARGET_RATIO)
   def readBufferTargetUpdateInterval: Long = get(WORKER_READBUFFER_TARGET_UPDATE_INTERVAL)
   def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
-  def readBufferReadAheadMin: Int = get(WORKER_READBUFFER_READAHEAD_MIN)
+  def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -3125,11 +3125,11 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1mb")
 
-  val WORKER_READBUFFER_READAHEAD_MIN: ConfigEntry[Int] =
-    buildConf("celeborn.worker.readBuffer.readAhead.min")
+  val WORKER_READBUFFERS_TOTRIGGERREAD_MIN: ConfigEntry[Int] =
+    buildConf("celeborn.worker.readBuffer.toTriggerReadMin")
       .categories("worker")
       .version("0.3.0")
-      .doc("Min buffers count for map data partition to per read ahead operation.")
+      .doc("Min buffers count for map data partition to trigger read.")
       .intConf
       .createWithDefault(32)
 

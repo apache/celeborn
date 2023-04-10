@@ -62,31 +62,28 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   private volatile int localBuffersTarget = 0;
   private volatile int inFlightBuffers = 0;
   private Object applyBufferLock = new Object();
-  private long definedMinReadAheadMemory;
-  private long definedMaxReadAheadMemory;
-  private int readAheadMin;
+  private long minReadAheadMemory;
+  private long maxReadAheadMemory;
+  private int minBuffersToTriggerRead;
 
   public MapDataPartition(
-      int definedMinReadBuffers,
-      int definedMaxReadBuffers,
+      int minReadBuffers,
+      int maxReadBuffers,
       HashMap<String, ExecutorService> storageFetcherPool,
       int threadsPerMountPoint,
       FileInfo fileInfo,
       Consumer<Long> recycleStream,
-      int readAheadMin)
+      int minBuffersToTriggerRead)
       throws FileNotFoundException {
     this.recycleStream = recycleStream;
     this.fileInfo = fileInfo;
     int bufferSize = fileInfo.getBufferSize();
 
-    definedMinReadAheadMemory = definedMinReadBuffers * bufferSize;
-    definedMaxReadAheadMemory = definedMaxReadBuffers * bufferSize;
+    minReadAheadMemory = minReadBuffers * bufferSize;
+    maxReadAheadMemory = maxReadBuffers * bufferSize;
 
     updateLocalTarget(
-        localMemoryTarget,
-        fileInfo.getFileSize(),
-        definedMinReadAheadMemory,
-        definedMaxReadAheadMemory);
+        localMemoryTarget, fileInfo.getFileSize(), minReadAheadMemory, maxReadAheadMemory);
 
     logger.debug(
         "read map partition {} with {} {} {}",
@@ -95,7 +92,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
         localBuffersTarget,
         fileInfo.getBufferSize());
 
-    this.readAheadMin = readAheadMin;
+    this.minBuffersToTriggerRead = minBuffersToTriggerRead;
 
     readExecutor =
         storageFetcherPool.computeIfAbsent(
@@ -171,9 +168,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       return;
     }
 
-    if (bufferQueue.size() > Math.min(localBuffersTarget / 2 + 1, readAheadMin)) {
-      triggerRead();
-    }
+    triggerRead();
   }
 
   public void recycle(ByteBuf buffer) {
@@ -187,7 +182,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       return;
     }
 
-    if (bufferQueue.size() > Math.min(localBuffersTarget / 2 + 1, readAheadMin)) {
+    if (bufferQueue.size() > Math.min(localBuffersTarget / 2 + 1, minBuffersToTriggerRead)) {
       triggerRead();
     }
 
@@ -330,8 +325,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
   @Override
   public void onChange(long nVal) {
-    updateLocalTarget(
-        nVal, fileInfo.getFileSize(), definedMinReadAheadMemory, definedMaxReadAheadMemory);
+    updateLocalTarget(nVal, fileInfo.getFileSize(), minReadAheadMemory, maxReadAheadMemory);
     logger.debug(
         "local memory target {} local buffers target {}", localMemoryTarget, localBuffersTarget);
     while (bufferQueue.numBuffersOccupied() > localBuffersTarget) {

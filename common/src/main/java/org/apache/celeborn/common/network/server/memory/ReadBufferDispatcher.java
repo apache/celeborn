@@ -89,7 +89,6 @@ public class ReadBufferDispatcher extends Thread {
               Thread.sleep(this.readBufferAllocationWait);
             } catch (InterruptedException e) {
               logger.info("Buffer dispatcher is closing");
-              return;
             }
           }
         }
