@@ -58,9 +58,8 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   private boolean bufferQueueInitialized = false;
   private MemoryManager memoryManager = MemoryManager.instance();
   private Consumer<Long> recycleStream;
-  private volatile long localMemoryTarget = 0;
   private volatile int localBuffersTarget = 0;
-  private volatile int inFlightBuffers = 0;
+  private volatile int pendingRequestBuffers = 0;
   private Object applyBufferLock = new Object();
   private long minReadAheadMemory;
   private long maxReadAheadMemory;
@@ -82,13 +81,11 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     minReadAheadMemory = minReadBuffers * bufferSize;
     maxReadAheadMemory = maxReadBuffers * bufferSize;
 
-    updateLocalTarget(
-        localMemoryTarget, fileInfo.getFileSize(), minReadAheadMemory, maxReadAheadMemory);
+    updateLocalTarget(0, fileInfo.getFileSize(), minReadAheadMemory, maxReadAheadMemory);
 
     logger.debug(
         "read map partition {} with {} {} {}",
         fileInfo.getFilePath(),
-        localMemoryTarget,
         localBuffersTarget,
         fileInfo.getBufferSize());
 
@@ -124,7 +121,6 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       target = fileSize;
     }
     localBuffersTarget = (int) Math.ceil(target * 1.0 / fileInfo.getBufferSize());
-    localMemoryTarget = target;
   }
 
   public synchronized void setupDataPartitionReader(
@@ -161,14 +157,16 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
     try {
       bufferQueue.add(buffers);
-      inFlightBuffers -= buffers.size();
+      pendingRequestBuffers -= buffers.size();
     } catch (Exception e) {
       // this branch means that this bufferQueue is closed
       buffers.forEach(memoryManager::recycleReadBuffer);
       return;
     }
 
-    triggerRead();
+    if (bufferQueue.size() >= Math.min(localBuffersTarget / 2 + 1, minBuffersToTriggerRead)) {
+      triggerRead();
+    }
   }
 
   public void recycle(ByteBuf buffer) {
@@ -182,7 +180,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       return;
     }
 
-    if (bufferQueue.size() > Math.min(localBuffersTarget / 2 + 1, minBuffersToTriggerRead)) {
+    if (bufferQueue.size() >= Math.min(localBuffersTarget / 2 + 1, minBuffersToTriggerRead)) {
       triggerRead();
     }
 
@@ -198,9 +196,9 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
         localBuffersTarget);
     synchronized (applyBufferLock) {
       if (!readers.isEmpty()
-          && bufferQueue.numBuffersOccupied() + inFlightBuffers < localBuffersTarget) {
+          && bufferQueue.numBuffersOccupied() + pendingRequestBuffers < localBuffersTarget) {
         int newBuffersCount =
-            (localBuffersTarget - bufferQueue.numBuffersOccupied() - inFlightBuffers);
+            (localBuffersTarget - bufferQueue.numBuffersOccupied() - pendingRequestBuffers);
         logger.debug(
             "apply new buffers {} while current buffer queue size {} with read count {} for "
                 + "map data partition {} with active stream id count {}",
@@ -210,7 +208,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
             this,
             activeStreamIds.size());
 
-        inFlightBuffers += newBuffersCount;
+        pendingRequestBuffers += newBuffersCount;
         memoryManager.requestReadBuffers(
             new ReadBufferRequest(
                 newBuffersCount,
@@ -324,8 +322,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   @Override
   public void onChange(long nVal) {
     updateLocalTarget(nVal, fileInfo.getFileSize(), minReadAheadMemory, maxReadAheadMemory);
-    logger.debug(
-        "local memory target {} local buffers target {}", localMemoryTarget, localBuffersTarget);
+    logger.debug("local buffers target {}", localBuffersTarget);
     while (bufferQueue.numBuffersOccupied() > localBuffersTarget) {
       recycle(bufferQueue.poll());
     }
