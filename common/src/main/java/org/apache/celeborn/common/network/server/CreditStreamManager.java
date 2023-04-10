@@ -85,16 +85,13 @@ public class CreditStreamManager {
       FileInfo fileInfo)
       throws IOException {
     long streamId = nextStreamId.getAndIncrement();
-    StreamState streamState = new StreamState(channel, fileInfo.getBufferSize());
-    streams.put(streamId, streamState);
     logger.debug(
         "Register stream start from {}, streamId: {}, fileInfo: {}",
         channel.remoteAddress(),
         streamId,
         fileInfo);
-    MapDataPartition mapDataPartition;
     synchronized (activeMapPartitions) {
-      mapDataPartition = activeMapPartitions.get(fileInfo);
+      MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
       if (mapDataPartition == null) {
         mapDataPartition =
             new MapDataPartition(
@@ -108,14 +105,15 @@ public class CreditStreamManager {
         activeMapPartitions.put(fileInfo, mapDataPartition);
         MemoryManager.instance().addReadBufferTargetChangeListener(mapDataPartition);
       }
-      mapDataPartition.addStream(streamId);
+      StreamState streamState =
+          new StreamState(channel, fileInfo.getBufferSize(), mapDataPartition);
+      streams.put(streamId, streamState);
+      mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
     }
 
-    streamState.setMapDataPartition(mapDataPartition);
     addCredit(initialCredit, streamId);
-    // response streamId to channel first
+
     callback.accept(streamId);
-    mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
 
     logger.debug("Register stream streamId: {}, fileInfo: {}", streamId, fileInfo);
 
@@ -204,9 +202,9 @@ public class CreditStreamManager {
       if (mapDataPartition != null) {
         if (mapDataPartition.releaseStream(streamId)) {
           StreamState state = streams.remove(streamId);
-          if (mapDataPartition.getActiveStreamIds().isEmpty()) {
+          if (mapDataPartition.getReaders().isEmpty()) {
             synchronized (activeMapPartitions) {
-              if (mapDataPartition.getActiveStreamIds().isEmpty()) {
+              if (mapDataPartition.getReaders().isEmpty()) {
                 mapDataPartition.close();
                 FileInfo fileInfo = mapDataPartition.getFileInfo();
                 activeMapPartitions.remove(fileInfo);
@@ -236,9 +234,11 @@ public class CreditStreamManager {
     private int bufferSize;
     private MapDataPartition mapDataPartition;
 
-    public StreamState(Channel associatedChannel, int bufferSize) {
+    public StreamState(
+        Channel associatedChannel, int bufferSize, MapDataPartition mapDataPartition) {
       this.associatedChannel = associatedChannel;
       this.bufferSize = bufferSize;
+      this.mapDataPartition = mapDataPartition;
     }
 
     public Channel getAssociatedChannel() {
@@ -251,10 +251,6 @@ public class CreditStreamManager {
 
     public MapDataPartition getMapDataPartition() {
       return mapDataPartition;
-    }
-
-    public void setMapDataPartition(MapDataPartition mapDataPartition) {
-      this.mapDataPartition = mapDataPartition;
     }
   }
 

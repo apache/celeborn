@@ -139,8 +139,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     while (continueReading) {
 
       ByteBuf buffer = bufferQueue.poll();
-      // this is used for control bytebuf manually.
       if (buffer == null) {
+        // if there are no buffers available, halt current read and waiting for next triggered read
         break;
       } else {
         buffer.retain();

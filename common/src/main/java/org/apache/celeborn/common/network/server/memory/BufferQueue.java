@@ -17,9 +17,6 @@
 
 package org.apache.celeborn.common.network.server.memory;
 
-import static org.apache.commons.crypto.utils.Utils.checkArgument;
-import static org.apache.hadoop.shaded.com.google.common.base.Preconditions.checkState;
-
 import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -28,8 +25,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+// Assume that max-managed memory for a MapDataPartition is (2^31 * buffersize)
 public class BufferQueue {
+  public static final Logger logger = LoggerFactory.getLogger(BufferQueue.class);
 
   private final Queue<ByteBuf> buffers = new ConcurrentLinkedQueue<>();
 
@@ -38,8 +39,12 @@ public class BufferQueue {
   /** Number of buffers occupied by this buffer queue (added but still not recycled). */
   private final AtomicInteger numBuffersOccupied = new AtomicInteger();
 
+  private final AtomicInteger pendingRequestBuffers = new AtomicInteger();
+
   /** Whether this buffer queue is released or not. */
   private volatile boolean isReleased = false;
+
+  private volatile int localBuffersTarget = 0;
 
   public BufferQueue() {}
 
@@ -62,31 +67,46 @@ public class BufferQueue {
    * buffer queue has been released.
    */
   public synchronized void add(Collection<ByteBuf> availableBuffers) {
-    checkArgument(availableBuffers != null, "Must be not null.");
-    checkState(!isReleased, "Buffer queue has been released.");
-
-    buffers.addAll(availableBuffers);
-    numBuffersOccupied.addAndGet(availableBuffers.size());
-  }
-
-  public synchronized void add(ByteBuf buffer) {
-    buffers.add(buffer);
-  }
-
-  public int numBuffersOccupied() {
-    return numBuffersOccupied.get();
+    if (!isReleased) {
+      buffers.addAll(availableBuffers);
+      numBuffersOccupied.addAndGet(availableBuffers.size());
+      pendingRequestBuffers.addAndGet(-1 * availableBuffers.size());
+    } else {
+      for (ByteBuf availableBuffer : availableBuffers) {
+        memoryManager.recycleReadBuffer(availableBuffer);
+      }
+    }
   }
 
   public void recycle(ByteBuf buffer) {
-    if (buffer == null) {
-      return;
+    if (isReleased) {
+      recycleToGlobalPool(buffer);
     }
+    if (numBuffersOccupied.get() > localBuffersTarget) {
+      recycleToGlobalPool(buffer);
+    } else {
+      recycleToLocalPool(buffer);
+    }
+  }
+
+  public void recycleToGlobalPool(ByteBuf buffer) {
     numBuffersOccupied.decrementAndGet();
     memoryManager.recycleReadBuffer(buffer);
   }
 
-  public void recycleDirectly(ByteBuf buffer) {
-    memoryManager.recycleReadBuffer(buffer);
+  public synchronized void recycleToLocalPool(ByteBuf buffer) {
+    buffer.clear();
+    buffers.add(buffer);
+  }
+
+  // free unused buffer to the main pool if possible
+  public void trim() {
+    while (numBuffersOccupied.get() > localBuffersTarget) {
+      ByteBuf buffer = poll();
+      if (buffer != null) {
+        recycleToGlobalPool(buffer);
+      }
+    }
   }
 
   /**
@@ -95,13 +115,44 @@ public class BufferQueue {
    */
   public synchronized void release() {
     isReleased = true;
-    numBuffersOccupied.addAndGet(buffers.size() * -1);
-    buffers.forEach(memoryManager::recycleReadBuffer);
+    buffers.forEach(this::recycleToGlobalPool);
     buffers.clear();
   }
 
   /** Returns true is this buffer queue has been released. */
   public boolean isReleased() {
     return isReleased;
+  }
+
+  public int getLocalBuffersTarget() {
+    return localBuffersTarget;
+  }
+
+  public void setLocalBuffersTarget(int localBuffersTarget) {
+    this.localBuffersTarget = localBuffersTarget;
+  }
+
+  public synchronized void tryApplyNewBuffers(
+      int readerSize, int bufferSize, ReadBufferListener readBufferListener) {
+    logger.debug(
+        "try to apply new buffers {} {} {} {}",
+        numBuffersOccupied.get(),
+        buffers.size(),
+        readerSize,
+        localBuffersTarget);
+    if (readerSize != 0
+        && numBuffersOccupied.get() + pendingRequestBuffers.get() < localBuffersTarget) {
+      int newBuffersCount =
+          (localBuffersTarget - numBuffersOccupied.get() - pendingRequestBuffers.get());
+      logger.debug(
+          "apply new buffers {} while current buffer queue size {} with read count {}",
+          newBuffersCount,
+          numBuffersOccupied.get(),
+          readerSize);
+
+      pendingRequestBuffers.addAndGet(newBuffersCount);
+      memoryManager.requestReadBuffers(
+          new ReadBufferRequest(newBuffersCount, bufferSize, readBufferListener));
+    }
   }
 }
