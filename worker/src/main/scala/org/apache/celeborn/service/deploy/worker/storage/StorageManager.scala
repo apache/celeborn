@@ -680,6 +680,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   override def onTrim(): Unit = {
     if (!trimInProcess.get()) {
       trimInProcess.set(true)
+      logInfo(s"Trigger ${this.getClass.getCanonicalName} trim action")
       actionService.submit(new Runnable {
         override def run(): Unit = {
           try {
