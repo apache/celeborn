@@ -622,16 +622,15 @@ object ControlMessages extends Logging {
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
 
     case HeartbeatFromApplicationResponse(statusCode, blacklist, unknownWorkers, shutdownWorkers) =>
-      val builder = PbHeartbeatFromApplicationResponse.newBuilder()
+      val payload = PbHeartbeatFromApplicationResponse.newBuilder()
         .setStatus(statusCode.getValue)
-      builder.addAllBlacklist(
-        blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
-      builder.addAllUnknownWorkers(
-        unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
-      builder.addAllShutdownWorkers(
-        shutdownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
-
-      val payload = builder.build().toByteArray
+        .addAllBlacklist(
+          blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .addAllUnknownWorkers(
+          unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .addAllShutdownWorkers(
+          shutdownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
     case GetBlacklist(localBlacklist) =>
