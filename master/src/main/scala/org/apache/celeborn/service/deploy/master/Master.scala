@@ -604,8 +604,7 @@ private[celeborn] class Master(
       GetBlacklistResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(statusSystem.blacklist),
-        msg.localBlacklist,
-        shutdownWorkerSnapshot))
+        msg.localBlacklist))
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
