@@ -46,8 +46,6 @@ public class BufferQueue {
 
   private volatile int localBuffersTarget = 0;
 
-  public BufferQueue() {}
-
   /** Returns the number of available buffers in this buffer queue. */
   public int size() {
     return buffers.size();
@@ -93,6 +91,7 @@ public class BufferQueue {
 
   public void recycleToLocalPool(ByteBuf buffer) {
     buffer.clear();
+    buffer.retain();
     buffers.add(buffer);
   }
 

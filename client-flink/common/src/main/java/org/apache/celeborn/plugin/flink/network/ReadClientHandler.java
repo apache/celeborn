@@ -85,6 +85,10 @@ public class ReadClientHandler extends BaseMessageHandler {
       case TRANSPORTABLE_ERROR:
         TransportableError transportableError = ((TransportableError) msg);
         streamId = transportableError.getStreamId();
+        logger.warn(
+            "Received TransportableError from worker {} with content {}",
+            client.getSocketAddress().toString(),
+            transportableError);
         processMessageInternal(streamId, transportableError);
         break;
       case ONE_WAY_MESSAGE:

@@ -113,14 +113,14 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     this.readFinished = false;
   }
 
-  public void open(FileChannel dataFileChannel, FileChannel indexFileChannel) throws IOException {
+  public void open(FileChannel dataFileChannel, FileChannel indexFileChannel, long indexSize)
+      throws IOException {
     if (!isOpen) {
       this.dataFileChannel = dataFileChannel;
       this.indexFileChannel = indexFileChannel;
-      long indexFileSize = indexFileChannel.size();
       // index is (offset,length)
       long indexRegionSize = fileInfo.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
-      this.numRegions = Utils.checkedDownCast(indexFileSize / indexRegionSize);
+      this.numRegions = Utils.checkedDownCast(indexSize / indexRegionSize);
 
       updateConsumingOffset();
       isOpen = true;

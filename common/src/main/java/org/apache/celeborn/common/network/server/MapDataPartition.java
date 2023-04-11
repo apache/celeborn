@@ -18,7 +18,7 @@
 package org.apache.celeborn.common.network.server;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +51,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       JavaUtils.newConcurrentHashMap();
   private FileChannel dataFileChanel;
   private FileChannel indexChannel;
+  private long indexSize;
   private volatile boolean isReleased = false;
   private final BufferQueue bufferQueue = new BufferQueue();
   private boolean bufferQueueInitialized = false;
@@ -69,7 +70,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       FileInfo fileInfo,
       Consumer<Long> recycleStream,
       int minBuffersToTriggerRead)
-      throws FileNotFoundException {
+      throws IOException {
     this.recycleStream = recycleStream;
     this.fileInfo = fileInfo;
 
@@ -102,6 +103,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
                         .build()));
     this.dataFileChanel = new FileInputStream(fileInfo.getFile()).getChannel();
     this.indexChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
+    this.indexSize = indexChannel.size();
   }
 
   private synchronized void updateBuffersTarget(int buffersTarget) {
@@ -145,7 +147,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
   // Read logic is executed on another thread.
   public void onBuffer(List<ByteBuf> buffers) {
-    if (isReleased || bufferQueue.isReleased()) {
+    if (isReleased) {
       buffers.forEach(memoryManager::recycleReadBuffer);
       return;
     }
@@ -159,7 +161,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   }
 
   public void recycle(ByteBuf buffer) {
-    if (isReleased || readers.isEmpty() || bufferQueue.isReleased()) {
+    if (isReleased || readers.isEmpty()) {
       bufferQueue.recycleToGlobalPool(buffer);
       return;
     }
@@ -187,7 +189,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       // make sure that all reader are open
       PriorityQueue<MapDataPartitionReader> sortedReaders = new PriorityQueue<>(readers.values());
       for (MapDataPartitionReader reader : readers.values()) {
-        reader.open(dataFileChanel, indexChannel);
+        reader.open(dataFileChanel, indexChannel, indexSize);
       }
       while (bufferQueue.size() > 0 && !sortedReaders.isEmpty()) {
         BufferRecycler bufferRecycler = new BufferRecycler(MapDataPartition.this::recycle);
