@@ -97,7 +97,7 @@ public class BufferQueue {
   }
 
   // free unused buffer to the main pool if possible
-  public void trim() {
+  public synchronized void trim() {
     List<ByteBuf> buffersToFree = new ArrayList<>();
     while (numBuffersOccupied.get() > localBuffersTarget) {
       ByteBuf buffer = poll();
