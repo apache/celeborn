@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, Executors, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
@@ -117,6 +117,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     (flushers, totalThread)
   }
 
+  private val trimInProcess = new AtomicBoolean(false)
   private val actionService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
     .setNameFormat("StorageManager-action-thread").build)
 
@@ -677,11 +678,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   override def onResume(moduleName: String): Unit = {}
 
   override def onTrim(): Unit = {
-    actionService.submit(new Runnable {
-      override def run(): Unit = {
-        flushFileWriters()
-      }
-    })
+    if (!trimInProcess.get()) {
+      trimInProcess.set(true)
+      actionService.submit(new Runnable {
+        override def run(): Unit = {
+          try {
+            flushFileWriters()
+          } finally {
+            trimInProcess.set(false)
+          }
+        }
+      })
+    }
   }
 
   def updateDiskInfos(): Unit = this.synchronized {

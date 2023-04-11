@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -67,7 +66,6 @@ public class MemoryManager {
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private MemoryManagerStat memoryManagerStat = MemoryManagerStat.resumeAll;
   private boolean underPressure;
-  private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
   // For buffer stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
@@ -204,18 +202,11 @@ public class MemoryManager {
               }
             } else {
               if (memoryManagerStat != MemoryManagerStat.resumeAll) {
-                if (!trimInProcess.get()) {
-                  trimInProcess.set(true);
-                  actionService.submit(
-                      () -> {
-                        try {
-                          logger.debug("Trigger trim action");
-                          memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
-                        } finally {
-                          trimInProcess.set(false);
-                        }
-                      });
-                }
+                actionService.submit(
+                    () -> {
+                      logger.debug("Trigger trim action");
+                      memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+                    });
               }
             }
           } catch (Exception e) {
