@@ -17,7 +17,9 @@
 
 package org.apache.celeborn.common.network.server.memory;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -89,22 +91,30 @@ public class BufferQueue {
     memoryManager.recycleReadBuffer(buffer);
   }
 
-  public void recycleToLocalPool(ByteBuf buffer) {
+  public synchronized void recycleToGlobalPool(List<ByteBuf> buffers) {
+    numBuffersOccupied.addAndGet(buffers.size() * -1);
+    buffers.forEach(memoryManager::recycleReadBuffer);
+  }
+
+  public synchronized void recycleToLocalPool(ByteBuf buffer) {
     buffer.clear();
-    buffer.retain();
     buffers.add(buffer);
   }
 
   // free unused buffer to the main pool if possible
   public void trim() {
+    List<ByteBuf> buffersToFree = new ArrayList<>();
     while (numBuffersOccupied.get() > localBuffersTarget) {
       ByteBuf buffer = poll();
       if (buffer != null) {
-        recycleToGlobalPool(buffer);
+        buffersToFree.add(poll());
       } else {
         // there are no unused buffers here
         break;
       }
+    }
+    if (!buffersToFree.isEmpty()) {
+      recycleToGlobalPool(buffersToFree);
     }
   }
 

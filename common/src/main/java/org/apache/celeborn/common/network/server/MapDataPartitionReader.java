@@ -131,7 +131,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     credits.getAndAdd(credit);
   }
 
-  public synchronized boolean readData(BufferQueue bufferQueue, BufferRecycler bufferRecycler)
+  public synchronized void readData(BufferQueue bufferQueue, BufferRecycler bufferRecycler)
       throws IOException {
     boolean hasRemaining = hasRemaining();
     boolean continueReading = hasRemaining;
@@ -166,7 +166,6 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     if (!hasRemaining) {
       closeReader();
     }
-    return hasRemaining;
   }
 
   private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
