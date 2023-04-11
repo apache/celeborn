@@ -84,7 +84,7 @@ public class BufferQueue {
     }
   }
 
-  public void recycleToGlobalPool(ByteBuf buffer) {
+  public synchronized void recycleToGlobalPool(ByteBuf buffer) {
     numBuffersOccupied.decrementAndGet();
     memoryManager.recycleReadBuffer(buffer);
   }
