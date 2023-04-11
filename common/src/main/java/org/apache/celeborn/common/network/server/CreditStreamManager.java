@@ -103,7 +103,6 @@ public class CreditStreamManager {
                 id -> recycleStream(id),
                 minBuffersToTriggerRead);
         activeMapPartitions.put(fileInfo, mapDataPartition);
-        MemoryManager.instance().addReadBufferTargetChangeListener(mapDataPartition);
       }
       StreamState streamState =
           new StreamState(channel, fileInfo.getBufferSize(), mapDataPartition);
@@ -208,8 +207,6 @@ public class CreditStreamManager {
                 mapDataPartition.close();
                 FileInfo fileInfo = mapDataPartition.getFileInfo();
                 activeMapPartitions.remove(fileInfo);
-                MemoryManager.instance()
-                    .removeReadBufferTargetChangeListener(state.getMapDataPartition());
               }
             }
           }

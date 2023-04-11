@@ -149,12 +149,12 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       try {
         continueReading = readBuffer(buffer);
       } catch (Throwable throwable) {
-        bufferQueue.recycle(buffer);
+        bufferQueue.recycleToGlobalPool(buffer);
         throw throwable;
       }
 
       hasRemaining = hasRemaining();
-      addBuffer(buffer, bufferRecycler);
+      addBuffer(buffer, bufferRecycler, bufferQueue);
       ++numDataBuffers;
     }
     if (numDataBuffers > 0) {
@@ -166,7 +166,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     }
   }
 
-  private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
+  private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler, BufferQueue bufferQueue) {
     if (buffer == null) {
       return;
     }
@@ -174,7 +174,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       if (!isReleased) {
         buffersToSend.add(new RecyclableBuffer(buffer, bufferRecycler));
       } else {
-        bufferRecycler.recycle(buffer);
+        bufferQueue.recycleToGlobalPool(buffer);
         throw new RuntimeException("Partition reader has been failed or finished.", errorCause);
       }
     }

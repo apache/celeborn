@@ -116,6 +116,8 @@ public class BufferQueue {
     isReleased = true;
     buffers.forEach(this::recycleToGlobalPool);
     buffers.clear();
+    pendingRequestBuffers.set(0);
+    numBuffersOccupied.set(0);
   }
 
   /** Returns true is this buffer queue has been released. */

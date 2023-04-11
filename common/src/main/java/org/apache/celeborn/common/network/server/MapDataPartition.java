@@ -104,6 +104,8 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     this.dataFileChanel = new FileInputStream(fileInfo.getFile()).getChannel();
     this.indexChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
     this.indexSize = indexChannel.size();
+
+    MemoryManager.instance().addReadBufferTargetChangeListener(this);
   }
 
   private synchronized void updateBuffersTarget(int buffersTarget) {
@@ -161,8 +163,9 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   }
 
   public void recycle(ByteBuf buffer) {
-    if (isReleased || readers.isEmpty()) {
-      bufferQueue.recycleToGlobalPool(buffer);
+    if (isReleased) {
+      // this means bufferQueue is already release
+      memoryManager.recycleReadBuffer(buffer);
       return;
     }
 
@@ -242,12 +245,13 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
   public void close() {
     logger.debug("release map data partition {}", fileInfo);
+    bufferQueue.release();
+    isReleased = true;
 
     IOUtils.closeQuietly(dataFileChanel);
     IOUtils.closeQuietly(indexChannel);
-    bufferQueue.release();
 
-    isReleased = true;
+    MemoryManager.instance().removeReadBufferTargetChangeListener(this);
   }
 
   @Override
