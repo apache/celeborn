@@ -29,7 +29,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 
-class LifecycleBlacklistManager(
+class WorkerStatusTracker(
     conf: CelebornConf,
     lifecycleManager: LifecycleManager,
     commitManager: CommitManager) extends Logging {
@@ -39,15 +39,13 @@ class LifecycleBlacklistManager(
   val blacklist = new ShuffleFailedWorkers()
   private val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
-  def blacklistPartition(
+  def blacklistWorkerFromPartition(
       shuffleId: Int,
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
     val failedWorker = new ShuffleFailedWorkers()
 
-    def blacklistPartitionWorker(
-        partition: PartitionLocation,
-        statusCode: StatusCode): Unit = {
+    def blacklistWorker(partition: PartitionLocation, statusCode: StatusCode): Unit = {
       val tmpWorker = partition.getWorker
       val worker =
         lifecycleManager.workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
@@ -59,29 +57,29 @@ class LifecycleBlacklistManager(
     if (oldPartition != null) {
       cause match {
         case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
+          blacklistWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
         case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
+          blacklistWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
+          blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(
+          blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
+          blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(
+          blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
         case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
+          blacklistWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
         case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
             if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(
+          blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
         case _ =>

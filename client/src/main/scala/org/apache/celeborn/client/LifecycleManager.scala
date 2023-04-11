@@ -118,14 +118,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
   val commitManager = new CommitManager(appId, conf, this)
-  val blacklistManager = new LifecycleBlacklistManager(conf, this, commitManager)
+  val workerStatusTracker = new WorkerStatusTracker(conf, this, commitManager)
   private val heartbeater =
     new ApplicationHeartbeater(
       appId,
       conf,
       rssHARetryClient,
       () => commitManager.commitMetrics(),
-      blacklistManager)
+      workerStatusTracker)
   private val changePartitionManager = new ChangePartitionManager(conf, this)
   private val releasePartitionManager = new ReleasePartitionManager(appId, conf, this)
 
@@ -441,7 +441,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
-    blacklistManager.recordWorkerFailure(connectFailedWorkers)
+    workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
@@ -684,7 +684,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       logError(s"Aggregated error of reserveSlots failure:${failureInfos.asScala.foldLeft("")(
         (x, y) => s"$x \n $y")}")
     }
-    blacklistManager.recordWorkerFailure(reserveSlotFailedWorkers)
+    workerStatusTracker.recordWorkerFailure(reserveSlotFailedWorkers)
     new util.ArrayList[WorkerInfo](reserveSlotFailedWorkers.asScala.keys.toList.asJava)
   }
 
@@ -845,7 +845,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           // add candidates to avoid revive action passed in slots only 2 worker
           retryCandidates.addAll(candidates)
           // remove blacklist from retryCandidates
-          retryCandidates.removeAll(blacklistManager.blacklist.keys().asScala.toList.asJava)
+          retryCandidates.removeAll(workerStatusTracker.blacklist.keys().asScala.toList.asJava)
           if (retryCandidates.size < 1 || (pushReplicateEnabled && retryCandidates.size < 2)) {
             logError("Retry reserve slots failed caused by not enough slots.")
             noAvailableSlots = true

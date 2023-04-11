@@ -34,7 +34,7 @@ class ApplicationHeartbeater(
     conf: CelebornConf,
     rssHARetryClient: RssHARetryClient,
     shuffleMetrics: () => (Long, Long),
-    blacklistManager: LifecycleBlacklistManager) extends Logging {
+    workerStatusTracker: WorkerStatusTracker) extends Logging {
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -55,13 +55,13 @@ class ApplicationHeartbeater(
                 appId,
                 tmpTotalWritten,
                 tmpFileCount,
-                blacklistManager.blacklist.asScala.keys.toList.asJava,
+                workerStatusTracker.blacklist.asScala.keys.toList.asJava,
                 ZERO_UUID)
             val response = requestHeartbeat(appHeartbeat)
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")
+              workerStatusTracker.handleHeartbeatResponse(response)
             }
-            blacklistManager.handleHeartbeatResponse(response)
           } catch {
             case it: InterruptedException =>
               logWarning("Interrupted while sending app heartbeat.")

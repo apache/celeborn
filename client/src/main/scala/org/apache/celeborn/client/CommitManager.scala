@@ -146,7 +146,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                               slaveIds,
                               commitFilesFailedWorkers)
                         }
-                        lifecycleManager.blacklistManager.recordWorkerFailure(
+                        lifecycleManager.workerStatusTracker.recordWorkerFailure(
                           commitFilesFailedWorkers)
                       } finally {
                         // when batch commit thread ends, we need decrementInFlightNum
@@ -211,7 +211,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       numMappers,
       partitionId,
       r =>
-        lifecycleManager.blacklistManager.recordWorkerFailure(r))
+        lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
   }
 
   def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
@@ -238,7 +238,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
   def tryFinalCommit(shuffleId: Int): Boolean = {
     getCommitHandler(shuffleId).tryFinalCommit(
       shuffleId,
-      r => lifecycleManager.blacklistManager.recordWorkerFailure(r))
+      r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
   }
 
   def isStageEnd(shuffleId: Int): Boolean = {

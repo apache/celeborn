@@ -207,7 +207,7 @@ class ChangePartitionManager(
     // Blacklist all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
       changePartitions.filter(_.causes.isDefined).foreach { changePartition =>
-        lifecycleManager.blacklistManager.blacklistPartition(
+        lifecycleManager.workerStatusTracker.blacklistWorkerFromPartition(
           shuffleId,
           changePartition.oldPartition,
           changePartition.causes.get)
@@ -252,7 +252,7 @@ class ChangePartitionManager(
         .workerSnapshots(shuffleId)
         .keySet()
         .asScala
-        .filter(w => !lifecycleManager.blacklistManager.blacklist.keySet().contains(w))
+        .filter(w => !lifecycleManager.workerStatusTracker.blacklist.keySet().contains(w))
         .toList
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
