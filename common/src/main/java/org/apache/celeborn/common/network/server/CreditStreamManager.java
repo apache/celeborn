@@ -110,9 +110,8 @@ public class CreditStreamManager {
       mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
     }
 
-    addCredit(initialCredit, streamId);
-
     callback.accept(streamId);
+    addCredit(initialCredit, streamId);
 
     logger.debug("Register stream streamId: {}, fileInfo: {}", streamId, fileInfo);
 
