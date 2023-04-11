@@ -332,7 +332,7 @@ object ControlMessages extends Logging {
       statusCode: StatusCode,
       blacklist: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo],
-      shutdownWorkers: util.List[WorkerInfo]) extends Message
+      shuttingWorkers: util.List[WorkerInfo]) extends Message
 
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
