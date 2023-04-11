@@ -283,6 +283,9 @@ private[celeborn] class Master(
         context,
         handleUnregisterShuffle(context, applicationId, shuffleId, requestId))
 
+    case msg: GetBlacklist =>
+      executeWithLeaderChecker(context, handleGetBlacklist(context, msg))
+
     case ApplicationLost(appId, requestId) =>
       logDebug(s"Received ApplicationLost request $requestId, $appId.")
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
@@ -593,6 +596,16 @@ private[celeborn] class Master(
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
     context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
+  }
+
+  def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {
+    msg.localBlacklist.removeAll(workersSnapShot)
+    context.reply(
+      GetBlacklistResponse(
+        StatusCode.SUCCESS,
+        new util.ArrayList(statusSystem.blacklist),
+        msg.localBlacklist,
+        shutdownWorkerSnapshot))
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {

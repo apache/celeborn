@@ -39,8 +39,8 @@ enum MessageType {
   APPLICATION_LOST = 18;
   APPLICATION_LOST_RESPONSE = 19;
   HEARTBEAT_FROM_APPLICATION = 20;
-  HEARTBEAT_FROM_APPLICATION_RESPONSE = 21;
-  // Reserve 22
+  GET_BLACKLIST = 21;
+  GET_BLACKLIST_RESPONSE = 22;
   CHECK_QUOTA = 23;
   CHECK_QUOTA_RESPONSE = 24;
   REPORT_WORKER_FAILURE = 25;
@@ -67,6 +67,7 @@ enum MessageType {
   STAGE_END_RESPONSE = 46;
   PARTITION_SPLIT = 47;
   REGISTER_MAP_PARTITION_TASK = 48;
+  HEARTBEAT_FROM_APPLICATION_RESPONSE = 49;
 }
 
 message PbStorageInfo {
@@ -286,6 +287,17 @@ message PbHeartbeatFromApplication {
 }
 
 message PbHeartbeatFromApplicationResponse {
+  int32 status = 1;
+  repeated PbWorkerInfo blacklist = 2;
+  repeated PbWorkerInfo unknownWorkers = 3;
+  repeated PbWorkerInfo shutdownWorkers = 4;
+}
+
+message PbGetBlacklist {
+  repeated PbWorkerInfo localBlackList = 1;
+}
+
+message PbGetBlacklistResponse {
   int32 status = 1;
   repeated PbWorkerInfo blacklist = 2;
   repeated PbWorkerInfo unknownWorkers = 3;

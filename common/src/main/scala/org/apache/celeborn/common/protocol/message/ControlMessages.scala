@@ -326,6 +326,14 @@ object ControlMessages extends Logging {
       unknownWorkers: util.List[WorkerInfo],
       shutdownWorkers: util.List[WorkerInfo]) extends Message
 
+  case class GetBlacklist(localBlacklist: util.List[WorkerInfo]) extends MasterMessage
+
+  case class GetBlacklistResponse(
+      statusCode: StatusCode,
+      blacklist: util.List[WorkerInfo],
+      unknownWorkers: util.List[WorkerInfo],
+      shutdownWorkers: util.List[WorkerInfo]) extends Message
+
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
   case class CheckQuotaResponse(isAvailable: Boolean, reason: String) extends Message
@@ -625,6 +633,28 @@ object ControlMessages extends Logging {
 
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
+
+    case GetBlacklist(localBlacklist) =>
+      val payload = PbGetBlacklist.newBuilder()
+        .addAllLocalBlackList(localBlacklist.asScala.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        }
+          .toList.asJava)
+        .build().toByteArray
+      new TransportMessage(MessageType.GET_BLACKLIST, payload)
+
+    case GetBlacklistResponse(statusCode, blacklist, unknownWorkers, shutdownWorkers) =>
+      val builder = PbGetBlacklistResponse.newBuilder()
+        .setStatus(statusCode.getValue)
+      builder.addAllBlacklist(
+        blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+      builder.addAllUnknownWorkers(
+        unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+      builder.addAllShutdownWorkers(
+        shutdownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+
+      val payload = builder.build().toByteArray
+      new TransportMessage(MessageType.GET_BLACKLIST_RESPONSE, payload)
 
     case CheckQuota(userIdentifier) =>
       val builder = PbCheckQuota.newBuilder()
@@ -948,6 +978,22 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getShutdownWorkersList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+
+      case GET_BLACKLIST =>
+        val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
+        GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
+          .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
+
+      case GET_BLACKLIST_RESPONSE =>
+        val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
+        GetBlacklistResponse(
+          Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
+          pbGetBlacklistResponse.getBlacklistList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
+          pbGetBlacklistResponse.getUnknownWorkersList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
+          pbGetBlacklistResponse.getShutdownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
 
       case CHECK_QUOTA =>
