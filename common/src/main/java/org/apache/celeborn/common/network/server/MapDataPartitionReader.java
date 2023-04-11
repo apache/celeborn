@@ -131,7 +131,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     credits.getAndAdd(credit);
   }
 
-  public synchronized void readData(BufferQueue bufferQueue, BufferRecycler bufferRecycler)
+  public synchronized boolean readData(BufferQueue bufferQueue, BufferRecycler bufferRecycler)
       throws IOException {
     boolean hasRemaining = hasRemaining();
     boolean continueReading = hasRemaining;
@@ -166,6 +166,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     if (!hasRemaining) {
       closeReader();
     }
+    return hasRemaining;
   }
 
   private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
@@ -425,11 +426,12 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     synchronized (lock) {
       if (!isReleased) {
         logger.debug("release reader for stream {}", this.streamId);
-        isReleased = true;
         if (!buffersToSend.isEmpty()) {
+          numInUseBuffers.addAndGet(-1 * buffersToSend.size());
           buffersToSend.forEach(RecyclableBuffer::recycle);
           buffersToSend.clear();
         }
+        isReleased = true;
       }
     }
   }

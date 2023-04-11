@@ -198,10 +198,12 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
         BufferRecycler bufferRecycler = new BufferRecycler(MapDataPartition.this::recycle);
         MapDataPartitionReader reader = sortedReaders.poll();
         try {
-          reader.readData(bufferQueue, bufferRecycler);
+          if (!reader.readData(bufferQueue, bufferRecycler)) {
+            readers.remove(reader);
+          }
         } catch (Throwable e) {
           logger.error("reader exception, reader: {}, message: {}", reader, e.getMessage(), e);
-          // this reader failed, recycle stream id
+          readers.remove(reader);
           reader.recycleOnError(e);
         }
       }
@@ -210,6 +212,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       for (MapDataPartitionReader reader : readers.values()) {
         reader.recycleOnError(e);
       }
+      readers.clear();
     }
   }
 
@@ -231,7 +234,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     return readers.get(streamId);
   }
 
-  public boolean releaseStream(Long streamId) {
+  public boolean releaseReader(Long streamId) {
     MapDataPartitionReader mapDataPartitionReader = readers.get(streamId);
     mapDataPartitionReader.release();
     if (mapDataPartitionReader.isFinished()) {

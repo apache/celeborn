@@ -199,8 +199,8 @@ public class CreditStreamManager {
     if (streams.containsKey(streamId)) {
       MapDataPartition mapDataPartition = streams.get(streamId).getMapDataPartition();
       if (mapDataPartition != null) {
-        if (mapDataPartition.releaseStream(streamId)) {
-          StreamState state = streams.remove(streamId);
+        if (mapDataPartition.releaseReader(streamId)) {
+          streams.remove(streamId);
           if (mapDataPartition.getReaders().isEmpty()) {
             synchronized (activeMapPartitions) {
               if (mapDataPartition.getReaders().isEmpty()) {
