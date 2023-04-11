@@ -91,11 +91,6 @@ public class BufferQueue {
     memoryManager.recycleReadBuffer(buffer);
   }
 
-  public synchronized void recycleToGlobalPool(List<ByteBuf> buffers) {
-    numBuffersOccupied.addAndGet(buffers.size() * -1);
-    buffers.forEach(memoryManager::recycleReadBuffer);
-  }
-
   public synchronized void recycleToLocalPool(ByteBuf buffer) {
     buffer.clear();
     buffers.add(buffer);
@@ -107,14 +102,16 @@ public class BufferQueue {
     while (numBuffersOccupied.get() > localBuffersTarget) {
       ByteBuf buffer = poll();
       if (buffer != null) {
-        buffersToFree.add(poll());
+        buffersToFree.add(buffer);
+        numBuffersOccupied.decrementAndGet();
       } else {
         // there are no unused buffers here
         break;
       }
     }
+
     if (!buffersToFree.isEmpty()) {
-      recycleToGlobalPool(buffersToFree);
+      buffersToFree.forEach(memoryManager::recycleReadBuffer);
     }
   }
 
