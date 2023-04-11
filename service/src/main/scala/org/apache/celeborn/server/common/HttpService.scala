@@ -17,12 +17,17 @@
 
 package org.apache.celeborn.server.common
 
+import java.text.SimpleDateFormat
+import java.util.Locale
+
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer}
 
 abstract class HttpService extends Service with Logging {
 
   private var httpServer: HttpServer = _
+
+  protected val simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.ROOT)
 
   def getConf: String = {
     val sb = new StringBuilder

@@ -714,8 +714,8 @@ private[celeborn] class Master(
   override def getLostWorkers: String = {
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
-    lostWorkersSnapshot.asScala.foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$time\n")
+    lostWorkersSnapshot.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${simpleDateFormat.format(time)}\n")
     }
     sb.toString()
   }
@@ -757,8 +757,8 @@ private[celeborn] class Master(
   override def getApplicationList: String = {
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Hostname List ======================\n")
-    statusSystem.appHeartbeatTime.asScala.foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}$time\n")
+    statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
+      sb.append(s"${appId.padTo(40, " ").mkString}${simpleDateFormat.format(time)}\n")
     }
     sb.toString()
   }
