@@ -112,8 +112,8 @@ class WorkerStatusTracker(
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
-        s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shutdownWorkers}")
-      resolveShutdownWorkers(res.shutdownWorkers)
+        s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
+      resolveShutdownWorkers(res.shuttingWorkers)
       val current = System.currentTimeMillis()
       val reserved = blacklist.asScala
         .filter { case (_, entry) =>

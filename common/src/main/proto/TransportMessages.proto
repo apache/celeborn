@@ -290,7 +290,7 @@ message PbHeartbeatFromApplicationResponse {
   int32 status = 1;
   repeated PbWorkerInfo blacklist = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
-  repeated PbWorkerInfo shutdownWorkers = 4;
+  repeated PbWorkerInfo shuttingWorkers = 4;
 }
 
 message PbGetBlacklist {
@@ -301,7 +301,7 @@ message PbGetBlacklistResponse {
   int32 status = 1;
   repeated PbWorkerInfo blacklist = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
-  repeated PbWorkerInfo shutdownWorkers = 4;
+  repeated PbWorkerInfo shuttingWorkers = 4;
 }
 
 message PbCheckQuota {

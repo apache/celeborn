@@ -324,7 +324,7 @@ object ControlMessages extends Logging {
       statusCode: StatusCode,
       blacklist: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo],
-      shutdownWorkers: util.List[WorkerInfo]) extends Message
+      shuttingWorkers: util.List[WorkerInfo]) extends Message
 
   case class GetBlacklist(localBlacklist: util.List[WorkerInfo]) extends MasterMessage
 
@@ -628,7 +628,7 @@ object ControlMessages extends Logging {
           blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .addAllUnknownWorkers(
           unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
-        .addAllShutdownWorkers(
+        .addAllShuttingWorkers(
           shutdownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
@@ -649,7 +649,7 @@ object ControlMessages extends Logging {
         blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
       builder.addAllUnknownWorkers(
         unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
-      builder.addAllShutdownWorkers(
+      builder.addAllShuttingWorkers(
         shutdownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
 
       val payload = builder.build().toByteArray
@@ -976,7 +976,7 @@ object ControlMessages extends Logging {
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
-          pbHeartbeatFromApplicationResponse.getShutdownWorkersList.asScala
+          pbHeartbeatFromApplicationResponse.getShuttingWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
 
       case GET_BLACKLIST =>
@@ -992,7 +992,7 @@ object ControlMessages extends Logging {
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbGetBlacklistResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
-          pbGetBlacklistResponse.getShutdownWorkersList.asScala
+          pbGetBlacklistResponse.getShuttingWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
 
       case CHECK_QUOTA =>
