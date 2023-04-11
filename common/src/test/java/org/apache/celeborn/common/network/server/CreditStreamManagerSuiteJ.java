@@ -108,7 +108,7 @@ public class CreditStreamManagerSuiteJ {
 
     // registerStream2 can't be cleaned as registerStream2 is not finished
     AtomicInteger numInFlightRequests =
-        mapDataPartition2.getStreamReader(registerStream2).getNumInFlightRequests();
+        mapDataPartition2.getStreamReader(registerStream2).getNumInUseBuffers();
     numInFlightRequests.incrementAndGet();
 
     creditStreamManager.cleanResource(registerStream2);

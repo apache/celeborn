@@ -88,7 +88,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   private Runnable recycleStream;
 
-  private AtomicInteger numInFlightRequests = new AtomicInteger(0);
+  private AtomicInteger numInUseBuffers = new AtomicInteger(0);
   private boolean isOpen = false;
 
   public MapDataPartitionReader(
@@ -144,17 +144,19 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
         break;
       } else {
         buffer.retain();
+        numInUseBuffers.incrementAndGet();
       }
 
       try {
         continueReading = readBuffer(buffer);
       } catch (Throwable throwable) {
-        bufferQueue.recycleToGlobalPool(buffer);
+        bufferRecycler.recycle(buffer);
+        numInUseBuffers.decrementAndGet();
         throw throwable;
       }
 
       hasRemaining = hasRemaining();
-      addBuffer(buffer, bufferRecycler, bufferQueue);
+      addBuffer(buffer, bufferRecycler);
       ++numDataBuffers;
     }
     if (numDataBuffers > 0) {
@@ -166,7 +168,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     }
   }
 
-  private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler, BufferQueue bufferQueue) {
+  private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
     if (buffer == null) {
       return;
     }
@@ -174,7 +176,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       if (!isReleased) {
         buffersToSend.add(new RecyclableBuffer(buffer, bufferRecycler));
       } else {
-        bufferQueue.recycleToGlobalPool(buffer);
+        bufferRecycler.recycle(buffer);
+        numInUseBuffers.decrementAndGet();
         throw new RuntimeException("Partition reader has been failed or finished.", errorCause);
       }
     }
@@ -186,7 +189,6 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       synchronized (lock) {
         if (!isReleased) {
           wrappedBuffer = buffersToSend.poll();
-          numInFlightRequests.incrementAndGet();
         } else {
           return;
         }
@@ -207,8 +209,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
                       }
                     } finally {
                       logger.debug("send data end: {}, {}", streamId, readableBytes);
-                      numInFlightRequests.decrementAndGet();
                       wrappedBuffer.recycle();
+                      numInUseBuffers.decrementAndGet();
                     }
                   });
 
@@ -435,7 +437,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   public boolean isFinished() {
     synchronized (lock) {
       // ensure every buffer are return to bufferQueue or release in buffersRead
-      return numInFlightRequests.get() == 0 && isReleased;
+      return numInUseBuffers.get() == 0 && isReleased;
     }
   }
 
@@ -454,7 +456,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   @VisibleForTesting
-  public AtomicInteger getNumInFlightRequests() {
-    return numInFlightRequests;
+  public AtomicInteger getNumInUseBuffers() {
+    return numInUseBuffers;
   }
 }
