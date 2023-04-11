@@ -117,9 +117,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     (flushers, totalThread)
   }
 
-  private val actionService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-    .setNameFormat("StorageManager-action-thread").build)
-
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
@@ -677,11 +674,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   override def onResume(moduleName: String): Unit = {}
 
   override def onTrim(): Unit = {
-    actionService.submit(new Runnable {
-      override def run(): Unit = {
-        flushFileWriters()
-      }
-    })
+    flushFileWriters()
   }
 
   def updateDiskInfos(): Unit = this.synchronized {
