@@ -66,7 +66,7 @@ public class BufferQueue {
    * Adds a collection of available buffers to this buffer queue and will throw exception if this
    * buffer queue has been released.
    */
-  public synchronized void add(Collection<ByteBuf> availableBuffers) {
+  public void add(Collection<ByteBuf> availableBuffers) {
     if (!isReleased) {
       buffers.addAll(availableBuffers);
       numBuffersOccupied.addAndGet(availableBuffers.size());
@@ -79,10 +79,7 @@ public class BufferQueue {
   }
 
   public void recycle(ByteBuf buffer) {
-    if (isReleased) {
-      recycleToGlobalPool(buffer);
-    }
-    if (numBuffersOccupied.get() > localBuffersTarget) {
+    if (isReleased || numBuffersOccupied.get() > localBuffersTarget) {
       recycleToGlobalPool(buffer);
     } else {
       recycleToLocalPool(buffer);
@@ -94,7 +91,7 @@ public class BufferQueue {
     memoryManager.recycleReadBuffer(buffer);
   }
 
-  public synchronized void recycleToLocalPool(ByteBuf buffer) {
+  public void recycleToLocalPool(ByteBuf buffer) {
     buffer.clear();
     buffers.add(buffer);
   }
@@ -116,7 +113,7 @@ public class BufferQueue {
    * Releases this buffer queue and recycles all available buffers. After released, no buffer can be
    * added to or polled from this buffer queue.
    */
-  public synchronized void release() {
+  public void release() {
     isReleased = true;
     buffers.forEach(this::recycleToGlobalPool);
     buffers.clear();
