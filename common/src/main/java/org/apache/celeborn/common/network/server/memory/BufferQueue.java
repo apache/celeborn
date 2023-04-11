@@ -63,8 +63,8 @@ public class BufferQueue {
   }
 
   /**
-   * Adds a collection of available buffers to this buffer queue and will throw exception if this
-   * buffer queue has been released.
+   * Add buffers and increment numBufferOccupied.
+   * Free all buffers to global memory pool if this buffer queue is released.
    */
   public synchronized void add(Collection<ByteBuf> availableBuffers) {
     if (!isReleased) {
