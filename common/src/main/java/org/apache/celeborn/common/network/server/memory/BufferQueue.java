@@ -64,7 +64,7 @@ public class BufferQueue {
    * Adds a collection of available buffers to this buffer queue and will throw exception if this
    * buffer queue has been released.
    */
-  public void add(Collection<ByteBuf> availableBuffers) {
+  public synchronized void add(Collection<ByteBuf> availableBuffers) {
     if (!isReleased) {
       buffers.addAll(availableBuffers);
       numBuffersOccupied.addAndGet(availableBuffers.size());
@@ -112,7 +112,7 @@ public class BufferQueue {
    * Releases this buffer queue and recycles all available buffers. After released, no buffer can be
    * added to or polled from this buffer queue.
    */
-  public void release() {
+  public synchronized void release() {
     isReleased = true;
     buffers.forEach(this::recycleToGlobalPool);
     buffers.clear();
