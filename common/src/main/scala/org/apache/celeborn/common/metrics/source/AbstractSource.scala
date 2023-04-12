@@ -61,7 +61,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     ThreadUtils.newDaemonSingleThreadScheduledExecutor(s"worker-metrics-cleaner")
 
   val roleLabel = "role" -> role
-  val extraLabels = conf.metricsExtraLabels + roleLabel
+  val staticLabels = conf.metricsExtraLabels + roleLabel
+  val staticLabelsString = MetricLabels.labelString(staticLabels)
 
   protected val namedGauges: java.util.List[NamedGauge[_]] =
     new java.util.ArrayList[NamedGauge[_]]()
@@ -70,16 +71,17 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       name: String,
       gauge: Gauge[T],
       labels: Map[String, String]): Unit = {
-    namedGauges.add(NamedGauge(name, gauge, labels ++ extraLabels))
+    namedGauges.add(NamedGauge(name, gauge, labels ++ staticLabels))
   }
 
   def addGauge[T](
       name: String,
       f: Unit => T,
       labels: Map[String, String]): Unit = {
-    if (!metricRegistry.getGauges.containsKey(metricNameWithLabels(name, labels ++ extraLabels))) {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    if (!metricRegistry.getGauges.containsKey(metricNameWithLabel)) {
       val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
-      val gauge = metricRegistry.gauge(metricNameWithLabels(name, labels ++ extraLabels), supplier)
+      val gauge = metricRegistry.gauge(metricNameWithLabel, supplier)
       addGauge(name, gauge, labels)
     }
   }
@@ -96,13 +98,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   def addTimer(name: String): Unit = addTimer(name, Map.empty[String, String])
 
   def addTimer(name: String, labels: Map[String, String]): Unit = {
-    if (!metricRegistry.getTimers.containsKey(metricNameWithLabels(name, labels ++ extraLabels))) {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    if (!metricRegistry.getTimers.containsKey(metricNameWithLabel)) {
       val timer =
-        metricRegistry.timer(metricNameWithLabels(name, labels ++ extraLabels), timerSupplier)
+        metricRegistry.timer(metricNameWithLabel, timerSupplier)
       namedTimers.putIfAbsent(
-        metricNameWithLabels(name, labels ++ extraLabels),
+        metricNameWithLabel,
         (
-          NamedTimer(name, timer, labels ++ extraLabels),
+          NamedTimer(name, timer, labels ++ staticLabels),
           JavaUtils.newConcurrentHashMap[String, Long]()))
     }
   }
@@ -113,12 +116,13 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
 
   def addCounter(name: String, labels: Map[String, String]): Unit = {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     if (!metricRegistry.getCounters.containsKey(
-        metricNameWithLabels(name, labels ++ extraLabels))) {
-      val counter = metricRegistry.counter(metricNameWithLabels(name, labels ++ extraLabels))
+        metricNameWithLabel)) {
+      val counter = metricRegistry.counter(metricNameWithLabel)
       namedCounters.put(
-        metricNameWithLabels(name, labels ++ extraLabels),
-        NamedCounter(name, counter, labels ++ extraLabels))
+        metricNameWithLabel,
+        NamedCounter(name, counter, labels ++ staticLabels))
     }
   }
 
@@ -149,14 +153,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def removeGauge(name: String, labels: Map[String, String]): Unit = {
-    val labelString = MetricLabels.labelString(labels ++ extraLabels)
+    val labelString = MetricLabels.labelString(labels ++ staticLabels)
 
     val iter = namedGauges.iterator()
     while (iter.hasNext) {
       val namedGauge = iter.next()
       if (namedGauge.name.equals(name) && namedGauge.labelString.equals(labelString)) {
         iter.remove()
-        metricRegistry.remove(metricNameWithLabels(name, labels ++ extraLabels))
+        metricRegistry.remove(metricNameWithCustomizedLabels(name, labels))
         return
       }
     }
@@ -200,28 +204,20 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     doStopTimer(metricsName, key, labels)
   }
 
-  def doStartTimer(metricsName: String, key: String): Unit = {
-    doStartTimer(metricsName, key, Map.empty[String, String])
-  }
-
   def doStartTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
-    val name = metricNameWithLabels(metricsName, labels ++ extraLabels)
-    val pair = namedTimers.get(name)
+    val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
+    val pair = namedTimers.get(metricNameWithLabel)
     if (pair != null) {
       pair._2.put(key, System.nanoTime())
     } else {
-      logWarning(s"Metric $name not found!")
+      logWarning(s"Metric $metricNameWithLabel not found!")
     }
   }
 
-  protected def doStopTimer(metricsName: String, key: String): Unit = {
-    doStopTimer(metricsName, key, Map.empty[String, String])
-  }
-
   protected def doStopTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
-    val name = metricNameWithLabels(metricsName, labels ++ extraLabels)
+    val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
     try {
-      val (namedTimer, map) = namedTimers.get(name)
+      val (namedTimer, map) = namedTimers.get(metricNameWithLabel)
       val startTime = Option(map.remove(key))
       startTime match {
         case Some(t) =>
@@ -233,7 +229,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       }
     } catch {
       case e: Exception =>
-        logWarning(s"Exception encountered during stop timer of metric $name", e)
+        logWarning(s"Exception encountered during stop timer of metric $metricNameWithLabel", e)
     }
   }
 
@@ -246,12 +242,12 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def incCounter(metricsName: String, incV: Long, labels: Map[String, String]): Unit = {
-    val name = metricNameWithLabels(metricsName, labels ++ extraLabels)
-    val counter = namedCounters.get(name)
+    val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
+    val counter = namedCounters.get(metricNameWithLabel)
     if (counter != null) {
       counter.counter.inc(incV)
     } else {
-      logWarning(s"Metric $name not found!")
+      logWarning(s"Metric $metricNameWithLabel not found!")
     }
   }
 
@@ -397,8 +393,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     BigDecimal(value / 1000000).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 
-  protected def metricNameWithLabels(metricsName: String, labels: Map[String, String]): String = {
-    metricsName + MetricLabels.labelString(labels)
+  protected def metricNameWithCustomizedLabels(
+      metricsName: String,
+      labels: Map[String, String]): String = {
+    if (labels.isEmpty) {
+      metricsName + staticLabelsString
+    } else {
+      metricsName + MetricLabels.labelString(labels + staticLabels)
+    }
   }
 }
 
