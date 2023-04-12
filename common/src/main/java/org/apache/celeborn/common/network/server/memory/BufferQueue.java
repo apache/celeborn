@@ -66,12 +66,15 @@ public class BufferQueue {
    * Add buffers and increment numBufferOccupied. Free all buffers to global memory pool if this
    * buffer queue is released.
    */
-  public synchronized void add(Collection<ByteBuf> availableBuffers) {
-    if (!isReleased) {
-      buffers.addAll(availableBuffers);
-      numBuffersOccupied.addAndGet(availableBuffers.size());
-      pendingRequestBuffers.addAndGet(-1 * availableBuffers.size());
-    } else {
+  public void add(Collection<ByteBuf> availableBuffers) {
+    synchronized (buffers) {
+      if (!isReleased) {
+        buffers.addAll(availableBuffers);
+        numBuffersOccupied.addAndGet(availableBuffers.size());
+        pendingRequestBuffers.addAndGet(-1 * availableBuffers.size());
+      }
+    }
+    if (isReleased) {
       for (ByteBuf availableBuffer : availableBuffers) {
         memoryManager.recycleReadBuffer(availableBuffer);
       }
@@ -103,16 +106,18 @@ public class BufferQueue {
   }
 
   // free unused buffer to the main pool if possible
-  public synchronized void trim() {
+  public void trim() {
     List<ByteBuf> buffersToFree = new ArrayList<>();
-    while (numBuffersOccupied.get() > localBuffersTarget) {
-      ByteBuf buffer = poll();
-      if (buffer != null) {
-        buffersToFree.add(buffer);
-        numBuffersOccupied.decrementAndGet();
-      } else {
-        // there are no unused buffers here
-        break;
+    synchronized (this) {
+      while (numBuffersOccupied.get() > localBuffersTarget) {
+        ByteBuf buffer = poll();
+        if (buffer != null) {
+          buffersToFree.add(buffer);
+          numBuffersOccupied.decrementAndGet();
+        } else {
+          // there are no unused buffers here
+          break;
+        }
       }
     }
 
