@@ -82,7 +82,7 @@ public class BufferQueue {
   }
 
   public void recycle(ByteBuf buffer) {
-    if (isReleased || numBuffersOccupied.get() > localBuffersTarget) {
+    if (numBuffersOccupied.get() > localBuffersTarget) {
       recycleToGlobalPool(buffer);
     } else {
       recycleToLocalPool(buffer);
