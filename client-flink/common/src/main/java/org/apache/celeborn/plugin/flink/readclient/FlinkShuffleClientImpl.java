@@ -124,6 +124,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       return RssBufferStream.empty();
     } else {
       return RssBufferStream.create(
+          this,
           conf,
           flinkTransportClientFactory,
           shuffleKey,

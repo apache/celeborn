@@ -45,16 +45,22 @@ public class RssBufferStream {
   private TransportClient client;
   private int currentLocationIndex = 0;
   private long streamId = 0;
+  private FlinkShuffleClientImpl mapShuffleClient;
+  private boolean isClosed;
+  private boolean isOpenSuccess;
+  private Object lock = new Object();
 
   public RssBufferStream() {}
 
   public RssBufferStream(
+      FlinkShuffleClientImpl mapShuffleClient,
       CelebornConf conf,
       FlinkTransportClientFactory dataClientFactory,
       String shuffleKey,
       PartitionLocation[] locations,
       int subIndexStart,
       int subIndexEnd) {
+    this.mapShuffleClient = mapShuffleClient;
     this.conf = conf;
     this.clientFactory = dataClientFactory;
     this.shuffleKey = shuffleKey;
@@ -64,10 +70,7 @@ public class RssBufferStream {
   }
 
   public void open(
-      Supplier<ByteBuf> supplier,
-      int initialCredit,
-      FlinkShuffleClientImpl mapShuffleClient,
-      Consumer<RequestMessage> messageConsumer)
+      Supplier<ByteBuf> supplier, int initialCredit, Consumer<RequestMessage> messageConsumer)
       throws IOException, InterruptedException {
     this.client =
         clientFactory.createClientWithRetry(
@@ -84,11 +87,27 @@ public class RssBufferStream {
           public void onSuccess(ByteBuffer response) {
             StreamHandle streamHandle = (StreamHandle) Message.decode(response);
             RssBufferStream.this.streamId = streamHandle.streamId;
-            clientFactory.registerSupplier(RssBufferStream.this.streamId, supplier);
-            mapShuffleClient
-                .getReadClientHandler()
-                .registerHandler(streamId, messageConsumer, client);
-            logger.debug("open stream success stream id:{}, fileName: {}", streamId, fileName);
+            synchronized (lock) {
+              if (!isClosed) {
+                clientFactory.registerSupplier(RssBufferStream.this.streamId, supplier);
+                mapShuffleClient
+                    .getReadClientHandler()
+                    .registerHandler(streamId, messageConsumer, client);
+                isOpenSuccess = true;
+                logger.debug(
+                    "open stream success from remote:{}, stream id:{}, fileName: {}",
+                    client.getSocketAddress(),
+                    streamId,
+                    fileName);
+              } else {
+                logger.debug(
+                    "open stream success from remote:{}, but stream reader is already closed, stream id:{}, fileName: {}",
+                    client.getSocketAddress(),
+                    streamId,
+                    fileName);
+                closeStream();
+              }
+            }
           }
 
           @Override
@@ -124,6 +143,7 @@ public class RssBufferStream {
   }
 
   public static RssBufferStream create(
+      FlinkShuffleClientImpl client,
       CelebornConf conf,
       FlinkTransportClientFactory dataClientFactory,
       String shuffleKey,
@@ -134,17 +154,26 @@ public class RssBufferStream {
       return empty();
     } else {
       return new RssBufferStream(
-          conf, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
+          client, conf, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
     }
   }
 
   private static final RssBufferStream emptyRssBufferStream = new RssBufferStream();
 
-  public TransportClient getClient() {
-    return client;
+  private void closeStream() {
+    if (client != null && client.isActive()) {
+      client.getChannel().writeAndFlush(new BufferStreamEnd(streamId));
+    }
   }
 
   public void close() {
-    clientFactory.unregisterSupplier(this.getStreamId());
+    synchronized (lock) {
+      if (isOpenSuccess) {
+        mapShuffleClient.getReadClientHandler().removeHandler(getStreamId());
+        clientFactory.unregisterSupplier(this.getStreamId());
+        closeStream();
+      }
+      isClosed = true;
+    }
   }
 }
