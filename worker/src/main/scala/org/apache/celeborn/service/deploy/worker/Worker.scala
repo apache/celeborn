@@ -35,7 +35,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource}
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.server.ChannelsLimiter
 import org.apache.celeborn.common.network.server.memory.MemoryManager
@@ -81,10 +81,8 @@ private[celeborn] class Worker(
       conf.workerPushPort != 0 && conf.workerReplicatePort != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
 
-  val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_WORKER)
   val workerSource = new WorkerSource(conf)
   metricsSystem.registerSource(workerSource)
-  metricsSystem.registerSource(rpcSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
 
@@ -118,7 +116,7 @@ private[celeborn] class Worker(
   }
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
-  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller, Some(rpcSource))
+  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
