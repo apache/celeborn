@@ -173,4 +173,8 @@ public class BufferQueue {
       }
     }
   }
+
+  public boolean bufferAvailable() {
+    return !buffers.isEmpty();
+  }
 }

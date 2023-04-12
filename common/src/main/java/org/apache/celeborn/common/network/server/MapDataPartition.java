@@ -26,6 +26,7 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -60,6 +61,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   private int maxReadBuffers;
   private int fileBuffers;
   private int minBuffersToTriggerRead;
+  private AtomicBoolean hasReadingTask = new AtomicBoolean(false);
 
   public MapDataPartition(
       int minReadBuffers,
@@ -182,18 +184,18 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   }
 
   public synchronized void readBuffers() {
+    hasReadingTask.set(false);
     if (isReleased) {
       // some read executor task may already be submitted to the thread pool
       return;
     }
 
     try {
-      // make sure that all reader are open
       PriorityQueue<MapDataPartitionReader> sortedReaders = new PriorityQueue<>(readers.values());
-      for (MapDataPartitionReader reader : readers.values()) {
+      for (MapDataPartitionReader reader : sortedReaders) {
         reader.open(dataFileChanel, indexChannel, indexSize);
       }
-      while (bufferQueue.size() > 0 && !sortedReaders.isEmpty()) {
+      while (bufferQueue.bufferAvailable() && !sortedReaders.isEmpty()) {
         BufferRecycler bufferRecycler = new BufferRecycler(MapDataPartition.this::recycle);
         MapDataPartitionReader reader = sortedReaders.poll();
         try {
@@ -222,7 +224,9 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
   public void triggerRead() {
     // Key for IO schedule.
-    readExecutor.submit(() -> readBuffers());
+    if (hasReadingTask.compareAndSet(false, true)) {
+      readExecutor.submit(() -> readBuffers());
+    }
   }
 
   public MapDataPartitionReader getStreamReader(long streamId) {
