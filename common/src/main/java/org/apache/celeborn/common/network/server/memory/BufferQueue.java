@@ -86,14 +86,20 @@ public class BufferQueue {
     }
   }
 
-  public synchronized void recycleToGlobalPool(ByteBuf buffer) {
+  public void recycleToGlobalPool(ByteBuf buffer) {
     numBuffersOccupied.decrementAndGet();
     memoryManager.recycleReadBuffer(buffer);
   }
 
-  public synchronized void recycleToLocalPool(ByteBuf buffer) {
+  public void recycleToLocalPool(ByteBuf buffer) {
     buffer.clear();
-    buffers.add(buffer);
+    synchronized (buffers) {
+      if (!isReleased) {
+        buffers.add(buffer);
+      } else {
+        recycleToGlobalPool(buffer);
+      }
+    }
   }
 
   // free unused buffer to the main pool if possible
@@ -119,10 +125,12 @@ public class BufferQueue {
    * Releases this buffer queue and recycles all available buffers. After released, no buffer can be
    * added to or polled from this buffer queue.
    */
-  public synchronized void release() {
-    isReleased = true;
-    buffers.forEach(this::recycleToGlobalPool);
-    buffers.clear();
+  public void release() {
+    synchronized (buffers) {
+      isReleased = true;
+      buffers.forEach(this::recycleToGlobalPool);
+      buffers.clear();
+    }
     pendingRequestBuffers.set(0);
     numBuffersOccupied.set(0);
   }
@@ -140,7 +148,7 @@ public class BufferQueue {
     this.localBuffersTarget = localBuffersTarget;
   }
 
-  public synchronized void tryApplyNewBuffers(
+  public void tryApplyNewBuffers(
       int readerSize, int bufferSize, ReadBufferListener readBufferListener) {
     logger.debug(
         "try to apply new buffers {} {} {} {}",
@@ -148,19 +156,22 @@ public class BufferQueue {
         buffers.size(),
         readerSize,
         localBuffersTarget);
-    if (readerSize != 0
-        && numBuffersOccupied.get() + pendingRequestBuffers.get() < localBuffersTarget) {
-      int newBuffersCount =
-          (localBuffersTarget - numBuffersOccupied.get() - pendingRequestBuffers.get());
-      logger.debug(
-          "apply new buffers {} while current buffer queue size {} with read count {}",
-          newBuffersCount,
-          numBuffersOccupied.get(),
-          readerSize);
-
-      pendingRequestBuffers.addAndGet(newBuffersCount);
-      memoryManager.requestReadBuffers(
-          new ReadBufferRequest(newBuffersCount, bufferSize, readBufferListener));
+    if (readerSize != 0) {
+      synchronized (this) {
+        int occupiedSnapshot = numBuffersOccupied.get();
+        int pendingSnapShot = pendingRequestBuffers.get();
+        if (occupiedSnapshot + pendingSnapShot < localBuffersTarget) {
+          int newBuffersCount = (localBuffersTarget - occupiedSnapshot - pendingSnapShot);
+          logger.debug(
+              "apply new buffers {} while current buffer queue size {} with read count {}",
+              newBuffersCount,
+              numBuffersOccupied.get(),
+              readerSize);
+          pendingRequestBuffers.addAndGet(newBuffersCount);
+          memoryManager.requestReadBuffers(
+              new ReadBufferRequest(newBuffersCount, bufferSize, readBufferListener));
+        }
+      }
     }
   }
 }

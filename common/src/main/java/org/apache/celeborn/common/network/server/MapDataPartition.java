@@ -39,7 +39,6 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.server.memory.BufferQueue;
 import org.apache.celeborn.common.network.server.memory.BufferRecycler;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
-import org.apache.celeborn.common.network.server.memory.ReadBufferRequest;
 import org.apache.celeborn.common.util.JavaUtils;
 
 // this means active data partition
@@ -116,9 +115,10 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     if (currentBuffersTarget > maxReadBuffers) {
       currentBuffersTarget = maxReadBuffers;
     }
-    if (currentBuffersTarget > fileBuffers) {
-      currentBuffersTarget = fileBuffers;
-    }
+    // file size can not infer its buffers count because there might be broadcast region
+    //    if (currentBuffersTarget > fileBuffers) {
+    //      currentBuffersTarget = fileBuffers;
+    //    }
     bufferQueue.setLocalBuffersTarget(currentBuffersTarget);
   }
 
@@ -136,11 +136,10 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
     // allocate resources when the first reader is registered
     if (!bufferQueueInitialized) {
-      memoryManager.requestReadBuffers(
-          new ReadBufferRequest(
-              bufferQueue.getLocalBuffersTarget(),
-              fileInfo.getBufferSize(),
-              (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers)));
+      bufferQueue.tryApplyNewBuffers(
+          readers.size(),
+          fileInfo.getBufferSize(),
+          (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
       bufferQueueInitialized = true;
     } else {
       triggerRead();
