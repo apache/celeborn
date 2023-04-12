@@ -67,6 +67,7 @@ enum MessageType {
   STAGE_END_RESPONSE = 46;
   PARTITION_SPLIT = 47;
   REGISTER_MAP_PARTITION_TASK = 48;
+  HEARTBEAT_FROM_APPLICATION_RESPONSE = 49;
 }
 
 message PbStorageInfo {
@@ -282,6 +283,14 @@ message PbHeartbeatFromApplication {
   int64 totalWritten = 2;
   int64 fileCount = 3 ;
   string requestId = 4;
+  repeated PbWorkerInfo localBlackList = 5;
+}
+
+message PbHeartbeatFromApplicationResponse {
+  int32 status = 1;
+  repeated PbWorkerInfo blacklist = 2;
+  repeated PbWorkerInfo unknownWorkers = 3;
+  repeated PbWorkerInfo shuttingWorkers = 4;
 }
 
 message PbGetBlacklist {
@@ -292,7 +301,6 @@ message PbGetBlacklistResponse {
   int32 status = 1;
   repeated PbWorkerInfo blacklist = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
-  repeated PbWorkerInfo shutdownWorkers = 4;
 }
 
 message PbCheckQuota {

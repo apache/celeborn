@@ -223,11 +223,17 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+    case HeartbeatFromApplication(appId, totalWritten, fileCount, localBlacklist, requestId) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
-        handleHeartbeatFromApplication(context, appId, totalWritten, fileCount, requestId))
+        handleHeartbeatFromApplication(
+          context,
+          appId,
+          totalWritten,
+          fileCount,
+          localBlacklist,
+          requestId))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -598,8 +604,7 @@ private[celeborn] class Master(
       GetBlacklistResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(statusSystem.blacklist),
-        msg.localBlacklist,
-        shutdownWorkerSnapshot))
+        msg.localBlacklist))
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
@@ -631,6 +636,7 @@ private[celeborn] class Master(
       appId: String,
       totalWritten: Long,
       fileCount: Long,
+      localBlacklist: util.List[WorkerInfo],
       requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
@@ -638,7 +644,11 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    context.reply(OneWayMessageResponse)
+    context.reply(HeartbeatFromApplicationResponse(
+      StatusCode.SUCCESS,
+      new util.ArrayList(statusSystem.blacklist),
+      localBlacklist,
+      shutdownWorkerSnapshot))
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)

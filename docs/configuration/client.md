@@ -84,6 +84,5 @@ license: |
 | celeborn.test.fetchFailure | false | Whether to test fetch chunk failure | 0.2.0 | 
 | celeborn.test.retryCommitFiles | false | Fail commitFile request for test | 0.2.0 | 
 | celeborn.test.retryRevive | false | Fail push data and request for test | 0.2.0 | 
-| celeborn.worker.excluded.checkInterval | 30s | Interval for client to refresh excluded worker list. | 0.2.0 | 
 | celeborn.worker.excluded.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.2.0 | 
 <!--end-include-->
