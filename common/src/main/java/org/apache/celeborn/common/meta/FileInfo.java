@@ -46,7 +46,6 @@ public class FileInfo {
   // members for MapPartition
   private int bufferSize;
   private int numSubpartitions;
-  private long fileSize;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
@@ -69,15 +68,13 @@ public class FileInfo {
       UserIdentifier userIdentifier,
       PartitionType partitionType,
       int bufferSize,
-      int numSubpartitions,
-      long fileSize) {
+      int numSubpartitions) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
     this.partitionType = partitionType;
     this.bufferSize = bufferSize;
     this.numSubpartitions = numSubpartitions;
-    this.fileSize = fileSize;
   }
 
   public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
@@ -225,13 +222,5 @@ public class FileInfo {
 
   public void setMountPoint(String mountPoint) {
     this.mountPoint = mountPoint;
-  }
-
-  public long getFileSize() {
-    return fileSize;
-  }
-
-  public void setFileSize(long fileSize) {
-    this.fileSize = fileSize;
   }
 }

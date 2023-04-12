@@ -280,7 +280,6 @@ public abstract class FileWriter implements DeviceObserver {
         deviceMonitor.unregisterFileWriter(this);
       }
     }
-    fileInfo.setFileSize(bytesFlushed);
     return bytesFlushed;
   }
 

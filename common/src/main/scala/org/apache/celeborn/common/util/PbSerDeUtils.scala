@@ -92,8 +92,7 @@ object PbSerDeUtils {
       userIdentifier,
       Utils.toPartitionType(pbFileInfo.getPartitionType),
       pbFileInfo.getBufferSize,
-      pbFileInfo.getNumSubpartitions,
-      pbFileInfo.getFileSize)
+      pbFileInfo.getNumSubpartitions)
 
   def toPbFileInfo(fileInfo: FileInfo): PbFileInfo =
     PbFileInfo.newBuilder
@@ -103,7 +102,6 @@ object PbSerDeUtils {
       .setPartitionType(fileInfo.getPartitionType.getValue)
       .setBufferSize(fileInfo.getBufferSize)
       .setNumSubpartitions(fileInfo.getNumSubpartitions)
-      .setFileSize(fileInfo.getFileSize)
       .build
 
   @throws[InvalidProtocolBufferException]

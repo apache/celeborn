@@ -131,8 +131,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     credits.getAndAdd(credit);
   }
 
-  public void readData(BufferQueue bufferQueue, BufferRecycler bufferRecycler)
-      throws IOException {
+  public void readData(BufferQueue bufferQueue, BufferRecycler bufferRecycler) throws IOException {
     boolean hasRemaining = hasRemaining();
     boolean continueReading = hasRemaining;
     int numDataBuffers = 0;

@@ -59,7 +59,6 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   private Consumer<Long> recycleStream;
   private int minReadBuffers;
   private int maxReadBuffers;
-  private int fileBuffers;
   private int minBuffersToTriggerRead;
   private AtomicBoolean hasReadingTask = new AtomicBoolean(false);
 
@@ -77,7 +76,6 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
     this.minReadBuffers = minReadBuffers;
     this.maxReadBuffers = maxReadBuffers;
-    this.fileBuffers = (int) Math.ceil(fileInfo.getFileSize() * 1.0 / fileInfo.getBufferSize());
 
     updateBuffersTarget((this.minReadBuffers + this.maxReadBuffers) / 2 + 1);
 
@@ -117,10 +115,6 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     if (currentBuffersTarget > maxReadBuffers) {
       currentBuffersTarget = maxReadBuffers;
     }
-    // file size can not infer its buffers count because there might be broadcast region
-    //    if (currentBuffersTarget > fileBuffers) {
-    //      currentBuffersTarget = fileBuffers;
-    //    }
     bufferQueue.setLocalBuffersTarget(currentBuffersTarget);
   }
 

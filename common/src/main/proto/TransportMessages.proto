@@ -425,7 +425,6 @@ message PbFileInfo {
   int32 partitionType = 4;
   int32 bufferSize = 5;
   int32 numSubpartitions = 6;
-  int64 fileSize = 7 ;
 }
 
 message PbFileInfoMap {
