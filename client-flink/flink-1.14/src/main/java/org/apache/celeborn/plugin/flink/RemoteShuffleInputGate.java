@@ -134,6 +134,8 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
 
   private FlinkShuffleClientImpl shuffleClient;
 
+  private int numOpenedReaders = 0;
+
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
       String taskName,
@@ -369,8 +371,12 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
 
   /** Try to open more readers to {@link #numConcurrentReading}. */
   private void tryOpenSomeChannels() throws IOException {
-    List<RemoteBufferStreamReader> readersToOpen = new ArrayList<>();
+    if (bufferReaders.size() == numOpenedReaders) {
+      // all readers are already opened
+      return;
+    }
 
+    List<RemoteBufferStreamReader> readersToOpen = new ArrayList<>();
     synchronized (lock) {
       if (closed) {
         throw new IOException("Input gate already closed.");
@@ -404,6 +410,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
 
     for (RemoteBufferStreamReader reader : readersToOpen) {
       reader.open(0);
+      numOpenedReaders++;
     }
   }
 
