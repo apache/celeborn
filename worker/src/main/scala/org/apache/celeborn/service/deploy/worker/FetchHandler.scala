@@ -29,7 +29,6 @@ import io.netty.util.concurrent.{Future, GenericFutureListener}
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
-import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
@@ -47,7 +46,6 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     conf.getCelebornConf.creditStreamThreadsPerMountpoint,
     conf.getCelebornConf.readBuffersToTriggerReadMin)
   var workerSource: WorkerSource = _
-  var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
@@ -63,7 +61,6 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       WorkerSource.ActiveMapPartitionCount,
       _ => creditStreamManager.getActiveMapPartitionCount)
 
-    this.rpcSource = worker.rpcSource
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = worker.registered
@@ -85,17 +82,13 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
       case r: BufferStreamEnd =>
-        rpcSource.updateMessageMetrics(r, 0)
         handleEndStreamFromClient(r)
       case r: ReadAddCredit =>
-        rpcSource.updateMessageMetrics(r, 0)
         handleReadAddCredit(r)
       case r: ChunkFetchRequest =>
-        rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
         val msg = Message.decode(r.body().nioByteBuffer())
-        rpcSource.updateMessageMetrics(msg, 0)
         handleOpenStream(client, r, msg)
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")

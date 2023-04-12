@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
-import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
@@ -47,11 +46,7 @@ public class ReadClientHandler extends BaseMessageHandler {
 
   public void removeHandler(long streamId) {
     streamHandlers.remove(streamId);
-    TransportClient client = streamClients.remove(streamId);
-    // If read handler is removed, we should notify worker to release resource.
-    if (client != null && client.isActive()) {
-      client.getChannel().writeAndFlush(new BufferStreamEnd(streamId));
-    }
+    streamClients.remove(streamId);
   }
 
   private void processMessageInternal(long streamId, RequestMessage msg) {

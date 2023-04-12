@@ -57,8 +57,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.metrics.MetricsSystem;
-import org.apache.celeborn.common.metrics.source.RPCSource;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -149,11 +147,6 @@ public class FileWriterSuiteJ {
           @Override
           public WorkerSource workerSource() {
             return source;
-          }
-
-          @Override
-          public RPCSource rpcSource() {
-            return new RPCSource(CONF, MetricsSystem.ROLE_WORKER());
           }
 
           @Override
