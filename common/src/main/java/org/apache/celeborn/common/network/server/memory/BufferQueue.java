@@ -96,13 +96,7 @@ public class BufferQueue {
 
   public void recycleToLocalPool(ByteBuf buffer) {
     buffer.clear();
-    synchronized (buffers) {
-      if (!isReleased) {
-        buffers.add(buffer);
-      } else {
-        recycleToGlobalPool(buffer);
-      }
-    }
+    buffers.add(buffer);
   }
 
   // free unused buffer to the main pool if possible
