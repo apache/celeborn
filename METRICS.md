@@ -87,17 +87,6 @@ Here is an example of grafana dashboard importing.
 |        DiskBuffer         |      worker       | Disk buffers are part of netty used memory, means data need to write to disk but haven't been written to disk. |
 |       PausePushData       |      worker       |                  PausePushData means the count of worker stopped receiving data from client.                   |
 | PausePushDataAndReplicate |      worker       |   PausePushDataAndReplicate means the count of worker stopped receiving data from client and other workers.    |
-|    RPCReserveSlotsNum     |      worker       |                          The count of the RPC `ReserveSlots` received by the worker.                           |
-|    RPCReserveSlotsSize    |      worker       |                      The size of the RPC  `ReserveSlots` 's body received by the worker.                       |
-|      RPCPushDataNum       |      worker       |                            The count of the RPC `PushData` received by the worker.                             |
-|      RPCPushDataSize      |      worker       |                        The size of the RPC  `PushData` 's body received by the worker.                         |
-|   RPCPushMergedDataNum    |      worker       |                       The count of the RPC `PushMergedData` RPC received by the worker.                        |
-|   RPCPushMergedDataSize   |      worker       |                     The size of the RPC  `PushMergedData` 's body received by the worker.                      |
-|     RPCCommitFilesNum     |      worker       |                           The count of the RPC `CommitFiles` received by the worker.                           |
-|    RPCCommitFilesSize     |      worker       |                       The size of the RPC  `CommitFiles` 's body received by the worker.                       |
-|       RPCDestroyNum       |      worker       |                             The count of the RPC `Destroy` received by the worker.                             |
-|      RPCDestroySize       |      worker       |                         The size of the RPC  `Destroy` 's body received by the worker.                         |
-|  RPCChunkFetchRequestNum  |      worker       |                      The count of the RPC `ChunkFetchRequest` RPC received by the worker.                      |
 
 ## Implementation
 

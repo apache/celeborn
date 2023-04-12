@@ -28,7 +28,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
-import org.apache.celeborn.common.metrics.source.{RPCSource, Source}
+import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
 import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse}
@@ -44,7 +44,6 @@ import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlushe
 class PushDataHandler extends BaseMessageHandler with Logging {
 
   var workerSource: WorkerSource = _
-  var rpcSource: RPCSource = _
   var partitionLocationInfo: WorkerPartitionLocationInfo = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
@@ -64,7 +63,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
-    rpcSource = worker.rpcSource
     partitionLocationInfo = worker.partitionLocationInfo
     shufflePartitionType = worker.shufflePartitionType
     shufflePushDataTimeout = worker.shufflePushDataTimeout
@@ -692,7 +690,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       requestId: Long,
       handler: () => Unit): Unit = {
     try {
-      rpcSource.updateMessageMetrics(message, message.body().size())
       handler()
     } catch {
       case e: Exception =>

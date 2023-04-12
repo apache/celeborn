@@ -22,7 +22,6 @@ import java.io.File
 import scala.concurrent.Future
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
 
 /**
@@ -79,10 +78,7 @@ abstract class RpcEnv(conf: CelebornConf) {
    * Register a [[RpcEndpoint]] with a name and return its [[RpcEndpointRef]]. [[RpcEnv]] does not
    * guarantee thread-safety.
    */
-  def setupEndpoint(
-      name: String,
-      endpoint: RpcEndpoint,
-      source: Option[RPCSource] = None): RpcEndpointRef
+  def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef
 
   /**
    * Retrieve the [[RpcEndpointRef]] represented by `uri` asynchronously.
