@@ -399,7 +399,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     if (labels.isEmpty) {
       metricsName + staticLabelsString
     } else {
-      metricsName + MetricLabels.labelString(labels + staticLabels)
+      metricsName + MetricLabels.labelString(labels ++ staticLabels)
     }
   }
 }
