@@ -216,18 +216,16 @@ public class CreditStreamManager {
         if (mapDataPartition.releaseReader(streamId)) {
           streams.remove(streamId);
           if (mapDataPartition.getReaders().isEmpty()) {
-            if (mapDataPartition.getReaders().isEmpty()) {
-              FileInfo fileInfo = mapDataPartition.getFileInfo();
-              activeMapPartitions.compute(
-                  fileInfo,
-                  (k, v) -> {
-                    if (v.getReaders().isEmpty()) {
-                      v.close();
-                      return null;
-                    }
-                    return v;
-                  });
-            }
+            FileInfo fileInfo = mapDataPartition.getFileInfo();
+            activeMapPartitions.compute(
+                fileInfo,
+                (k, v) -> {
+                  if (v.getReaders().isEmpty()) {
+                    v.close();
+                    return null;
+                  }
+                  return v;
+                });
           }
         } else {
           logger.debug("retry clean stream: {}", streamId);
