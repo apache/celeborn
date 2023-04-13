@@ -644,6 +644,7 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
+    localBlacklist.removeAll(workersSnapShot)
     context.reply(HeartbeatFromApplicationResponse(
       StatusCode.SUCCESS,
       new util.ArrayList(statusSystem.blacklist),
