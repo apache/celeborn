@@ -36,6 +36,7 @@ import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.{BaseMessageHandler, ChunkStreamManager, CreditStreamManager}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.PartitionType
+import org.apache.celeborn.common.util.ExceptionUtils
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
@@ -176,10 +177,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>
-          client.getChannel.writeAndFlush(new RpcFailure(
-            request.requestId,
-            Throwables.getStackTraceAsString(
-              new CelebornException("Chunk offsets meta exception", e))))
+          handleRpcIOException(client, request.requestId, e)
       } finally {
         // metrics end
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
@@ -188,10 +186,20 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     } catch {
       case ioe: IOException =>
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
-        client.getChannel.writeAndFlush(new RpcFailure(
-          request.requestId,
-          Throwables.getStackTraceAsString(ioe)))
+        handleRpcIOException(client, request.requestId, ioe)
     }
+  }
+
+  private def handleRpcIOException(
+      client: TransportClient,
+      requestId: Long,
+      ioe: IOException): Unit = {
+    // if open stream rpc failed, this IOException actually should be FileNotFoundException
+    // we wrapper this IOException(Other place may have other exception like FileCorruptException) unify to
+    // PartitionUnRetryableException for reader can give up this partition and choose to regenerate the partition data
+    client.getChannel.writeAndFlush(new RpcFailure(
+      requestId,
+      Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))))
   }
 
   def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {

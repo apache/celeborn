@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 
 public class ExceptionUtils {
 
@@ -32,6 +33,14 @@ public class ExceptionUtils {
       throw new CelebornIOException(exception);
     } else {
       throw new CelebornIOException(exception.getMessage(), exception);
+    }
+  }
+
+  public static Throwable wrapIOExceptionToUnRetryable(Throwable throwable) {
+    if (throwable instanceof IOException) {
+      return new PartitionUnRetryAbleException(throwable.getMessage(), throwable);
+    } else {
+      return throwable;
     }
   }
 
