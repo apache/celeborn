@@ -23,9 +23,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -44,7 +44,7 @@ public class CreditStreamManager {
   private final AtomicLong nextStreamId;
   private final ConcurrentHashMap<Long, StreamState> streams;
   private final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
-  private final HashMap<String, ExecutorService> storageFetcherPool = new HashMap<>();
+  private final HashMap<String, MapPartitionFetcher> mapPartitionFetchers = new HashMap<>();
   private int minReadBuffers;
   private int maxReadBuffers;
   private int threadsPerMountPoint;
@@ -90,24 +90,39 @@ public class CreditStreamManager {
         channel.remoteAddress(),
         streamId,
         fileInfo);
-    synchronized (activeMapPartitions) {
-      MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
-      if (mapDataPartition == null) {
-        mapDataPartition =
-            new MapDataPartition(
-                minReadBuffers,
-                maxReadBuffers,
-                storageFetcherPool,
-                threadsPerMountPoint,
-                fileInfo,
-                id -> recycleStream(id),
-                minBuffersToTriggerRead);
-        activeMapPartitions.put(fileInfo, mapDataPartition);
-      }
-      StreamState streamState =
-          new StreamState(channel, fileInfo.getBufferSize(), mapDataPartition);
-      streams.put(streamId, streamState);
-      mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
+
+    AtomicReference<IOException> exception = new AtomicReference();
+    activeMapPartitions.compute(
+        fileInfo,
+        (k, v) -> {
+          if (v != null) {
+            StreamState streamState = new StreamState(channel, fileInfo.getBufferSize(), v);
+            streams.put(streamId, streamState);
+            v.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
+          } else {
+            try {
+              MapDataPartition dataPartition =
+                  new MapDataPartition(
+                      minReadBuffers,
+                      maxReadBuffers,
+                      mapPartitionFetchers,
+                      threadsPerMountPoint,
+                      fileInfo,
+                      id -> recycleStream(id),
+                      minBuffersToTriggerRead);
+              StreamState streamState =
+                  new StreamState(channel, fileInfo.getBufferSize(), dataPartition);
+              streams.put(streamId, streamState);
+              dataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
+              return dataPartition;
+            } catch (IOException e) {
+              exception.set(e);
+            }
+          }
+          return v;
+        });
+    if (exception.get() != null) {
+      throw exception.get();
     }
 
     callback.accept(streamId);
@@ -201,12 +216,17 @@ public class CreditStreamManager {
         if (mapDataPartition.releaseReader(streamId)) {
           streams.remove(streamId);
           if (mapDataPartition.getReaders().isEmpty()) {
-            synchronized (activeMapPartitions) {
-              if (mapDataPartition.getReaders().isEmpty()) {
-                mapDataPartition.close();
-                FileInfo fileInfo = mapDataPartition.getFileInfo();
-                activeMapPartitions.remove(fileInfo);
-              }
+            if (mapDataPartition.getReaders().isEmpty()) {
+              mapDataPartition.close();
+              FileInfo fileInfo = mapDataPartition.getFileInfo();
+              activeMapPartitions.compute(
+                  fileInfo,
+                  (k, v) -> {
+                    if (v.getReaders().isEmpty()) {
+                      return null;
+                    }
+                    return v;
+                  });
             }
           }
         } else {
