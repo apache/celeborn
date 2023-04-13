@@ -217,12 +217,12 @@ public class CreditStreamManager {
           streams.remove(streamId);
           if (mapDataPartition.getReaders().isEmpty()) {
             if (mapDataPartition.getReaders().isEmpty()) {
-              mapDataPartition.close();
               FileInfo fileInfo = mapDataPartition.getFileInfo();
               activeMapPartitions.compute(
                   fileInfo,
                   (k, v) -> {
                     if (v.getReaders().isEmpty()) {
+                      v.close();
                       return null;
                     }
                     return v;
