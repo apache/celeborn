@@ -19,12 +19,7 @@ package org.apache.celeborn.common.network.server;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.DelayQueue;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -49,7 +44,7 @@ public class CreditStreamManager {
   private int maxReadBuffers;
   private int threadsPerMountPoint;
   private int minBuffersToTriggerRead;
-  private final BlockingQueue<DelayedStreamId> recycleStreamIds = new DelayQueue<>();
+  private final BlockingQueue<Long> recycleStreamIds = new LinkedBlockingQueue<>();
 
   @GuardedBy("lock")
   private volatile Thread recycleThread;
@@ -148,7 +143,7 @@ public class CreditStreamManager {
   }
 
   public void recycleStream(long streamId) {
-    recycleStreamIds.add(new DelayedStreamId(streamId));
+    recycleStreamIds.add(streamId);
     startRecycleThread(); // lazy start thread
   }
 
@@ -175,9 +170,17 @@ public class CreditStreamManager {
               new Thread(
                   () -> {
                     while (true) {
+                      List<Long> retryList = new ArrayList<>();
                       try {
-                        DelayedStreamId delayedStreamId = recycleStreamIds.take();
-                        cleanResource(delayedStreamId.streamId);
+                        Long streamId = recycleStreamIds.poll();
+                        if (streamId != null) {
+                          if (!cleanResource(streamId)) {
+                            retryList.add(streamId);
+                          }
+                        } else {
+                          recycleStreamIds.addAll(retryList);
+                          Thread.sleep(100);
+                        }
                       } catch (Throwable e) {
                         logger.warn(e.getMessage(), e);
                       }
@@ -193,7 +196,7 @@ public class CreditStreamManager {
     }
   }
 
-  public void cleanResource(Long streamId) {
+  public boolean cleanResource(Long streamId) {
     logger.debug("received clean stream: {}", streamId);
     if (streams.containsKey(streamId)) {
       MapDataPartition mapDataPartition = streams.get(streamId).getMapDataPartition();
@@ -211,10 +214,11 @@ public class CreditStreamManager {
           }
         } else {
           logger.debug("retry clean stream: {}", streamId);
-          recycleStreamIds.add(new DelayedStreamId(streamId));
+          return false;
         }
       }
     }
+    return true;
   }
 
   public long getStreamsCount() {
@@ -247,49 +251,6 @@ public class CreditStreamManager {
 
     public MapDataPartition getMapDataPartition() {
       return mapDataPartition;
-    }
-  }
-
-  public static class DelayedStreamId implements Delayed {
-    private static final long delayTime = 100; // 100ms
-    private long createMillis = System.currentTimeMillis();
-
-    private long streamId;
-
-    public DelayedStreamId(long streamId) {
-      this.createMillis = createMillis + delayTime;
-      this.streamId = streamId;
-    }
-
-    @Override
-    public long getDelay(TimeUnit unit) {
-      long diff = createMillis - System.currentTimeMillis();
-      return unit.convert(diff, TimeUnit.MILLISECONDS);
-    }
-
-    public long getCreateMillis() {
-      return createMillis;
-    }
-
-    @Override
-    public int compareTo(Delayed o) {
-      long otherCreateMillis = ((DelayedStreamId) o).getCreateMillis();
-      if (this.createMillis < otherCreateMillis) {
-        return -1;
-      } else if (this.createMillis > otherCreateMillis) {
-        return 1;
-      }
-
-      return 0;
-    }
-
-    @Override
-    public String toString() {
-      final StringBuilder sb = new StringBuilder("DelayedStreamId{");
-      sb.append("createMillis=").append(createMillis);
-      sb.append(", streamId=").append(streamId);
-      sb.append('}');
-      return sb.toString();
     }
   }
 }
