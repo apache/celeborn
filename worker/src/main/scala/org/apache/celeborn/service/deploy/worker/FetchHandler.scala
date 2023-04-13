@@ -33,17 +33,18 @@ import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
-import org.apache.celeborn.common.network.server.{BaseMessageHandler, BufferStreamManager, ChunkStreamManager}
+import org.apache.celeborn.common.network.server.{BaseMessageHandler, ChunkStreamManager, CreditStreamManager}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.PartitionType
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var chunkStreamManager = new ChunkStreamManager()
-  val bufferStreamManager = new BufferStreamManager(
+  val creditStreamManager = new CreditStreamManager(
     conf.getCelebornConf.partitionReadBuffersMin,
     conf.getCelebornConf.partitionReadBuffersMax,
-    conf.getCelebornConf.bufferStreamThreadsPerMountpoint)
+    conf.getCelebornConf.creditStreamThreadsPerMountpoint,
+    conf.getCelebornConf.readBuffersToTriggerReadMin)
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
@@ -51,6 +52,15 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
 
   def init(worker: Worker): Unit = {
     this.workerSource = worker.workerSource
+
+    workerSource.addGauge(
+      WorkerSource.CreditStreamCount,
+      _ => creditStreamManager.getStreamsCount)
+
+    workerSource.addGauge(
+      WorkerSource.ActiveMapPartitionCount,
+      _ => creditStreamManager.getActiveMapPartitionCount)
+
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = worker.registered
@@ -72,9 +82,9 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
       case r: BufferStreamEnd =>
-        handleEndStreamFromClient(client, r)
+        handleEndStreamFromClient(r)
       case r: ReadAddCredit =>
-        handleReadAddCredit(client, r)
+        handleReadAddCredit(r)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
@@ -155,7 +165,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
             }
           }
 
-          bufferStreamManager.registerStream(
+          creditStreamManager.registerStream(
             callback,
             client.getChannel,
             initialCredit,
@@ -184,12 +194,12 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     }
   }
 
-  def handleEndStreamFromClient(client: TransportClient, req: BufferStreamEnd): Unit = {
-    bufferStreamManager.notifyStreamEndByClient(req.getStreamId)
+  def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {
+    creditStreamManager.notifyStreamEndByClient(req.getStreamId)
   }
 
-  def handleReadAddCredit(client: TransportClient, req: ReadAddCredit): Unit = {
-    bufferStreamManager.addCredit(req.getCredit, req.getStreamId)
+  def handleReadAddCredit(req: ReadAddCredit): Unit = {
+    creditStreamManager.addCredit(req.getCredit, req.getStreamId)
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
@@ -242,7 +252,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def checkRegistered: Boolean = registered.get
 
   override def channelInactive(client: TransportClient): Unit = {
-    bufferStreamManager.connectionTerminated(client.getChannel)
+    creditStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }
 

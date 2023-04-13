@@ -97,7 +97,10 @@ object WorkerSource {
   val PausePushDataCount = "PausePushData"
   val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
   val BufferStreamReadBuffer = "BufferStreamReadBuffer"
-  val readBufferDispatcherRequestsLength = "ReadBufferDispatcherRequestsLength"
+  val ReadBufferDispatcherRequestsLength = "ReadBufferDispatcherRequestsLength"
+  val ReadBufferAllocatedCount = "ReadBufferAllocatedCount"
+  val CreditStreamCount = "CreditStreamCount"
+  val ActiveMapPartitionCount = "ActiveMapPartitionCount"
 
   // local device
   val DeviceOSFreeCapacity = "DeviceOSFreeCapacity(B)"

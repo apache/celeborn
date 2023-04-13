@@ -33,16 +33,18 @@ import io.netty.channel.ChannelFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.TransportableError;
-import org.apache.celeborn.common.network.server.memory.Recycler;
-import org.apache.celeborn.common.network.server.memory.WrappedDataBuffer;
+import org.apache.celeborn.common.network.server.memory.BufferQueue;
+import org.apache.celeborn.common.network.server.memory.BufferRecycler;
+import org.apache.celeborn.common.network.server.memory.RecyclableBuffer;
 import org.apache.celeborn.common.util.Utils;
 
-public class DataPartitionReader implements Comparable<DataPartitionReader> {
-  private static final Logger logger = LoggerFactory.getLogger(DataPartitionReader.class);
+public class MapDataPartitionReader implements Comparable<MapDataPartitionReader> {
+  private static final Logger logger = LoggerFactory.getLogger(MapDataPartitionReader.class);
 
   private final ByteBuffer indexBuffer;
   private final ByteBuffer headerBuffer;
@@ -58,14 +60,14 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   private long streamId;
   protected final Object lock = new Object();
 
-  private AtomicInteger credits = new AtomicInteger();
+  private final AtomicInteger credits = new AtomicInteger();
 
   @GuardedBy("lock")
-  protected final Queue<WrappedDataBuffer> buffersRead = new ArrayDeque<>();
+  protected final Queue<RecyclableBuffer> buffersToSend = new ArrayDeque<>();
 
   /** Whether all the data has been successfully read or not. */
   @GuardedBy("lock")
-  private boolean isClosed;
+  private boolean readFinished;
 
   /** Whether this partition reader has been released or not. */
   @GuardedBy("lock")
@@ -77,7 +79,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   /** Whether there is any error at the consumer side or not. */
   @GuardedBy("lock")
-  protected boolean isError;
+  protected boolean errorNotified;
 
   private FileChannel dataFileChannel;
   private FileChannel indexFileChannel;
@@ -86,10 +88,10 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   private Runnable recycleStream;
 
-  private AtomicInteger numInFlightRequests = new AtomicInteger(0);
+  private AtomicInteger numInUseBuffers = new AtomicInteger(0);
   private boolean isOpen = false;
 
-  public DataPartitionReader(
+  public MapDataPartitionReader(
       int startPartitionIndex,
       int endPartitionIndex,
       FileInfo fileInfo,
@@ -108,17 +110,17 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     this.recycleStream = recycleStream;
 
     this.fileInfo = fileInfo;
-    this.isClosed = false;
+    this.readFinished = false;
   }
 
-  public void open(FileChannel dataFileChannel, FileChannel indexFileChannel) throws IOException {
+  public void open(FileChannel dataFileChannel, FileChannel indexFileChannel, long indexSize)
+      throws IOException {
     if (!isOpen) {
       this.dataFileChannel = dataFileChannel;
       this.indexFileChannel = indexFileChannel;
-      long indexFileSize = indexFileChannel.size();
       // index is (offset,length)
       long indexRegionSize = fileInfo.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
-      this.numRegions = Utils.checkedDownCast(indexFileSize / indexRegionSize);
+      this.numRegions = Utils.checkedDownCast(indexSize / indexRegionSize);
 
       updateConsumingOffset();
       isOpen = true;
@@ -129,30 +131,31 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     credits.getAndAdd(credit);
   }
 
-  public synchronized boolean readData(Queue<ByteBuf> bufferQueue, Recycler bufferRecycler)
-      throws IOException {
+  public void readData(BufferQueue bufferQueue, BufferRecycler bufferRecycler) throws IOException {
     boolean hasRemaining = hasRemaining();
     boolean continueReading = hasRemaining;
     int numDataBuffers = 0;
     while (continueReading) {
 
       ByteBuf buffer = bufferQueue.poll();
-      // this is used for control bytebuf manually.
       if (buffer == null) {
+        // if there are no buffers available, halt current read and waiting for next triggered read
         break;
       } else {
         buffer.retain();
+        numInUseBuffers.incrementAndGet();
       }
 
       try {
         continueReading = readBuffer(buffer);
       } catch (Throwable throwable) {
-        bufferRecycler.release(buffer);
+        bufferRecycler.recycle(buffer);
+        numInUseBuffers.decrementAndGet();
         throw throwable;
       }
 
       hasRemaining = hasRemaining();
-      addBuffer(buffer, hasRemaining, bufferRecycler);
+      addBuffer(buffer, bufferRecycler);
       ++numDataBuffers;
     }
     if (numDataBuffers > 0) {
@@ -162,49 +165,38 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     if (!hasRemaining) {
       closeReader();
     }
-
-    return hasRemaining;
   }
 
-  private void addBuffer(ByteBuf buffer, boolean hasRemaining, Recycler bufferRecycler) {
+  private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
     if (buffer == null) {
       return;
     }
-    final boolean recycleBuffer;
-    final Throwable throwable;
     synchronized (lock) {
-      recycleBuffer = isReleased || isClosed || isError;
-      throwable = errorCause;
-      isClosed = !hasRemaining;
-
-      if (!recycleBuffer) {
-        buffersRead.add(new WrappedDataBuffer(buffer, bufferRecycler));
+      if (!isReleased) {
+        buffersToSend.add(new RecyclableBuffer(buffer, bufferRecycler));
+      } else {
+        bufferRecycler.recycle(buffer);
+        numInUseBuffers.decrementAndGet();
+        throw new RuntimeException("Partition reader has been failed or finished.", errorCause);
       }
-    }
-
-    if (recycleBuffer) {
-      bufferRecycler.release(buffer);
-      throw new RuntimeException("Partition reader has been failed or finished.", throwable);
     }
   }
 
   public synchronized void sendData() {
-    while (!buffersRead.isEmpty() && credits.get() > 0) {
-      WrappedDataBuffer wrappedBuffer;
+    while (!buffersToSend.isEmpty() && credits.get() > 0) {
+      RecyclableBuffer wrappedBuffer;
       synchronized (lock) {
         if (!isReleased) {
-          wrappedBuffer = buffersRead.poll();
-          numInFlightRequests.incrementAndGet();
+          wrappedBuffer = buffersToSend.poll();
         } else {
           return;
         }
       }
 
-      ByteBuf byteBuf = wrappedBuffer.byteBuf;
-      int backlog = buffersRead.size();
-      int readableBytes = byteBuf.readableBytes();
+      int backlog = buffersToSend.size();
+      int readableBytes = wrappedBuffer.byteBuf.readableBytes();
       logger.debug("send data start: {}, {}, {}", streamId, readableBytes, backlog);
-      ReadData readData = new ReadData(streamId, byteBuf);
+      ReadData readData = new ReadData(streamId, wrappedBuffer.byteBuf);
       associatedChannel
           .writeAndFlush(readData)
           .addListener(
@@ -212,21 +204,20 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
                   future -> {
                     try {
                       if (!future.isSuccess()) {
-                        wrappedBuffer.release();
                         recycleOnError(future.cause());
-                      } else {
-                        wrappedBuffer.recycle();
                       }
                     } finally {
                       logger.debug("send data end: {}, {}", streamId, readableBytes);
-                      numInFlightRequests.decrementAndGet();
+                      wrappedBuffer.recycle();
+                      numInUseBuffers.decrementAndGet();
                     }
                   });
 
-      credits.decrementAndGet();
+      int currentCredit = credits.decrementAndGet();
+      logger.debug("stream {} credit {}", streamId, currentCredit);
     }
 
-    if (isClosed && buffersRead.isEmpty()) {
+    if (readFinished && buffersToSend.isEmpty()) {
       recycle();
     }
   }
@@ -367,7 +358,14 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   private void notifyBacklog(int backlog) {
     logger.debug("stream manager stream id {} backlog:{}", streamId, backlog);
-    associatedChannel.writeAndFlush(new BacklogAnnouncement(streamId, backlog));
+    associatedChannel
+        .writeAndFlush(new BacklogAnnouncement(streamId, backlog))
+        .addListener(
+            future -> {
+              if (!future.isSuccess()) {
+                logger.error("send backlog {} to stream {} failed", backlog, streamId);
+              }
+            });
   }
 
   private void notifyError(Throwable throwable) {
@@ -375,7 +373,8 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     if (this.associatedChannel.isActive()) {
       // If a stream is failed, send exceptions with the best effort, do not expect response.
       // And do not close channel because multiple streams are using the very same channel.
-      this.associatedChannel.writeAndFlush(new TransportableError(streamId, throwable));
+      this.associatedChannel.writeAndFlush(
+          new TransportableError(streamId, new CelebornIOException(throwable)));
     }
   }
 
@@ -384,7 +383,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   }
 
   @Override
-  public int compareTo(DataPartitionReader that) {
+  public int compareTo(MapDataPartitionReader that) {
     return Long.compare(getPriority(), that.getPriority());
   }
 
@@ -394,7 +393,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   public void closeReader() {
     synchronized (lock) {
-      isClosed = true;
+      readFinished = true;
     }
 
     logger.debug("Closed read for stream {}", this.streamId);
@@ -411,8 +410,8 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
 
   public void recycleOnError(Throwable throwable) {
     synchronized (lock) {
-      if (!isError) {
-        isError = true;
+      if (!errorNotified) {
+        errorNotified = true;
         errorCause = throwable;
         notifyError(throwable);
         recycle();
@@ -425,10 +424,12 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
     synchronized (lock) {
       if (!isReleased) {
         logger.debug("release reader for stream {}", this.streamId);
-        isReleased = true;
-        if (!buffersRead.isEmpty()) {
-          buffersRead.forEach(WrappedDataBuffer::release);
+        if (!buffersToSend.isEmpty()) {
+          numInUseBuffers.addAndGet(-1 * buffersToSend.size());
+          buffersToSend.forEach(RecyclableBuffer::recycle);
+          buffersToSend.clear();
         }
+        isReleased = true;
       }
     }
   }
@@ -436,7 +437,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   public boolean isFinished() {
     synchronized (lock) {
       // ensure every buffer are return to bufferQueue or release in buffersRead
-      return numInFlightRequests.get() == 0 && isReleased;
+      return numInUseBuffers.get() == 0 && isReleased;
     }
   }
 
@@ -455,7 +456,7 @@ public class DataPartitionReader implements Comparable<DataPartitionReader> {
   }
 
   @VisibleForTesting
-  public AtomicInteger getNumInFlightRequests() {
-    return numInFlightRequests;
+  public AtomicInteger getNumInUseBuffers() {
+    return numInUseBuffers;
   }
 }
