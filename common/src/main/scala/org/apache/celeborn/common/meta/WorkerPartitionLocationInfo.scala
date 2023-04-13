@@ -29,21 +29,10 @@ import org.apache.celeborn.common.util.JavaUtils
 
 class WorkerPartitionLocationInfo extends Logging {
 
-  // key: ShuffleKey, values: (partitionId -> (encodedPartitionId -> PartitionLocation))
-  type PartitionInfo = ConcurrentHashMap[String, ConcurrentHashMap[Long, PartitionLocation]]
+  // key: ShuffleKey, values: (uniqueId -> PartitionLocation))
+  type PartitionInfo = ConcurrentHashMap[String, ConcurrentHashMap[String, PartitionLocation]]
   private val masterPartitionLocations = new PartitionInfo
   private val slavePartitionLocations = new PartitionInfo
-
-  def encode(partitionId: Int, epoch: Int): Long = {
-    partitionId.toLong << 32 | epoch
-  }
-
-  def encodeUniqueId(uniqueId: String): Long = {
-    val tokens = uniqueId.split("-", 2)
-    val partitionId = tokens(0).toInt
-    val epoch = tokens(1).toInt
-    encode(partitionId, epoch)
-  }
 
   def shuffleKeySet: util.HashSet[String] = {
     val shuffleKeySet = new util.HashSet[String]()
@@ -70,11 +59,11 @@ class WorkerPartitionLocationInfo extends Logging {
   }
 
   def getMasterLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
-    getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.MASTER)
+    getLocation(shuffleKey, uniqueId, masterPartitionLocations)
   }
 
   def getSlaveLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
-    getLocation(shuffleKey, uniqueId, PartitionLocation.Mode.SLAVE)
+    getLocation(shuffleKey, uniqueId, slavePartitionLocations)
   }
 
   def removeShuffle(shuffleKey: String): Unit = {
@@ -149,10 +138,10 @@ class WorkerPartitionLocationInfo extends Logging {
     if (locations != null && locations.size() > 0) {
       partitionInfo.putIfAbsent(
         shuffleKey,
-        JavaUtils.newConcurrentHashMap[Long, PartitionLocation]())
+        JavaUtils.newConcurrentHashMap[String, PartitionLocation]())
       val partitionMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
-        partitionMap.putIfAbsent(encode(loc.getId, loc.getEpoch), loc)
+        partitionMap.putIfAbsent(loc.getUniqueId, loc)
       }
     }
   }
@@ -174,7 +163,7 @@ class WorkerPartitionLocationInfo extends Logging {
     val locMap = new util.HashMap[String, Integer]()
     var numSlotsReleased: Int = 0
     uniqueIds.asScala.foreach { id =>
-      val loc = partitionMap.remove(encodeUniqueId(id))
+      val loc = partitionMap.remove(id)
       if (loc != null) {
         numSlotsReleased += 1
         locMap.compute(
@@ -194,17 +183,10 @@ class WorkerPartitionLocationInfo extends Logging {
   private def getLocation(
       shuffleKey: String,
       uniqueId: String,
-      mode: PartitionLocation.Mode): PartitionLocation = {
-    val partitionInfo =
-      if (mode == PartitionLocation.Mode.MASTER) {
-        masterPartitionLocations
-      } else {
-        slavePartitionLocations
-      }
-
+      partitionInfo: PartitionInfo): PartitionLocation = {
     val partitionMap = partitionInfo.get(shuffleKey)
     if (partitionMap != null) {
-      partitionMap.get(encodeUniqueId(uniqueId))
+      partitionMap.get(uniqueId)
     } else null
   }
 
