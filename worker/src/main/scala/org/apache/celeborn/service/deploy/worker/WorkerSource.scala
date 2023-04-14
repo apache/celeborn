@@ -111,4 +111,5 @@ object WorkerSource {
   // Congestion control
   val PotentialConsumeSpeed = "PotentialConsumeSpeed"
   val UserProduceSpeed = "UserProduceSpeed"
+  val WorkerConsumeSpeed = "WorkerConsumeSpeed"
 }

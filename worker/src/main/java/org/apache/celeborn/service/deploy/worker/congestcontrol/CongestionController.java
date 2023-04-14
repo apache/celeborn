@@ -76,6 +76,9 @@ public class CongestionController {
 
     this.workerSource.addGauge(
         WorkerSource.PotentialConsumeSpeed(), this::getPotentialConsumeSpeed);
+
+    this.workerSource.addGauge(
+        WorkerSource.WorkerConsumeSpeed(), consumedBufferStatusHub::avgBytesPerSec);
   }
 
   public static synchronized CongestionController initialize(
