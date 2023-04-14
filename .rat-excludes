@@ -21,6 +21,7 @@
 **/*.log
 **/*.md
 **/*.iml
+**/*.svg
 **/target/**
 **/out/**
 **/spark-warehouse/**
