@@ -47,11 +47,6 @@ public class TestCongestionController {
           public long getTotalPendingBytes() {
             return pendingBytes;
           }
-
-          @Override
-          public void trimMemoryUsage() {
-            // No op
-          }
         };
   }
 
