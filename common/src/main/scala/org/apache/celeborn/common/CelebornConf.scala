@@ -2867,7 +2867,7 @@ object CelebornConf extends Logging {
       .doc("Interval of worker direct memory trigger channel trim")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("10s")
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
