@@ -26,7 +26,6 @@ import java.util.function.Consumer
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
-import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
@@ -199,7 +198,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     // PartitionUnRetryableException for reader can give up this partition and choose to regenerate the partition data
     client.getChannel.writeAndFlush(new RpcFailure(
       requestId,
-      Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))))
+      Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe, false))))
   }
 
   def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {
