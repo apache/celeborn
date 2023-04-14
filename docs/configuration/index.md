@@ -132,7 +132,7 @@ Assume we have a cluster described as below:
 As we need to reserve 20% off-heap memory for netty,
 so we could assume 16 GB off-heap memory can be used for flush buffers.
 
-If `spark.celeborn.push.buffer.size` is 64 KB, we can have in-flight requests up to 1310720.
+If `spark.celeborn.push.buffer.max.size` is 64 KB, we can have in-flight requests up to 1310720.
 If you have 8192 mapper tasks, you could set `spark.celeborn.push.maxReqsInFlight=160` to gain performance improvements.
 
 If `celeborn.worker.flush.buffer.size` is 256 KB, we can have total slots up to 327680 slots.

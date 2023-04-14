@@ -116,7 +116,7 @@ spark.celeborn.master.endpoints clb-1:9097,clb-2:9098,clb-3:9099
 spark.shuffle.service.enabled false
 
 # options: hash, sort
-# Hash shuffle writer use (partition count) * (celeborn.push.buffer.size) * (spark.executor.cores) memory.
+# Hash shuffle writer use (partition count) * (celeborn.push.buffer.max.size) * (spark.executor.cores) memory.
 # Sort shuffle writer use less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
 spark.celeborn.shuffle.writer hash
 
