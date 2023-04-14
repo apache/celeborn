@@ -767,7 +767,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
-  def workerDirectMemoryTrimChannelIntervalMs: Long = get(WORKER_DIRECT_MEMORY_TRIM_CHANNEL_INTERVAL)
+  def workerDirectMemoryTrimChannelIntervalMs: Long =
+    get(WORKER_DIRECT_MEMORY_TRIM_CHANNEL_INTERVAL)
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def creditStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
