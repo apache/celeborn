@@ -26,6 +26,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import org.apache.celeborn.common.CelebornConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,10 +39,14 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private static final Logger logger = LoggerFactory.getLogger(ChannelsLimiter.class);
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
   private final String moduleName;
+  private final Long trimActionInterval;
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
+  private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
+  private Long lastTrimTime = 0L;
 
-  public ChannelsLimiter(String moduleName) {
+  public ChannelsLimiter(String moduleName, CelebornConf conf) {
     this.moduleName = moduleName;
+    this.trimActionInterval = conf.workerDirectMemoryTrimChannelIntervalMs();
     MemoryManager memoryManager = MemoryManager.instance();
     memoryManager.registerMemoryListener(this);
   }
@@ -127,7 +132,12 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   @Override
   public void onTrim() {
-    trimCache();
+    if (trimInProcess.compareAndSet(false, true)) {
+      if (System.currentTimeMillis() - lastTrimTime > trimActionInterval) {
+        lastTrimTime = System.currentTimeMillis();
+        trimCache();
+      }
+    }
   }
 
   class TrimCache {}
