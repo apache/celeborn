@@ -148,7 +148,6 @@ public class CongestionController {
     }
 
     if (overHighWatermark.get()) {
-      trimMemoryUsage();
       pendingConsumed = getTotalPendingBytes();
 
       if (pendingConsumed < lowWatermark && overHighWatermark.compareAndSet(true, false)) {
@@ -204,10 +203,6 @@ public class CongestionController {
 
   public long getTotalPendingBytes() {
     return MemoryManager.instance().getMemoryUsage();
-  }
-
-  public void trimMemoryUsage() {
-    MemoryManager.instance().trimAllListeners();
   }
 
   /**
