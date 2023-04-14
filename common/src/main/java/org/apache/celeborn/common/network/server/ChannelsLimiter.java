@@ -132,10 +132,13 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   @Override
   public void onTrim() {
-    if (trimInProcess.compareAndSet(false, true)) {
-      if (System.currentTimeMillis() - lastTrimTime > trimActionInterval) {
-        lastTrimTime = System.currentTimeMillis();
+    if (!trimInProcess.get() && System.currentTimeMillis() - lastTrimTime > trimActionInterval) {
+      trimInProcess.set(true);
+      lastTrimTime = System.currentTimeMillis();
+      try {
         trimCache();
+      } finally {
+        trimInProcess.set(false);
       }
     }
   }
