@@ -95,13 +95,9 @@ public class CreditStreamManager {
     activeMapPartitions.compute(
         fileInfo,
         (k, v) -> {
-          if (v != null) {
-            StreamState streamState = new StreamState(channel, fileInfo.getBufferSize(), v);
-            streams.put(streamId, streamState);
-            v.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
-          } else {
+          if (v == null) {
             try {
-              MapDataPartition dataPartition =
+              v =
                   new MapDataPartition(
                       minReadBuffers,
                       maxReadBuffers,
@@ -110,15 +106,13 @@ public class CreditStreamManager {
                       fileInfo,
                       id -> recycleStream(id),
                       minBuffersToTriggerRead);
-              StreamState streamState =
-                  new StreamState(channel, fileInfo.getBufferSize(), dataPartition);
-              streams.put(streamId, streamState);
-              dataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
-              return dataPartition;
             } catch (IOException e) {
               exception.set(e);
+              return null;
             }
           }
+          initializeStreamStateAndPartitionReader(
+              channel, startSubIndex, endSubIndex, fileInfo, streamId, v);
           return v;
         });
     if (exception.get() != null) {
@@ -131,6 +125,18 @@ public class CreditStreamManager {
     logger.debug("Register stream streamId: {}, fileInfo: {}", streamId, fileInfo);
 
     return streamId;
+  }
+
+  private void initializeStreamStateAndPartitionReader(
+      Channel channel,
+      int startSubIndex,
+      int endSubIndex,
+      FileInfo fileInfo,
+      long streamId,
+      MapDataPartition mapDataPartition) {
+    StreamState streamState = new StreamState(channel, fileInfo.getBufferSize(), mapDataPartition);
+    streams.put(streamId, streamState);
+    mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
   }
 
   private void addCredit(MapDataPartition mapDataPartition, int numCredit, long streamId) {
