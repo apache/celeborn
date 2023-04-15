@@ -427,8 +427,6 @@ private[celeborn] class Worker(
   @VisibleForTesting
   def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
-      partitionLocationInfo.removeMasterPartitions(shuffleKey)
-      partitionLocationInfo.removeSlavePartitions(shuffleKey)
       partitionLocationInfo.removeShuffle(shuffleKey)
       shufflePartitionType.remove(shuffleKey)
       shufflePushDataTimeout.remove(shuffleKey)

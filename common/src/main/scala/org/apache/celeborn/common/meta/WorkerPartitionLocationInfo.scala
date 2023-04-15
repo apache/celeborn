@@ -71,54 +71,6 @@ class WorkerPartitionLocationInfo extends Logging {
     slavePartitionLocations.remove(shuffleKey)
   }
 
-  def getAllMasterLocations(shuffleKey: String): util.List[PartitionLocation] = {
-    getMasterLocations(shuffleKey)
-  }
-
-  def getAllSlaveLocations(shuffleKey: String): util.List[PartitionLocation] = {
-    getSlaveLocations(shuffleKey)
-  }
-
-  def getMasterLocations(
-      shuffleKey: String,
-      partitionIdOpt: Option[Int] = None): util.List[PartitionLocation] = {
-    getLocations(shuffleKey, masterPartitionLocations, partitionIdOpt)
-  }
-
-  def getSlaveLocations(
-      shuffleKey: String,
-      partitionIdOpt: Option[Int] = None): util.List[PartitionLocation] = {
-    getLocations(shuffleKey, slavePartitionLocations, partitionIdOpt)
-  }
-
-  def getLocations(
-      shuffleKey: String,
-      partitionInfo: PartitionInfo,
-      partitionIdOpt: Option[Int] = None): util.List[PartitionLocation] = {
-    val partitionMap = partitionInfo.get(shuffleKey)
-    if (partitionMap != null) {
-      partitionIdOpt match {
-        case Some(partitionId) =>
-          partitionMap.values().asScala.filter(_.getId == partitionId)
-            .toList.asJava
-        case None =>
-          new util.ArrayList(partitionMap.values())
-      }
-    } else {
-      new util.ArrayList[PartitionLocation]()
-    }
-  }
-
-  def removeMasterPartitions(shuffleKey: String): (util.Map[String, Integer], Integer) = {
-    val uniqueIds = getAllMasterIds(shuffleKey)
-    removeMasterPartitions(shuffleKey, uniqueIds)
-  }
-
-  def removeSlavePartitions(shuffleKey: String): (util.Map[String, Integer], Integer) = {
-    val uniqueIds = getAllSlaveIds(shuffleKey)
-    removeSlavePartitions(shuffleKey, uniqueIds)
-  }
-
   def removeMasterPartitions(
       shuffleKey: String,
       uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
@@ -188,23 +140,6 @@ class WorkerPartitionLocationInfo extends Logging {
     if (partitionMap != null) {
       partitionMap.get(uniqueId)
     } else null
-  }
-
-  private def getAllIds(
-      shuffleKey: String,
-      partitionInfo: PartitionInfo): util.List[String] = {
-    val partitionMap = partitionInfo.get(shuffleKey)
-    if (partitionMap != null) {
-      partitionMap.values().asScala.map(_.getUniqueId).toList.asJava
-    } else null
-  }
-
-  private def getAllMasterIds(shuffleKey: String): util.List[String] = {
-    getAllIds(shuffleKey, masterPartitionLocations)
-  }
-
-  private def getAllSlaveIds(shuffleKey: String): util.List[String] = {
-    getAllIds(shuffleKey, slavePartitionLocations)
   }
 
   def isEmpty: Boolean = {
