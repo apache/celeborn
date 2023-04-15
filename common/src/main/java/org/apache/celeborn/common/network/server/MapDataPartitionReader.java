@@ -19,6 +19,7 @@ package org.apache.celeborn.common.network.server;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -33,7 +34,7 @@ import io.netty.channel.ChannelFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.exception.FileCorruptedException;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
@@ -41,6 +42,7 @@ import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.memory.BufferQueue;
 import org.apache.celeborn.common.network.server.memory.BufferRecycler;
 import org.apache.celeborn.common.network.server.memory.RecyclableBuffer;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class MapDataPartitionReader implements Comparable<MapDataPartitionReader> {
@@ -257,7 +259,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     int bufferLength = header.getInt(12);
     if (bufferLength <= 0 || bufferLength > buffer.capacity()) {
       logger.error("Incorrect buffer header, buffer length: {}.", bufferLength);
-      throw new RuntimeException("File " + filename + " is corrupted");
+      throw new FileCorruptedException("File " + filename + " is corrupted");
     }
     buffer.writeBytes(header);
     readBufferIntoReadBuffer(channel, buffer, bufferLength);
@@ -294,7 +296,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       if (dataConsumingOffset < 0
           || dataConsumingOffset + currentPartitionRemainingBytes > dataFileChannel.size()
           || currentPartitionRemainingBytes < 0) {
-        throw new RuntimeException("File " + fileInfo.getFilePath() + " is corrupted");
+        throw new FileCorruptedException("File " + fileInfo.getFilePath() + " is corrupted");
       }
     }
   }
@@ -323,7 +325,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
       // if this check fails, the partition file must be corrupted
       if (currentPartitionRemainingBytes < 0) {
-        throw new RuntimeException("File is corrupted");
+        throw new FileCorruptedException("File is corrupted");
       } else if (currentPartitionRemainingBytes == 0) {
         logger.debug(
             "readBuffer end, {},  {}, {}, {}",
@@ -370,11 +372,17 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   private void notifyError(Throwable throwable) {
     logger.error("read error stream id {} message:{}", streamId, throwable.getMessage(), throwable);
+    if (throwable instanceof ClosedChannelException) {
+      return;
+    }
+
     if (this.associatedChannel.isActive()) {
       // If a stream is failed, send exceptions with the best effort, do not expect response.
       // And do not close channel because multiple streams are using the very same channel.
+      // wrapIOException to PartitionUnRetryAbleException, client may choose regenerate the data.
       this.associatedChannel.writeAndFlush(
-          new TransportableError(streamId, new CelebornIOException(throwable)));
+          new TransportableError(
+              streamId, ExceptionUtils.wrapIOExceptionToUnRetryable(throwable, true)));
     }
   }
 
