@@ -26,6 +26,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation
 
 class ShufflePartitionLocationInfo {
   type PartitionInfo = ConcurrentHashMap[Int, util.Set[PartitionLocation]]
+
   private val masterPartitionLocations = new PartitionInfo
   private val slavePartitionLocations = new PartitionInfo
   implicit val partitionOrdering: Ordering[PartitionLocation] = Ordering.by(_.getEpoch)
@@ -44,6 +45,11 @@ class ShufflePartitionLocationInfo {
 
   def getSlavePartitions(partitionIdOpt: Option[Int] = None): util.Set[PartitionLocation] = {
     getPartitions(slavePartitionLocations, partitionIdOpt)
+  }
+
+  def getMasterPartitionIds(): util.Set[Integer] = {
+    val value = masterPartitionLocations.keySet().asScala
+    value.asJava.asInstanceOf[util.Set[Integer]]
   }
 
   def containsPartition(partitionId: Int): Boolean = {

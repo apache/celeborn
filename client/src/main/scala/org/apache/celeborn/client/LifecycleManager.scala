@@ -28,6 +28,7 @@ import scala.util.Random
 import com.google.common.annotations.VisibleForTesting
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
+import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
@@ -117,7 +118,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
   val commitManager = new CommitManager(appId, conf, this)
-  val workerStatusTracker = new WorkerStatusTracker(conf, this, commitManager)
+  val workerStatusTracker = new WorkerStatusTracker(conf, this)
   private val heartbeater =
     new ApplicationHeartbeater(
       appId,
@@ -1105,11 +1106,22 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   // Once a partition is released, it will be never needed anymore
   def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
-    releasePartitionManager.releasePartition(shuffleId, partitionId)
+    commitManager.releasePartitionResource(shuffleId, partitionId)
     val partitionLocation = latestPartitionLocation.get(shuffleId)
     if (partitionLocation != null) {
       partitionLocation.remove(partitionId)
     }
+
+    releasePartitionManager.releasePartition(shuffleId, partitionId)
+  }
+
+  def getAllocatedWorkers(): Set[WorkerInfo] = {
+    shuffleAllocatedWorkers.asScala.values.flatMap(_.keys().asScala).toSet
+  }
+
+  // delegate workerStatusTracker to register listener
+  def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
+    workerStatusTracker.registerWorkerStatusListener(workerStatusListener)
   }
 
   // Initialize at the end of LifecycleManager construction.
