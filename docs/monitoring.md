@@ -106,19 +106,6 @@ These metrics are exposed by Celeborn master.
     [Dropwizard/Codahale Metric Sets for JVM instrumentation](https://metrics.dropwizard.io/4.2.0/manual/jvm.html)
     and in particular the metric sets BufferPoolMetricSet, GarbageCollectorMetricSet and MemoryUsageGaugeSet.
 
-  - namespace=rpc
-    - RPCHeartbeatFromApplicationNum
-    - RPCHeartbeatFromWorkerNum
-    - RPCRegisterWorkerNum
-    - RPCRequestSlotsNum
-    - RPCReleaseSlotsNum
-    - RPCReleaseSlotsSize
-    - RPCUnregisterShuffleNum
-    - RPCGetBlacklistNum
-    - RPCReportWorkerUnavailableNum
-    - RPCReportWorkerUnavailableSize
-    - RPCCheckQuotaNum
-
     - namespace=ResourceConsumption
       - **notes:**
         - This merics data is generated for each user and they are identified using a metric tag. 
@@ -177,21 +164,6 @@ These metrics are exposed by Celeborn worker.
     - This source provides information on JVM metrics using the
       [Dropwizard/Codahale Metric Sets for JVM instrumentation](https://metrics.dropwizard.io/4.2.0/manual/jvm.html)
       and in particular the metric sets BufferPoolMetricSet, GarbageCollectorMetricSet and MemoryUsageGaugeSet.
-
-  - namespace=rpc
-    - RPCReserveSlotsNum
-    - RPCReserveSlotsSize
-    - RPCCommitFilesNum
-    - RPCCommitFilesSize
-    - RPCDestroyNum
-    - RPCDestroySize
-    - RPCPushDataNum
-    - RPCPushDataSize
-    - RPCPushMergedDataNum
-    - RPCPushMergedDataSize
-    - RPCOpenStreamNum
-    - RPCChunkFetchRequestNum
-
 
 # REST API
 
