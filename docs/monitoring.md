@@ -106,13 +106,13 @@ These metrics are exposed by Celeborn master.
     [Dropwizard/Codahale Metric Sets for JVM instrumentation](https://metrics.dropwizard.io/4.2.0/manual/jvm.html)
     and in particular the metric sets BufferPoolMetricSet, GarbageCollectorMetricSet and MemoryUsageGaugeSet.
 
-    - namespace=ResourceConsumption
-      - **notes:**
-        - This merics data is generated for each user and they are identified using a metric tag. 
-      - diskFileCount
-      - diskBytesWritten
-      - hdfsFileCount
-      - hdfsBytesWritten
+  - namespace=ResourceConsumption
+    - **notes:**
+      - This merics data is generated for each user and they are identified using a metric tag. 
+    - diskFileCount
+    - diskBytesWritten
+    - hdfsFileCount
+    - hdfsBytesWritten
 
 ### Component instance = Worker
 These metrics are exposed by Celeborn worker.
