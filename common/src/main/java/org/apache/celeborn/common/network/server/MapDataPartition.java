@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
@@ -54,7 +55,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   private long indexSize;
   private volatile boolean isReleased = false;
   private final BufferQueue bufferQueue = new BufferQueue();
-  private boolean bufferQueueInitialized = false;
+  private AtomicBoolean bufferQueueInitialized = new AtomicBoolean(false);
   private MemoryManager memoryManager = MemoryManager.instance();
   private Consumer<Long> recycleStream;
   private int minReadBuffers;
@@ -129,14 +130,14 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
             channel,
             () -> recycleStream.accept(streamId));
     readers.put(streamId, mapDataPartitionReader);
+  }
 
-    // allocate resources when the first reader is registered
-    if (!bufferQueueInitialized) {
+  public void tryRequestBufferOrRead() {
+    if (bufferQueueInitialized.compareAndSet(false, true)) {
       bufferQueue.tryApplyNewBuffers(
           readers.size(),
           fileInfo.getBufferSize(),
           (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
-      bufferQueueInitialized = true;
     } else {
       triggerRead();
     }
@@ -185,7 +186,11 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     }
 
     try {
-      PriorityQueue<MapDataPartitionReader> sortedReaders = new PriorityQueue<>(readers.values());
+      PriorityQueue<MapDataPartitionReader> sortedReaders =
+          new PriorityQueue<>(
+              readers.values().stream()
+                  .filter(MapDataPartitionReader::shouldReadData)
+                  .collect(Collectors.toList()));
       for (MapDataPartitionReader reader : sortedReaders) {
         reader.open(dataFileChanel, indexChannel, indexSize);
       }

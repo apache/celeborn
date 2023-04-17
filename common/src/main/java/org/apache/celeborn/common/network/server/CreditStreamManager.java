@@ -19,13 +19,9 @@ package org.apache.celeborn.common.network.server;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.DelayQueue;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -90,25 +86,36 @@ public class CreditStreamManager {
         channel.remoteAddress(),
         streamId,
         fileInfo);
-    synchronized (activeMapPartitions) {
-      MapDataPartition mapDataPartition = activeMapPartitions.get(fileInfo);
-      if (mapDataPartition == null) {
-        mapDataPartition =
-            new MapDataPartition(
-                minReadBuffers,
-                maxReadBuffers,
-                storageFetcherPool,
-                threadsPerMountPoint,
-                fileInfo,
-                id -> recycleStream(id),
-                minBuffersToTriggerRead);
-        activeMapPartitions.put(fileInfo, mapDataPartition);
-      }
-      StreamState streamState =
-          new StreamState(channel, fileInfo.getBufferSize(), mapDataPartition);
-      streams.put(streamId, streamState);
-      mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
+
+    AtomicReference<IOException> exception = new AtomicReference();
+    MapDataPartition mapDataPartition =
+        activeMapPartitions.compute(
+            fileInfo,
+            (k, v) -> {
+              if (v == null) {
+                try {
+                  v =
+                      new MapDataPartition(
+                          minReadBuffers,
+                          maxReadBuffers,
+                          storageFetcherPool,
+                          threadsPerMountPoint,
+                          fileInfo,
+                          id -> recycleStream(id),
+                          minBuffersToTriggerRead);
+                } catch (IOException e) {
+                  exception.set(e);
+                  return null;
+                }
+              }
+              initializeStreamStateAndPartitionReader(
+                  channel, startSubIndex, endSubIndex, fileInfo, streamId, v);
+              return v;
+            });
+    if (exception.get() != null) {
+      throw exception.get();
     }
+    mapDataPartition.tryRequestBufferOrRead();
 
     callback.accept(streamId);
     addCredit(initialCredit, streamId);
@@ -116,6 +123,18 @@ public class CreditStreamManager {
     logger.debug("Register stream streamId: {}, fileInfo: {}", streamId, fileInfo);
 
     return streamId;
+  }
+
+  private void initializeStreamStateAndPartitionReader(
+      Channel channel,
+      int startSubIndex,
+      int endSubIndex,
+      FileInfo fileInfo,
+      long streamId,
+      MapDataPartition mapDataPartition) {
+    StreamState streamState = new StreamState(channel, fileInfo.getBufferSize(), mapDataPartition);
+    streams.put(streamId, streamState);
+    mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
   }
 
   private void addCredit(MapDataPartition mapDataPartition, int numCredit, long streamId) {
@@ -201,13 +220,16 @@ public class CreditStreamManager {
         if (mapDataPartition.releaseReader(streamId)) {
           streams.remove(streamId);
           if (mapDataPartition.getReaders().isEmpty()) {
-            synchronized (activeMapPartitions) {
-              if (mapDataPartition.getReaders().isEmpty()) {
-                mapDataPartition.close();
-                FileInfo fileInfo = mapDataPartition.getFileInfo();
-                activeMapPartitions.remove(fileInfo);
-              }
-            }
+            FileInfo fileInfo = mapDataPartition.getFileInfo();
+            activeMapPartitions.compute(
+                fileInfo,
+                (k, v) -> {
+                  if (v.getReaders().isEmpty()) {
+                    v.close();
+                    return null;
+                  }
+                  return v;
+                });
           }
         } else {
           logger.debug("retry clean stream: {}", streamId);

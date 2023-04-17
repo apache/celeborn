@@ -467,4 +467,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   public AtomicInteger getNumInUseBuffers() {
     return numInUseBuffers;
   }
+
+  public boolean shouldReadData() {
+    return !isReleased && !readFinished;
+  }
 }
