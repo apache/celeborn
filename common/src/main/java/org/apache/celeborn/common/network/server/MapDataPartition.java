@@ -55,7 +55,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   private long indexSize;
   private volatile boolean isReleased = false;
   private final BufferQueue bufferQueue = new BufferQueue();
-  private boolean bufferQueueInitialized = false;
+  private AtomicBoolean bufferQueueInitialized = new AtomicBoolean(false);
   private MemoryManager memoryManager = MemoryManager.instance();
   private Consumer<Long> recycleStream;
   private int minReadBuffers;
@@ -130,14 +130,14 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
             channel,
             () -> recycleStream.accept(streamId));
     readers.put(streamId, mapDataPartitionReader);
+  }
 
-    // allocate resources when the first reader is registered
-    if (!bufferQueueInitialized) {
+  public void tryRequestBufferOrRead() {
+    if (bufferQueueInitialized.compareAndSet(false, true)) {
       bufferQueue.tryApplyNewBuffers(
           readers.size(),
           fileInfo.getBufferSize(),
           (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
-      bufferQueueInitialized = true;
     } else {
       triggerRead();
     }

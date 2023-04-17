@@ -88,32 +88,34 @@ public class CreditStreamManager {
         fileInfo);
 
     AtomicReference<IOException> exception = new AtomicReference();
-    activeMapPartitions.compute(
-        fileInfo,
-        (k, v) -> {
-          if (v == null) {
-            try {
-              v =
-                  new MapDataPartition(
-                      minReadBuffers,
-                      maxReadBuffers,
-                      storageFetcherPool,
-                      threadsPerMountPoint,
-                      fileInfo,
-                      id -> recycleStream(id),
-                      minBuffersToTriggerRead);
-            } catch (IOException e) {
-              exception.set(e);
-              return null;
-            }
-          }
-          initializeStreamStateAndPartitionReader(
-              channel, startSubIndex, endSubIndex, fileInfo, streamId, v);
-          return v;
-        });
+    MapDataPartition mapDataPartition =
+        activeMapPartitions.compute(
+            fileInfo,
+            (k, v) -> {
+              if (v == null) {
+                try {
+                  v =
+                      new MapDataPartition(
+                          minReadBuffers,
+                          maxReadBuffers,
+                          storageFetcherPool,
+                          threadsPerMountPoint,
+                          fileInfo,
+                          id -> recycleStream(id),
+                          minBuffersToTriggerRead);
+                } catch (IOException e) {
+                  exception.set(e);
+                  return null;
+                }
+              }
+              initializeStreamStateAndPartitionReader(
+                  channel, startSubIndex, endSubIndex, fileInfo, streamId, v);
+              return v;
+            });
     if (exception.get() != null) {
       throw exception.get();
     }
+    mapDataPartition.tryRequestBufferOrRead();
 
     callback.accept(streamId);
     addCredit(initialCredit, streamId);
