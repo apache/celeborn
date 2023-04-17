@@ -86,7 +86,7 @@ public class MapPartitionWorker {
       try {
         Thread.sleep(100);
       } catch (InterruptedException e) {
-        logger.warn("MapPartitionFetcher is closing now.");
+        logger.warn("Map partition worker is closing now.");
       }
       if (!taskQueue.offer(task)) {
         throw new RuntimeException("Read or send task queue is full, failed to retry add task");

@@ -33,7 +33,6 @@ license: |
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
 | celeborn.test.pushMasterDataTimeout | false | Whether to test push master data timeout | 0.2.0 | 
 | celeborn.test.pushSlaveDataTimeout | false | Whether to test push slave data timeout | 0.3.0 | 
-| celeborn.worker.bufferStream.threadsPerMountpoint | 8 | Threads count for read buffer per mount point. | 0.3.0 | 
 | celeborn.worker.closeIdleConnections | false | Whether worker will close idle connections. | 0.2.0 | 
 | celeborn.worker.commit.threads | 32 | Thread number of worker to commit shuffle data files asynchronously. | 0.2.0 | 
 | celeborn.worker.congestionControl.enabled | false | Whether to enable congestion control or not. | 0.3.0 | 
@@ -66,6 +65,8 @@ license: |
 | celeborn.worker.graceful.shutdown.recoverPath | &lt;tmp&gt;/recover | The path to store levelDB. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.timeout | 600s | The worker's graceful shutdown timeout time. | 0.2.0 | 
 | celeborn.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
+| celeborn.worker.mapPartition.threads | 8 | Max thread number for map partition's worker. | 0.3.0 | 
+| celeborn.worker.mapPartition.worker.threadsPerMountpoint | 8 | Threads count for read buffer per mount point. | 0.3.0 | 
 | celeborn.worker.memory.checkInterval | 10ms | Interval of worker direct memory checking. | 0.2.0 | 
 | celeborn.worker.memory.reportInterval | 10s | Interval of worker direct memory tracker reporting to log. | 0.2.0 | 
 | celeborn.worker.metrics.prometheus.host | 0.0.0.0 | Worker's Prometheus host. | 0.2.0 | 
