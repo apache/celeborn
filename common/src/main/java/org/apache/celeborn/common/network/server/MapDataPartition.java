@@ -189,7 +189,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       PriorityQueue<MapDataPartitionReader> sortedReaders =
           new PriorityQueue<>(
               readers.values().stream()
-                  .filter(r -> !r.isReleased() && !r.isReadFinished())
+                  .filter(MapDataPartitionReader::shouldReadData)
                   .collect(Collectors.toList()));
       for (MapDataPartitionReader reader : sortedReaders) {
         reader.open(dataFileChanel, indexChannel, indexSize);

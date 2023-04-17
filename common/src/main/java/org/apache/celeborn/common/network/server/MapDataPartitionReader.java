@@ -460,11 +460,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     return numInUseBuffers;
   }
 
-  public boolean isReadFinished() {
-    return readFinished;
-  }
-
-  public boolean isReleased() {
-    return isReleased;
+  public boolean shouldReadData() {
+    return !isReleased && !readFinished;
   }
 }
