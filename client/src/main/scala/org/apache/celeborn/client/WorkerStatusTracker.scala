@@ -17,11 +17,13 @@
 
 package org.apache.celeborn.client
 
-import java.util.{HashSet => JHashSet, Set => JSet}
+import java.util.{HashSet => JHashSet, List => JList, Set => JSet}
+import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
+import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
@@ -31,13 +33,25 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 
 class WorkerStatusTracker(
     conf: CelebornConf,
-    lifecycleManager: LifecycleManager,
-    commitManager: CommitManager) extends Logging {
+    lifecycleManager: LifecycleManager) extends Logging {
   private val workerExcludedExpireTimeout = conf.workerExcludedExpireTimeout
+  private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
 
   // blacklist
   val blacklist = new ShuffleFailedWorkers()
   private val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
+
+  def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
+    workerStatusListeners.add(workerStatusListener)
+  }
+
+  def getNeedCheckedWorkers(): Set[WorkerInfo] = {
+    if (conf.workerCheckedUseAllocatedWorkers) {
+      lifecycleManager.getAllocatedWorkers()
+    } else {
+      blacklist.asScala.keys.toSet
+    }
+  }
 
   def blacklistWorkerFromPartition(
       shuffleId: Int,
@@ -113,7 +127,7 @@ class WorkerStatusTracker(
     if (res.statusCode == StatusCode.SUCCESS) {
       logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
-      resolveShutdownWorkers(res.shuttingWorkers)
+      val newShutdownWorkers = resolveShutdownWorkers(res.shuttingWorkers)
       val current = System.currentTimeMillis()
       val reserved = blacklist.asScala
         .filter { case (_, entry) =>
@@ -143,16 +157,25 @@ class WorkerStatusTracker(
         res.unknownWorkers.asScala.map(_ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
       // put reserved blacklist at last to cover blacklist's local status.
       blacklist.putAll(reservedBlackList)
+
+      val workerStatus = new WorkersStatus(res.unknownWorkers, newShutdownWorkers)
+      workerStatusListeners.asScala.foreach {
+        listener =>
+          try {
+            listener.notifyChangedWorkersStatus(workerStatus)
+          } catch {
+            case t: Throwable =>
+              logError("Error while notify listener", t)
+          }
+      }
     }
   }
 
-  private def resolveShutdownWorkers(newShutdownWorkers: java.util.List[WorkerInfo]): Unit = {
+  private def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): JList[WorkerInfo] = {
     // shutdownWorkers only retain workers appeared in response.
     shuttingWorkers.retainAll(newShutdownWorkers)
-    newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains)
-      .foreach { workerInfo =>
-        commitManager.handleShutdownWorker(workerInfo)
-      }
+    val shutdownList = newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains).asJava
     shuttingWorkers.addAll(newShutdownWorkers)
+    shutdownList
   }
 }

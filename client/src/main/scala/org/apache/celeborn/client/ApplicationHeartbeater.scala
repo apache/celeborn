@@ -55,7 +55,7 @@ class ApplicationHeartbeater(
                 appId,
                 tmpTotalWritten,
                 tmpFileCount,
-                workerStatusTracker.blacklist.asScala.keys.toList.asJava,
+                workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
                 ZERO_UUID)
             val response = requestHeartbeat(appHeartbeat)
             if (response.statusCode == StatusCode.SUCCESS) {
