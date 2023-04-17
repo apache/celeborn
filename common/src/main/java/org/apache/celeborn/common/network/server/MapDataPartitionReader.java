@@ -463,4 +463,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   public boolean isReadFinished() {
     return readFinished;
   }
+
+  public boolean isReleased() {
+    return isReleased;
+  }
 }

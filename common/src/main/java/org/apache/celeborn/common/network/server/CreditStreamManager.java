@@ -19,11 +19,7 @@ package org.apache.celeborn.common.network.server;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.DelayQueue;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -44,7 +40,7 @@ public class CreditStreamManager {
   private final AtomicLong nextStreamId;
   private final ConcurrentHashMap<Long, StreamState> streams;
   private final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
-  private final HashMap<String, MapPartitionFetcher> mapPartitionFetchers = new HashMap<>();
+  private final HashMap<String, ExecutorService> storageFetcherPool = new HashMap<>();
   private int minReadBuffers;
   private int maxReadBuffers;
   private int threadsPerMountPoint;
@@ -101,7 +97,7 @@ public class CreditStreamManager {
                   new MapDataPartition(
                       minReadBuffers,
                       maxReadBuffers,
-                      mapPartitionFetchers,
+                      storageFetcherPool,
                       threadsPerMountPoint,
                       fileInfo,
                       id -> recycleStream(id),
