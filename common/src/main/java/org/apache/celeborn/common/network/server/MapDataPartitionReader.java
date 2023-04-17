@@ -92,6 +92,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   private AtomicInteger numInUseBuffers = new AtomicInteger(0);
   private boolean isOpen = false;
+  private int senderIndex;
+  private MapPartitionWorker worker;
 
   public MapDataPartitionReader(
       int startPartitionIndex,
@@ -99,7 +101,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       FileInfo fileInfo,
       long streamId,
       Channel associatedChannel,
-      Runnable recycleStream) {
+      Runnable recycleStream,
+      MapPartitionWorker worker) {
     this.startPartitionIndex = startPartitionIndex;
     this.endPartitionIndex = endPartitionIndex;
 
@@ -113,6 +116,9 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
     this.fileInfo = fileInfo;
     this.readFinished = false;
+
+    senderIndex = worker.getSenderIndex();
+    this.worker = worker;
   }
 
   public void open(FileChannel dataFileChannel, FileChannel indexFileChannel, long indexSize)
@@ -182,6 +188,10 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
         throw new RuntimeException("Partition reader has been failed or finished.", errorCause);
       }
     }
+  }
+
+  public void triggerSendData() {
+    worker.addSendTask(senderIndex, () -> sendData());
   }
 
   public synchronized void sendData() {

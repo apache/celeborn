@@ -43,7 +43,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   val creditStreamManager = new CreditStreamManager(
     conf.getCelebornConf.partitionReadBuffersMin,
     conf.getCelebornConf.partitionReadBuffersMax,
-    conf.getCelebornConf.creditStreamThreadsPerMountpoint,
+    conf.getCelebornConf.mapPartitionThreadsPerMountpoint,
     conf.getCelebornConf.readBuffersToTriggerReadMin)
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _

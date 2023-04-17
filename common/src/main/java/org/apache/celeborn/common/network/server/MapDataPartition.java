@@ -24,13 +24,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import org.apache.commons.io.IOUtils;
@@ -47,7 +44,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   public static final Logger logger = LoggerFactory.getLogger(MapDataPartition.class);
   private final FileInfo fileInfo;
-  private final ExecutorService readExecutor;
+  private final MapPartitionWorker partitionWorker;
+  private final int fetcherIndex;
   private final ConcurrentHashMap<Long, MapDataPartitionReader> readers =
       JavaUtils.newConcurrentHashMap();
   private FileChannel dataFileChanel;
@@ -66,7 +64,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   public MapDataPartition(
       int minReadBuffers,
       int maxReadBuffers,
-      HashMap<String, ExecutorService> storageFetcherPool,
+      HashMap<String, MapPartitionWorker> mapPartitionWorkers,
       int threadsPerMountPoint,
       FileInfo fileInfo,
       Consumer<Long> recycleStream,
@@ -88,19 +86,11 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
     this.minBuffersToTriggerRead = minBuffersToTriggerRead;
 
-    readExecutor =
-        storageFetcherPool.computeIfAbsent(
+    partitionWorker =
+        mapPartitionWorkers.computeIfAbsent(
             fileInfo.getMountPoint(),
-            k ->
-                Executors.newFixedThreadPool(
-                    threadsPerMountPoint,
-                    new ThreadFactoryBuilder()
-                        .setNameFormat(fileInfo.getMountPoint() + "-reader-thread-%d")
-                        .setUncaughtExceptionHandler(
-                            (t1, t2) -> {
-                              logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
-                            })
-                        .build()));
+            k -> new MapPartitionWorker(fileInfo.getMountPoint(), threadsPerMountPoint));
+    fetcherIndex = partitionWorker.getFetcherIndex();
     this.dataFileChanel = new FileInputStream(fileInfo.getFile()).getChannel();
     this.indexChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
     this.indexSize = indexChannel.size();
@@ -128,7 +118,8 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
             fileInfo,
             streamId,
             channel,
-            () -> recycleStream.accept(streamId));
+            () -> recycleStream.accept(streamId),
+            partitionWorker);
     readers.put(streamId, mapDataPartitionReader);
   }
 
@@ -217,14 +208,14 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     MapDataPartitionReader streamReader = getStreamReader(streamId);
     if (streamReader != null) {
       streamReader.addCredit(numCredit);
-      readExecutor.submit(() -> streamReader.sendData());
+      streamReader.triggerSendData();
     }
   }
 
   public void triggerRead() {
     // Key for IO schedule.
     if (hasReadingTask.compareAndSet(false, true)) {
-      readExecutor.submit(() -> readBuffers());
+      partitionWorker.addFetchTask(fetcherIndex, () -> readBuffers());
     }
   }
 

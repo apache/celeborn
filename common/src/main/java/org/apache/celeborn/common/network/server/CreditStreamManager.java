@@ -40,7 +40,7 @@ public class CreditStreamManager {
   private final AtomicLong nextStreamId;
   private final ConcurrentHashMap<Long, StreamState> streams;
   private final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
-  private final HashMap<String, ExecutorService> storageFetcherPool = new HashMap<>();
+  private final HashMap<String, MapPartitionWorker> mapPartitionWorkers = new HashMap<>();
   private int minReadBuffers;
   private int maxReadBuffers;
   private int threadsPerMountPoint;
@@ -55,21 +55,21 @@ public class CreditStreamManager {
   public CreditStreamManager(
       int minReadBuffers,
       int maxReadBuffers,
-      int threadsPerMountpoint,
+      int mapPartitionThreadsPerMountpoint,
       int minBuffersToTriggerRead) {
     nextStreamId = new AtomicLong((long) new Random().nextInt(Integer.MAX_VALUE) * 1000);
     streams = JavaUtils.newConcurrentHashMap();
     activeMapPartitions = JavaUtils.newConcurrentHashMap();
     this.minReadBuffers = minReadBuffers;
     this.maxReadBuffers = maxReadBuffers;
-    threadsPerMountPoint = threadsPerMountpoint;
+    threadsPerMountPoint = mapPartitionThreadsPerMountpoint;
     this.minBuffersToTriggerRead = minBuffersToTriggerRead;
     MemoryManager.instance().setCreditStreamManager(this);
     logger.debug(
         "Initialize buffer stream manager with {} {} {}",
         this.minReadBuffers,
         this.maxReadBuffers,
-        threadsPerMountpoint);
+        mapPartitionThreadsPerMountpoint);
   }
 
   public long registerStream(
@@ -98,7 +98,7 @@ public class CreditStreamManager {
                       new MapDataPartition(
                           minReadBuffers,
                           maxReadBuffers,
-                          storageFetcherPool,
+                          mapPartitionWorkers,
                           threadsPerMountPoint,
                           fileInfo,
                           id -> recycleStream(id),

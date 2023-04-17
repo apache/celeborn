@@ -770,7 +770,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
-  def creditStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
+  def mapPartitionThreadsPerMountpoint: Int = get(WORKER_MAPPARTITION_WORKER_THREADS_PER_MOUNTPOINT)
   def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
   def partitionReadBuffersMin: Int = get(WORKER_PARTITION_READ_BUFFERS_MIN)
   def partitionReadBuffersMax: Int = get(WORKER_PARTITION_READ_BUFFERS_MAX)
@@ -3087,8 +3087,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1024)
 
-  val WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.bufferStream.threadsPerMountpoint")
+  val WORKER_MAPPARTITION_WORKER_THREADS_PER_MOUNTPOINT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.mapPartition.worker.threadsPerMountpoint")
       .categories("worker")
       .version("0.3.0")
       .doc("Threads count for read buffer per mount point.")
@@ -3134,6 +3134,14 @@ object CelebornConf extends Logging {
       .doc("Min buffers count for map data partition to trigger read.")
       .intConf
       .createWithDefault(32)
+
+  val WORKER_MAPPARTITION_WORKER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.mapPartition.threads")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Max thread number for map partition's worker.")
+      .intConf
+      .createWithDefault(8)
 
   val METRICS_EXTRA_LABELS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.metrics.extraLabels")
