@@ -20,6 +20,7 @@ package org.apache.celeborn.common.network.server;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
@@ -29,7 +30,6 @@ import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
 
 @ChannelHandler.Sharable
@@ -41,6 +41,8 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private final String moduleName;
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
   private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
+  private AtomicInteger trimmedChannels = new AtomicInteger(0);
+  private AtomicInteger needTrimChannels = new AtomicInteger(0);
 
   public ChannelsLimiter(String moduleName) {
     this.moduleName = moduleName;
@@ -59,7 +61,11 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   }
 
   private void trimCache() {
-    channels.forEach(c -> c.pipeline().fireUserEventTriggered(new TrimCache()));
+    channels.forEach(
+        c -> {
+          needTrimChannels.incrementAndGet();
+          c.pipeline().fireUserEventTriggered(new TrimCache());
+        });
   }
 
   private void resumeAllChannels() {
@@ -104,6 +110,14 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
     if (evt instanceof TrimCache) {
       ((PooledByteBufAllocator) ctx.alloc()).trimCurrentThreadCache();
+      if (trimInProcess.get()) {
+        // Only increment trimmedChannels during trim in process
+        if (trimmedChannels.incrementAndGet() >= channels.size()) {
+          trimInProcess.set(false);
+          trimmedChannels.set(0);
+          needTrimChannels.set(0);
+        }
+      }
     }
   }
 
@@ -129,7 +143,9 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   @Override
   public void onTrim(MemoryManager.TrimCallback callback) {
-    trimCache();
+    if (trimInProcess.compareAndSet(false, true)) {
+      trimCache();
+    }
   }
 
   class TrimCache {}
