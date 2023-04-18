@@ -425,6 +425,7 @@ public class MemoryManager {
     reportService.shutdown();
     readBufferTargetUpdateService.shutdown();
     memoryPressureListeners.clear();
+    actionService.shutdown();
     readBufferTargetChangeListeners.clear();
     readBufferDispatcher.close();
   }
