@@ -30,6 +30,7 @@ import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.server.memory.MemoryManager;
 
 @ChannelHandler.Sharable
@@ -40,11 +41,12 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
   private final String moduleName;
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
-  private AtomicInteger trimmedChannels = new AtomicInteger(0);
   private AtomicInteger needTrimChannels = new AtomicInteger(0);
+  private long waitTrimInterval = 0;
 
-  public ChannelsLimiter(String moduleName) {
+  public ChannelsLimiter(String moduleName, CelebornConf conf) {
     this.moduleName = moduleName;
+    this.waitTrimInterval = conf.workerDirectMemoryTrimChannelWaitInterval();
     MemoryManager memoryManager = MemoryManager.instance();
     memoryManager.registerMemoryListener(this);
   }
@@ -68,12 +70,12 @@ public class ChannelsLimiter extends ChannelDuplexHandler
         });
     long delta = 100L;
     int retryTime = 0;
-    while (needTrimChannels.get() > 0 && retryTime * delta < 1000) {
+    while (needTrimChannels.get() > 0 && retryTime * delta < waitTrimInterval) {
       try {
         retryTime += 1;
         Thread.sleep(delta);
       } catch (InterruptedException e) {
-        //
+        // Do nothing
       }
     }
   }

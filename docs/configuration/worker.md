@@ -68,7 +68,8 @@ license: |
 | celeborn.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
 | celeborn.worker.memory.checkInterval | 10ms | Interval of worker direct memory checking. | 0.2.0 | 
 | celeborn.worker.memory.reportInterval | 10s | Interval of worker direct memory tracker reporting to log. | 0.2.0 | 
-| celeborn.worker.memory.trimFlushWaitInterval | 10s | Wait time after worker trigger StorageManger to flush data. | 0.3.0 | 
+| celeborn.worker.memory.trimChannelWaitInterval | 1s | Wait time after worker trigger channel to trim cache. | 0.3.0 | 
+| celeborn.worker.memory.trimFlushWaitInterval | 1s | Wait time after worker trigger StorageManger to flush data. | 0.3.0 | 
 | celeborn.worker.metrics.prometheus.host | 0.0.0.0 | Worker's Prometheus host. | 0.2.0 | 
 | celeborn.worker.metrics.prometheus.port | 9096 | Worker's Prometheus port. | 0.2.0 | 
 | celeborn.worker.monitor.disk.checkInterval | 60s | Intervals between device monitor to check disk. | 0.2.0 | 
