@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha
 import java.io.IOException
 import java.net.{InetAddress, InetSocketAddress}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 import org.apache.ratis.util.NetUtils
 
@@ -90,14 +90,16 @@ object MasterNode extends Logging {
   }
 
   private def createSocketAddr(host: String, port: Int): InetSocketAddress = {
-    val socketAddr: InetSocketAddress =
-      Try(NetUtils.createSocketAddr(host, port)) match {
-        case Success(addr) => addr
-        case Failure(e) =>
+    val socketAddr: InetSocketAddress = {
+      try {
+        NetUtils.createSocketAddr(host, port)
+      } catch {
+        case e: Throwable =>
           throw new IOException(
             s"Couldn't create socket address for $host:$port",
             e)
       }
+    }
     if (socketAddr.isUnresolved)
       logError(s"Address of $host:$port couldn't be resolved. " +
         s"Proceeding with unresolved host to create Ratis ring.")
