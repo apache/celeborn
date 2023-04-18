@@ -684,7 +684,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         override def run(): Unit = {
           try {
             flushFileWriters()
-            // Wait flusher
+            // Wait flusher flush data to disk
+            Thread.sleep(1000)
             callback.run()
           } finally {
             trimInProcess.set(false)
