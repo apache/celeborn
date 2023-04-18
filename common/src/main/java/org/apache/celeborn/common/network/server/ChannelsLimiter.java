@@ -70,6 +70,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
     int retryTime = 0;
     while (needTrimChannels.get() > 0 && retryTime * delta < 1000) {
       try {
+        retryTime += 1;
         Thread.sleep(delta);
       } catch (InterruptedException e) {
         //
