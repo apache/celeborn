@@ -39,14 +39,11 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private static final Logger logger = LoggerFactory.getLogger(ChannelsLimiter.class);
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
   private final String moduleName;
-  private final Long trimActionInterval;
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
   private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
-  private Long lastTrimTime = 0L;
 
-  public ChannelsLimiter(String moduleName, CelebornConf conf) {
+  public ChannelsLimiter(String moduleName) {
     this.moduleName = moduleName;
-    this.trimActionInterval = conf.workerDirectMemoryTrimChannelIntervalMs();
     MemoryManager memoryManager = MemoryManager.instance();
     memoryManager.registerMemoryListener(this);
   }
@@ -132,15 +129,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   @Override
   public void onTrim(MemoryManager.TrimCallback callback) {
-    if (!trimInProcess.get() && System.currentTimeMillis() - lastTrimTime > trimActionInterval) {
-      trimInProcess.set(true);
-      lastTrimTime = System.currentTimeMillis();
-      try {
-        trimCache();
-      } finally {
-        trimInProcess.set(false);
-      }
-    }
+    trimCache();
   }
 
   class TrimCache {}
