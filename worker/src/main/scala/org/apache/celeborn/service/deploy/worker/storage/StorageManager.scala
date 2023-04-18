@@ -40,7 +40,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.network.server.memory.MemoryManager.MemoryPressureListener
+import org.apache.celeborn.common.network.server.memory.MemoryManager.{MemoryPressureListener, TrimCallback}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
@@ -677,13 +677,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   override def onResume(moduleName: String): Unit = {}
 
-  override def onTrim(): Unit = {
+  override def onTrim(callback: TrimCallback): Unit = {
     if (trimInProcess.compareAndSet(false, true)) {
       logInfo(s"Trigger ${this.getClass.getCanonicalName} trim action")
       actionService.submit(new Runnable {
         override def run(): Unit = {
           try {
             flushFileWriters()
+            callback.run()
           } finally {
             trimInProcess.set(false)
           }

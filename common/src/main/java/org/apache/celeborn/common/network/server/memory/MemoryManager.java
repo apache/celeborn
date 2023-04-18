@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.server.ChannelsLimiter;
 import org.apache.celeborn.common.network.server.CreditStreamManager;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
@@ -51,6 +52,8 @@ public class MemoryManager {
   private final long resumeThreshold;
   private final long maxSortMemory;
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
+  private final List<MemoryPressureListener> channelsLimiters = new ArrayList<>();
+  private final List<MemoryPressureListener> otherListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-checker");
@@ -95,6 +98,11 @@ public class MemoryManager {
   public void registerMemoryListener(MemoryPressureListener listener) {
     synchronized (memoryPressureListeners) {
       memoryPressureListeners.add(listener);
+      if (listener instanceof ChannelsLimiter) {
+        channelsLimiters.add(listener);
+      } else {
+        otherListeners.add(listener);
+      }
     }
   }
 
@@ -169,7 +177,7 @@ public class MemoryManager {
                       memoryPressureListeners.forEach(
                           memoryPressureListener ->
                               memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                      memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+                      trimAllListeners();
                       memoryPressureListeners.forEach(
                           memoryPressureListener ->
                               memoryPressureListener.onResume(
@@ -187,7 +195,7 @@ public class MemoryManager {
                           memoryPressureListener ->
                               memoryPressureListener.onPause(
                                   TransportModuleConstants.REPLICATE_MODULE));
-                      memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+                      trimAllListeners();
                     });
               } else {
                 actionService.submit(
@@ -202,7 +210,7 @@ public class MemoryManager {
                 actionService.submit(
                     () -> {
                       logger.debug("Trigger trim action");
-                      memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+                      trimAllListeners();
                     });
               }
             }
@@ -323,7 +331,12 @@ public class MemoryManager {
   }
 
   public void trimAllListeners() {
-    memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+    // First trim data from disk buffer to flusher
+    // Second trim flusher flush data
+    // Finally trim empty netty buffer cache
+    otherListeners.forEach(
+        listener ->
+            listener.onTrim(() -> channelsLimiters.forEach(limiter -> limiter.onTrim(() -> {}))));
   }
 
   public void reserveSortMemory(long fileLen) {
@@ -427,6 +440,8 @@ public class MemoryManager {
     actionService.shutdown();
     readBufferTargetUpdateService.shutdown();
     memoryPressureListeners.clear();
+    channelsLimiters.clear();
+    otherListeners.clear();
     readBufferTargetChangeListeners.clear();
     readBufferDispatcher.close();
   }
@@ -436,7 +451,11 @@ public class MemoryManager {
 
     void onResume(String moduleName);
 
-    void onTrim();
+    void onTrim(TrimCallback callback);
+  }
+
+  public interface TrimCallback {
+    void run();
   }
 
   public interface ReadBufferTargetChangeListener {
