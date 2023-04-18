@@ -51,8 +51,6 @@ public class MemoryManager {
   private final long pauseReplicateThreshold;
   private final long resumeThreshold;
   private final long maxSortMemory;
-  // In current code, StorageManager will add into this before ChannelsLimiter,
-  // so all behaviors of StorageManger will execute before ChannelsLimiter.
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService =
