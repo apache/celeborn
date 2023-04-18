@@ -40,7 +40,6 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
   private final String moduleName;
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
-  private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
   private AtomicInteger trimmedChannels = new AtomicInteger(0);
   private AtomicInteger needTrimChannels = new AtomicInteger(0);
 
@@ -61,11 +60,21 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   }
 
   private void trimCache() {
+    needTrimChannels.set(0);
     channels.forEach(
         c -> {
           needTrimChannels.incrementAndGet();
           c.pipeline().fireUserEventTriggered(new TrimCache());
         });
+    long delta = 100L;
+    int retryTime = 0;
+    while (needTrimChannels.get() > 0 && retryTime * delta < 1000) {
+      try {
+        Thread.sleep(delta);
+      } catch (InterruptedException e) {
+        //
+      }
+    }
   }
 
   private void resumeAllChannels() {
@@ -110,13 +119,10 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
     if (evt instanceof TrimCache) {
       ((PooledByteBufAllocator) ctx.alloc()).trimCurrentThreadCache();
-      if (trimInProcess.get()) {
-        // Only increment trimmedChannels during trim in process
-        if (trimmedChannels.incrementAndGet() >= channels.size()) {
-          trimInProcess.set(false);
-          trimmedChannels.set(0);
-          needTrimChannels.set(0);
-        }
+      // Only increment trimmedChannels during trim in process
+      if (trimmedChannels.incrementAndGet() >= needTrimChannels.get()) {
+        trimmedChannels.set(0);
+        needTrimChannels.set(0);
       }
     }
   }
@@ -142,10 +148,8 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   }
 
   @Override
-  public void onTrim(MemoryManager.TrimCallback callback) {
-    if (trimInProcess.compareAndSet(false, true)) {
-      trimCache();
-    }
+  public void onTrim() {
+    trimCache();
   }
 
   class TrimCache {}

@@ -22,7 +22,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -52,17 +51,12 @@ public class MemoryManager {
   private final long resumeThreshold;
   private final long maxSortMemory;
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
-  private final List<MemoryPressureListener> channelsLimiters = new ArrayList<>();
-  private final List<MemoryPressureListener> otherListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-checker");
 
   private final ScheduledExecutorService reportService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-reporter");
-
-  private final ExecutorService actionService =
-      ThreadUtils.newDaemonSingleThreadExecutor("memory-manager-actor");
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
@@ -171,47 +165,33 @@ public class MemoryManager {
                   "Memory manager actions transformed {} -> {}", lastAction, memoryManagerStat);
               if (memoryManagerStat == MemoryManagerStat.pausePushDataAndResumeReplicate) {
                 pausePushDataCounter.increment();
-                actionService.submit(
-                    () -> {
-                      logger.info("Trigger pausePushDataAndResumeReplicate action");
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener ->
-                              memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                      trimAllListeners();
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener ->
-                              memoryPressureListener.onResume(
-                                  TransportModuleConstants.REPLICATE_MODULE));
-                    });
+                logger.info("Trigger pausePushDataAndResumeReplicate action");
+                memoryPressureListeners.forEach(
+                    memoryPressureListener ->
+                        memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+                memoryPressureListeners.forEach(
+                    memoryPressureListener ->
+                        memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
               } else if (memoryManagerStat == MemoryManagerStat.pausePushDataAndReplicate) {
                 pausePushDataAndReplicateCounter.increment();
-                actionService.submit(
-                    () -> {
-                      logger.info("Trigger pausePushDataAndReplicate action");
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener ->
-                              memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener ->
-                              memoryPressureListener.onPause(
-                                  TransportModuleConstants.REPLICATE_MODULE));
-                      trimAllListeners();
-                    });
+                logger.info("Trigger pausePushDataAndReplicate action");
+                memoryPressureListeners.forEach(
+                    memoryPressureListener ->
+                        memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                memoryPressureListeners.forEach(
+                    memoryPressureListener ->
+                        memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
+                memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
               } else {
-                actionService.submit(
-                    () -> {
-                      logger.info("Trigger resume action");
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener -> memoryPressureListener.onResume("all"));
-                    });
+                logger.info("Trigger resume action");
+                memoryPressureListeners.forEach(
+                    memoryPressureListener -> memoryPressureListener.onResume("all"));
               }
             } else {
               if (memoryManagerStat != MemoryManagerStat.resumeAll) {
-                actionService.submit(
-                    () -> {
-                      logger.debug("Trigger trim action");
-                      trimAllListeners();
-                    });
+                logger.debug("Trigger trim action");
+                memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
               }
             }
           } catch (Exception e) {
@@ -331,12 +311,7 @@ public class MemoryManager {
   }
 
   public void trimAllListeners() {
-    // First trim data from disk buffer to flusher
-    // Second trim flusher flush data
-    // Finally trim empty netty buffer cache
-    otherListeners.forEach(
-        listener ->
-            listener.onTrim(() -> channelsLimiters.forEach(limiter -> limiter.onTrim(() -> {}))));
+    memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
   }
 
   public void reserveSortMemory(long fileLen) {
@@ -437,11 +412,8 @@ public class MemoryManager {
   public void close() {
     checkService.shutdown();
     reportService.shutdown();
-    actionService.shutdown();
     readBufferTargetUpdateService.shutdown();
     memoryPressureListeners.clear();
-    channelsLimiters.clear();
-    otherListeners.clear();
     readBufferTargetChangeListeners.clear();
     readBufferDispatcher.close();
   }
@@ -451,11 +423,7 @@ public class MemoryManager {
 
     void onResume(String moduleName);
 
-    void onTrim(TrimCallback callback);
-  }
-
-  public interface TrimCallback {
-    void run();
+    void onTrim();
   }
 
   public interface ReadBufferTargetChangeListener {
