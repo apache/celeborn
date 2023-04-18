@@ -92,11 +92,6 @@ public class MemoryManager {
   public void registerMemoryListener(MemoryPressureListener listener) {
     synchronized (memoryPressureListeners) {
       memoryPressureListeners.add(listener);
-      if (listener instanceof ChannelsLimiter) {
-        channelsLimiters.add(listener);
-      } else {
-        otherListeners.add(listener);
-      }
     }
   }
 
