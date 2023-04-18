@@ -563,6 +563,7 @@ public class RemoteShuffleResultPartitionSuiteJ {
     Mockito.when(shuffleTask.getShuffleId()).thenReturn(1);
     return new RemoteShuffleDescriptor(
         new JobID(bytes).toString(),
+        new JobID(bytes),
         new JobID(bytes).toString(),
         new ResultPartitionID(),
         new RemoteShuffleResource("1", 2, new ShuffleResourceDescriptor(shuffleTask)));

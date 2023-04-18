@@ -17,11 +17,14 @@
 
 package org.apache.celeborn.common.util;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.exception.FileCorruptedException;
+import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 
 public class ExceptionUtils {
 
@@ -32,6 +35,17 @@ public class ExceptionUtils {
       throw new CelebornIOException(exception);
     } else {
       throw new CelebornIOException(exception.getMessage(), exception);
+    }
+  }
+
+  public static Throwable wrapIOExceptionToUnRetryable(
+      Throwable throwable, boolean convertAllIOException2UnRetryable) {
+    if (throwable instanceof FileNotFoundException || throwable instanceof FileCorruptedException) {
+      return new PartitionUnRetryAbleException(throwable.getMessage(), throwable);
+    } else if (throwable instanceof IOException && convertAllIOException2UnRetryable) {
+      return new PartitionUnRetryAbleException(throwable.getMessage(), throwable);
+    } else {
+      return throwable;
     }
   }
 

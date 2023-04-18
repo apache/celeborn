@@ -19,12 +19,14 @@ package org.apache.celeborn.plugin.flink;
 
 import java.util.Optional;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 public class RemoteShuffleDescriptor implements ShuffleDescriptor {
   private final String celebornAppId;
+  private final JobID jobId;
   // jobId-datasetId
   private final String shuffleId;
   private final ResultPartitionID resultPartitionID;
@@ -32,10 +34,12 @@ public class RemoteShuffleDescriptor implements ShuffleDescriptor {
 
   public RemoteShuffleDescriptor(
       String celebornAppId,
+      JobID jobId,
       String shuffleId,
       ResultPartitionID resultPartitionID,
       RemoteShuffleResource shuffleResource) {
     this.celebornAppId = celebornAppId;
+    this.jobId = jobId;
     this.shuffleId = shuffleId;
     this.resultPartitionID = resultPartitionID;
     this.shuffleResource = shuffleResource;
@@ -48,6 +52,10 @@ public class RemoteShuffleDescriptor implements ShuffleDescriptor {
 
   public String getCelebornAppId() {
     return celebornAppId;
+  }
+
+  public JobID getJobId() {
+    return jobId;
   }
 
   public RemoteShuffleResource getShuffleResource() {
@@ -63,6 +71,7 @@ public class RemoteShuffleDescriptor implements ShuffleDescriptor {
   public String toString() {
     final StringBuilder sb = new StringBuilder("RemoteShuffleDescriptor{");
     sb.append("celebornAppId='").append(celebornAppId).append('\'');
+    sb.append(", jobID=").append(jobId);
     sb.append(", shuffleId='").append(shuffleId).append('\'');
     sb.append(", resultPartitionID=").append(resultPartitionID);
     sb.append(", shuffleResource=").append(shuffleResource);

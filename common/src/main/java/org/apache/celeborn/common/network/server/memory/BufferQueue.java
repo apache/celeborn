@@ -149,12 +149,6 @@ public class BufferQueue {
 
   public void tryApplyNewBuffers(
       int readerSize, int bufferSize, ReadBufferListener readBufferListener) {
-    logger.debug(
-        "try to apply new buffers {} {} {} {}",
-        numBuffersOccupied.get(),
-        buffers.size(),
-        readerSize,
-        localBuffersTarget);
     if (readerSize != 0) {
       synchronized (this) {
         int occupiedSnapshot = numBuffersOccupied.get();

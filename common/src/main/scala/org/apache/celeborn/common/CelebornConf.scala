@@ -535,6 +535,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
+  def workerCheckedUseAllocatedWorkers: Boolean = get(WORKER_CHECKED_USE_ALLOCATED_WORKERS)
   def workerExcludedExpireTimeout: Long = get(WORKER_EXCLUDED_EXPIRE_TIMEOUT)
   def blacklistSlaveEnabled: Boolean = get(BLACKLIST_SLAVE_ENABLED)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
@@ -1419,6 +1420,17 @@ object CelebornConf extends Logging {
       .doc("Interval for client to check expired shuffles.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
+
+  val WORKER_CHECKED_USE_ALLOCATED_WORKERS: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.checked.useAllocatedWorkers")
+      .internal
+      .categories("client")
+      .version("0.3.0")
+      .doc("When true, Celeborn will use local allocated workers as candidate being checked workers(check the workers" +
+        "whether unKnown in master), this may be more useful for map partition to regenerate the lost data), " +
+        "otherwise use local black list as candidate being checked workers.")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_EXCLUDED_EXPIRE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.excluded.expireTimeout")

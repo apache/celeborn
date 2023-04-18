@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,9 +149,13 @@ public class InFlightRequestTracker {
 
     if (times <= 0) {
       logger.error(
-          "After waiting for {} ms, there are still {} batches in flight, expect 0 batches",
+          "After waiting for {} ms, "
+              + "there are still {} batches in flight "
+              + "for hostAndPushPort {}, "
+              + "which exceeds the current limit 0.",
           waitInflightTimeoutMs,
-          inFlightSize);
+          inFlightSize,
+          inflightBatchesPerAddress.keySet().stream().collect(Collectors.joining(", ", "[", "]")));
     }
 
     if (pushState.exception.get() != null) {
