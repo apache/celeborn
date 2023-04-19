@@ -42,7 +42,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private final String moduleName;
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
   private AtomicInteger needTrimChannels = new AtomicInteger(0);
-  private long waitTrimInterval = 0;
+  private long waitTrimInterval;
 
   public ChannelsLimiter(String moduleName, CelebornConf conf) {
     this.moduleName = moduleName;
