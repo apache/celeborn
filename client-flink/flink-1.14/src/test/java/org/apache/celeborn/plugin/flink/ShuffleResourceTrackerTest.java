@@ -19,7 +19,6 @@ package org.apache.celeborn.plugin.flink;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,22 +47,16 @@ public class ShuffleResourceTrackerTest {
 
     ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map = new ConcurrentHashMap<>();
     WorkerInfo workerInfo = new WorkerInfo("mock", -1, -1, -1, -1);
-    ShufflePartitionLocationInfo shufflePartitionLocationInfo = new ShufflePartitionLocationInfo();
+    map.put(workerInfo, mockShufflePartitionLocationInfo());
 
-    List<PartitionLocation> masterLocations = new ArrayList<>();
-    masterLocations.add(mock(1));
-    masterLocations.add(mock(2));
+    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map2 = new ConcurrentHashMap<>();
+    map2.put(workerInfo, mockShufflePartitionLocationInfo());
 
-    List<PartitionLocation> slaveLocations = new ArrayList<>();
-    slaveLocations.add(mock(3));
-    slaveLocations.add(mock(4));
+    ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map3 = new ConcurrentHashMap<>();
+    map3.put(workerInfo, mockShufflePartitionLocationInfo());
 
-    shufflePartitionLocationInfo.addMasterPartitions(masterLocations);
-    shufflePartitionLocationInfo.addSlavePartitions(slaveLocations);
-
-    map.put(workerInfo, shufflePartitionLocationInfo);
     Mockito.when(lifecycleManager.workerSnapshots(Mockito.anyInt()))
-        .thenReturn(map, new HashMap<>(map), new HashMap<>(map));
+        .thenReturn(map, map2, map3);
 
     ShuffleResourceTracker shuffleResourceTracker =
         new ShuffleResourceTracker(executor, lifecycleManager);
@@ -97,12 +90,29 @@ public class ShuffleResourceTrackerTest {
             .getResultPartitionMap()
             .get(2)
             .keySet());
+
     Assert.assertTrue(
         shuffleResourceTracker
             .getJobResourceListener(jobID2)
             .getResultPartitionMap()
             .get(3)
             .isEmpty());
+  }
+
+  public ShufflePartitionLocationInfo mockShufflePartitionLocationInfo() {
+    ShufflePartitionLocationInfo shufflePartitionLocationInfo = new ShufflePartitionLocationInfo();
+
+    List<PartitionLocation> masterLocations = new ArrayList<>();
+    masterLocations.add(mockShufflePartitionLocationInfo(1));
+    masterLocations.add(mockShufflePartitionLocationInfo(2));
+
+    List<PartitionLocation> slaveLocations = new ArrayList<>();
+    slaveLocations.add(mockShufflePartitionLocationInfo(3));
+    slaveLocations.add(mockShufflePartitionLocationInfo(4));
+
+    shufflePartitionLocationInfo.addMasterPartitions(masterLocations);
+    shufflePartitionLocationInfo.addSlavePartitions(slaveLocations);
+    return shufflePartitionLocationInfo;
   }
 
   public JobShuffleContext createJobShuffleContext(JobID jobId) {
@@ -120,7 +130,7 @@ public class ShuffleResourceTrackerTest {
     };
   }
 
-  private PartitionLocation mock(int partitionId) {
+  private PartitionLocation mockShufflePartitionLocationInfo(int partitionId) {
     return new PartitionLocation(
         partitionId, -1, "mock", -1, -1, -1, -1, PartitionLocation.Mode.MASTER);
   }
