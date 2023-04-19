@@ -675,7 +675,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   override def onTrim(): Unit = {
     logInfo(s"Trigger ${this.getClass.getCanonicalName} trim action")
     flushFileWriters()
-    Thread.sleep(conf.workerDirectMemoryTrimFlushWaitInterval)
+    try {
+      Thread.sleep(conf.workerDirectMemoryTrimFlushWaitInterval)
+    } catch {
+      case _: Exception => // Do nothing
+    }
   }
 
   def updateDiskInfos(): Unit = this.synchronized {
