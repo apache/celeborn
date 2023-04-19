@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -460,6 +461,18 @@ public class JavaUtils {
         result = super.computeIfAbsent(key, mappingFunction);
       }
       return result;
+    }
+  }
+
+  public static void timeOutOrMeetCondition(Callable<Boolean> callable) throws Exception {
+    int timeout = 10000; // 10s
+    while (true) {
+      if (callable.call() || timeout < 0) {
+        break;
+      }
+
+      timeout = timeout - 100;
+      Thread.sleep(100);
     }
   }
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server;
+package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -38,10 +38,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.network.server.memory.BufferQueue;
-import org.apache.celeborn.common.network.server.memory.BufferRecycler;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
+import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 // this means active data partition
 class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
