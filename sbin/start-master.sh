@@ -30,4 +30,4 @@ fi
 
 export CELEBORN_JAVA_OPTS="-Xmx$CELEBORN_MASTER_MEMORY $CELEBORN_MASTER_JAVA_OPTS"
 
-"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.service.deploy.master.Master 1 "$@"
+exec "${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.service.deploy.master.Master 1 "$@"

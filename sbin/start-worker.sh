@@ -42,4 +42,4 @@ if [ "$WORKER_INSTANCE" = "" ]; then
   WORKER_INSTANCE=1
 fi
 
-"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE" "$@"
+exec "${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.service.deploy.worker.Worker "$WORKER_INSTANCE" "$@"
