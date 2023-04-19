@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.util;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -473,6 +474,14 @@ public class JavaUtils {
 
       timeout = timeout - 100;
       Thread.sleep(100);
+    }
+  }
+
+  public static String getLocalHost() {
+    try {
+      return InetAddress.getLocalHost().getHostAddress();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 }
