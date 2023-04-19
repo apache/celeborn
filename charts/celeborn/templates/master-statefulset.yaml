@@ -81,7 +81,7 @@ spec:
           - "/bin/sh"
           - '-c'
           {{- $namespace := .Release.Namespace }}
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn/sbin/start-master.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
         resources:
           {{- toYaml .Values.resources.master | nindent 12 }}
         ports:
