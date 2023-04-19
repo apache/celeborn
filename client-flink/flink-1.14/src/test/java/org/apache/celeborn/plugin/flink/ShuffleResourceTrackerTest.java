@@ -55,8 +55,7 @@ public class ShuffleResourceTrackerTest {
     ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map3 = new ConcurrentHashMap<>();
     map3.put(workerInfo, mockShufflePartitionLocationInfo());
 
-    Mockito.when(lifecycleManager.workerSnapshots(Mockito.anyInt()))
-        .thenReturn(map, map2, map3);
+    Mockito.when(lifecycleManager.workerSnapshots(Mockito.anyInt())).thenReturn(map, map2, map3);
 
     ShuffleResourceTracker shuffleResourceTracker =
         new ShuffleResourceTracker(executor, lifecycleManager);
