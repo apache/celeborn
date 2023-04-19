@@ -43,8 +43,11 @@ import org.apache.celeborn.common.util.ExceptionUtils;
 
 public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
+  private CelebornConf conf;
   private PartitionLocation location;
+  private TransportClient client;
   private final TransportClientFactory clientFactory;
+  private OpenStream openBlocks;
   private StreamHandle streamHandle;
 
   private int returnedChunks;
@@ -72,10 +75,18 @@ public class WorkerPartitionReader implements PartitionReader {
       int fetchChunkRetryCnt,
       int fetchChunkMaxRetry)
       throws IOException {
-    fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
-    results = new LinkedBlockingQueue<>();
+    this.conf = conf;
+    this.openBlocks =
+        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+    this.location = location;
+    this.clientFactory = clientFactory;
+    this.fetchChunkRetryCnt = fetchChunkRetryCnt;
+    this.fetchChunkMaxRetry = fetchChunkMaxRetry;
+    this.fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
+    this.results = new LinkedBlockingQueue<>();
+    this.testFetch = conf.testFetchFailure();
     // only add the buffer to results queue if this reader is not closed.
-    callback =
+    this.callback =
         new ChunkReceivedCallback() {
           @Override
           public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
@@ -96,23 +107,19 @@ public class WorkerPartitionReader implements PartitionReader {
             exception.set(new CelebornIOException(errorMsg, e));
           }
         };
-    TransportClient client;
+
+    openStream();
+  }
+
+  public void openStream() throws IOException {
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     } catch (InterruptedException ie) {
       throw new CelebornIOException("Interrupted when createClient", ie);
     }
-    OpenStream openBlocks =
-        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
     long timeoutMs = conf.fetchTimeoutMs();
     ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
     streamHandle = (StreamHandle) Message.decode(response);
-
-    this.location = location;
-    this.clientFactory = clientFactory;
-    this.fetchChunkRetryCnt = fetchChunkRetryCnt;
-    this.fetchChunkMaxRetry = fetchChunkMaxRetry;
-    testFetch = conf.testFetchFailure();
   }
 
   public boolean hasNext() {
@@ -165,8 +172,11 @@ public class WorkerPartitionReader implements PartitionReader {
           callback.onFailure(chunkIndex, new CelebornIOException("Test fetch chunk failure"));
         } else {
           try {
-            TransportClient client =
-                clientFactory.createClient(location.getHost(), location.getFetchPort());
+            if (!client.isActive()) {
+              client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+              // If change client, refresh StreamHandler
+              openStream();
+            }
             client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
             chunkIndex++;
           } catch (IOException | InterruptedException e) {
