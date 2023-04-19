@@ -123,17 +123,21 @@ class WorkerStatusTracker(
     }
   }
 
+  def removeFromBlacklist(workerInfo: WorkerInfo): Unit = {
+    blacklist.remove(workerInfo)
+  }
+
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
-      logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
+      logDebug(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
       val newShutdownWorkers = resolveShutdownWorkers(res.shuttingWorkers)
       val current = System.currentTimeMillis()
-      val reserved = blacklist.asScala
-        .filter { case (_, entry) =>
-          val (statusCode, registerTime) = entry
+
+      blacklist.asScala.foreach {
+        case (workerInfo: WorkerInfo, (statusCode, registerTime)) =>
           statusCode match {
-            case StatusCode.WORKER_SHUTDOWN |
+            case StatusCode.UNKNOWN_WORKER |
                 StatusCode.NO_AVAILABLE_WORKING_DIR |
                 StatusCode.RESERVE_SLOTS_FAILED |
                 StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER |
@@ -142,32 +146,35 @@ class WorkerStatusTracker(
                 StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE |
                 StatusCode.PUSH_DATA_TIMEOUT_MASTER |
                 StatusCode.PUSH_DATA_TIMEOUT_SLAVE
-                if current - registerTime < workerExcludedExpireTimeout =>
-              true
-            case StatusCode.UNKNOWN_WORKER => true
-            case _ => false
-          }
-        }.asJava
-      val reservedBlackList = new ShuffleFailedWorkers()
-      reservedBlackList.putAll(reserved)
-      blacklist.clear()
-      blacklist.putAll(
-        res.blacklist.asScala.map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
-      blacklist.putAll(
-        res.unknownWorkers.asScala.map(_ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
-      // put reserved blacklist at last to cover blacklist's local status.
-      blacklist.putAll(reservedBlackList)
-
-      val workerStatus = new WorkersStatus(res.unknownWorkers, newShutdownWorkers)
-      workerStatusListeners.asScala.foreach {
-        listener =>
-          try {
-            listener.notifyChangedWorkersStatus(workerStatus)
-          } catch {
-            case t: Throwable =>
-              logError("Error while notify listener", t)
+                if current - registerTime < workerExcludedExpireTimeout => // reserve
+            case _ => blacklist.remove(workerInfo)
           }
       }
+
+      if (!res.blacklist.isEmpty) {
+        blacklist.putAll(res.blacklist.asScala.filterNot(e => blacklist.containsKey(e)).map(
+          _ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
+      }
+
+      if (!res.unknownWorkers.isEmpty || !newShutdownWorkers.isEmpty) {
+        blacklist.putAll(res.unknownWorkers.asScala.filterNot(e => blacklist.containsKey(e)).map(
+          _ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
+        blacklist.putAll(res.shuttingWorkers.asScala.filterNot(e => blacklist.containsKey(e)).map(
+          _ -> (StatusCode.WORKER_SHUTDOWN -> current)).toMap.asJava)
+
+        val workerStatus = new WorkersStatus(res.unknownWorkers, newShutdownWorkers)
+        workerStatusListeners.asScala.foreach {
+          listener =>
+            try {
+              listener.notifyChangedWorkersStatus(workerStatus)
+            } catch {
+              case t: Throwable =>
+                logError("Error while notify listener", t)
+            }
+        }
+      }
+
+      logDebug(s"Current blacklist $blacklist")
     }
   }
 

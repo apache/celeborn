@@ -431,6 +431,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       try {
         workerInfo.endpoint =
           rpcEnv.setupEndpointRef(RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
+        // if newly allocated from master and setupEndpoint success, Seems we can remove worker from blacklist to
+        // improve the accuracy of the blacklist
+        workerStatusTracker.removeFromBlacklist(workerInfo)
       } catch {
         case t: Throwable =>
           logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.", t)
@@ -499,6 +502,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
       context.reply(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
+      return
+    }
+
+    if (getPartitionType(shuffleId) == PartitionType.MAP) {
+      logError(s"[handleRevive] shuffle $shuffleId revived filed, because map partition don't support revive!")
+      context.reply(ChangeLocationResponse(StatusCode.REVIVE_FAILED, None))
       return
     }
 
