@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.network;
 
+import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
 import static org.junit.Assert.*;
 
 import java.nio.ByteBuffer;
@@ -128,7 +129,7 @@ public class RpcIntegrationSuiteJ {
   }
 
   private RpcResult sendRPC(String... commands) throws Exception {
-    TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+    TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
     final Semaphore sem = new Semaphore(0);
 
     final RpcResult res = new RpcResult();
@@ -231,7 +232,7 @@ public class RpcIntegrationSuiteJ {
   @Test
   public void sendOneWayMessage() throws Exception {
     final String message = "no reply";
-    TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+    TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
     try {
       client.send(JavaUtils.stringToBytes(message));
       assertEquals(0, client.getHandler().numOutstandingRequests());

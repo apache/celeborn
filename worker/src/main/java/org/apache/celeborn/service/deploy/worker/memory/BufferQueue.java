@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.memory;
+package org.apache.celeborn.service.deploy.worker.memory;
 
 import java.util.ArrayList;
 import java.util.Collection;

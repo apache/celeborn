@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.memory;
+package org.apache.celeborn.service.deploy.worker.memory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -38,10 +38,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.server.CreditStreamManager;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.service.deploy.worker.storage.CreditStreamManager;
 
 public class MemoryManager {
   private static final Logger logger = LoggerFactory.getLogger(MemoryManager.class);

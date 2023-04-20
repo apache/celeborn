@@ -36,13 +36,13 @@ import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.

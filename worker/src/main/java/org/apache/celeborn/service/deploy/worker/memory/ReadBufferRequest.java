@@ -15,13 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.memory;
+package org.apache.celeborn.service.deploy.worker.memory;
 
-import java.util.List;
+import static com.google.common.base.Preconditions.checkArgument;
 
-import io.netty.buffer.ByteBuf;
+public class ReadBufferRequest {
+  private final int number;
+  private final int bufferSize;
+  private final ReadBufferListener readBufferListener;
 
-// Do not execute blocking task here.
-public interface ReadBufferListener {
-  void notifyBuffers(List<ByteBuf> allocatedBuffers, Throwable throwable);
+  public ReadBufferRequest(int number, int bufferSize, ReadBufferListener readBufferListener) {
+    checkArgument(number > 0);
+    this.number = number;
+    this.bufferSize = bufferSize;
+    this.readBufferListener = readBufferListener;
+  }
+
+  public int getNumber() {
+    return number;
+  }
+
+  public int getBufferSize() {
+    return bufferSize;
+  }
+
+  public ReadBufferListener getBufferListener() {
+    return readBufferListener;
+  }
 }

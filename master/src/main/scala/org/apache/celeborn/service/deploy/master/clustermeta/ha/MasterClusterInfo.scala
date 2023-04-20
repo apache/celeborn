@@ -17,14 +17,11 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha
 
-import java.io.IOException
-import java.net._
+import java.net.{InetAddress, NetworkInterface}
 import java.util
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
-
-import org.apache.ratis.util.NetUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
@@ -44,11 +41,9 @@ object MasterClusterInfo extends Logging {
     val masterNodes = clusterNodeIds.map { nodeId =>
       val ratisHost = conf.haMasterRatisHost(nodeId)
       val ratisPort = conf.haMasterRatisPort(nodeId)
-      val ratisAddr = createSocketAddr(ratisHost, ratisPort)
       val rpcHost = conf.haMasterNodeHost(nodeId)
       val rpcPort = conf.haMasterNodePort(nodeId)
-      val rpcAddr = createSocketAddr(rpcHost, rpcPort)
-      MasterNode(nodeId, ratisAddr, rpcAddr)
+      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort)
     }
 
     val (localNodes, peerNodes) = localNodeIdOpt match {
@@ -70,22 +65,6 @@ object MasterClusterInfo extends Logging {
     }
 
     MasterClusterInfo(localNodes.head, peerNodes.toList.asJava)
-  }
-
-  def createSocketAddr(host: String, port: Int): InetSocketAddress = {
-    val socketAddr: InetSocketAddress =
-      Try(NetUtils.createSocketAddr(host, port)) match {
-        case Success(addr) => addr
-        case Failure(e) =>
-          throw new IOException(
-            s"Couldn't create socket address for $host:$port",
-            e)
-      }
-    if (socketAddr.isUnresolved)
-      logError(s"Address of $host:$port couldn't be resolved. " +
-        s"Proceeding with unresolved host to create Ratis ring.")
-
-    socketAddr
   }
 
   private def isLocalAddress(addr: InetAddress): Boolean = {

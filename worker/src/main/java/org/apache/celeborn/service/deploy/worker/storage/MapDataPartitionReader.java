@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server;
+package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -39,11 +39,11 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.TransportableError;
-import org.apache.celeborn.common.network.server.memory.BufferQueue;
-import org.apache.celeborn.common.network.server.memory.BufferRecycler;
-import org.apache.celeborn.common.network.server.memory.RecyclableBuffer;
 import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
+import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
+import org.apache.celeborn.service.deploy.worker.memory.RecyclableBuffer;
 
 public class MapDataPartitionReader implements Comparable<MapDataPartitionReader> {
   private static final Logger logger = LoggerFactory.getLogger(MapDataPartitionReader.class);

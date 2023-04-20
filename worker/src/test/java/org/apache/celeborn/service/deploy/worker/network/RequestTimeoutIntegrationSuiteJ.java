@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network;
+package org.apache.celeborn.service.deploy.worker.network;
 
+import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -39,9 +41,9 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
-import org.apache.celeborn.common.network.server.ChunkStreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.service.deploy.worker.storage.ChunkStreamManager;
 
 /**
  * Suite which ensures that requests that go without a response for the network timeout period are
@@ -108,7 +110,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     TransportContext context = new TransportContext(conf, handler, true);
     server = context.createServer();
     clientFactory = context.createClientFactory();
-    TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+    TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
 
     // First completes quickly (semaphore starts at 1).
     TestCallback callback0 = new TestCallback();
@@ -160,8 +162,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     clientFactory = context.createClientFactory();
 
     // First request should eventually fail.
-    TransportClient client0 =
-        clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+    TransportClient client0 = clientFactory.createClient(getLocalHost(), server.getPort());
     TestCallback callback0 = new TestCallback();
     client0.sendRpc(ByteBuffer.allocate(0), callback0);
     callback0.latch.await();
@@ -170,8 +171,7 @@ public class RequestTimeoutIntegrationSuiteJ {
 
     // Increment the semaphore and the second request should succeed quickly.
     semaphore.release(2);
-    TransportClient client1 =
-        clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+    TransportClient client1 = clientFactory.createClient(getLocalHost(), server.getPort());
     TestCallback callback1 = new TestCallback();
     client1.sendRpc(ByteBuffer.allocate(0), callback1);
     callback1.latch.await();
@@ -211,7 +211,7 @@ public class RequestTimeoutIntegrationSuiteJ {
     TransportContext context = new TransportContext(conf, handler, true);
     server = context.createServer();
     clientFactory = context.createClientFactory();
-    TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+    TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
 
     // Send one request, which will eventually fail.
     TestCallback callback0 = new TestCallback();

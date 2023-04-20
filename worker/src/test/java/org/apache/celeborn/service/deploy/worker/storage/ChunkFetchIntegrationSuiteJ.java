@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network;
+package org.apache.celeborn.service.deploy.worker.storage;
 
+import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
 import static org.junit.Assert.*;
 
 import java.io.File;
@@ -33,6 +34,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
@@ -44,7 +46,6 @@ import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
-import org.apache.celeborn.common.network.server.ChunkStreamManager;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
 
@@ -143,7 +144,7 @@ public class ChunkFetchIntegrationSuiteJ {
   }
 
   private FetchResult fetchChunks(List<Integer> chunkIndices) throws Exception {
-    TransportClient client = clientFactory.createClient(TestUtils.getLocalHost(), server.getPort());
+    TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
     final Semaphore sem = new Semaphore(0);
 
     final FetchResult res = new FetchResult();
