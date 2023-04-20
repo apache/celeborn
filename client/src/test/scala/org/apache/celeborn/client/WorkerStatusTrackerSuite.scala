@@ -64,7 +64,9 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     Assert.assertTrue(statusTracker.blacklist.containsKey(mock("host4")))
 
     // test remove
-    statusTracker.removeFromBlacklist(mock("host4"))
+    val workers = new util.HashSet[WorkerInfo]
+    workers.add(mock("host4"))
+    statusTracker.removeFromBlacklist(workers)
     Assert.assertFalse(statusTracker.blacklist.containsKey(mock("host4")))
 
     // test register time elapsed

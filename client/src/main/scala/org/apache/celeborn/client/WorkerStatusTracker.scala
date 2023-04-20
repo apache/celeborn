@@ -123,8 +123,8 @@ class WorkerStatusTracker(
     }
   }
 
-  def removeFromBlacklist(workerInfo: WorkerInfo): Unit = {
-    blacklist.remove(workerInfo)
+  def removeFromBlacklist(workers: JHashSet[WorkerInfo]): Unit = {
+    blacklist.keySet.removeAll(workers)
   }
 
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {

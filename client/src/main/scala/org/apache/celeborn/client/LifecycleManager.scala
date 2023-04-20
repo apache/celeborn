@@ -431,9 +431,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       try {
         workerInfo.endpoint =
           rpcEnv.setupEndpointRef(RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
-        // if newly allocated from master and setupEndpoint success, Seems we can remove worker from blacklist to
-        // improve the accuracy of the blacklist
-        workerStatusTracker.removeFromBlacklist(workerInfo)
       } catch {
         case t: Throwable =>
           logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.", t)
@@ -445,6 +442,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
+    // if newly allocated from master and setupEndpoint success, we can remove worker from blacklist to
+    // improve the accuracy of the blacklist
+    workerStatusTracker.removeFromBlacklist(candidatesWorkers)
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
