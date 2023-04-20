@@ -442,8 +442,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-    // if newly allocated from master and setupEndpoint success, we can remove worker from blacklist to
-    // improve the accuracy of the blacklist
+    // If newly allocated from master and can setup endpoint success, LifecycleManager should remove worker from
+    // the blacklist to improve the accuracy of the blacklist
     workerStatusTracker.removeFromBlacklist(candidatesWorkers)
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
