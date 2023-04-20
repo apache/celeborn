@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.network;
 
+import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -82,8 +83,7 @@ public class TransportClientFactorySuiteJ {
           new Thread(
               () -> {
                 try {
-                  TransportClient client =
-                      factory.createClient(TestUtils.getLocalHost(), server1.getPort());
+                  TransportClient client = factory.createClient(getLocalHost(), server1.getPort());
                   assertTrue(client.isActive());
                   clients.add(client);
                 } catch (IOException e) {
@@ -134,8 +134,8 @@ public class TransportClientFactorySuiteJ {
   @Test
   public void returnDifferentClientsForDifferentServers() throws IOException, InterruptedException {
     TransportClientFactory factory = context.createClientFactory();
-    TransportClient c1 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());
-    TransportClient c2 = factory.createClient(TestUtils.getLocalHost(), server2.getPort());
+    TransportClient c1 = factory.createClient(getLocalHost(), server1.getPort());
+    TransportClient c2 = factory.createClient(getLocalHost(), server2.getPort());
     assertTrue(c1.isActive());
     assertTrue(c2.isActive());
     assertNotSame(c1, c2);
@@ -145,7 +145,7 @@ public class TransportClientFactorySuiteJ {
   @Test
   public void neverReturnInactiveClients() throws IOException, InterruptedException {
     TransportClientFactory factory = context.createClientFactory();
-    TransportClient c1 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());
+    TransportClient c1 = factory.createClient(getLocalHost(), server1.getPort());
     c1.close();
 
     long start = System.currentTimeMillis();
@@ -154,7 +154,7 @@ public class TransportClientFactorySuiteJ {
     }
     assertFalse(c1.isActive());
 
-    TransportClient c2 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());
+    TransportClient c2 = factory.createClient(getLocalHost(), server1.getPort());
     assertNotSame(c1, c2);
     assertTrue(c2.isActive());
     factory.close();
@@ -163,8 +163,8 @@ public class TransportClientFactorySuiteJ {
   @Test
   public void closeBlockClientsWithFactory() throws IOException, InterruptedException {
     TransportClientFactory factory = context.createClientFactory();
-    TransportClient c1 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());
-    TransportClient c2 = factory.createClient(TestUtils.getLocalHost(), server2.getPort());
+    TransportClient c1 = factory.createClient(getLocalHost(), server1.getPort());
+    TransportClient c2 = factory.createClient(getLocalHost(), server2.getPort());
     assertTrue(c1.isActive());
     assertTrue(c2.isActive());
     factory.close();
@@ -179,7 +179,7 @@ public class TransportClientFactorySuiteJ {
     TransportConf conf = new TransportConf("shuffle", _conf);
     TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true);
     try (TransportClientFactory factory = context.createClientFactory()) {
-      TransportClient c1 = factory.createClient(TestUtils.getLocalHost(), server1.getPort());
+      TransportClient c1 = factory.createClient(getLocalHost(), server1.getPort());
       assertTrue(c1.isActive());
       long expiredTime = System.currentTimeMillis() + 10000; // 10 seconds
       while (c1.isActive() && System.currentTimeMillis() < expiredTime) {
@@ -193,6 +193,6 @@ public class TransportClientFactorySuiteJ {
   public void closeFactoryBeforeCreateClient() throws IOException, InterruptedException {
     TransportClientFactory factory = context.createClientFactory();
     factory.close();
-    factory.createClient(TestUtils.getLocalHost(), server1.getPort());
+    factory.createClient(getLocalHost(), server1.getPort());
   }
 }

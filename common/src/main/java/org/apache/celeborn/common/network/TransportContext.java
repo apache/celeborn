@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.network;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -51,7 +52,7 @@ public class TransportContext {
 
   private final TransportConf conf;
   private final BaseMessageHandler msgHandler;
-  private ChannelsLimiter channelsLimiter;
+  private final ChannelDuplexHandler channelsLimiter;
   private final boolean closeIdleConnections;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
@@ -60,7 +61,7 @@ public class TransportContext {
       TransportConf conf,
       BaseMessageHandler msgHandler,
       boolean closeIdleConnections,
-      ChannelsLimiter channelsLimiter) {
+      ChannelDuplexHandler channelsLimiter) {
     this.conf = conf;
     this.msgHandler = msgHandler;
     this.closeIdleConnections = closeIdleConnections;

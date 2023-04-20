@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server;
+package org.apache.celeborn.service.deploy.worker.storage;
 
-import static org.apache.celeborn.common.network.TestUtils.timeOutOrMeetCondition;
+import static org.apache.celeborn.common.util.JavaUtils.timeOutOrMeetCondition;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,9 +37,9 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 public class CreditStreamManagerSuiteJ {
   private static final Logger LOG = LoggerFactory.getLogger(CreditStreamManagerSuiteJ.class);

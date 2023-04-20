@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server;
+package org.apache.celeborn.service.deploy.worker.memory;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,8 +28,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 
 @ChannelHandler.Sharable
 public class ChannelsLimiter extends ChannelDuplexHandler

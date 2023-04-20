@@ -27,7 +27,7 @@ import org.junit.Assert
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.network.TestUtils
+import org.apache.celeborn.common.util.JavaUtils.timeOutOrMeetCondition
 import org.apache.celeborn.common.util.PackedPartitionId
 
 trait WithShuffleClientSuite extends CelebornFunSuite {
@@ -103,7 +103,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       shuffleId,
       PackedPartitionId.packedPartitionId(mapId, attemptId + 1))
 
-    TestUtils.timeOutOrMeetCondition(new Callable[java.lang.Boolean] {
+    timeOutOrMeetCondition(new Callable[java.lang.Boolean] {
       override def call(): lang.Boolean = {
         partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum == numMappers
       }
