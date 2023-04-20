@@ -30,6 +30,8 @@ import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
+
 @ChannelHandler.Sharable
 public class ChannelsLimiter extends ChannelDuplexHandler
     implements MemoryManager.MemoryPressureListener {
