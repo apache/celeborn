@@ -61,7 +61,6 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
 
     // test get min epoch
     val locations = shufflePartitionLocationInfo.getAllMasterLocationsWithMinEpoch()
-    println(locations)
     assertTrue(locations.contains(partitionLocation00) && locations.contains(partitionLocation11))
 
     // test remove
@@ -72,6 +71,12 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
     assertEquals(shufflePartitionLocationInfo.removeSlavePartitions(0).size(), 1)
     assertEquals(shufflePartitionLocationInfo.getSlavePartitions().size(), 1)
     assertEquals(shufflePartitionLocationInfo.getSlavePartitions(Some(1)).size(), 1)
+
+    // test remove all
+    assertEquals(
+      shufflePartitionLocationInfo.removeAndGetAllMasterPartitionIds(),
+      new util.HashSet[Integer] { add(1) })
+    assertEquals(shufflePartitionLocationInfo.getMasterPartitions().size(), 0)
   }
 
   private def mockPartition(partitionId: Int, epoch: Int): PartitionLocation = {

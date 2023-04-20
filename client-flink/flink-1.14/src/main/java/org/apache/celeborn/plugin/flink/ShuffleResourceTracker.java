@@ -101,12 +101,12 @@ public class ShuffleResourceTracker implements WorkerStatusListener {
                 // shuffleResourceListener may release when the shuffle is ended
                 if (shuffleAllocateInfo != null) {
                   ShufflePartitionLocationInfo shufflePartitionLocationInfo =
-                      shuffleAllocateInfo.remove(unknownWorker);
+                      shuffleAllocateInfo.get(unknownWorker);
                   if (shufflePartitionLocationInfo != null) {
                     // TODO if we support partition replica for map partition we need refactor this
                     //  Currently we only untrack master partitions for map partition
                     shufflePartitionLocationInfo
-                        .getMasterPartitionIds()
+                        .removeAndGetAllMasterPartitionIds()
                         .forEach(
                             id -> {
                               ResultPartitionID resultPartitionId =
