@@ -313,7 +313,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              workerSource.incCounter(WorkerSource.PushDataFailCount)
+              workerSource.incCounter(WorkerSource.ReplicateDataCreateConnectionFailCount)
               logError(
                 s"PushData replication failed during connecting peer for partitionLocation: $location",
                 e)
