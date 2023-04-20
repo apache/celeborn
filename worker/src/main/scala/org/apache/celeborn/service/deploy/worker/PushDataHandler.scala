@@ -218,6 +218,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       logError(
         s"While handling PushData, throw $cause, fileWriter $fileWriter has exception.",
         exception)
+      workerSource.incCounter(WorkerSource.WriteDataFailCount)
       callbackWithTimer.onFailure(new CelebornIOException(cause))
       return
     }
@@ -240,7 +241,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
-            workerSource.incCounter(WorkerSource.PushDataFailCount)
+            workerSource.incCounter(WorkerSource.ReplicateDataCreateConnectionFailCount)
             logError(
               s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
@@ -284,14 +285,17 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
             override def onFailure(e: Throwable): Unit = {
               logError(s"PushData replication failed for partitionLocation: $location", e)
-              workerSource.incCounter(WorkerSource.PushDataFailCount)
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name()) ||
-                e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
+                workerSource.incCounter(WorkerSource.ReplicateDataWriteFailCount)
+                callbackWithTimer.onFailure(e)
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
+                workerSource.incCounter(WorkerSource.ReplicateDataTimeoutCount)
                 callbackWithTimer.onFailure(e)
               } else {
+                workerSource.incCounter(WorkerSource.ReplicateDataConnectionExceptionCount)
                 callbackWithTimer.onFailure(
                   new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE))
               }
@@ -478,6 +482,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       logError(
         s"While handling PushMergedData, throw $cause, fileWriter $fileWriterWithException has exception.",
         exception)
+      workerSource.incCounter(WorkerSource.WriteDataFailCount)
       callbackWithTimer.onFailure(new CelebornIOException(cause))
       return
     }
@@ -498,7 +503,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
-            workerSource.incCounter(WorkerSource.PushDataFailCount)
+            workerSource.incCounter(WorkerSource.ReplicateDataCreateConnectionFailCount)
             logError(
               s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
@@ -536,14 +541,17 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
             override def onFailure(e: Throwable): Unit = {
               logError(s"PushMergedData replicate failed for partitionLocation: $location", e)
-              workerSource.incCounter(WorkerSource.PushDataFailCount)
               // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name()) ||
-                e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
+                workerSource.incCounter(WorkerSource.ReplicateDataWriteFailCount)
+                callbackWithTimer.onFailure(e)
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
+                workerSource.incCounter(WorkerSource.ReplicateDataTimeoutCount)
                 callbackWithTimer.onFailure(e)
               } else {
+                workerSource.incCounter(WorkerSource.ReplicateDataConnectionExceptionCount)
                 callbackWithTimer.onFailure(
                   new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE))
               }
@@ -566,7 +574,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             case e: Exception =>
               pushMergedData.body().release()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
-              workerSource.incCounter(WorkerSource.PushDataFailCount)
+              workerSource.incCounter(WorkerSource.ReplicateDataCreateConnectionFailCount)
               logError(
                 s"PushMergedData replication failed during connecting peer for partitionLocation: $location",
                 e)
@@ -938,7 +946,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           workerSource.incCounter(WorkerSource.RegionFinishFailCount)
           callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_SLAVE, e))
         case _ =>
-          workerSource.incCounter(WorkerSource.PushDataFailCount)
+          workerSource.incCounter(WorkerSource.ReplicateDataFailCount)
           if (e.isInstanceOf[CelebornIOException]) {
             callback.onFailure(e)
           } else {
