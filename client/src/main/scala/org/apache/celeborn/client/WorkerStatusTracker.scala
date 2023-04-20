@@ -152,15 +152,15 @@ class WorkerStatusTracker(
       }
 
       if (!res.blacklist.isEmpty) {
-        blacklist.putAll(res.blacklist.asScala.filterNot(blacklist.containsKey).map(
-          _ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
+        blacklist.putAll(res.blacklist.asScala.filterNot(blacklist.containsKey)
+          .map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
       }
 
       if (!res.unknownWorkers.isEmpty || !newShutdownWorkers.isEmpty) {
-        blacklist.putAll(res.unknownWorkers.asScala.filterNot(blacklist.containsKey).map(
-          _ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
-        blacklist.putAll(res.shuttingWorkers.asScala.filterNot(blacklist.containsKey).map(
-          _ -> (StatusCode.WORKER_SHUTDOWN -> current)).toMap.asJava)
+        blacklist.putAll(res.unknownWorkers.asScala.filterNot(blacklist.containsKey)
+          .map(_ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
+        blacklist.putAll(res.shuttingWorkers.asScala.filterNot(blacklist.containsKey)
+          .map(_ -> (StatusCode.WORKER_SHUTDOWN -> current)).toMap.asJava)
 
         val workerStatus = new WorkersStatus(res.unknownWorkers, newShutdownWorkers)
         workerStatusListeners.asScala.foreach { listener =>
