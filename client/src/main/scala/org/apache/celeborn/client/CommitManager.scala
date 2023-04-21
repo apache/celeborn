@@ -252,10 +252,6 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     getCommitHandler(shuffleId).setStageEnd(shuffleId)
   }
 
-  def waitStageEnd(shuffleId: Int): (Boolean, Long) = {
-    getCommitHandler(shuffleId).waitStageEnd(shuffleId)
-  }
-
   def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
     getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId)
   }
@@ -272,12 +268,12 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
             case PartitionType.REDUCE => new ReducePartitionCommitHandler(
                 appId,
                 conf,
-                lifecycleManager.shuffleAllocatedWorkers,
+                lifecycleManager,
                 committedPartitionInfo)
             case PartitionType.MAP => new MapPartitionCommitHandler(
                 appId,
                 conf,
-                lifecycleManager.shuffleAllocatedWorkers,
+                lifecycleManager,
                 committedPartitionInfo)
             case _ => throw new UnsupportedOperationException(
                 s"Unexpected ShufflePartitionType for CommitManager: $partitionType")

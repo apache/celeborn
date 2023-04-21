@@ -100,6 +100,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   // register shuffle request waiting for response
   private val registeringShuffleRequest =
     JavaUtils.newConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
+  private val unregisterShuffleRequest = ConcurrentHashMap.newKeySet[Int]()
 
   // Threads
   private val forwardMessageThread =
@@ -609,38 +610,38 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     reply(mapperAttemptFinishedSuccess)
   }
 
+  def unregisterShuffle(shuffleId: Int, check: Boolean = false): Unit = {
+    if (!check || unregisterShuffleRequest.contains(shuffleId)) {
+      if (shuffleResourceExists(shuffleId)) {
+        logWarning(s"Partition exists for shuffle $shuffleId, " +
+          "maybe caused by task rerun or speculative.")
+        shuffleAllocatedWorkers.remove(shuffleId)
+        requestReleaseSlots(
+          rssHARetryClient,
+          ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
+      }
+
+      // add shuffleKey to delay shuffle removal set
+      unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
+      unregisterShuffleRequest.remove(shuffleId)
+
+      logInfo(s"Unregister for $shuffleId success.")
+    }
+  }
+
   def handleUnregisterShuffle(
       appId: String,
       shuffleId: Int): Unit = {
-    if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
-      // if StageEnd has not been handled, trigger StageEnd
-      if (!commitManager.isStageEnd(shuffleId)) {
-        logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
-        // try call stage end
-        handleStageEnd(appId, shuffleId)
-        // wait stage end
-        val (isTimeOut, cost) = commitManager.waitStageEnd(shuffleId)
-        if (isTimeOut) {
-          logError(s"[handleUnregisterShuffle] trigger StageEnd Timeout! $shuffleId.")
-        } else {
-          logInfo(s"[handleUnregisterShuffle] Wait for handleStageEnd complete costs ${cost}ms")
-        }
-      }
+    // First add to unregisterShuffleRequest to avoid sycn issue.
+    unregisterShuffleRequest.add(shuffleId)
+    if (getPartitionType(shuffleId) != PartitionType.REDUCE || commitManager.isStageEnd(
+        shuffleId)) {
+      unregisterShuffle(shuffleId)
+    } else {
+      logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
+      // try call stage end
+      handleStageEnd(appId, shuffleId)
     }
-
-    if (shuffleResourceExists(shuffleId)) {
-      logWarning(s"Partition exists for shuffle $shuffleId, " +
-        "maybe caused by task rerun or speculative.")
-      shuffleAllocatedWorkers.remove(shuffleId)
-      requestReleaseSlots(
-        rssHARetryClient,
-        ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
-    }
-
-    // add shuffleKey to delay shuffle removal set
-    unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
-
-    logInfo(s"Unregister for $shuffleId success.")
   }
 
   /* ========================================================== *

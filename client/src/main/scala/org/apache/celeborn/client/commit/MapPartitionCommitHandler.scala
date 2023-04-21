@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import org.apache.celeborn.client.{LifecycleManager, ShuffleCommittedInfo}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -50,7 +50,7 @@ import org.apache.celeborn.common.util.Utils
 class MapPartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
-    shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
+    lifecycleManager: LifecycleManager,
     committedPartitionInfo: CommittedPartitionInfo)
   extends CommitHandler(appId, conf, committedPartitionInfo)
   with Logging {
@@ -184,8 +184,9 @@ class MapPartitionCommitHandler(
         (k: Int) => ConcurrentHashMap.newKeySet[Integer]())
     inProcessingPartitionIds.add(partitionId)
 
-    val partitionAllocatedWorkers = shuffleAllocatedWorkers.get(shuffleId).asScala.filter(p =>
-      p._2.containsPartition(partitionId)).asJava
+    val partitionAllocatedWorkers =
+      lifecycleManager.shuffleAllocatedWorkers.get(shuffleId).asScala.filter(p =>
+        p._2.containsPartition(partitionId)).asJava
 
     var dataCommitSuccess = true
     if (!partitionAllocatedWorkers.isEmpty) {

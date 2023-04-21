@@ -26,9 +26,9 @@ import scala.collection.mutable
 
 import com.google.common.cache.{Cache, CacheBuilder}
 
+import org.apache.celeborn.client.{LifecycleManager, ShuffleCommittedInfo}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -49,7 +49,7 @@ import org.apache.celeborn.common.util.JavaUtils
 class ReducePartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
-    shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
+    lifecycleManager: LifecycleManager,
     committedPartitionInfo: CommittedPartitionInfo)
   extends CommitHandler(appId, conf, committedPartitionInfo)
   with Logging {
@@ -100,6 +100,7 @@ class ReducePartitionCommitHandler(
     }
     getReducerFileGroupRequest.remove(shuffleId)
       .asScala.foreach(replyGetReducerFileGroup(_, shuffleId))
+    lifecycleManager.unregisterShuffle(shuffleId, true)
   }
 
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
@@ -128,7 +129,7 @@ class ReducePartitionCommitHandler(
     }
 
     // ask allLocations workers holding partitions to commit files
-    val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
+    val allocatedWorkers = lifecycleManager.shuffleAllocatedWorkers.get(shuffleId)
     val (dataLost, commitFailedWorkers) = handleFinalCommitFiles(shuffleId, allocatedWorkers)
     recordWorkerFailure(commitFailedWorkers)
     // reply
@@ -306,16 +307,5 @@ class ReducePartitionCommitHandler(
         }
       }
     }
-  }
-
-  override def waitStageEnd(shuffleId: Int): (Boolean, Long) = {
-    var timeout = stageEndTimeout
-    val delta = 100
-    while (!isStageEnd(shuffleId) && timeout > 0) {
-      Thread.sleep(delta)
-      timeout = timeout - delta
-    }
-
-    (timeout <= 0, stageEndTimeout - timeout)
   }
 }

@@ -70,11 +70,6 @@ abstract class CommitHandler(
         "support set stage end")
   }
 
-  /**
-   * return (waitStage isTimeOut, waitTime)
-   */
-  def waitStageEnd(shuffleId: Int): (Boolean, Long) = (true, 0)
-
   def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = false
 
   def batchUnhandledRequests(shuffleId: Int, shuffleCommittedInfo: ShuffleCommittedInfo)
