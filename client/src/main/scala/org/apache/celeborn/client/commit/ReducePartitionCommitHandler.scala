@@ -95,6 +95,7 @@ class ReducePartitionCommitHandler(
   }
 
   override def setStageEnd(shuffleId: Int): Unit = {
+    // Set empty HashSet during register shuffle, no NPE issue here.
     getReducerFileGroupRequest synchronized {
       stageEndShuffleSet.add(shuffleId)
       getReducerFileGroupRequest.remove(shuffleId)
@@ -241,6 +242,7 @@ class ReducePartitionCommitHandler(
 
   override def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
     super.registerShuffle(shuffleId, numMappers)
+    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
     initMapperAttempts(shuffleId, numMappers)
   }
 
@@ -295,13 +297,7 @@ class ReducePartitionCommitHandler(
         if (isStageEnd(shuffleId)) {
           replyGetReducerFileGroup(context, shuffleId)
         } else {
-          if (getReducerFileGroupRequest.contains(shuffleId)) {
-            getReducerFileGroupRequest.get(shuffleId).add(context)
-          } else {
-            val set = new util.HashSet[RpcCallContext]()
-            set.add(context)
-            getReducerFileGroupRequest.put(shuffleId, set)
-          }
+          getReducerFileGroupRequest.get(shuffleId).add(context)
         }
       }
     }
