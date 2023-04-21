@@ -18,6 +18,7 @@
 package org.apache.celeborn.plugin.flink;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.celeborn.common.util.JavaUtils;
 
@@ -34,6 +35,9 @@ public class ShuffleTaskInfo {
       JavaUtils.newConcurrentHashMap();
   // celeborn shuffle id -> task shuffle id
   private ConcurrentHashMap<Integer, String> shuffleIdToTaskShuffleId =
+      JavaUtils.newConcurrentHashMap();
+
+  private ConcurrentHashMap<Integer, AtomicInteger> shuffleIdToPartitionIdIndex =
       JavaUtils.newConcurrentHashMap();
 
   public int getShuffleId(String taskShuffleId) {
@@ -74,8 +78,25 @@ public class ShuffleTaskInfo {
     return attemptIdMap.get(mapAttemptId);
   }
 
+  public int genNewPartitionId(int shuffleId) {
+    AtomicInteger currentPartitionId =
+        shuffleIdToPartitionIdIndex.computeIfAbsent(shuffleId, (id) -> new AtomicInteger(0));
+    return currentPartitionId.getAndIncrement();
+  }
+
+  public void removeAttemptId(String taskShuffleId, int mapId, String attemptId) {
+    String mapAttemptId = mapId + "_" + attemptId;
+    ConcurrentHashMap<String, Integer> attemptIdMap =
+        taskShuffleAttemptIdToAttemptId.get(taskShuffleId);
+
+    if (attemptIdMap != null) {
+      attemptIdMap.remove(mapAttemptId);
+    }
+  }
+
   public void removeExpiredShuffle(int shuffleId) {
     if (shuffleIdToTaskShuffleId.containsKey(shuffleId)) {
+      shuffleIdToPartitionIdIndex.remove(shuffleId);
       String taskShuffleId = shuffleIdToTaskShuffleId.remove(shuffleId);
       taskShuffleIdToShuffleId.remove(taskShuffleId);
       taskShuffleAttemptIdIndex.remove(taskShuffleId);

@@ -28,7 +28,6 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.util.JavaUtils.timeOutOrMeetCondition
-import org.apache.celeborn.common.util.PackedPartitionId
 
 trait WithShuffleClientSuite extends CelebornFunSuite {
 
@@ -58,12 +57,13 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     prepareService()
     shuffleId = 1
     var location =
-      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
-    Assert.assertEquals(location.getId, PackedPartitionId.packedPartitionId(mapId, attemptId))
+      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId, 1)
+    Assert.assertEquals(location.getId, 1)
 
     // retry register
-    location = shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
-    Assert.assertEquals(location.getId, PackedPartitionId.packedPartitionId(mapId, attemptId))
+    location =
+      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId, 1)
+    Assert.assertEquals(location.getId, 1)
 
     // check all allocated slots
     var partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
@@ -73,15 +73,19 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
     // another mapId
     location =
-      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId)
-    Assert.assertEquals(location.getId, PackedPartitionId.packedPartitionId(mapId + 1, attemptId))
+      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId, 2)
+    Assert.assertEquals(location.getId, 2)
 
     // another mapId with another attemptId
     location =
-      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId + 1)
-    Assert.assertEquals(
-      location.getId,
-      PackedPartitionId.packedPartitionId(mapId + 1, attemptId + 1))
+      shuffleClient.registerMapPartitionTask(
+        APP,
+        shuffleId,
+        numMappers,
+        mapId + 1,
+        attemptId + 1,
+        3)
+    Assert.assertEquals(location.getId, 3)
 
     // check all allocated all slots
     partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
@@ -101,7 +105,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // check batch release
     lifecycleManager.releasePartition(
       shuffleId,
-      PackedPartitionId.packedPartitionId(mapId, attemptId + 1))
+      4)
 
     timeOutOrMeetCondition(new Callable[java.lang.Boolean] {
       override def call(): lang.Boolean = {
@@ -122,7 +126,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // check single release
     lifecycleManager.releasePartition(
       shuffleId,
-      PackedPartitionId.packedPartitionId(mapId, attemptId + 1))
+      4)
 
     Assert.assertEquals(
       partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum,
@@ -153,15 +157,15 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   }
 
   private def registerAndFinishPartition(): Unit = {
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId)
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId)
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 2, attemptId)
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId, 1)
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId, 2)
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 2, attemptId, 3)
 
     // task number incr to numMappers + 1
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId + 1)
-    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, mapId)
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId + 1, 4)
+    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, 1)
     // retry
-    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, mapId)
+    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, 1)
     // another attempt
     shuffleClient.mapPartitionMapperEnd(
       APP,
@@ -169,8 +173,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       mapId,
       attemptId + 1,
       numMappers,
-      PackedPartitionId
-        .packedPartitionId(mapId, attemptId + 1))
+      4)
     // another mapper
     shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
   }

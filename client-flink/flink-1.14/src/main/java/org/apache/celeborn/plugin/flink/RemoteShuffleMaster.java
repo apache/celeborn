@@ -127,18 +127,16 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
               FlinkResultPartitionInfo resultPartitionInfo =
                   new FlinkResultPartitionInfo(jobID, partitionDescriptor, producerDescriptor);
-              ShuffleTask shuffleTask =
-                  encodeExternalShuffleTask(
+              ShuffleResourceDescriptor shuffleResourceDescriptor =
+                  genShuffleResourceDescriptor(
                       resultPartitionInfo.getShuffleId(),
                       resultPartitionInfo.getTaskId(),
                       resultPartitionInfo.getAttemptId());
 
               synchronized (shuffleIds) {
-                shuffleIds.add(shuffleTask.getShuffleId());
+                shuffleIds.add(shuffleResourceDescriptor.getShuffleId());
               }
 
-              ShuffleResourceDescriptor shuffleResourceDescriptor =
-                  new ShuffleResourceDescriptor(shuffleTask);
               RemoteShuffleResource remoteShuffleResource =
                   new RemoteShuffleResource(
                       lifecycleManager.getRssMetaServiceHost(),
@@ -181,6 +179,10 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
             ShuffleResourceDescriptor resourceDescriptor =
                 shuffleResource.getMapPartitionShuffleDescriptor();
             LOG.debug("release partition resource: {}.", resourceDescriptor);
+            shuffleTaskInfo.removeAttemptId(
+                descriptor.getShuffleId(),
+                resourceDescriptor.getMapId(),
+                FlinkUtils.toAttemptId(descriptor.getResultPartitionID().getProducerId()));
             lifecycleManager.releasePartition(
                 resourceDescriptor.getShuffleId(), resourceDescriptor.getPartitionId());
             shuffleResourceTracker.removePartitionResource(
@@ -238,18 +240,19 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     ThreadUtils.shutdownExecutors(10, executor);
   }
 
-  private ShuffleTask encodeExternalShuffleTask(
+  private ShuffleResourceDescriptor genShuffleResourceDescriptor(
       String taskShuffleId, int mapId, String taskAttemptId) {
     int shuffleId = shuffleTaskInfo.getShuffleId(taskShuffleId);
     int attemptId = shuffleTaskInfo.getAttemptId(taskShuffleId, mapId, taskAttemptId);
+    int partitionId = shuffleTaskInfo.genNewPartitionId(shuffleId);
     LOG.info(
-        "encode task from ({}, {}, {}) to ({}, {},, {})",
+        "encode task from ({}, {}, {}) to ({}, {}, {})",
         taskShuffleId,
         mapId,
         taskAttemptId,
         shuffleId,
         mapId,
         attemptId);
-    return new ShuffleTask(shuffleId, mapId, attemptId);
+    return new ShuffleResourceDescriptor(shuffleId, mapId, attemptId, partitionId);
   }
 }
