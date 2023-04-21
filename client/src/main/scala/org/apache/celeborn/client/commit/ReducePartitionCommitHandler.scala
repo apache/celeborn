@@ -54,6 +54,7 @@ class ReducePartitionCommitHandler(
   extends CommitHandler(appId, conf, committedPartitionInfo)
   with Logging {
 
+  private val getReducerFileGroupRequest = JavaUtils.newConcurrentHashMap[Int, util.Set[RpcCallContext]]()
   private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
@@ -93,7 +94,11 @@ class ReducePartitionCommitHandler(
   }
 
   override def setStageEnd(shuffleId: Int): Unit = {
-    stageEndShuffleSet.add(shuffleId)
+    getReducerFileGroupRequest synchronized {
+      stageEndShuffleSet.add(shuffleId)
+      getReducerFileGroupRequest.remove(shuffleId)
+        .asScala.foreach(replyGetReducerFileGroup(_, shuffleId))
+    }
   }
 
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
@@ -129,12 +134,12 @@ class ReducePartitionCommitHandler(
     if (!dataLost) {
       logInfo(s"Succeed to handle stageEnd for $shuffleId.")
       // record in stageEndShuffleSet
-      stageEndShuffleSet.add(shuffleId)
+      setStageEnd(shuffleId)
     } else {
       logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
       dataLostShuffleSet.add(shuffleId)
       // record in stageEndShuffleSet
-      stageEndShuffleSet.add(shuffleId)
+      setStageEnd(shuffleId)
     }
     inProcessStageEndShuffleSet.remove(shuffleId)
     true
@@ -249,43 +254,48 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
-    val (isTimeout, cost) = waitStageEnd(shuffleId)
-    if (isTimeout) {
-      logError(s"[handleGetReducerFileGroup] Wait for handleStageEnd Timeout! $shuffleId.")
-      context.reply(GetReducerFileGroupResponse(
-        StatusCode.STAGE_END_TIME_OUT,
-        JavaUtils.newConcurrentHashMap(),
-        Array.empty))
+  private def replyGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    if (isStageDataLost(shuffleId)) {
+      context.reply(
+        GetReducerFileGroupResponse(
+          StatusCode.SHUFFLE_DATA_LOST,
+          JavaUtils.newConcurrentHashMap(),
+          Array.empty))
     } else {
-      logDebug("[handleGetReducerFileGroup] Wait for handleStageEnd complete cost" +
-        s" ${cost}ms")
-      if (isStageDataLost(shuffleId)) {
-        context.reply(
-          GetReducerFileGroupResponse(
-            StatusCode.SHUFFLE_DATA_LOST,
-            JavaUtils.newConcurrentHashMap(),
-            Array.empty))
+      // LocalNettyRpcCallContext is for the UTs
+      if (context.isInstanceOf[LocalNettyRpcCallContext]) {
+        context.reply(GetReducerFileGroupResponse(
+          StatusCode.SUCCESS,
+          reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
+          getMapperAttempts(shuffleId)))
       } else {
-        // LocalNettyRpcCallContext is for the UTs
-        if (context.isInstanceOf[LocalNettyRpcCallContext]) {
-          context.reply(GetReducerFileGroupResponse(
-            StatusCode.SUCCESS,
-            reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-            getMapperAttempts(shuffleId)))
+        val cachedMsg = getReducerFileGroupRpcCache.get(
+          shuffleId,
+          new Callable[ByteBuffer]() {
+            override def call(): ByteBuffer = {
+              val returnedMsg = GetReducerFileGroupResponse(
+                StatusCode.SUCCESS,
+                reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
+                getMapperAttempts(shuffleId))
+              context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+            }
+          })
+        context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+      }
+    }
+  }
+
+  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    if (isStageEnd(shuffleId)) {
+      replyGetReducerFileGroup(context, shuffleId)
+    } else {
+      getReducerFileGroupRequest.synchronized {
+        if (getReducerFileGroupRequest.contains(shuffleId)) {
+          getReducerFileGroupRequest.get(shuffleId).add(context)
         } else {
-          val cachedMsg = getReducerFileGroupRpcCache.get(
-            shuffleId,
-            new Callable[ByteBuffer]() {
-              override def call(): ByteBuffer = {
-                val returnedMsg = GetReducerFileGroupResponse(
-                  StatusCode.SUCCESS,
-                  reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-                  getMapperAttempts(shuffleId))
-                context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
-              }
-            })
-          context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+          val set = new util.HashSet[RpcCallContext]()
+          set.add(context)
+          getReducerFileGroupRequest.put(shuffleId, set)
         }
       }
     }
