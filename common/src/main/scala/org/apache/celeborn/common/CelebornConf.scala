@@ -1077,7 +1077,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.rpc.io.threads")
       .categories("network")
       .doc("Netty IO thread number of NettyRpcEnv to handle RPC request. " +
-        s"The default threads number is the number of runtime available processors.")
+        "The default threads number is the number of runtime available processors.")
       .version("0.2.0")
       .intConf
       .createOptional
