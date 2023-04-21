@@ -179,10 +179,6 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
             ShuffleResourceDescriptor resourceDescriptor =
                 shuffleResource.getMapPartitionShuffleDescriptor();
             LOG.debug("release partition resource: {}.", resourceDescriptor);
-            shuffleTaskInfo.removeAttemptId(
-                descriptor.getShuffleId(),
-                resourceDescriptor.getMapId(),
-                FlinkUtils.toAttemptId(descriptor.getResultPartitionID().getProducerId()));
             lifecycleManager.releasePartition(
                 resourceDescriptor.getShuffleId(), resourceDescriptor.getPartitionId());
             shuffleResourceTracker.removePartitionResource(
@@ -243,16 +239,17 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private ShuffleResourceDescriptor genShuffleResourceDescriptor(
       String taskShuffleId, int mapId, String taskAttemptId) {
     int shuffleId = shuffleTaskInfo.getShuffleId(taskShuffleId);
-    int attemptId = shuffleTaskInfo.getAttemptId(taskShuffleId, mapId, taskAttemptId);
-    int partitionId = shuffleTaskInfo.genNewPartitionId(shuffleId);
+    int attemptId = shuffleTaskInfo.genAttemptId(shuffleId, mapId);
+    int partitionId = shuffleTaskInfo.genPartitionId(shuffleId);
     LOG.info(
-        "encode task from ({}, {}, {}) to ({}, {}, {})",
+        "Assign for ({}, {}, {}) resource ({}, {}, {}, {})",
         taskShuffleId,
         mapId,
         taskAttemptId,
         shuffleId,
         mapId,
-        attemptId);
+        attemptId,
+        partitionId);
     return new ShuffleResourceDescriptor(shuffleId, mapId, attemptId, partitionId);
   }
 }

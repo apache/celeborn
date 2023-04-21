@@ -24,11 +24,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 public class ShuffleTaskInfo {
   private int currentShuffleIndex = 0;
-  // task shuffle id -> mapId_taskAttemptId -> attemptIdx
-  private ConcurrentHashMap<String, ConcurrentHashMap<String, Integer>>
-      taskShuffleAttemptIdToAttemptId = JavaUtils.newConcurrentHashMap();
   // map attemptId index
-  private ConcurrentHashMap<String, ConcurrentHashMap<Integer, Integer>> taskShuffleAttemptIdIndex =
+  private ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, AtomicInteger>> shuffleIdMapAttemptIdIndex =
       JavaUtils.newConcurrentHashMap();
   // task shuffle id -> celeborn shuffle id
   private ConcurrentHashMap<String, Integer> taskShuffleIdToShuffleId =
@@ -37,7 +34,7 @@ public class ShuffleTaskInfo {
   private ConcurrentHashMap<Integer, String> shuffleIdToTaskShuffleId =
       JavaUtils.newConcurrentHashMap();
 
-  private ConcurrentHashMap<Integer, AtomicInteger> shuffleIdToPartitionIdIndex =
+  private ConcurrentHashMap<Integer, AtomicInteger> shuffleIdPartitionIdIndex =
       JavaUtils.newConcurrentHashMap();
 
   public int getShuffleId(String taskShuffleId) {
@@ -47,6 +44,8 @@ public class ShuffleTaskInfo {
       } else {
         taskShuffleIdToShuffleId.put(taskShuffleId, currentShuffleIndex);
         shuffleIdToTaskShuffleId.put(currentShuffleIndex, taskShuffleId);
+        shuffleIdMapAttemptIdIndex.put(currentShuffleIndex, JavaUtils.newConcurrentHashMap());
+        shuffleIdPartitionIdIndex.put(currentShuffleIndex, new AtomicInteger(0));
         int tempShuffleIndex = currentShuffleIndex;
         currentShuffleIndex = currentShuffleIndex + 1;
         return tempShuffleIndex;
@@ -54,53 +53,23 @@ public class ShuffleTaskInfo {
     }
   }
 
-  public int getAttemptId(String taskShuffleId, int mapId, String attemptId) {
-    ConcurrentHashMap<Integer, Integer> attemptIndex =
-        taskShuffleAttemptIdIndex.computeIfAbsent(
-            taskShuffleId, (id) -> JavaUtils.newConcurrentHashMap());
-    ConcurrentHashMap<String, Integer> attemptIdMap =
-        taskShuffleAttemptIdToAttemptId.computeIfAbsent(
-            taskShuffleId, (id) -> JavaUtils.newConcurrentHashMap());
-    String mapAttemptId = mapId + "_" + attemptId;
-    synchronized (attemptIndex) {
-      if (!attemptIdMap.containsKey(mapAttemptId)) {
-        if (attemptIndex.containsKey(mapId)) {
-          int index = attemptIndex.get(mapId);
-          attemptIdMap.put(mapAttemptId, index + 1);
-          attemptIndex.put(mapId, index + 1);
-        } else {
-          attemptIdMap.put(mapAttemptId, 0);
-          attemptIndex.put(mapId, 0);
-        }
-      }
-    }
-
-    return attemptIdMap.get(mapAttemptId);
+  public int genAttemptId(int shuffleId, int mapId) {
+    AtomicInteger currentAttemptIndex =
+        shuffleIdMapAttemptIdIndex.get(shuffleId).computeIfAbsent(
+            mapId, (id) -> new AtomicInteger(0));
+    return currentAttemptIndex.getAndIncrement();
   }
 
-  public int genNewPartitionId(int shuffleId) {
-    AtomicInteger currentPartitionId =
-        shuffleIdToPartitionIdIndex.computeIfAbsent(shuffleId, (id) -> new AtomicInteger(0));
-    return currentPartitionId.getAndIncrement();
-  }
-
-  public void removeAttemptId(String taskShuffleId, int mapId, String attemptId) {
-    String mapAttemptId = mapId + "_" + attemptId;
-    ConcurrentHashMap<String, Integer> attemptIdMap =
-        taskShuffleAttemptIdToAttemptId.get(taskShuffleId);
-
-    if (attemptIdMap != null) {
-      attemptIdMap.remove(mapAttemptId);
-    }
+  public int genPartitionId(int shuffleId) {
+    return shuffleIdPartitionIdIndex.get(shuffleId).getAndIncrement();
   }
 
   public void removeExpiredShuffle(int shuffleId) {
     if (shuffleIdToTaskShuffleId.containsKey(shuffleId)) {
-      shuffleIdToPartitionIdIndex.remove(shuffleId);
+      shuffleIdPartitionIdIndex.remove(shuffleId);
+      shuffleIdMapAttemptIdIndex.remove(shuffleId);
       String taskShuffleId = shuffleIdToTaskShuffleId.remove(shuffleId);
       taskShuffleIdToShuffleId.remove(taskShuffleId);
-      taskShuffleAttemptIdIndex.remove(taskShuffleId);
-      taskShuffleAttemptIdToAttemptId.remove(taskShuffleId);
     }
   }
 }
