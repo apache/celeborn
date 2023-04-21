@@ -373,6 +373,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def portMaxRetries: Int = get(PORT_MAX_RETRY)
   def networkTimeout: RpcTimeout =
     new RpcTimeout(get(NETWORK_TIMEOUT).milli, NETWORK_TIMEOUT.key)
+  def rpcIoThreads: Option[Int] = get(RPC_IO_THREAD)
   def rpcConnectThreads: Int = get(RPC_CONNECT_THREADS)
   def rpcLookupTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
@@ -1070,6 +1071,16 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
+
+  val RPC_IO_THREAD: OptionalConfigEntry[Int] =
+    buildConf("celeborn.rpc.io.threads")
+      .withAlternative("rss.rpc.io.threads")
+      .categories("network")
+      .doc("Netty IO thread number of NettyRpcEnv to handle RPC request. " +
+        s"The default threads number is the number of runtime available processors.")
+      .version("0.2.0")
+      .intConf
+      .createOptional
 
   val RPC_CONNECT_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.rpc.connect.threads")
