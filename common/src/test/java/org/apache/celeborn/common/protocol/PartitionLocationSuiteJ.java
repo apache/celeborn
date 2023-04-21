@@ -201,7 +201,7 @@ public class PartitionLocationSuiteJ {
 
     String exp1 =
         "PartitionLocation[\n"
-            + "  id-epoch:0(0-0)-0\n"
+            + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(empty)\n"
@@ -209,7 +209,7 @@ public class PartitionLocationSuiteJ {
             + "  mapIdBitMap:{}]";
     String exp2 =
         "PartitionLocation[\n"
-            + "  id(rawId-attemptId)-epoch:0(0-0)-0\n"
+            + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
@@ -217,7 +217,7 @@ public class PartitionLocationSuiteJ {
             + "  mapIdBitMap:{}]";
     String exp3 =
         "PartitionLocation[\n"
-            + "  id(rawId-attemptId)-epoch:1000-0\n"
+            + "  id-epoch:1000-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
