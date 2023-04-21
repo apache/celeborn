@@ -125,7 +125,12 @@ These metrics are exposed by Celeborn worker.
     - FetchChunkTime
     - MasterPushDataTime
     - SlavePushDataTime
-    - PushDataFailCount
+    - WriteDataFailCount
+    - ReplicateDataFailCount
+    - ReplicateDataWriteFailCount
+    - ReplicateDataCreateConnectionFailCount
+    - ReplicateDataConnectionExceptionCount
+    - ReplicateDataTimeoutCount
     - PushDataHandshakeFailCount
     - RegionStartFailCount
     - RegionFinishFailCount
