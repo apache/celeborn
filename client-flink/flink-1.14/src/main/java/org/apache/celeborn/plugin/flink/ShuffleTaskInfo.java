@@ -25,8 +25,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 public class ShuffleTaskInfo {
   private int currentShuffleIndex = 0;
   // map attemptId index
-  private ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, AtomicInteger>> shuffleIdMapAttemptIdIndex =
-      JavaUtils.newConcurrentHashMap();
+  private ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, AtomicInteger>>
+      shuffleIdMapAttemptIdIndex = JavaUtils.newConcurrentHashMap();
   // task shuffle id -> celeborn shuffle id
   private ConcurrentHashMap<String, Integer> taskShuffleIdToShuffleId =
       JavaUtils.newConcurrentHashMap();
@@ -55,8 +55,9 @@ public class ShuffleTaskInfo {
 
   public int genAttemptId(int shuffleId, int mapId) {
     AtomicInteger currentAttemptIndex =
-        shuffleIdMapAttemptIdIndex.get(shuffleId).computeIfAbsent(
-            mapId, (id) -> new AtomicInteger(0));
+        shuffleIdMapAttemptIdIndex
+            .get(shuffleId)
+            .computeIfAbsent(mapId, (id) -> new AtomicInteger(0));
     return currentAttemptIndex.getAndIncrement();
   }
 
