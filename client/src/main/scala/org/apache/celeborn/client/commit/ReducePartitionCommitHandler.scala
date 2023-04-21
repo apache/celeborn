@@ -287,16 +287,22 @@ class ReducePartitionCommitHandler(
   }
 
   override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    // Quick return for ended stage, avoid occupy sync lock.
     if (isStageEnd(shuffleId)) {
       replyGetReducerFileGroup(context, shuffleId)
     } else {
       getReducerFileGroupRequest.synchronized {
-        if (getReducerFileGroupRequest.contains(shuffleId)) {
-          getReducerFileGroupRequest.get(shuffleId).add(context)
+        // If setStageEnd() called after isStageEnd and before got lock, should reply here.
+        if (isStageEnd(shuffleId)) {
+          replyGetReducerFileGroup(context, shuffleId)
         } else {
-          val set = new util.HashSet[RpcCallContext]()
-          set.add(context)
-          getReducerFileGroupRequest.put(shuffleId, set)
+          if (getReducerFileGroupRequest.contains(shuffleId)) {
+            getReducerFileGroupRequest.get(shuffleId).add(context)
+          } else {
+            val set = new util.HashSet[RpcCallContext]()
+            set.add(context)
+            getReducerFileGroupRequest.put(shuffleId, set)
+          }
         }
       }
     }
