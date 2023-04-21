@@ -95,10 +95,11 @@ class ReducePartitionCommitHandler(
   }
 
   override def setStageEnd(shuffleId: Int): Unit = {
-    val requests = getReducerFileGroupRequest synchronized {
+    getReducerFileGroupRequest synchronized {
       stageEndShuffleSet.add(shuffleId)
-      getReducerFileGroupRequest.remove(shuffleId)
     }
+
+    val requests = getReducerFileGroupRequest.remove(shuffleId)
     // Set empty HashSet during register shuffle, but handleStageEnd may call
     // un-registered shuffle, here still need a null check
     if (requests != null && !requests.isEmpty) {
