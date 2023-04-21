@@ -27,7 +27,12 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   import WorkerSource._
   // add counters
-  addCounter(PushDataFailCount)
+  addCounter(WriteDataFailCount)
+  addCounter(ReplicateDataFailCount)
+  addCounter(ReplicateDataWriteFailCount)
+  addCounter(ReplicateDataCreateConnectionFailCount)
+  addCounter(ReplicateDataConnectionExceptionCount)
+  addCounter(ReplicateDataTimeoutCount)
 
   // add Timers
   addTimer(CommitFilesTime)
@@ -66,7 +71,12 @@ object WorkerSource {
   // push data
   val MasterPushDataTime = "MasterPushDataTime"
   val SlavePushDataTime = "SlavePushDataTime"
-  val PushDataFailCount = "PushDataFailCount"
+  val WriteDataFailCount = "WriteDataFailCount"
+  val ReplicateDataFailCount = "ReplicateDataFailCount"
+  val ReplicateDataWriteFailCount = "ReplicateDataWriteFailCount"
+  val ReplicateDataCreateConnectionFailCount = "ReplicateDataCreateConnectionFailCount"
+  val ReplicateDataConnectionExceptionCount = "ReplicateDataConnectionExceptionCount"
+  val ReplicateDataTimeoutCount = "ReplicateDataTimeoutCount"
   val PushDataHandshakeFailCount = "PushDataHandshakeFailCount"
   val RegionStartFailCount = "RegionStartFailCount"
   val RegionFinishFailCount = "RegionFinishFailCount"
