@@ -21,14 +21,13 @@ import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, Executors, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
@@ -116,10 +115,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
     (flushers, totalThread)
   }
-
-  private val trimInProcess = new AtomicBoolean(false)
-  private val actionService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-    .setNameFormat("StorageManager-action-thread").build)
 
   deviceMonitor.startCheck()
 
@@ -678,17 +673,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   override def onResume(moduleName: String): Unit = {}
 
   override def onTrim(): Unit = {
-    if (trimInProcess.compareAndSet(false, true)) {
-      logInfo(s"Trigger ${this.getClass.getCanonicalName} trim action")
-      actionService.submit(new Runnable {
-        override def run(): Unit = {
-          try {
-            flushFileWriters()
-          } finally {
-            trimInProcess.set(false)
-          }
-        }
-      })
+    logInfo(s"Trigger ${this.getClass.getCanonicalName} trim action")
+    flushFileWriters()
+    try {
+      Thread.sleep(conf.workerDirectMemoryTrimFlushWaitInterval)
+    } catch {
+      case _: Exception => // Do nothing
     }
   }
 
