@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -60,6 +61,8 @@ public class MemoryManager {
 
   private final ExecutorService actionService =
       ThreadUtils.newDaemonSingleThreadExecutor("memory-manager-actor");
+
+  private AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
   private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
@@ -163,47 +166,33 @@ public class MemoryManager {
                   "Memory manager actions transformed {} -> {}", lastAction, memoryManagerStat);
               if (memoryManagerStat == MemoryManagerStat.pausePushDataAndResumeReplicate) {
                 pausePushDataCounter.increment();
-                actionService.submit(
-                    () -> {
-                      logger.info("Trigger pausePushDataAndResumeReplicate action");
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener ->
-                              memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                      memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener ->
-                              memoryPressureListener.onResume(
-                                  TransportModuleConstants.REPLICATE_MODULE));
-                    });
+                logger.info("Trigger pausePushDataAndResumeReplicate action");
+                memoryPressureListeners.forEach(
+                    memoryPressureListener ->
+                        memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                memoryPressureListeners.forEach(
+                    memoryPressureListener ->
+                        memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
+                trimAllListeners();
               } else if (memoryManagerStat == MemoryManagerStat.pausePushDataAndReplicate) {
                 pausePushDataAndReplicateCounter.increment();
-                actionService.submit(
-                    () -> {
-                      logger.info("Trigger pausePushDataAndReplicate action");
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener ->
-                              memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener ->
-                              memoryPressureListener.onPause(
-                                  TransportModuleConstants.REPLICATE_MODULE));
-                      memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
-                    });
+                logger.info("Trigger pausePushDataAndReplicate action");
+                memoryPressureListeners.forEach(
+                    memoryPressureListener ->
+                        memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                memoryPressureListeners.forEach(
+                    memoryPressureListener ->
+                        memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
+                trimAllListeners();
               } else {
-                actionService.submit(
-                    () -> {
-                      logger.info("Trigger resume action");
-                      memoryPressureListeners.forEach(
-                          memoryPressureListener -> memoryPressureListener.onResume("all"));
-                    });
+                logger.info("Trigger resume action");
+                memoryPressureListeners.forEach(
+                    memoryPressureListener -> memoryPressureListener.onResume("all"));
               }
             } else {
               if (memoryManagerStat != MemoryManagerStat.resumeAll) {
-                actionService.submit(
-                    () -> {
-                      logger.debug("Trigger trim action");
-                      memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
-                    });
+                logger.debug("Trigger trim action");
+                trimAllListeners();
               }
             }
           } catch (Exception e) {
@@ -323,7 +312,15 @@ public class MemoryManager {
   }
 
   public void trimAllListeners() {
-    memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+    if (trimInProcess.compareAndSet(false, true)) {
+      actionService.submit(
+          () -> {
+            // In current code, StorageManager will add into this before ChannelsLimiter,
+            // so all behaviors of StorageManger will execute before ChannelsLimiter.
+            memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+            trimInProcess.set(false);
+          });
+    }
   }
 
   public void reserveSortMemory(long fileLen) {
@@ -424,9 +421,9 @@ public class MemoryManager {
   public void close() {
     checkService.shutdown();
     reportService.shutdown();
-    actionService.shutdown();
     readBufferTargetUpdateService.shutdown();
     memoryPressureListeners.clear();
+    actionService.shutdown();
     readBufferTargetChangeListeners.clear();
     readBufferDispatcher.close();
   }

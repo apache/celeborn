@@ -769,6 +769,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
+  def workerDirectMemoryTrimChannelWaitInterval: Long =
+    get(WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL)
+  def workerDirectMemoryTrimFlushWaitInterval: Long =
+    get(WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL)
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
   def creditStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
@@ -2881,6 +2885,22 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
+
+  val WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.memory.trimChannelWaitInterval")
+      .categories("worker")
+      .doc("Wait time after worker trigger channel to trim cache.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
+
+  val WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.memory.trimFlushWaitInterval")
+      .categories("worker")
+      .doc("Wait time after worker trigger StorageManger to flush data.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
