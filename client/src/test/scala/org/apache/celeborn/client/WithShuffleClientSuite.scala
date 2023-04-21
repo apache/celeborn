@@ -84,8 +84,8 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
         numMappers,
         mapId + 1,
         attemptId + 1,
-        3)
-    Assert.assertEquals(location.getId, 3)
+        numMappers + 1)
+    Assert.assertEquals(location.getId, numMappers + 1)
 
     // check all allocated all slots
     partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
@@ -162,7 +162,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 2, attemptId, 3)
 
     // task number incr to numMappers + 1
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId + 1, 4)
+    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId + 1, 9)
     shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, 1)
     // retry
     shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, 1)
@@ -173,7 +173,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       mapId,
       attemptId + 1,
       numMappers,
-      4)
+      9)
     // another mapper
     shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
   }
