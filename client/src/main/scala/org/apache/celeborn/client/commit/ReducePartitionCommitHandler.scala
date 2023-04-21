@@ -96,11 +96,13 @@ class ReducePartitionCommitHandler(
 
   override def setStageEnd(shuffleId: Int): Unit = {
     // Set empty HashSet during register shuffle, no NPE issue here.
-    getReducerFileGroupRequest synchronized {
+    val requests = getReducerFileGroupRequest synchronized {
       stageEndShuffleSet.add(shuffleId)
+      getReducerFileGroupRequest.remove(shuffleId)
     }
-    getReducerFileGroupRequest.remove(shuffleId)
-      .asScala.foreach(replyGetReducerFileGroup(_, shuffleId))
+    if (requests != null && !requests.isEmpty) {
+      requests.asScala.foreach(replyGetReducerFileGroup(_, shuffleId))
+    }
   }
 
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
