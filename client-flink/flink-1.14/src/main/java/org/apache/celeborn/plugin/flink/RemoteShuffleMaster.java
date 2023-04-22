@@ -127,18 +127,16 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
               FlinkResultPartitionInfo resultPartitionInfo =
                   new FlinkResultPartitionInfo(jobID, partitionDescriptor, producerDescriptor);
-              ShuffleTask shuffleTask =
-                  encodeExternalShuffleTask(
+              ShuffleResourceDescriptor shuffleResourceDescriptor =
+                  genShuffleResourceDescriptor(
                       resultPartitionInfo.getShuffleId(),
                       resultPartitionInfo.getTaskId(),
                       resultPartitionInfo.getAttemptId());
 
               synchronized (shuffleIds) {
-                shuffleIds.add(shuffleTask.getShuffleId());
+                shuffleIds.add(shuffleResourceDescriptor.getShuffleId());
               }
 
-              ShuffleResourceDescriptor shuffleResourceDescriptor =
-                  new ShuffleResourceDescriptor(shuffleTask);
               RemoteShuffleResource remoteShuffleResource =
                   new RemoteShuffleResource(
                       lifecycleManager.getRssMetaServiceHost(),
@@ -238,18 +236,20 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     ThreadUtils.shutdownExecutors(10, executor);
   }
 
-  private ShuffleTask encodeExternalShuffleTask(
+  private ShuffleResourceDescriptor genShuffleResourceDescriptor(
       String taskShuffleId, int mapId, String taskAttemptId) {
     int shuffleId = shuffleTaskInfo.getShuffleId(taskShuffleId);
-    int attemptId = shuffleTaskInfo.getAttemptId(taskShuffleId, mapId, taskAttemptId);
+    int attemptId = shuffleTaskInfo.genAttemptId(shuffleId, mapId);
+    int partitionId = shuffleTaskInfo.genPartitionId(shuffleId);
     LOG.info(
-        "encode task from ({}, {}, {}) to ({}, {},, {})",
+        "Assign for ({}, {}, {}) resource ({}, {}, {}, {})",
         taskShuffleId,
         mapId,
         taskAttemptId,
         shuffleId,
         mapId,
-        attemptId);
-    return new ShuffleTask(shuffleId, mapId, attemptId);
+        attemptId,
+        partitionId);
+    return new ShuffleResourceDescriptor(shuffleId, mapId, attemptId, partitionId);
   }
 }
