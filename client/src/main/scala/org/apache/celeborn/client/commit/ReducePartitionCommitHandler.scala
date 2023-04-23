@@ -100,8 +100,9 @@ class ReducePartitionCommitHandler(
     }
 
     val requests = getReducerFileGroupRequest.remove(shuffleId)
-    // Set empty HashSet during register shuffle, but handleStageEnd may call
-    // un-registered shuffle, here still need a null check
+    // Set empty HashSet during register shuffle.
+    // In case of stage with no shuffle data, register shuffle will not be called,
+    // so here we still need to check null.
     if (requests != null && !requests.isEmpty) {
       requests.asScala.foreach(replyGetReducerFileGroup(_, shuffleId))
     }
