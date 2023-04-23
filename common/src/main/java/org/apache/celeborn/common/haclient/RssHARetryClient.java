@@ -114,6 +114,22 @@ public class RssHARetryClient {
     LOG.debug("Send one-way message {}.", message);
   }
 
+  public void send(GeneratedMessageV3 message) throws Throwable {
+    // Send a one-way message. Because we need to know whether the leader between Masters has
+    // switched, we must adopt a synchronous method, but for a one-way message, we don't care
+    // whether it can be sent successfully, so we adopt an asynchronous method. Therefore, we
+    // choose to use one Thread pool to use synchronization.
+    oneWayMessageSender.submit(
+        () -> {
+          try {
+            sendMessageInner(message, OneWayMessageResponse$.class);
+          } catch (Throwable e) {
+            LOG.warn("Exception occurs while send one-way message.", e);
+          }
+        });
+    LOG.debug("Send one-way message {}.", message);
+  }
+
   public <T> T askSync(Message message, Class<T> clz) throws Throwable {
     return sendMessageInner(message, clz);
   }

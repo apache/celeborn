@@ -1083,15 +1083,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private def requestUnregisterShuffle(
       rssHARetryClient: RssHARetryClient,
-      message: PbUnregisterShuffle): PbUnregisterShuffleResponse = {
+      message: PbUnregisterShuffle): Unit = {
     try {
-      rssHARetryClient.askSync[PbUnregisterShuffleResponse](
-        message,
-        classOf[PbUnregisterShuffleResponse])
+      rssHARetryClient.send(message)
     } catch {
       case e: Exception =>
         logError(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
-        UnregisterShuffleResponse(StatusCode.REQUEST_FAILED)
     }
   }
 

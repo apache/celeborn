@@ -593,7 +593,6 @@ private[celeborn] class Master(
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleUnRegisterShuffle(shuffleKey, requestId)
     logInfo(s"Unregister shuffle $shuffleKey")
-    context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
   }
 
   def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {

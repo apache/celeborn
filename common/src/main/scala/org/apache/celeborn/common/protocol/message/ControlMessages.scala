@@ -300,13 +300,6 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  object UnregisterShuffleResponse {
-    def apply(status: StatusCode): PbUnregisterShuffleResponse =
-      PbUnregisterShuffleResponse.newBuilder()
-        .setStatus(status.getValue)
-        .build()
-  }
-
   case class ApplicationLost(
       appId: String,
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
@@ -594,9 +587,6 @@ object ControlMessages extends Logging {
 
     case pb: PbUnregisterShuffle =>
       new TransportMessage(MessageType.UNREGISTER_SHUFFLE, pb.toByteArray)
-
-    case pb: PbUnregisterShuffleResponse =>
-      new TransportMessage(MessageType.UNREGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
 
     case ApplicationLost(appId, requestId) =>
       val payload = PbApplicationLost.newBuilder()
@@ -947,9 +937,6 @@ object ControlMessages extends Logging {
 
       case UNREGISTER_SHUFFLE =>
         PbUnregisterShuffle.parseFrom(message.getPayload)
-
-      case UNREGISTER_SHUFFLE_RESPONSE =>
-        PbUnregisterShuffleResponse.parseFrom(message.getPayload)
 
       case APPLICATION_LOST =>
         val pbApplicationLost = PbApplicationLost.parseFrom(message.getPayload)
