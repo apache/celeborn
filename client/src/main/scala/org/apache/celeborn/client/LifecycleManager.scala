@@ -1071,13 +1071,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private def requestReleaseSlots(
       rssHARetryClient: RssHARetryClient,
-      message: ReleaseSlots): ReleaseSlotsResponse = {
+      message: ReleaseSlots): Unit = {
     try {
-      rssHARetryClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse])
+      rssHARetryClient.send(message)
     } catch {
       case e: Exception =>
         logError(s"AskSync ReleaseSlots for ${message.shuffleId} failed.", e)
-        ReleaseSlotsResponse(StatusCode.REQUEST_FAILED)
     }
   }
 

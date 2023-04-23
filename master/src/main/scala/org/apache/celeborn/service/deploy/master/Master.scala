@@ -582,7 +582,6 @@ private[celeborn] class Master(
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)
     logInfo(s"Release all slots of $shuffleKey")
-    context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
   }
 
   def handleUnregisterShuffle(

@@ -178,9 +178,6 @@ object ControlMessages extends Logging {
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
-  case class ReleaseSlotsResponse(status: StatusCode)
-    extends MasterMessage
-
   case class RequestSlotsResponse(
       status: StatusCode,
       workerResource: WorkerResource)
@@ -512,11 +509,6 @@ object ControlMessages extends Logging {
         .addAllSlots(pbSlots.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.RELEASE_SLOTS, payload)
-
-    case ReleaseSlotsResponse(status) =>
-      val payload = PbReleaseSlotsResponse.newBuilder()
-        .setStatus(status.getValue).build().toByteArray
-      new TransportMessage(MessageType.RELEASE_SLOTS_RESPONSE, payload)
 
     case RequestSlotsResponse(status, workerResource) =>
       val builder = PbRequestSlotsResponse.newBuilder()
@@ -888,10 +880,6 @@ object ControlMessages extends Logging {
           new util.ArrayList[String](pbReleaseSlots.getWorkerIdsList),
           new util.ArrayList[util.Map[String, Integer]](slotsList),
           pbReleaseSlots.getRequestId)
-
-      case RELEASE_SLOTS_RESPONSE =>
-        val pbReleaseSlotsResponse = PbReleaseSlotsResponse.parseFrom(message.getPayload)
-        ReleaseSlotsResponse(Utils.toStatusCode(pbReleaseSlotsResponse.getStatus))
 
       case REQUEST_SLOTS_RESPONSE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)

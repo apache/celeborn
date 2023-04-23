@@ -26,7 +26,7 @@ enum MessageType {
   REGISTER_SHUFFLE_RESPONSE = 5;
   REQUEST_SLOTS = 6;
   RELEASE_SLOTS = 7;
-  RELEASE_SLOTS_RESPONSE = 8;
+//  RELEASE_SLOTS_RESPONSE = 8;
   REQUEST_SLOTS_RESPONSE = 9;
   REVIVE = 10;
   CHANGE_LOCATION_RESPONSE = 11;
@@ -194,10 +194,6 @@ message PbReleaseSlots {
   repeated string workerIds = 3;
   repeated PbSlotInfo slots = 4;
   string requestId = 6;
-}
-
-message PbReleaseSlotsResponse {
-  int32 status = 1;
 }
 
 message PbRequestSlotsResponse {
