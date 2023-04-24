@@ -151,7 +151,7 @@ Flink engine related configurations:
 # if you are using Celeborn for flink, these settings will be needed
 celeborn.worker.directMemoryRatioForReadBuffer 0.4
 celeborn.worker.directMemoryRatioToResume 0.5
-# these setting will have affect performance. 
+# these setting will affect performance. 
 # If there is enough off-heap memory you can try to increase read buffers.
 # Read buffer max memory usage for a data partition is `taskmanager.memory.segment-size * readBuffersMax`
 celeborn.worker.partition.initial.readBuffersMin 512
