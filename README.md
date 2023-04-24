@@ -113,7 +113,7 @@ celeborn.master.port 9097
 
 celeborn.metrics.enabled true
 celeborn.worker.flush.buffer.size 256k
-celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
+celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=HDD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```   
@@ -141,10 +141,13 @@ celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
 celeborn.worker.flush.buffer.size 256k
-celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
+celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=HDD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
+```
 
+Flink engine related configurations:
+```properties
 # if your are using Celeborn for flink, these settings will be needed
 celeborn.worker.directMemoryRatioForReadBuffer 0.4
 celeborn.worker.directMemoryRatioToResume 0.5
@@ -155,6 +158,7 @@ celeborn.worker.partition.initial.readBuffersMin 512
 celeborn.worker.partition.initial.readBuffersMax 1024
 celeborn.worker.readBuffer.allocationWait 10ms
 ```
+
 4. Copy Celeborn and configurations to all nodes
 5. Start all services. If you install Celeborn distribution in same path on every node and your
    cluster can perform SSH login then you can fill `$CELEBORN_HOME/conf/hosts` and
