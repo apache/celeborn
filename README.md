@@ -41,7 +41,7 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14.  
+1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14.
 2.Celeborn tested under Java 8 environment.
 
 Build Celeborn
@@ -53,15 +53,29 @@ package apache-celeborn-${project.version}-bin.tgz will be generated.
 
 ### Package Details
 Build procedure will create a compressed package.
+
+Spark package layout:
 ```
     ├── RELEASE                         
     ├── bin                             
     ├── conf                            
+    ├── jars           // common jars for master and worker                 
     ├── master-jars                     
     ├── worker-jars                     
     ├── sbin
-    ├── flink          // flink client jars                            
     └── spark          // Spark client jars
+```
+
+Flink package layout:
+```
+    ├── RELEASE                         
+    ├── bin                             
+    ├── conf                            
+    ├── jars           // common jars for master and worker                        
+    ├── master-jars                     
+    ├── worker-jars                     
+    ├── sbin
+    └── flink          // flink client jars
 ```
 
 ### Compatibility
@@ -130,6 +144,16 @@ celeborn.worker.flush.buffer.size 256k
 celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
+
+# if your are using Celeborn for flink, these settings will be needed
+celeborn.worker.directMemoryRatioForReadBuffer 0.4
+celeborn.worker.directMemoryRatioToResume 0.5
+# these setting will have affect performance. 
+# If there is enough off-heap memory you can try to increase read buffers.
+# Read buffer max memory usage for a data partition is `taskmanager.memory.segment-size * readBuffersMax`
+celeborn.worker.partition.initial.readBuffersMin 512
+celeborn.worker.partition.initial.readBuffersMax 1024
+celeborn.worker.readBuffer.allocationWait 10ms
 ```
 4. Copy Celeborn and configurations to all nodes
 5. Start all services. If you install Celeborn distribution in same path on every node and your
