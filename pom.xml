@@ -1085,6 +1085,22 @@
     </profile>
 
     <profile>
+      <id>flink-1.15</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-1.15</module>
+        <module>client-flink/flink-1.15-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>1.15.4</flink.version>
+        <flink.binary.version>1.15</flink.binary.version>
+        <scala.version>2.12.7</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+      </properties>
+    </profile>
+
+    <profile>
       <id>google-mirror</id>
       <properties>
         <mavenCentralId>gcs-maven-central-mirror</mavenCentralId>
