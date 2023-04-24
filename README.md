@@ -41,11 +41,12 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and only tested under Java 8.
+1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14.
+2.Celeborn tested under Java 8 environment.
 
-Build for Spark
-```
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3
+Build Celeborn
+```shell
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pflink-1.14
 ```
 
 package apache-celeborn-${project.version}-bin.tgz will be generated.
@@ -58,20 +59,23 @@ Build procedure will create a compressed package.
     ├── conf                            
     ├── master-jars                     
     ├── worker-jars                     
-    ├── sbin                            
+    ├── sbin
+    ├── flink          // flink client jars                            
     └── spark          // Spark client jars
 ```
 
 ### Compatibility
-Celeborn server is compatible with all supported Spark versions.
-You can run different Spark versions with the same Celeborn server. It doesn't matter whether Celeborn server is compiled with -Pspark-2.4/3.0/3.1/3.2/3.3.
-However, Celeborn client must be consistent with the version of the Spark.
-For example, if you are running Spark 2.4, you must compile Celeborn client with -Pspark-2.4; if you are running Spark 3.2, you must compile Celeborn client with -Pspark-3.2.
+Celeborn server is compatible with all client with various engines.
+However, Celeborn client must be consistent with the version of the specified engine.
+For example, if you are running Spark 2.4, you must compile Celeborn client with -Pspark-2.4;
+if you are running Spark 3.2, you must compile Celeborn client with -Pspark-3.2; 
+if you are running flink 1.14, you must compile Celeborn client with -Pflink-1.14.
 
 ## Usage
 Celeborn cluster composes of Master and Worker nodes, the Master supports both single and HA mode(Raft-based) deployments.
 
 ### Deploy Celeborn
+#### Deploy on host
 1. Unzip the tarball to `$CELEBORN_HOME`
 2. Modify environment variables in `$CELEBORN_HOME/conf/celeborn-env.sh`
 
@@ -156,10 +160,13 @@ Disks: {/mnt/disk1=DiskInfo(maxSlots: 6679, committed shuffles 0 shuffleAllocati
 WorkerRef: null
 ```
 
-### Deploy Spark client
+#### Deploy Celeborn on K8S
+Please refer our [website](!https://celeborn.apache.org/docs/latest/deploy_on_k8s/)
+
+### Deploy Spark Client
 Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 
-### Spark Configuration
+#### Spark Configuration
 To use Celeborn, following spark configurations should be added.
 ```properties
 spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
@@ -186,6 +193,31 @@ spark.sql.adaptive.localShuffleReader.enabled false
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
 spark.sql.adaptive.skewJoin.enabled true
+```
+
+### Deploy flink client
+Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
+
+#### Flink Configuration
+TO use Celeborn, follow flink configurations should be added.
+```properties
+shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
+celeborn.master.endpoints: clb-1:9097,clb-2:9098,clb-3:9099
+
+celeborn.shuffle.batchHandleReleasePartition.enabled: true
+celeborn.push.maxReqsInFlight: 128
+
+# network connections between peers
+celeborn.data.io.numConnectionsPerPeer: 16
+# threads number may vary according to your cluster but do not set to 1
+celeborn.data.io.threads: 32
+celeborn.shuffle.batchHandleCommitPartition.threads: 32
+celeborn.rpc.dispatcher.numThreads: 32
+
+# floating buffers may need to change `taskmanager.network.memory.fraction` and `taskmanager.network.memory.max`
+taskmanager.network.memory.floating-buffers-per-gate: 4096
+taskmanager.network.memory.buffers-per-channel: 0
+taskmanager.memory.task.off-heap.size: 512m
 ```
 
 ### Best Practice
