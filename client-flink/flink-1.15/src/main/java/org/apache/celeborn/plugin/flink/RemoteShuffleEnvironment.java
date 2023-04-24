@@ -59,6 +59,7 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
       RemoteShuffleResultPartitionFactory resultPartitionFactory,
       RemoteShuffleInputGateFactory inputGateFactory,
       CelebornConf conf) {
+
     super(networkBufferPool, resultPartitionManager, conf);
     this.resultPartitionFactory = resultPartitionFactory;
     this.inputGateFactory = inputGateFactory;

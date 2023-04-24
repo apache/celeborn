@@ -52,13 +52,13 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private volatile LifecycleManager lifecycleManager;
   private ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
 
+  private ShuffleResourceTracker shuffleResourceTracker;
+
   private final ScheduledThreadPoolExecutor executor =
       new ScheduledThreadPoolExecutor(
           1,
           ThreadUtils.createFactoryWithDefaultExceptionHandler(
               "remote-shuffle-master-executor", LOG));
-
-  private ShuffleResourceTracker shuffleResourceTracker;
 
   public RemoteShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
     this.shuffleMasterContext = shuffleMasterContext;
@@ -128,7 +128,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
               FlinkResultPartitionInfo resultPartitionInfo =
                   new FlinkResultPartitionInfo(jobID, partitionDescriptor, producerDescriptor);
               ShuffleResourceDescriptor shuffleResourceDescriptor =
-                  genShuffleResourceDescriptor(
+                  shuffleTaskInfo.genShuffleResourceDescriptor(
                       resultPartitionInfo.getShuffleId(),
                       resultPartitionInfo.getTaskId(),
                       resultPartitionInfo.getAttemptId());
@@ -234,22 +234,5 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     }
 
     ThreadUtils.shutdownExecutors(10, executor);
-  }
-
-  private ShuffleResourceDescriptor genShuffleResourceDescriptor(
-      String taskShuffleId, int mapId, String taskAttemptId) {
-    int shuffleId = shuffleTaskInfo.getShuffleId(taskShuffleId);
-    int attemptId = shuffleTaskInfo.genAttemptId(shuffleId, mapId);
-    int partitionId = shuffleTaskInfo.genPartitionId(shuffleId);
-    LOG.info(
-        "Assign for ({}, {}, {}) resource ({}, {}, {}, {})",
-        taskShuffleId,
-        mapId,
-        taskAttemptId,
-        shuffleId,
-        mapId,
-        attemptId,
-        partitionId);
-    return new ShuffleResourceDescriptor(shuffleId, mapId, attemptId, partitionId);
   }
 }

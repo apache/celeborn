@@ -117,7 +117,7 @@ public class ShuffleResourceTrackerTest {
   public JobShuffleContext createJobShuffleContext(JobID jobId) {
     return new JobShuffleContext() {
       @Override
-      public org.apache.flink.api.common.JobID getJobId() {
+      public JobID getJobId() {
         return jobId;
       }
 

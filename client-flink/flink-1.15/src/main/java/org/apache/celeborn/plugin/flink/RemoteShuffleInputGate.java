@@ -18,7 +18,7 @@
 package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
+import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -32,7 +32,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
@@ -42,10 +44,17 @@ import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.consumer.*;
+import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -53,7 +62,7 @@ import org.apache.celeborn.common.CelebornConf;
 /** A {@link IndexedInputGate} which ingest data from remote shuffle workers. */
 public class RemoteShuffleInputGate extends IndexedInputGate {
 
-  RemoteShuffleInputGateDelegation inputGateDelegation;
+  private final RemoteShuffleInputGateDelegation inputGateDelegation;
 
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
@@ -63,6 +72,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       BufferDecompressor bufferDecompressor,
       int numConcurrentReading) {
+
     inputGateDelegation =
         new RemoteShuffleInputGateDelegation(
             celebornConf,
@@ -73,8 +83,8 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
             bufferDecompressor,
             numConcurrentReading,
             availabilityHelper,
-            gateDescriptor.getConsumedSubpartitionIndex(),
-            gateDescriptor.getConsumedSubpartitionIndex());
+            gateDescriptor.getConsumedSubpartitionIndexRange().getStartIndex(),
+            gateDescriptor.getConsumedSubpartitionIndexRange().getEndIndex());
   }
 
   /** Setup gate and build network connections. */
@@ -99,11 +109,6 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   @Override
   public boolean isFinished() {
     return inputGateDelegation.isFinished();
-  }
-
-  @Override
-  public boolean hasReceivedEndOfData() {
-    return inputGateDelegation.hasReceivedEndOfData();
   }
 
   @Override
@@ -145,16 +150,23 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   }
 
   @Override
-  public int getBuffersInUseCount() {
-    return 0;
+  public void triggerDebloating() {
+    // do-nothing.
   }
-
-  @Override
-  public void announceBufferSize(int i) {}
 
   @Override
   public List<InputChannelInfo> getUnfinishedChannels() {
     return Collections.emptyList();
+  }
+
+  @Override
+  public EndOfDataStatus hasReceivedEndOfData() {
+    if (inputGateDelegation.getPendingEndOfDataEvents() > 0) {
+      return EndOfDataStatus.NOT_END_OF_DATA;
+    } else {
+      // Keep compatibility with streaming mode.
+      return EndOfDataStatus.DRAINED;
+    }
   }
 
   @Override
@@ -203,16 +215,21 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
               inputGateDelegation.getGateIndex(),
               new IntermediateDataSetID(),
               ResultPartitionType.BLOCKING,
-              0,
+              new SubpartitionIndexRange(0, 0),
               1,
               (a, b, c) -> {},
               () -> null,
               null,
               new FakedMemorySegmentProvider(),
-              0),
+              0,
+              new ThroughputCalculator(SystemClock.getInstance()),
+              null),
           channelIndex,
           new ResultPartitionID(),
-          new ConnectionID(new InetSocketAddress("", 0), 0),
+          0,
+          new ConnectionID(
+              new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 1),
+              0),
           new LocalConnectionManager(),
           0,
           0,

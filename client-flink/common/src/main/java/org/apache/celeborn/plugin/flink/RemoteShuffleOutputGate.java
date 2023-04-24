@@ -49,7 +49,7 @@ import org.apache.celeborn.plugin.flink.utils.Utils;
  *   <li>3. Client sends RegionStart which announces the start of a writing region and maybe get a
  *       new partitionLocation;
  *   <li>4. Client write data;
- *   <li>5. Client sends RegionFinish to indicate writing finish of aregion;
+ *   <li>5. Client sends RegionFinish to indicate writing finish of a region;
  *   <li>6. Repeat from step-2 to step-5;
  *   <li>7. Client sends mapend to indicate writing finish;
  * </ul>
@@ -145,7 +145,12 @@ public class RemoteShuffleOutputGate {
       if (isFirstHandShake) {
         handshake(true);
         isFirstHandShake = false;
-        LOG.info("send firstHandShake:" + isBroadcast);
+        LOG.debug(
+            "shuffleId: {}, location: {}, send firstHandShake: {}, isBroadcast: {}",
+            shuffleId,
+            partitionLocation.getUniqueId(),
+            true,
+            isBroadcast);
       }
 
       newPartitionLoc =

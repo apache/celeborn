@@ -48,7 +48,7 @@ public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGat
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       BufferDecompressor bufferDecompressor) {
     return new RemoteShuffleInputGate(
-        celebornConf,
+        this.celebornConf,
         owningTaskName,
         gateIndex,
         igdd,
