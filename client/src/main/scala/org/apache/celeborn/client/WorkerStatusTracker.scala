@@ -131,7 +131,6 @@ class WorkerStatusTracker(
     if (res.statusCode == StatusCode.SUCCESS) {
       logDebug(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
-      val newShutdownWorkers = resolveShutdownWorkers(res.shuttingWorkers)
       val current = System.currentTimeMillis()
 
       blacklist.asScala.foreach {
@@ -147,7 +146,12 @@ class WorkerStatusTracker(
                 StatusCode.PUSH_DATA_TIMEOUT_MASTER |
                 StatusCode.PUSH_DATA_TIMEOUT_SLAVE
                 if current - registerTime < workerExcludedExpireTimeout => // reserve
-            case _ => blacklist.remove(workerInfo)
+            case _ =>
+              if (!res.blacklist.contains(workerInfo) &&
+                !res.shuttingWorkers.contains(workerInfo) &&
+                !res.unknownWorkers.contains(workerInfo)) {
+                blacklist.remove(workerInfo)
+              }
           }
       }
 
@@ -156,12 +160,15 @@ class WorkerStatusTracker(
           .map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
       }
 
+      if (!res.shuttingWorkers.isEmpty) {
+        blacklist.putAll(res.shuttingWorkers.asScala.filterNot(blacklist.containsKey)
+          .map(_ -> (StatusCode.WORKER_SHUTDOWN -> current)).toMap.asJava)
+      }
+
+      val newShutdownWorkers = resolveShutdownWorkers(res.shuttingWorkers)
       if (!res.unknownWorkers.isEmpty || !newShutdownWorkers.isEmpty) {
         blacklist.putAll(res.unknownWorkers.asScala.filterNot(blacklist.containsKey)
           .map(_ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
-        blacklist.putAll(res.shuttingWorkers.asScala.filterNot(blacklist.containsKey)
-          .map(_ -> (StatusCode.WORKER_SHUTDOWN -> current)).toMap.asJava)
-
         val workerStatus = new WorkersStatus(res.unknownWorkers, newShutdownWorkers)
         workerStatusListeners.asScala.foreach { listener =>
           try {

@@ -58,6 +58,10 @@ public class RemoteShuffleDescriptor implements ShuffleDescriptor {
     return jobId;
   }
 
+  public String getShuffleId() {
+    return shuffleId;
+  }
+
   public RemoteShuffleResource getShuffleResource() {
     return shuffleResource;
   }

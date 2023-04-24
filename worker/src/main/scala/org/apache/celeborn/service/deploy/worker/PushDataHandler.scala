@@ -37,7 +37,6 @@ import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
-import org.apache.celeborn.common.util.PackedPartitionId
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
@@ -965,22 +964,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback: RpcResponseCallback,
       wrappedCallback: RpcResponseCallback): Boolean = {
     if (location == null) {
-      val (mapId, attemptId) = getMapAttempt(partitionUniqueId)
-      if (shuffleMapperAttempts.containsKey(shuffleKey) &&
-        -1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
-        // partition data has already been committed
-        logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
-          s" attempt $attemptId), but this mapper has already been ended.")
-        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
-      } else {
-        val msg = s"Partition location wasn't found for task(shuffle $shuffleKey, map $mapId, " +
-          s"attempt $attemptId, uniqueId $partitionUniqueId)."
-        logWarning(s"[handle$messageType] $msg")
-        messageType match {
-          case Type.PUSH_MERGED_DATA => callback.onFailure(new CelebornIOException(msg))
-          case _ => callback.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
-        }
+      val msg =
+        s"Partition location wasn't found for task(shuffle $shuffleKey, uniqueId $partitionUniqueId)."
+      logWarning(s"[handle$messageType] $msg")
+      messageType match {
+        case Type.PUSH_MERGED_DATA => callback.onFailure(new CelebornIOException(msg))
+        case _ => callback.onFailure(
+            new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
       }
       return true
     }
@@ -1056,12 +1046,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
     }
     false
-  }
-
-  private def getMapAttempt(
-      partitionUniqueId: String): (Int, Int) = {
-    val id = partitionUniqueId.split("-")(0).toInt
-    (PackedPartitionId.getRawPartitionId(id), PackedPartitionId.getAttemptId(id))
   }
 
   private def getClient(host: String, port: Int, partitionId: Int): TransportClient = {
