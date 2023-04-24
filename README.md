@@ -148,7 +148,7 @@ celeborn.worker.monitor.disk.enabled false
 
 Flink engine related configurations:
 ```properties
-# if your are using Celeborn for flink, these settings will be needed
+# if you are using Celeborn for flink, these settings will be needed
 celeborn.worker.directMemoryRatioForReadBuffer 0.4
 celeborn.worker.directMemoryRatioToResume 0.5
 # these setting will have affect performance. 
