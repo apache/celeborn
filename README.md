@@ -41,7 +41,7 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14.
+1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14.  
 2.Celeborn tested under Java 8 environment.
 
 Build Celeborn
@@ -65,7 +65,7 @@ Build procedure will create a compressed package.
 ```
 
 ### Compatibility
-Celeborn server is compatible with all client with various engines.
+Celeborn server is compatible with all clients inside various engines.
 However, Celeborn client must be consistent with the version of the specified engine.
 For example, if you are running Spark 2.4, you must compile Celeborn client with -Pspark-2.4;
 if you are running Spark 3.2, you must compile Celeborn client with -Pspark-3.2; 
@@ -161,9 +161,9 @@ WorkerRef: null
 ```
 
 #### Deploy Celeborn on K8S
-Please refer our [website](!https://celeborn.apache.org/docs/latest/deploy_on_k8s/)
+Please refer our [website](https://celeborn.apache.org/docs/latest/deploy_on_k8s/)
 
-### Deploy Spark Client
+### Deploy Spark client
 Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 
 #### Spark Configuration
@@ -195,7 +195,7 @@ spark.sql.adaptive.enabled true
 spark.sql.adaptive.skewJoin.enabled true
 ```
 
-### Deploy flink client
+### Deploy Flink client
 Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
 
 #### Flink Configuration
