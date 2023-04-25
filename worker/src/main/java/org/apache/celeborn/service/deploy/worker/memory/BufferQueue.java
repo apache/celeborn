@@ -74,8 +74,7 @@ public class BufferQueue {
         buffers.addAll(availableBuffers);
         numBuffersOccupied.addAndGet(availableBuffers.size());
         pendingRequestBuffers.addAndGet(-1 * availableBuffers.size());
-      }
-      if (isReleased) {
+      } else {
         for (ByteBuf availableBuffer : availableBuffers) {
           memoryManager.recycleReadBuffer(availableBuffer);
         }
