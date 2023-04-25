@@ -830,7 +830,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback: RpcResponseCallback): Unit = {
     val isMaster = PartitionLocation.getMode(mode) == PartitionLocation.Mode.MASTER
     val messageType = message.`type`()
-    log.info(s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, partitionUniqueId:$partitionUniqueId")
+    log.debug(
+      s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, " +
+        s"partitionUniqueId:$partitionUniqueId")
     val (workerSourceMaster, workerSourceSlave) =
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>

@@ -2474,7 +2474,7 @@ object CelebornConf extends Logging {
         "Otherwise, LifecycleManager will process release partition request immediately")
       .version("0.3.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val BATCH_HANDLE_RELEASE_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.shuffle.batchHandleReleasePartition.threads")
