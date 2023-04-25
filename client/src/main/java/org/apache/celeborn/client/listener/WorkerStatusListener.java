@@ -15,26 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.memory;
+package org.apache.celeborn.client.listener;
 
-import io.netty.buffer.ByteBuf;
+/** The Listener about the status change of the shuffle workers. */
+public interface WorkerStatusListener {
 
-public class WrappedDataBuffer {
-
-  public final ByteBuf byteBuf;
-
-  public final Recycler bufferRecycler;
-
-  public WrappedDataBuffer(ByteBuf byteBuf, Recycler bufferRecycler) {
-    this.byteBuf = byteBuf;
-    this.bufferRecycler = bufferRecycler;
-  }
-
-  public void recycle() {
-    bufferRecycler.recycle(byteBuf);
-  }
-
-  public void release() {
-    bufferRecycler.release(byteBuf);
-  }
+  /**
+   * Notifies that shuffle: has unKnowWorkers(probably worker was terminated unexpected) has
+   * shutdownWorkers
+   *
+   * @param workerStatus
+   */
+  void notifyChangedWorkersStatus(WorkersStatus workerStatus);
 }

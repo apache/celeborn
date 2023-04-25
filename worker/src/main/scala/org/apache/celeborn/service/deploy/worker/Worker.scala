@@ -35,10 +35,8 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, RPCSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource}
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.network.server.ChannelsLimiter
-import org.apache.celeborn.common.network.server.memory.MemoryManager
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -46,6 +44,7 @@ import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
+import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 private[celeborn] class Worker(
@@ -81,24 +80,14 @@ private[celeborn] class Worker(
       conf.workerPushPort != 0 && conf.workerReplicatePort != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
 
-  val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_WORKER)
   val workerSource = new WorkerSource(conf)
   metricsSystem.registerSource(workerSource)
-  metricsSystem.registerSource(rpcSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
 
   val storageManager = new StorageManager(conf, workerSource)
 
-  val memoryManager = MemoryManager.initialize(
-    conf.workerDirectMemoryRatioToPauseReceive,
-    conf.workerDirectMemoryRatioToPauseReplicate,
-    conf.workerDirectMemoryRatioToResume,
-    conf.partitionSorterDirectMemoryRatioThreshold,
-    conf.workerDirectMemoryRatioForReadBuffer,
-    conf.workerDirectMemoryRatioForShuffleStorage,
-    conf.workerDirectMemoryPressureCheckIntervalMs,
-    conf.workerDirectMemoryReportIntervalSecond)
+  val memoryManager = MemoryManager.initialize(conf)
   memoryManager.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
@@ -118,7 +107,7 @@ private[celeborn] class Worker(
   }
 
   var controller = new Controller(rpcEnv, conf, metricsSystem)
-  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller, Some(rpcSource))
+  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
   val pushDataHandler = new PushDataHandler()
   val (pushServer, pushClientFactory) = {
@@ -126,7 +115,7 @@ private[celeborn] class Worker(
     val numThreads = conf.workerPushIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
-    val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE)
+    val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE, conf)
     val transportContext: TransportContext =
       new TransportContext(transportConf, pushDataHandler, closeIdleConnections, pushServerLimiter)
     (
@@ -141,7 +130,7 @@ private[celeborn] class Worker(
       conf.workerReplicateIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.REPLICATE_MODULE, numThreads)
-    val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE)
+    val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE, conf)
     val transportContext: TransportContext =
       new TransportContext(transportConf, replicateHandler, closeIdleConnections, replicateLimiter)
     transportContext.createServer(conf.workerReplicatePort)
@@ -241,10 +230,13 @@ private[celeborn] class Worker(
     _ => memoryManager.getPausePushDataAndReplicateCounter)
   workerSource.addGauge(
     WorkerSource.BufferStreamReadBuffer,
-    _ => memoryManager.getReadBufferCounter.get())
+    _ => memoryManager.getReadBufferCounter())
   workerSource.addGauge(
-    WorkerSource.readBufferDispatcherRequestsLength,
+    WorkerSource.ReadBufferDispatcherRequestsLength,
     _ => memoryManager.dispatchRequestsLength)
+  workerSource.addGauge(
+    WorkerSource.ReadBufferAllocatedCount,
+    _ => memoryManager.getAllocatedReadBuffers)
 
   private def heartBeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
@@ -376,6 +368,7 @@ private[celeborn] class Worker(
       if (null != storageManager) {
         storageManager.close()
       }
+      memoryManager.close();
 
       rssHARetryClient.close()
       replicateServer.close()
@@ -433,8 +426,6 @@ private[celeborn] class Worker(
   @VisibleForTesting
   def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
-      partitionLocationInfo.removeMasterPartitions(shuffleKey)
-      partitionLocationInfo.removeSlavePartitions(shuffleKey)
       partitionLocationInfo.removeShuffle(shuffleKey)
       shufflePartitionType.remove(shuffleKey)
       shufflePushDataTimeout.remove(shuffleKey)
@@ -505,7 +496,7 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
-      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}$time\n")
+      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${simpleDateFormat.format(time)}\n")
     }
     sb.toString()
   }

@@ -62,6 +62,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
@@ -132,6 +133,8 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   private final BufferDecompressor bufferDecompressor;
 
   private FlinkShuffleClientImpl shuffleClient;
+
+  private int numOpenedReaders = 0;
 
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
@@ -368,8 +371,12 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
 
   /** Try to open more readers to {@link #numConcurrentReading}. */
   private void tryOpenSomeChannels() throws IOException {
-    List<RemoteBufferStreamReader> readersToOpen = new ArrayList<>();
+    if (bufferReaders.size() == numOpenedReaders) {
+      // all readers are already opened
+      return;
+    }
 
+    List<RemoteBufferStreamReader> readersToOpen = new ArrayList<>();
     synchronized (lock) {
       if (closed) {
         throw new IOException("Input gate already closed.");
@@ -403,6 +410,7 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
 
     for (RemoteBufferStreamReader reader : readersToOpen) {
       reader.open(0);
+      numOpenedReaders++;
     }
   }
 
@@ -476,7 +484,12 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
           return;
         }
         LOG.error("Input {} gate failed ", this, throwable);
-        cause = new PartitionNotFoundException(rpID);
+        Class<?> clazz = PartitionUnRetryAbleException.class;
+        if (throwable.getMessage() != null && throwable.getMessage().contains(clazz.getName())) {
+          cause = new PartitionNotFoundException(rpID);
+        } else {
+          cause = throwable;
+        }
         availabilityHelper.getUnavailableToResetAvailable().complete(null);
       }
     };

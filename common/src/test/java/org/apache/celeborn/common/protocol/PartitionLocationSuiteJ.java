@@ -20,8 +20,6 @@ package org.apache.celeborn.common.protocol;
 import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
 
-import org.apache.celeborn.common.util.PackedPartitionId;
-
 public class PartitionLocationSuiteJ {
 
   private final int partitionId = 0;
@@ -186,12 +184,10 @@ public class PartitionLocationSuiteJ {
     bitmap.add(2);
     bitmap.add(3);
 
-    int attemptId = 10;
-    int rawPartitionId = 1000;
-    int newPartitionId = PackedPartitionId.packedPartitionId(rawPartitionId, attemptId);
+    int partitionId = 1000;
     PartitionLocation location3 =
         new PartitionLocation(
-            newPartitionId,
+            partitionId,
             epoch,
             host,
             rpcPort,
@@ -205,7 +201,7 @@ public class PartitionLocationSuiteJ {
 
     String exp1 =
         "PartitionLocation[\n"
-            + "  id(rawId-attemptId)-epoch:0(0-0)-0\n"
+            + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(empty)\n"
@@ -213,7 +209,7 @@ public class PartitionLocationSuiteJ {
             + "  mapIdBitMap:{}]";
     String exp2 =
         "PartitionLocation[\n"
-            + "  id(rawId-attemptId)-epoch:0(0-0)-0\n"
+            + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
@@ -221,16 +217,12 @@ public class PartitionLocationSuiteJ {
             + "  mapIdBitMap:{}]";
     String exp3 =
         "PartitionLocation[\n"
-            + "  id(rawId-attemptId)-epoch:167773160(1000-10)-0\n"
+            + "  id-epoch:1000-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:MASTER\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
             + "  storage hint:StorageInfo{type=MEMORY, mountPoint='/mnt/disk/0', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{1,2,3}]";
-    System.out.println(location1);
-    System.out.println(location2);
-    System.out.println(location3);
-
     assert exp1.equals(location1.toString());
     assert exp2.equals(location2.toString());
     assert exp3.equals(location3.toString());

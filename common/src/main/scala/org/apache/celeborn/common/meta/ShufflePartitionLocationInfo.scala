@@ -19,6 +19,7 @@ package org.apache.celeborn.common.meta
 
 import java.util
 import java.util.concurrent.ConcurrentHashMap
+import java.util.stream.Collectors
 
 import scala.collection.JavaConverters._
 
@@ -26,6 +27,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation
 
 class ShufflePartitionLocationInfo {
   type PartitionInfo = ConcurrentHashMap[Int, util.Set[PartitionLocation]]
+
   private val masterPartitionLocations = new PartitionInfo
   private val slavePartitionLocations = new PartitionInfo
   implicit val partitionOrdering: Ordering[PartitionLocation] = Ordering.by(_.getEpoch)
@@ -57,6 +59,12 @@ class ShufflePartitionLocationInfo {
 
   def removeSlavePartitions(partitionId: Int): util.Set[PartitionLocation] = {
     removePartitions(slavePartitionLocations, partitionId)
+  }
+
+  def removeAndGetAllMasterPartitionIds(): util.Set[Integer] = {
+    masterPartitionLocations.entrySet().asScala
+      .filter(e => masterPartitionLocations.remove(e.getKey, e.getValue))
+      .map(e => e.getKey).toSet.asJava.asInstanceOf[util.Set[Integer]]
   }
 
   private def removePartitions(

@@ -15,28 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.plugin.flink;
+package org.apache.celeborn.service.deploy.worker.memory;
 
-public class ShuffleTask {
-  private final int shuffleId;
-  private final int mapId;
-  private final int attemptId;
+import java.util.List;
 
-  public ShuffleTask(int shuffleId, int mapId, int attemptId) {
-    this.shuffleId = shuffleId;
-    this.mapId = mapId;
-    this.attemptId = attemptId;
-  }
+import io.netty.buffer.ByteBuf;
 
-  public int getShuffleId() {
-    return shuffleId;
-  }
-
-  public int getMapId() {
-    return mapId;
-  }
-
-  public int getAttemptId() {
-    return attemptId;
-  }
+// Do not execute blocking task here.
+public interface ReadBufferListener {
+  void notifyBuffers(List<ByteBuf> allocatedBuffers, Throwable throwable);
 }

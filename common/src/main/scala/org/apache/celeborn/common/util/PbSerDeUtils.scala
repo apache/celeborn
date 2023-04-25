@@ -83,18 +83,16 @@ object PbSerDeUtils {
       .build
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo): FileInfo =
-    new FileInfo(
-      pbFileInfo.getFilePath,
-      pbFileInfo.getChunkOffsetsList,
-      fromPbUserIdentifier(pbFileInfo.getUserIdentifier),
-      Utils.toPartitionType(pbFileInfo.getPartitionType))
+    fromPbFileInfo(pbFileInfo, fromPbUserIdentifier(pbFileInfo.getUserIdentifier))
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) =
     new FileInfo(
       pbFileInfo.getFilePath,
       pbFileInfo.getChunkOffsetsList,
       userIdentifier,
-      Utils.toPartitionType(pbFileInfo.getPartitionType))
+      Utils.toPartitionType(pbFileInfo.getPartitionType),
+      pbFileInfo.getBufferSize,
+      pbFileInfo.getNumSubpartitions)
 
   def toPbFileInfo(fileInfo: FileInfo): PbFileInfo =
     PbFileInfo.newBuilder
@@ -102,6 +100,8 @@ object PbSerDeUtils {
       .addAllChunkOffsets(fileInfo.getChunkOffsets)
       .setUserIdentifier(toPbUserIdentifier(fileInfo.getUserIdentifier))
       .setPartitionType(fileInfo.getPartitionType.getValue)
+      .setBufferSize(fileInfo.getBufferSize)
+      .setNumSubpartitions(fileInfo.getNumSubpartitions)
       .build
 
   @throws[InvalidProtocolBufferException]
@@ -365,7 +365,7 @@ object PbSerDeUtils {
       blacklist: java.util.Set[WorkerInfo],
       workerLostEvent: java.util.Set[WorkerInfo],
       appHeartbeatTime: java.util.Map[String, java.lang.Long],
-      workers: java.util.ArrayList[WorkerInfo],
+      workers: java.util.List[WorkerInfo],
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],

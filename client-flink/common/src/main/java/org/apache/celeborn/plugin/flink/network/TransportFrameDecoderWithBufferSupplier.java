@@ -54,9 +54,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
 
   private void copyByteBuf(io.netty.buffer.ByteBuf source, ByteBuf target, int targetSize) {
     int bytes = Math.min(source.readableBytes(), targetSize - target.readableBytes());
-    for (int i = 0; i < bytes; i++) {
-      target.writeByte(source.readByte());
-    }
+    target.writeBytes(source.readSlice(bytes).nioBuffer());
   }
 
   private void decodeHeader(io.netty.buffer.ByteBuf buf, ChannelHandlerContext ctx) {

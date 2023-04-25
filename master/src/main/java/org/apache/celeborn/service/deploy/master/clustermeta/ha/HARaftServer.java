@@ -41,6 +41,7 @@ import org.apache.ratis.protocol.*;
 import org.apache.ratis.protocol.exceptions.LeaderNotReadyException;
 import org.apache.ratis.protocol.exceptions.NotLeaderException;
 import org.apache.ratis.protocol.exceptions.StateMachineException;
+import org.apache.ratis.rpc.CallId;
 import org.apache.ratis.rpc.RpcType;
 import org.apache.ratis.rpc.SupportedRpcType;
 import org.apache.ratis.server.RaftServer;
@@ -499,5 +500,26 @@ public class HARaftServer {
 
   public String getRpcEndpoint() {
     return this.rpcEndpoint;
+  }
+
+  void stepDown() {
+    try {
+      TransferLeadershipRequest request =
+          new TransferLeadershipRequest(
+              clientId,
+              server.getId(),
+              raftGroup.getGroupId(),
+              CallId.getAndIncrement(),
+              null,
+              60_000);
+      RaftClientReply reply = server.transferLeadership(request);
+      if (reply.isSuccess()) {
+        LOG.info("Successfully step down leader {}.", server.getId());
+      } else {
+        LOG.warn("Step down leader failed!");
+      }
+    } catch (Exception e) {
+      LOG.warn("Step down leader failed!", e);
+    }
   }
 }

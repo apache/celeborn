@@ -15,13 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.memory;
+package org.apache.celeborn.client.listener;
 
 import java.util.List;
 
-import io.netty.buffer.ByteBuf;
+import org.apache.celeborn.common.meta.WorkerInfo;
 
-// Do not execute blocking task here.
-public interface ReadBufferListener {
-  void notifyBuffers(List<ByteBuf> allocatedBuffers, Throwable throwable);
+public class WorkersStatus {
+  public final List<WorkerInfo> unknownWorkers;
+
+  public final List<WorkerInfo> shutdownWorkers;
+
+  public WorkersStatus(List<WorkerInfo> unknownWorkers, List<WorkerInfo> shutdownWorkers) {
+    this.unknownWorkers = unknownWorkers;
+    this.shutdownWorkers = shutdownWorkers;
+  }
 }

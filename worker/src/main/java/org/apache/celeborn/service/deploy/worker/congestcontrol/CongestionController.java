@@ -28,10 +28,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 public class CongestionController {
 
@@ -76,6 +76,9 @@ public class CongestionController {
 
     this.workerSource.addGauge(
         WorkerSource.PotentialConsumeSpeed(), this::getPotentialConsumeSpeed);
+
+    this.workerSource.addGauge(
+        WorkerSource.WorkerConsumeSpeed(), consumedBufferStatusHub::avgBytesPerSec);
   }
 
   public static synchronized CongestionController initialize(

@@ -101,7 +101,7 @@ fi
 
 execute_command() {
   if [ -z ${CELEBORN_NO_DAEMONIZE+set} ]; then
-      nohup -- "$@" >> $log 2>&1 < /dev/null &
+      exec nohup -- "$@" >> $log 2>&1 < /dev/null &
       newpid="$!"
 
       echo "$newpid" > "$pid"
@@ -123,7 +123,7 @@ execute_command() {
         echo "full log in $log"
       fi
   else
-      "$@"
+      exec "$@"
   fi
 }
 

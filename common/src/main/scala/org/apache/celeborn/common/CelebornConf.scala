@@ -373,6 +373,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def portMaxRetries: Int = get(PORT_MAX_RETRY)
   def networkTimeout: RpcTimeout =
     new RpcTimeout(get(NETWORK_TIMEOUT).milli, NETWORK_TIMEOUT.key)
+  def rpcIoThreads: Option[Int] = get(RPC_IO_THREAD)
   def rpcConnectThreads: Int = get(RPC_CONNECT_THREADS)
   def rpcLookupTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
@@ -526,7 +527,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleManagerPort: Int = get(SHUFFLE_MANAGER_PORT)
-  def shuffleChunkSize: Long = get(SHUFFLE_CHUCK_SIZE)
+  def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWaitMs: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
   def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
@@ -535,7 +536,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
-  def workerExcludedCheckIntervalMs: Long = get(WORKER_EXCLUDED_INTERVAL)
+  def workerCheckedUseAllocatedWorkers: Boolean = get(WORKER_CHECKED_USE_ALLOCATED_WORKERS)
   def workerExcludedExpireTimeout: Long = get(WORKER_EXCLUDED_EXPIRE_TIMEOUT)
   def blacklistSlaveEnabled: Boolean = get(BLACKLIST_SLAVE_ENABLED)
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
@@ -769,14 +770,21 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
-  def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
+  def workerDirectMemoryTrimChannelWaitInterval: Long =
+    get(WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL)
+  def workerDirectMemoryTrimFlushWaitInterval: Long =
+    get(WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL)
   def workerDirectMemoryRatioForShuffleStorage: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
-
+  def creditStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
+  def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
   def partitionReadBuffersMin: Int = get(WORKER_PARTITION_READ_BUFFERS_MIN)
-
   def partitionReadBuffersMax: Int = get(WORKER_PARTITION_READ_BUFFERS_MAX)
-  def bufferStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
+  def readBufferAllocationWait: Long = get(WORKER_READBUFFER_ALLOCATIONWAIT)
+  def readBufferTargetRatio: Double = get(WORKER_READBUFFER_TARGET_RATIO)
+  def readBufferTargetUpdateInterval: Long = get(WORKER_READBUFFER_TARGET_UPDATE_INTERVAL)
+  def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
+  def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -1068,6 +1076,16 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
+
+  val RPC_IO_THREAD: OptionalConfigEntry[Int] =
+    buildConf("celeborn.rpc.io.threads")
+      .withAlternative("rss.rpc.io.threads")
+      .categories("network")
+      .doc("Netty IO thread number of NettyRpcEnv to handle RPC request. " +
+        "The default threads number is the number of runtime available processors.")
+      .version("0.2.0")
+      .intConf
+      .createOptional
 
   val RPC_CONNECT_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.rpc.connect.threads")
@@ -1425,14 +1443,16 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
-  val WORKER_EXCLUDED_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.excluded.checkInterval")
-      .withAlternative("rss.get.blacklist.delay")
+  val WORKER_CHECKED_USE_ALLOCATED_WORKERS: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.checked.useAllocatedWorkers")
+      .internal
       .categories("client")
-      .version("0.2.0")
-      .doc("Interval for client to refresh excluded worker list.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
+      .version("0.3.0")
+      .doc("When true, Celeborn will use local allocated workers as candidate being checked workers(check the workers" +
+        "whether unKnown in master), this may be more useful for map partition to regenerate the lost data), " +
+        "otherwise use local black list as candidate being checked workers.")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_EXCLUDED_EXPIRE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.excluded.expireTimeout")
@@ -1451,8 +1471,8 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val SHUFFLE_CHUCK_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.chuck.size")
+  val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.chunk.size")
       .withAlternative("rss.chunk.size")
       .categories("client", "worker")
       .version("0.2.0")
@@ -2875,6 +2895,22 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
 
+  val WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.memory.trimChannelWaitInterval")
+      .categories("worker")
+      .doc("Wait time after worker trigger channel to trim cache.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
+
+  val WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.memory.trimFlushWaitInterval")
+      .categories("worker")
+      .doc("Wait time after worker trigger StorageManger to flush data.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
+
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
       .categories("worker")
@@ -3081,7 +3117,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Min number of initial read buffers")
       .intConf
-      .createWithDefault(8)
+      .createWithDefault(1)
 
   val WORKER_PARTITION_READ_BUFFERS_MAX: ConfigEntry[Int] =
     buildConf("celeborn.worker.partition.initial.readBuffersMax")
@@ -3089,7 +3125,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Max number of initial read buffers")
       .intConf
-      .createWithDefault(8)
+      .createWithDefault(1024)
 
   val WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT: ConfigEntry[Int] =
     buildConf("celeborn.worker.bufferStream.threadsPerMountpoint")
@@ -3098,6 +3134,46 @@ object CelebornConf extends Logging {
       .doc("Threads count for read buffer per mount point.")
       .intConf
       .createWithDefault(8)
+
+  val WORKER_READBUFFER_ALLOCATIONWAIT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.readBuffer.allocationWait")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("The time to wait when buffer dispatcher can not allocate a buffer.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("50ms")
+
+  val WORKER_READBUFFER_TARGET_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.worker.readBuffer.target.ratio")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("The target ratio for read ahead buffer's memory usage.")
+      .doubleConf
+      .createWithDefault(0.9)
+
+  val WORKER_READBUFFER_TARGET_UPDATE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.readBuffer.target.updateInterval")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("The interval for memory manager to calculate new read buffer's target memory.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("100ms")
+
+  val WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.worker.readBuffer.target.changeThreshold")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("The target ratio for pre read memory usage.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1mb")
+
+  val WORKER_READBUFFERS_TOTRIGGERREAD_MIN: ConfigEntry[Int] =
+    buildConf("celeborn.worker.readBuffer.toTriggerReadMin")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Min buffers count for map data partition to trigger read.")
+      .intConf
+      .createWithDefault(32)
 
   val METRICS_EXTRA_LABELS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.metrics.extraLabels")

@@ -58,6 +58,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           ThreadUtils.createFactoryWithDefaultExceptionHandler(
               "remote-shuffle-master-executor", LOG));
 
+  private ShuffleResourceTracker shuffleResourceTracker;
+
   public RemoteShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
     this.shuffleMasterContext = shuffleMasterContext;
   }
@@ -72,12 +74,21 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           celebornAppId = FlinkUtils.toCelebornAppId(jobID);
           CelebornConf celebornConf =
               FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
+          // if not set, set to true as default for flink
+          celebornConf.setIfMissing(CelebornConf.WORKER_CHECKED_USE_ALLOCATED_WORKERS(), true);
           lifecycleManager = new LifecycleManager(celebornAppId, celebornConf);
+          if (celebornConf.pushReplicateEnabled()) {
+            shuffleMasterContext.onFatalError(
+                new RuntimeException("Currently replicate shuffle data is unsupported for flink."));
+            return;
+          }
+          this.shuffleResourceTracker = new ShuffleResourceTracker(executor, lifecycleManager);
         }
       }
     }
 
     Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
+    shuffleResourceTracker.registerJob(context);
     if (previousShuffleIds != null) {
       throw new RuntimeException("Duplicated registration job: " + jobID);
     }
@@ -95,6 +106,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
                 lifecycleManager.handleUnregisterShuffle(celebornAppId, shuffleId);
                 shuffleTaskInfo.removeExpiredShuffle(shuffleId);
               }
+              shuffleResourceTracker.unRegisterJob(jobID);
             } catch (Throwable throwable) {
               LOG.error("Encounter an error when unregistering job: {}.", jobID, throwable);
             }
@@ -115,25 +127,31 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
               FlinkResultPartitionInfo resultPartitionInfo =
                   new FlinkResultPartitionInfo(jobID, partitionDescriptor, producerDescriptor);
-              ShuffleTask shuffleTask =
-                  encodeExternalShuffleTask(
+              ShuffleResourceDescriptor shuffleResourceDescriptor =
+                  genShuffleResourceDescriptor(
                       resultPartitionInfo.getShuffleId(),
                       resultPartitionInfo.getTaskId(),
                       resultPartitionInfo.getAttemptId());
 
               synchronized (shuffleIds) {
-                shuffleIds.add(shuffleTask.getShuffleId());
+                shuffleIds.add(shuffleResourceDescriptor.getShuffleId());
               }
 
-              ShuffleResourceDescriptor shuffleResourceDescriptor =
-                  new ShuffleResourceDescriptor(shuffleTask);
               RemoteShuffleResource remoteShuffleResource =
                   new RemoteShuffleResource(
                       lifecycleManager.getRssMetaServiceHost(),
                       lifecycleManager.getRssMetaServicePort(),
                       shuffleResourceDescriptor);
+
+              shuffleResourceTracker.addPartitionResource(
+                  jobID,
+                  shuffleResourceDescriptor.getShuffleId(),
+                  shuffleResourceDescriptor.getPartitionId(),
+                  resultPartitionInfo.getResultPartitionId());
+
               return new RemoteShuffleDescriptor(
                   celebornAppId,
+                  jobID,
                   resultPartitionInfo.getShuffleId(),
                   resultPartitionInfo.getResultPartitionId(),
                   remoteShuffleResource);
@@ -163,6 +181,10 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
             LOG.debug("release partition resource: {}.", resourceDescriptor);
             lifecycleManager.releasePartition(
                 resourceDescriptor.getShuffleId(), resourceDescriptor.getPartitionId());
+            shuffleResourceTracker.removePartitionResource(
+                descriptor.getJobId(),
+                resourceDescriptor.getShuffleId(),
+                resourceDescriptor.getPartitionId());
           } catch (Throwable throwable) {
             // it is not a problem if we failed to release the target data partition
             // because the session timeout mechanism will do the work for us latter
@@ -214,18 +236,20 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     ThreadUtils.shutdownExecutors(10, executor);
   }
 
-  private ShuffleTask encodeExternalShuffleTask(
+  private ShuffleResourceDescriptor genShuffleResourceDescriptor(
       String taskShuffleId, int mapId, String taskAttemptId) {
     int shuffleId = shuffleTaskInfo.getShuffleId(taskShuffleId);
-    int attemptId = shuffleTaskInfo.getAttemptId(taskShuffleId, mapId, taskAttemptId);
+    int attemptId = shuffleTaskInfo.genAttemptId(shuffleId, mapId);
+    int partitionId = shuffleTaskInfo.genPartitionId(shuffleId);
     LOG.info(
-        "encode task from ({}, {}, {}) to ({}, {},, {})",
+        "Assign for ({}, {}, {}) resource ({}, {}, {}, {})",
         taskShuffleId,
         mapId,
         taskAttemptId,
         shuffleId,
         mapId,
-        attemptId);
-    return new ShuffleTask(shuffleId, mapId, attemptId);
+        attemptId,
+        partitionId);
+    return new ShuffleResourceDescriptor(shuffleId, mapId, attemptId, partitionId);
   }
 }

@@ -27,7 +27,12 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   import WorkerSource._
   // add counters
-  addCounter(PushDataFailCount)
+  addCounter(WriteDataFailCount)
+  addCounter(ReplicateDataFailCount)
+  addCounter(ReplicateDataWriteFailCount)
+  addCounter(ReplicateDataCreateConnectionFailCount)
+  addCounter(ReplicateDataConnectionExceptionCount)
+  addCounter(ReplicateDataTimeoutCount)
 
   // add Timers
   addTimer(CommitFilesTime)
@@ -66,7 +71,12 @@ object WorkerSource {
   // push data
   val MasterPushDataTime = "MasterPushDataTime"
   val SlavePushDataTime = "SlavePushDataTime"
-  val PushDataFailCount = "PushDataFailCount"
+  val WriteDataFailCount = "WriteDataFailCount"
+  val ReplicateDataFailCount = "ReplicateDataFailCount"
+  val ReplicateDataWriteFailCount = "ReplicateDataWriteFailCount"
+  val ReplicateDataCreateConnectionFailCount = "ReplicateDataCreateConnectionFailCount"
+  val ReplicateDataConnectionExceptionCount = "ReplicateDataConnectionExceptionCount"
+  val ReplicateDataTimeoutCount = "ReplicateDataTimeoutCount"
   val PushDataHandshakeFailCount = "PushDataHandshakeFailCount"
   val RegionStartFailCount = "RegionStartFailCount"
   val RegionFinishFailCount = "RegionFinishFailCount"
@@ -97,7 +107,10 @@ object WorkerSource {
   val PausePushDataCount = "PausePushData"
   val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
   val BufferStreamReadBuffer = "BufferStreamReadBuffer"
-  val readBufferDispatcherRequestsLength = "ReadBufferDispatcherRequestsLength"
+  val ReadBufferDispatcherRequestsLength = "ReadBufferDispatcherRequestsLength"
+  val ReadBufferAllocatedCount = "ReadBufferAllocatedCount"
+  val CreditStreamCount = "CreditStreamCount"
+  val ActiveMapPartitionCount = "ActiveMapPartitionCount"
 
   // local device
   val DeviceOSFreeCapacity = "DeviceOSFreeCapacity(B)"
@@ -108,4 +121,5 @@ object WorkerSource {
   // Congestion control
   val PotentialConsumeSpeed = "PotentialConsumeSpeed"
   val UserProduceSpeed = "UserProduceSpeed"
+  val WorkerConsumeSpeed = "WorkerConsumeSpeed"
 }

@@ -47,7 +47,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.util.PackedPartitionId;
 import org.apache.celeborn.plugin.flink.config.PluginConf;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
@@ -124,8 +123,6 @@ public class RemoteShuffleMasterTest {
     mapPartitionShuffleDescriptor =
         remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
-    Assert.assertEquals(
-        PackedPartitionId.packedPartitionId(1, 1), mapPartitionShuffleDescriptor.getPartitionId());
     Assert.assertEquals(1, mapPartitionShuffleDescriptor.getAttemptId());
     Assert.assertEquals(1, mapPartitionShuffleDescriptor.getMapId());
   }

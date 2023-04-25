@@ -31,7 +31,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, RPCSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -138,7 +138,6 @@ private[celeborn] class Master(
   private val slotsAssignPolicy = conf.slotsAssignPolicy
 
   // init and register master metrics
-  val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
   val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
   masterSource.addGauge(
@@ -153,13 +152,12 @@ private[celeborn] class Master(
   // is master active under HA mode
   masterSource.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
 
-  metricsSystem.registerSource(rpcSource)
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
 
-  rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this, Some(rpcSource))
+  rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
@@ -223,11 +221,17 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+    case HeartbeatFromApplication(appId, totalWritten, fileCount, localBlacklist, requestId) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
-        handleHeartbeatFromApplication(context, appId, totalWritten, fileCount, requestId))
+        handleHeartbeatFromApplication(
+          context,
+          appId,
+          totalWritten,
+          fileCount,
+          localBlacklist,
+          requestId))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -598,8 +602,7 @@ private[celeborn] class Master(
       GetBlacklistResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(statusSystem.blacklist),
-        msg.localBlacklist,
-        shutdownWorkerSnapshot))
+        msg.localBlacklist))
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
@@ -631,6 +634,7 @@ private[celeborn] class Master(
       appId: String,
       totalWritten: Long,
       fileCount: Long,
+      needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
@@ -638,7 +642,13 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    context.reply(OneWayMessageResponse)
+    // unknown workers will retain in needCheckedWorkerList
+    needCheckedWorkerList.removeAll(workersSnapShot)
+    context.reply(HeartbeatFromApplicationResponse(
+      StatusCode.SUCCESS,
+      new util.ArrayList(statusSystem.blacklist),
+      needCheckedWorkerList,
+      shutdownWorkerSnapshot))
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
@@ -702,25 +712,10 @@ private[celeborn] class Master(
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Workers Info in Master ===========================")
+
     workersSnapShot.asScala.foreach { w =>
-      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}in Master\n")
+      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}\n")
       sb.append(w).append("\n")
-
-      sb.append("\n")
-      val workerInfo = requestGetWorkerInfos(w.endpoint)
-        .workerInfos.asJava
-        .get(0)
-
-      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}in Worker\n")
-      sb.append(workerInfo).append("\n")
-      sb.append("\n")
-
-      if (w.hasSameInfoWith(workerInfo)) {
-        sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}status consist!\n")
-      } else {
-        sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}status not consist!\n")
-      }
-      sb.append("=====================================================================\n")
     }
 
     sb.toString()
@@ -729,8 +724,8 @@ private[celeborn] class Master(
   override def getLostWorkers: String = {
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
-    lostWorkersSnapshot.asScala.foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$time\n")
+    lostWorkersSnapshot.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${simpleDateFormat.format(time)}\n")
     }
     sb.toString()
   }
@@ -772,8 +767,8 @@ private[celeborn] class Master(
   override def getApplicationList: String = {
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Hostname List ======================\n")
-    statusSystem.appHeartbeatTime.asScala.foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}$time\n")
+    statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
+      sb.append(s"${appId.padTo(40, " ").mkString}${simpleDateFormat.format(time)}\n")
     }
     sb.toString()
   }

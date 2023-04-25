@@ -15,30 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server.memory;
+package org.apache.celeborn.common.exception
 
-import java.util.function.Consumer;
+import java.io.IOException
 
-import io.netty.buffer.ByteBuf;
+class PartitionUnRetryAbleException(message: String, cause: Throwable)
+  extends IOException(message, cause) {
 
-public class BufferRecycler implements Recycler {
+  def this(message: String) = this(message, null)
 
-  private MemoryManager memoryManager;
-
-  private Consumer<ByteBuf> recycleConsumer;
-
-  public BufferRecycler(MemoryManager memoryManager, Consumer<ByteBuf> recycleConsumer) {
-    this.memoryManager = memoryManager;
-    this.recycleConsumer = recycleConsumer;
-  }
-
-  @Override
-  public void recycle(ByteBuf byteBuf) {
-    recycleConsumer.accept(byteBuf);
-  }
-
-  @Override
-  public void release(ByteBuf byteBuf) {
-    memoryManager.recycleReadBuffer(byteBuf);
-  }
 }

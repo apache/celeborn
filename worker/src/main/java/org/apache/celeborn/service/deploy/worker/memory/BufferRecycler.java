@@ -15,29 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network;
+package org.apache.celeborn.service.deploy.worker.memory;
 
-import java.net.InetAddress;
-import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 
-public class TestUtils {
-  public static String getLocalHost() {
-    try {
-      return InetAddress.getLocalHost().getHostAddress();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+import io.netty.buffer.ByteBuf;
+
+public class BufferRecycler {
+
+  private Consumer<ByteBuf> recycleConsumer;
+
+  public BufferRecycler(Consumer<ByteBuf> recycleConsumer) {
+    this.recycleConsumer = recycleConsumer;
   }
 
-  public static void timeOutOrMeetCondition(Callable<Boolean> callable) throws Exception {
-    int timeout = 10000; // 10s
-    while (true) {
-      if (callable.call() || timeout < 0) {
-        break;
-      }
-
-      timeout = timeout - 100;
-      Thread.sleep(100);
-    }
+  public void recycle(ByteBuf byteBuf) {
+    recycleConsumer.accept(byteBuf);
   }
 }

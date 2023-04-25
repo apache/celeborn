@@ -17,29 +17,36 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha
 
+import java.io.IOException
 import java.net.{InetAddress, InetSocketAddress}
 
-import org.apache.hadoop.yarn.nodelabels.CommonNodeLabelsManager.Host
+import scala.util.{Failure, Success}
+
+import org.apache.ratis.util.NetUtils
+
+import org.apache.celeborn.common.internal.Logging
 
 case class MasterNode(
     nodeId: String,
-    ratisAddr: InetSocketAddress,
-    rpcAddr: InetSocketAddress) {
+    ratisHost: String,
+    ratisPort: Int,
+    rpcHost: String,
+    rpcPort: Int) {
 
   def isRatisHostUnresolved: Boolean = ratisAddr.isUnresolved
 
   def ratisIpAddr: InetAddress = ratisAddr.getAddress
 
-  def ratisPort: Int = ratisAddr.getPort
+  def ratisEndpoint: String = ratisHost + ":" + ratisPort
 
-  def rpcPort: Int = rpcAddr.getPort
+  def rpcEndpoint: String = rpcHost + ":" + rpcPort
 
-  def ratisEndpoint: String = ratisAddr.getHostName + ":" + ratisAddr.getPort
+  lazy val ratisAddr = MasterNode.createSocketAddr(ratisHost, ratisPort)
 
-  def rpcEndpoint: String = rpcAddr.getHostName + ":" + rpcPort
+  lazy val rpcAddr = MasterNode.createSocketAddr(rpcHost, rpcPort)
 }
 
-object MasterNode {
+object MasterNode extends Logging {
 
   class Builder {
     private var nodeId: String = _
@@ -79,9 +86,24 @@ object MasterNode {
       this
     }
 
-    def build: MasterNode = MasterNode(
-      nodeId,
-      new InetSocketAddress(ratisHost, ratisPort),
-      new InetSocketAddress(rpcHost, rpcPort))
+    def build: MasterNode = MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort)
+  }
+
+  private def createSocketAddr(host: String, port: Int): InetSocketAddress = {
+    val socketAddr: InetSocketAddress = {
+      try {
+        NetUtils.createSocketAddr(host, port)
+      } catch {
+        case e: Throwable =>
+          throw new IOException(
+            s"Couldn't create socket address for $host:$port",
+            e)
+      }
+    }
+    if (socketAddr.isUnresolved)
+      logError(s"Address of $host:$port couldn't be resolved. " +
+        s"Proceeding with unresolved host to create Ratis ring.")
+
+    socketAddr
   }
 }

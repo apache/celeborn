@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.server;
+package org.apache.celeborn.service.deploy.worker.memory;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
@@ -29,7 +30,7 @@ import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
+import org.apache.celeborn.common.CelebornConf;
 
 @ChannelHandler.Sharable
 public class ChannelsLimiter extends ChannelDuplexHandler
@@ -39,9 +40,12 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
   private final String moduleName;
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
+  private AtomicInteger needTrimChannels = new AtomicInteger(0);
+  private long waitTrimInterval;
 
-  public ChannelsLimiter(String moduleName) {
+  public ChannelsLimiter(String moduleName, CelebornConf conf) {
     this.moduleName = moduleName;
+    this.waitTrimInterval = conf.workerDirectMemoryTrimChannelWaitInterval();
     MemoryManager memoryManager = MemoryManager.instance();
     memoryManager.registerMemoryListener(this);
   }
@@ -57,7 +61,22 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   }
 
   private void trimCache() {
-    channels.forEach(c -> c.pipeline().fireUserEventTriggered(new TrimCache()));
+    needTrimChannels.set(0);
+    channels.forEach(
+        c -> {
+          needTrimChannels.incrementAndGet();
+          c.pipeline().fireUserEventTriggered(new TrimCache());
+        });
+    long delta = 100L;
+    int retryTime = 0;
+    while (needTrimChannels.get() > 0 && retryTime * delta < waitTrimInterval) {
+      try {
+        retryTime += 1;
+        Thread.sleep(delta);
+      } catch (InterruptedException e) {
+        // Do nothing
+      }
+    }
   }
 
   private void resumeAllChannels() {
@@ -102,6 +121,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
     if (evt instanceof TrimCache) {
       ((PooledByteBufAllocator) ctx.alloc()).trimCurrentThreadCache();
+      needTrimChannels.decrementAndGet();
     }
   }
 

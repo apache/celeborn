@@ -383,8 +383,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @VisibleForTesting
   public PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId) throws IOException {
-    int partitionId = PackedPartitionId.packedPartitionId(mapId, attemptId);
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId)
+      throws IOException {
     logger.info(
         "Register MapPartition task for shuffle {} map {} attempt {} partition {} with {} mapper.",
         shuffleId,

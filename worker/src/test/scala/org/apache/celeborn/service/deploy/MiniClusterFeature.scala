@@ -70,7 +70,7 @@ trait MiniClusterFeature extends Logging {
     val conf = new CelebornConf()
     conf.set("celeborn.worker.storage.dirs", createTmpDir())
     conf.set("celeborn.worker.monitor.disk.enabled", "false")
-    conf.set("celeborn.push.buffer.size", "256K")
+    conf.set("celeborn.push.buffer.max.size", "256K")
     conf.set(
       "celeborn.worker.metrics.prometheus.port",
       s"${workerPrometheusPort.incrementAndGet()}")

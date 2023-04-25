@@ -34,21 +34,21 @@ public class ShuffleTaskInfoSuitJ {
     int encodeShuffleId0 = shuffleTaskInfo.getShuffleId("shuffleId");
     Assert.assertEquals(encodeShuffleId0, 0);
 
-    int encodeAttemptId011 = shuffleTaskInfo.getAttemptId("shuffleId", 1, "attempt1");
-    int encodeAttemptId112 = shuffleTaskInfo.getAttemptId("shuffleId1", 1, "attempt2");
-    int encodeAttemptId021 = shuffleTaskInfo.getAttemptId("shuffleId", 2, "attempt1");
-    int encodeAttemptId012 = shuffleTaskInfo.getAttemptId("shuffleId", 1, "attempt2");
+    int encodeAttemptId011 = shuffleTaskInfo.genAttemptId(encodeShuffleId1, 1);
+    int encodeAttemptId112 = shuffleTaskInfo.genAttemptId(encodeShuffleId1, 1);
+    int encodeAttemptId021 = shuffleTaskInfo.genAttemptId(encodeShuffleId0, 2);
+    int encodeAttemptId012 = shuffleTaskInfo.genAttemptId(encodeShuffleId0, 1);
     Assert.assertEquals(encodeAttemptId011, 0);
-    Assert.assertEquals(encodeAttemptId112, 0);
+    Assert.assertEquals(encodeAttemptId112, 1);
     Assert.assertEquals(encodeAttemptId021, 0);
-    Assert.assertEquals(encodeAttemptId012, 1);
+    Assert.assertEquals(encodeAttemptId012, 0);
 
     // remove shuffleId and reEncode
     shuffleTaskInfo.removeExpiredShuffle(encodeShuffleId);
     int encodeShuffleIdNew = shuffleTaskInfo.getShuffleId("shuffleId");
     Assert.assertEquals(encodeShuffleIdNew, 2);
 
-    int encodeAttemptId211 = shuffleTaskInfo.getAttemptId("shuffleId", 1, "attempt1");
+    int encodeAttemptId211 = shuffleTaskInfo.genAttemptId(encodeShuffleIdNew, 1);
     Assert.assertEquals(encodeAttemptId211, 0);
   }
 

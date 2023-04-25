@@ -60,7 +60,6 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
@@ -557,15 +556,12 @@ public class RemoteShuffleResultPartitionSuiteJ {
     Random random = new Random();
     byte[] bytes = new byte[16];
     random.nextBytes(bytes);
-    ShuffleTask shuffleTask = Mockito.mock(ShuffleTask.class);
-    Mockito.when(shuffleTask.getAttemptId()).thenReturn(1);
-    Mockito.when(shuffleTask.getMapId()).thenReturn(1);
-    Mockito.when(shuffleTask.getShuffleId()).thenReturn(1);
     return new RemoteShuffleDescriptor(
         new JobID(bytes).toString(),
+        new JobID(bytes),
         new JobID(bytes).toString(),
         new ResultPartitionID(),
-        new RemoteShuffleResource("1", 2, new ShuffleResourceDescriptor(shuffleTask)));
+        new RemoteShuffleResource("1", 2, new ShuffleResourceDescriptor(1, 1, 1, 0)));
   }
 
   /** Data written and its {@link Buffer.DataType}. */

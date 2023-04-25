@@ -26,34 +26,41 @@ import java.util.function.Consumer
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
-import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
-import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
-import org.apache.celeborn.common.network.server.{BaseMessageHandler, BufferStreamManager, ChunkStreamManager}
+import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.PartitionType
-import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
+import org.apache.celeborn.common.util.ExceptionUtils
+import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
   var chunkStreamManager = new ChunkStreamManager()
-  val bufferStreamManager = new BufferStreamManager(
+  val creditStreamManager = new CreditStreamManager(
     conf.getCelebornConf.partitionReadBuffersMin,
     conf.getCelebornConf.partitionReadBuffersMax,
-    conf.getCelebornConf.bufferStreamThreadsPerMountpoint)
+    conf.getCelebornConf.creditStreamThreadsPerMountpoint,
+    conf.getCelebornConf.readBuffersToTriggerReadMin)
   var workerSource: WorkerSource = _
-  var rpcSource: RPCSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
 
   def init(worker: Worker): Unit = {
     this.workerSource = worker.workerSource
-    this.rpcSource = worker.rpcSource
+
+    workerSource.addGauge(
+      WorkerSource.CreditStreamCount,
+      _ => creditStreamManager.getStreamsCount)
+
+    workerSource.addGauge(
+      WorkerSource.ActiveMapPartitionCount,
+      _ => creditStreamManager.getActiveMapPartitionCount)
+
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = worker.registered
@@ -75,17 +82,13 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
       case r: BufferStreamEnd =>
-        rpcSource.updateMessageMetrics(r, 0)
-        handleEndStreamFromClient(client, r)
+        handleEndStreamFromClient(r)
       case r: ReadAddCredit =>
-        rpcSource.updateMessageMetrics(r, 0)
-        handleReadAddCredit(client, r)
+        handleReadAddCredit(r)
       case r: ChunkFetchRequest =>
-        rpcSource.updateMessageMetrics(r, 0)
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
         val msg = Message.decode(r.body().nioByteBuffer())
-        rpcSource.updateMessageMetrics(msg, 0)
         handleOpenStream(client, r, msg)
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
@@ -162,7 +165,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
             }
           }
 
-          bufferStreamManager.registerStream(
+          creditStreamManager.registerStream(
             callback,
             client.getChannel,
             initialCredit,
@@ -173,10 +176,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
         case PartitionType.MAPGROUP =>
       } catch {
         case e: IOException =>
-          client.getChannel.writeAndFlush(new RpcFailure(
-            request.requestId,
-            Throwables.getStackTraceAsString(
-              new CelebornException("Chunk offsets meta exception", e))))
+          handleRpcIOException(client, request.requestId, e)
       } finally {
         // metrics end
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
@@ -185,18 +185,28 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
     } catch {
       case ioe: IOException =>
         workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
-        client.getChannel.writeAndFlush(new RpcFailure(
-          request.requestId,
-          Throwables.getStackTraceAsString(ioe)))
+        handleRpcIOException(client, request.requestId, ioe)
     }
   }
 
-  def handleEndStreamFromClient(client: TransportClient, req: BufferStreamEnd): Unit = {
-    bufferStreamManager.notifyStreamEndByClient(req.getStreamId)
+  private def handleRpcIOException(
+      client: TransportClient,
+      requestId: Long,
+      ioe: IOException): Unit = {
+    // if open stream rpc failed, this IOException actually should be FileNotFoundException
+    // we wrapper this IOException(Other place may have other exception like FileCorruptException) unify to
+    // PartitionUnRetryableException for reader can give up this partition and choose to regenerate the partition data
+    client.getChannel.writeAndFlush(new RpcFailure(
+      requestId,
+      Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe, false))))
   }
 
-  def handleReadAddCredit(client: TransportClient, req: ReadAddCredit): Unit = {
-    bufferStreamManager.addCredit(req.getCredit, req.getStreamId)
+  def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {
+    creditStreamManager.notifyStreamEndByClient(req.getStreamId)
+  }
+
+  def handleReadAddCredit(req: ReadAddCredit): Unit = {
+    creditStreamManager.addCredit(req.getCredit, req.getStreamId)
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
@@ -249,7 +259,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   override def checkRegistered: Boolean = registered.get
 
   override def channelInactive(client: TransportClient): Unit = {
-    bufferStreamManager.connectionTerminated(client.getChannel)
+    creditStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }
 

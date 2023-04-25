@@ -38,10 +38,10 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 public class PartitionFilesSorterSuiteJ {
 
@@ -110,7 +110,17 @@ public class PartitionFilesSorterSuiteJ {
             + (double) originFileLen / 1024 / 1024.0
             + "MB");
 
-    MemoryManager.initialize(0.8, 0.9, 0.5, 0.6, 0.1, 0.1, 10, 10);
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.worker.directMemoryRatioToPauseReceive", "0.8");
+    conf.set("celeborn.worker.directMemoryRatioToPauseReplicate", "0.9");
+    conf.set("celeborn.worker.directMemoryRatioToResume", "0.5");
+    conf.set("celeborn.worker.partitionSorter.directMemoryRatioThreshold", "0.6");
+    conf.set("celeborn.worker.directMemoryRatioForReadBuffer", "0.1");
+    conf.set("celeborn.worker.directMemoryRatioForMemoryShuffleStorage", "0.1");
+    conf.set("celeborn.worker.memory.checkInterval", "10");
+    conf.set("celeborn.worker.memory.reportInterval", "10");
+    conf.set("celeborn.worker.readBuffer.allocationWait", "10ms");
+    MemoryManager.initialize(conf);
     fileWriter = Mockito.mock(FileWriter.class);
     when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
     when(fileWriter.getFileInfo()).thenAnswer(i -> fileInfo);
