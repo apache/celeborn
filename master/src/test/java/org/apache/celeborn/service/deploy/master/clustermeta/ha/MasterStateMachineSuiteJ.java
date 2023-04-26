@@ -33,6 +33,7 @@ import org.apache.ratis.server.storage.StorageImplUtils;
 import org.apache.ratis.statemachine.SnapshotInfo;
 import org.apache.ratis.statemachine.SnapshotRetentionPolicy;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
+import org.apache.ratis.statemachine.impl.SimpleStateMachineStorageUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -159,7 +160,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     File md5File3 = new File(snapshotFile3.getAbsolutePath() + ".md5");
     md5File3.createNewFile();
 
-    File stateMachineDir = simpleStateMachineStorage.getSmDir();
+    File stateMachineDir = SimpleStateMachineStorageUtil.getSmDir(simpleStateMachineStorage);
     Assert.assertTrue(stateMachineDir.listFiles().length == 13);
     simpleStateMachineStorage.cleanupOldSnapshots(snapshotRetentionPolicy);
     File[] remainingFiles = stateMachineDir.listFiles();
