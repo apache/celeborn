@@ -655,6 +655,29 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def quotaConfigurationPath: Option[String] = get(QUOTA_CONFIGURATION_PATH)
 
   // //////////////////////////////////////////////////////
+  //                Shuffle Client RPC                   //
+  // //////////////////////////////////////////////////////
+  def reserveSlotsRpcTimeout: RpcTimeout =
+    new RpcTimeout(get(RESERVE_SLOTS_RPC_TIMEOUT).milli, RESERVE_SLOTS_RPC_TIMEOUT.key)
+  def registerShuffleRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(
+      get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
+        .getOrElse(reserveSlotsRpcTimeout.duration * (reserveSlotsMaxRetries + 2)),
+      REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
+
+  def requestPartitionLocationRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(
+      get(REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).map(_.milli)
+        .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 1)),
+      REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
+
+  def getReducerFileGroupRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(
+      get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).map(_.milli)
+        .getOrElse(rpcAskTimeout.duration * (requestCommitFilesMaxRetries + 2)),
+      GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
+
+  // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
@@ -706,21 +729,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
   def pushDataTimeoutCheckerThreads: Int = get(PUSH_TIMEOUT_CHECK_THREADS)
   def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
-  def registerShuffleRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(
-      get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
-        .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 2)),
-      REGISTER_SHUFFLE_RPC_ASK_TIMEOUT.key)
-  def requestPartitionLocationRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(
-      get(REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT).map(_.milli)
-        .getOrElse(rpcAskTimeout.duration * (reserveSlotsMaxRetries + 1)),
-      REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT.key)
-  def getReducerFileGroupRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(
-      get(GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT).map(_.milli)
-        .getOrElse(rpcAskTimeout.duration * (requestCommitFilesMaxRetries + 2)),
-      GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT.key)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -2492,6 +2500,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
+
+  val RESERVE_SLOTS_RPC_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.rpc.reserveSlots.askTimeout")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Timeout for LifecycleManager request reserve slots.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: OptionalConfigEntry[Long] =
     buildConf("celeborn.rpc.registerShuffle.askTimeout")
