@@ -99,9 +99,7 @@ class WorkerStatusTracker(
         case _ =>
       }
     }
-    if (!failedWorker.isEmpty) {
-      recordWorkerFailure(failedWorker)
-    }
+    recordWorkerFailure(failedWorker)
   }
 
   def recordWorkerFailure(failures: ShuffleFailedWorkers): Unit = {
