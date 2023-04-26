@@ -223,12 +223,19 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
+      PartitionLocation lastPeer = location;
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
+            // If change peer meet same peer after a loop, also need to wait for retry on same peer
+            // to avoid create connection quick fail issue during both peers are restarting.
+            if (location.getPeer() == lastPeer) {
+              lastPeer = location;
+              Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+            }
             location = location.getPeer();
             logger.warn(
                 "CreatePartitionReader failed {}/{} times, change to peer",
