@@ -1116,7 +1116,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.2.0")
       .doc("Timeout for HA client RPC ask operations.")
-      .fallbackConf(NETWORK_TIMEOUT)
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
