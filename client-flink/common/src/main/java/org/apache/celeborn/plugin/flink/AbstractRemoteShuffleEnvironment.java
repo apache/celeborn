@@ -23,6 +23,7 @@ import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFact
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -141,12 +142,47 @@ public abstract class AbstractRemoteShuffleEnvironment {
     return networkBufferPool;
   }
 
-  public abstract List<ResultPartitionWriter> createResultPartitionWriters(
+  public List<ResultPartitionWriter> createResultPartitionWriters(
       ShuffleIOOwnerContext ownerContext,
-      List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors);
+      List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
 
-  public abstract List<IndexedInputGate> createInputGates(
+    synchronized (lock) {
+      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
+
+      ResultPartitionWriter[] resultPartitions =
+          new ResultPartitionWriter[resultPartitionDeploymentDescriptors.size()];
+      for (int index = 0; index < resultPartitions.length; index++) {
+        resultPartitions[index] =
+            createResultPartitionWriterInternal(
+                ownerContext, index, resultPartitionDeploymentDescriptors.get(index), conf);
+      }
+      return Arrays.asList(resultPartitions);
+    }
+  }
+
+  public abstract ResultPartitionWriter createResultPartitionWriterInternal(
+      ShuffleIOOwnerContext ownerContext,
+      int index,
+      ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor,
+      CelebornConf conf);
+
+  public List<IndexedInputGate> createInputGates(
       ShuffleIOOwnerContext ownerContext,
       PartitionProducerStateProvider producerStateProvider,
-      List<InputGateDeploymentDescriptor> inputGateDescriptors);
+      List<InputGateDeploymentDescriptor> inputGateDescriptors) {
+    synchronized (lock) {
+      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
+
+      IndexedInputGate[] inputGates = new IndexedInputGate[inputGateDescriptors.size()];
+      for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
+        InputGateDeploymentDescriptor igdd = inputGateDescriptors.get(gateIndex);
+        IndexedInputGate inputGate = createInputGateInternal(ownerContext, gateIndex, igdd);
+        inputGates[gateIndex] = inputGate;
+      }
+      return Arrays.asList(inputGates);
+    }
+  }
+
+  abstract IndexedInputGate createInputGateInternal(
+      ShuffleIOOwnerContext ownerContext, int gateIndex, InputGateDeploymentDescriptor igdd);
 }

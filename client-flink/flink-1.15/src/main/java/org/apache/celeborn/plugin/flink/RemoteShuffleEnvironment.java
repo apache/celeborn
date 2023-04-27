@@ -17,17 +17,11 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
-
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -66,42 +60,19 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
   }
 
   @Override
-  public List<ResultPartitionWriter> createResultPartitionWriters(
+  public ResultPartitionWriter createResultPartitionWriterInternal(
       ShuffleIOOwnerContext ownerContext,
-      List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
-
-    synchronized (lock) {
-      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
-
-      ResultPartitionWriter[] resultPartitions =
-          new ResultPartitionWriter[resultPartitionDeploymentDescriptors.size()];
-      for (int index = 0; index < resultPartitions.length; index++) {
-        resultPartitions[index] =
-            resultPartitionFactory.create(
-                ownerContext.getOwnerName(), index,
-                resultPartitionDeploymentDescriptors.get(index), conf);
-      }
-      return Arrays.asList(resultPartitions);
-    }
+      int index,
+      ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor,
+      CelebornConf conf) {
+    return resultPartitionFactory.create(
+        ownerContext.getOwnerName(), index, resultPartitionDeploymentDescriptor, conf);
   }
 
   @Override
-  public List<IndexedInputGate> createInputGates(
-      ShuffleIOOwnerContext ownerContext,
-      PartitionProducerStateProvider producerStateProvider,
-      List<InputGateDeploymentDescriptor> inputGateDescriptors) {
-    synchronized (lock) {
-      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
-
-      IndexedInputGate[] inputGates = new IndexedInputGate[inputGateDescriptors.size()];
-      for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
-        InputGateDeploymentDescriptor igdd = inputGateDescriptors.get(gateIndex);
-        IndexedInputGate inputGate =
-            inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
-        inputGates[gateIndex] = inputGate;
-      }
-      return Arrays.asList(inputGates);
-    }
+  IndexedInputGate createInputGateInternal(
+      ShuffleIOOwnerContext ownerContext, int gateIndex, InputGateDeploymentDescriptor igdd) {
+    return inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
   }
 
   @VisibleForTesting

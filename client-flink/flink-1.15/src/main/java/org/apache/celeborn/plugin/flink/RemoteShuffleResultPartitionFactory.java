@@ -28,20 +28,13 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.function.SupplierWithException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.CompressionCodec;
 
 /** Factory class to create {@link RemoteShuffleResultPartition}. */
 public class RemoteShuffleResultPartitionFactory
     extends AbstractRemoteShuffleResultPartitionFactory {
-
-  private static final Logger LOG =
-      LoggerFactory.getLogger(RemoteShuffleResultPartitionFactory.class);
 
   public RemoteShuffleResultPartitionFactory(
       Configuration flinkConf,
@@ -53,7 +46,7 @@ public class RemoteShuffleResultPartitionFactory
     super(flinkConf, celebornConf, partitionManager, bufferPoolFactory, networkBufferSize);
   }
 
-  protected ResultPartition create(
+  ResultPartition createResmoteShuffleResultPartitionInternal(
       String taskNameWithSubtaskAndId,
       int partitionIndex,
       ResultPartitionID id,
@@ -61,37 +54,27 @@ public class RemoteShuffleResultPartitionFactory
       int numSubpartitions,
       int maxParallelism,
       List<SupplierWithException<BufferPool, IOException>> bufferPoolFactories,
-      ShuffleDescriptor shuffleDescriptor,
       CelebornConf celebornConf,
-      int numMappers) {
-
-    // in flink1.14/1.15, just support LZ4
-    if (!compressionCodec.equals(CompressionCodec.LZ4.name())) {
-      throw new IllegalStateException("Unknown CompressionMethod " + compressionCodec);
-    }
-    final BufferCompressor bufferCompressor =
-        new BufferCompressor(networkBufferSize, compressionCodec);
-    RemoteShuffleDescriptor rsd = (RemoteShuffleDescriptor) shuffleDescriptor;
-    ResultPartition partition =
-        new RemoteShuffleResultPartition(
-            taskNameWithSubtaskAndId,
-            partitionIndex,
-            id,
-            type,
+      int numMappers,
+      BufferCompressor bufferCompressor,
+      RemoteShuffleDescriptor rsd) {
+    return new RemoteShuffleResultPartition(
+        taskNameWithSubtaskAndId,
+        partitionIndex,
+        id,
+        type,
+        numSubpartitions,
+        maxParallelism,
+        networkBufferSize,
+        partitionManager,
+        bufferCompressor,
+        bufferPoolFactories.get(0),
+        new RemoteShuffleOutputGate(
+            rsd,
             numSubpartitions,
-            maxParallelism,
             networkBufferSize,
-            partitionManager,
-            bufferCompressor,
-            bufferPoolFactories.get(0),
-            new RemoteShuffleOutputGate(
-                rsd,
-                numSubpartitions,
-                networkBufferSize,
-                bufferPoolFactories.get(1),
-                celebornConf,
-                numMappers));
-    LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
-    return partition;
+            bufferPoolFactories.get(1),
+            celebornConf,
+            numMappers));
   }
 }

@@ -40,7 +40,6 @@ public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGat
     super(flinkConf, conf, networkBufferPool, networkBufferSize);
   }
 
-  // For testing.
   protected RemoteShuffleInputGate createInputGate(
       String owningTaskName,
       int gateIndex,

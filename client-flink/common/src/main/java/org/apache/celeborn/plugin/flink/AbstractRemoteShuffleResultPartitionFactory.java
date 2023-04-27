@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -36,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.plugin.flink.config.PluginConf;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
@@ -126,7 +128,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
         desc.getTotalNumberOfPartitions());
   }
 
-  protected abstract ResultPartition create(
+  public ResultPartition create(
       String taskNameWithSubtaskAndId,
       int partitionIndex,
       ResultPartitionID id,
@@ -136,7 +138,44 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
       List<SupplierWithException<BufferPool, IOException>> bufferPoolFactories,
       ShuffleDescriptor shuffleDescriptor,
       CelebornConf celebornConf,
-      int numMappers);
+      int numMappers) {
+
+    // in flink1.14/1.15, just support LZ4
+    if (!compressionCodec.equals(CompressionCodec.LZ4.name())) {
+      throw new IllegalStateException("Unknown CompressionMethod " + compressionCodec);
+    }
+    final BufferCompressor bufferCompressor =
+        new BufferCompressor(networkBufferSize, compressionCodec);
+    RemoteShuffleDescriptor rsd = (RemoteShuffleDescriptor) shuffleDescriptor;
+    ResultPartition partition =
+        createResmoteShuffleResultPartitionInternal(
+            taskNameWithSubtaskAndId,
+            partitionIndex,
+            id,
+            type,
+            numSubpartitions,
+            maxParallelism,
+            bufferPoolFactories,
+            celebornConf,
+            numMappers,
+            bufferCompressor,
+            rsd);
+    LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
+    return partition;
+  }
+
+  abstract ResultPartition createResmoteShuffleResultPartitionInternal(
+      String taskNameWithSubtaskAndId,
+      int partitionIndex,
+      ResultPartitionID id,
+      ResultPartitionType type,
+      int numSubpartitions,
+      int maxParallelism,
+      List<SupplierWithException<BufferPool, IOException>> bufferPoolFactories,
+      CelebornConf celebornConf,
+      int numMappers,
+      BufferCompressor bufferCompressor,
+      RemoteShuffleDescriptor rsd);
 
   /**
    * Used to create 2 buffer pools -- sorting buffer pool (7/8), transportation buffer pool (1/8).
