@@ -99,6 +99,8 @@ public class DataPushQueue {
             client.getPartitionLocation(appId, shuffleId, numMappers, numPartitions);
         if (partitionLocationMap != null) {
           PartitionLocation loc = partitionLocationMap.get(partitionId);
+          // According to CELEBORN-560, call rerun task and speculative task after LifecycleManager
+          // handle StageEnd will return empty PartitionLocation map, here loc can be null
           if (loc != null) {
             Integer oldCapacity = workerCapacity.get(loc.hostAndPushPort());
             if (oldCapacity == null) {
