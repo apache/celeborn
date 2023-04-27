@@ -568,9 +568,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     if (commitManager.tryFinalCommit(shuffleId)) {
-      // release resources and clear worker info
-      shuffleAllocatedWorkers.remove(shuffleId)
-
       requestMasterReleaseSlots(
         ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
@@ -629,7 +626,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     if (shuffleResourceExists(shuffleId)) {
       logWarning(s"Partition exists for shuffle $shuffleId, " +
         "maybe caused by task rerun or speculative.")
-      shuffleAllocatedWorkers.remove(shuffleId)
       requestMasterReleaseSlots(
         ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
