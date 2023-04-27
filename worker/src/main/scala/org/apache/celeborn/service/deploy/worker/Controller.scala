@@ -576,10 +576,11 @@ private[deploy] class Controller(
     // check whether shuffleKey has registered
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logWarning(s"Shuffle $shuffleKey not registered!")
-      context.reply(DestroyWorkerSlotsResponse(
-        StatusCode.SHUFFLE_NOT_REGISTERED,
-        masterLocations,
-        slaveLocations))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.SHUFFLE_NOT_REGISTERED,
+          masterLocations,
+          slaveLocations))
       return
     }
 
@@ -626,18 +627,20 @@ private[deploy] class Controller(
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
       logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
         s" slave locations for $shuffleKey successfully.")
-      context.reply(DestroyWorkerSlotsResponse(
-        StatusCode.SUCCESS,
-        List.empty.asJava,
-        List.empty.asJava))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.SUCCESS,
+          List.empty.asJava,
+          List.empty.asJava))
     } else {
       logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
         s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
         s" $shuffleKey PartialSuccess.")
-      context.reply(DestroyWorkerSlotsResponse(
-        StatusCode.PARTIAL_SUCCESS,
-        failedMasters,
-        failedSlaves))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.PARTIAL_SUCCESS,
+          failedMasters,
+          failedSlaves))
     }
   }
 
