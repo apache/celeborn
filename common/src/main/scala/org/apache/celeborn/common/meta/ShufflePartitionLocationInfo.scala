@@ -48,6 +48,10 @@ class ShufflePartitionLocationInfo {
     getPartitions(slavePartitionLocations, partitionIdOpt)
   }
 
+  def isEmpty(): Boolean = {
+    masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
+  }
+
   def containsPartition(partitionId: Int): Boolean = {
     masterPartitionLocations.containsKey(partitionId) ||
     slavePartitionLocations.containsKey(partitionId)
