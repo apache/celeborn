@@ -569,7 +569,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     if (commitManager.tryFinalCommit(shuffleId)) {
-      // release resources and clear worker info
       requestReleaseSlots(
         rssHARetryClient,
         ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
