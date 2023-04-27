@@ -625,13 +625,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       }
     }
 
-    if (shuffleResourceExists(shuffleId)) {
-      logWarning(s"Partition exists for shuffle $shuffleId, " +
-        "maybe caused by task rerun or speculative.")
-      requestReleaseSlots(
-        rssHARetryClient,
-        ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
-    }
+    logWarning(s"Partition may exists for shuffle $shuffleId, " +
+      "maybe caused by task rerun or speculative.")
+    // ReleaseSlots only remove the master side workers meta's shuffle key related slots.
+    // For one shuffle key may request twice, but won't impact the cluster.
+    requestReleaseSlots(
+      rssHARetryClient,
+      ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
 
     // add shuffleKey to delay shuffle removal set
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
