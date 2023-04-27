@@ -978,11 +978,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         shuffleKey,
         masterLocations.asScala.map(_.getUniqueId).asJava,
         slaveLocations.asScala.map(_.getUniqueId).asJava)
-      var res = requestWorkerDestroy(workerInfo.endpoint, destroy)
+      var res = requestWorkerDestroySlots(workerInfo.endpoint, destroy)
       if (res.status != StatusCode.SUCCESS) {
         logDebug(s"Request $destroy return ${res.status} for $shuffleKey, " +
           s"will retry request destroy.")
-        res = requestWorkerDestroy(
+        res = requestWorkerDestroySlots(
           workerInfo.endpoint,
           DestroyWorkerSlots(shuffleKey, res.failedMasters, res.failedSlaves))
       }
@@ -1054,15 +1054,18 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def requestDestroy(
+  private def requestWorkerDestroySlots(
       endpoint: RpcEndpointRef,
-      message: DestroyWorkerSlots): DestroyResponse = {
+      message: DestroyWorkerSlots): DestroyWorkerSlotsResponse = {
     try {
-      endpoint.askSync[DestroyResponse](message)
+      endpoint.askSync[DestroyWorkerSlotsResponse](message)
     } catch {
       case e: Exception =>
         logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
-        DestroyResponse(StatusCode.REQUEST_FAILED, message.masterLocations, message.slaveLocations)
+        DestroyWorkerSlotsResponse(
+          StatusCode.REQUEST_FAILED,
+          message.masterLocations,
+          message.slaveLocations)
     }
   }
 
