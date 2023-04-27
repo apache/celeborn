@@ -569,6 +569,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     if (commitManager.tryFinalCommit(shuffleId)) {
+      // Here we only clear PartitionLocation info in shuffleAllocatedWorkers.
+      // Since rerun or speculation task may running after we handle StageEnd.
+      workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
+        partitionLocationInfo.removeAllMasterPartitions()
+        partitionLocationInfo.removeAllSlavePartitions()
+      }
       requestReleaseSlots(
         rssHARetryClient,
         ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
@@ -625,13 +631,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       }
     }
 
-    logWarning(s"Partition may exists for shuffle $shuffleId, " +
-      "maybe caused by task rerun or speculative.")
-    // ReleaseSlots only remove the master side workers meta's shuffle key related slots.
-    // For one shuffle key may request twice, but won't impact the cluster.
-    requestReleaseSlots(
-      rssHARetryClient,
-      ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
+    if (shuffleResourceExists(shuffleId)) {
+      logWarning(s"Partition may exists for shuffle $shuffleId, " +
+        "maybe caused by task rerun or speculative.")
+      requestReleaseSlots(
+        rssHARetryClient,
+        ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
+    }
 
     // add shuffleKey to delay shuffle removal set
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
