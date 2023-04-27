@@ -977,7 +977,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       slotsToDestroy.asScala,
       "DestroySlot",
       parallelism) { case (workerInfo, (masterLocations, slaveLocations)) =>
-      val destroy = Destroy(
+      val destroy = DestroyWorkerSlots(
         shuffleKey,
         masterLocations.asScala.map(_.getUniqueId).asJava,
         slaveLocations.asScala.map(_.getUniqueId).asJava)
@@ -987,7 +987,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           s"will retry request destroy.")
         res = requestDestroy(
           workerInfo.endpoint,
-          Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
+          DestroyWorkerSlots(shuffleKey, res.failedMasters, res.failedSlaves))
       }
     }
   }
@@ -1060,7 +1060,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def requestDestroy(endpoint: RpcEndpointRef, message: Destroy): DestroyResponse = {
+  private def requestDestroy(
+      endpoint: RpcEndpointRef,
+      message: DestroyWorkerSlots): DestroyResponse = {
     try {
       endpoint.askSync[DestroyResponse](message)
     } catch {
