@@ -46,7 +46,8 @@ public class RemoteShuffleResultPartitionFactory
     super(flinkConf, celebornConf, partitionManager, bufferPoolFactory, networkBufferSize);
   }
 
-  ResultPartition createResmoteShuffleResultPartitionInternal(
+  @Override
+  public ResultPartition createResmoteShuffleResultPartitionInternal(
       String taskNameWithSubtaskAndId,
       int partitionIndex,
       ResultPartitionID id,
