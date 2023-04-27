@@ -630,7 +630,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     if (shuffleResourceExists(shuffleId)) {
-      logWarning(s"Partition may exists for shuffle $shuffleId, " +
+      logWarning(s"Partition exists for shuffle $shuffleId, " +
         "maybe caused by task rerun or speculative.")
       requestMasterReleaseSlots(
         ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
