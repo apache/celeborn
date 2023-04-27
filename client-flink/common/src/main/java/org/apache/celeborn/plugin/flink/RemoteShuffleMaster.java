@@ -42,6 +42,7 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.config.PluginConf;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.celeborn.plugin.flink.utils.ThreadUtils;
+import org.apache.celeborn.reflect.DynMethods;
 
 public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescriptor> {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMaster.class);
@@ -59,6 +60,16 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           1,
           ThreadUtils.createFactoryWithDefaultExceptionHandler(
               "remote-shuffle-master-executor", LOG));
+  private static DynMethods.UnboundMethod methodIsBlock =
+      DynMethods.builder("isBlocking")
+          .impl("org.apache.flink.runtime.io.network.partition.ResultPartitionType")
+          .orNoop()
+          .build();
+  private static DynMethods.UnboundMethod methodIsBlockingOrBlockingPersistentResultPartition =
+      DynMethods.builder("isBlockingOrBlockingPersistentResultPartition")
+          .impl("org.apache.flink.runtime.io.network.partition.ResultPartitionType")
+          .orNoop()
+          .build();
 
   public RemoteShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
     this.shuffleMasterContext = shuffleMasterContext;
@@ -198,7 +209,14 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
     for (ResultPartitionType partitionType :
         taskInputsOutputsDescriptor.getPartitionTypes().values()) {
-      if (!partitionType.isBlocking()) {
+      boolean isBlockingShuffle = false;
+      if (!methodIsBlock.isNoop()) {
+        isBlockingShuffle = methodIsBlock.invoke(partitionType);
+      } else if (!methodIsBlockingOrBlockingPersistentResultPartition.isNoop()) {
+        isBlockingShuffle =
+            methodIsBlockingOrBlockingPersistentResultPartition.invoke(partitionType);
+      }
+      if (!isBlockingShuffle) {
         throw new RuntimeException(
             "Blocking result partition type expected but found " + partitionType);
       }
