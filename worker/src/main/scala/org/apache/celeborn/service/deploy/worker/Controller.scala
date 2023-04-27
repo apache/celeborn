@@ -126,7 +126,7 @@ private[deploy] class Controller(
     case ThreadDump =>
       handleThreadDump(context)
 
-    case Destroy(shuffleKey, masterLocations, slaveLocations) =>
+    case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 

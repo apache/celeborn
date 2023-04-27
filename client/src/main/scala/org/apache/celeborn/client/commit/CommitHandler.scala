@@ -193,9 +193,10 @@ abstract class CommitHandler(
     }
 
     val commitFileStartTime = System.nanoTime()
-    val parallelism = Math.min(allocatedWorkers.size(), conf.rpcMaxParallelism)
+    val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
+    val parallelism = Math.min(workerPartitionLocations.size, conf.rpcMaxParallelism)
     ThreadUtils.parmap(
-      allocatedWorkers.asScala.to,
+      workerPartitionLocations.to,
       "CommitFiles",
       parallelism) { case (worker, partitionLocationInfo) =>
       val masterParts =

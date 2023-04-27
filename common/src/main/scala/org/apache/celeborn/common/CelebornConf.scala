@@ -1116,7 +1116,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .version("0.2.0")
       .doc("Timeout for HA client RPC ask operations.")
-      .fallbackConf(NETWORK_TIMEOUT)
+      .fallbackConf(RPC_ASK_TIMEOUT)
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
@@ -2474,7 +2474,7 @@ object CelebornConf extends Logging {
         "Otherwise, LifecycleManager will process release partition request immediately")
       .version("0.3.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val BATCH_HANDLE_RELEASE_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.shuffle.batchHandleReleasePartition.threads")

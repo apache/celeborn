@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Optional;
@@ -50,7 +49,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
  */
 public abstract class FileWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
-  private static final long WAIT_INTERVAL_MS = 20;
+  private static final long WAIT_INTERVAL_MS = 5;
 
   protected final FileInfo fileInfo;
   private FileChannel channel;
@@ -101,7 +100,7 @@ public abstract class FileWriter implements DeviceObserver {
     this.partitionType = partitionType;
     this.rangeReadFilter = rangeReadFilter;
     if (!fileInfo.isHdfs()) {
-      channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
+      channel = FileChannelUtils.createWritableFileChannel(fileInfo.getFilePath());
     } else {
       // We open the stream and close immediately because HDFS output stream will
       // create a DataStreamer that is a thread.
@@ -251,13 +250,11 @@ public abstract class FileWriter implements DeviceObserver {
       waitOnNoPending(numPendingWrites);
       closed = true;
 
-      synchronized (this) {
-        if (flushBuffer.readableBytes() > 0) {
-          flush(true);
-        }
-        tryClose.run();
+      if (flushBuffer.readableBytes() > 0) {
+        flush(true);
       }
 
+      tryClose.run();
       waitOnNoPending(notifier.numPendingFlushes);
     } finally {
       returnBuffer();

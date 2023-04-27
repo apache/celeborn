@@ -15,28 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.plugin.flink;
+package org.apache.celeborn.service.deploy.worker.storage;
 
-public class ShuffleTask {
-  private final int shuffleId;
-  private final int mapId;
-  private final int attemptId;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
-  public ShuffleTask(int shuffleId, int mapId, int attemptId) {
-    this.shuffleId = shuffleId;
-    this.mapId = mapId;
-    this.attemptId = attemptId;
+public class FileChannelUtils {
+
+  public static FileChannel createWritableFileChannel(String filePath) throws IOException {
+    return FileChannel.open(
+        Paths.get(filePath), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
   }
 
-  public int getShuffleId() {
-    return shuffleId;
-  }
-
-  public int getMapId() {
-    return mapId;
-  }
-
-  public int getAttemptId() {
-    return attemptId;
+  public static FileChannel openReadableFileChannel(String filePath) throws IOException {
+    return FileChannel.open(Paths.get(filePath), StandardOpenOption.READ);
   }
 }

@@ -196,7 +196,8 @@ public abstract class ShuffleClient {
   public abstract void shutdown();
 
   public abstract PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId) throws IOException;
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId)
+      throws IOException;
 
   public abstract ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
       String applicationId, int shuffleId, int numMappers, int numPartitions);

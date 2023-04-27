@@ -73,6 +73,7 @@ public class RemoteShuffleOutputGate {
   private int shuffleId;
   private int mapId;
   private int attemptId;
+  private int partitionId;
   private String rssMetaServiceHost;
   private int rssMetaServicePort;
   private UserIdentifier userIdentifier;
@@ -104,6 +105,8 @@ public class RemoteShuffleOutputGate {
     this.mapId = shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getMapId();
     this.attemptId =
         shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getAttemptId();
+    this.partitionId =
+        shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getPartitionId();
     this.rssMetaServiceHost = shuffleDesc.getShuffleResource().getRssMetaServiceHost();
     this.rssMetaServicePort = shuffleDesc.getShuffleResource().getRssMetaServicePort();
     this.flinkShuffleClient = getShuffleClient();
@@ -236,7 +239,7 @@ public class RemoteShuffleOutputGate {
     if (isFirstHandShake) {
       partitionLocation =
           flinkShuffleClient.registerMapPartitionTask(
-              applicationId, shuffleId, numMappers, mapId, attemptId);
+              applicationId, shuffleId, numMappers, mapId, attemptId, partitionId);
       Utils.checkNotNull(partitionLocation);
 
       currentRegionIndex = 0;

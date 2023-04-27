@@ -98,8 +98,14 @@ class ReducePartitionCommitHandler(
     getReducerFileGroupRequest synchronized {
       stageEndShuffleSet.add(shuffleId)
     }
-    getReducerFileGroupRequest.remove(shuffleId)
-      .asScala.foreach(replyGetReducerFileGroup(_, shuffleId))
+
+    val requests = getReducerFileGroupRequest.remove(shuffleId)
+    // Set empty HashSet during register shuffle.
+    // In case of stage with no shuffle data, register shuffle will not be called,
+    // so here we still need to check null.
+    if (requests != null && !requests.isEmpty) {
+      requests.asScala.foreach(replyGetReducerFileGroup(_, shuffleId))
+    }
   }
 
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
@@ -242,6 +248,7 @@ class ReducePartitionCommitHandler(
 
   override def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
     super.registerShuffle(shuffleId, numMappers)
+    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
     initMapperAttempts(shuffleId, numMappers)
   }
 
@@ -296,13 +303,7 @@ class ReducePartitionCommitHandler(
         if (isStageEnd(shuffleId)) {
           replyGetReducerFileGroup(context, shuffleId)
         } else {
-          if (getReducerFileGroupRequest.contains(shuffleId)) {
-            getReducerFileGroupRequest.get(shuffleId).add(context)
-          } else {
-            val set = new util.HashSet[RpcCallContext]()
-            set.add(context)
-            getReducerFileGroupRequest.put(shuffleId, set)
-          }
+          getReducerFileGroupRequest.get(shuffleId).add(context)
         }
       }
     }

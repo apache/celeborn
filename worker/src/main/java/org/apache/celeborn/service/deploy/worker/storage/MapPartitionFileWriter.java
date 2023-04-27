@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -51,7 +50,6 @@ public final class MapPartitionFileWriter extends FileWriter {
   private int currentSubpartition;
   private long totalBytes;
   private long regionStartingOffset;
-  private long numDataRegions;
   private FileChannel indexChannel;
 
   public MapPartitionFileWriter(
@@ -75,7 +73,7 @@ public final class MapPartitionFileWriter extends FileWriter {
         PartitionType.MAP,
         rangeReadFilter);
     if (!fileInfo.isHdfs()) {
-      indexChannel = new FileOutputStream(fileInfo.getIndexPath()).getChannel();
+      indexChannel = FileChannelUtils.createWritableFileChannel(fileInfo.getIndexPath());
     } else {
       try {
         StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath(), true).close();
@@ -232,7 +230,6 @@ public final class MapPartitionFileWriter extends FileWriter {
       flushIndex();
     }
 
-    ++numDataRegions;
     regionStartingOffset = totalBytes;
     Arrays.fill(numSubpartitionBytes, 0);
   }
@@ -257,7 +254,6 @@ public final class MapPartitionFileWriter extends FileWriter {
       indexBuffer.flip();
       notifier.checkException();
       try {
-        notifier.numPendingFlushes.incrementAndGet();
         if (indexBuffer.hasRemaining()) {
           // mappartition synchronously writes file index
           if (indexChannel != null) {
@@ -273,11 +269,10 @@ public final class MapPartitionFileWriter extends FileWriter {
         }
         indexBuffer.clear();
       } finally {
-        logger.info(
+        logger.debug(
             "flushIndex end:{}, cost:{}",
             fileInfo.getIndexPath(),
             System.currentTimeMillis() - startTime);
-        notifier.numPendingFlushes.decrementAndGet();
       }
     }
   }
