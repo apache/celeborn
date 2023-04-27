@@ -403,7 +403,7 @@ object ControlMessages extends Logging {
       slaveLocations: util.List[String])
     extends WorkerMessage
 
-  case class DestroyResponse(
+  case class DestroyWorkerSlotsResponse(
       status: StatusCode,
       failedMasters: util.List[String],
       failedSlaves: util.List[String])
@@ -770,7 +770,7 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.DESTROY_WORKER_SLOTS, payload)
 
-    case DestroyResponse(status, failedMasters, failedSlaves) =>
+    case DestroyWorkerSlotsResponse(status, failedMasters, failedSlaves) =>
       val builder = PbDestroyWorkerSlotsResponse.newBuilder()
         .setStatus(status.getValue)
       builder.addAllFailedMasters(failedMasters)
@@ -1087,7 +1087,7 @@ object ControlMessages extends Logging {
 
       case DESTROY_WORKER_SLOTS_RESPONSE =>
         val pbDestroyResponse = PbDestroyWorkerSlotsResponse.parseFrom(message.getPayload)
-        DestroyResponse(
+        DestroyWorkerSlotsResponse(
           Utils.toStatusCode(pbDestroyResponse.getStatus),
           pbDestroyResponse.getFailedMastersList,
           pbDestroyResponse.getFailedSlavesList)
