@@ -57,6 +57,14 @@ class ShufflePartitionLocationInfo {
     slavePartitionLocations.containsKey(partitionId)
   }
 
+  def removeAllMasterPartitions(): Unit = {
+    masterPartitionLocations.clear()
+  }
+
+  def removeAllSlavePartitions(): Unit = {
+    slavePartitionLocations.clear()
+  }
+
   def removeMasterPartitions(partitionId: Int): util.Set[PartitionLocation] = {
     removePartitions(masterPartitionLocations, partitionId)
   }
