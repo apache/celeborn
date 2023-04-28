@@ -486,16 +486,22 @@ public class HARaftServer {
   private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
-      if (RaftProtos.RaftPeerRole.LEADER == currentRole) {
+      boolean leaderChanged = false;
+      if (RaftProtos.RaftPeerRole.LEADER == currentRole && !checkCachedPeerRoleIsLeader()) {
+        leaderChanged = true;
         setDeadlineTime(conf.workerHeartbeatTimeout(), conf.appHeartbeatTimeoutMs());
-      } else {
+      } else if (RaftProtos.RaftPeerRole.LEADER != currentRole && checkCachedPeerRoleIsLeader()) {
+        leaderChanged = true;
         setDeadlineTime(Integer.MAX_VALUE, Integer.MAX_VALUE); // for revoke
       }
 
-      LOG.warn(
-          "Raft Role changed, CurrentNode Role: {}, Leader: {}",
-          currentRole,
-          leaderPeerRpcEndpoint);
+      if (leaderChanged) {
+        LOG.warn(
+            "Raft Role changed, CurrentNode Role: {}, Leader: {}",
+            currentRole,
+            leaderPeerRpcEndpoint);
+      }
+
       this.cachedPeerRole = Optional.ofNullable(currentRole);
       this.cachedLeaderPeerRpcEndpoint = Optional.ofNullable(leaderPeerRpcEndpoint);
     } finally {
