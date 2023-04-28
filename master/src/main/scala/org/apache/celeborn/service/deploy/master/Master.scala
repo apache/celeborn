@@ -330,6 +330,11 @@ private[celeborn] class Master(
 
   private def timeoutDeadWorkers() {
     val currentTime = System.currentTimeMillis()
+    // Need increase timeout deadline to avoid long time leader election period
+    if (HAHelper.getWorkerTimeoutDeadline(statusSystem) > currentTime) {
+      return
+    }
+
     var ind = 0
     workersSnapShot.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
@@ -350,6 +355,10 @@ private[celeborn] class Master(
 
   private def timeoutDeadApplications(): Unit = {
     val currentTime = System.currentTimeMillis()
+    // Need increase timeout deadline to avoid long time leader election period
+    if (HAHelper.getAppTimeoutDeadline(statusSystem) > currentTime) {
+      return
+    }
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
       if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")

@@ -92,6 +92,9 @@ public class HARaftServer {
   private final ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();
   private Optional<String> cachedLeaderPeerRpcEndpoint = Optional.empty();
+  private final CelebornConf conf;
+  private long workerTimeoutDeadline;
+  private long appTimeoutDeadline;
 
   /**
    * Returns an Master Ratis server.
@@ -116,7 +119,9 @@ public class HARaftServer {
     this.raftPeerId = localRaftPeerId;
     this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
+    this.conf = conf;
     RaftProperties serverProperties = newRaftProperties(conf);
+    setDeadlineTime(Integer.MAX_VALUE, Integer.MAX_VALUE); // for default
     this.server =
         RaftServer.newBuilder()
             .setServerId(this.raftPeerId)
@@ -481,6 +486,16 @@ public class HARaftServer {
   private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
+      if (RaftProtos.RaftPeerRole.LEADER == currentRole) {
+        setDeadlineTime(conf.workerHeartbeatTimeout(), conf.appHeartbeatTimeoutMs());
+      } else {
+        setDeadlineTime(Integer.MAX_VALUE, Integer.MAX_VALUE); // for revoke
+      }
+
+      LOG.warn(
+          "Raft Role changed, CurrentNode Role: {}, Leader: {}",
+          currentRole,
+          leaderPeerRpcEndpoint);
       this.cachedPeerRole = Optional.ofNullable(currentRole);
       this.cachedLeaderPeerRpcEndpoint = Optional.ofNullable(leaderPeerRpcEndpoint);
     } finally {
@@ -521,5 +536,18 @@ public class HARaftServer {
     } catch (Exception e) {
       LOG.warn("Step down leader failed!", e);
     }
+  }
+
+  public void setDeadlineTime(long increaseWorkerTime, long increaseAppTime) {
+    this.workerTimeoutDeadline = System.currentTimeMillis() + increaseWorkerTime;
+    this.appTimeoutDeadline = System.currentTimeMillis() + increaseAppTime;
+  }
+
+  public long getWorkerTimeoutDeadline() {
+    return workerTimeoutDeadline;
+  }
+
+  public long getAppTimeoutDeadline() {
+    return appTimeoutDeadline;
   }
 }
