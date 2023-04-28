@@ -1396,7 +1396,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.fetch.maxRetries")
       .categories("client")
       .version("0.2.0")
-      .doc("Max retry times of fetch chunk on same peer")
+      .doc("Max retry times of fetch chunk on each replica")
       .intConf
       .createWithDefault(3)
 
