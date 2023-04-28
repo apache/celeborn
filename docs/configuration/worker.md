@@ -19,6 +19,7 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
+| celeborn.client.heartbeat.interval | 60s | the heartbeat interval between worker and client | 0.3.0 | 
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.metrics.capacity | 4096 | The maximum number of metrics which a source can use to generate output strings. | 0.2.0 | 
@@ -51,6 +52,7 @@ license: |
 | celeborn.worker.disk.checkFileClean.timeout | 1000ms | The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master. | 0.2.0 | 
 | celeborn.worker.disk.reserve.size | 5G | Celeborn worker reserved space for each disk. | 0.2.0 | 
 | celeborn.worker.diskTime.slidingWindow.size | 20 | The size of sliding windows used to calculate statistics about flushed time and count. | 0.2.1 | 
+| celeborn.worker.fetch.heartbeat.enabled | true | enable the heartbeat from worker to client when fetching data | 0.3.0 | 
 | celeborn.worker.fetch.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to handle client fetch data. The default threads number is the number of flush thread. | 0.2.0 | 
 | celeborn.worker.fetch.port | 0 | Server port for Worker to receive fetch data request from ShuffleClient. | 0.2.0 | 
 | celeborn.worker.flusher.buffer.size | 256k | Size of buffer used by a single flusher. | 0.2.0 | 
@@ -85,6 +87,7 @@ license: |
 | celeborn.worker.partitionSorter.reservedMemoryPerPartition | 1mb | Reserved memory when sorting a shuffle file off-heap. | 0.2.0 | 
 | celeborn.worker.partitionSorter.sort.timeout | 220s | Timeout for a shuffle file to sort. | 0.2.0 | 
 | celeborn.worker.partitionSorter.threads | &lt;undefined&gt; | PartitionSorter's thread counts. | 0.3.0 | 
+| celeborn.worker.push.heartbeat.enabled | true | enable the heartbeat from worker to client when pushing data | 0.3.0 | 
 | celeborn.worker.push.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to handle client push data. The default threads number is the number of flush thread. | 0.2.0 | 
 | celeborn.worker.push.port | 0 | Server port for Worker to receive push data request from ShuffleClient. | 0.2.0 | 
 | celeborn.worker.readBuffer.allocationWait | 50ms | The time to wait when buffer dispatcher can not allocate a buffer. | 0.3.0 | 

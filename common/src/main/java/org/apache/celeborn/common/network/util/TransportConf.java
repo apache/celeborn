@@ -152,4 +152,8 @@ public class TransportConf {
   public long pushDataTimeoutCheckIntervalMs() {
     return celebornConf.pushTimeoutCheckInterval();
   }
+
+  public long clientHearbeatInterval() {
+    return celebornConf.clientHeartbeatInterval();
+  }
 }

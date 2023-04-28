@@ -23,6 +23,7 @@ license: |
 | celeborn.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.2.0 | 
 | celeborn.client.blacklistSlave.enabled | true | When true, Celeborn will add partition's peer worker into blacklist when push data to slave failed. | 0.3.0 | 
 | celeborn.client.closeIdleConnections | true | Whether client will close idle connections. | 0.3.0 | 
+| celeborn.client.heartbeat.interval | 60s | the heartbeat interval between worker and client | 0.3.0 | 
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
 | celeborn.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.2.0 | 
 | celeborn.fetch.maxRetriesForEachReplica | 3 | Max retry times of fetch chunk on each replica | 0.2.0 | 

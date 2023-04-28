@@ -517,6 +517,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
   def partitionSorterThreads: Int =
     get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
+  def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
+  def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -543,7 +545,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def requestCommitFilesMaxRetries: Int = get(COMMIT_FILE_REQUEST_MAX_RETRY)
   def shuffleClientPushBlacklistEnabled: Boolean = get(SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED)
-
+  def clientHeartbeatInterval: Long = get(CLIENT_HEARTBEAT_INTERVAL)
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
   // //////////////////////////////////////////////////////
@@ -3179,4 +3181,28 @@ object CelebornConf extends Logging {
         labels => labels.map(_ => Try(Utils.parseMetricLabels(_))).forall(_.isSuccess),
         "Allowed pattern is: `<label1_key>:<label1_value>[,<label2_key>:<label2_value>]*`")
       .createWithDefault(Seq.empty)
+
+  val WORKER_PUSH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.push.heartbeat.enabled")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("enable the heartbeat from worker to client when pushing data")
+      .booleanConf
+      .createWithDefault(true)
+
+  val WORKER_FETCH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.fetch.heartbeat.enabled")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("enable the heartbeat from worker to client when fetching data")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CLIENT_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.heartbeat.interval")
+      .categories("client", "worker")
+      .version("0.3.0")
+      .doc("the heartbeat interval between worker and client")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
 }

@@ -90,7 +90,8 @@ public abstract class Message implements Encodable {
     OPEN_STREAM_WITH_CREDIT(18),
     BACKLOG_ANNOUNCEMENT(19),
     TRANSPORTABLE_ERROR(20),
-    BUFFER_STREAM_END(21);
+    BUFFER_STREAM_END(21),
+    HEARTBEAT(22);
     private final byte id;
 
     Type(int id) {
@@ -160,6 +161,8 @@ public abstract class Message implements Encodable {
           return TRANSPORTABLE_ERROR;
         case 21:
           return BUFFER_STREAM_END;
+        case 22:
+          return HEARTBEAT;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:
@@ -229,6 +232,9 @@ public abstract class Message implements Encodable {
         return TransportableError.decode(in);
       case BUFFER_STREAM_END:
         return BufferStreamEnd.decode(in);
+
+      case HEARTBEAT:
+        return new Heartbeat();
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);

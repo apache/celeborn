@@ -117,7 +117,12 @@ private[celeborn] class Worker(
       Utils.fromCelebornConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE, conf)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, pushDataHandler, closeIdleConnections, pushServerLimiter)
+      new TransportContext(
+        transportConf,
+        pushDataHandler,
+        closeIdleConnections,
+        pushServerLimiter,
+        conf.workerPushHeartbeatEnabled)
     (
       transportContext.createServer(conf.workerPushPort),
       transportContext.createClientFactory())
@@ -132,7 +137,12 @@ private[celeborn] class Worker(
       Utils.fromCelebornConf(conf, TransportModuleConstants.REPLICATE_MODULE, numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE, conf)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, replicateHandler, closeIdleConnections, replicateLimiter)
+      new TransportContext(
+        transportConf,
+        replicateHandler,
+        closeIdleConnections,
+        replicateLimiter,
+        false)
     transportContext.createServer(conf.workerReplicatePort)
   }
 
@@ -144,7 +154,11 @@ private[celeborn] class Worker(
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, fetchHandler, closeIdleConnections)
+      new TransportContext(
+        transportConf,
+        fetchHandler,
+        closeIdleConnections,
+        conf.workerFetchHeartbeatEnabled)
     transportContext.createServer(conf.workerFetchPort)
   }
 
@@ -532,6 +546,9 @@ private[celeborn] class Worker(
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)
+
+  @VisibleForTesting
+  def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)
 }
 
 private[deploy] object Worker extends Logging {

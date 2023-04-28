@@ -27,6 +27,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 trait MiniClusterFeature extends Logging {
   val workerPrometheusPort = new AtomicInteger(12378)
@@ -104,7 +105,6 @@ trait MiniClusterFeature extends Logging {
     masterThread.start()
     masterInfo = (master, masterThread)
     Thread.sleep(5000L)
-
     for (_ <- 1 to workerNum) {
       val worker = createWorker(workerConfs)
       val workerThread = runnerWrap(worker.initialize())
@@ -137,7 +137,8 @@ trait MiniClusterFeature extends Logging {
       case (_, thread) =>
         thread.interrupt()
     }
-
+    workerInfos.clear()
     masterInfo._2.interrupt()
+    MemoryManager.reset()
   }
 }
