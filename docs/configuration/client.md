@@ -25,7 +25,7 @@ license: |
 | celeborn.client.closeIdleConnections | true | Whether client will close idle connections. | 0.3.0 | 
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
 | celeborn.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.2.0 | 
-| celeborn.fetch.maxRetriesForEachPeer | 3 | Max retry times of fetch chunk on same peer | 0.2.0 | 
+| celeborn.fetch.maxRetriesForEachReplica | 3 | Max retry times of fetch chunk on same peer | 0.2.0 | 
 | celeborn.fetch.timeout | 120s | Timeout for a task to fetch chunk. | 0.2.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.push.buffer.initial.size | 8k |  | 0.2.0 | 

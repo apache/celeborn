@@ -659,7 +659,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
-  def fetchMaxRetriesForEachPeer: Int = get(FETCH_MAX_RETRIES_FOR_EACH_PEER)
+  def fetchMaxRetriesForEachReplica: Int = get(FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Push                   //
@@ -1391,8 +1391,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1024)
 
-  val FETCH_MAX_RETRIES_FOR_EACH_PEER: ConfigEntry[Int] =
-    buildConf("celeborn.fetch.maxRetriesForEachPeer")
+  val FETCH_MAX_RETRIES_FOR_EACH_REPLICA: ConfigEntry[Int] =
+    buildConf("celeborn.fetch.maxRetriesForEachReplica")
       .withAlternative("celeborn.fetch.maxRetries")
       .categories("client")
       .version("0.2.0")
