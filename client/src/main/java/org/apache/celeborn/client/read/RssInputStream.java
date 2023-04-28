@@ -152,7 +152,11 @@ public abstract class RssInputStream extends InputStream {
 
       decompressor = Decompressor.getDecompressor(conf);
 
-      fetchChunkMaxRetry = conf.fetchMaxRetries();
+      if (conf.pushReplicateEnabled()) {
+        fetchChunkMaxRetry = conf.fetchMaxRetriesForEachPeer() * 2;
+      } else {
+        fetchChunkMaxRetry = conf.fetchMaxRetriesForEachPeer();
+      }
       TransportConf transportConf =
           Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
       retryWaitMs = transportConf.ioRetryWaitTimeMs();
