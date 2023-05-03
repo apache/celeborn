@@ -131,11 +131,11 @@ celeborn.ha.master.node.1.host clb-1
 celeborn.ha.master.node.1.port 9097
 celeborn.ha.master.node.1.ratis.port 9872
 celeborn.ha.master.node.2.host clb-2
-celeborn.ha.master.node.2.port 9098
-celeborn.ha.master.node.2.ratis.port 9873
+celeborn.ha.master.node.2.port 9097
+celeborn.ha.master.node.2.ratis.port 9872
 celeborn.ha.master.node.3.host clb-3
-celeborn.ha.master.node.3.port 9099
-celeborn.ha.master.node.3.ratis.port 9874
+celeborn.ha.master.node.3.port 9097
+celeborn.ha.master.node.3.ratis.port 9872
 celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 
 celeborn.metrics.enabled true
