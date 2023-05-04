@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -40,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.plugin.flink.config.PluginConf;
+import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create {@link RemoteShuffleResultPartition}. */
@@ -73,8 +73,10 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
       ResultPartitionManager partitionManager,
       BufferPoolFactory bufferPoolFactory,
       int networkBufferSize) {
-    long configuredMemorySize = FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MEMORY_PER_RESULT_PARTITION);
-    long minConfiguredMemorySize = FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MIN_MEMORY_PER_PARTITION);
+    long configuredMemorySize =
+        FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MEMORY_PER_RESULT_PARTITION);
+    long minConfiguredMemorySize =
+        FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MIN_MEMORY_PER_PARTITION);
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
