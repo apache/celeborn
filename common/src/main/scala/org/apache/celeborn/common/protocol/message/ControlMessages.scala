@@ -397,13 +397,13 @@ object ControlMessages extends Logging {
       totalWritten: Long = 0,
       fileCount: Int = 0) extends WorkerMessage
 
-  case class Destroy(
+  case class DestroyWorkerSlots(
       shuffleKey: String,
       masterLocations: util.List[String],
       slaveLocations: util.List[String])
     extends WorkerMessage
 
-  case class DestroyResponse(
+  case class DestroyWorkerSlotsResponse(
       status: StatusCode,
       failedMasters: util.List[String],
       failedSlaves: util.List[String])
@@ -762,21 +762,21 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES_RESPONSE, payload)
 
-    case Destroy(shuffleKey, masterLocations, slaveLocations) =>
-      val payload = PbDestroy.newBuilder()
+    case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
+      val payload = PbDestroyWorkerSlots.newBuilder()
         .setShuffleKey(shuffleKey)
         .addAllMasterLocations(masterLocations)
         .addAllSlaveLocation(slaveLocations)
         .build().toByteArray
-      new TransportMessage(MessageType.DESTROY, payload)
+      new TransportMessage(MessageType.DESTROY_WORKER_SLOTS, payload)
 
-    case DestroyResponse(status, failedMasters, failedSlaves) =>
-      val builder = PbDestroyResponse.newBuilder()
+    case DestroyWorkerSlotsResponse(status, failedMasters, failedSlaves) =>
+      val builder = PbDestroyWorkerSlotsResponse.newBuilder()
         .setStatus(status.getValue)
       builder.addAllFailedMasters(failedMasters)
       builder.addAllFailedSlaves(failedSlaves)
       val payload = builder.build().toByteArray
-      new TransportMessage(MessageType.DESTROY_RESPONSE, payload)
+      new TransportMessage(MessageType.DESTROY_WORKER_SLOTS_RESPONSE, payload)
 
     case SlaveLostResponse(status, slaveLocation) =>
       val payload = PbSlaveLostResponse.newBuilder()
@@ -1078,16 +1078,16 @@ object ControlMessages extends Logging {
           pbCommitFilesResponse.getTotalWritten,
           pbCommitFilesResponse.getFileCount)
 
-      case DESTROY =>
-        val pbDestroy = PbDestroy.parseFrom(message.getPayload)
-        Destroy(
+      case DESTROY_WORKER_SLOTS =>
+        val pbDestroy = PbDestroyWorkerSlots.parseFrom(message.getPayload)
+        DestroyWorkerSlots(
           pbDestroy.getShuffleKey,
           pbDestroy.getMasterLocationsList,
           pbDestroy.getSlaveLocationList)
 
-      case DESTROY_RESPONSE =>
-        val pbDestroyResponse = PbDestroyResponse.parseFrom(message.getPayload)
-        DestroyResponse(
+      case DESTROY_WORKER_SLOTS_RESPONSE =>
+        val pbDestroyResponse = PbDestroyWorkerSlotsResponse.parseFrom(message.getPayload)
+        DestroyWorkerSlotsResponse(
           Utils.toStatusCode(pbDestroyResponse.getStatus),
           pbDestroyResponse.getFailedMastersList,
           pbDestroyResponse.getFailedSlavesList)

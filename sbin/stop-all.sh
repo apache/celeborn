@@ -35,7 +35,7 @@ if [ "$CELEBORN_SSH_OPTS" = "" ]; then
   CELEBORN_SSH_OPTS="-o StrictHostKeyChecking=no"
 fi
 
-# start masters
+# stop masters
 for host in `echo "$HOST_LIST" | sed  "s/#.*$//;/^$/d" | grep '\[master\]' | awk '{print $NF}'`
 do
   if [ -n "${CELEBORN_SSH_FOREGROUND}" ]; then
@@ -48,7 +48,7 @@ do
   fi
 done
 
-# start workers
+# stop workers
 for host in `echo "$HOST_LIST"| sed  "s/#.*$//;/^$/d" | grep '\[worker\]' | awk '{print $NF}'`
 do
   if [ -n "${CELEBORN_SSH_FOREGROUND}" ]; then
