@@ -227,7 +227,6 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
-      PartitionLocation lastPeer = location;
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
@@ -236,8 +235,7 @@ public abstract class RssInputStream extends InputStream {
           if (location.getPeer() != null) {
             // If change peer meet same peer after a loop, also need to wait for retry on same peer
             // to avoid create connection quick fail issue during both peers are restarting.
-            if (location.getPeer() == lastPeer) {
-              lastPeer = location;
+            if (fetchChunkRetryCnt % 2 == 0) {
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
             }
             location = location.getPeer();
@@ -277,6 +275,9 @@ public abstract class RssInputStream extends InputStream {
                   fetchChunkRetryCnt,
                   fetchChunkMaxRetry,
                   e);
+              if (fetchChunkRetryCnt % 2 == 0) {
+                Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+              }
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
             } else {
               logger.warn(
