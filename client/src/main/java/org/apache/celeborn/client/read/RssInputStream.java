@@ -233,8 +233,7 @@ public abstract class RssInputStream extends InputStream {
         } catch (Exception e) {
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
-            // If change peer meet same peer after a loop, also need to wait for retry on same peer
-            // to avoid create connection quick fail issue during both peers are restarting.
+            // If change peer after a loop, also need to wait for retry.
             if (fetchChunkRetryCnt % 2 == 0) {
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
             }
@@ -275,6 +274,7 @@ public abstract class RssInputStream extends InputStream {
                   fetchChunkRetryCnt,
                   fetchChunkMaxRetry,
                   e);
+              // If change peer after a loop, also need to wait for retry.
               if (fetchChunkRetryCnt % 2 == 0) {
                 Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               }
