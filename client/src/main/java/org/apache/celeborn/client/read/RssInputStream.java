@@ -233,6 +233,11 @@ public abstract class RssInputStream extends InputStream {
         } catch (Exception e) {
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
+            // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
+            // so sleep before next try.
+            if (fetchChunkRetryCnt % 2 == 0) {
+              Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+            }
             location = location.getPeer();
             logger.warn(
                 "CreatePartitionReader failed {}/{} times, change to peer",
@@ -270,6 +275,11 @@ public abstract class RssInputStream extends InputStream {
                   fetchChunkRetryCnt,
                   fetchChunkMaxRetry,
                   e);
+              // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
+              // so sleep before next try.
+              if (fetchChunkRetryCnt % 2 == 0) {
+                Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+              }
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
             } else {
               logger.warn(
