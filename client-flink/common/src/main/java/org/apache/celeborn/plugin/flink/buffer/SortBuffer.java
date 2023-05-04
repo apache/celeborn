@@ -27,7 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 
 /**
- * Data of different channels can be appended to a {@link SortBuffer}., after apending finished,
+ * Data of different channels can be appended to a {@link SortBuffer}., after appending finished,
  * data can be copied from it in channel index order.
  */
 public interface SortBuffer {

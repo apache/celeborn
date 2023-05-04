@@ -20,9 +20,14 @@ package org.apache.celeborn.plugin.flink;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.celeborn.common.util.JavaUtils;
 
 public class ShuffleTaskInfo {
+  private static final Logger LOG = LoggerFactory.getLogger(ShuffleTaskInfo.class);
+
   private int currentShuffleIndex = 0;
   // map attemptId index
   private ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, AtomicInteger>>
@@ -72,5 +77,22 @@ public class ShuffleTaskInfo {
       String taskShuffleId = shuffleIdToTaskShuffleId.remove(shuffleId);
       taskShuffleIdToShuffleId.remove(taskShuffleId);
     }
+  }
+
+  public ShuffleResourceDescriptor genShuffleResourceDescriptor(
+      String taskShuffleId, int mapId, String taskAttemptId) {
+    int shuffleId = this.getShuffleId(taskShuffleId);
+    int attemptId = this.genAttemptId(shuffleId, mapId);
+    int partitionId = this.genPartitionId(shuffleId);
+    LOG.info(
+        "Assign for ({}, {}, {}) resource ({}, {}, {}, {})",
+        taskShuffleId,
+        mapId,
+        taskAttemptId,
+        shuffleId,
+        mapId,
+        attemptId,
+        partitionId);
+    return new ShuffleResourceDescriptor(shuffleId, mapId, attemptId, partitionId);
   }
 }

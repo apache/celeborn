@@ -42,6 +42,7 @@ public class RemoteShuffleResultPartitionFactory
       ResultPartitionManager partitionManager,
       BufferPoolFactory bufferPoolFactory,
       int networkBufferSize) {
+
     super(flinkConf, celebornConf, partitionManager, bufferPoolFactory, networkBufferSize);
   }
 

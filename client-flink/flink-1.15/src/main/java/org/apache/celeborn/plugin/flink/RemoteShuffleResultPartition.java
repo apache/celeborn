@@ -23,21 +23,17 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.*;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
@@ -48,12 +44,11 @@ import org.apache.celeborn.plugin.flink.utils.Utils;
  * A {@link ResultPartition} which appends records and events to {@link SortBuffer} and after the
  * {@link SortBuffer} is full, all data in the {@link SortBuffer} will be copied and spilled to the
  * remote shuffle service in subpartition index order sequentially. Large records that can not be
- * appended to an empty {@link org.apache.flink.runtime.io.network.partition.SortBuffer} will be
- * spilled directly.
+ * appended to an empty {@link SortBuffer} will be spilled directly.
  */
 public class RemoteShuffleResultPartition extends ResultPartition {
 
-  RemoteShuffleResultPartitionDelegation delegation;
+  private final RemoteShuffleResultPartitionDelegation delegation;
 
   public RemoteShuffleResultPartition(
       String owningTaskName,
@@ -155,6 +150,11 @@ public class RemoteShuffleResultPartition extends ResultPartition {
   }
 
   @Override
+  public long getSizeOfQueuedBuffersUnsafe() {
+    return 0;
+  }
+
+  @Override
   public int getNumberOfQueuedBuffers(int targetSubpartition) {
     return 0;
   }
@@ -166,9 +166,9 @@ public class RemoteShuffleResultPartition extends ResultPartition {
   }
 
   @Override
-  public void notifyEndOfData() throws IOException {
+  public void notifyEndOfData(StopMode mode) throws IOException {
     if (!delegation.isEndOfDataNotified()) {
-      broadcastEvent(EndOfData.INSTANCE, false);
+      broadcastEvent(new EndOfData(mode), false);
       delegation.setEndOfDataNotified(true);
     }
   }
