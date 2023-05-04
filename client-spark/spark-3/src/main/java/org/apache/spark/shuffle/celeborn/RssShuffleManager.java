@@ -100,7 +100,10 @@ public class RssShuffleManager implements ShuffleManager {
           lifecycleManager = new LifecycleManager(appId, celebornConf);
           rssShuffleClient =
               ShuffleClient.get(
-                  lifecycleManager.self(), celebornConf, lifecycleManager.getUserIdentifier());
+                  lifecycleManager.getRssMetaServiceHost(),
+                  lifecycleManager.getRssMetaServicePort(),
+                  celebornConf,
+                  lifecycleManager.getUserIdentifier());
         }
       }
     }
