@@ -20,6 +20,7 @@ package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
 
+import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
@@ -69,12 +70,8 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
       NetworkBufferPool networkBufferPool,
       int networkBufferSize) {
     this.celebornConf = conf;
-    long configuredMemorySize =
-        org.apache.celeborn.common.util.Utils.byteStringAsBytes(
-            PluginConf.getValue(flinkConf, PluginConf.MEMORY_PER_INPUT_GATE));
-    long minConfiguredMemorySize =
-        org.apache.celeborn.common.util.Utils.byteStringAsBytes(
-            PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_GATE));
+    long configuredMemorySize = FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MEMORY_PER_INPUT_GATE);
+    long minConfiguredMemorySize =FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MIN_MEMORY_PER_GATE);
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
