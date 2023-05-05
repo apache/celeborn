@@ -19,6 +19,6 @@ package org.apache.celeborn.plugin.flink;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
-public interface ResultPartitionDelegationBase {
+public interface ResultPartitionAdapter {
   boolean isBlockingResultPartition(ResultPartitionType partitionType);
 }

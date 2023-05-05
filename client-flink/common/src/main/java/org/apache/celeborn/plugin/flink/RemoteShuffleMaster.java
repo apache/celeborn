@@ -59,11 +59,10 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           1,
           ThreadUtils.createFactoryWithDefaultExceptionHandler(
               "remote-shuffle-master-executor", LOG));
-  private final ResultPartitionDelegationBase resultPartitionDelegation;
+  private final ResultPartitionAdapter resultPartitionDelegation;
 
   public RemoteShuffleMaster(
-      ShuffleMasterContext shuffleMasterContext,
-      ResultPartitionDelegationBase resultPartitionDelegation) {
+      ShuffleMasterContext shuffleMasterContext, ResultPartitionAdapter resultPartitionDelegation) {
     this.shuffleMasterContext = shuffleMasterContext;
     this.resultPartitionDelegation = resultPartitionDelegation;
   }

@@ -147,7 +147,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
         new BufferCompressor(networkBufferSize, compressionCodec);
     RemoteShuffleDescriptor rsd = (RemoteShuffleDescriptor) shuffleDescriptor;
     ResultPartition partition =
-        createResmoteShuffleResultPartitionInternal(
+        createRemoteShuffleResultPartitionInternal(
             taskNameWithSubtaskAndId,
             partitionIndex,
             id,
@@ -163,7 +163,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
     return partition;
   }
 
-  abstract ResultPartition createResmoteShuffleResultPartitionInternal(
+  abstract ResultPartition createRemoteShuffleResultPartitionInternal(
       String taskNameWithSubtaskAndId,
       int partitionIndex,
       ResultPartitionID id,

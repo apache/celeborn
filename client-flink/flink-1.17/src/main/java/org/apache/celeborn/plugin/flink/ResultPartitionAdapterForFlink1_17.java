@@ -19,7 +19,7 @@ package org.apache.celeborn.plugin.flink;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
-public class ResultPartitionDelegation implements ResultPartitionDelegationBase {
+public class ResultPartitionAdapterForFlink1_17 implements ResultPartitionAdapter {
   @Override
   public boolean isBlockingResultPartition(ResultPartitionType partitionType) {
     return partitionType.isBlockingOrBlockingPersistentResultPartition();
