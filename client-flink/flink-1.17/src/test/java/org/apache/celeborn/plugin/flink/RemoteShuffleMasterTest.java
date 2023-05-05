@@ -244,7 +244,8 @@ public class RemoteShuffleMasterTest {
               public void onFatalError(Throwable throwable) {
                 System.exit(-1);
               }
-            });
+            },
+            new ResultPartitionDelegation());
 
     return remoteShuffleMaster;
   }
