@@ -83,7 +83,7 @@
     <mockito-scalatest.version>1.16.37</mockito-scalatest.version>
     <netty.version>4.1.92.Final</netty.version>
     <protobuf.version>3.19.2</protobuf.version>
-    <ratis.version>2.5.0</ratis.version>
+    <ratis.version>2.5.1</ratis.version>
     <scalamock.version>5.1.0</scalamock.version>
     <scalatest.version>3.2.3</scalatest.version>
     <slf4j.version>1.7.36</slf4j.version>
