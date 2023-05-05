@@ -25,7 +25,7 @@ import org.apache.celeborn.plugin.flink.config.PluginConf;
 
 public class PluginConfSuiteJ {
   @Test
-  public void testColesce() {
+  public void testCoalesce() {
     Configuration flinkConf = new Configuration();
     Assert.assertEquals("8m", PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_PARTITION));
     Assert.assertEquals("8m", PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_GATE));

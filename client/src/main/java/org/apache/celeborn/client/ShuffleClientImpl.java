@@ -650,8 +650,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     // get location
+    // If rerun or speculation task running after LifecycleManager call stageEnd,
+    // register shuffle will return an empty location map, client need revive for a new location.
     if (!map.containsKey(partitionId)) {
-      logger.warn("It should never reach here!");
       if (!revive(
           applicationId,
           shuffleId,

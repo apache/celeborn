@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.tests.flink;
+package org.apache.celeborn.tests.flink
 
 import org.apache.flink.api.common.{ExecutionMode, InputDependencyConstraint, RuntimeExecutionMode}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, ExecutionOptions, RestOptions}
@@ -26,7 +26,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.service.deploy.MiniClusterFeature;
+import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
@@ -58,6 +58,9 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")
     configuration.setString(RestOptions.BIND_PORT, "8081-8089")
+    configuration.setString(
+      "execution.batch.adaptive.auto-parallelism.min-parallelism",
+      "" + parallelism)
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(parallelism)

@@ -106,7 +106,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         new TransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
     this.flinkTransportClientFactory =
-        new FlinkTransportClientFactory(context, conf.fetchMaxRetries());
+        new FlinkTransportClientFactory(context, conf.fetchMaxRetriesForEachReplica());
   }
 
   public RssBufferStream readBufferedPartition(
@@ -302,7 +302,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         dataClientFactory.createClient(
             location.getHost(), location.getPushPort(), location.getId());
     if (currentClient.get(mapKey) != client) {
-      // makesure that messages have been sent by old client, in order to keep receiving data
+      // make sure that messages have been sent by old client, in order to keep receiving data
       // orderly
       if (currentClient.get(mapKey) != null) {
         limitZeroInFlight(mapKey, pushState);

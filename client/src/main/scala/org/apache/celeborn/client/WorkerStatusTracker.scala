@@ -99,25 +99,37 @@ class WorkerStatusTracker(
         case _ =>
       }
     }
-    if (!failedWorker.isEmpty) {
-      recordWorkerFailure(failedWorker)
-    }
+    recordWorkerFailure(failedWorker)
   }
 
   def recordWorkerFailure(failures: ShuffleFailedWorkers): Unit = {
-    val failedWorker = new ShuffleFailedWorkers(failures)
-    logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
-    failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
-      if (!blacklist.containsKey(worker)) {
-        blacklist.put(worker, (statusCode, registerTime))
-      } else {
-        statusCode match {
-          case StatusCode.WORKER_SHUTDOWN |
-              StatusCode.NO_AVAILABLE_WORKING_DIR |
-              StatusCode.RESERVE_SLOTS_FAILED |
-              StatusCode.UNKNOWN_WORKER =>
-            blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
-          case _ => // Not cover
+    if (!failures.isEmpty) {
+      val failedWorker = new ShuffleFailedWorkers(failures)
+      val failedWorkerMsg = failedWorker.asScala.map { case (worker, (status, time)) =>
+        s"${worker.readableAddress()}   ${status.name()}   $time"
+      }.mkString("\n")
+      val blacklistMsg = blacklist.asScala.map { case (worker, (status, time)) =>
+        s"${worker.readableAddress()}   ${status.name()}   $time"
+      }.mkString("\n")
+      logInfo(
+        s"""
+           |Reporting Worker Failure:
+           |$failedWorkerMsg
+           |Current blacklist:
+           |$blacklistMsg
+               """.stripMargin)
+      failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
+        if (!blacklist.containsKey(worker)) {
+          blacklist.put(worker, (statusCode, registerTime))
+        } else {
+          statusCode match {
+            case StatusCode.WORKER_SHUTDOWN |
+                StatusCode.NO_AVAILABLE_WORKING_DIR |
+                StatusCode.RESERVE_SLOTS_FAILED |
+                StatusCode.UNKNOWN_WORKER =>
+              blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
+            case _ => // Not cover
+          }
         }
       }
     }

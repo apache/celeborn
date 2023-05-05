@@ -17,35 +17,15 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkNotNull;
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
-import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
-import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
-import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.createShuffleIOOwnerMetricGroup;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
-import org.apache.flink.util.FlinkRuntimeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 
@@ -53,29 +33,11 @@ import org.apache.celeborn.common.CelebornConf;
  * The implementation of {@link ShuffleEnvironment} based on the remote shuffle service, providing
  * shuffle environment on flink TM side.
  */
-public class RemoteShuffleEnvironment
+public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
     implements ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleEnvironment.class);
-
-  /** Network buffer pool for shuffle read and shuffle write. */
-  private final NetworkBufferPool networkBufferPool;
-
-  /** A trivial {@link ResultPartitionManager}. */
-  private final ResultPartitionManager resultPartitionManager;
 
   /** Factory class to create {@link RemoteShuffleResultPartition}. */
   private final RemoteShuffleResultPartitionFactory resultPartitionFactory;
-
-  //    //    /** Factory class to create {@link RemoteShuffleInputGate}. */
-  //    private final RemoteShuffleInputGateFactory inputGateFactory;
-
-  /** Whether the shuffle environment is closed. */
-  private boolean isClosed;
-
-  private final Object lock = new Object();
-
-  private final CelebornConf conf;
 
   private final RemoteShuffleInputGateFactory inputGateFactory;
 
@@ -91,117 +53,25 @@ public class RemoteShuffleEnvironment
       RemoteShuffleResultPartitionFactory resultPartitionFactory,
       RemoteShuffleInputGateFactory inputGateFactory,
       CelebornConf conf) {
-
-    this.networkBufferPool = networkBufferPool;
-    this.resultPartitionManager = resultPartitionManager;
+    super(networkBufferPool, resultPartitionManager, conf);
     this.resultPartitionFactory = resultPartitionFactory;
     this.inputGateFactory = inputGateFactory;
-    this.conf = conf;
-    this.isClosed = false;
   }
 
   @Override
-  public List<ResultPartitionWriter> createResultPartitionWriters(
+  public ResultPartitionWriter createResultPartitionWriterInternal(
       ShuffleIOOwnerContext ownerContext,
-      List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
-
-    synchronized (lock) {
-      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
-
-      ResultPartitionWriter[] resultPartitions =
-          new ResultPartitionWriter[resultPartitionDeploymentDescriptors.size()];
-      for (int index = 0; index < resultPartitions.length; index++) {
-        resultPartitions[index] =
-            resultPartitionFactory.create(
-                ownerContext.getOwnerName(), index,
-                resultPartitionDeploymentDescriptors.get(index), conf);
-      }
-      return Arrays.asList(resultPartitions);
-    }
+      int index,
+      ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor,
+      CelebornConf conf) {
+    return resultPartitionFactory.create(
+        ownerContext.getOwnerName(), index, resultPartitionDeploymentDescriptor, conf);
   }
 
   @Override
-  public List<IndexedInputGate> createInputGates(
-      ShuffleIOOwnerContext ownerContext,
-      PartitionProducerStateProvider producerStateProvider,
-      List<InputGateDeploymentDescriptor> inputGateDescriptors) {
-    synchronized (lock) {
-      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
-
-      IndexedInputGate[] inputGates = new IndexedInputGate[inputGateDescriptors.size()];
-      for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
-        InputGateDeploymentDescriptor igdd = inputGateDescriptors.get(gateIndex);
-        RemoteShuffleInputGate inputGate =
-            inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
-        inputGates[gateIndex] = inputGate;
-      }
-      return Arrays.asList(inputGates);
-    }
-  }
-
-  @Override
-  public void close() {
-    LOG.info("Close RemoteShuffleEnvironment.");
-    synchronized (lock) {
-      try {
-        networkBufferPool.destroyAllBufferPools();
-      } catch (Throwable t) {
-        LOG.error("Close RemoteShuffleEnvironment failure.", t);
-      }
-      try {
-        resultPartitionManager.shutdown();
-      } catch (Throwable t) {
-        LOG.error("Close RemoteShuffleEnvironment failure.", t);
-      }
-      try {
-        networkBufferPool.destroy();
-      } catch (Throwable t) {
-        LOG.error("Close RemoteShuffleEnvironment failure.", t);
-      }
-      isClosed = true;
-    }
-  }
-
-  @Override
-  public int start() throws IOException {
-    synchronized (lock) {
-      checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
-      LOG.info("Starting the network environment and its components.");
-      // trivial value.
-      return 1;
-    }
-  }
-
-  @Override
-  public boolean updatePartitionInfo(ExecutionAttemptID consumerID, PartitionInfo partitionInfo) {
-    throw new FlinkRuntimeException("Not implemented yet.");
-  }
-
-  @Override
-  public ShuffleIOOwnerContext createShuffleIOOwnerContext(
-      String ownerName, ExecutionAttemptID executionAttemptID, MetricGroup parentGroup) {
-    MetricGroup nettyGroup = createShuffleIOOwnerMetricGroup(checkNotNull(parentGroup));
-    return new ShuffleIOOwnerContext(
-        checkNotNull(ownerName),
-        checkNotNull(executionAttemptID),
-        parentGroup,
-        nettyGroup.addGroup(METRIC_GROUP_OUTPUT),
-        nettyGroup.addGroup(METRIC_GROUP_INPUT));
-  }
-
-  @Override
-  public void releasePartitionsLocally(Collection<ResultPartitionID> partitionIds) {
-    throw new FlinkRuntimeException("Not implemented yet.");
-  }
-
-  @Override
-  public Collection<ResultPartitionID> getPartitionsOccupyingLocalResources() {
-    return new ArrayList<>();
-  }
-
-  @VisibleForTesting
-  NetworkBufferPool getNetworkBufferPool() {
-    return networkBufferPool;
+  IndexedInputGate createInputGateInternal(
+      ShuffleIOOwnerContext ownerContext, int gateIndex, InputGateDeploymentDescriptor igdd) {
+    return inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
   }
 
   @VisibleForTesting

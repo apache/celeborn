@@ -99,15 +99,21 @@ public class DataPushQueue {
             client.getPartitionLocation(appId, shuffleId, numMappers, numPartitions);
         if (partitionLocationMap != null) {
           PartitionLocation loc = partitionLocationMap.get(partitionId);
-          Integer oldCapacity = workerCapacity.get(loc.hostAndPushPort());
-          if (oldCapacity == null) {
-            oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
-            workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
-          }
-          if (oldCapacity > 0) {
-            iterator.remove();
+          // According to CELEBORN-560, call rerun task and speculative task after LifecycleManager
+          // handle StageEnd will return empty PartitionLocation map, here loc can be null
+          if (loc != null) {
+            Integer oldCapacity = workerCapacity.get(loc.hostAndPushPort());
+            if (oldCapacity == null) {
+              oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
+              workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
+            }
+            if (oldCapacity > 0) {
+              iterator.remove();
+              tasks.add(task);
+              workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
+            }
+          } else {
             tasks.add(task);
-            workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
           }
         } else {
           tasks.add(task);
