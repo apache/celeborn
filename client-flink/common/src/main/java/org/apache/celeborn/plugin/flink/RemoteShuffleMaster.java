@@ -59,9 +59,12 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           1,
           ThreadUtils.createFactoryWithDefaultExceptionHandler(
               "remote-shuffle-master-executor", LOG));
+  private final ResultPartitionAdapter resultPartitionDelegation;
 
-  public RemoteShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
+  public RemoteShuffleMaster(
+      ShuffleMasterContext shuffleMasterContext, ResultPartitionAdapter resultPartitionDelegation) {
     this.shuffleMasterContext = shuffleMasterContext;
+    this.resultPartitionDelegation = resultPartitionDelegation;
   }
 
   @Override
@@ -198,7 +201,9 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
     for (ResultPartitionType partitionType :
         taskInputsOutputsDescriptor.getPartitionTypes().values()) {
-      if (!partitionType.isBlocking()) {
+      boolean isBlockingShuffle =
+          resultPartitionDelegation.isBlockingResultPartition(partitionType);
+      if (!isBlockingShuffle) {
         throw new RuntimeException(
             "Blocking result partition type expected but found " + partitionType);
       }

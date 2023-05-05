@@ -1085,6 +1085,27 @@
     </profile>
 
     <profile>
+      <id>flink-1.17</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-1.17</module>
+        <module>client-flink/flink-1.17-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>1.17.0</flink.version>
+        <flink.binary.version>1.17</flink.binary.version>
+        <scala.version>2.12.7</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.17_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.clients.artifact>flink-clients</flink.clients.artifact>
+        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
+      </properties>
+    </profile>
+
+    <profile>
       <id>google-mirror</id>
       <properties>
         <mavenCentralId>gcs-maven-central-mirror</mavenCentralId>
@@ -1106,6 +1127,7 @@
               <execution>
                 <id>source-release-assembly</id>
                 <phase>none</phase>
+
               </execution>
             </executions>
           </plugin>

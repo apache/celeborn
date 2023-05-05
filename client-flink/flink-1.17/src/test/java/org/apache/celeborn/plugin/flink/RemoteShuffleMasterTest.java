@@ -31,10 +31,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
@@ -97,7 +100,7 @@ public class RemoteShuffleMasterTest {
     ShuffleResourceDescriptor mapPartitionShuffleDescriptor =
         shuffleResource.getMapPartitionShuffleDescriptor();
 
-    LOG.info("remoteShuffleDescriptor:", remoteShuffleDescriptor);
+    LOG.info("remoteShuffleDescriptor:{}", remoteShuffleDescriptor);
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getPartitionId());
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getAttemptId());
@@ -170,6 +173,8 @@ public class RemoteShuffleMasterTest {
   public void testShuffleMemoryAnnouncing() {
     Map<IntermediateDataSetID, Integer> numberOfInputGateChannels = new HashMap<>();
     Map<IntermediateDataSetID, Integer> numbersOfResultSubpartitions = new HashMap<>();
+    Map<IntermediateDataSetID, Integer> subPartitionNums = new HashMap<>();
+    Map<IntermediateDataSetID, ResultPartitionType> inputPartitionTypes = new HashMap<>();
     Map<IntermediateDataSetID, ResultPartitionType> resultPartitionTypes = new HashMap<>();
     IntermediateDataSetID inputDataSetID0 = new IntermediateDataSetID();
     IntermediateDataSetID inputDataSetID1 = new IntermediateDataSetID();
@@ -179,16 +184,29 @@ public class RemoteShuffleMasterTest {
     Random random = new Random();
     numberOfInputGateChannels.put(inputDataSetID0, random.nextInt(1000));
     numberOfInputGateChannels.put(inputDataSetID1, random.nextInt(1000));
-    numbersOfResultSubpartitions.put(outputDataSetID0, random.nextInt(1000));
-    numbersOfResultSubpartitions.put(outputDataSetID1, random.nextInt(1000));
-    numbersOfResultSubpartitions.put(outputDataSetID2, random.nextInt(1000));
+    int subPartitionNum1 = random.nextInt(1000);
+    int subPartitionNum2 = random.nextInt(1000);
+    int subPartitionNum3 = random.nextInt(1000);
+    numbersOfResultSubpartitions.put(outputDataSetID0, subPartitionNum1);
+    numbersOfResultSubpartitions.put(outputDataSetID1, subPartitionNum2);
+    numbersOfResultSubpartitions.put(outputDataSetID2, subPartitionNum3);
+    subPartitionNums.put(outputDataSetID0, subPartitionNum1);
+    subPartitionNums.put(outputDataSetID1, subPartitionNum2);
+    subPartitionNums.put(outputDataSetID2, subPartitionNum3);
+    inputPartitionTypes.put(inputDataSetID0, ResultPartitionType.BLOCKING);
+    inputPartitionTypes.put(inputDataSetID1, ResultPartitionType.BLOCKING);
     resultPartitionTypes.put(outputDataSetID0, ResultPartitionType.BLOCKING);
     resultPartitionTypes.put(outputDataSetID1, ResultPartitionType.BLOCKING);
     resultPartitionTypes.put(outputDataSetID2, ResultPartitionType.BLOCKING);
     MemorySize calculated =
         remoteShuffleMaster.computeShuffleMemorySizeForTask(
             TaskInputsOutputsDescriptor.from(
-                numberOfInputGateChannels, numbersOfResultSubpartitions, resultPartitionTypes));
+                3,
+                numberOfInputGateChannels,
+                numbersOfResultSubpartitions,
+                subPartitionNums,
+                inputPartitionTypes,
+                resultPartitionTypes));
 
     long numBytesPerGate =
         FlinkUtils.byteStringValueAsBytes(configuration, PluginConf.MEMORY_PER_INPUT_GATE);
@@ -257,11 +275,15 @@ public class RemoteShuffleMasterTest {
         intermediateResultPartitionId,
         ResultPartitionType.BLOCKING,
         5,
-        1);
+        1,
+        false,
+        false);
   }
 
   public ProducerDescriptor createProducerDescriptor() throws UnknownHostException {
-    ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+    ExecutionAttemptID executionAttemptId =
+        new ExecutionAttemptID(
+            new ExecutionGraphID(), new ExecutionVertexID(new JobVertexID(0, 0), 0), 0);
     return new ProducerDescriptor(
         ResourceID.generate(), executionAttemptId, InetAddress.getLocalHost(), 100);
   }

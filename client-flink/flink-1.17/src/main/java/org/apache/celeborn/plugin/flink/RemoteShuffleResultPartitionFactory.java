@@ -47,7 +47,7 @@ public class RemoteShuffleResultPartitionFactory
   }
 
   @Override
-  public ResultPartition createRemoteShuffleResultPartitionInternal(
+  ResultPartition createRemoteShuffleResultPartitionInternal(
       String taskNameWithSubtaskAndId,
       int partitionIndex,
       ResultPartitionID id,
