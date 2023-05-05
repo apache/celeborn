@@ -32,7 +32,7 @@ public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFac
   @Override
   public ShuffleMaster<RemoteShuffleDescriptor> createShuffleMaster(
       ShuffleMasterContext shuffleMasterContext) {
-    return new RemoteShuffleMaster(shuffleMasterContext, new ResultPartitionAdapterForFlink1_17());
+    return new RemoteShuffleMaster(shuffleMasterContext, new SimpleResultPartitionAdapter());
   }
 
   @Override

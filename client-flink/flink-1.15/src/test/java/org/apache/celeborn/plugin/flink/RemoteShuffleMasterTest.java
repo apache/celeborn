@@ -227,7 +227,7 @@ public class RemoteShuffleMasterTest {
                 System.exit(-1);
               }
             },
-            new ResultPartitionAdapterForFlink1_15());
+            new SimpleResultPartitionAdapter());
 
     return remoteShuffleMaster;
   }
