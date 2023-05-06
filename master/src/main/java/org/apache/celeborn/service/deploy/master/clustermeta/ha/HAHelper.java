@@ -34,8 +34,8 @@ public class HAHelper {
 
   public static boolean checkShouldProcess(
       RpcCallContext context, AbstractMetaManager masterStatusSystem) {
-    if ((masterStatusSystem instanceof HAMasterMetaManager)) {
-      HARaftServer ratisServer = ((HAMasterMetaManager) masterStatusSystem).getRatisServer();
+    HARaftServer ratisServer = getRatisServer(masterStatusSystem);
+    if (ratisServer != null) {
       if (ratisServer.isLeader()) {
         return true;
       }
@@ -54,6 +54,33 @@ public class HAHelper {
       return false;
     }
     return true;
+  }
+
+  public static long getWorkerTimeoutDeadline(AbstractMetaManager masterStatusSystem) {
+    HARaftServer ratisServer = getRatisServer(masterStatusSystem);
+    if (ratisServer != null) {
+      return ratisServer.getWorkerTimeoutDeadline();
+    } else {
+      return -1;
+    }
+  }
+
+  public static long getAppTimeoutDeadline(AbstractMetaManager masterStatusSystem) {
+    HARaftServer ratisServer = getRatisServer(masterStatusSystem);
+    if (ratisServer != null) {
+      return ratisServer.getAppTimeoutDeadline();
+    } else {
+      return -1;
+    }
+  }
+
+  public static HARaftServer getRatisServer(AbstractMetaManager masterStatusSystem) {
+    if ((masterStatusSystem instanceof HAMasterMetaManager)) {
+      HARaftServer ratisServer = ((HAMasterMetaManager) masterStatusSystem).getRatisServer();
+      return ratisServer;
+    }
+
+    return null;
   }
 
   public static ByteString convertRequestToByteString(ResourceProtos.ResourceRequest request) {
