@@ -91,12 +91,19 @@ These metrics are exposed by Celeborn master.
 
   - namespace=master 
     - WorkerCount
+      - Active worker's count.
     - LostWorkers
+      - Losted worker list since master started.
     - BlacklistedWorkerCount
+      - Workers count on the blacklist. 
     - RegisteredShuffleCount
+      - Active shuffle's count.
     - IsActiveMaster
+      - To indicate that current master is leader or not in HA cluster.
     - PartitionSize
+      - The size of estimated shuffle partition size.
     - OfferSlotsTime
+      - The time for a master to process offers slots request by register shuffle.
 
   - namespace=CPU
     - JVMCPUTime
@@ -119,12 +126,19 @@ These metrics are exposed by Celeborn worker.
 
   - namespace=worker
     - CommitFilesTime
+      - The time for a worker to flush and close files related to specified shuffle.
     - ReserveSlotsTime
+      - The time for a worker to reserve slots for specified shuffle.
     - FlushDataTime
+      - The time for a worker to write a buffer which is 256KB by default to storage.
     - OpenStreamTime
+      - The time for a worker to process openStream RPC and return StreamHandle.
     - FetchChunkTime
+      - The time for a worker to fetch a chunk which is 8MB by default from a shuffle partition. 
     - MasterPushDataTime
+      - The time for a worker to handle a pushData RPC sent from a celeborn client.
     - SlavePushDataTime
+      - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
     - WriteDataFailCount
     - ReplicateDataFailCount
     - ReplicateDataWriteFailCount
@@ -141,20 +155,33 @@ These metrics are exposed by Celeborn worker.
     - MasterRegionFinishTime
     - SlaveRegionFinishTime
     - TakeBufferTime
-    - TakeBufferTimeIndex
+      - The time for a worker to take out a buffer from a disk flusher.
     - RegisteredShuffleCount
     - SlotsAllocated
     - NettyMemory
+      - The total amount of off-heap memory used by celeborn worker.
     - SortTime
+      - The time for a worker to sort a shuffle file.
     - SortMemory
+      - The memory used by sorting shuffle files.
     - SortingFiles
     - SortedFiles
     - SortedFileSize
     - DiskBuffer
+      - The memory occupied by pushData and pushMergedData which should be written to disk.
     - PausePushData
+      - The count for a worker to stop receiving pushData from clients.
     - PausePushDataAndReplicate
+      - The count for a worker to stop receiving pushData from clients and other workers.
     - BufferStreamReadBuffer
+      - The memory used by credit stream read buffer.
     - ReadBufferDispatcherRequestsLength
+      - The queue size of read buffer allocation requests.
+    - ReadBufferAllocatedCount
+      - Allocated read buffer count.
+    - CreditStreamCount
+      - Stream count for map partition reading streams.
+    - ActiveMapPartitionCount
     - DeviceOSFreeCapacity(B)
     - DeviceOSTotalCapacity(B)
     - DeviceCelebornFreeCapacity(B)

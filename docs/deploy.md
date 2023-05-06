@@ -14,7 +14,7 @@ license: |
   limitations under the License.
 ---
 
-## Deploy Celeborn
+# Deploy Celeborn
 
 1. Unzip the tarball to `$CELEBORN_HOME`
 2. Modify environment variables in `$CELEBORN_HOME/conf/celeborn-env.sh`
@@ -39,7 +39,7 @@ celeborn.master.port 9097
 
 celeborn.metrics.enabled true
 celeborn.worker.flush.buffer.size 256k
-celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
+celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=HDD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```   
@@ -47,29 +47,42 @@ celeborn.worker.monitor.disk.enabled false
 EXAMPLE: HA cluster
 ```properties
 # used by client and worker to connect to master
-celeborn.master.endpoints clb-1:9097,clb-2:9098,clb-3:9099
+celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
 
 # used by master nodes to bootstrap, every node should know the topology of whole cluster, for each node,
-# `celeborn.ha.master.node.id` should be unique, and `celeborn.ha.master.node.<id>.host` is required
+# `celeborn.ha.master.node.id` should be unique, and `celeborn.ha.master.node.<id>.host` is required.
 celeborn.ha.enabled true
 celeborn.ha.master.node.id 1
 celeborn.ha.master.node.1.host clb-1
 celeborn.ha.master.node.1.port 9097
 celeborn.ha.master.node.1.ratis.port 9872
 celeborn.ha.master.node.2.host clb-2
-celeborn.ha.master.node.2.port 9098
-celeborn.ha.master.node.2.ratis.port 9873
+celeborn.ha.master.node.2.port 9097
+celeborn.ha.master.node.2.ratis.port 9872
 celeborn.ha.master.node.3.host clb-3
-celeborn.ha.master.node.3.port 9099
-celeborn.ha.master.node.3.ratis.port 9874
+celeborn.ha.master.node.3.port 9097
+celeborn.ha.master.node.3.ratis.port 9872
 celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
 celeborn.worker.flush.buffer.size 256k
-celeborn.worker.storage.dirs /mnt/disk1/,/mnt/disk2
+celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=HDD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
+```
+
+Flink engine related configurations:
+```properties
+# if you are using Celeborn for flink, these settings will be needed
+celeborn.worker.directMemoryRatioForReadBuffer 0.4
+celeborn.worker.directMemoryRatioToResume 0.5
+# these setting will affect performance. 
+# If there is enough off-heap memory you can try to increase read buffers.
+# Read buffer max memory usage for a data partition is `taskmanager.memory.segment-size * readBuffersMax`
+celeborn.worker.partition.initial.readBuffersMin 512
+celeborn.worker.partition.initial.readBuffersMax 1024
+celeborn.worker.readBuffer.allocationWait 10ms
 ```
 
 4. Copy Celeborn and configurations to all nodes
@@ -82,7 +95,7 @@ celeborn.worker.monitor.disk.enabled false
    Start Celeborn worker  
    `$CELEBORN_HOME/sbin/start-worker.sh`
 6. If Celeborn start success, the output of Master's log should be like this:
-```angular2html
+```
 22/10/08 19:29:11,805 INFO [main] Dispatcher: Dispatcher numThreads: 64
 22/10/08 19:29:11,875 INFO [main] TransportClientFactory: mode NIO threads 64
 22/10/08 19:29:12,057 INFO [main] Utils: Successfully started service 'MasterSys' on port 9097.
@@ -104,7 +117,7 @@ WorkerRef: null
 ## Deploy Spark client
 Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 
-## Spark Configuration
+### Spark Configuration
 To use Celeborn, following spark configurations should be added.
 ```properties
 spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
@@ -112,7 +125,7 @@ spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
 spark.serializer org.apache.spark.serializer.KryoSerializer
 
 # celeborn master
-spark.celeborn.master.endpoints clb-1:9097,clb-2:9098,clb-3:9099
+spark.celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
 spark.shuffle.service.enabled false
 
 # options: hash, sort
@@ -131,4 +144,29 @@ spark.sql.adaptive.localShuffleReader.enabled false
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
 spark.sql.adaptive.skewJoin.enabled true
+```
+
+## Deploy Flink client
+Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
+
+### Flink Configuration
+TO use Celeborn, follow flink configurations should be added.
+```properties
+shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
+celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
+
+celeborn.shuffle.batchHandleReleasePartition.enabled: true
+celeborn.push.maxReqsInFlight: 128
+
+# network connections between peers
+celeborn.data.io.numConnectionsPerPeer: 16
+# threads number may vary according to your cluster but do not set to 1
+celeborn.data.io.threads: 32
+celeborn.shuffle.batchHandleCommitPartition.threads: 32
+celeborn.rpc.dispatcher.numThreads: 32
+
+# floating buffers may need to change `taskmanager.network.memory.fraction` and `taskmanager.network.memory.max`
+taskmanager.network.memory.floating-buffers-per-gate: 4096
+taskmanager.network.memory.buffers-per-channel: 0
+taskmanager.memory.task.off-heap.size: 512m
 ```
