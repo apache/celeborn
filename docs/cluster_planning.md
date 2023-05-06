@@ -34,6 +34,4 @@ reference.
 ## Worker Scale
 
 You need to estimate your cluster's max concurrent shuffle size(ES), and get the total usable disk
-space of a node(NS). The worker count can be `(ES * 2 / NS)` if your node specs are match our
-preceding text.
-
+space of a node(NS). The worker count can be `(ES * 2 / NS)`.
