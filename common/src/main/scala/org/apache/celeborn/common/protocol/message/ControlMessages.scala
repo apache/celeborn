@@ -768,7 +768,7 @@ object ControlMessages extends Logging {
         .addAllMasterLocations(masterLocations)
         .addAllSlaveLocation(slaveLocations)
         .build().toByteArray
-      new TransportMessage(MessageType.DESTROY_WORKER_SLOTS, payload)
+      new TransportMessage(MessageType.DESTROY, payload)
 
     case DestroyWorkerSlotsResponse(status, failedMasters, failedSlaves) =>
       val builder = PbDestroyWorkerSlotsResponse.newBuilder()
@@ -776,7 +776,7 @@ object ControlMessages extends Logging {
       builder.addAllFailedMasters(failedMasters)
       builder.addAllFailedSlaves(failedSlaves)
       val payload = builder.build().toByteArray
-      new TransportMessage(MessageType.DESTROY_WORKER_SLOTS_RESPONSE, payload)
+      new TransportMessage(MessageType.DESTROY_RESPONSE, payload)
 
     case SlaveLostResponse(status, slaveLocation) =>
       val payload = PbSlaveLostResponse.newBuilder()
@@ -1078,14 +1078,14 @@ object ControlMessages extends Logging {
           pbCommitFilesResponse.getTotalWritten,
           pbCommitFilesResponse.getFileCount)
 
-      case DESTROY_WORKER_SLOTS =>
+      case DESTROY =>
         val pbDestroy = PbDestroyWorkerSlots.parseFrom(message.getPayload)
         DestroyWorkerSlots(
           pbDestroy.getShuffleKey,
           pbDestroy.getMasterLocationsList,
           pbDestroy.getSlaveLocationList)
 
-      case DESTROY_WORKER_SLOTS_RESPONSE =>
+      case DESTROY_RESPONSE =>
         val pbDestroyResponse = PbDestroyWorkerSlotsResponse.parseFrom(message.getPayload)
         DestroyWorkerSlotsResponse(
           Utils.toStatusCode(pbDestroyResponse.getStatus),
