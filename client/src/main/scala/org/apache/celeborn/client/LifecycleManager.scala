@@ -999,13 +999,17 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         // clear for the shuffle
         registeredShuffle.remove(shuffleId)
         registeringShuffleRequest.remove(shuffleId)
-        unregisterShuffleTime.remove(shuffleId)
         shuffleAllocatedWorkers.remove(shuffleId)
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        requestMasterUnregisterShuffle(
+        val unregisterShuffleResponse = requestMasterUnregisterShuffle(
           UnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))
+        if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
+          unregisterShuffleTime.remove(shuffleId)
+        }
+
+        // if unregister shuffle not success, wait next turn
       }
     }
   }

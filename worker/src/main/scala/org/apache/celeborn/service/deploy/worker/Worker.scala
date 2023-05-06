@@ -510,16 +510,21 @@ private[celeborn] class Worker(
           // During graceful shutdown, to avoid allocate slots in this worker,
           // add this worker to master's blacklist. When restart, register worker will
           // make master remove this worker from blacklist.
-          rssHARetryClient.send(ReportWorkerUnavailable(List(workerInfo).asJava))
-          val interval = conf.checkSlotsFinishedInterval
           val timeout = conf.checkSlotsFinishedTimeoutMs
-          var waitTimes = 0
+          val startTime = System.currentTimeMillis()
+          def waitTime: Long = System.currentTimeMillis() - startTime
+          while (waitTime < timeout) {
+            try {
+              rssHARetryClient.send(ReportWorkerUnavailable(List(workerInfo).asJava))
+            } catch {
+              case e: Throwable =>
+                Thread.sleep(3000)
+            }
+          }
 
-          def waitTime: Long = waitTimes * interval
-
+          val interval = conf.checkSlotsFinishedInterval
           while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
             Thread.sleep(interval)
-            waitTimes += 1
           }
           if (partitionLocationInfo.isEmpty) {
             logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")

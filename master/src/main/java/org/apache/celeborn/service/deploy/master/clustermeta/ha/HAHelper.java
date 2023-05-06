@@ -25,6 +25,7 @@ import org.apache.ratis.protocol.Message;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.haclient.MasterNotLeaderException;
 import org.apache.celeborn.common.rpc.RpcCallContext;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
@@ -81,6 +82,12 @@ public class HAHelper {
     }
 
     return null;
+  }
+
+  public static void checkFailure(RpcCallContext context, Exception exception) {
+    if (exception != null && context != null) {
+      context.sendFailure(new CelebornIOException(exception.getMessage(), exception));
+    }
   }
 
   public static ByteString convertRequestToByteString(ResourceProtos.ResourceRequest request) {
