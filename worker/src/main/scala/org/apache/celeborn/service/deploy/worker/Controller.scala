@@ -257,6 +257,7 @@ private[deploy] class Controller(
       shuffleKey: String,
       uniqueIds: jList[String],
       committedIds: jSet[String],
+      emptyFileIds: jSet[String],
       failedIds: jSet[String],
       committedStorageInfos: ConcurrentHashMap[String, StorageInfo],
       committedMapIdBitMap: ConcurrentHashMap[String, RoaringBitmap],
@@ -298,6 +299,8 @@ private[deploy] class Controller(
                     }
                     committedIds.add(uniqueId)
                   }
+                } else {
+                  emptyFileIds.add(uniqueId)
                 }
               } catch {
                 case e: IOException =>
@@ -407,6 +410,8 @@ private[deploy] class Controller(
     // Use ConcurrentSet to avoid excessive lock contention.
     val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
+    val emptyFileMasterIds = ConcurrentHashMap.newKeySet[String]()
+    val emptyFileSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val committedMasterStorageInfos = JavaUtils.newConcurrentHashMap[String, StorageInfo]()
@@ -419,6 +424,7 @@ private[deploy] class Controller(
         shuffleKey,
         masterIds,
         committedMasterIds,
+        emptyFileMasterIds,
         failedMasterIds,
         committedMasterStorageInfos,
         committedMapIdBitMap,
@@ -427,6 +433,7 @@ private[deploy] class Controller(
       shuffleKey,
       slaveIds,
       committedSlaveIds,
+      emptyFileSlaveIds,
       failedSlaveIds,
       committedSlaveStorageInfos,
       committedMapIdBitMap,
@@ -470,8 +477,14 @@ private[deploy] class Controller(
       // reply
       val response =
         if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
-          logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
-            s" master partitions and ${committedSlaveIds.size()} slave partitions!")
+          logInfo(
+            s"CommitFiles for $shuffleKey success with " +
+              s"${committedMasterIds.size()} committed master partitions, " +
+              s"${emptyFileMasterIds.size()} empty master partitions, " +
+              s"${failedMasterIds.size()} failed master partitions, " +
+              s"${committedMasterIds.size()} committed slave partitions, " +
+              s"${emptyFileSlaveIds.size()} empty slave partitions, " +
+              s"${failedSlaveIds.size()} failed slave partitions.")
           CommitFilesResponse(
             StatusCode.SUCCESS,
             committedMasterIdList,
@@ -484,8 +497,14 @@ private[deploy] class Controller(
             totalSize,
             fileCount)
         } else {
-          logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
-            s" partitions and ${failedSlaveIds.size()} slave partitions!")
+          logWarning(
+            s"CommitFiles for $shuffleKey failed with " +
+              s"${committedMasterIds.size()} committed master partitions, " +
+              s"${emptyFileMasterIds.size()} empty master partitions, " +
+              s"${failedMasterIds.size()} failed master partitions, " +
+              s"${committedMasterIds.size()} committed slave partitions, " +
+              s"${emptyFileSlaveIds.size()} empty slave partitions, " +
+              s"${failedSlaveIds.size()} failed slave partitions.")
           CommitFilesResponse(
             StatusCode.PARTIAL_SUCCESS,
             committedMasterIdList,
