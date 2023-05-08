@@ -41,7 +41,7 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14.
+1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14/1.15/1.17.
 2.Celeborn tested under Java 8 environment.
 
 Build Celeborn
