@@ -145,8 +145,8 @@ class WorkerPartitionLocationInfo extends Logging {
   def isEmpty: Boolean = {
     (masterPartitionLocations.isEmpty ||
       masterPartitionLocations.asScala.values.forall(_.isEmpty)) &&
-      (slavePartitionLocations.isEmpty ||
-        slavePartitionLocations.asScala.values.forall(_.isEmpty))
+    (slavePartitionLocations.isEmpty ||
+      slavePartitionLocations.asScala.values.forall(_.isEmpty))
   }
 
   override def toString: String = {
