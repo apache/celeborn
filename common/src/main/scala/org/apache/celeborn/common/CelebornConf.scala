@@ -2658,7 +2658,7 @@ object CelebornConf extends Logging {
   val QUOTA_USER_SPECIFIC_TENANT: ConfigEntry[String] =
     buildConf("celeborn.quota.identity.user-specific.tenant")
       .categories("quota")
-      .doc(s"Tenant id if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.UserSpecifiedIdentity.")
+      .doc(s"Tenant id if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider.")
       .version("0.3.0")
       .stringConf
       .createWithDefault(IdentityProvider.DEFAULT_TENANT_ID)
@@ -2666,7 +2666,7 @@ object CelebornConf extends Logging {
   val QUOTA_USER_SPECIFIC_USERNAME: ConfigEntry[String] =
     buildConf("celeborn.quota.identity.user-specific.userName")
       .categories("quota")
-      .doc(s"User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.UserSpecifiedIdentity.")
+      .doc(s"User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider.")
       .version("0.3.0")
       .stringConf
       .createWithDefault(IdentityProvider.DEFAULT_USERNAME)
