@@ -40,21 +40,33 @@ public class HAHelper {
       if (ratisServer.isLeader()) {
         return true;
       }
-      if (context != null) {
+      sendFailure(context, ratisServer, null);
+      return false;
+    }
+    return true;
+  }
+
+  public static void sendFailure(
+      RpcCallContext context, HARaftServer ratisServer, Throwable cause) {
+    if (context != null) {
+      if (ratisServer != null) {
         if (ratisServer.getCachedLeaderPeerRpcEndpoint().isPresent()) {
           context.sendFailure(
               new MasterNotLeaderException(
                   ratisServer.getRpcEndpoint(),
-                  ratisServer.getCachedLeaderPeerRpcEndpoint().get()));
+                  ratisServer.getCachedLeaderPeerRpcEndpoint().get(),
+                  cause));
         } else {
           context.sendFailure(
               new MasterNotLeaderException(
-                  ratisServer.getRpcEndpoint(), MasterNotLeaderException.LEADER_NOT_PRESENTED));
+                  ratisServer.getRpcEndpoint(),
+                  MasterNotLeaderException.LEADER_NOT_PRESENTED,
+                  cause));
         }
+      } else {
+        context.sendFailure(new CelebornIOException(cause.getMessage(), cause));
       }
-      return false;
     }
-    return true;
   }
 
   public static long getWorkerTimeoutDeadline(AbstractMetaManager masterStatusSystem) {
@@ -82,12 +94,6 @@ public class HAHelper {
     }
 
     return null;
-  }
-
-  public static void checkFailure(RpcCallContext context, Exception exception) {
-    if (exception != null && context != null) {
-      context.sendFailure(new CelebornIOException(exception.getMessage(), exception));
-    }
   }
 
   public static ByteString convertRequestToByteString(ResourceProtos.ResourceRequest request) {

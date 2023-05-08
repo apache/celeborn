@@ -206,7 +206,7 @@ private[celeborn] class Master(
         f
       } catch {
         case e: Exception =>
-          HAHelper.checkFailure(context, e)
+          HAHelper.sendFailure(context, HAHelper.getRatisServer(statusSystem), e)
       }
     }
 
