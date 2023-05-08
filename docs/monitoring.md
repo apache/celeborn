@@ -164,9 +164,9 @@ These metrics are exposed by Celeborn worker.
     - DiskBuffer
       - The memory occupied by pushData and pushMergedData which should be written to disk.
     - PausePushData
-      - The count for a worker to stop receiving pushData from clients.
+      - The count for a worker to stop receiving pushData from clients because of back pressure.
     - PausePushDataAndReplicate
-      - The count for a worker to stop receiving pushData from clients and other workers.
+      - The count for a worker to stop receiving pushData from clients and other workers because of back pressure.
     - BufferStreamReadBuffer
       - The memory used by credit stream read buffer.
     - ReadBufferDispatcherRequestsLength
