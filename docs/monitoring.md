@@ -91,15 +91,10 @@ These metrics are exposed by Celeborn master.
 
   - namespace=master 
     - WorkerCount
-      - Active worker's count.
     - LostWorkers
-      - Losted worker list since master started.
     - BlacklistedWorkerCount
-      - Workers count on the blacklist. 
     - RegisteredShuffleCount
-      - Active shuffle's count.
     - IsActiveMaster
-      - To indicate that current master is leader or not in HA cluster.
     - PartitionSize
       - The size of estimated shuffle partition size.
     - OfferSlotsTime
@@ -126,15 +121,14 @@ These metrics are exposed by Celeborn worker.
 
   - namespace=worker
     - CommitFilesTime
-      - The time for a worker to flush and close files related to specified shuffle.
+      - The time for a worker to flush buffers and close files related to specified shuffle.
     - ReserveSlotsTime
-      - The time for a worker to reserve slots for specified shuffle.
     - FlushDataTime
       - The time for a worker to write a buffer which is 256KB by default to storage.
     - OpenStreamTime
       - The time for a worker to process openStream RPC and return StreamHandle.
     - FetchChunkTime
-      - The time for a worker to fetch a chunk which is 8MB by default from a shuffle partition. 
+      - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
     - MasterPushDataTime
       - The time for a worker to handle a pushData RPC sent from a celeborn client.
     - SlavePushDataTime
