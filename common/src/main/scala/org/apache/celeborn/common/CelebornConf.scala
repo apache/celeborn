@@ -19,19 +19,17 @@ package org.apache.celeborn.common
 
 import java.io.IOException
 import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
-import org.apache.hadoop.security.UserGroupInformation
-
-import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
+import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
 import org.apache.celeborn.common.network.util.ByteUnit
-import org.apache.celeborn.common.protocol.{CompressionCodec, PartitionSplitMode, PartitionType, ShuffleMode, SlotsAssignPolicy, TransportModuleConstants}
+import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
 import org.apache.celeborn.common.quota.DefaultQuotaManager
@@ -653,6 +651,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def quotaIdentityProviderClass: String = get(QUOTA_IDENTITY_PROVIDER)
   def quotaManagerClass: String = get(QUOTA_MANAGER)
   def quotaConfigurationPath: Option[String] = get(QUOTA_CONFIGURATION_PATH)
+  def quotaUserSpecificTenant: String = get(QUOTA_USER_SPECIFIC_TENANT)
+  def quotaUserSpecificUserName: String = get(QUOTA_USER_SPECIFIC_USERNAME)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
@@ -2647,11 +2647,29 @@ object CelebornConf extends Logging {
       .withAlternative("rss.identity.provider")
       .categories("quota")
       .doc(s"IdentityProvider class name. Default class is " +
-        s"`${classOf[DefaultIdentityProvider].getName}`, return `${classOf[UserIdentifier].getName}` " +
-        s"with default tenant id and username from `${classOf[UserGroupInformation].getName}`. ")
+        s"`${classOf[DefaultIdentityProvider].getName}`. " +
+        s"Optional values: " +
+        s"org.apache.celeborn.common.identity.HadoopBasedIdentityProvider user name will be obtained by UserGroupInformation.getUserName; " +
+        s"org.apache.celeborn.common.identity.DefaultIdentityProvider uesr name and tenant id are default values or user-specific values.")
       .version("0.2.0")
       .stringConf
       .createWithDefault(classOf[DefaultIdentityProvider].getName)
+
+  val QUOTA_USER_SPECIFIC_TENANT: ConfigEntry[String] =
+    buildConf("celeborn.quota.identity.user-specific.tenant")
+      .categories("quota")
+      .doc(s"Tenant id if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider.")
+      .version("0.3.0")
+      .stringConf
+      .createWithDefault(IdentityProvider.DEFAULT_TENANT_ID)
+
+  val QUOTA_USER_SPECIFIC_USERNAME: ConfigEntry[String] =
+    buildConf("celeborn.quota.identity.user-specific.userName")
+      .categories("quota")
+      .doc(s"User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider.")
+      .version("0.3.0")
+      .stringConf
+      .createWithDefault(IdentityProvider.DEFAULT_USERNAME)
 
   val QUOTA_MANAGER: ConfigEntry[String] =
     buildConf("celeborn.quota.manager")
