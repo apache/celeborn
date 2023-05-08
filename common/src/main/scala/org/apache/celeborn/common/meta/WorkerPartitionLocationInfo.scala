@@ -128,6 +128,10 @@ class WorkerPartitionLocationInfo extends Logging {
       }
     }
 
+    if (partitionMap.isEmpty) {
+      partitionInfo.remove(shuffleKey)
+    }
+
     // some locations might have no disk hint
     (locMap, numSlotsReleased)
   }
