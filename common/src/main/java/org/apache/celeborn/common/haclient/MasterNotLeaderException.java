@@ -28,7 +28,11 @@ public class MasterNotLeaderException extends IOException {
 
   public MasterNotLeaderException(String currentPeer, String suggestedLeaderPeer, Throwable cause) {
     super(
-        "Master: currentPeer may not the leader. Suggested leader is Master: suggestedLeaderPeer.",
+        "Master:"
+            + currentPeer
+            + " may not the leader. Suggested leader is Master:"
+            + suggestedLeaderPeer
+            + ".",
         cause);
     this.currentPeer = currentPeer;
     this.leaderPeer = suggestedLeaderPeer;
