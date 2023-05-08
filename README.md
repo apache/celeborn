@@ -41,12 +41,12 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14.
+1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and flink 1.14/1.15/1.17.
 2.Celeborn tested under Java 8 environment.
 
 Build Celeborn
 ```shell
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pflink-1.14
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pflink-1.14/-Pflink-1.15/-Pflink-1.17
 ```
 
 package apache-celeborn-${project.version}-bin.tgz will be generated.
@@ -113,7 +113,8 @@ celeborn.master.port 9097
 
 celeborn.metrics.enabled true
 celeborn.worker.flush.buffer.size 256k
-celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=HDD
+# Disk type is HDD by defaut.
+celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```   
@@ -121,10 +122,10 @@ celeborn.worker.monitor.disk.enabled false
 EXAMPLE: HA cluster
 ```properties
 # used by client and worker to connect to master
-celeborn.master.endpoints clb-1:9097,clb-2:9098,clb-3:9099
+celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
 
 # used by master nodes to bootstrap, every node should know the topology of whole cluster, for each node,
-# `celeborn.ha.master.node.id` should be unique, and `celeborn.ha.master.node.<id>.host` is required
+# `celeborn.ha.master.node.id` should be unique, and `celeborn.ha.master.node.<id>.host` is required.
 celeborn.ha.enabled true
 celeborn.ha.master.node.id 1
 celeborn.ha.master.node.1.host clb-1
@@ -141,7 +142,8 @@ celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
 celeborn.worker.flush.buffer.size 256k
-celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=HDD
+# Disk type is HDD by defaut.
+celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```
@@ -150,9 +152,9 @@ Flink engine related configurations:
 ```properties
 # if you are using Celeborn for flink, these settings will be needed
 celeborn.worker.directMemoryRatioForReadBuffer 0.4
-celeborn.worker.directMemoryRatioToResume 0.5
+celeborn.worker.directMemoryRatioToResume 0.6
 # these setting will affect performance. 
-# If there is enough off-heap memory you can try to increase read buffers.
+# If there is enough off-heap memory, you can try to increase read buffers.
 # Read buffer max memory usage for a data partition is `taskmanager.memory.segment-size * readBuffersMax`
 celeborn.worker.partition.initial.readBuffersMin 512
 celeborn.worker.partition.initial.readBuffersMax 1024
@@ -202,7 +204,7 @@ spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
 spark.serializer org.apache.spark.serializer.KryoSerializer
 
 # celeborn master
-spark.celeborn.master.endpoints clb-1:9097,clb-2:9098,clb-3:9099
+spark.celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
 spark.shuffle.service.enabled false
 
 # options: hash, sort
@@ -227,10 +229,10 @@ spark.sql.adaptive.skewJoin.enabled true
 Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
 
 #### Flink Configuration
-TO use Celeborn, follow flink configurations should be added.
+TO use Celeborn, following flink configurations should be added.
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
-celeborn.master.endpoints: clb-1:9097,clb-2:9098,clb-3:9099
+celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
 
 celeborn.shuffle.batchHandleReleasePartition.enabled: true
 celeborn.push.maxReqsInFlight: 128
