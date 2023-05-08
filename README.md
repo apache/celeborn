@@ -113,7 +113,8 @@ celeborn.master.port 9097
 
 celeborn.metrics.enabled true
 celeborn.worker.flush.buffer.size 256k
-celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=HDD
+# Disk type is HDD by defaut.
+celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```   
@@ -141,7 +142,8 @@ celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
 celeborn.worker.flush.buffer.size 256k
-celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=HDD
+# Disk type is HDD by defaut.
+celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```
@@ -227,7 +229,7 @@ spark.sql.adaptive.skewJoin.enabled true
 Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
 
 #### Flink Configuration
-TO use Celeborn, follow flink configurations should be added.
+TO use Celeborn, following flink configurations should be added.
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
