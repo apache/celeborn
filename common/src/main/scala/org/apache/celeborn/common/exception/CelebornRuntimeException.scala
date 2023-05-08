@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.exception
 
-class CelebornServiceException(message: String, cause: Throwable)
+class CelebornRuntimeException(message: String, cause: Throwable)
   extends RuntimeException(message, cause) {
 
   def this(message: String) = this(message, null)

@@ -29,7 +29,7 @@ import org.junit.*;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.exception.CelebornServiceException;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
@@ -238,7 +238,7 @@ public class RatisMasterStatusSystemSuiteJ {
           userResourceConsumption1,
           getNewReqeustId());
       Assert.assertTrue(false);
-    } catch (CelebornServiceException e) {
+    } catch (CelebornRuntimeException e) {
       Assert.assertTrue(true);
     } finally {
       resetRaftServer();

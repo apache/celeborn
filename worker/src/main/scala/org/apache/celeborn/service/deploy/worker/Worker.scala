@@ -37,7 +37,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource}
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbSimpleResponse, PbUnregisterShuffleResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
@@ -510,18 +510,21 @@ private[celeborn] class Worker(
           // During graceful shutdown, to avoid allocate slots in this worker,
           // add this worker to master's blacklist. When restart, register worker will
           // make master remove this worker from blacklist.
+          try {
+            rssHARetryClient.askSync(
+              ReportWorkerUnavailable(List(workerInfo).asJava),
+              OneWayMessageResponse.getClass)
+          } catch {
+            case e: Throwable =>
+              logError(
+                s"Fail report to master, unreleased PartitionLocation: \n$partitionLocationInfo",
+                e)
+              return
+          }
+
           val timeout = conf.checkSlotsFinishedTimeoutMs
           val startTime = System.currentTimeMillis()
           def waitTime: Long = System.currentTimeMillis() - startTime
-          while (waitTime < timeout) {
-            try {
-              rssHARetryClient.send(ReportWorkerUnavailable(List(workerInfo).asJava))
-            } catch {
-              case e: Throwable =>
-                Thread.sleep(3000)
-            }
-          }
-
           val interval = conf.checkSlotsFinishedInterval
           while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
             Thread.sleep(interval)

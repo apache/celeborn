@@ -54,7 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.exception.CelebornServiceException;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -199,11 +199,11 @@ public class HARaftServer {
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
-      throws CelebornServiceException {
+      throws CelebornRuntimeException {
     String requestId = request.getRequestId();
     Tuple2<String, Long> decoded = RssHARetryClient.decodeRequestId(requestId);
     if (decoded == null) {
-      throw new CelebornServiceException(
+      throw new CelebornRuntimeException(
           "RequestId:" + requestId + " invalid, should be: uuid#callId.");
     }
     ClientId clientId = ClientId.valueOf(UUID.fromString(decoded._1));
@@ -222,19 +222,19 @@ public class HARaftServer {
     try {
       raftClientReply = server.submitClientRequestAsync(raftClientRequest).get();
     } catch (Exception ex) {
-      throw new CelebornServiceException(ex.getMessage(), ex);
+      throw new CelebornRuntimeException(ex.getMessage(), ex);
     }
 
     if (!raftClientReply.isSuccess()) {
       NotLeaderException notLeaderException = raftClientReply.getNotLeaderException();
       if (notLeaderException != null) {
-        throw new CelebornServiceException("Not leader!");
+        throw new CelebornRuntimeException("Not leader!");
       }
 
       LeaderNotReadyException leaderNotReadyException =
           raftClientReply.getLeaderNotReadyException();
       if (leaderNotReadyException != null) {
-        throw new CelebornServiceException("Not leader!");
+        throw new CelebornRuntimeException("Not leader!");
       }
 
       StateMachineException stateMachineException = raftClientReply.getStateMachineException();
@@ -262,7 +262,7 @@ public class HARaftServer {
       byte[] bytes = raftClientReply.getMessage().getContent().toByteArray();
       return ResourceResponse.newBuilder(ResourceResponse.parseFrom(bytes)).build();
     } catch (InvalidProtocolBufferException ex) {
-      throw new CelebornServiceException(ex.getMessage(), ex);
+      throw new CelebornRuntimeException(ex.getMessage(), ex);
     }
   }
 
