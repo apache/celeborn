@@ -26,20 +26,16 @@ public class MasterNotLeaderException extends IOException {
 
   public static final String LEADER_NOT_PRESENTED = "leader is not present";
 
-  public MasterNotLeaderException(String currentPeer, String suggestedLeaderPeer, Throwable cause) {
+  public MasterNotLeaderException(String currentPeer, String suggestedLeaderPeer) {
     super(
         "Master:"
             + currentPeer
-            + " may not the leader. Suggested leader is Master:"
+            + " is not the leader. Suggested leader is"
+            + " Master:"
             + suggestedLeaderPeer
-            + ".",
-        cause);
+            + ".");
     this.currentPeer = currentPeer;
     this.leaderPeer = suggestedLeaderPeer;
-  }
-
-  public MasterNotLeaderException(String currentPeer, String suggestedLeaderPeer) {
-    this(currentPeer, suggestedLeaderPeer, null);
   }
 
   public String getSuggestedLeaderAddress() {
