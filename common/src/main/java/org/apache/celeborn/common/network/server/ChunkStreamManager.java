@@ -164,7 +164,8 @@ public class ChunkStreamManager {
    * <p>This stream could be reused again when other channel of the client is reconnected. If a
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
-  public long registerStream(String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
+  public long registerStream(
+      String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
     streams.put(myStreamId, new StreamState(shuffleKey, buffers, fetchTimeMetric));
     shuffleStreamIds.compute(
