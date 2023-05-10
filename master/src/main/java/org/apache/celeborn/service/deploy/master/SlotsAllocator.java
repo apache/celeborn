@@ -221,10 +221,7 @@ public class SlotsAllocator {
       int partitionId = iter.next();
       StorageInfo storageInfo = new StorageInfo();
       if (restrictions != null) {
-        while (restrictions.get(workers.get(nextMasterInd)).stream()
-                .mapToLong(i -> i.usableSlots)
-                .sum()
-            <= 0) {
+        while (!haveUsableSlots(restrictions, workers, nextMasterInd)) {
           nextMasterInd = (nextMasterInd + 1) % workers.size();
           if (nextMasterInd == masterIndex) {
             break outer;
@@ -239,14 +236,9 @@ public class SlotsAllocator {
       if (shouldReplicate) {
         int nextSlaveInd = (nextMasterInd + 1) % workers.size();
         if (restrictions != null) {
-          while (restrictions.get(workers.get(nextSlaveInd)).stream()
-                      .mapToLong(i -> i.usableSlots)
-                      .sum()
-                  <= 0
-              || (shouldRackAware
-                  && rackResolver.getDistance(
-                          workers.get(masterIndex).host(), workers.get(nextSlaveInd).host())
-                      > 2)) {
+          while (!haveUsableSlots(restrictions, workers, nextSlaveInd)
+              || !satisfyRackAware(
+                  shouldRackAware, rackResolver, workers, masterIndex, nextSlaveInd)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -255,9 +247,7 @@ public class SlotsAllocator {
           storageInfo =
               getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
         } else if (shouldRackAware) {
-          while (rackResolver.getDistance(
-                  workers.get(masterIndex).host(), workers.get(nextSlaveInd).host())
-              > 2) {
+          while (!satisfyRackAware(true, rackResolver, workers, masterIndex, nextSlaveInd)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -282,6 +272,23 @@ public class SlotsAllocator {
       iter.remove();
     }
     return partitionIdList;
+  }
+
+  private static boolean haveUsableSlots(
+      Map<WorkerInfo, List<UsableDiskInfo>> restrictions, List<WorkerInfo> workers, int index) {
+    return restrictions.get(workers.get(index)).stream().mapToLong(i -> i.usableSlots).sum() > 0;
+  }
+
+  private static boolean satisfyRackAware(
+      boolean shouldRackAware,
+      CelebornRackResolver rackResolver,
+      List<WorkerInfo> workers,
+      int masterIndex,
+      int nextSlaveInd) {
+    return !shouldRackAware
+        || rackResolver.getDistance(
+                workers.get(masterIndex).host(), workers.get(nextSlaveInd).host())
+            > 2;
   }
 
   private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {

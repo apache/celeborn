@@ -53,10 +53,6 @@ class CelebornRackResolverSuite extends CelebornFunSuite {
     assertEquals(names.size, result.size)
     assertEquals("/rack1", result(0).getNetworkLocation)
     assertEquals("/rack2", result(1).getNetworkLocation)
-
-    println(NodeBase.getPathComponents(result(0)).mkString(", "))
-    println(NodeBase.getPathComponents(result(1)).mkString(", "))
-    assertEquals(4, NetworkTopology.getDistanceByPath(result(0), result(1)))
   }
 
   test("CELEBORN-446: RackResolver support getDistance") {
