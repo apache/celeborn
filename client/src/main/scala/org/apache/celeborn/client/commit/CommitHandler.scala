@@ -34,7 +34,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
-import org.apache.celeborn.common.util.{CollectionUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 
@@ -176,7 +176,7 @@ abstract class CommitHandler(
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
 
   def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
-    reducerFileGroupsMap.put(shuffleId, new ConcurrentHashMap())
+    reducerFileGroupsMap.put(shuffleId, JavaUtils.newConcurrentHashMap())
   }
 
   def parallelCommitFiles(
@@ -184,8 +184,8 @@ abstract class CommitHandler(
       allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
       partitionIdOpt: Option[Int] = None): CommitResult = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
-    val masterPartMap = new ConcurrentHashMap[String, PartitionLocation]
-    val slavePartMap = new ConcurrentHashMap[String, PartitionLocation]
+    val masterPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
+    val slavePartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
     val commitFilesFailedWorkers = new ShuffleFailedWorkers()
 
     if (CollectionUtils.isEmpty(allocatedWorkers)) {
@@ -193,9 +193,10 @@ abstract class CommitHandler(
     }
 
     val commitFileStartTime = System.nanoTime()
-    val parallelism = Math.min(allocatedWorkers.size(), conf.rpcMaxParallelism)
+    val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
+    val parallelism = Math.min(workerPartitionLocations.size, conf.rpcMaxParallelism)
     ThreadUtils.parmap(
-      allocatedWorkers.asScala.to,
+      workerPartitionLocations.to,
       "CommitFiles",
       parallelism) { case (worker, partitionLocationInfo) =>
       val masterParts =
@@ -218,10 +219,10 @@ abstract class CommitHandler(
         (
           masterParts.asScala
             .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
-            .map(_.getUniqueId).asJava,
+            .map(_.getUniqueId).toList.asJava,
           slaveParts.asScala
             .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
-            .map(_.getUniqueId).asJava)
+            .map(_.getUniqueId).toList.asJava)
       }
 
       commitFiles(
@@ -462,4 +463,11 @@ abstract class CommitHandler(
   }
 
   def commitMetrics(): (Long, Long) = (totalWritten.sumThenReset(), fileCount.sumThenReset())
+
+  def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
+    val fileGroups = reducerFileGroupsMap.get(shuffleId)
+    if (fileGroups != null) {
+      fileGroups.remove(partitionId)
+    }
+  }
 }

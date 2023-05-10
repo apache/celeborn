@@ -26,17 +26,17 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
-import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
 public class ReadClientHandler extends BaseMessageHandler {
   private static Logger logger = LoggerFactory.getLogger(ReadClientHandler.class);
   private ConcurrentHashMap<Long, Consumer<RequestMessage>> streamHandlers =
-      new ConcurrentHashMap<>();
-  private ConcurrentHashMap<Long, TransportClient> streamClients = new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
+  private ConcurrentHashMap<Long, TransportClient> streamClients = JavaUtils.newConcurrentHashMap();
 
   public void registerHandler(
       long streamId, Consumer<RequestMessage> handle, TransportClient client) {
@@ -46,11 +46,7 @@ public class ReadClientHandler extends BaseMessageHandler {
 
   public void removeHandler(long streamId) {
     streamHandlers.remove(streamId);
-    TransportClient client = streamClients.remove(streamId);
-    // If read handler is removed, we should notify worker to release resource.
-    if (client != null && client.isActive()) {
-      client.getChannel().writeAndFlush(new BufferStreamEnd(streamId));
-    }
+    streamClients.remove(streamId);
   }
 
   private void processMessageInternal(long streamId, RequestMessage msg) {
@@ -84,6 +80,10 @@ public class ReadClientHandler extends BaseMessageHandler {
       case TRANSPORTABLE_ERROR:
         TransportableError transportableError = ((TransportableError) msg);
         streamId = transportableError.getStreamId();
+        logger.warn(
+            "Received TransportableError from worker {} with content {}",
+            client.getSocketAddress().toString(),
+            transportableError.getErrorMessage());
         processMessageInternal(streamId, transportableError);
         break;
       case ONE_WAY_MESSAGE:

@@ -317,7 +317,14 @@ object ControlMessages extends Logging {
       appId: String,
       totalWritten: Long,
       fileCount: Long,
+      needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+
+  case class HeartbeatFromApplicationResponse(
+      statusCode: StatusCode,
+      blacklist: util.List[WorkerInfo],
+      unknownWorkers: util.List[WorkerInfo],
+      shuttingWorkers: util.List[WorkerInfo]) extends Message
 
   case class GetBlacklist(localBlacklist: util.List[WorkerInfo]) extends MasterMessage
 
@@ -390,13 +397,13 @@ object ControlMessages extends Logging {
       totalWritten: Long = 0,
       fileCount: Int = 0) extends WorkerMessage
 
-  case class Destroy(
+  case class DestroyWorkerSlots(
       shuffleKey: String,
       masterLocations: util.List[String],
       slaveLocations: util.List[String])
     extends WorkerMessage
 
-  case class DestroyResponse(
+  case class DestroyWorkerSlotsResponse(
       status: StatusCode,
       failedMasters: util.List[String],
       failedSlaves: util.List[String])
@@ -602,14 +609,33 @@ object ControlMessages extends Logging {
         .setStatus(status.getValue).build().toByteArray
       new TransportMessage(MessageType.APPLICATION_LOST_RESPONSE, payload)
 
-    case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+    case HeartbeatFromApplication(
+          appId,
+          totalWritten,
+          fileCount,
+          needCheckedWorkerList,
+          requestId) =>
       val payload = PbHeartbeatFromApplication.newBuilder()
         .setAppId(appId)
         .setRequestId(requestId)
         .setTotalWritten(totalWritten)
         .setFileCount(fileCount)
+        .addAllNeedCheckedWorkerList(needCheckedWorkerList.asScala.map(
+          PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
+
+    case HeartbeatFromApplicationResponse(statusCode, blacklist, unknownWorkers, shuttingWorkers) =>
+      val payload = PbHeartbeatFromApplicationResponse.newBuilder()
+        .setStatus(statusCode.getValue)
+        .addAllBlacklist(
+          blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .addAllUnknownWorkers(
+          unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .addAllShuttingWorkers(
+          shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .build().toByteArray
+      new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
     case GetBlacklist(localBlacklist) =>
       val payload = PbGetBlacklist.newBuilder()
@@ -623,13 +649,11 @@ object ControlMessages extends Logging {
     case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
       val builder = PbGetBlacklistResponse.newBuilder()
         .setStatus(statusCode.getValue)
-      builder.addAllBlacklist(blacklist.asScala.map { workerInfo =>
-        PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
-      }
-        .toList.asJava)
-      builder.addAllUnknownWorkers(unknownWorkers.asScala.map { workerInfo =>
-        PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
-      }.toList.asJava)
+      builder.addAllBlacklist(
+        blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+      builder.addAllUnknownWorkers(
+        unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_BLACKLIST_RESPONSE, payload)
 
@@ -738,16 +762,16 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES_RESPONSE, payload)
 
-    case Destroy(shuffleKey, masterLocations, slaveLocations) =>
-      val payload = PbDestroy.newBuilder()
+    case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
+      val payload = PbDestroyWorkerSlots.newBuilder()
         .setShuffleKey(shuffleKey)
         .addAllMasterLocations(masterLocations)
         .addAllSlaveLocation(slaveLocations)
         .build().toByteArray
       new TransportMessage(MessageType.DESTROY, payload)
 
-    case DestroyResponse(status, failedMasters, failedSlaves) =>
-      val builder = PbDestroyResponse.newBuilder()
+    case DestroyWorkerSlotsResponse(status, failedMasters, failedSlaves) =>
+      val builder = PbDestroyWorkerSlotsResponse.newBuilder()
         .setStatus(status.getValue)
       builder.addAllFailedMasters(failedMasters)
       builder.addAllFailedSlaves(failedSlaves)
@@ -941,7 +965,22 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplication.getAppId,
           pbHeartbeatFromApplication.getTotalWritten,
           pbHeartbeatFromApplication.getFileCount,
+          new util.ArrayList[WorkerInfo](
+            pbHeartbeatFromApplication.getNeedCheckedWorkerListList.asScala
+              .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbHeartbeatFromApplication.getRequestId)
+
+      case HEARTBEAT_FROM_APPLICATION_RESPONSE =>
+        val pbHeartbeatFromApplicationResponse =
+          PbHeartbeatFromApplicationResponse.parseFrom(message.getPayload)
+        HeartbeatFromApplicationResponse(
+          Utils.toStatusCode(pbHeartbeatFromApplicationResponse.getStatus),
+          pbHeartbeatFromApplicationResponse.getBlacklistList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
+          pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
+          pbHeartbeatFromApplicationResponse.getShuttingWorkersList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
@@ -1040,15 +1079,15 @@ object ControlMessages extends Logging {
           pbCommitFilesResponse.getFileCount)
 
       case DESTROY =>
-        val pbDestroy = PbDestroy.parseFrom(message.getPayload)
-        Destroy(
+        val pbDestroy = PbDestroyWorkerSlots.parseFrom(message.getPayload)
+        DestroyWorkerSlots(
           pbDestroy.getShuffleKey,
           pbDestroy.getMasterLocationsList,
           pbDestroy.getSlaveLocationList)
 
       case DESTROY_RESPONSE =>
-        val pbDestroyResponse = PbDestroyResponse.parseFrom(message.getPayload)
-        DestroyResponse(
+        val pbDestroyResponse = PbDestroyWorkerSlotsResponse.parseFrom(message.getPayload)
+        DestroyWorkerSlotsResponse(
           Utils.toStatusCode(pbDestroyResponse.getStatus),
           pbDestroyResponse.getFailedMastersList,
           pbDestroyResponse.getFailedSlavesList)

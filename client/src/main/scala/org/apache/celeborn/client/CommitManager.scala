@@ -29,6 +29,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.client.commit.{CommitHandler, MapPartitionCommitHandler, ReducePartitionCommitHandler}
+import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
@@ -37,6 +38,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
+import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.ThreadUtils
 
 case class ShuffleCommittedInfo(
@@ -86,9 +88,11 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       None
     }
   private var batchHandleCommitPartition: Option[ScheduledFuture[_]] = _
-  private val commitHandlers = new ConcurrentHashMap[PartitionType, CommitHandler]()
+  private val commitHandlers = JavaUtils.newConcurrentHashMap[PartitionType, CommitHandler]()
 
   def start(): Unit = {
+    lifecycleManager.registerWorkerStatusListener(new ShutdownWorkerListener)
+
     batchHandleCommitPartition = batchHandleCommitPartitionSchedulerThread.map {
       _.scheduleAtFixedRate(
         new Runnable {
@@ -145,7 +149,8 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                               slaveIds,
                               commitFilesFailedWorkers)
                         }
-                        lifecycleManager.recordWorkerFailure(commitFilesFailedWorkers)
+                        lifecycleManager.workerStatusTracker.recordWorkerFailure(
+                          commitFilesFailedWorkers)
                       } finally {
                         // when batch commit thread ends, we need decrementInFlightNum
                         commitHandler.decrementInFlightNum(shuffleCommittedInfo, workerToRequests)
@@ -172,18 +177,18 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     committedPartitionInfo.put(
       shuffleId,
       ShuffleCommittedInfo(
-        new ConcurrentHashMap[Int, util.List[String]](),
-        new ConcurrentHashMap[Int, util.List[String]](),
-        new ConcurrentHashMap[String, WorkerInfo](),
-        new ConcurrentHashMap[String, WorkerInfo](),
-        new ConcurrentHashMap[String, StorageInfo](),
-        new ConcurrentHashMap[String, StorageInfo](),
-        new ConcurrentHashMap[String, RoaringBitmap](),
+        JavaUtils.newConcurrentHashMap[Int, util.List[String]](),
+        JavaUtils.newConcurrentHashMap[Int, util.List[String]](),
+        JavaUtils.newConcurrentHashMap[String, WorkerInfo](),
+        JavaUtils.newConcurrentHashMap[String, WorkerInfo](),
+        JavaUtils.newConcurrentHashMap[String, StorageInfo](),
+        JavaUtils.newConcurrentHashMap[String, StorageInfo](),
+        JavaUtils.newConcurrentHashMap[String, RoaringBitmap](),
         new LongAdder,
         new util.HashSet[PartitionLocation](),
         new util.HashSet[PartitionLocation](),
         new AtomicInteger(),
-        new ConcurrentHashMap[Int, AtomicInteger]()))
+        JavaUtils.newConcurrentHashMap[Int, AtomicInteger]()))
 
     getCommitHandler(shuffleId).registerShuffle(shuffleId, numMappers);
   }
@@ -209,7 +214,11 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       numMappers,
       partitionId,
       r =>
-        lifecycleManager.recordWorkerFailure(r))
+        lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
+  }
+
+  def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
+    getCommitHandler(shuffleId).releasePartitionResource(shuffleId, partitionId)
   }
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
@@ -232,7 +241,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
   def tryFinalCommit(shuffleId: Int): Boolean = {
     getCommitHandler(shuffleId).tryFinalCommit(
       shuffleId,
-      r => lifecycleManager.recordWorkerFailure(r))
+      r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
   }
 
   def isStageEnd(shuffleId: Int): Boolean = {
@@ -285,5 +294,35 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       totalFileCount += commitHandler.commitMetrics._2
     }
     (totalWritten, totalFileCount)
+  }
+
+  class ShutdownWorkerListener extends WorkerStatusListener {
+
+    override def notifyChangedWorkersStatus(workersStatus: WorkersStatus): Unit = {
+      if (workersStatus.shutdownWorkers != null) {
+        workersStatus.shutdownWorkers.asScala.foreach { case shuttingWorker =>
+          logError(s"Worker ${shuttingWorker.toUniqueId()} shutdown, " +
+            "commit all it's partition location.")
+          lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
+            case (shuffleId, workerToPartitionLocationInfos) =>
+              val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
+              val partitionLocationInfo = workerToPartitionLocationInfos.get(shuttingWorker)
+              if (partitionLocationInfo != null) {
+                partitionLocationInfo.getMasterPartitions().asScala.foreach { partitionLocation =>
+                  shuffleCommittedInfo.synchronized {
+                    shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
+                  }
+                }
+
+                partitionLocationInfo.getSlavePartitions().asScala.foreach { partitionLocation =>
+                  shuffleCommittedInfo.synchronized {
+                    shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
+                  }
+                }
+              }
+          }
+        }
+      }
+    }
   }
 }

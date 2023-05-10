@@ -28,7 +28,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
 
   celebornConf.set("celeborn.master.endpoints", s"localhost:$masterPort")
     .set("celeborn.push.replicate.enabled", "true")
-    .set("celeborn.push.buffer.size", "256K")
+    .set("celeborn.push.buffer.max.size", "256K")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -53,7 +53,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     }
 
     assertThrows[IOException] {
-      () -> shuffleClient.registerMapPartitionTask(APP, 1, 1, 0, 0)
+      () -> shuffleClient.registerMapPartitionTask(APP, 1, 1, 0, 0, 1)
     }
 
     lifecycleManager.stop()

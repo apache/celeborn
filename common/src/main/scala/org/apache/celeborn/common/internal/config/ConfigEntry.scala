@@ -19,6 +19,8 @@ package org.apache.celeborn.common.internal.config
 
 import java.util.concurrent.ConcurrentHashMap
 
+import org.apache.celeborn.common.util.JavaUtils
+
 // ====================================================================================
 //                      The guideline for naming configurations
 // ====================================================================================
@@ -281,7 +283,7 @@ object ConfigEntry {
 
   val UNDEFINED = "<undefined>"
 
-  private val knownConfigs = new ConcurrentHashMap[String, ConfigEntry[_]]()
+  private val knownConfigs = JavaUtils.newConcurrentHashMap[String, ConfigEntry[_]]()
 
   def registerEntry(entry: ConfigEntry[_]): Unit = {
     val existing = knownConfigs.putIfAbsent(entry.key, entry)

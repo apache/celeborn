@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -36,7 +35,6 @@ import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.util.Utils;
-import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 /*
  * map partition file writer, it will create index for each partition
@@ -44,16 +42,15 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource;
 public final class MapPartitionFileWriter extends FileWriter {
   private static final Logger logger = LoggerFactory.getLogger(MapPartitionFileWriter.class);
 
-  private int numReducerPartitions;
+  private int numSubpartitions;
   private int currentDataRegionIndex;
   private boolean isBroadcastRegion;
-  private long[] numReducerPartitionBytes;
+  private long[] numSubpartitionBytes;
   private ByteBuffer indexBuffer;
-  private int currentReducePartition;
+  private int currentSubpartition;
   private long totalBytes;
   private long regionStartingOffset;
-  private long numDataRegions;
-  private FileChannel channelIndex;
+  private FileChannel indexChannel;
 
   public MapPartitionFileWriter(
       FileInfo fileInfo,
@@ -76,7 +73,7 @@ public final class MapPartitionFileWriter extends FileWriter {
         PartitionType.MAP,
         rangeReadFilter);
     if (!fileInfo.isHdfs()) {
-      channelIndex = new FileOutputStream(fileInfo.getIndexPath()).getChannel();
+      indexChannel = FileChannelUtils.createWritableFileChannel(fileInfo.getIndexPath());
     } else {
       try {
         StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath(), true).close();
@@ -89,23 +86,6 @@ public final class MapPartitionFileWriter extends FileWriter {
         }
         StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath(), true).close();
       }
-    }
-    takeBufferIndex();
-  }
-
-  private void takeBufferIndex() {
-    // metrics start
-    String metricsName = null;
-    String fileAbsPath = null;
-    if (source.metricsCollectCriticalEnabled()) {
-      metricsName = WorkerSource.TakeBufferTimeIndex();
-      fileAbsPath = fileInfo.getIndexPath();
-      source.startTimer(metricsName, fileAbsPath);
-    }
-
-    // metrics end
-    if (source.metricsCollectCriticalEnabled()) {
-      source.stopTimer(metricsName, fileAbsPath);
     }
   }
 
@@ -125,29 +105,22 @@ public final class MapPartitionFileWriter extends FileWriter {
         batchId,
         size);
 
-    collectPartitionDataLength(partitionId, data);
-
-    super.write(data);
-  }
-
-  private void collectPartitionDataLength(int partitionId, ByteBuf data) throws IOException {
-    if (numReducerPartitionBytes == null) {
-      numReducerPartitionBytes = new long[numReducerPartitions];
-    }
-    if (partitionId < currentReducePartition) {
+    if (partitionId < currentSubpartition) {
       throw new IOException(
           "Must writing data in reduce partition index order, but now partitionId is "
               + partitionId
               + " and pre partitionId is "
-              + currentReducePartition);
+              + currentSubpartition);
     }
 
-    if (partitionId > currentReducePartition) {
-      currentReducePartition = partitionId;
+    if (partitionId > currentSubpartition) {
+      currentSubpartition = partitionId;
     }
     long length = data.readableBytes();
     totalBytes += length;
-    numReducerPartitionBytes[partitionId] += length;
+    numSubpartitionBytes[partitionId] += length;
+
+    super.write(data);
   }
 
   @Override
@@ -165,8 +138,8 @@ public final class MapPartitionFileWriter extends FileWriter {
           }
         },
         () -> {
-          if (channelIndex != null) {
-            channelIndex.close();
+          if (indexChannel != null) {
+            indexChannel.close();
           }
           if (fileInfo.isHdfs()) {
             if (StorageManager.hadoopFs()
@@ -190,16 +163,17 @@ public final class MapPartitionFileWriter extends FileWriter {
     super.destroy(ioException);
   }
 
-  public void pushDataHandShake(int numReducerPartitions, int bufferSize) {
+  public void pushDataHandShake(int numSubpartitions, int bufferSize) {
     logger.debug(
         "FileWriter:{} pushDataHandShake numReducePartitions:{} bufferSize:{}",
         fileInfo.getFilePath(),
-        numReducerPartitions,
+        numSubpartitions,
         bufferSize);
 
-    this.numReducerPartitions = numReducerPartitions;
+    this.numSubpartitions = numSubpartitions;
+    numSubpartitionBytes = new long[numSubpartitions];
     fileInfo.setBufferSize(bufferSize);
-    fileInfo.setNumReducerPartitions(numReducerPartitions);
+    fileInfo.setNumSubpartitions(numSubpartitions);
   }
 
   public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
@@ -209,7 +183,7 @@ public final class MapPartitionFileWriter extends FileWriter {
         currentDataRegionIndex,
         isBroadcastRegion);
 
-    this.currentReducePartition = 0;
+    this.currentSubpartition = 0;
     this.currentDataRegionIndex = currentDataRegionIndex;
     this.isBroadcastRegion = isBroadcastRegion;
   }
@@ -222,11 +196,11 @@ public final class MapPartitionFileWriter extends FileWriter {
 
     long fileOffset = regionStartingOffset;
     if (indexBuffer == null) {
-      indexBuffer = allocateIndexBuffer(numReducerPartitions);
+      indexBuffer = allocateIndexBuffer(numSubpartitions);
     }
 
     // write the index information of the current data region
-    for (int partitionIndex = 0; partitionIndex < numReducerPartitions; ++partitionIndex) {
+    for (int partitionIndex = 0; partitionIndex < numSubpartitions; ++partitionIndex) {
       indexBuffer.putLong(fileOffset);
       if (!isBroadcastRegion) {
         logger.debug(
@@ -235,10 +209,10 @@ public final class MapPartitionFileWriter extends FileWriter {
             currentDataRegionIndex,
             partitionIndex,
             fileOffset,
-            numReducerPartitionBytes[partitionIndex]);
+            numSubpartitionBytes[partitionIndex]);
 
-        indexBuffer.putLong(numReducerPartitionBytes[partitionIndex]);
-        fileOffset += numReducerPartitionBytes[partitionIndex];
+        indexBuffer.putLong(numSubpartitionBytes[partitionIndex]);
+        fileOffset += numSubpartitionBytes[partitionIndex];
       } else {
         logger.debug(
             "flush index broadcast filename:{} region:{} partitionid:{}  fileOffset:{}, size:{} ",
@@ -246,26 +220,24 @@ public final class MapPartitionFileWriter extends FileWriter {
             currentDataRegionIndex,
             partitionIndex,
             fileOffset,
-            numReducerPartitionBytes[0]);
+            numSubpartitionBytes[0]);
 
-        indexBuffer.putLong(numReducerPartitionBytes[0]);
+        indexBuffer.putLong(numSubpartitionBytes[0]);
       }
     }
 
     if (!indexBuffer.hasRemaining()) {
       flushIndex();
-      takeBufferIndex();
     }
 
-    ++numDataRegions;
     regionStartingOffset = totalBytes;
-    Arrays.fill(numReducerPartitionBytes, 0);
+    Arrays.fill(numSubpartitionBytes, 0);
   }
 
   private synchronized void destroyIndex() {
     try {
-      if (channelIndex != null) {
-        channelIndex.close();
+      if (indexChannel != null) {
+        indexChannel.close();
       }
     } catch (IOException e) {
       logger.warn(
@@ -282,14 +254,12 @@ public final class MapPartitionFileWriter extends FileWriter {
       indexBuffer.flip();
       notifier.checkException();
       try {
-        notifier.numPendingFlushes.incrementAndGet();
         if (indexBuffer.hasRemaining()) {
           // mappartition synchronously writes file index
-          if (channelIndex != null) {
+          if (indexChannel != null) {
             while (indexBuffer.hasRemaining()) {
-              channelIndex.write(indexBuffer);
+              indexChannel.write(indexBuffer);
             }
-
           } else if (fileInfo.isHdfs()) {
             FSDataOutputStream hdfsStream =
                 StorageManager.hadoopFs().append(fileInfo.getHdfsIndexPath());
@@ -298,23 +268,21 @@ public final class MapPartitionFileWriter extends FileWriter {
           }
         }
         indexBuffer.clear();
-
       } finally {
-        logger.info(
+        logger.debug(
             "flushIndex end:{}, cost:{}",
             fileInfo.getIndexPath(),
             System.currentTimeMillis() - startTime);
-        notifier.numPendingFlushes.decrementAndGet();
       }
     }
   }
 
-  private ByteBuffer allocateIndexBuffer(int numPartitions) {
+  private ByteBuffer allocateIndexBuffer(int numSubpartitions) {
 
     // the returned buffer size is no smaller than 4096 bytes to improve disk IO performance
     int minBufferSize = 4096;
 
-    int indexRegionSize = numPartitions * (8 + 8);
+    int indexRegionSize = numSubpartitions * (8 + 8);
     if (indexRegionSize >= minBufferSize) {
       ByteBuffer buffer = ByteBuffer.allocateDirect(indexRegionSize);
       buffer.order(ByteOrder.BIG_ENDIAN);

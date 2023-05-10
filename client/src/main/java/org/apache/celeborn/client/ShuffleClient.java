@@ -52,30 +52,6 @@ public abstract class ShuffleClient {
   protected ShuffleClient() {}
 
   public static ShuffleClient get(
-      RpcEndpointRef driverRef, CelebornConf conf, UserIdentifier userIdentifier) {
-    if (null == _instance || !initialized) {
-      synchronized (ShuffleClient.class) {
-        if (null == _instance) {
-          // During the execution of Spark tasks, each task may be interrupted due to speculative
-          // tasks. If the Task is interrupted while obtaining the ShuffleClient and the
-          // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
-          // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
-          // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverRef);
-          initialized = true;
-        } else if (!initialized) {
-          _instance.shutdown();
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverRef);
-          initialized = true;
-        }
-      }
-    }
-    return _instance;
-  }
-
-  public static ShuffleClient get(
       String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
@@ -106,9 +82,10 @@ public abstract class ShuffleClient {
           Configuration hdfsConfiguration = new Configuration();
           // enable fs cache to avoid too many fs instances
           hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
+          hdfsConfiguration.set("fs.viewfs.impl.disable.cache", "false");
           logger.info(
               "Celeborn client will ignore cluster"
-                  + " settings about fs.hdfs.impl.disable.cache and set it to false");
+                  + " settings about fs.hdfs/viewfs.impl.disable.cache and set it to false");
           try {
             hdfsFs = FileSystem.get(hdfsConfiguration);
           } catch (IOException e) {
@@ -195,7 +172,8 @@ public abstract class ShuffleClient {
   public abstract void shutdown();
 
   public abstract PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId) throws IOException;
+      String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId)
+      throws IOException;
 
   public abstract ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
       String applicationId, int shuffleId, int numMappers, int numPartitions);

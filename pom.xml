@@ -81,14 +81,14 @@
     <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>1.10.19</mockito.version>
     <mockito-scalatest.version>1.16.37</mockito-scalatest.version>
-    <netty.version>4.1.77.Final</netty.version>
+    <netty.version>4.1.92.Final</netty.version>
     <protobuf.version>3.19.2</protobuf.version>
     <ratis.version>2.4.1</ratis.version>
     <scalamock.version>5.1.0</scalamock.version>
     <scalatest.version>3.2.3</scalatest.version>
     <slf4j.version>1.7.36</slf4j.version>
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
-    <snakeyaml.version>1.30</snakeyaml.version>
+    <snakeyaml.version>1.33</snakeyaml.version>
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
@@ -126,7 +126,8 @@
       --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
       --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
       --add-opens=java.base/sun.security.action=ALL-UNNAMED
-      --add-opens=java.base/sun.util.calendar=ALL-UNNAMED</extraJavaTestArgs>
+      --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+      --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED</extraJavaTestArgs>
 
     <mavenCentralId>central</mavenCentralId>
     <mavenCentralName>Maven Central</mavenCentralName>
@@ -165,21 +166,6 @@
             <artifactId>commons-cli</artifactId>
           </exclusion>
         </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-        <version>${flink.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-clients_${scala.binary.version}</artifactId>
-        <version>${flink.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
-        <version>${flink.version}</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -873,7 +859,7 @@
             <execution>
               <id>report</id>
               <goals>
-                <goal>report</goal>
+                <goal>report-aggregate</goal>
               </goals>
               <phase>test</phase>
               <configuration>
@@ -1069,6 +1055,53 @@
         <flink.version>1.14.6</flink.version>
         <scala.version>2.12.7</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.14_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streamig.artifact>flink-streaming-java_${scala.binary.version}</flink.streamig.artifact>
+        <flink.clients.artifact>flink-clients_${scala.binary.version}</flink.clients.artifact>
+        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web_${scala.binary.version}</flink.runtime.web.artifact>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>flink-1.15</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-1.15</module>
+        <module>client-flink/flink-1.15-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>1.15.4</flink.version>
+        <flink.binary.version>1.15</flink.binary.version>
+        <scala.version>2.12.7</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.15_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.clients.artifact>flink-clients</flink.clients.artifact>
+        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>flink-1.17</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-1.17</module>
+        <module>client-flink/flink-1.17-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>1.17.0</flink.version>
+        <flink.binary.version>1.17</flink.binary.version>
+        <scala.version>2.12.7</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.17_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.clients.artifact>flink-clients</flink.clients.artifact>
+        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
       </properties>
     </profile>
 
@@ -1094,6 +1127,7 @@
               <execution>
                 <id>source-release-assembly</id>
                 <phase>none</phase>
+
               </execution>
             </executions>
           </plugin>

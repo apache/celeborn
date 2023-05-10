@@ -30,10 +30,10 @@ import io.netty.buffer.{CompositeByteBuf, Unpooled}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.network.server.memory.MemoryManager
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,

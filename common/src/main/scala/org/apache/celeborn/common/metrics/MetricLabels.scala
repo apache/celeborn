@@ -20,7 +20,7 @@ package org.apache.celeborn.common.metrics
 private[metrics] trait MetricLabels {
   val labels: Map[String, String]
 
-  def labelString: String = MetricLabels.labelString(labels)
+  final val labelString: String = MetricLabels.labelString(labels)
 }
 
 object MetricLabels {

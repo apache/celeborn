@@ -83,18 +83,16 @@ object PbSerDeUtils {
       .build
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo): FileInfo =
-    new FileInfo(
-      pbFileInfo.getFilePath,
-      pbFileInfo.getChunkOffsetsList,
-      fromPbUserIdentifier(pbFileInfo.getUserIdentifier),
-      Utils.toPartitionType(pbFileInfo.getPartitionType))
+    fromPbFileInfo(pbFileInfo, fromPbUserIdentifier(pbFileInfo.getUserIdentifier))
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) =
     new FileInfo(
       pbFileInfo.getFilePath,
       pbFileInfo.getChunkOffsetsList,
       userIdentifier,
-      Utils.toPartitionType(pbFileInfo.getPartitionType))
+      Utils.toPartitionType(pbFileInfo.getPartitionType),
+      pbFileInfo.getBufferSize,
+      pbFileInfo.getNumSubpartitions)
 
   def toPbFileInfo(fileInfo: FileInfo): PbFileInfo =
     PbFileInfo.newBuilder
@@ -102,6 +100,8 @@ object PbSerDeUtils {
       .addAllChunkOffsets(fileInfo.getChunkOffsets)
       .setUserIdentifier(toPbUserIdentifier(fileInfo.getUserIdentifier))
       .setPartitionType(fileInfo.getPartitionType.getValue)
+      .setBufferSize(fileInfo.getBufferSize)
+      .setNumSubpartitions(fileInfo.getNumSubpartitions)
       .build
 
   @throws[InvalidProtocolBufferException]
@@ -109,7 +109,7 @@ object PbSerDeUtils {
       data: Array[Byte],
       cache: ConcurrentHashMap[String, UserIdentifier]): ConcurrentHashMap[String, FileInfo] = {
     val pbFileInfoMap = PbFileInfoMap.parseFrom(data)
-    val fileInfoMap = new ConcurrentHashMap[String, FileInfo]
+    val fileInfoMap = JavaUtils.newConcurrentHashMap[String, FileInfo]
     pbFileInfoMap.getValuesMap.entrySet().asScala.foreach { entry =>
       val fileName = entry.getKey
       val pbFileInfo = entry.getValue
@@ -128,7 +128,7 @@ object PbSerDeUtils {
   }
 
   def toPbFileInfoMap(fileInfoMap: ConcurrentHashMap[String, FileInfo]): Array[Byte] = {
-    val pbFileInfoMap = new ConcurrentHashMap[String, PbFileInfo]()
+    val pbFileInfoMap = JavaUtils.newConcurrentHashMap[String, PbFileInfo]()
     fileInfoMap.entrySet().asScala.foreach { entry =>
       pbFileInfoMap.put(entry.getKey, toPbFileInfo(entry.getValue))
     }
@@ -177,7 +177,7 @@ object PbSerDeUtils {
   }
 
   def fromPbWorkerInfo(pbWorkerInfo: PbWorkerInfo): WorkerInfo = {
-    val disks = new ConcurrentHashMap[String, DiskInfo]
+    val disks = JavaUtils.newConcurrentHashMap[String, DiskInfo]
     if (pbWorkerInfo.getDisksCount > 0) {
       pbWorkerInfo.getDisksList.asScala.foreach(pbDiskInfo =>
         disks.put(pbDiskInfo.getMountPoint, fromPbDiskInfo(pbDiskInfo)))
@@ -365,12 +365,13 @@ object PbSerDeUtils {
       blacklist: java.util.Set[WorkerInfo],
       workerLostEvent: java.util.Set[WorkerInfo],
       appHeartbeatTime: java.util.Map[String, java.lang.Long],
-      workers: java.util.ArrayList[WorkerInfo],
+      workers: java.util.List[WorkerInfo],
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
-      lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long]): PbSnapshotMetaInfo = {
+      lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
+      shutdownWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -388,6 +389,7 @@ object PbSerDeUtils {
       .putAllLostWorkers(lostWorkers.asScala.map {
         case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
       }.asJava)
+      .addAllShutdownWorkers(shutdownWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
     if (currentAppDiskUsageMetricsSnapshot != null) {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))

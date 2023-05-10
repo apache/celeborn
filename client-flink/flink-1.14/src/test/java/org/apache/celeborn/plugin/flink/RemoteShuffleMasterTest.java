@@ -20,11 +20,15 @@ package org.apache.celeborn.plugin.flink;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -35,6 +39,7 @@ import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
+import org.apache.flink.runtime.shuffle.TaskInputsOutputsDescriptor;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -42,16 +47,18 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.util.PackedPartitionId;
+import org.apache.celeborn.plugin.flink.config.PluginConf;
+import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
 public class RemoteShuffleMasterTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMasterTest.class);
   private RemoteShuffleMaster remoteShuffleMaster;
+  private Configuration configuration;
 
   @Before
   public void setUp() {
-    Configuration configuration = new Configuration();
+    configuration = new Configuration();
     remoteShuffleMaster = createShuffleMaster(configuration);
   }
 
@@ -116,8 +123,6 @@ public class RemoteShuffleMasterTest {
     mapPartitionShuffleDescriptor =
         remoteShuffleDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
-    Assert.assertEquals(
-        PackedPartitionId.packedPartitionId(1, 1), mapPartitionShuffleDescriptor.getPartitionId());
     Assert.assertEquals(1, mapPartitionShuffleDescriptor.getAttemptId());
     Assert.assertEquals(1, mapPartitionShuffleDescriptor.getMapId());
   }
@@ -161,6 +166,42 @@ public class RemoteShuffleMasterTest {
         1);
   }
 
+  @Test
+  public void testShuffleMemoryAnnouncing() {
+    Map<IntermediateDataSetID, Integer> numberOfInputGateChannels = new HashMap<>();
+    Map<IntermediateDataSetID, Integer> numbersOfResultSubpartitions = new HashMap<>();
+    Map<IntermediateDataSetID, ResultPartitionType> resultPartitionTypes = new HashMap<>();
+    IntermediateDataSetID inputDataSetID0 = new IntermediateDataSetID();
+    IntermediateDataSetID inputDataSetID1 = new IntermediateDataSetID();
+    IntermediateDataSetID outputDataSetID0 = new IntermediateDataSetID();
+    IntermediateDataSetID outputDataSetID1 = new IntermediateDataSetID();
+    IntermediateDataSetID outputDataSetID2 = new IntermediateDataSetID();
+    Random random = new Random();
+    numberOfInputGateChannels.put(inputDataSetID0, random.nextInt(1000));
+    numberOfInputGateChannels.put(inputDataSetID1, random.nextInt(1000));
+    numbersOfResultSubpartitions.put(outputDataSetID0, random.nextInt(1000));
+    numbersOfResultSubpartitions.put(outputDataSetID1, random.nextInt(1000));
+    numbersOfResultSubpartitions.put(outputDataSetID2, random.nextInt(1000));
+    resultPartitionTypes.put(outputDataSetID0, ResultPartitionType.BLOCKING);
+    resultPartitionTypes.put(outputDataSetID1, ResultPartitionType.BLOCKING);
+    resultPartitionTypes.put(outputDataSetID2, ResultPartitionType.BLOCKING);
+    MemorySize calculated =
+        remoteShuffleMaster.computeShuffleMemorySizeForTask(
+            TaskInputsOutputsDescriptor.from(
+                numberOfInputGateChannels, numbersOfResultSubpartitions, resultPartitionTypes));
+
+    long numBytesPerGate =
+        FlinkUtils.byteStringValueAsBytes(configuration, PluginConf.MEMORY_PER_INPUT_GATE);
+    long expectedInput = 2 * numBytesPerGate;
+
+    long numBytesPerResultPartition =
+        FlinkUtils.byteStringValueAsBytes(configuration, PluginConf.MEMORY_PER_RESULT_PARTITION);
+    long expectedOutput = 3 * numBytesPerResultPartition;
+    MemorySize expected = new MemorySize(expectedInput + expectedOutput);
+
+    Assert.assertEquals(expected, calculated);
+  }
+
   @After
   public void tearDown() {
     if (remoteShuffleMaster != null) {
@@ -185,7 +226,8 @@ public class RemoteShuffleMasterTest {
               public void onFatalError(Throwable throwable) {
                 System.exit(-1);
               }
-            });
+            },
+            new SimpleResultPartitionAdapter());
 
     return remoteShuffleMaster;
   }

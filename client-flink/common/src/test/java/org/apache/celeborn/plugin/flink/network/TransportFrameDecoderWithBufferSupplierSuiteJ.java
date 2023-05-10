@@ -34,13 +34,14 @@ import org.mockito.Mockito;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.ReadData;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class TransportFrameDecoderWithBufferSupplierSuiteJ {
 
   @Test
   public void testDropUnusedBytes() throws IOException {
     ConcurrentHashMap<Long, Supplier<org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf>>
-        supplier = new ConcurrentHashMap<>();
+        supplier = JavaUtils.newConcurrentHashMap();
     List<org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf> buffers = new ArrayList<>();
 
     supplier.put(

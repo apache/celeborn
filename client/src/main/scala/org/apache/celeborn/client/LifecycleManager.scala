@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.{function, List => JList}
+import java.util.{function, HashSet => JHashSet, List => JList, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -28,6 +28,7 @@ import scala.util.Random
 import com.google.common.annotations.VisibleForTesting
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
+import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
@@ -38,7 +39,7 @@ import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 
@@ -56,22 +57,20 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val lifecycleHost = Utils.localHostName
 
   private val shuffleExpiredCheckIntervalMs = conf.shuffleExpiredCheckIntervalMs
-  private val workerExcludedCheckIntervalMs = conf.workerExcludedCheckIntervalMs
-  private val workerExcludedExpireTimeout = conf.workerExcludedExpireTimeout
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   private val partitionSplitThreshold = conf.partitionSplitThreshold
   private val partitionSplitMode = conf.partitionSplitMode
   // shuffle id -> partition type
-  private val shufflePartitionType = new ConcurrentHashMap[Int, PartitionType]()
+  private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
-  private val unregisterShuffleTime = new ConcurrentHashMap[Int, Long]()
+  private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
   val shuffleAllocatedWorkers = new ShuffleAllocatedWorkers
   // shuffle id -> (partitionId -> newest PartitionLocation)
   val latestPartitionLocation =
-    new ConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
 
   @VisibleForTesting
@@ -81,7 +80,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   val newMapFunc: function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]] =
     new util.function.Function[Int, ConcurrentHashMap[Int, PartitionLocation]]() {
       override def apply(s: Int): ConcurrentHashMap[Int, PartitionLocation] = {
-        new ConcurrentHashMap[Int, PartitionLocation]()
+        JavaUtils.newConcurrentHashMap[Int, PartitionLocation]()
       }
     }
 
@@ -100,16 +99,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   // register shuffle request waiting for response
   private val registeringShuffleRequest =
-    new ConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
-
-  // blacklist
-  val blacklist = new ShuffleFailedWorkers()
+    JavaUtils.newConcurrentHashMap[Int, util.Set[RegisterCallContext]]()
 
   // Threads
   private val forwardMessageThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
-  private var getBlacklist: ScheduledFuture[_] = _
 
   // init driver rss meta rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
@@ -123,9 +118,16 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
   val commitManager = new CommitManager(appId, conf, this)
+  val workerStatusTracker = new WorkerStatusTracker(conf, this)
   private val heartbeater =
-    new ApplicationHeartbeater(appId, conf, rssHARetryClient, () => commitManager.commitMetrics())
+    new ApplicationHeartbeater(
+      appId,
+      conf,
+      rssHARetryClient,
+      () => commitManager.commitMetrics(),
+      workerStatusTracker)
   private val changePartitionManager = new ChangePartitionManager(conf, this)
+  private val releasePartitionManager = new ReleasePartitionManager(appId, conf, this)
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
@@ -137,6 +139,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     commitManager.start()
     heartbeater.start()
     changePartitionManager.start()
+    releasePartitionManager.start()
   }
 
   override def onStart(): Unit = {
@@ -150,28 +153,17 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleExpiredCheckIntervalMs,
       shuffleExpiredCheckIntervalMs,
       TimeUnit.MILLISECONDS)
-
-    // noinspection ConvertExpressionToSAM
-    getBlacklist = forwardMessageThread.scheduleAtFixedRate(
-      new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          self.send(GetBlacklist(blacklist.asScala.keys.toList.asJava))
-        }
-      },
-      workerExcludedCheckIntervalMs,
-      workerExcludedCheckIntervalMs,
-      TimeUnit.MILLISECONDS)
   }
 
   override def onStop(): Unit = {
     import scala.concurrent.duration._
 
     checkForShuffleRemoval.cancel(true)
-    getBlacklist.cancel(true)
     ThreadUtils.shutdown(forwardMessageThread, 800.millis)
 
     commitManager.stop()
     changePartitionManager.stop()
+    releasePartitionManager.stop()
     heartbeater.stop()
 
     rssHARetryClient.close()
@@ -200,8 +192,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   override def receive: PartialFunction[Any, Unit] = {
     case RemoveExpiredShuffle =>
       removeExpiredShuffle()
-    case msg: GetBlacklist =>
-      handleGetBlacklist(msg)
     case StageEnd(applicationId, shuffleId) =>
       logInfo(s"Received StageEnd request, ${Utils.makeShuffleKey(applicationId, shuffleId)}.")
       handleStageEnd(applicationId, shuffleId)
@@ -321,7 +311,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       if (registeringShuffleRequest.containsKey(shuffleId)) {
         // If same request already exists in the registering request list for the same shuffle,
         // just register and return.
-        logDebug("[handleRegisterShuffle] request for same shuffleKey exists, just register")
+        logDebug(s"[handleRegisterShuffle] request for shuffle $shuffleId exists, just register")
         registeringShuffleRequest.get(shuffleId).add(context)
         return
       } else {
@@ -394,7 +384,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                     applicationId,
                     shuffleId,
                     context.context,
-                    partitionId,
+                    context.partitionId,
                     partitionLocations)
                 } else {
                   // when register not success, need reply origin response,
@@ -411,7 +401,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // First, request to get allocated slots from Master
     val ids = new util.ArrayList[Integer](numPartitions)
     (0 until numPartitions).foreach(idx => ids.add(new Integer(idx)))
-    val res = requestSlotsWithRetry(applicationId, shuffleId, ids)
+    val res = requestMasterReleaseSlotsWithRetry(applicationId, shuffleId, ids)
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
@@ -423,7 +413,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         reply(RegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
         return
       case StatusCode.SUCCESS =>
-        logInfo(s"OfferSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} Success!")
+        logInfo(s"OfferSlots for $shuffleId Success!")
         logDebug(s" Slots Info: ${res.workerResource}")
       case _ => // won't happen
         throw new UnsupportedOperationException()
@@ -443,7 +433,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           rpcEnv.setupEndpointRef(RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
       } catch {
         case t: Throwable =>
-          logError(s"Init rpc client for $workerInfo failed", t)
+          logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.", t)
           connectFailedWorkers.put(
             workerInfo,
             (StatusCode.UNKNOWN_WORKER, System.currentTimeMillis()))
@@ -451,7 +441,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
-    recordWorkerFailure(connectFailedWorkers)
+    workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
+    // If newly allocated from master and can setup endpoint success, LifecycleManager should remove worker from
+    // the blacklist to improve the accuracy of the blacklist
+    workerStatusTracker.removeFromBlacklist(candidatesWorkers)
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
@@ -468,14 +461,14 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
       reply(RegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
       // tell Master to release slots
-      requestReleaseSlots(
-        rssHARetryClient,
+      requestMasterReleaseSlots(
         ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
     } else {
-      logInfo(s"ReserveSlots for ${Utils.makeShuffleKey(applicationId, shuffleId)} success!")
+      logInfo(s"ReserveSlots for $shuffleId success!")
       logDebug(s"Allocated Slots: $slots")
       // Forth, register shuffle success, update status
-      val allocatedWorkers = new ConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
+      val allocatedWorkers =
+        JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
       slots.asScala.foreach { case (workerInfo, (masterLocations, slaveLocations)) =>
         val partitionLocationInfo = new ShufflePartitionLocationInfo()
         partitionLocationInfo.addMasterPartitions(masterLocations)
@@ -494,58 +487,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  def blacklistPartition(
-      shuffleId: Int,
-      oldPartition: PartitionLocation,
-      cause: StatusCode): Unit = {
-    val failedWorker = new ShuffleFailedWorkers()
-
-    def blacklistPartitionWorker(
-        partition: PartitionLocation,
-        statusCode: StatusCode): Unit = {
-      val tmpWorker = partition.getWorker
-      val worker = workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
-      if (worker.isDefined) {
-        failedWorker.put(worker.get, (statusCode, System.currentTimeMillis()))
-      }
-    }
-
-    if (oldPartition != null) {
-      cause match {
-        case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
-        case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
-            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
-        case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
-        case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
-            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(
-            oldPartition.getPeer,
-            StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
-        case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
-        case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(
-            oldPartition.getPeer,
-            StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
-        case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
-          blacklistPartitionWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
-        case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
-            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
-          blacklistPartitionWorker(
-            oldPartition.getPeer,
-            StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
-        case _ =>
-      }
-    }
-    if (!failedWorker.isEmpty) {
-      recordWorkerFailure(failedWorker)
-    }
-  }
-
   private def handleRevive(
       context: RpcCallContext,
       applicationId: String,
@@ -560,6 +501,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
       context.reply(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
+      return
+    }
+
+    if (getPartitionType(shuffleId) == PartitionType.MAP) {
+      logError(s"[handleRevive] shuffle $shuffleId revived filed, because map partition don't support revive!")
+      context.reply(ChangeLocationResponse(StatusCode.REVIVE_FAILED, None))
       return
     }
 
@@ -621,11 +568,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
 
     if (commitManager.tryFinalCommit(shuffleId)) {
-      // release resources and clear worker info
-      shuffleAllocatedWorkers.remove(shuffleId)
-
-      requestReleaseSlots(
-        rssHARetryClient,
+      // Here we only clear PartitionLocation info in shuffleAllocatedWorkers.
+      // Since rerun or speculation task may running after we handle StageEnd.
+      workerSnapshots(shuffleId).asScala.foreach { case (_, partitionLocationInfo) =>
+        partitionLocationInfo.removeAllMasterPartitions()
+        partitionLocationInfo.removeAllSlavePartitions()
+      }
+      requestMasterReleaseSlots(
         ReleaseSlots(applicationId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
   }
@@ -683,9 +632,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     if (shuffleResourceExists(shuffleId)) {
       logWarning(s"Partition exists for shuffle $shuffleId, " +
         "maybe caused by task rerun or speculative.")
-      shuffleAllocatedWorkers.remove(shuffleId)
-      requestReleaseSlots(
-        rssHARetryClient,
+      requestMasterReleaseSlots(
         ReleaseSlots(appId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
 
@@ -693,43 +640,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
 
     logInfo(s"Unregister for $shuffleId success.")
-  }
-
-  private def handleGetBlacklist(msg: GetBlacklist): Unit = {
-    val res = requestGetBlacklist(rssHARetryClient, msg)
-    if (res.statusCode == StatusCode.SUCCESS) {
-      logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
-        s"unknown workers: ${res.unknownWorkers}")
-      val current = System.currentTimeMillis()
-      val reserved = blacklist.asScala
-        .filter { case (_, entry) =>
-          val (statusCode, registerTime) = entry
-          statusCode match {
-            case StatusCode.WORKER_SHUTDOWN |
-                StatusCode.NO_AVAILABLE_WORKING_DIR |
-                StatusCode.RESERVE_SLOTS_FAILED |
-                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER |
-                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE |
-                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER |
-                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE |
-                StatusCode.PUSH_DATA_TIMEOUT_MASTER |
-                StatusCode.PUSH_DATA_TIMEOUT_SLAVE
-                if current - registerTime < workerExcludedExpireTimeout =>
-              true
-            case StatusCode.UNKNOWN_WORKER => true
-            case _ => false
-          }
-        }.asJava
-      val reservedBlackList = new ShuffleFailedWorkers()
-      reservedBlackList.putAll(reserved)
-      blacklist.clear()
-      blacklist.putAll(
-        res.blacklist.asScala.map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
-      blacklist.putAll(
-        res.unknownWorkers.asScala.map(_ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
-      // put reserved blacklist at last to cover blacklist's local status.
-      blacklist.putAll(reservedBlackList)
-    }
   }
 
   /* ========================================================== *
@@ -751,10 +661,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       slots: WorkerResource): util.List[WorkerInfo] = {
     val reserveSlotFailedWorkers = new ShuffleFailedWorkers()
     val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
-    val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
-    ThreadUtils.parmap(slots.asScala.to, "ReserveSlot", parallelism) {
+    val workerPartitionLocations = slots.asScala.filter(p => !p._2._1.isEmpty || !p._2._2.isEmpty)
+    val parallelism = Math.min(Math.max(1, workerPartitionLocations.size), conf.rpcMaxParallelism)
+    ThreadUtils.parmap(workerPartitionLocations.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
-        val res = requestReserveSlots(
+        val res = requestWorkerReserveSlots(
           workerInfo.endpoint,
           ReserveSlots(
             applicationId,
@@ -779,10 +690,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         }
     }
     if (failureInfos.asScala.nonEmpty) {
-      logError(s"Aggregated error of reserveSlots failure:${failureInfos.asScala.foldLeft("")(
-        (x, y) => s"$x \n $y")}")
+      logError(s"Aggregated error of reserveSlots for " +
+        s"${Utils.makeShuffleKey(applicationId, shuffleId)} " +
+        s"failure:${failureInfos.asScala.foldLeft("")((x, y) => s"$x \n $y")}")
     }
-    recordWorkerFailure(reserveSlotFailedWorkers)
+    workerStatusTracker.recordWorkerFailure(reserveSlotFailedWorkers)
     new util.ArrayList[WorkerInfo](reserveSlotFailedWorkers.asScala.keys.toList.asJava)
   }
 
@@ -811,7 +723,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         var destroyWorkerInfo = partition.getWorker
         val workerInfoWithRpcRef = slots.keySet().asScala.find(_.equals(destroyWorkerInfo))
           .getOrElse {
-            logWarning(s"Cannot find workInfo from previous success workResource:" +
+            logWarning(s"Cannot find workInfo for $shuffleId from previous success workResource:" +
               s" ${destroyWorkerInfo.readableAddress()}, init according to partition info")
             try {
               destroyWorkerInfo.endpoint = rpcEnv.setupEndpointRef(
@@ -819,7 +731,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                 WORKER_EP)
             } catch {
               case t: Throwable =>
-                logError(s"Init rpc client failed for ${destroyWorkerInfo.readableAddress()}", t)
+                logError(
+                  s"Init rpc client failed for $shuffleId on ${destroyWorkerInfo.readableAddress()} during release peer partition.",
+                  t)
                 destroyWorkerInfo = null
             }
             destroyWorkerInfo
@@ -854,7 +768,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           workerSlotsPerDisk.add(slotsPerDisk)
       }
       val msg = ReleaseSlots(applicationId, shuffleId, workerIds, workerSlotsPerDisk)
-      requestReleaseSlots(rssHARetryClient, msg)
+      requestMasterReleaseSlots(msg)
       logInfo(s"Released slots for reserve buffer failed workers " +
         s"${workerIds.asScala.mkString(",")}" + s"${slots.asScala.mkString(",")}" +
         s"${Utils.makeShuffleKey(applicationId, shuffleId)}, ")
@@ -921,8 +835,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         Thread.sleep(reserveSlotsRetryWait)
       }
       // reserve buffers
-      logInfo(s"Try reserve slots for ${Utils.makeShuffleKey(applicationId, shuffleId)} " +
-        s"for $retryTimes times.")
+      logInfo(s"Try reserve slots for $shuffleId for $retryTimes times.")
       val reserveFailedWorkers = reserveSlots(applicationId, shuffleId, requestSlots)
       if (reserveFailedWorkers.isEmpty) {
         success = true
@@ -943,9 +856,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           // add candidates to avoid revive action passed in slots only 2 worker
           retryCandidates.addAll(candidates)
           // remove blacklist from retryCandidates
-          retryCandidates.removeAll(blacklist.keys().asScala.toList.asJava)
+          retryCandidates.removeAll(workerStatusTracker.blacklist.keys().asScala.toList.asJava)
           if (retryCandidates.size < 1 || (pushReplicateEnabled && retryCandidates.size < 2)) {
-            logError("Retry reserve slots failed caused by not enough slots.")
+            logError(s"Retry reserve slots for $shuffleId failed caused by not enough slots.")
             noAvailableSlots = true
           } else {
             // Only when the LifecycleManager needs to retry reserve slots again, re-allocate slots
@@ -963,7 +876,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             }
           }
         } else {
-          logError(s"Try reserve slots failed after $reserveSlotsMaxRetries retry.")
+          logError(s"Try reserve slots for $shuffleId failed after $reserveSlotsMaxRetries retry.")
         }
       }
       retryTimes += 1
@@ -974,7 +887,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       // has been removed from slots by call [[getFailedPartitionLocations]] and
       // [[releasePeerPartitionLocation]]. Now in the slots are all the successful partition
       // locations.
-      logWarning(s"Reserve buffers $shuffleId still fail after retrying, clear buffers.")
+      logWarning(s"Reserve buffers for $shuffleId still fail after retrying, clear buffers.")
       destroySlotsWithRetry(applicationId, shuffleId, slots)
     } else {
       logInfo(s"Reserve buffer success for ${Utils.makeShuffleKey(applicationId, shuffleId)}")
@@ -982,7 +895,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     success
   }
 
-  private val newLocationFunc =
+  val newLocationFunc =
     new util.function.Function[WorkerInfo, (JList[PartitionLocation], JList[PartitionLocation])] {
       override def apply(w: WorkerInfo): (JList[PartitionLocation], JList[PartitionLocation]) =
         (new util.LinkedList[PartitionLocation](), new util.LinkedList[PartitionLocation]())
@@ -1053,7 +966,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
    * @param slotsToDestroy worker resource to be destroyed
    * @return destroy failed master and slave location unique id
    */
-  private def destroySlotsWithRetry(
+  def destroySlotsWithRetry(
       applicationId: String,
       shuffleId: Int,
       slotsToDestroy: WorkerResource): Unit = {
@@ -1063,17 +976,17 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       slotsToDestroy.asScala,
       "DestroySlot",
       parallelism) { case (workerInfo, (masterLocations, slaveLocations)) =>
-      val destroy = Destroy(
+      val destroy = DestroyWorkerSlots(
         shuffleKey,
         masterLocations.asScala.map(_.getUniqueId).asJava,
         slaveLocations.asScala.map(_.getUniqueId).asJava)
-      var res = requestDestroy(workerInfo.endpoint, destroy)
+      var res = requestWorkerDestroySlots(workerInfo.endpoint, destroy)
       if (res.status != StatusCode.SUCCESS) {
-        logDebug(s"Request $destroy return ${res.status} for " +
-          s"${Utils.makeShuffleKey(applicationId, shuffleId)}, will retry request destroy.")
-        res = requestDestroy(
+        logDebug(s"Request $destroy return ${res.status} for $shuffleKey, " +
+          s"will retry request destroy.")
+        res = requestWorkerDestroySlots(
           workerInfo.endpoint,
-          Destroy(shuffleKey, res.failedMasters, res.failedSlaves))
+          DestroyWorkerSlots(shuffleKey, res.failedMasters, res.failedSlaves))
       }
     }
   }
@@ -1091,14 +1004,13 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        requestUnregisterShuffle(
-          rssHARetryClient,
+        requestMasterUnregisterShuffle(
           UnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))
       }
     }
   }
 
-  private def requestSlotsWithRetry(
+  private def requestMasterReleaseSlotsWithRetry(
       applicationId: String,
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
@@ -1110,17 +1022,15 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         lifecycleHost,
         pushReplicateEnabled,
         userIdentifier)
-    val res = requestRequestSlots(rssHARetryClient, req)
+    val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
-      requestRequestSlots(rssHARetryClient, req)
+      requestMasterRequestSlots(req)
     } else {
       res
     }
   }
 
-  private def requestRequestSlots(
-      rssHARetryClient: RssHARetryClient,
-      message: RequestSlots): RequestSlotsResponse = {
+  private def requestMasterRequestSlots(message: RequestSlots): RequestSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
       rssHARetryClient.askSync[RequestSlotsResponse](message, classOf[RequestSlotsResponse])
@@ -1131,12 +1041,12 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def requestReserveSlots(
+  private def requestWorkerReserveSlots(
       endpoint: RpcEndpointRef,
       message: ReserveSlots): ReserveSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
-      endpoint.askSync[ReserveSlotsResponse](message)
+      endpoint.askSync[ReserveSlotsResponse](message, conf.reserveSlotsRpcTimeout)
     } catch {
       case e: Exception =>
         val msg = s"Exception when askSync ReserveSlots for $shuffleKey " +
@@ -1146,19 +1056,22 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def requestDestroy(endpoint: RpcEndpointRef, message: Destroy): DestroyResponse = {
+  private def requestWorkerDestroySlots(
+      endpoint: RpcEndpointRef,
+      message: DestroyWorkerSlots): DestroyWorkerSlotsResponse = {
     try {
-      endpoint.askSync[DestroyResponse](message)
+      endpoint.askSync[DestroyWorkerSlotsResponse](message)
     } catch {
       case e: Exception =>
         logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
-        DestroyResponse(StatusCode.REQUEST_FAILED, message.masterLocations, message.slaveLocations)
+        DestroyWorkerSlotsResponse(
+          StatusCode.REQUEST_FAILED,
+          message.masterLocations,
+          message.slaveLocations)
     }
   }
 
-  private def requestReleaseSlots(
-      rssHARetryClient: RssHARetryClient,
-      message: ReleaseSlots): ReleaseSlotsResponse = {
+  private def requestMasterReleaseSlots(message: ReleaseSlots): ReleaseSlotsResponse = {
     try {
       rssHARetryClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse])
     } catch {
@@ -1168,9 +1081,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def requestUnregisterShuffle(
-      rssHARetryClient: RssHARetryClient,
-      message: PbUnregisterShuffle): PbUnregisterShuffleResponse = {
+  private def requestMasterUnregisterShuffle(message: PbUnregisterShuffle)
+      : PbUnregisterShuffleResponse = {
     try {
       rssHARetryClient.askSync[PbUnregisterShuffleResponse](
         message,
@@ -1179,37 +1091,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       case e: Exception =>
         logError(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
         UnregisterShuffleResponse(StatusCode.REQUEST_FAILED)
-    }
-  }
-
-  private def requestGetBlacklist(
-      rssHARetryClient: RssHARetryClient,
-      message: GetBlacklist): GetBlacklistResponse = {
-    try {
-      rssHARetryClient.askSync[GetBlacklistResponse](message, classOf[GetBlacklistResponse])
-    } catch {
-      case e: Exception =>
-        logError(s"AskSync GetBlacklist failed.", e)
-        GetBlacklistResponse(StatusCode.REQUEST_FAILED, List.empty.asJava, List.empty.asJava)
-    }
-  }
-
-  def recordWorkerFailure(failures: ShuffleFailedWorkers): Unit = {
-    val failedWorker = new ShuffleFailedWorkers(failures)
-    logInfo(s"Report Worker Failure: ${failedWorker.asScala}, current blacklist $blacklist")
-    failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
-      if (!blacklist.containsKey(worker)) {
-        blacklist.put(worker, (statusCode, registerTime))
-      } else {
-        statusCode match {
-          case StatusCode.WORKER_SHUTDOWN |
-              StatusCode.NO_AVAILABLE_WORKING_DIR |
-              StatusCode.RESERVE_SLOTS_FAILED |
-              StatusCode.UNKNOWN_WORKER =>
-            blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
-          case _ => // Not cover
-        }
-      }
     }
   }
 
@@ -1229,6 +1110,26 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private def shuffleResourceExists(shuffleId: Int): Boolean = {
     val workers = workerSnapshots(shuffleId)
     workers != null && !workers.isEmpty
+  }
+
+  // Once a partition is released, it will be never needed anymore
+  def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
+    commitManager.releasePartitionResource(shuffleId, partitionId)
+    val partitionLocation = latestPartitionLocation.get(shuffleId)
+    if (partitionLocation != null) {
+      partitionLocation.remove(partitionId)
+    }
+
+    releasePartitionManager.releasePartition(shuffleId, partitionId)
+  }
+
+  def getAllocatedWorkers(): Set[WorkerInfo] = {
+    shuffleAllocatedWorkers.asScala.values.flatMap(_.keys().asScala).toSet
+  }
+
+  // delegate workerStatusTracker to register listener
+  def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
+    workerStatusTracker.registerWorkerStatusListener(workerStatusListener)
   }
 
   // Initialize at the end of LifecycleManager construction.

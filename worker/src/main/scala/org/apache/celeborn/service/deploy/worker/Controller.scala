@@ -37,7 +37,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 private[deploy] class Controller(
@@ -49,7 +49,7 @@ private[deploy] class Controller(
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
-  // shuffleKe -> (epoch -> CommitInfo)
+  // shuffleKey -> (epoch -> CommitInfo)
   var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
@@ -126,7 +126,7 @@ private[deploy] class Controller(
     case ThreadDump =>
       handleThreadDump(context)
 
-    case Destroy(shuffleKey, masterLocations, slaveLocations) =>
+    case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 
@@ -257,6 +257,7 @@ private[deploy] class Controller(
       shuffleKey: String,
       uniqueIds: jList[String],
       committedIds: jSet[String],
+      emptyFileIds: jSet[String],
       failedIds: jSet[String],
       committedStorageInfos: ConcurrentHashMap[String, StorageInfo],
       committedMapIdBitMap: ConcurrentHashMap[String, RoaringBitmap],
@@ -286,7 +287,7 @@ private[deploy] class Controller(
                 val bytes = fileWriter.close()
                 if (bytes > 0L) {
                   if (fileWriter.getStorageInfo == null) {
-                    // This branch means that this partition location is deleted.
+                    // Only HDFS can be null, means that this partition location is deleted.
                     logDebug(s"Location $uniqueId is deleted.")
                   } else {
                     committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
@@ -298,6 +299,8 @@ private[deploy] class Controller(
                     }
                     committedIds.add(uniqueId)
                   }
+                } else {
+                  emptyFileIds.add(uniqueId)
                 }
               } catch {
                 case e: IOException =>
@@ -351,7 +354,7 @@ private[deploy] class Controller(
 
     val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
 
-    shuffleCommitInfos.putIfAbsent(shuffleKey, new ConcurrentHashMap[Long, CommitInfo]())
+    shuffleCommitInfos.putIfAbsent(shuffleKey, JavaUtils.newConcurrentHashMap[Long, CommitInfo]())
     val epochCommitMap = shuffleCommitInfos.get(shuffleKey)
     epochCommitMap.putIfAbsent(epoch, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))
     val commitInfo = epochCommitMap.get(epoch)
@@ -407,11 +410,13 @@ private[deploy] class Controller(
     // Use ConcurrentSet to avoid excessive lock contention.
     val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
+    val emptyFileMasterIds = ConcurrentHashMap.newKeySet[String]()
+    val emptyFileSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
-    val committedMasterStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
-    val committedSlaveStorageInfos = new ConcurrentHashMap[String, StorageInfo]()
-    val committedMapIdBitMap = new ConcurrentHashMap[String, RoaringBitmap]()
+    val committedMasterStorageInfos = JavaUtils.newConcurrentHashMap[String, StorageInfo]()
+    val committedSlaveStorageInfos = JavaUtils.newConcurrentHashMap[String, StorageInfo]()
+    val committedMapIdBitMap = JavaUtils.newConcurrentHashMap[String, RoaringBitmap]()
     val partitionSizeList = new LinkedBlockingQueue[Long]()
 
     val masterFuture =
@@ -419,6 +424,7 @@ private[deploy] class Controller(
         shuffleKey,
         masterIds,
         committedMasterIds,
+        emptyFileMasterIds,
         failedMasterIds,
         committedMasterStorageInfos,
         committedMapIdBitMap,
@@ -427,6 +433,7 @@ private[deploy] class Controller(
       shuffleKey,
       slaveIds,
       committedSlaveIds,
+      emptyFileSlaveIds,
       failedSlaveIds,
       committedSlaveStorageInfos,
       committedMapIdBitMap,
@@ -470,8 +477,14 @@ private[deploy] class Controller(
       // reply
       val response =
         if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
-          logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
-            s" master partitions and ${committedSlaveIds.size()} slave partitions!")
+          logInfo(
+            s"CommitFiles for $shuffleKey success with " +
+              s"${committedMasterIds.size()} committed master partitions, " +
+              s"${emptyFileMasterIds.size()} empty master partitions, " +
+              s"${failedMasterIds.size()} failed master partitions, " +
+              s"${committedMasterIds.size()} committed slave partitions, " +
+              s"${emptyFileSlaveIds.size()} empty slave partitions, " +
+              s"${failedSlaveIds.size()} failed slave partitions.")
           CommitFilesResponse(
             StatusCode.SUCCESS,
             committedMasterIdList,
@@ -484,8 +497,14 @@ private[deploy] class Controller(
             totalSize,
             fileCount)
         } else {
-          logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
-            s" partitions and ${failedSlaveIds.size()} slave partitions!")
+          logWarning(
+            s"CommitFiles for $shuffleKey failed with " +
+              s"${committedMasterIds.size()} committed master partitions, " +
+              s"${emptyFileMasterIds.size()} empty master partitions, " +
+              s"${failedMasterIds.size()} failed master partitions, " +
+              s"${committedMasterIds.size()} committed slave partitions, " +
+              s"${emptyFileSlaveIds.size()} empty slave partitions, " +
+              s"${failedSlaveIds.size()} failed slave partitions.")
           CommitFilesResponse(
             StatusCode.PARTIAL_SUCCESS,
             committedMasterIdList,
@@ -576,10 +595,11 @@ private[deploy] class Controller(
     // check whether shuffleKey has registered
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logWarning(s"Shuffle $shuffleKey not registered!")
-      context.reply(DestroyResponse(
-        StatusCode.SHUFFLE_NOT_REGISTERED,
-        masterLocations,
-        slaveLocations))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.SHUFFLE_NOT_REGISTERED,
+          masterLocations,
+          slaveLocations))
       return
     }
 
@@ -588,15 +608,15 @@ private[deploy] class Controller(
 
     // destroy master locations
     if (masterLocations != null && !masterLocations.isEmpty) {
-      masterLocations.asScala.foreach { loc =>
-        val allocatedLoc = partitionLocationInfo.getMasterLocation(shuffleKey, loc)
-        if (allocatedLoc == null) {
-          failedMasters.add(loc)
-        } else {
-          val fileWriter = allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter
-          fileWriter.destroy(
-            new IOException(
-              s"Destroy FileWriter ${fileWriter} caused by receiving Destroy request."))
+      masterLocations.asScala.foreach { uniqueId =>
+        try {
+          storageManager.cleanFile(
+            shuffleKey,
+            PartitionLocation.getFileName(uniqueId, PartitionLocation.Mode.MASTER))
+        } catch {
+          case e: Exception =>
+            failedMasters.add(uniqueId)
+            logDebug(s"Destroy master file $uniqueId for $shuffleKey failed.", e)
         }
       }
       // remove master locations from WorkerInfo
@@ -606,15 +626,15 @@ private[deploy] class Controller(
     }
     // destroy slave locations
     if (slaveLocations != null && !slaveLocations.isEmpty) {
-      slaveLocations.asScala.foreach { loc =>
-        val allocatedLoc = partitionLocationInfo.getSlaveLocation(shuffleKey, loc)
-        if (allocatedLoc == null) {
-          failedSlaves.add(loc)
-        } else {
-          val fileWriter = allocatedLoc.asInstanceOf[WorkingPartition].getFileWriter
-          fileWriter.destroy(
-            new IOException(
-              s"Destroy FileWriter ${fileWriter} caused by receiving Destroy request."))
+      slaveLocations.asScala.foreach { uniqueId =>
+        try {
+          storageManager.cleanFile(
+            shuffleKey,
+            PartitionLocation.getFileName(uniqueId, PartitionLocation.Mode.SLAVE))
+        } catch {
+          case e: Exception =>
+            failedSlaves.add(uniqueId)
+            logDebug(s"Destroy slave file $uniqueId for $shuffleKey failed.", e)
         }
       }
       // remove slave locations from worker info
@@ -626,12 +646,20 @@ private[deploy] class Controller(
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
       logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
         s" slave locations for $shuffleKey successfully.")
-      context.reply(DestroyResponse(StatusCode.SUCCESS, List.empty.asJava, List.empty.asJava))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.SUCCESS,
+          List.empty.asJava,
+          List.empty.asJava))
     } else {
       logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
         s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
         s" $shuffleKey PartialSuccess.")
-      context.reply(DestroyResponse(StatusCode.PARTIAL_SUCCESS, failedMasters, failedSlaves))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.PARTIAL_SUCCESS,
+          failedMasters,
+          failedSlaves))
     }
   }
 

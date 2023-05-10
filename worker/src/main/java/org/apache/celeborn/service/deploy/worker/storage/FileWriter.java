@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Optional;
@@ -36,13 +35,13 @@ import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 /*
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
@@ -50,7 +49,7 @@ import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionContro
  */
 public abstract class FileWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
-  private static final long WAIT_INTERVAL_MS = 20;
+  private static final long WAIT_INTERVAL_MS = 5;
 
   protected final FileInfo fileInfo;
   private FileChannel channel;
@@ -101,10 +100,10 @@ public abstract class FileWriter implements DeviceObserver {
     this.partitionType = partitionType;
     this.rangeReadFilter = rangeReadFilter;
     if (!fileInfo.isHdfs()) {
-      channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
+      channel = FileChannelUtils.createWritableFileChannel(fileInfo.getFilePath());
     } else {
       // We open the stream and close immediately because HDFS output stream will
-      // create a DataStreamer that is a threaed.
+      // create a DataStreamer that is a thread.
       // If we reuse HDFS output stream, we will exhaust the memory soon.
       try {
         StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
@@ -175,7 +174,7 @@ public abstract class FileWriter implements DeviceObserver {
 
     int mapId = 0;
     if (rangeReadFilter) {
-      byte[] header = new byte[16];
+      byte[] header = new byte[4];
       data.markReaderIndex();
       data.readBytes(header);
       data.resetReaderIndex();
@@ -200,7 +199,7 @@ public abstract class FileWriter implements DeviceObserver {
         mapIdBitMap.add(mapId);
       }
       if (flushBuffer.readableBytes() != 0
-          && flushBuffer.readableBytes() + numBytes >= this.flusherBufferSize) {
+          && flushBuffer.readableBytes() + numBytes >= flusherBufferSize) {
         flush(false);
         takeBuffer();
       }
@@ -251,13 +250,11 @@ public abstract class FileWriter implements DeviceObserver {
       waitOnNoPending(numPendingWrites);
       closed = true;
 
-      synchronized (this) {
-        if (flushBuffer.readableBytes() > 0) {
-          flush(true);
-        }
-        tryClose.run();
+      if (flushBuffer.readableBytes() > 0) {
+        flush(true);
       }
 
+      tryClose.run();
       waitOnNoPending(notifier.numPendingFlushes);
     } finally {
       returnBuffer();
@@ -358,12 +355,6 @@ public abstract class FileWriter implements DeviceObserver {
     // metrics end
     if (source.metricsCollectCriticalEnabled()) {
       source.stopTimer(metricsName, fileAbsPath);
-    }
-
-    if (flushBuffer == null) {
-      IOException e =
-          new IOException("Take buffer encounter error from Flusher: " + flusher.bufferQueueInfo());
-      notifier.setException(e);
     }
   }
 

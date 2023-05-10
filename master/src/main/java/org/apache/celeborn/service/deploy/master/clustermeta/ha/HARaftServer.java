@@ -41,6 +41,7 @@ import org.apache.ratis.protocol.*;
 import org.apache.ratis.protocol.exceptions.LeaderNotReadyException;
 import org.apache.ratis.protocol.exceptions.NotLeaderException;
 import org.apache.ratis.protocol.exceptions.StateMachineException;
+import org.apache.ratis.rpc.CallId;
 import org.apache.ratis.rpc.RpcType;
 import org.apache.ratis.rpc.SupportedRpcType;
 import org.apache.ratis.server.RaftServer;
@@ -91,6 +92,9 @@ public class HARaftServer {
   private final ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();
   private Optional<String> cachedLeaderPeerRpcEndpoint = Optional.empty();
+  private final CelebornConf conf;
+  private long workerTimeoutDeadline;
+  private long appTimeoutDeadline;
 
   /**
    * Returns an Master Ratis server.
@@ -115,7 +119,9 @@ public class HARaftServer {
     this.raftPeerId = localRaftPeerId;
     this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
+    this.conf = conf;
     RaftProperties serverProperties = newRaftProperties(conf);
+    setDeadlineTime(Integer.MAX_VALUE, Integer.MAX_VALUE); // for default
     this.server =
         RaftServer.newBuilder()
             .setServerId(this.raftPeerId)
@@ -480,6 +486,22 @@ public class HARaftServer {
   private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
+      boolean leaderChanged = false;
+      if (RaftProtos.RaftPeerRole.LEADER == currentRole && !checkCachedPeerRoleIsLeader()) {
+        leaderChanged = true;
+        setDeadlineTime(conf.workerHeartbeatTimeout(), conf.appHeartbeatTimeoutMs());
+      } else if (RaftProtos.RaftPeerRole.LEADER != currentRole && checkCachedPeerRoleIsLeader()) {
+        leaderChanged = true;
+        setDeadlineTime(Integer.MAX_VALUE, Integer.MAX_VALUE); // for revoke
+      }
+
+      if (leaderChanged) {
+        LOG.warn(
+            "Raft Role changed, CurrentNode Role: {}, Leader: {}",
+            currentRole,
+            leaderPeerRpcEndpoint);
+      }
+
       this.cachedPeerRole = Optional.ofNullable(currentRole);
       this.cachedLeaderPeerRpcEndpoint = Optional.ofNullable(leaderPeerRpcEndpoint);
     } finally {
@@ -499,5 +521,39 @@ public class HARaftServer {
 
   public String getRpcEndpoint() {
     return this.rpcEndpoint;
+  }
+
+  void stepDown() {
+    try {
+      TransferLeadershipRequest request =
+          new TransferLeadershipRequest(
+              clientId,
+              server.getId(),
+              raftGroup.getGroupId(),
+              CallId.getAndIncrement(),
+              null,
+              60_000);
+      RaftClientReply reply = server.transferLeadership(request);
+      if (reply.isSuccess()) {
+        LOG.info("Successfully step down leader {}.", server.getId());
+      } else {
+        LOG.warn("Step down leader failed!");
+      }
+    } catch (Exception e) {
+      LOG.warn("Step down leader failed!", e);
+    }
+  }
+
+  public void setDeadlineTime(long increaseWorkerTime, long increaseAppTime) {
+    this.workerTimeoutDeadline = System.currentTimeMillis() + increaseWorkerTime;
+    this.appTimeoutDeadline = System.currentTimeMillis() + increaseAppTime;
+  }
+
+  public long getWorkerTimeoutDeadline() {
+    return workerTimeoutDeadline;
+  }
+
+  public long getAppTimeoutDeadline() {
+    return appTimeoutDeadline;
   }
 }

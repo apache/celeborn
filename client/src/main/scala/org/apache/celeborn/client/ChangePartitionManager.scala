@@ -30,7 +30,7 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 case class ChangePartitionRequest(
     context: RequestLocationCallContext,
@@ -48,9 +48,9 @@ class ChangePartitionManager(
   private val pushReplicateEnabled = conf.pushReplicateEnabled
   // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
-    new ConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
   // shuffleId -> set of partition id
-  private val inBatchPartitions = new ConcurrentHashMap[Int, JSet[Integer]]()
+  private val inBatchPartitions = JavaUtils.newConcurrentHashMap[Int, JSet[Integer]]()
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
@@ -121,7 +121,7 @@ class ChangePartitionManager(
       Int,
       ConcurrentHashMap[Integer, util.Set[ChangePartitionRequest]]]() {
       override def apply(s: Int): ConcurrentHashMap[Integer, util.Set[ChangePartitionRequest]] =
-        new ConcurrentHashMap()
+        JavaUtils.newConcurrentHashMap()
     }
 
   private val inBatchShuffleIdRegisterFunc = new util.function.Function[Int, util.Set[Integer]]() {
@@ -207,7 +207,7 @@ class ChangePartitionManager(
     // Blacklist all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
       changePartitions.filter(_.causes.isDefined).foreach { changePartition =>
-        lifecycleManager.blacklistPartition(
+        lifecycleManager.workerStatusTracker.blacklistWorkerFromPartition(
           shuffleId,
           changePartition.oldPartition,
           changePartition.causes.get)
@@ -252,7 +252,7 @@ class ChangePartitionManager(
         .workerSnapshots(shuffleId)
         .keySet()
         .asScala
-        .filter(w => !lifecycleManager.blacklist.keySet().contains(w))
+        .filter(w => !lifecycleManager.workerStatusTracker.blacklist.keySet().contains(w))
         .toList
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
@@ -263,18 +263,6 @@ class ChangePartitionManager(
     // PartitionSplit all contains oldPartition
     val newlyAllocatedLocations =
       reallocateChangePartitionRequestSlotsFromCandidates(changePartitions.toList, candidates)
-
-    if (!lifecycleManager.registeredShuffle.contains(shuffleId)) {
-      logError(s"[handleChangePartition] shuffle $shuffleId not registered!")
-      replyFailure(StatusCode.SHUFFLE_NOT_REGISTERED)
-      return
-    }
-
-    if (lifecycleManager.commitManager.isStageEnd(shuffleId)) {
-      logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
-      replyFailure(StatusCode.STAGE_ENDED)
-      return
-    }
 
     if (!lifecycleManager.reserveSlotsWithRetry(
         applicationId,

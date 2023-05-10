@@ -26,6 +26,7 @@ abstract class IdentityProvider {
 
 object IdentityProvider extends Logging {
   val DEFAULT_TENANT_ID = "default"
+  val DEFAULT_USERNAME = "default"
 
   def instantiate(conf: CelebornConf): IdentityProvider = {
     val className = conf.quotaIdentityProviderClass

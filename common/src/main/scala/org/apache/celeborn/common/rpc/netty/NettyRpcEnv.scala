@@ -33,7 +33,6 @@ import com.google.common.base.Throwables
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.source.RPCSource
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client._
@@ -42,7 +41,7 @@ import org.apache.celeborn.common.network.server._
 import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
-import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, JavaUtils, ThreadUtils, Utils}
 
 class NettyRpcEnv(
     val conf: CelebornConf,
@@ -53,13 +52,11 @@ class NettyRpcEnv(
   private[celeborn] val transportConf = Utils.fromCelebornConf(
     conf.clone,
     TransportModuleConstants.RPC_MODULE,
-    conf.getInt("celeborn.rpc.io.threads", numUsableCores))
+    conf.rpcIoThreads.getOrElse(numUsableCores))
 
   private val dispatcher: Dispatcher = new Dispatcher(this, numUsableCores)
 
   private var worker: RpcEndpoint = null
-
-  var source: Option[RPCSource] = None
 
   private val transportContext =
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
@@ -83,7 +80,7 @@ class NettyRpcEnv(
    * A map for [[RpcAddress]] and [[Outbox]]. When we are connecting to a remote [[RpcAddress]],
    * we just put messages to its [[Outbox]] to implement a non-blocking `send` method.
    */
-  private val outboxes = new ConcurrentHashMap[RpcAddress, Outbox]()
+  private val outboxes = JavaUtils.newConcurrentHashMap[RpcAddress, Outbox]()
 
   /**
    * Remove the address's Outbox and stop it.
@@ -107,14 +104,10 @@ class NettyRpcEnv(
     if (server != null) RpcAddress(host, server.getPort()) else null
   }
 
-  override def setupEndpoint(
-      name: String,
-      endpoint: RpcEndpoint,
-      abstractSource: Option[RPCSource] = None): RpcEndpointRef = {
+  override def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef = {
     if (name == RpcNameConstants.WORKER_EP) {
       worker = endpoint
     }
-    source = abstractSource
     dispatcher.registerRpcEndpoint(name, endpoint)
   }
 
@@ -537,7 +530,7 @@ private[celeborn] class NettyRpcHandler(
     nettyEnv: NettyRpcEnv) extends BaseMessageHandler with Logging {
 
   // A variable to track the remote RpcEnv addresses of all clients
-  private val remoteAddresses = new ConcurrentHashMap[RpcAddress, RpcAddress]()
+  private val remoteAddresses = JavaUtils.newConcurrentHashMap[RpcAddress, RpcAddress]()
 
   override def receive(
       client: TransportClient,
@@ -595,10 +588,8 @@ private[celeborn] class NettyRpcHandler(
   private def internalReceive(client: TransportClient, message: ByteBuffer): RequestMessage = {
     val addr = client.getChannel().remoteAddress().asInstanceOf[InetSocketAddress]
     assert(addr != null)
-    val messageLen = message.remaining()
     val clientAddr = RpcAddress(addr.getHostString, addr.getPort)
     val requestMessage = RequestMessage(nettyEnv, client, message)
-    nettyEnv.source.foreach(_.updateMessageMetrics(requestMessage.content, messageLen))
     if (requestMessage.senderAddress == null) {
       // Create a new message with the socket address of the client as the sender.
       new RequestMessage(clientAddr, requestMessage.receiver, requestMessage.content)

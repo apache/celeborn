@@ -84,7 +84,7 @@ public abstract class ShuffleClientBaseSuiteJ {
     CelebornConf conf = new CelebornConf();
     conf.set("celeborn.shuffle.compression.codec", codec.name());
     conf.set("celeborn.push.retry.threads", "1");
-    conf.set("celeborn.push.buffer.size", "1K");
+    conf.set("celeborn.push.buffer.max.size", "1K");
     shuffleClient = new ShuffleClientImpl(conf, new UserIdentifier("mock", "mock"));
     masterLocation.setPeer(slaveLocation);
 

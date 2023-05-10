@@ -33,9 +33,6 @@ masterReplicas: 3
 # worker replicas set on demand, should less than node number
 workerReplicas: 5
 
-# celeborn release version
-celebornVersion: 0.1.1
-
 securityContext:
   fsGroup: 10006
 
@@ -43,19 +40,18 @@ securityContext:
 celeborn:
   celeborn.ha.master.ratis.raft.server.storage.dir: /mnt/rss_ratis/
   celeborn.worker.storage.dirs: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
-  celeborn.push.replicate.enabled: true
   celeborn.metrics.enabled: true
   celeborn.master.metrics.prometheus.port: 9098
   celeborn.worker.metrics.prometheus.port: 9096
   celeborn.worker.monitor.disk.enabled: false
-  celeborn.worker.fetch.chunk.size: 8m
+  celeborn.shuffle.chunk.size: 8m
   celeborn.rpc.io.serverThreads: 64
   celeborn.rpc.io.numConnectionsPerPeer: 2
   celeborn.rpc.io.clientThreads: 64
   celeborn.rpc.dispatcher.numThreads: 4
-  celeborn.worker.flush.buffer.size: 256K
+  celeborn.worker.flusher.buffer.size: 256K
   celeborn.worker.fetch.io.threads: 32
-  celeborn.push.io.threads: 32
+  celeborn.worker.push.io.threads: 32
   celeborn.push.stageEnd.timeout: 120s
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s

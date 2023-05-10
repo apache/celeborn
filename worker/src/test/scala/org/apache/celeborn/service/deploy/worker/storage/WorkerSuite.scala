@@ -20,7 +20,6 @@ package org.apache.celeborn.service.deploy.worker.storage
 import java.io.File
 import java.util
 import java.util.{HashSet => JHashSet}
-import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
@@ -31,6 +30,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
 class WorkerSuite extends AnyFunSuite {
@@ -77,7 +77,7 @@ class WorkerSuite extends AnyFunSuite {
     val worker = new Worker(conf, workerArgs)
     val dir = new File("/tmp")
     val allWriters = new util.HashSet[FileWriter]()
-    val map = new ConcurrentHashMap[String, FileWriter]()
+    val map = JavaUtils.newConcurrentHashMap[String, FileWriter]()
     worker.storageManager.workingDirWriters.put(dir, map)
     worker.storageManager.workingDirWriters.asScala.foreach { case (_, writers) =>
       writers.synchronized {

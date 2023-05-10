@@ -22,7 +22,6 @@ import java.io.Serializable;
 import org.roaringbitmap.RoaringBitmap;
 
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.util.PackedPartitionId;
 
 public class PartitionLocation implements Serializable {
   public enum Mode {
@@ -47,6 +46,10 @@ public class PartitionLocation implements Serializable {
     } else {
       return Mode.SLAVE;
     }
+  }
+
+  public static String getFileName(String uniqueId, Mode mode) {
+    return uniqueId + "-" + mode.mode();
   }
 
   private int id;
@@ -227,6 +230,7 @@ public class PartitionLocation implements Serializable {
     return id + "-" + epoch;
   }
 
+  /** @see PartitionLocation#getFileName */
   public String getFileName() {
     return id + "-" + epoch + "-" + mode.mode;
   }
@@ -281,13 +285,9 @@ public class PartitionLocation implements Serializable {
       peerAddr = peer.hostAndPorts();
     }
     return "PartitionLocation["
-        + "\n  id(rawId-attemptId)-epoch:"
+        + "\n  id-epoch:"
         + id
-        + "("
-        + getRawId()
         + "-"
-        + getAttemptId()
-        + ")-"
         + epoch
         + "\n  host-rpcPort-pushPort-fetchPort-replicatePort:"
         + host
@@ -320,13 +320,5 @@ public class PartitionLocation implements Serializable {
 
   public void setMapIdBitMap(RoaringBitmap mapIdBitMap) {
     this.mapIdBitMap = mapIdBitMap;
-  }
-
-  public int getRawId() {
-    return PackedPartitionId.getRawPartitionId(id);
-  }
-
-  public int getAttemptId() {
-    return PackedPartitionId.getAttemptId(id);
   }
 }

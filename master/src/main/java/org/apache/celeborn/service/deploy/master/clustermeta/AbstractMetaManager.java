@@ -17,9 +17,10 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta;
 
-import static org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP;
-
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,25 +38,31 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.*;
+import org.apache.celeborn.common.meta.AppDiskUsageMetric;
+import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
+import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
-import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
 
-  // Meta data for master service
+  // Metadata for master service
   public final Set<String> registeredShuffle = ConcurrentHashMap.newKeySet();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final ArrayList<WorkerInfo> workers = new ArrayList<>();
-  public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = new ConcurrentHashMap<>();
-  public final ConcurrentHashMap<String, Long> appHeartbeatTime = new ConcurrentHashMap<>();
+  public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
+  public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
   // blacklist
   public final Set<WorkerInfo> blacklist = ConcurrentHashMap.newKeySet();
+  // shutdown workers
+  public final Set<WorkerInfo> shutdownWorkers = ConcurrentHashMap.newKeySet();
+
   // workerLost events
   public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
 
@@ -226,23 +233,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             userResourceConsumption,
             null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
-
-    try {
-      workerInfo.setupEndpoint(rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
-    } catch (Exception e) {
-      LOG.warn("Worker register setupEndpoint failed {}, will retry", e);
-      try {
-        workerInfo.setupEndpoint(
-            rpcEnv.setupEndpointRef(RpcAddress.apply(host, rpcPort), WORKER_EP));
-      } catch (Exception e1) {
-        workerInfo.setupEndpoint(null);
-      }
-    }
-
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {
         workers.add(workerInfo);
+        shutdownWorkers.remove(workerInfo);
         lostWorkers.remove(workerInfo);
       }
     }
@@ -268,7 +263,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 partitionTotalFileCount.sum(),
                 appDiskUsageMetric.snapShots(),
                 appDiskUsageMetric.currentSnapShot().get(),
-                lostWorkers)
+                lostWorkers,
+                shutdownWorkers)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -316,6 +312,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           .forEach(
               entry -> lostWorkers.put(WorkerInfo.fromUniqueId(entry.getKey()), entry.getValue()));
 
+      shutdownWorkers.addAll(
+          snapshotMetaInfo.getShutdownWorkersList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
+
       partitionTotalWritten.reset();
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
       partitionTotalFileCount.reset();
@@ -341,8 +342,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
   }
 
-  public void updateBlacklistByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
+  public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
     synchronized (this.workers) {
+      shutdownWorkers.addAll(failedWorkers);
       failedWorkers.retainAll(this.workers);
       this.blacklist.addAll(failedWorkers);
     }

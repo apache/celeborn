@@ -28,6 +28,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef
+import org.apache.celeborn.common.util.JavaUtils
 
 class WorkerInfo(
     val host: String,
@@ -49,7 +50,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       null)
   }
 
@@ -67,7 +68,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       endpoint)
   }
 
@@ -217,7 +218,7 @@ class WorkerInfo(
         diskInfos.remove(nonExistsMountPoint)
       }
     }
-    new ConcurrentHashMap[String, DiskInfo](diskInfos)
+    JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
   }
 
   def updateThenGetUserResourceConsumption(consumption: util.Map[
@@ -254,6 +255,7 @@ class WorkerInfo(
        |ReplicatePort: $replicatePort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
+       |HeartBeatElapsedSeconds: ${(System.currentTimeMillis() - lastHeartbeat) / 1000}
        |Disks: $diskInfosString
        |UserResourceConsumption: $userResourceConsumptionString
        |WorkerRef: $endpoint

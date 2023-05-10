@@ -158,42 +158,42 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "1024");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "1024");
     check(10000, conf, serializer);
   }
 
   @Test
   public void testMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "1024");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "1024");
     check(10000, conf, serializer);
   }
 
   @Test
   public void testGiantRecord() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "5");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "5");
     check(10000, conf, serializer);
   }
 
   @Test
   public void testGiantRecordWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "5");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "5");
     check(10000, conf, serializer);
   }
 
   @Test
   public void testGiantRecordAndMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "128");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "128");
     check(2 << 30, conf, serializer);
   }
 
   @Test
   public void testGiantRecordAndMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.size", "128");
+    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "128");
     check(2 << 30, conf, serializer);
   }
 

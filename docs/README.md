@@ -18,13 +18,5 @@ license: |
   limitations under the License.
 ---
 
-Configuration Preview
+Apache Celeborn (Incubating)
 ===
-
-This is for local configuration page preview only.
-
-The content will be merged into [apache/incubator-celeborn-website],
-and become part of [celeborn.apache.org].
-
-[apache/incubator-celeborn-website]: https://github.com/apache/incubator-celeborn-website.git
-[celeborn.apache.org]: https://celeborn.apache.org/

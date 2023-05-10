@@ -449,7 +449,7 @@ object Utils extends Logging {
 
   // Typically, this will be of order of number of nodes in cluster
   // If not, we should change it to LRUCache or something.
-  private val hostPortParseResults = new ConcurrentHashMap[String, (String, Int)]()
+  private val hostPortParseResults = JavaUtils.newConcurrentHashMap[String, (String, Int)]()
 
   def parseHostPort(hostPort: String): (String, Int) = {
     // Check cache first.
@@ -909,6 +909,10 @@ object Utils extends Logging {
         StatusCode.PUSH_DATA_TIMEOUT_MASTER
       case 43 =>
         StatusCode.PUSH_DATA_TIMEOUT_SLAVE
+      case 44 =>
+        StatusCode.PUSH_DATA_MASTER_BLACKLISTED
+      case 45 =>
+        StatusCode.PUSH_DATA_SLAVE_BLACKLISTED
       case _ =>
         null
     }
@@ -957,7 +961,7 @@ object Utils extends Logging {
   val SORTED_SUFFIX = ".sorted"
   val INDEX_SUFFIX = ".index"
   val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
-  val COMPATIBLE_HDFS_REGEX = "^[a-zA-z0-9]+://((\\w)+/?)+$"
+  val COMPATIBLE_HDFS_REGEX = "^[a-zA-Z0-9]+://.*"
 
   def isHdfsPath(path: String): Boolean = {
     path.matches(COMPATIBLE_HDFS_REGEX)
@@ -1021,5 +1025,13 @@ object Utils extends Logging {
     parentFile.substring(
       parentFile.lastIndexOf("/"),
       parentFile.length) + "/" + fileInfo.getFile.getName
+  }
+
+  def parseMetricLabels(label: String): (String, String) = {
+    val labelPart = label.split("=")
+    if (labelPart.size != 2) {
+      throw new IllegalArgumentException(s"Illegal metric extra labels: $label")
+    }
+    labelPart(0).trim -> labelPart(1).trim
   }
 }

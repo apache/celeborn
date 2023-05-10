@@ -18,8 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -52,16 +50,13 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.network.server.memory.MemoryManager;
 import org.apache.celeborn.common.unsafe.Platform;
-import org.apache.celeborn.common.util.PbSerDeUtils;
-import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
+import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
-import org.apache.celeborn.common.util.ThreadUtils;
-import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.LevelDBProvider;
 import org.apache.celeborn.service.deploy.worker.ShuffleRecoverHelper;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
@@ -72,11 +67,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private File recoverFile;
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Map<String, Map<Integer, List<ShuffleBlockInfo>>>>
-      cachedIndexMaps = new ConcurrentHashMap<>();
+      cachedIndexMaps = JavaUtils.newConcurrentHashMap();
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
 
   private final AtomicInteger sortedFileCount = new AtomicInteger();
@@ -343,7 +338,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       // So there is no need to check its existence.
       hdfsIndexOutput = StorageManager.hadoopFs().create(new Path(indexFilePath));
     } else {
-      indexFileChannel = new FileOutputStream(indexFilePath).getChannel();
+      indexFileChannel = FileChannelUtils.createWritableFileChannel(indexFilePath);
     }
 
     int indexSize = 0;
@@ -447,7 +442,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         && cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
       indexMap = cachedIndexMaps.get(shuffleKey).get(fileId);
     } else {
-      FileInputStream indexStream = null;
+      FileChannel indexChannel = null;
       FSDataInputStream hdfsIndexStream = null;
       boolean isHdfs = Utils.isHdfsPath(indexFilePath);
       int indexSize = 0;
@@ -457,7 +452,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexSize =
               (int) StorageManager.hadoopFs().getFileStatus(new Path(indexFilePath)).getLen();
         } else {
-          indexStream = new FileInputStream(indexFilePath);
+          indexChannel = FileChannelUtils.openReadableFileChannel(indexFilePath);
           File indexFile = new File(indexFilePath);
           indexSize = (int) indexFile.length();
         }
@@ -465,18 +460,18 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         if (isHdfs) {
           readStreamFully(hdfsIndexStream, indexBuf, indexFilePath);
         } else {
-          readChannelFully(indexStream.getChannel(), indexBuf, indexFilePath);
+          readChannelFully(indexChannel, indexBuf, indexFilePath);
         }
         indexBuf.rewind();
         indexMap = ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
         Map<String, Map<Integer, List<ShuffleBlockInfo>>> cacheMap =
-            cachedIndexMaps.computeIfAbsent(shuffleKey, v -> new ConcurrentHashMap<>());
+            cachedIndexMaps.computeIfAbsent(shuffleKey, v -> JavaUtils.newConcurrentHashMap());
         cacheMap.put(fileId, indexMap);
       } catch (Exception e) {
         logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
         throw new IOException("Read sorted shuffle file index failed.", e);
       } finally {
-        IOUtils.closeQuietly(indexStream, null);
+        IOUtils.closeQuietly(indexChannel, null);
         IOUtils.closeQuietly(hdfsIndexStream, null);
       }
     }
@@ -606,8 +601,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         hdfsOriginInput = StorageManager.hadoopFs().open(new Path(originFilePath));
         hdfsSortedOutput = StorageManager.hadoopFs().create(new Path(sortedFilePath));
       } else {
-        originFileChannel = new FileInputStream(originFilePath).getChannel();
-        sortedFileChannel = new FileOutputStream(sortedFilePath).getChannel();
+        originFileChannel = FileChannelUtils.openReadableFileChannel(originFilePath);
+        sortedFileChannel = FileChannelUtils.createWritableFileChannel(sortedFilePath);
       }
     }
 

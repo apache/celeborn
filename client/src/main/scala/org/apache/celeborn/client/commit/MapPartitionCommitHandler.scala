@@ -37,6 +37,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
+import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.Utils
 
 /**
@@ -54,10 +55,10 @@ class MapPartitionCommitHandler(
   extends CommitHandler(appId, conf, committedPartitionInfo)
   with Logging {
 
-  private val shuffleSucceedPartitionIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
+  private val shuffleSucceedPartitionIds = JavaUtils.newConcurrentHashMap[Int, util.Set[Integer]]()
 
   // shuffleId -> in processing partitionId set
-  private val inProcessMapPartitionEndIds = new ConcurrentHashMap[Int, util.Set[Integer]]()
+  private val inProcessMapPartitionEndIds = JavaUtils.newConcurrentHashMap[Int, util.Set[Integer]]()
 
   override def getPartitionType(): PartitionType = {
     PartitionType.MAP
@@ -197,11 +198,6 @@ class MapPartitionCommitHandler(
       recordWorkerFailure(commitFailedWorkers)
     }
 
-    // release resources and clear related info
-    partitionAllocatedWorkers.asScala.foreach { case (_, partitionLocationInfo) =>
-      partitionLocationInfo.removePartitions(partitionId)
-    }
-
     inProcessingPartitionIds.remove(partitionId)
     if (dataCommitSuccess) {
       val resultPartitions =
@@ -222,8 +218,17 @@ class MapPartitionCommitHandler(
 
     context.reply(GetReducerFileGroupResponse(
       StatusCode.SUCCESS,
-      reducerFileGroupsMap.getOrDefault(shuffleId, new ConcurrentHashMap()),
+      reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
       getMapperAttempts(shuffleId),
       succeedPartitionIds))
+  }
+
+  override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
+    val succeedPartitionIds = shuffleSucceedPartitionIds.get(shuffleId)
+    if (succeedPartitionIds != null) {
+      succeedPartitionIds.remove(partitionId)
+    }
+
+    super.releasePartitionResource(shuffleId, partitionId)
   }
 }

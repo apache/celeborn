@@ -21,15 +21,13 @@ import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, Executors, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.IntUnaryOperator
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.concurrent.duration._
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
@@ -41,17 +39,18 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.network.server.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
-  // mount point -> filewriter
-  val workingDirWriters = new ConcurrentHashMap[File, ConcurrentHashMap[String, FileWriter]]()
+  // mount point -> file writer
+  val workingDirWriters =
+    JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, FileWriter]]()
 
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -78,7 +77,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     disksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(_.dirs)
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
-    val cleaners = new ConcurrentHashMap[String, ThreadPoolExecutor]()
+    val cleaners = JavaUtils.newConcurrentHashMap[String, ThreadPoolExecutor]()
     disksSnapshot().foreach {
       diskInfo =>
         cleaners.put(
@@ -88,7 +87,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     cleaners
   }
 
-  val tmpDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
+  val tmpDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
   disksSnapshot().foreach { diskInfo =>
     tmpDiskInfos.put(diskInfo.mountPoint, diskInfo)
   }
@@ -99,7 +98,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private val (
     localFlushers: ConcurrentHashMap[String, LocalFlusher],
     _totalLocalFlusherThread: Int) = {
-    val flushers = new ConcurrentHashMap[String, LocalFlusher]()
+    val flushers = JavaUtils.newConcurrentHashMap[String, LocalFlusher]()
     var totalThread = 0;
     disksSnapshot().foreach { diskInfo =>
       if (!flushers.containsKey(diskInfo.mountPoint)) {
@@ -117,9 +116,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     (flushers, totalThread)
   }
 
-  private val actionService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
-    .setNameFormat("StorageManager-action-thread").build)
-
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
@@ -127,7 +123,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     logInfo(s"Initialize HDFS support with path ${hdfsDir}")
   }
   val hdfsPermission = FsPermission.createImmutable(755)
-  val hdfsWriters = new ConcurrentHashMap[String, FileWriter]()
+  val hdfsWriters = JavaUtils.newConcurrentHashMap[String, FileWriter]()
   val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (!hdfsDir.isEmpty) {
       val path = new Path(hdfsDir)
@@ -180,7 +176,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   // shuffleKey -> (fileName -> file info)
   private val fileInfos =
-    new ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
   private val RECOVERY_FILE_NAME = "recovery.ldb"
   private var db: DB = null
   // ShuffleClient can fetch data from a restarted worker only
@@ -208,7 +204,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   private def reloadAndCleanFileInfos(db: DB): Unit = {
     if (db != null) {
-      val cache = new ConcurrentHashMap[String, UserIdentifier]()
+      val cache = JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
       val itr = db.iterator
       itr.seek(SHUFFLE_KEY_PREFIX.getBytes(StandardCharsets.UTF_8))
       while (itr.hasNext) {
@@ -249,13 +245,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private val newMapFunc =
     new java.util.function.Function[String, ConcurrentHashMap[String, FileInfo]]() {
       override def apply(key: String): ConcurrentHashMap[String, FileInfo] =
-        new ConcurrentHashMap()
+        JavaUtils.newConcurrentHashMap()
     }
 
   private val workingDirWriterListFunc =
     new java.util.function.Function[File, ConcurrentHashMap[String, FileWriter]]() {
       override def apply(t: File): ConcurrentHashMap[String, FileWriter] =
-        new ConcurrentHashMap[String, FileWriter]()
+        JavaUtils.newConcurrentHashMap[String, FileWriter]()
     }
 
   @throws[IOException]
@@ -424,6 +420,40 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }.toSeq.sortBy(_._2).reverse.take(conf.metricsAppTopDiskUsageCount * 2).toMap.asJava
   }
 
+  def cleanFile(shuffleKey: String, fileName: String): Unit = {
+    val fileInfo = getFileInfo(shuffleKey, fileName)
+    if (fileInfo != null) {
+      cleanFileInternal(shuffleKey, fileInfo)
+    }
+  }
+
+  def cleanFileInternal(shuffleKey: String, fileInfo: FileInfo): Boolean = {
+    var isHdfsExpired = false
+    if (fileInfo.isHdfs) {
+      isHdfsExpired = true
+      val hdfsFileWriter = hdfsWriters.get(fileInfo.getFilePath)
+      if (hdfsFileWriter != null) {
+        hdfsFileWriter.destroy(new IOException(
+          s"Destroy FileWriter ${hdfsFileWriter} caused by shuffle ${shuffleKey} expired."))
+        hdfsWriters.remove(fileInfo.getFilePath)
+      }
+    } else {
+      val workingDir =
+        fileInfo.getFile.getParentFile.getParentFile.getParentFile
+      val writers = workingDirWriters.get(workingDir)
+      if (writers != null) {
+        val fileWriter = writers.get(fileInfo.getFilePath)
+        if (fileWriter != null) {
+          fileWriter.destroy(new IOException(
+            s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
+          writers.remove(fileInfo.getFilePath)
+        }
+      }
+    }
+
+    isHdfsExpired
+  }
+
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
@@ -432,30 +462,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         var isHdfsExpired = false
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
-            case (_, fileInfo) => {
-              if (fileInfo.isHdfs) {
+            case (_, fileInfo) =>
+              if (cleanFileInternal(shuffleKey, fileInfo)) {
                 isHdfsExpired = true
-                val hdfsFileWriter = hdfsWriters.get(fileInfo.getFilePath)
-                if (hdfsFileWriter != null) {
-                  hdfsFileWriter.destroy(new IOException(
-                    s"Destroy FileWriter ${hdfsFileWriter} caused by shuffle ${shuffleKey} expired."))
-                }
-                fileInfo.deleteAllFiles(StorageManager.hadoopFs)
-                hdfsWriters.remove(fileInfo.getFilePath)
-              } else {
-                val workingDir =
-                  fileInfo.getFile.getParentFile.getParentFile.getParentFile
-                val writers = workingDirWriters.get(workingDir)
-                if (writers != null) {
-                  val fileWriter = writers.get(fileInfo.getFilePath)
-                  if (fileWriter != null) {
-                    fileWriter.destroy(new IOException(
-                      s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
-                    writers.remove(fileInfo.getFilePath)
-                  }
-                }
               }
-            }
           }
         }
         val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
@@ -663,11 +673,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   override def onResume(moduleName: String): Unit = {}
 
   override def onTrim(): Unit = {
-    actionService.submit(new Runnable {
-      override def run(): Unit = {
-        flushFileWriters()
-      }
-    })
+    logInfo(s"Trigger ${this.getClass.getCanonicalName} trim action")
+    flushFileWriters()
+    try {
+      Thread.sleep(conf.workerDirectMemoryTrimFlushWaitInterval)
+    } catch {
+      case _: Exception => // Do nothing
+    }
   }
 
   def updateDiskInfos(): Unit = this.synchronized {

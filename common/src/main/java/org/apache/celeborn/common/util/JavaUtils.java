@@ -18,18 +18,24 @@
 package org.apache.celeborn.common.util;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -416,6 +422,66 @@ public class JavaUtils {
       for (int i = 0; i < arr.length; i++) {
         inversed[arr[i]] = i;
       }
+    }
+  }
+
+  public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap() {
+    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+      return new ConcurrentHashMap();
+    } else {
+      return new ConcurrentHashMapForJDK8();
+    }
+  }
+
+  public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap(
+      Map<? extends K, ? extends V> m) {
+    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+      return new ConcurrentHashMap(m);
+    } else {
+      return new ConcurrentHashMapForJDK8(m);
+    }
+  }
+
+  /**
+   * For JDK8, there is bug for ConcurrentHashMap#computeIfAbsent, checking the key existence to
+   * speed up. See details in CELEBORN-474.
+   */
+  private static class ConcurrentHashMapForJDK8<K, V> extends ConcurrentHashMap<K, V> {
+    public ConcurrentHashMapForJDK8() {
+      super();
+    }
+
+    public ConcurrentHashMapForJDK8(Map<? extends K, ? extends V> m) {
+      super(m);
+    }
+
+    @Override
+    public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+      V result;
+      if (null == (result = get(key))) {
+        result = super.computeIfAbsent(key, mappingFunction);
+      }
+      return result;
+    }
+  }
+
+  public static void timeOutOrMeetCondition(Callable<Boolean> callable) throws Exception {
+    int timeout = 10000; // 10s
+    while (true) {
+      if (callable.call() || timeout < 0) {
+        break;
+      }
+
+      timeout = timeout - 100;
+      Thread.sleep(100);
+    }
+  }
+
+  public static String getLocalHost() {
+    try {
+      return InetAddress.getLocalHost().getHostAddress();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 }

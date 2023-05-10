@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.util.JavaUtils;
 
 public class PushState {
 
@@ -40,7 +41,7 @@ public class PushState {
   }
 
   // key: ${master addr}-${slave addr} value: list of data batch
-  public final ConcurrentHashMap<String, DataBatches> batchesMap = new ConcurrentHashMap<>();
+  public final ConcurrentHashMap<String, DataBatches> batchesMap = JavaUtils.newConcurrentHashMap();
 
   /**
    * Not thread-safe
@@ -89,7 +90,7 @@ public class PushState {
     return inFlightRequestTracker.limitZeroInFlight();
   }
 
-  public boolean reachLimit(String hostAndPushPort, int maxInFlight) throws IOException {
-    return inFlightRequestTracker.reachLimit(hostAndPushPort, maxInFlight);
+  public int inflightPushes(String hostAndPushPort) {
+    return inFlightRequestTracker.getBatchIdSetByAddressPair(hostAndPushPort).size();
   }
 }

@@ -23,7 +23,7 @@ metadata:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}
     app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     app.kubernetes.io/role: master
     {{- include "celeborn.labels" . | nindent 4 }}
@@ -32,7 +32,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: {{ .Chart.Name }}
       app.kubernetes.io/instance: {{ .Release.Name }}
-      app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+      app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
       app.kubernetes.io/role: master
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
   serviceName: celeborn-master-svc
@@ -46,8 +46,9 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .Chart.Name }}
         app.kubernetes.io/instance: {{ .Release.Name }}
-        app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+        app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
         app.kubernetes.io/role: master
+        app.kubernetes.io/tag: {{ .Values.image.tag }}
         {{- include "celeborn.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.affinity.master }}
@@ -80,7 +81,7 @@ spec:
           - "/bin/sh"
           - '-c'
           {{- $namespace := .Release.Namespace }}
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && /opt/celeborn/sbin/start-master.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
         resources:
           {{- toYaml .Values.resources.master | nindent 12 }}
         ports:

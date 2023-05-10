@@ -22,12 +22,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.util.JavaUtils;
 
 /*
  * This class is for track in flight request and limit request.
@@ -42,7 +44,7 @@ public class InFlightRequestTracker {
 
   private final AtomicInteger batchId = new AtomicInteger();
   private final ConcurrentHashMap<String, Set<Integer>> inflightBatchesPerAddress =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
 
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
@@ -147,9 +149,13 @@ public class InFlightRequestTracker {
 
     if (times <= 0) {
       logger.error(
-          "After waiting for {} ms, there are still {} batches in flight, expect 0 batches",
+          "After waiting for {} ms, "
+              + "there are still {} batches in flight "
+              + "for hostAndPushPort {}, "
+              + "which exceeds the current limit 0.",
           waitInflightTimeoutMs,
-          inFlightSize);
+          inFlightSize,
+          inflightBatchesPerAddress.keySet().stream().collect(Collectors.joining(", ", "[", "]")));
     }
 
     if (pushState.exception.get() != null) {
@@ -157,15 +163,6 @@ public class InFlightRequestTracker {
     }
 
     return times <= 0;
-  }
-
-  public boolean reachLimit(String hostAndPushPort, int maxInFlight) throws IOException {
-    if (pushState.exception.get() != null) {
-      throw pushState.exception.get();
-    }
-
-    Set<Integer> batchIdSet = getBatchIdSetByAddressPair(hostAndPushPort);
-    return batchIdSet.size() > maxInFlight;
   }
 
   protected int nextBatchId() {

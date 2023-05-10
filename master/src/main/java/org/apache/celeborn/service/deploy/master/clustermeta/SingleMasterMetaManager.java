@@ -128,7 +128,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId) {
-    updateBlacklistByReportWorkerUnavailable(failedNodes);
+    updateMetaByReportWorkerUnavailable(failedNodes);
   }
 
   public void handleUpdatePartitionSize() {

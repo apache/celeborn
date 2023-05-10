@@ -31,14 +31,14 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, RPCSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -100,13 +100,15 @@ private[celeborn] class Master(
   private val quotaManager = QuotaManager.instantiate(conf)
   private val metricsResourceConsumptionInterval = conf.metricsResourceConsumptionInterval
   private val userResourceConsumptions =
-    new ConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
+    JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   // States
   private def workersSnapShot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.workers))
   private def lostWorkersSnapshot: ConcurrentHashMap[WorkerInfo, java.lang.Long] =
-    statusSystem.workers.synchronized(new ConcurrentHashMap(statusSystem.lostWorkers))
+    statusSystem.workers.synchronized(JavaUtils.newConcurrentHashMap(statusSystem.lostWorkers))
+  private def shutdownWorkerSnapshot: util.List[WorkerInfo] =
+    statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers))
 
   private def diskReserveSize = conf.diskReserveSize
 
@@ -137,7 +139,6 @@ private[celeborn] class Master(
   private val slotsAssignPolicy = conf.slotsAssignPolicy
 
   // init and register master metrics
-  val rpcSource = new RPCSource(conf, MetricsSystem.ROLE_MASTER)
   val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
   masterSource.addGauge(
@@ -152,13 +153,12 @@ private[celeborn] class Master(
   // is master active under HA mode
   masterSource.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
 
-  metricsSystem.registerSource(rpcSource)
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
 
-  rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this, Some(rpcSource))
+  rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
 
   val rackResolver = new CelebornRackResolver(conf)
 
@@ -224,11 +224,17 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+    case HeartbeatFromApplication(appId, totalWritten, fileCount, localBlacklist, requestId) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
-        handleHeartbeatFromApplication(context, appId, totalWritten, fileCount, requestId))
+        handleHeartbeatFromApplication(
+          context,
+          appId,
+          totalWritten,
+          fileCount,
+          localBlacklist,
+          requestId))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -327,6 +333,11 @@ private[celeborn] class Master(
 
   private def timeoutDeadWorkers() {
     val currentTime = System.currentTimeMillis()
+    // Need increase timeout deadline to avoid long time leader election period
+    if (HAHelper.getWorkerTimeoutDeadline(statusSystem) > currentTime) {
+      return
+    }
+
     var ind = 0
     workersSnapShot.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
@@ -347,6 +358,10 @@ private[celeborn] class Master(
 
   private def timeoutDeadApplications(): Unit = {
     val currentTime = System.currentTimeMillis()
+    // Need increase timeout deadline to avoid long time leader election period
+    if (HAHelper.getAppTimeoutDeadline(statusSystem) > currentTime) {
+      return
+    }
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
       if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
@@ -420,7 +435,7 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       null)
     val worker: WorkerInfo = workersSnapShot
       .asScala
@@ -635,6 +650,7 @@ private[celeborn] class Master(
       appId: String,
       totalWritten: Long,
       fileCount: Long,
+      needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
@@ -642,7 +658,13 @@ private[celeborn] class Master(
       fileCount,
       System.currentTimeMillis(),
       requestId)
-    context.reply(OneWayMessageResponse)
+    // unknown workers will retain in needCheckedWorkerList
+    needCheckedWorkerList.removeAll(workersSnapShot)
+    context.reply(HeartbeatFromApplicationResponse(
+      StatusCode.SUCCESS,
+      new util.ArrayList(statusSystem.blacklist),
+      needCheckedWorkerList,
+      shutdownWorkerSnapshot))
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
@@ -706,25 +728,10 @@ private[celeborn] class Master(
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Workers Info in Master ===========================")
+
     workersSnapShot.asScala.foreach { w =>
-      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}in Master\n")
+      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}\n")
       sb.append(w).append("\n")
-
-      sb.append("\n")
-      val workerInfo = requestGetWorkerInfos(w.endpoint)
-        .workerInfos.asJava
-        .get(0)
-
-      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}in Worker\n")
-      sb.append(workerInfo).append("\n")
-      sb.append("\n")
-
-      if (w.hasSameInfoWith(workerInfo)) {
-        sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}status consist!\n")
-      } else {
-        sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}status not consist!\n")
-      }
-      sb.append("=====================================================================\n")
     }
 
     sb.toString()
@@ -733,8 +740,17 @@ private[celeborn] class Master(
   override def getLostWorkers: String = {
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
-    lostWorkersSnapshot.asScala.foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$time\n")
+    lostWorkersSnapshot.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${simpleDateFormat.format(time)}\n")
+    }
+    sb.toString()
+  }
+
+  override def getShutdownWorkers: String = {
+    val sb = new StringBuilder
+    sb.append("===================== Shutdown Workers in Master ======================\n")
+    shutdownWorkerSnapshot.asScala.foreach { worker =>
+      sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
   }
@@ -767,8 +783,8 @@ private[celeborn] class Master(
   override def getApplicationList: String = {
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Hostname List ======================\n")
-    statusSystem.appHeartbeatTime.asScala.foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}$time\n")
+    statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
+      sb.append(s"${appId.padTo(40, " ").mkString}${simpleDateFormat.format(time)}\n")
     }
     sb.toString()
   }
@@ -814,7 +830,7 @@ private[celeborn] class Master(
       -1,
       -1,
       new util.HashMap[String, DiskInfo](),
-      new ConcurrentHashMap[UserIdentifier, ResourceConsumption](),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
       null))
     GetWorkerInfosResponse(StatusCode.REQUEST_FAILED, result.asScala: _*)
   }

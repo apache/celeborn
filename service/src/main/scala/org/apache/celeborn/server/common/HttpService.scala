@@ -17,13 +17,17 @@
 
 package org.apache.celeborn.server.common
 
-import org.apache.celeborn.common.CelebornConf
+import java.text.SimpleDateFormat
+import java.util.Locale
+
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer}
 
 abstract class HttpService extends Service with Logging {
 
   private var httpServer: HttpServer = _
+
+  protected val simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.ROOT)
 
   def getConf: String = {
     val sb = new StringBuilder
@@ -37,15 +41,17 @@ abstract class HttpService extends Service with Logging {
 
   def getWorkerInfo: String
 
-  def getLostWorkers: String
+  def getLostWorkers: String = throw new UnsupportedOperationException()
 
-  def getBlacklistedWorkers: String
+  def getShutdownWorkers: String = throw new UnsupportedOperationException()
+
+  def getBlacklistedWorkers: String = throw new UnsupportedOperationException()
 
   def getThreadDump: String
 
-  def getHostnameList: String
+  def getHostnameList: String = throw new UnsupportedOperationException()
 
-  def getApplicationList: String
+  def getApplicationList: String = throw new UnsupportedOperationException()
 
   def getShuffleList: String
 

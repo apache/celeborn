@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
-import org.apache.hadoop.fs.{FSDataOutputStream, Path}
+import org.apache.hadoop.fs.Path
 
 abstract private[worker] class FlushTask(
     val buffer: CompositeByteBuf,

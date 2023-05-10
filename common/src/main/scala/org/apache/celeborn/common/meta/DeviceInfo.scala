@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
+import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.Utils.runCommand
 
 class DiskInfo(
@@ -223,8 +224,8 @@ object DeviceInfo {
       mountPointToDeviceInfo.putIfAbsent(mountPoint, deviceInfo)
     }
 
-    val retDeviceInfos = new ConcurrentHashMap[String, DeviceInfo]()
-    val retDiskInfos = new ConcurrentHashMap[String, DiskInfo]()
+    val retDeviceInfos = JavaUtils.newConcurrentHashMap[String, DeviceInfo]()
+    val retDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
 
     workingDirs.groupBy { f =>
       getMountPoint(f._1.getAbsolutePath, mountPointToDeviceInfo.keySet())

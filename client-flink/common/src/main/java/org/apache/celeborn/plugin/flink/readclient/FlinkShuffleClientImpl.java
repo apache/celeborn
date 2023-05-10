@@ -50,6 +50,7 @@ import org.apache.celeborn.common.protocol.PbChangeLocationResponse;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
@@ -62,7 +63,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private static volatile boolean initialized = false;
   private FlinkTransportClientFactory flinkTransportClientFactory;
   private ReadClientHandler readClientHandler = new ReadClientHandler();
-  private ConcurrentHashMap<String, TransportClient> currentClient = new ConcurrentHashMap<>();
+  private ConcurrentHashMap<String, TransportClient> currentClient =
+      JavaUtils.newConcurrentHashMap();
 
   public static FlinkShuffleClientImpl get(
       String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
@@ -103,7 +105,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     TransportContext context =
         new TransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
-    this.flinkTransportClientFactory = new FlinkTransportClientFactory(context);
+    this.flinkTransportClientFactory =
+        new FlinkTransportClientFactory(context, conf.fetchMaxRetriesForEachReplica());
   }
 
   public RssBufferStream readBufferedPartition(
@@ -121,6 +124,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       return RssBufferStream.empty();
     } else {
       return RssBufferStream.create(
+          this,
           conf,
           flinkTransportClientFactory,
           shuffleKey,
@@ -298,7 +302,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         dataClientFactory.createClient(
             location.getHost(), location.getPushPort(), location.getId());
     if (currentClient.get(mapKey) != client) {
-      // makesure that messages have been sent by old client, in order to keep receiving data
+      // make sure that messages have been sent by old client, in order to keep receiving data
       // orderly
       if (currentClient.get(mapKey) != null) {
         limitZeroInFlight(mapKey, pushState);

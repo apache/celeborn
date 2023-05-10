@@ -19,7 +19,6 @@ package org.apache.celeborn.client.compress;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.CompressionCodec;
-import org.apache.celeborn.common.protocol.CompressionCodec.*;
 
 public interface Decompressor {
 
