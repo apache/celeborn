@@ -659,6 +659,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def reserveSlotsRpcTimeout: RpcTimeout =
     new RpcTimeout(get(RESERVE_SLOTS_RPC_TIMEOUT).milli, RESERVE_SLOTS_RPC_TIMEOUT.key)
+
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
       get(REGISTER_SHUFFLE_RPC_ASK_TIMEOUT).map(_.milli)
