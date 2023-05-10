@@ -26,6 +26,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornRuntimeException
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -200,7 +201,14 @@ private[celeborn] class Master(
   }
 
   def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
-    if (HAHelper.checkShouldProcess(context, statusSystem)) f
+    if (HAHelper.checkShouldProcess(context, statusSystem)) {
+      try {
+        f
+      } catch {
+        case e: Exception =>
+          HAHelper.sendFailure(context, HAHelper.getRatisServer(statusSystem), e)
+      }
+    }
 
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>

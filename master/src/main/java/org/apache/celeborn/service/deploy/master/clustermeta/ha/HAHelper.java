@@ -25,6 +25,7 @@ import org.apache.ratis.protocol.Message;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.haclient.MasterNotLeaderException;
 import org.apache.celeborn.common.rpc.RpcCallContext;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
@@ -39,7 +40,16 @@ public class HAHelper {
       if (ratisServer.isLeader()) {
         return true;
       }
-      if (context != null) {
+      sendFailure(context, ratisServer, null);
+      return false;
+    }
+    return true;
+  }
+
+  public static void sendFailure(
+      RpcCallContext context, HARaftServer ratisServer, Throwable cause) {
+    if (context != null) {
+      if (ratisServer != null) {
         if (ratisServer.getCachedLeaderPeerRpcEndpoint().isPresent()) {
           context.sendFailure(
               new MasterNotLeaderException(
@@ -50,10 +60,10 @@ public class HAHelper {
               new MasterNotLeaderException(
                   ratisServer.getRpcEndpoint(), MasterNotLeaderException.LEADER_NOT_PRESENTED));
         }
+      } else {
+        context.sendFailure(new CelebornIOException(cause.getMessage(), cause));
       }
-      return false;
     }
-    return true;
   }
 
   public static long getWorkerTimeoutDeadline(AbstractMetaManager masterStatusSystem) {

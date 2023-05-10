@@ -31,7 +31,6 @@ import scala.Tuple2;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.ServiceException;
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
@@ -55,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -199,11 +199,12 @@ public class HARaftServer {
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
-      throws ServiceException {
+      throws CelebornRuntimeException {
     String requestId = request.getRequestId();
     Tuple2<String, Long> decoded = RssHARetryClient.decodeRequestId(requestId);
     if (decoded == null) {
-      throw new ServiceException("RequestId:" + requestId + " invalid, should be: uuid#callId.");
+      throw new CelebornRuntimeException(
+          "RequestId:" + requestId + " invalid, should be: uuid#callId.");
     }
     ClientId clientId = ClientId.valueOf(UUID.fromString(decoded._1));
     long callId = decoded._2;
@@ -221,19 +222,19 @@ public class HARaftServer {
     try {
       raftClientReply = server.submitClientRequestAsync(raftClientRequest).get();
     } catch (Exception ex) {
-      throw new ServiceException(ex.getMessage(), ex);
+      throw new CelebornRuntimeException(ex.getMessage(), ex);
     }
 
     if (!raftClientReply.isSuccess()) {
       NotLeaderException notLeaderException = raftClientReply.getNotLeaderException();
       if (notLeaderException != null) {
-        throw new ServiceException("Not leader!");
+        throw new CelebornRuntimeException("Not leader!");
       }
 
       LeaderNotReadyException leaderNotReadyException =
           raftClientReply.getLeaderNotReadyException();
       if (leaderNotReadyException != null) {
-        throw new ServiceException("Not leader!");
+        throw new CelebornRuntimeException("Not leader!");
       }
 
       StateMachineException stateMachineException = raftClientReply.getStateMachineException();
@@ -261,11 +262,7 @@ public class HARaftServer {
       byte[] bytes = raftClientReply.getMessage().getContent().toByteArray();
       return ResourceResponse.newBuilder(ResourceResponse.parseFrom(bytes)).build();
     } catch (InvalidProtocolBufferException ex) {
-      if (ex.getMessage() != null) {
-        throw new ServiceException(ex.getMessage(), ex);
-      } else {
-        throw new ServiceException(ex);
-      }
+      throw new CelebornRuntimeException(ex.getMessage(), ex);
     }
   }
 
