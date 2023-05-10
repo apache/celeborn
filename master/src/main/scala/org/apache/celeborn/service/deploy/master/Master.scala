@@ -530,7 +530,6 @@ private[celeborn] class Master(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
-              conf.slotsAssignRackAwareEnabled,
               rackResolver)
           } else {
             SlotsAllocator.offerSlotsLoadAware(
@@ -542,7 +541,6 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
               loadAwareFetchTimeWeight,
-              conf.slotsAssignRackAwareEnabled,
               rackResolver)
           }
         }

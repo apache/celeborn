@@ -234,7 +234,6 @@ public class SlotsAllocatorSuiteJ {
             conf.slotsAssignLoadAwareDiskGroupGradient(),
             conf.slotsAssignLoadAwareFlushTimeWeight(),
             conf.slotsAssignLoadAwareFetchTimeWeight(),
-            conf.slotsAssignRackAwareEnabled(),
             new CelebornRackResolver(conf));
     if (expectSuccess) {
       if (shouldReplicate) {

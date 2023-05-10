@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.common.network
 
-import java.util.{List => JList}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
@@ -30,10 +28,11 @@ import org.apache.hadoop.util.ReflectionUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.CelebornHadoopUtils
 
 class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
+
+  val enabledRackAware = celebornConf.slotsAssignRackAwareEnabled
 
   private val dnsToSwitchMapping: DNSToSwitchMapping = {
     val conf: Configuration = CelebornHadoopUtils.newConfiguration(celebornConf)

@@ -54,7 +54,6 @@ public class SlotsAllocator {
           List<WorkerInfo> workers,
           List<Integer> partitionIds,
           boolean shouldReplicate,
-          boolean shouldRackAware,
           CelebornRackResolver rackResolver) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
@@ -77,22 +76,14 @@ public class SlotsAllocator {
       }
     }
     List<Integer> remain =
-        roundRobin(
-            slots,
-            partitionIds,
-            workers,
-            restrictions,
-            shouldReplicate,
-            shouldRackAware,
-            rackResolver);
+        roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate, rackResolver);
     if (!remain.isEmpty()) {
-      remain =
-          roundRobin(slots, remain, workers, null, shouldReplicate, shouldRackAware, rackResolver);
+      remain = roundRobin(slots, remain, workers, null, shouldReplicate, rackResolver);
     }
 
     // If enable shouldRackAware and still can't allocate, disable shouldRackAware
-    if (shouldRackAware && !remain.isEmpty()) {
-      roundRobin(slots, remain, workers, null, shouldReplicate, false, rackResolver);
+    if (rackResolver.enabledRackAware() && !remain.isEmpty()) {
+      roundRobin(slots, remain, workers, null, shouldReplicate, null);
     }
     return slots;
   }
@@ -112,7 +103,6 @@ public class SlotsAllocator {
           double diskGroupGradient,
           double flushTimeWeight,
           double fetchTimeWeight,
-          boolean shouldRackAware,
           CelebornRackResolver rackResolver) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
@@ -144,8 +134,7 @@ public class SlotsAllocator {
       logger.warn(
           "offer slots for {} fallback to roundrobin because there is no usable disks",
           StringUtils.join(partitionIds, ','));
-      return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, rackResolver);
+      return offerSlotsRoundRobin(workers, partitionIds, shouldReplicate, rackResolver);
     }
 
     if (!initialized) {
@@ -167,17 +156,10 @@ public class SlotsAllocator {
             new ArrayList<>(restriction.keySet()),
             restriction,
             shouldReplicate,
-            shouldRackAware,
             rackResolver);
     if (!remainPartitions.isEmpty()) {
       roundRobin(
-          slots,
-          remainPartitions,
-          new ArrayList<>(workers),
-          null,
-          shouldReplicate,
-          shouldRackAware,
-          rackResolver);
+          slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate, rackResolver);
     }
 
     return slots;
@@ -206,7 +188,6 @@ public class SlotsAllocator {
       List<WorkerInfo> workers,
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
       boolean shouldReplicate,
-      boolean shouldRackAware,
       CelebornRackResolver rackResolver) {
     // workerInfo -> (diskIndexForMaster, diskIndexForSlave)
     Map<WorkerInfo, Integer> workerDiskIndexForMaster = new HashMap<>();
@@ -237,8 +218,7 @@ public class SlotsAllocator {
         int nextSlaveInd = (nextMasterInd + 1) % workers.size();
         if (restrictions != null) {
           while (!haveUsableSlots(restrictions, workers, nextSlaveInd)
-              || !satisfyRackAware(
-                  shouldRackAware, rackResolver, workers, masterIndex, nextSlaveInd)) {
+              || !satisfyRackAware(rackResolver, workers, masterIndex, nextSlaveInd)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -246,8 +226,8 @@ public class SlotsAllocator {
           }
           storageInfo =
               getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
-        } else if (shouldRackAware) {
-          while (!satisfyRackAware(true, rackResolver, workers, masterIndex, nextSlaveInd)) {
+        } else if (rackResolver != null && rackResolver.enabledRackAware()) {
+          while (!satisfyRackAware(rackResolver, workers, masterIndex, nextSlaveInd)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -280,12 +260,12 @@ public class SlotsAllocator {
   }
 
   private static boolean satisfyRackAware(
-      boolean shouldRackAware,
       CelebornRackResolver rackResolver,
       List<WorkerInfo> workers,
       int masterIndex,
       int nextSlaveInd) {
-    return !shouldRackAware
+    return rackResolver == null
+        || !rackResolver.enabledRackAware()
         || rackResolver.getDistance(
                 workers.get(masterIndex).host(), workers.get(nextSlaveInd).host())
             > 2;
