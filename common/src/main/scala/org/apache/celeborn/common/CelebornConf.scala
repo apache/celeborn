@@ -2189,7 +2189,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.slots.assign.rackware.enabled")
       .categories("master")
       .version("0.3.0")
-      .doc("")
+      .doc("Whether need to place different replicates on different racks when allocating slots.")
       .booleanConf
       .createWithDefault(false)
 
