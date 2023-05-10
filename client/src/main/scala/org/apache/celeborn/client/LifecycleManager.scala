@@ -1046,7 +1046,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       message: ReserveSlots): ReserveSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
-      endpoint.askSync[ReserveSlotsResponse](message)
+      endpoint.askSync[ReserveSlotsResponse](message, conf.reserveSlotsRpcTimeout)
     } catch {
       case e: Exception =>
         val msg = s"Exception when askSync ReserveSlots for $shuffleKey " +
