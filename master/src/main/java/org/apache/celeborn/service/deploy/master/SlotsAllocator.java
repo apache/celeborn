@@ -22,8 +22,6 @@ import java.util.*;
 import scala.Tuple2;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.net.NetworkTopology;
-import org.apache.hadoop.net.Node;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -246,7 +244,9 @@ public class SlotsAllocator {
                       .sum()
                   <= 0
               || (shouldRackAware
-                  && getDistinct(workers, masterIndex, nextSlaveInd, rackResolver) <= 0)) {
+                  && rackResolver.getDistance(
+                          workers.get(masterIndex).host(), workers.get(nextSlaveInd).host())
+                      > 2)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -255,7 +255,9 @@ public class SlotsAllocator {
           storageInfo =
               getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
         } else if (shouldRackAware) {
-          while (getDistinct(workers, masterIndex, nextSlaveInd, rackResolver) <= 0) {
+          while (rackResolver.getDistance(
+                  workers.get(masterIndex).host(), workers.get(nextSlaveInd).host())
+              > 2) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -280,13 +282,6 @@ public class SlotsAllocator {
       iter.remove();
     }
     return partitionIdList;
-  }
-
-  private static int getDistinct(
-      List<WorkerInfo> workers, int masterId, int slaveId, CelebornRackResolver resolver) {
-    Node masterNode = resolver.resolve(workers.get(masterId).host());
-    Node slaveNode = resolver.resolve(workers.get(slaveId).host());
-    return NetworkTopology.getDistanceByPath(masterNode, slaveNode);
   }
 
   private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {

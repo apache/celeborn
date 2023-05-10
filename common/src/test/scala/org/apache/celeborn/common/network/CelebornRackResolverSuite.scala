@@ -19,8 +19,10 @@ package org.apache.celeborn.common.network
 
 import java.io.File
 
+import scala.collection.JavaConverters._
+
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY}
-import org.apache.hadoop.net.{Node, TableMapping}
+import org.apache.hadoop.net.{NetworkTopology, Node, NodeBase, TableMapping}
 import org.apache.hadoop.shaded.com.google.common.base.Charsets
 import org.apache.hadoop.shaded.com.google.common.io.Files
 import org.junit.Assert.assertEquals
@@ -33,7 +35,7 @@ class CelebornRackResolverSuite extends CelebornFunSuite {
   test("Test TableMapping") {
     val hostName1 = "1.2.3.4"
     val hostName2 = "5.6.7.8"
-    val mapFile: File = File.createTempFile(getClass.getSimpleName + ".testResolve", ".txt")
+    val mapFile: File = File.createTempFile(getClass.getSimpleName + ".testResolve1", ".txt")
     Files.asCharSink(mapFile, Charsets.UTF_8).write(
       hostName1 + " /rack1\n" + hostName2 + "\t/rack2\n")
     mapFile.deleteOnExit()
@@ -51,5 +53,45 @@ class CelebornRackResolverSuite extends CelebornFunSuite {
     assertEquals(names.size, result.size)
     assertEquals("/rack1", result(0).getNetworkLocation)
     assertEquals("/rack2", result(1).getNetworkLocation)
+
+    println(NodeBase.getPathComponents(result(0)).mkString(", "))
+    println(NodeBase.getPathComponents(result(1)).mkString(", "))
+    assertEquals(4, NetworkTopology.getDistanceByPath(result(0), result(1)))
+  }
+
+  test("CELEBORN-446: RackResolver support getDistance") {
+    val hostName1 = "1.2.3.4"
+    val hostName2 = "1.2.3.5"
+    val hostName3 = "1.2.3.6"
+    val hostName4 = "1.2.3.7"
+    val hostName5 = "1.2.3.8"
+    val hostName6 = "1.2.3.9"
+    val mapFile: File = File.createTempFile(getClass.getSimpleName + ".testResolve2", ".txt")
+    Files.asCharSink(mapFile, Charsets.UTF_8).write(
+      s"""
+         |$hostName1 /default/rack1
+         |$hostName2 /default/rack1
+         |$hostName3 /default/rack2
+         |$hostName4 /default/rack3
+         |""".stripMargin)
+    val conf = new CelebornConf
+    conf.set(
+      "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
+      classOf[TableMapping].getName)
+    conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath)
+    val resolver = new CelebornRackResolver(conf)
+
+    assertEquals("/default/rack1", resolver.resolve(hostName1).getNetworkLocation)
+    assertEquals("/default/rack2", resolver.resolve(hostName3).getNetworkLocation)
+
+    assertEquals(2, resolver.getDistance(hostName1, hostName2))
+    assertEquals(4, resolver.getDistance(hostName1, hostName3))
+    assertEquals(4, resolver.getDistance(hostName3, hostName4))
+
+    // check one side don't have rack info
+    assertEquals(5, resolver.getDistance(hostName1, hostName5))
+
+    // check both side don't have rack info
+    assertEquals(2, resolver.getDistance(hostName5, hostName6))
   }
 }

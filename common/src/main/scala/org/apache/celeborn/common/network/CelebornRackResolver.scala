@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network
 
+import java.util.{List => JList}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
@@ -28,6 +30,7 @@ import org.apache.hadoop.util.ReflectionUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.util.CelebornHadoopUtils
 
 class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
@@ -77,5 +80,15 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
       }
     }
     nodes.toList
+  }
+
+  /**
+   * Check network distance between two nodes.
+   * According to the algorithm, the distance of nodes on the same rack is 2.
+   */
+  def getDistance(workers: JList[WorkerInfo], masterId: Int, slaveId: Int): Int = {
+    val masterNode: Node = resolve(workers.get(masterId).host)
+    val slaveNode: Node = resolve(workers.get(slaveId).host)
+    NetworkTopology.getDistanceByPath(masterNode, slaveNode)
   }
 }
