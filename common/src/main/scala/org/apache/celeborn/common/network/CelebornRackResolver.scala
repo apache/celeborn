@@ -86,9 +86,9 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
    * Check network distance between two nodes.
    * According to the algorithm, the distance of nodes on the same rack is 2.
    */
-  def getDistance(workers: JList[WorkerInfo], masterId: Int, slaveId: Int): Int = {
-    val masterNode: Node = resolve(workers.get(masterId).host)
-    val slaveNode: Node = resolve(workers.get(slaveId).host)
+  def getDistance(masterHost: String, slaveHost: String): Int = {
+    val masterNode: Node = resolve(masterHost)
+    val slaveNode: Node = resolve(slaveHost)
     NetworkTopology.getDistanceByPath(masterNode, slaveNode)
   }
 }
