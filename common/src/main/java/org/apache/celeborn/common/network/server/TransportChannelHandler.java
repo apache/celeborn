@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.common.network.server;
 
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
@@ -26,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
+import org.apache.celeborn.common.network.protocol.Heartbeat;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.ResponseMessage;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -54,17 +58,25 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
   private final TransportRequestHandler requestHandler;
   private final long requestTimeoutNs;
   private final boolean closeIdleConnections;
+  private final long heartbeatInterval;
+  private ScheduledFuture<?> heartbeatFuture;
+  private boolean heartbeatFutureCanceled = false;
+  private boolean enableHeartbeat;
 
   public TransportChannelHandler(
       TransportClient client,
       TransportResponseHandler responseHandler,
       TransportRequestHandler requestHandler,
       long requestTimeoutMs,
-      boolean closeIdleConnections) {
+      boolean closeIdleConnections,
+      boolean enableHeartbeat,
+      long heartbeatInterval) {
     this.client = client;
     this.responseHandler = responseHandler;
     this.requestHandler = requestHandler;
     this.requestTimeoutNs = requestTimeoutMs * 1000L * 1000;
+    this.enableHeartbeat = enableHeartbeat;
+    this.heartbeatInterval = heartbeatInterval;
     this.closeIdleConnections = closeIdleConnections;
   }
 
@@ -76,13 +88,34 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
     logger.warn(
         "Exception in connection from " + NettyUtils.getRemoteAddress(ctx.channel()), cause);
+    closeHeartbeat();
     requestHandler.exceptionCaught(cause);
     responseHandler.exceptionCaught(cause);
     ctx.close();
   }
 
+  private void closeHeartbeat() {
+    if (heartbeatFuture != null && !heartbeatFutureCanceled) {
+      heartbeatFuture.cancel(true);
+      heartbeatFutureCanceled = true;
+    }
+  }
+
   @Override
   public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    if (enableHeartbeat) {
+      heartbeatFuture =
+          ctx.executor()
+              .scheduleAtFixedRate(
+                  () -> {
+                    logger.debug("send heartbeat");
+                    ctx.writeAndFlush(new Heartbeat());
+                  },
+                  0,
+                  heartbeatInterval,
+                  TimeUnit.MILLISECONDS);
+    }
+
     try {
       requestHandler.channelActive();
     } catch (RuntimeException e) {
@@ -98,6 +131,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    closeHeartbeat();
     try {
       requestHandler.channelInactive();
     } catch (RuntimeException e) {
@@ -113,7 +147,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object request) throws Exception {
-    if (request instanceof RequestMessage) {
+    if (request instanceof RequestMessage && !(request instanceof Heartbeat)) {
       requestHandler.handle((RequestMessage) request);
     } else if (request instanceof ResponseMessage) {
       responseHandler.handle((ResponseMessage) request);
@@ -130,7 +164,8 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
       synchronized (this) {
         boolean isActuallyOverdue =
             System.nanoTime() - responseHandler.getTimeOfLastRequestNs() > requestTimeoutNs;
-        if (e.state() == IdleState.ALL_IDLE && isActuallyOverdue) {
+        if (e.state() == (enableHeartbeat ? IdleState.READER_IDLE : IdleState.ALL_IDLE)
+            && isActuallyOverdue) {
           if (responseHandler.numOutstandingRequests() > 0) {
             String address = NettyUtils.getRemoteAddress(ctx.channel());
             logger.error(

@@ -26,6 +26,7 @@ import java.util.concurrent.TimeoutException;
 
 import scala.reflect.ClassTag$;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -559,5 +560,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
   public void setDataClientFactory(TransportClientFactory dataClientFactory) {
     this.dataClientFactory = dataClientFactory;
+  }
+
+  @VisibleForTesting
+  public TransportClientFactory getDataClientFactory() {
+    return flinkTransportClientFactory;
   }
 }

@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
@@ -426,6 +427,11 @@ public class MemoryManager {
     actionService.shutdown();
     readBufferTargetChangeListeners.clear();
     readBufferDispatcher.close();
+  }
+
+  @VisibleForTesting
+  public static void reset() {
+    _INSTANCE = null;
   }
 
   public interface MemoryPressureListener {

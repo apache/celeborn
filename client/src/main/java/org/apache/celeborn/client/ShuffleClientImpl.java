@@ -1558,4 +1558,9 @@ public class ShuffleClientImpl extends ShuffleClient {
         || (message.equals("Connection reset by peer"))
         || (message.startsWith("Failed to send RPC "));
   }
+
+  @VisibleForTesting
+  public TransportClientFactory getDataClientFactory() {
+    return dataClientFactory;
+  }
 }
