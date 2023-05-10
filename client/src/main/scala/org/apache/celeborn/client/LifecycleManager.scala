@@ -1005,11 +1005,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         changePartitionManager.removeExpiredShuffle(shuffleId)
         val unregisterShuffleResponse = requestMasterUnregisterShuffle(
           UnregisterShuffle(appId, shuffleId, RssHARetryClient.genRequestId()))
+        // if unregister shuffle not success, wait next turn
         if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
           unregisterShuffleTime.remove(shuffleId)
         }
-
-        // if unregister shuffle not success, wait next turn
       }
     }
   }
