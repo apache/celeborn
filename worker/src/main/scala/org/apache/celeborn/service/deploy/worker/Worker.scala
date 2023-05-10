@@ -514,26 +514,28 @@ private[celeborn] class Worker(
             rssHARetryClient.askSync(
               ReportWorkerUnavailable(List(workerInfo).asJava),
               OneWayMessageResponse.getClass)
-
-            val timeout = conf.checkSlotsFinishedTimeoutMs
-            val startTime = System.currentTimeMillis()
-            def waitTime: Long = System.currentTimeMillis() - startTime
-            val interval = conf.checkSlotsFinishedInterval
-            while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
-              Thread.sleep(interval)
-            }
-
-            if (partitionLocationInfo.isEmpty) {
-              logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
-            } else {
-              logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
-                s"unreleased PartitionLocation: \n$partitionLocationInfo")
-            }
           } catch {
             case e: Throwable =>
               logError(
-                s"Fail report to master, unreleased PartitionLocation: \n$partitionLocationInfo",
+                s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
                 e)
+          }
+
+          val interval = conf.checkSlotsFinishedInterval
+          val timeout = conf.checkSlotsFinishedTimeoutMs
+          var waitTimes = 0
+
+          def waitTime: Long = waitTimes * interval
+
+          while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+            Thread.sleep(interval)
+            waitTimes += 1
+          }
+          if (partitionLocationInfo.isEmpty) {
+            logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
+          } else {
+            logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
+              s"unreleased PartitionLocation: \n$partitionLocationInfo")
           }
         }
         close()
