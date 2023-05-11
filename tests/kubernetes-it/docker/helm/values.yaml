@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# For Integration Test
-
 image:
   repository: apache/celeborn
   pullPolicy: IfNotPresent
@@ -24,8 +22,10 @@ image:
 
 imagePullSecrets: {}
 
-masterReplicas: 3
-workerReplicas: 3
+# master replicas should not less than 3
+masterReplicas: 1
+# worker replicas set on demand, should less than node number
+workerReplicas: 1
 
 securityContext:
   fsGroup: 10006
@@ -34,6 +34,8 @@ celeborn:
   celeborn.ha.master.ratis.raft.server.storage.dir: /mnt/rss_ratis/
   celeborn.worker.storage.dirs: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
   celeborn.metrics.enabled: false
+  celeborn.master.metrics.prometheus.port: 9098
+  celeborn.worker.metrics.prometheus.port: 9096
   celeborn.worker.monitor.disk.enabled: false
   celeborn.shuffle.chunk.size: 8m
   celeborn.rpc.io.serverThreads: 64
@@ -48,10 +50,10 @@ celeborn:
   celeborn.worker.heartbeat.timeout: 120s
 
 environments:
-  CELEBORN_MASTER_MEMORY: '100m'
-  CELEBORN_WORKER_MEMORY: '1g'
-  CELEBORN_WORKER_OFFHEAP_MEMORY: '1g'
-  CELEBORN_NO_DAEMONIZE: '1'
+  CELEBORN_MASTER_MEMORY: 100m
+  CELEBORN_WORKER_MEMORY: 100m
+  CELEBORN_WORKER_OFFHEAP_MEMORY: 100m
+  CELEBORN_NO_DAEMONIZE: 1
   TZ: "Asia/Shanghai"
 
 podMonitor:
@@ -81,16 +83,14 @@ resources:
   worker:
     limits:
       cpu: 100m
-      memory: 2g
+      memory: 1g
     requests:
       cpu: 100m
-      memory: 2g
+      memory: 1g
 
 podAnnotations: {}
 
-affinity:
-  master: {}
-  worker: {}
+affinity: {}
 
 tolerations: []
 
