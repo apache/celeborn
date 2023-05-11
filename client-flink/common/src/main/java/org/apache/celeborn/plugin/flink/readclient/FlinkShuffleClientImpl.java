@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClientImpl;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.exception.DriverChangedException;
+import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
@@ -66,23 +68,37 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private ReadClientHandler readClientHandler = new ReadClientHandler();
   private ConcurrentHashMap<String, TransportClient> currentClient =
       JavaUtils.newConcurrentHashMap();
+  private long driverTimeStamp;
 
   public static FlinkShuffleClientImpl get(
-      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
-    if (null == _instance || !initialized) {
+      String driverHost,
+      int port,
+      long driverTimeStamp,
+      CelebornConf conf,
+      UserIdentifier userIdentifier)
+      throws DriverChangedException {
+    if (null == _instance || !initialized || _instance.driverTimeStamp < driverTimeStamp) {
       synchronized (FlinkShuffleClientImpl.class) {
         if (null == _instance) {
-          _instance = new FlinkShuffleClientImpl(driverHost, port, conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverHost, port);
+          _instance =
+              new FlinkShuffleClientImpl(driverHost, port, driverTimeStamp, conf, userIdentifier);
           initialized = true;
-        } else if (!initialized) {
+        } else if (!initialized || _instance.driverTimeStamp < driverTimeStamp) {
           _instance.shutdown();
-          _instance = new FlinkShuffleClientImpl(driverHost, port, conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverHost, port);
+          _instance =
+              new FlinkShuffleClientImpl(driverHost, port, driverTimeStamp, conf, userIdentifier);
           initialized = true;
         }
       }
     }
+
+    if (driverTimeStamp < _instance.driverTimeStamp) {
+      String format = "Driver reinitialized or changed driverHost-port-driverTimeStamp to {}-{}-{}";
+      String message = String.format(format, driverHost, port, driverTimeStamp);
+      logger.warn(message);
+      throw new DriverChangedException(message);
+    }
+
     return _instance;
   }
 
@@ -98,7 +114,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public FlinkShuffleClientImpl(
-      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
+      String driverHost,
+      int port,
+      long driverTimeStamp,
+      CelebornConf conf,
+      UserIdentifier userIdentifier) {
     super(conf, userIdentifier);
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
@@ -108,6 +128,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
     this.flinkTransportClientFactory =
         new FlinkTransportClientFactory(context, conf.fetchMaxRetriesForEachReplica());
+    this.setupMetaServiceRef(driverHost, port);
+    this.driverTimeStamp = driverTimeStamp;
   }
 
   public RssBufferStream readBufferedPartition(
@@ -121,8 +143,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     ReduceFileGroups fileGroups = loadFileGroup(applicationId, shuffleKey, shuffleId, partitionId);
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
-      logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
-      return RssBufferStream.empty();
+      logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
+      throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
       return RssBufferStream.create(
           this,

@@ -55,7 +55,7 @@ public class FlinkShuffleClientImplSuiteJ {
   public void setup() throws IOException, InterruptedException {
     conf = new CelebornConf();
     shuffleClient =
-        new FlinkShuffleClientImpl("localhost", 1232, conf, null) {
+        new FlinkShuffleClientImpl("localhost", 1232, System.currentTimeMillis(), conf, null) {
           @Override
           public void setupMetaServiceRef(String host, int port) {}
         };

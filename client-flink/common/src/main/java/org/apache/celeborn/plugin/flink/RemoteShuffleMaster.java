@@ -60,11 +60,13 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           ThreadUtils.createFactoryWithDefaultExceptionHandler(
               "remote-shuffle-master-executor", LOG));
   private final ResultPartitionAdapter resultPartitionDelegation;
+  private final long rssMetaServiceTimeStamp;
 
   public RemoteShuffleMaster(
       ShuffleMasterContext shuffleMasterContext, ResultPartitionAdapter resultPartitionDelegation) {
     this.shuffleMasterContext = shuffleMasterContext;
     this.resultPartitionDelegation = resultPartitionDelegation;
+    this.rssMetaServiceTimeStamp = System.currentTimeMillis();
   }
 
   @Override
@@ -74,7 +76,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       synchronized (RemoteShuffleMaster.class) {
         if (lifecycleManager == null) {
           // use first jobID as celeborn shared appId for all other flink jobs
-          celebornAppId = FlinkUtils.toCelebornAppId(jobID);
+          celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimeStamp, jobID);
           CelebornConf celebornConf =
               FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
           // if not set, set to true as default for flink
@@ -91,6 +93,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     }
 
     Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
+    LOG.info("Register job: {}.", jobID);
     shuffleResourceTracker.registerJob(context);
     if (previousShuffleIds != null) {
       throw new RuntimeException("Duplicated registration job: " + jobID);
@@ -144,6 +147,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
                   new RemoteShuffleResource(
                       lifecycleManager.getRssMetaServiceHost(),
                       lifecycleManager.getRssMetaServicePort(),
+                      rssMetaServiceTimeStamp,
                       shuffleResourceDescriptor);
 
               shuffleResourceTracker.addPartitionResource(

@@ -23,15 +23,17 @@ public class RemoteShuffleResource implements ShuffleResource {
 
   private final String rssMetaServiceHost;
   private final int rssMetaServicePort;
-
+  private final long rssMetaServiceTimeStamp;
   private ShuffleResourceDescriptor shuffleResourceDescriptor;
 
   public RemoteShuffleResource(
       String rssMetaServiceHost,
       int rssMetaServicePort,
+      long rssMetaServiceTimeStamp,
       ShuffleResourceDescriptor remoteShuffleDescriptor) {
     this.rssMetaServiceHost = rssMetaServiceHost;
     this.rssMetaServicePort = rssMetaServicePort;
+    this.rssMetaServiceTimeStamp = rssMetaServiceTimeStamp;
     this.shuffleResourceDescriptor = remoteShuffleDescriptor;
   }
 
@@ -48,11 +50,16 @@ public class RemoteShuffleResource implements ShuffleResource {
     return rssMetaServicePort;
   }
 
+  public long getRssMetaServiceTimeStamp() {
+    return rssMetaServiceTimeStamp;
+  }
+
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("RemoteShuffleResource{");
     sb.append("rssMetaServiceHost='").append(rssMetaServiceHost).append('\'');
     sb.append(", rssMetaServicePort=").append(rssMetaServicePort);
+    sb.append(", rssMetaServiceTimeStamp=").append(rssMetaServiceTimeStamp);
     sb.append(", shuffleResourceDescriptor=").append(shuffleResourceDescriptor);
     sb.append('}');
     return sb.toString();
