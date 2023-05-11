@@ -81,8 +81,7 @@ public class SlotsAllocator {
       remain = roundRobin(slots, remain, workers, null, shouldReplicate, rackResolver);
     }
 
-    // If enable shouldRackAware and still can't allocate, disable shouldRackAware
-    if (rackResolver.enabledRackAware() && !remain.isEmpty()) {
+    if (!remain.isEmpty()) {
       roundRobin(slots, remain, workers, null, shouldReplicate, null);
     }
     return slots;
