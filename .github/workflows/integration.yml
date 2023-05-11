@@ -63,7 +63,7 @@ jobs:
       - name: Deploy Celeborn
         run: |
           minikube image load apache/celeborn:latest
-          helm install celeborn docker/helm -f ./tests/kubernetes-it/docker/helm/values.yaml
+          helm install celeborn charts/celeborn -f ./tests/kubernetes-it/docker/helm/values.yaml
       - name: Wait Celeborn Ready
         run: >-
           ./build/mvn clean install 
