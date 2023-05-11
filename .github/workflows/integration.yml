@@ -61,7 +61,9 @@ jobs:
           minikube version: 'v1.25.2'
           kubernetes version: 'v1.23.3'
       - name: Deploy Celeborn
-        run: helm install celeborn docker/helm -f ./tests/kubernetes-it/docker/helm/values.yaml
+        run: |
+          minikube image load apache/celeborn:latest
+          helm install celeborn docker/helm -f ./tests/kubernetes-it/docker/helm/values.yaml
       - name: Wait Celeborn Ready
         run: >-
           ./build/mvn clean install 
