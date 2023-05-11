@@ -83,10 +83,10 @@ resources:
   worker:
     limits:
       cpu: 100m
-      memory: 1g
+      memory: 1Gi
     requests:
       cpu: 100m
-      memory: 1g
+      memory: 1Gi
 
 podAnnotations: {}
 
