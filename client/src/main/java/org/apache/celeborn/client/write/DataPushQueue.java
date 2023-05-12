@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 
@@ -126,7 +125,7 @@ public class DataPushQueue {
         // Reaching here means no available tasks can be pushed to any worker, wait for a while
         Thread.sleep(takeTaskWaitTimeMs);
       } catch (InterruptedException ie) {
-        ExceptionUtils.wrapAndThrowIOException(ie);
+        logger.info("Thread interrupted while waiting push task.");
       }
     }
     return tasks;

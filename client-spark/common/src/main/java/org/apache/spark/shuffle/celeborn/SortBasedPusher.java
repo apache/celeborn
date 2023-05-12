@@ -88,8 +88,7 @@ public class SortBasedPusher extends MemoryConsumer {
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
       Object sharedPushLock,
-      ExecutorService executorService)
-      throws IOException {
+      ExecutorService executorService) {
     super(
         memoryManager,
         (int) Math.min(PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES, memoryManager.pageSizeBytes()),
@@ -279,7 +278,7 @@ public class SortBasedPusher extends MemoryConsumer {
       try {
         Thread.sleep(50);
       } catch (InterruptedException e) {
-        throw new IOException("Interrupted when waitPushFinish", e);
+        logger.error("SortBasedPusher thread interrupted while waiting push finished.");
       }
     }
   }

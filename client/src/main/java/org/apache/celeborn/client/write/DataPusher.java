@@ -72,8 +72,7 @@ public class DataPusher {
       CelebornConf conf,
       ShuffleClient client,
       Consumer<Integer> afterPush,
-      LongAdder[] mapStatusLengths)
-      throws IOException {
+      LongAdder[] mapStatusLengths) {
     final int pushQueueCapacity = conf.pushQueueCapacity();
     final int pushBufferMaxSize = conf.pushBufferMaxSize();
 
@@ -87,7 +86,6 @@ public class DataPusher {
         idleQueue.put(new PushTask(pushBufferMaxSize));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new CelebornIOException(e);
       }
     }
 
@@ -112,7 +110,7 @@ public class DataPusher {
               }
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              exceptionRef.set(new CelebornIOException(e));
+              logger.error("DataPusher thread interrupted while reclaiming data.");
             } finally {
               idleLock.unlock();
             }
@@ -130,8 +128,10 @@ public class DataPusher {
                 }
               } catch (CelebornIOException e) {
                 exceptionRef.set(e);
-              } catch (InterruptedException | IOException e) {
+              } catch (IOException e) {
                 exceptionRef.set(new CelebornIOException(e));
+              } catch (InterruptedException e) {
+                logger.error("DataPusher thread interrupted while pushing data.");
               }
             }
           }
@@ -155,9 +155,7 @@ public class DataPusher {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      IOException ioe = new CelebornIOException(e);
-      exceptionRef.set(ioe);
-      throw ioe;
+      logger.error("DataPusher thread interrupted while adding push task.");
     }
   }
 
@@ -167,7 +165,7 @@ public class DataPusher {
       waitIdleQueueFullWithLock();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      exceptionRef.set(new CelebornIOException(e));
+      logger.error("DataPusher thread interrupted while waitOnTermination.");
     }
 
     terminated = true;
@@ -215,7 +213,7 @@ public class DataPusher {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      exceptionRef.set(new CelebornIOException(e));
+      logger.info("Thread interrupted while waitIdleQueueFullWithLock.");
     } finally {
       idleLock.unlock();
     }
