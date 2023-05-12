@@ -37,7 +37,9 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
         0,
         System.currentTimeMillis(),
         clientConf,
-        new UserIdentifier("1", "1"))
+        new UserIdentifier("1", "1")) {
+        override def setupMetaServiceRef(host: String, port: Int): Unit = {}
+      }
     testHeartbeatFromWorker2Client(flinkShuffleClientImpl.getDataClientFactory)
   }
 
@@ -49,7 +51,9 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
         0,
         System.currentTimeMillis(),
         clientConf,
-        new UserIdentifier("1", "1"))
+        new UserIdentifier("1", "1")) {
+        override def setupMetaServiceRef(host: String, port: Int): Unit = {}
+      }
     testHeartbeatFromWorker2ClientWithNoHeartbeat(flinkShuffleClientImpl.getDataClientFactory)
   }
 
@@ -61,7 +65,9 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
         0,
         System.currentTimeMillis(),
         clientConf,
-        new UserIdentifier("1", "1"))
+        new UserIdentifier("1", "1")) {
+        override def setupMetaServiceRef(host: String, port: Int): Unit = {}
+      }
     testHeartbeatFromWorker2ClientWithCloseChannel(flinkShuffleClientImpl.getDataClientFactory)
   }
 }
