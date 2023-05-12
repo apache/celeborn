@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.exception.DriverChangedException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -232,7 +231,7 @@ public class RemoteShuffleOutputGate {
           userIdentifier);
     } catch (DriverChangedException e) {
       // would generate a new attempt to retry output gate
-      throw new CelebornRuntimeException(e.getMessage(), e);
+      throw new RuntimeException(e.getMessage());
     }
   }
 

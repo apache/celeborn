@@ -160,7 +160,7 @@ public class RemoteShuffleInputGateDelegation {
               celebornConf,
               new UserIdentifier("default", "default"));
     } catch (DriverChangedException e) {
-      throw new RuntimeException(e.getMessage(), e);
+      throw new RuntimeException(e.getMessage());
     }
 
     this.startSubIndex = startSubIndex;
