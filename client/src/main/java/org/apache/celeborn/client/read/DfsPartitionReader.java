@@ -216,9 +216,6 @@ public class DfsPartitionReader implements PartitionReader {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      IOException ioe = new IOException(e);
-      exception.set(ioe);
-      throw ioe;
     }
     returnedChunks++;
     return chunk;
