@@ -279,6 +279,7 @@ public class SortBasedPusher extends MemoryConsumer {
         Thread.sleep(50);
       } catch (InterruptedException e) {
         logger.error("SortBasedPusher thread interrupted while waiting push finished.");
+        Thread.currentThread().interrupt();
       }
     }
   }
