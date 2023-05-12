@@ -126,6 +126,7 @@ public class DataPushQueue {
         Thread.sleep(takeTaskWaitTimeMs);
       } catch (InterruptedException ie) {
         logger.info("Thread interrupted while waiting push task.");
+        Thread.currentThread().interrupt();
       }
     }
     return tasks;

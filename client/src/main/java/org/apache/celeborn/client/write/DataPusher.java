@@ -109,7 +109,6 @@ public class DataPusher {
                 idleFull.signal();
               }
             } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
               logger.error("DataPusher thread interrupted while reclaiming data.");
             } finally {
               idleLock.unlock();
@@ -131,7 +130,7 @@ public class DataPusher {
               } catch (IOException e) {
                 exceptionRef.set(new CelebornIOException(e));
               } catch (InterruptedException e) {
-                logger.error("DataPusher thread interrupted while pushing data.");
+                logger.error("DataPusher push thread interrupted while pushing data.");
               }
             }
           }
@@ -154,8 +153,9 @@ public class DataPusher {
         checkException();
       }
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
       logger.error("DataPusher thread interrupted while adding push task.");
+      pushThread.interrupt();
+      Thread.currentThread().interrupt();
     }
   }
 
@@ -164,8 +164,9 @@ public class DataPusher {
       idleLock.lockInterruptibly();
       waitIdleQueueFullWithLock();
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
       logger.error("DataPusher thread interrupted while waitOnTermination.");
+      pushThread.interrupt();
+      Thread.currentThread().interrupt();
     }
 
     terminated = true;
@@ -206,14 +207,14 @@ public class DataPusher {
     mapStatusLengths[task.getPartitionId()].add(bytesWritten);
   }
 
-  private void waitIdleQueueFullWithLock() {
+  private void waitIdleQueueFullWithLock() throws InterruptedException {
     try {
       while (idleQueue.remainingCapacity() > 0 && exceptionRef.get() == null) {
         idleFull.await(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
       }
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      logger.info("Thread interrupted while waitIdleQueueFullWithLock.");
+      logger.error("Thread interrupted while waitIdleQueueFullWithLock.", e);
+      throw e;
     } finally {
       idleLock.unlock();
     }

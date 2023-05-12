@@ -215,6 +215,7 @@ public class DfsPartitionReader implements PartitionReader {
         logger.debug("poll result with result size: {}", results.size());
       }
     } catch (InterruptedException e) {
+      logger.error("PartitionReader thread interrupted while fetching data.");
       Thread.currentThread().interrupt();
     }
     returnedChunks++;

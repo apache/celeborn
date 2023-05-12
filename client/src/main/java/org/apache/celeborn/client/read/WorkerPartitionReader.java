@@ -131,10 +131,8 @@ public class WorkerPartitionReader implements PartitionReader {
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
       }
     } catch (InterruptedException e) {
+      logger.error("PartitionReader thread interrupted while fetching data.");
       Thread.currentThread().interrupt();
-      IOException ioe = new CelebornIOException(e);
-      exception.set(ioe);
-      throw ioe;
     }
     returnedChunks++;
     return chunk;
