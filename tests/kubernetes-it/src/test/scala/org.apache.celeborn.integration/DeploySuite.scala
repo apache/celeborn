@@ -26,12 +26,11 @@ import org.apache.celeborn.CelebornFunSuite
 class DeploySuite extends CelebornFunSuite with WithMiniKube {
 
   test("Check Deploy Celeborn") {
-
     val masterStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-master").get()
     assert(masterStatefulSet != null)
     val workerStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
     assert(workerStatefulSet != null)
-    eventually(timeout(3.minutes), interval(10.second)) {
+    eventually(timeout(3.minutes), interval(5.second)) {
       val log = kubernetesClient.pods().withName(masterStatefulSet.getMetadata.getName).getLog(true)
       assert(log.contains("Master started."))
       info(log)
