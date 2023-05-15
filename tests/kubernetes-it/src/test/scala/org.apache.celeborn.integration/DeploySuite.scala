@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.integration
 
+import scala.language.postfixOps
+
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Waiters.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -30,7 +32,7 @@ class DeploySuite extends CelebornFunSuite with WithMiniKube {
     assert(masterStatefulSet != null)
     val workerStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
     assert(workerStatefulSet != null)
-    eventually(timeout(3.minutes), interval(5.second)) {
+    eventually(timeout(3 minutes), interval(5 second)) {
       val log = kubernetesClient.pods().withName(masterStatefulSet.getMetadata.getName).getLog(true)
       assert(log.contains("Master started."))
       info(log)
