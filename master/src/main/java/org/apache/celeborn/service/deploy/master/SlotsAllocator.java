@@ -157,12 +157,17 @@ public class SlotsAllocator {
             shouldReplicate,
             rackResolver);
     if (!remainPartitions.isEmpty()) {
-      remainPartitions = roundRobin(
-          slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate, rackResolver);
+      remainPartitions =
+          roundRobin(
+              slots,
+              remainPartitions,
+              new ArrayList<>(workers),
+              null,
+              shouldReplicate,
+              rackResolver);
     }
     if (!remainPartitions.isEmpty()) {
-      roundRobin(
-          slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate, null);
+      roundRobin(slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate, null);
     }
     return slots;
   }
