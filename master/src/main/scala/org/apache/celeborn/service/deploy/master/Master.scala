@@ -32,7 +32,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -157,6 +157,7 @@ private[celeborn] class Master(
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
 
