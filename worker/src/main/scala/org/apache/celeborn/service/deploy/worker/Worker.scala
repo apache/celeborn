@@ -81,10 +81,15 @@ private[celeborn] class Worker(
       conf.workerPushPort != 0 && conf.workerReplicatePort != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
   if (gracefulShutdown) {
-    val recoverRoot = new File(conf.workerRecoverPath)
-    if (!recoverRoot.exists()) {
-      logInfo(s"Recover root path ${conf.workerRecoverPath} does not exists, create it first.")
-      recoverRoot.mkdirs()
+    try {
+      val recoverRoot = new File(conf.workerRecoverPath)
+      if (!recoverRoot.exists()) {
+        logInfo(s"Recover root path ${conf.workerRecoverPath} does not exists, create it first.")
+        recoverRoot.mkdirs()
+      }
+    } catch {
+      case e: Exception =>
+        logError("Check or create recover root path failed: ", e)
     }
   }
 
