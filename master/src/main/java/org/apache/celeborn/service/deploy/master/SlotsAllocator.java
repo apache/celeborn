@@ -273,9 +273,8 @@ public class SlotsAllocator {
       int nextSlaveInd) {
     return rackResolver == null
         || !rackResolver.enabledRackAware()
-        || rackResolver.getDistance(
-                workers.get(masterIndex).host(), workers.get(nextSlaveInd).host())
-            > 2;
+        || !rackResolver.isOnSameRack(
+            workers.get(masterIndex).host(), workers.get(nextSlaveInd).host());
   }
 
   private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {

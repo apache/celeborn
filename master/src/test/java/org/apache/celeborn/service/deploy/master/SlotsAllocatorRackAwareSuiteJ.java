@@ -60,9 +60,6 @@ public class SlotsAllocatorRackAwareSuiteJ {
     Consumer<PartitionLocation> printConsumer =
         new Consumer<PartitionLocation>() {
           public void accept(PartitionLocation location) {
-            System.out.println(location);
-            System.out.println(resolver.resolve(location.getHost()).getNetworkLocation());
-            System.out.println(resolver.resolve(location.getPeer().getHost()).getNetworkLocation());
             Assert.assertNotEquals(
                 resolver.resolve(location.getHost()).getNetworkLocation(),
                 resolver.resolve(location.getPeer().getHost()).getNetworkLocation());

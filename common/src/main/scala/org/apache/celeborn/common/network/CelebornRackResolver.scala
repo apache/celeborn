@@ -90,4 +90,14 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
     val slaveNode: Node = resolve(slaveHost)
     NetworkTopology.getDistanceByPath(masterNode, slaveNode)
   }
+
+  def isOnSameRack(masterHost: String, slaveHost: String): Boolean = {
+    val masterNode = resolve(masterHost)
+    val slaveNode = resolve(slaveHost)
+    if (masterNode == null || slaveNode == null) {
+      false
+    } else {
+      masterNode.getNetworkLocation == slaveNode.getNetworkLocation
+    }
+  }
 }

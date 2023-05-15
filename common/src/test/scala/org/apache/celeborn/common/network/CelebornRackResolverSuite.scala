@@ -23,7 +23,7 @@ import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWI
 import org.apache.hadoop.net.{Node, TableMapping}
 import org.apache.hadoop.shaded.com.google.common.base.Charsets
 import org.apache.hadoop.shaded.com.google.common.io.Files
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertArrayEquals, assertEquals}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
@@ -78,14 +78,14 @@ class CelebornRackResolverSuite extends CelebornFunSuite {
     assertEquals("/default/rack1", resolver.resolve(hostName1).getNetworkLocation)
     assertEquals("/default/rack2", resolver.resolve(hostName3).getNetworkLocation)
 
-    assertEquals(2, resolver.getDistance(hostName1, hostName2))
-    assertEquals(4, resolver.getDistance(hostName1, hostName3))
-    assertEquals(4, resolver.getDistance(hostName3, hostName4))
+    assertEquals(true, resolver.isOnSameRack(hostName1, hostName2))
+    assertEquals(false, resolver.isOnSameRack(hostName1, hostName3))
+    assertEquals(false, resolver.isOnSameRack(hostName3, hostName4))
 
     // check one side don't have rack info
-    assertEquals(5, resolver.getDistance(hostName1, hostName5))
+    assertEquals(false, resolver.isOnSameRack(hostName1, hostName5))
 
     // check both side don't have rack info
-    assertEquals(2, resolver.getDistance(hostName5, hostName6))
+    assertEquals(true, resolver.isOnSameRack(hostName5, hostName6))
   }
 }
