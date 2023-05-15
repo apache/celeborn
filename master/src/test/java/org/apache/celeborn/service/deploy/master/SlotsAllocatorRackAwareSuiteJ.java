@@ -27,6 +27,7 @@ import java.util.function.Consumer;
 
 import scala.Tuple2;
 
+import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.TableMapping;
 import org.apache.hadoop.shaded.com.google.common.base.Charsets;
 import org.apache.hadoop.shaded.com.google.common.io.Files;
@@ -52,7 +53,18 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
     List<WorkerInfo> workers = prepareWorkers();
 
-    CelebornRackResolver resolver = prepareRackResolver(conf);
+    File mapFile = File.createTempFile("testResolve1", ".txt");
+    Files.asCharSink(mapFile, Charsets.UTF_8)
+        .write(
+            "host1 /default/rack1\nhost2 /default/rack1\nhost3 /default/rack1\n"
+                + "host4 /default/rack2\nhost5 /default/rack2\nhost6 /default/rack2\n");
+    mapFile.deleteOnExit();
+
+    conf.set(
+        "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
+        TableMapping.class.getName());
+    conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath());
+    CelebornRackResolver resolver = new CelebornRackResolver(conf);
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, resolver);
@@ -68,20 +80,42 @@ public class SlotsAllocatorRackAwareSuiteJ {
     slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(printConsumer);
   }
 
-  private CelebornRackResolver prepareRackResolver(CelebornConf conf) throws IOException {
+  @Test
+  public void offerSlotsRoundRobinWithRackAwareWithoutMappingFile() throws IOException {
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.SLOTS_ASSIGN_RACKAWARE_ENABLED().key(), "true");
+
+    List<Integer> partitionIds = new ArrayList<Integer>();
+    partitionIds.add(0);
+    partitionIds.add(1);
+    partitionIds.add(2);
+
+    List<WorkerInfo> workers = prepareWorkers();
+
     File mapFile = File.createTempFile("testResolve1", ".txt");
-    Files.asCharSink(mapFile, Charsets.UTF_8)
-        .write(
-            "host1 /default/rack1\nhost2 /default/rack1\nhost3 /default/rack1\n"
-                + "host4 /default/rack2\nhost5 /default/rack2\nhost6 /default/rack2\n");
-    mapFile.deleteOnExit();
+    mapFile.delete();
 
     conf.set(
         "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
         TableMapping.class.getName());
     conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath());
     CelebornRackResolver resolver = new CelebornRackResolver(conf);
-    return resolver;
+
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, resolver);
+
+    Consumer<PartitionLocation> printConsumer =
+        new Consumer<PartitionLocation>() {
+          public void accept(PartitionLocation location) {
+            Assert.assertEquals(
+                NetworkTopology.DEFAULT_RACK,
+                resolver.resolve(location.getHost()).getNetworkLocation());
+            Assert.assertEquals(
+                NetworkTopology.DEFAULT_RACK,
+                resolver.resolve(location.getPeer().getHost()).getNetworkLocation());
+          }
+        };
+    slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(printConsumer);
   }
 
   private List<WorkerInfo> prepareWorkers() {
