@@ -26,5 +26,10 @@ class DeploySuite extends CelebornFunSuite with WithMiniKube {
     assert(masterStatefulSet != null)
     val workerStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
     assert(workerStatefulSet != null)
+    kubernetesClient.pods.list().getItems.forEach { pod =>
+      {
+        info(pod.getMetadata.getName)
+      }
+    }
   }
 }
