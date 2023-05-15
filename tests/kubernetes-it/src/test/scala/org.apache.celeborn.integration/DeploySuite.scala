@@ -33,7 +33,8 @@ class DeploySuite extends CelebornFunSuite with WithMiniKube {
     val workerStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
     assert(workerStatefulSet != null)
     eventually(timeout(3 minutes), interval(5 seconds)) {
-      val log = kubernetesClient.pods().withName(masterStatefulSet.getMetadata.getName).getLog(true)
+      val log =
+        kubernetesClient.pods().withName(s"${masterStatefulSet.getMetadata.getName}-0").getLog(true)
       assert(log.contains("Master started."))
       info(log)
     }
