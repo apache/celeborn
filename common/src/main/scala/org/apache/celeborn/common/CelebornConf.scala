@@ -796,6 +796,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
   def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
 
+  def pooledAllocatorArenas: Int = get(MEMORY_POOLED_ALLOCATOR_ARENAS).getOrElse(
+    if (Runtime.getRuntime.availableProcessors() >= 2) {
+      Runtime.getRuntime.availableProcessors()
+    } else {
+      2
+    })
+
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
   // //////////////////////////////////////////////////////
@@ -3203,6 +3210,14 @@ object CelebornConf extends Logging {
       .doc("Min buffers count for map data partition to trigger read.")
       .intConf
       .createWithDefault(32)
+
+  val MEMORY_POOLED_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.pooled.allocator.arenas")
+      .categories("worker", "client")
+      .version("0.3.0")
+      .doc("Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2.")
+      .intConf
+      .createOptional
 
   val METRICS_EXTRA_LABELS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.metrics.extraLabels")

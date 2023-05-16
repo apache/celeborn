@@ -32,8 +32,11 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.PlatformDependent;
 
+import org.apache.celeborn.common.CelebornConf;
+
 /** Utilities for creating various Netty constructs based on whether we're using EPOLL or NIO. */
 public class NettyUtils {
+  private static volatile PooledByteBufAllocator _allocator;
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
   public static ThreadFactory createThreadFactory(String threadPoolPrefix) {
     return new DefaultThreadFactory(threadPoolPrefix, true);
@@ -105,5 +108,19 @@ public class NettyUtils {
         allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
         allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
         allowCache ? PooledByteBufAllocator.defaultUseCacheForAllThreads() : false);
+  }
+
+  public static PooledByteBufAllocator getShardPooledByteBufAllocator() {
+    synchronized (PooledByteBufAllocator.class) {
+      if (_allocator == null) {
+        CelebornConf conf = new CelebornConf();
+        // each core should have one arena to allocate memory
+        int arenas = conf.pooledAllocatorArenas();
+        _allocator = createPooledByteBufAllocator(true, true, arenas);
+        return _allocator;
+      } else {
+        return _allocator;
+      }
+    }
   }
 }

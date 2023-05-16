@@ -29,6 +29,7 @@ license: |
 | celeborn.fetch.maxRetriesForEachReplica | 3 | Max retry times of fetch chunk on each replica | 0.2.0 | 
 | celeborn.fetch.timeout | 120s | Timeout for a task to fetch chunk. | 0.2.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
+| celeborn.pooled.allocator.arenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
 | celeborn.push.buffer.initial.size | 8k |  | 0.2.0 | 
 | celeborn.push.buffer.max.size | 64k | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. | 0.2.0 | 
 | celeborn.push.data.timeout | 120s | Timeout for a task to push data rpc message. This value should better be more than twice of `celeborn.push.timeoutCheck.interval` | 0.2.0 | 
