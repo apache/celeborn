@@ -48,6 +48,6 @@ class SystemMiscSource(conf: CelebornConf, role: String) extends AbstractSource(
 }
 
 object SystemMiscSource {
-  val SYSTEM_LOAD = "SystemLoad"
+  val SYSTEM_LOAD = "LastMinuteSystemLoad"
   val AVAILABLE_PROCESSORS = "AvailableProcessors"
 }

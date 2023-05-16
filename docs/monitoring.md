@@ -104,7 +104,8 @@ These metrics are exposed by Celeborn master.
     - JVMCPUTime
 
   - namespace=system
-    - SystemLoad
+    - LastMinuteSystemLoad
+      - Returns the system load average for the last minute.
     - AvailableProcessors
 
   - namespace=JVM
@@ -191,7 +192,8 @@ These metrics are exposed by Celeborn worker.
     - JVMCPUTime
 
   - namespace=system
-    - SystemLoad
+    - LastMinuteSystemLoad
+      - Returns the system load average for the last minute.
     - AvailableProcessors
 
   - namespace=JVM
