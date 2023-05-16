@@ -28,6 +28,7 @@ import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.TaskInterruptedHelper;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -96,11 +97,12 @@ public class WorkerPartitionReader implements PartitionReader {
             exception.set(new CelebornIOException(errorMsg, e));
           }
         };
-    TransportClient client;
+    TransportClient client = null;
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     } catch (InterruptedException ie) {
-      throw new CelebornIOException("Interrupted when createClient", ie);
+      logger.error("PartitionReader thread interrupted while creating client.");
+      TaskInterruptedHelper.throwTaskKillException();
     }
     OpenStream openBlocks =
         new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
@@ -131,8 +133,8 @@ public class WorkerPartitionReader implements PartitionReader {
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
       }
     } catch (InterruptedException e) {
-      logger.error("PartitionReader thread interrupted while fetching data.");
-      throw new CelebornIOException("Interrupted when fetch chunk", e);
+      logger.error("PartitionReader thread interrupted while polling data.");
+      TaskInterruptedHelper.throwTaskKillException();
     }
     returnedChunks++;
     return chunk;
@@ -167,13 +169,16 @@ public class WorkerPartitionReader implements PartitionReader {
                 clientFactory.createClient(location.getHost(), location.getFetchPort());
             client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
             chunkIndex++;
-          } catch (IOException | InterruptedException e) {
+          } catch (IOException e) {
             logger.error(
                 "fetchChunk for streamId: {}, chunkIndex: {} failed.",
                 streamHandle.streamId,
                 chunkIndex,
                 e);
             ExceptionUtils.wrapAndThrowIOException(e);
+          } catch (InterruptedException e) {
+            logger.error("PartitionReader thread interrupted while fetching chunks.");
+            TaskInterruptedHelper.throwTaskKillException();
           }
         }
       }
