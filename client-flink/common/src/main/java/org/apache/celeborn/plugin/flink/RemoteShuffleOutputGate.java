@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.DriverChangedException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
@@ -76,6 +77,7 @@ public class RemoteShuffleOutputGate {
   private int partitionId;
   private String rssMetaServiceHost;
   private int rssMetaServicePort;
+  private long rssMetaServiceTimestamp;
   private UserIdentifier userIdentifier;
   private boolean isFirstHandShake = true;
 
@@ -109,6 +111,7 @@ public class RemoteShuffleOutputGate {
         shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getPartitionId();
     this.rssMetaServiceHost = shuffleDesc.getShuffleResource().getRssMetaServiceHost();
     this.rssMetaServicePort = shuffleDesc.getShuffleResource().getRssMetaServicePort();
+    this.rssMetaServiceTimestamp = shuffleDesc.getShuffleResource().getRssMetaServiceTimestamp();
     this.flinkShuffleClient = getShuffleClient();
   }
 
@@ -219,8 +222,17 @@ public class RemoteShuffleOutputGate {
 
   @VisibleForTesting
   FlinkShuffleClientImpl getShuffleClient() {
-    return FlinkShuffleClientImpl.get(
-        rssMetaServiceHost, rssMetaServicePort, celebornConf, userIdentifier);
+    try {
+      return FlinkShuffleClientImpl.get(
+          rssMetaServiceHost,
+          rssMetaServicePort,
+          rssMetaServiceTimestamp,
+          celebornConf,
+          userIdentifier);
+    } catch (DriverChangedException e) {
+      // would generate a new attempt to retry output gate
+      throw new RuntimeException(e.getMessage());
+    }
   }
 
   /** Writes a piece of data to a subpartition. */

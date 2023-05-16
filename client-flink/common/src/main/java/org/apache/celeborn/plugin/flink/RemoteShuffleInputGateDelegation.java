@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.DriverChangedException;
 import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
@@ -148,12 +149,19 @@ public class RemoteShuffleInputGateDelegation {
 
     RemoteShuffleDescriptor remoteShuffleDescriptor =
         (RemoteShuffleDescriptor) gateDescriptor.getShuffleDescriptors()[0];
-    this.shuffleClient =
-        FlinkShuffleClientImpl.get(
-            remoteShuffleDescriptor.getShuffleResource().getRssMetaServiceHost(),
-            remoteShuffleDescriptor.getShuffleResource().getRssMetaServicePort(),
-            celebornConf,
-            new UserIdentifier("default", "default"));
+    RemoteShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
+
+    try {
+      this.shuffleClient =
+          FlinkShuffleClientImpl.get(
+              shuffleResource.getRssMetaServiceHost(),
+              shuffleResource.getRssMetaServicePort(),
+              shuffleResource.getRssMetaServiceTimestamp(),
+              celebornConf,
+              new UserIdentifier("default", "default"));
+    } catch (DriverChangedException e) {
+      throw new RuntimeException(e.getMessage());
+    }
 
     this.startSubIndex = startSubIndex;
     this.endSubIndex = endSubIndex;

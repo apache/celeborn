@@ -32,21 +32,42 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
   test("celeborn flink hearbeat test - client <- worker") {
     val (_, clientConf) = getTestHeartbeatFromWorker2ClientConf()
     val flinkShuffleClientImpl =
-      new FlinkShuffleClientImpl("", 0, clientConf, new UserIdentifier("1", "1"))
+      new FlinkShuffleClientImpl(
+        "",
+        0,
+        System.currentTimeMillis(),
+        clientConf,
+        new UserIdentifier("1", "1")) {
+        override def setupMetaServiceRef(host: String, port: Int): Unit = {}
+      }
     testHeartbeatFromWorker2Client(flinkShuffleClientImpl.getDataClientFactory)
   }
 
   test("celeborn flink hearbeat test - client <- worker no heartbeat") {
     val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithNoHeartbeatConf()
     val flinkShuffleClientImpl =
-      new FlinkShuffleClientImpl("", 0, clientConf, new UserIdentifier("1", "1"))
+      new FlinkShuffleClientImpl(
+        "",
+        0,
+        System.currentTimeMillis(),
+        clientConf,
+        new UserIdentifier("1", "1")) {
+        override def setupMetaServiceRef(host: String, port: Int): Unit = {}
+      }
     testHeartbeatFromWorker2ClientWithNoHeartbeat(flinkShuffleClientImpl.getDataClientFactory)
   }
 
   test("celeborn flink hearbeat test - client <- worker timeout") {
     val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf()
     val flinkShuffleClientImpl =
-      new FlinkShuffleClientImpl("", 0, clientConf, new UserIdentifier("1", "1"))
+      new FlinkShuffleClientImpl(
+        "",
+        0,
+        System.currentTimeMillis(),
+        clientConf,
+        new UserIdentifier("1", "1")) {
+        override def setupMetaServiceRef(host: String, port: Int): Unit = {}
+      }
     testHeartbeatFromWorker2ClientWithCloseChannel(flinkShuffleClientImpl.getDataClientFactory)
   }
 }
