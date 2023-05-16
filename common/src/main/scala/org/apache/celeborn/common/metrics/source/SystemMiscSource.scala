@@ -24,7 +24,7 @@ import com.codahale.metrics.Gauge
 import org.apache.celeborn.common.CelebornConf
 
 class SystemMiscSource(conf: CelebornConf, role: String) extends AbstractSource(conf, role) {
-  override val sourceName = "CPU"
+  override val sourceName = "system"
 
   import SystemMiscSource._
 

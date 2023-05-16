@@ -103,6 +103,10 @@ These metrics are exposed by Celeborn master.
   - namespace=CPU
     - JVMCPUTime
 
+  - namespace=system
+    - SystemLoad
+    - AvailableProcessors
+
   - namespace=JVM
     - This source provides information on JVM metrics using the
     [Dropwizard/Codahale Metric Sets for JVM instrumentation](https://metrics.dropwizard.io/4.2.0/manual/jvm.html)
@@ -185,6 +189,10 @@ These metrics are exposed by Celeborn worker.
 
   - namespace=CPU
     - JVMCPUTime
+
+  - namespace=system
+    - SystemLoad
+    - AvailableProcessors
 
   - namespace=JVM
     - This source provides information on JVM metrics using the
