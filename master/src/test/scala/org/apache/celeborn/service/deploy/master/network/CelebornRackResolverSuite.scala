@@ -15,20 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network
+package org.apache.celeborn.service.deploy.master.network
 
 import java.io.File
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY}
 import org.apache.hadoop.net.{Node, TableMapping}
 import org.apache.hadoop.shaded.com.google.common.base.Charsets
 import org.apache.hadoop.shaded.com.google.common.io.Files
-import org.junit.Assert.{assertArrayEquals, assertEquals}
+import org.junit.Assert.assertEquals
+import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.CelebornConf
-
-class CelebornRackResolverSuite extends CelebornFunSuite {
+class CelebornRackResolverSuite extends AnyFunSuite {
 
   test("Test TableMapping") {
     val hostName1 = "1.2.3.4"
