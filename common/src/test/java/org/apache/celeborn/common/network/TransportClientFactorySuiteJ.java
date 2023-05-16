@@ -177,7 +177,7 @@ public class TransportClientFactorySuiteJ {
     CelebornConf _conf = new CelebornConf();
     _conf.set("celeborn.shuffle.io.connectionTimeout", "1s");
     TransportConf conf = new TransportConf("shuffle", _conf);
-    TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true, false);
+    TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true);
     try (TransportClientFactory factory = context.createClientFactory()) {
       TransportClient c1 = factory.createClient(getLocalHost(), server1.getPort());
       assertTrue(c1.isActive());

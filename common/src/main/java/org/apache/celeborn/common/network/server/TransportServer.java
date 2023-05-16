@@ -32,6 +32,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.util.*;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -45,11 +46,15 @@ public class TransportServer implements Closeable {
 
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
+  private NettyMemoryMetrics nettyMetric;
+  private AbstractSource source;
   private int port = -1;
 
-  public TransportServer(TransportContext context, String hostToBind, int portToBind) {
+  public TransportServer(
+      TransportContext context, String hostToBind, int portToBind, AbstractSource source) {
     this.context = context;
     this.conf = context.getConf();
+    this.source = source;
 
     boolean shouldClose = true;
     try {
@@ -90,6 +95,9 @@ public class TransportServer implements Closeable {
             .childOption(ChannelOption.TCP_NODELAY, true)
             .childOption(ChannelOption.SO_KEEPALIVE, true)
             .childOption(ChannelOption.ALLOCATOR, allocator);
+
+    this.nettyMetric =
+        new NettyMemoryMetrics(allocator, conf.getModuleName() + "-server", conf, source);
 
     if (conf.backLog() > 0) {
       bootstrap.option(ChannelOption.SO_BACKLOG, conf.backLog());

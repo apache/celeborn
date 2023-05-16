@@ -123,7 +123,8 @@ private[celeborn] class Worker(
         pushDataHandler,
         closeIdleConnections,
         pushServerLimiter,
-        conf.workerPushHeartbeatEnabled)
+        conf.workerPushHeartbeatEnabled,
+        workerSource)
     (
       transportContext.createServer(conf.workerPushPort),
       transportContext.createClientFactory())
@@ -143,7 +144,8 @@ private[celeborn] class Worker(
         replicateHandler,
         closeIdleConnections,
         replicateLimiter,
-        false)
+        false,
+        workerSource)
     transportContext.createServer(conf.workerReplicatePort)
   }
 
@@ -159,7 +161,8 @@ private[celeborn] class Worker(
         transportConf,
         fetchHandler,
         closeIdleConnections,
-        conf.workerFetchHeartbeatEnabled)
+        conf.workerFetchHeartbeatEnabled,
+        workerSource)
     transportContext.createServer(conf.workerFetchPort)
   }
 

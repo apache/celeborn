@@ -187,6 +187,60 @@ These metrics are exposed by Celeborn worker.
     - DeviceCelebornTotalCapacity(B)
     - PotentialConsumeSpeed
     - UserProduceSpeed
+    - push_server_usedHeapMemory 
+    - push_server_usedDirectMemory
+    - push_server_numAllocations 
+    - push_server_numTinyAllocations
+    - push_server_numSmallAllocations
+    - push_server_numNormalAllocations
+    - push_server_numHugeAllocations
+    - push_server_numDeallocations
+    - push_server_numTinyDeallocations
+    - push_server_numSmallDeallocations
+    - push_server_numNormalDeallocations
+    - push_server_numHugeDeallocations
+    - push_server_numActiveAllocations
+    - push_server_numActiveTinyAllocations
+    - push_server_numActiveSmallAllocations
+    - push_server_numActiveNormalAllocations
+    - push_server_numActiveHugeAllocations
+    - push_server_numActiveBytes
+    - replicate_server_usedHeapMemory
+    - replicate_server_usedDirectMemory
+    - replicate_server_numAllocations 
+    - replicate_server_numTinyAllocations
+    - replicate_server_numSmallAllocations
+    - replicate_server_numNormalAllocations
+    - replicate_server_numHugeAllocations
+    - replicate_server_numDeallocations
+    - replicate_server_numTinyDeallocations
+    - replicate_server_numSmallDeallocations
+    - replicate_server_numNormalDeallocations
+    - replicate_server_numHugeDeallocations
+    - replicate_server_numActiveAllocations
+    - replicate_server_numActiveTinyAllocations
+    - replicate_server_numActiveSmallAllocations
+    - replicate_server_numActiveNormalAllocations
+    - replicate_server_numActiveHugeAllocations
+    - replicate_server_numActiveBytes
+    - fetch_server_usedHeapMemory
+    - fetch_server_usedDirectMemory
+    - fetch_server_numAllocations 
+    - fetch_server_numTinyAllocations
+    - fetch_server_numSmallAllocations
+    - fetch_server_numNormalAllocations
+    - fetch_server_numHugeAllocations
+    - fetch_server_numDeallocations
+    - fetch_server_numTinyDeallocations
+    - fetch_server_numSmallDeallocations
+    - fetch_server_numNormalDeallocations
+    - fetch_server_numHugeDeallocations
+    - fetch_server_numActiveAllocations
+    - fetch_server_numActiveTinyAllocations
+    - fetch_server_numActiveSmallAllocations
+    - fetch_server_numActiveNormalAllocations
+    - fetch_server_numActiveHugeAllocations
+    - fetch_server_numActiveBytes
 
   - namespace=CPU
     - JVMCPUTime
