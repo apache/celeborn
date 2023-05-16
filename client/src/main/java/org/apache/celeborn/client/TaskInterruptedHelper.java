@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.client;
 
-import scala.Function0;
-
 import org.apache.spark.TaskContext;
 import org.apache.spark.TaskKilledException;
 
@@ -32,15 +30,10 @@ public class TaskInterruptedHelper {
    * kill reason, so here we throw the TaskKilledException.
    */
   public static void throwTaskKillException() {
-    throw new TaskKilledException(
-        TaskContext.get()
-            .getKillReason()
-            .getOrElse(
-                new Function0<String>() {
-                  @Override
-                  public String apply() {
-                    return "unknown reason";
-                  }
-                }));
+    if (TaskContext.get().getKillReason().isDefined()) {
+      throw new TaskKilledException(TaskContext.get().getKillReason().get());
+    } else {
+      throw new TaskKilledException();
+    }
   }
 }
