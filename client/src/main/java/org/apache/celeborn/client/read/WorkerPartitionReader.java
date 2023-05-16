@@ -132,7 +132,7 @@ public class WorkerPartitionReader implements PartitionReader {
       }
     } catch (InterruptedException e) {
       logger.error("PartitionReader thread interrupted while fetching data.");
-      Thread.currentThread().interrupt();
+      throw new CelebornIOException("Interrupted when fetch chunk", e);
     }
     returnedChunks++;
     return chunk;

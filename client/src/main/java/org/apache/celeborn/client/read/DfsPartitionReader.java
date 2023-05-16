@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.TaskInterruptedHelper;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -216,7 +217,7 @@ public class DfsPartitionReader implements PartitionReader {
       }
     } catch (InterruptedException e) {
       logger.error("PartitionReader thread interrupted while fetching data.");
-      Thread.currentThread().interrupt();
+      TaskInterruptedHelper.throwTaskKillException();
     }
     returnedChunks++;
     return chunk;

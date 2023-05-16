@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.TaskInterruptedHelper;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 
@@ -85,7 +86,7 @@ public class DataPusher {
       try {
         idleQueue.put(new PushTask(pushBufferMaxSize));
       } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+        TaskInterruptedHelper.throwTaskKillException();
       }
     }
 
@@ -155,7 +156,7 @@ public class DataPusher {
     } catch (InterruptedException e) {
       logger.error("DataPusher thread interrupted while adding push task.");
       pushThread.interrupt();
-      Thread.currentThread().interrupt();
+      TaskInterruptedHelper.throwTaskKillException();
     }
   }
 
@@ -166,7 +167,7 @@ public class DataPusher {
     } catch (InterruptedException e) {
       logger.error("DataPusher thread interrupted while waitOnTermination.");
       pushThread.interrupt();
-      Thread.currentThread().interrupt();
+      TaskInterruptedHelper.throwTaskKillException();
     }
 
     terminated = true;

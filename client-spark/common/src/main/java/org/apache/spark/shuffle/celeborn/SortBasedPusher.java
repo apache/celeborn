@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.TaskInterruptedHelper;
 import org.apache.celeborn.client.write.DataPusher;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -279,7 +280,7 @@ public class SortBasedPusher extends MemoryConsumer {
         Thread.sleep(50);
       } catch (InterruptedException e) {
         logger.error("SortBasedPusher thread interrupted while waiting push finished.");
-        Thread.currentThread().interrupt();
+        TaskInterruptedHelper.throwTaskKillException();
       }
     }
   }
