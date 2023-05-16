@@ -233,7 +233,7 @@ public class SlotsAllocator {
           storageInfo =
               getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
         } else if (shouldRackAware) {
-          while (!satisfyRackAware(shouldRackAware, workers, masterIndex, nextSlaveInd)) {
+          while (!satisfyRackAware(true, workers, masterIndex, nextSlaveInd)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
