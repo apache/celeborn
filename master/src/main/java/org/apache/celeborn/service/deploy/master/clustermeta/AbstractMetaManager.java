@@ -48,6 +48,7 @@ import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
@@ -68,6 +69,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   protected RpcEnv rpcEnv;
   protected CelebornConf conf;
+  protected CelebornRackResolver rackResolver;
 
   public long initialEstimatedPartitionSize;
   public long estimatedPartitionSize;
@@ -233,6 +235,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             userResourceConsumption,
             null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
+    workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {

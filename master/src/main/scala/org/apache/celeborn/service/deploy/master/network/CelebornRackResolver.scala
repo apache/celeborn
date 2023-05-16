@@ -78,14 +78,4 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
     }
     nodes.toList
   }
-
-  def isOnSameRack(masterHost: String, slaveHost: String): Boolean = {
-    val masterNode = resolve(masterHost)
-    val slaveNode = resolve(slaveHost)
-    if (masterNode == null || slaveNode == null) {
-      false
-    } else {
-      masterNode.getNetworkLocation == slaveNode.getNetworkLocation
-    }
-  }
 }

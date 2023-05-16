@@ -40,6 +40,7 @@ class WorkerInfo(
     val userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
+  var networkLocation = "/default-rack"
   var lastHeartbeat: Long = 0
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {

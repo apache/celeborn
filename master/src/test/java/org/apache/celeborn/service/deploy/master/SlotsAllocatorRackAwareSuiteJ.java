@@ -36,8 +36,8 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public class SlotsAllocatorRackAwareSuiteJ {
 
@@ -45,13 +45,6 @@ public class SlotsAllocatorRackAwareSuiteJ {
   public void offerSlotsRoundRobinWithRackAware() throws IOException {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.RESERVE_SLOTS_RACKAWARE_ENABLED().key(), "true");
-
-    List<Integer> partitionIds = new ArrayList<Integer>();
-    partitionIds.add(0);
-    partitionIds.add(1);
-    partitionIds.add(2);
-
-    List<WorkerInfo> workers = prepareWorkers();
 
     File mapFile = File.createTempFile("testResolve1", ".txt");
     Files.asCharSink(mapFile, Charsets.UTF_8)
@@ -66,8 +59,15 @@ public class SlotsAllocatorRackAwareSuiteJ {
     conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath());
     CelebornRackResolver resolver = new CelebornRackResolver(conf);
 
+    List<Integer> partitionIds = new ArrayList<Integer>();
+    partitionIds.add(0);
+    partitionIds.add(1);
+    partitionIds.add(2);
+
+    List<WorkerInfo> workers = prepareWorkers(resolver);
+
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, resolver);
+        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, true);
 
     Consumer<PartitionLocation> printConsumer =
         new Consumer<PartitionLocation>() {
@@ -85,13 +85,6 @@ public class SlotsAllocatorRackAwareSuiteJ {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.RESERVE_SLOTS_RACKAWARE_ENABLED().key(), "true");
 
-    List<Integer> partitionIds = new ArrayList<Integer>();
-    partitionIds.add(0);
-    partitionIds.add(1);
-    partitionIds.add(2);
-
-    List<WorkerInfo> workers = prepareWorkers();
-
     File mapFile = File.createTempFile("testResolve1", ".txt");
     mapFile.delete();
 
@@ -101,8 +94,15 @@ public class SlotsAllocatorRackAwareSuiteJ {
     conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath());
     CelebornRackResolver resolver = new CelebornRackResolver(conf);
 
+    List<Integer> partitionIds = new ArrayList<Integer>();
+    partitionIds.add(0);
+    partitionIds.add(1);
+    partitionIds.add(2);
+
+    List<WorkerInfo> workers = prepareWorkers(resolver);
+
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, resolver);
+        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, true);
 
     Consumer<PartitionLocation> printConsumer =
         new Consumer<PartitionLocation>() {
@@ -118,7 +118,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
     slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(printConsumer);
   }
 
-  private List<WorkerInfo> prepareWorkers() {
+  private List<WorkerInfo> prepareWorkers(CelebornRackResolver resolver) {
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
     workers.add(new WorkerInfo("host1", 9, 10, 110, 113, new HashMap<>(), null, null));
     workers.add(new WorkerInfo("host2", 9, 11, 111, 114, new HashMap<>(), null, null));
@@ -127,6 +127,13 @@ public class SlotsAllocatorRackAwareSuiteJ {
     workers.add(new WorkerInfo("host5", 9, 11, 111, 114, new HashMap<>(), null, null));
     workers.add(new WorkerInfo("host6", 9, 12, 112, 115, new HashMap<>(), null, null));
 
+    workers.forEach(
+        new Consumer<WorkerInfo>() {
+          public void accept(WorkerInfo workerInfo) {
+            workerInfo.networkLocation_$eq(
+                resolver.resolve(workerInfo.host()).getNetworkLocation());
+          }
+        });
     return workers;
   }
 }

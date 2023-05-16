@@ -160,8 +160,6 @@ private[celeborn] class Master(
 
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
 
-  val rackResolver = new CelebornRackResolver(conf)
-
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
@@ -530,8 +528,7 @@ private[celeborn] class Master(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware,
-              rackResolver)
+              requestSlots.shouldRackAware)
           } else {
             SlotsAllocator.offerSlotsLoadAware(
               workersNotBlacklisted(),
@@ -542,8 +539,7 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupNum,
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
-              loadAwareFetchTimeWeight,
-              rackResolver)
+              loadAwareFetchTimeWeight)
           }
         }
       }
