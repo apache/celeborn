@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network
+package org.apache.celeborn.service.deploy.master.network
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -28,7 +28,7 @@ import org.apache.hadoop.util.ReflectionUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.CelebornHadoopUtils
+import org.apache.celeborn.service.deploy.master.util.CelebornHadoopUtils
 
 class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
 
