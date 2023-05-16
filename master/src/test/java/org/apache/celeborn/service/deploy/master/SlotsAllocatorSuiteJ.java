@@ -229,12 +229,12 @@ public class SlotsAllocatorSuiteJ {
             workers,
             partitionIds,
             shouldReplicate,
+            false,
             10 * 1024 * 1024 * 1024L,
             conf.slotsAssignLoadAwareDiskGroupNum(),
             conf.slotsAssignLoadAwareDiskGroupGradient(),
             conf.slotsAssignLoadAwareFlushTimeWeight(),
-            conf.slotsAssignLoadAwareFetchTimeWeight(),
-            new CelebornRackResolver(conf));
+            conf.slotsAssignLoadAwareFetchTimeWeight());
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(
