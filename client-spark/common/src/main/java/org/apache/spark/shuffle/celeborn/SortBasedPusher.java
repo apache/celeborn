@@ -20,11 +20,9 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.SparkOutOfMemoryError;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -278,7 +276,11 @@ public class SortBasedPusher extends MemoryConsumer {
   public void waitPushFinish() throws IOException {
     dataPusher.checkException();
     while (asyncPushing) {
-      Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+      try {
+        Thread.sleep(50);
+      } catch (InterruptedException e) {
+        throw new IOException("Interrupted when waitPushFinish", e);
+      }
     }
   }
 
