@@ -32,8 +32,6 @@ import org.apache.celeborn.common.util.CelebornHadoopUtils
 
 class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
 
-  val enabledRackAware = celebornConf.slotsAssignRackAwareEnabled
-
   private val dnsToSwitchMapping: DNSToSwitchMapping = {
     val conf: Configuration = CelebornHadoopUtils.newConfiguration(celebornConf)
     val dnsToSwitchMappingClass =

@@ -58,6 +58,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private val shuffleExpiredCheckIntervalMs = conf.shuffleExpiredCheckIntervalMs
   private val pushReplicateEnabled = conf.pushReplicateEnabled
+  private val pushRackAwareEnabled = conf.reserveSlotsRackAwareEnabled
   private val partitionSplitThreshold = conf.partitionSplitThreshold
   private val partitionSplitMode = conf.partitionSplitMode
   // shuffle id -> partition type
@@ -1021,6 +1022,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         ids,
         lifecycleHost,
         pushReplicateEnabled,
+        pushRackAwareEnabled,
         userIdentifier)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {

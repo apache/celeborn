@@ -182,6 +182,7 @@ message PbRequestSlots {
   string requestId = 6;
   int32 storageType = 7;
   PbUserIdentifier userIdentifier = 8;
+  bool shouldRackAware = 9;
 }
 
 message PbSlotInfo {

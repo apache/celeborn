@@ -44,7 +44,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
   @Test
   public void offerSlotsRoundRobinWithRackAware() throws IOException {
     CelebornConf conf = new CelebornConf();
-    conf.set(CelebornConf.SLOTS_ASSIGN_RACKAWARE_ENABLED().key(), "true");
+    conf.set(CelebornConf.RESERVE_SLOTS_RACKAWARE_ENABLED().key(), "true");
 
     List<Integer> partitionIds = new ArrayList<Integer>();
     partitionIds.add(0);
@@ -83,7 +83,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
   @Test
   public void offerSlotsRoundRobinWithRackAwareWithoutMappingFile() throws IOException {
     CelebornConf conf = new CelebornConf();
-    conf.set(CelebornConf.SLOTS_ASSIGN_RACKAWARE_ENABLED().key(), "true");
+    conf.set(CelebornConf.RESERVE_SLOTS_RACKAWARE_ENABLED().key(), "true");
 
     List<Integer> partitionIds = new ArrayList<Integer>();
     partitionIds.add(0);

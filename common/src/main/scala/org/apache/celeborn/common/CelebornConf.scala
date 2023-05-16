@@ -472,7 +472,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(SLOTS_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: SlotsAssignPolicy = SlotsAssignPolicy.valueOf(get(SLOTS_ASSIGN_POLICY))
-  def slotsAssignRackAwareEnabled: Boolean = get(SLOTS_ASSIGN_RACKAWARE_ENABLED)
   def initialEstimatedPartitionSize: Long = get(SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
@@ -529,6 +528,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWaitMs: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
+  def reserveSlotsRackAwareEnabled: Boolean = get(RESERVE_SLOTS_RACKAWARE_ENABLED)
   def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
   def reserveSlotsRetryWait: Long = get(RESERVE_SLOTS_RETRY_WAIT)
   def rpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
@@ -2185,14 +2185,6 @@ object CelebornConf extends Logging {
       .checkValues(Set(SlotsAssignPolicy.ROUNDROBIN.name, SlotsAssignPolicy.LOADAWARE.name))
       .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
 
-  val SLOTS_ASSIGN_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.slots.assign.rackware.enabled")
-      .categories("master")
-      .version("0.3.0")
-      .doc("Whether need to place different replicates on different racks when allocating slots.")
-      .booleanConf
-      .createWithDefault(false)
-
   val SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.initialEstimatedPartitionSize")
       .withAlternative("rss.initial.partition.size")
@@ -2511,6 +2503,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
+
+  val RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.reserveSlots.rackware.enabled")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether need to place different replicates on different racks when allocating slots.")
+      .booleanConf
+      .createWithDefault(false)
 
   val RESERVE_SLOTS_RPC_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.rpc.reserveSlots.askTimeout")
