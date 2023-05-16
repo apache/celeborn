@@ -49,6 +49,5 @@ license: |
 | celeborn.slots.assign.loadAware.flushTimeWeight | 0.0 | Weight of average flush time when calculating ordering in load-aware assignment strategy | 0.2.1 | 
 | celeborn.slots.assign.loadAware.numDiskGroups | 5 | This configuration is a guidance for load-aware slot allocation algorithm. This value is control how many disk groups will be created. | 0.2.0 | 
 | celeborn.slots.assign.policy | ROUNDROBIN | Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware. | 0.2.0 | 
-| celeborn.slots.assign.rackware.enabled | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.0 | 
 | celeborn.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
 <!--end-include-->
