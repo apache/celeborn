@@ -295,9 +295,7 @@ object PbSerDeUtils {
   def fromPbWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource]): WorkerResource = {
     val slots = new WorkerResource()
     pbWorkerResource.asScala.foreach(item => {
-      val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = item._1.split(":")
-      val workerInfo =
-        new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+      val workerInfo = WorkerInfo.fromInfoId(item._1)
       val masterPartitionLocation = new util.ArrayList[PartitionLocation](item._2
         .getMasterPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
       val slavePartitionLocation = new util.ArrayList[PartitionLocation](item._2
@@ -309,13 +307,13 @@ object PbSerDeUtils {
 
   def toPbWorkerResource(workerResource: WorkerResource): util.Map[String, PbWorkerResource] = {
     workerResource.asScala.map(item => {
-      val uniqueId = item._1.toUniqueId()
+      val infoId = item._1.toInfoId()
       val masterPartitions = item._2._1.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
       val slavePartitions = item._2._2.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
       val pbWorkerResource = PbWorkerResource.newBuilder()
         .addAllMasterPartitions(masterPartitions)
         .addAllSlavePartitions(slavePartitions).build()
-      uniqueId -> pbWorkerResource
+      infoId -> pbWorkerResource
     }).asJava
   }
 
