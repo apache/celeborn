@@ -43,8 +43,8 @@ public class FlinkUtils {
     return tmpCelebornConf;
   }
 
-  public static String toCelebornAppId(JobID jobID) {
-    return jobID.toString();
+  public static String toCelebornAppId(long rssMetaServiceTimestamp, JobID jobID) {
+    return rssMetaServiceTimestamp + "-" + jobID.toString();
   }
 
   public static String toShuffleId(JobID jobID, IntermediateDataSetID dataSetID) {
