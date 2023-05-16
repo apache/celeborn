@@ -60,13 +60,13 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           ThreadUtils.createFactoryWithDefaultExceptionHandler(
               "remote-shuffle-master-executor", LOG));
   private final ResultPartitionAdapter resultPartitionDelegation;
-  private final long rssMetaServiceTimeStamp;
+  private final long rssMetaServiceTimestamp;
 
   public RemoteShuffleMaster(
       ShuffleMasterContext shuffleMasterContext, ResultPartitionAdapter resultPartitionDelegation) {
     this.shuffleMasterContext = shuffleMasterContext;
     this.resultPartitionDelegation = resultPartitionDelegation;
-    this.rssMetaServiceTimeStamp = System.currentTimeMillis();
+    this.rssMetaServiceTimestamp = System.currentTimeMillis();
   }
 
   @Override
@@ -76,7 +76,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       synchronized (RemoteShuffleMaster.class) {
         if (lifecycleManager == null) {
           // use first jobID as celeborn shared appId for all other flink jobs
-          celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimeStamp, jobID);
+          celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, jobID);
           CelebornConf celebornConf =
               FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
           // if not set, set to true as default for flink
@@ -147,7 +147,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
                   new RemoteShuffleResource(
                       lifecycleManager.getRssMetaServiceHost(),
                       lifecycleManager.getRssMetaServicePort(),
-                      rssMetaServiceTimeStamp,
+                      rssMetaServiceTimestamp,
                       shuffleResourceDescriptor);
 
               shuffleResourceTracker.addPartitionResource(

@@ -68,33 +68,33 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private ReadClientHandler readClientHandler = new ReadClientHandler();
   private ConcurrentHashMap<String, TransportClient> currentClient =
       JavaUtils.newConcurrentHashMap();
-  private long driverTimeStamp;
+  private long driverTimestamp;
 
   public static FlinkShuffleClientImpl get(
       String driverHost,
       int port,
-      long driverTimeStamp,
+      long driverTimestamp,
       CelebornConf conf,
       UserIdentifier userIdentifier)
       throws DriverChangedException {
-    if (null == _instance || !initialized || _instance.driverTimeStamp < driverTimeStamp) {
+    if (null == _instance || !initialized || _instance.driverTimestamp < driverTimestamp) {
       synchronized (FlinkShuffleClientImpl.class) {
         if (null == _instance) {
           _instance =
-              new FlinkShuffleClientImpl(driverHost, port, driverTimeStamp, conf, userIdentifier);
+              new FlinkShuffleClientImpl(driverHost, port, driverTimestamp, conf, userIdentifier);
           initialized = true;
-        } else if (!initialized || _instance.driverTimeStamp < driverTimeStamp) {
+        } else if (!initialized || _instance.driverTimestamp < driverTimestamp) {
           _instance.shutdown();
           _instance =
-              new FlinkShuffleClientImpl(driverHost, port, driverTimeStamp, conf, userIdentifier);
+              new FlinkShuffleClientImpl(driverHost, port, driverTimestamp, conf, userIdentifier);
           initialized = true;
         }
       }
     }
 
-    if (driverTimeStamp < _instance.driverTimeStamp) {
-      String format = "Driver reinitialized or changed driverHost-port-driverTimeStamp to %s-%s-%s";
-      String message = String.format(format, driverHost, port, driverTimeStamp);
+    if (driverTimestamp < _instance.driverTimestamp) {
+      String format = "Driver reinitialized or changed driverHost-port-driverTimestamp to %s-%s-%s";
+      String message = String.format(format, driverHost, port, driverTimestamp);
       logger.warn(message);
       throw new DriverChangedException(message);
     }
@@ -116,7 +116,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public FlinkShuffleClientImpl(
       String driverHost,
       int port,
-      long driverTimeStamp,
+      long driverTimestamp,
       CelebornConf conf,
       UserIdentifier userIdentifier) {
     super(conf, userIdentifier);
@@ -129,7 +129,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     this.flinkTransportClientFactory =
         new FlinkTransportClientFactory(context, conf.fetchMaxRetriesForEachReplica());
     this.setupMetaServiceRef(driverHost, port);
-    this.driverTimeStamp = driverTimeStamp;
+    this.driverTimestamp = driverTimestamp;
   }
 
   public RssBufferStream readBufferedPartition(
