@@ -307,11 +307,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workers.addAll(
           snapshotMetaInfo.getWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
-              .collect(Collectors.toSet()).stream().map(workerInfo -> {
-                // Reset worker's network location with current master's configuration.
-                workerInfo.networkLocation_$eq(rackResolver.resolve(workerInfo.host()).getNetworkLocation());
-                return workerInfo;
-              }).collect(Collectors.toSet()));
+              .collect(Collectors.toSet())
+              .stream()
+              .map(
+                  workerInfo -> {
+                    // Reset worker's network location with current master's configuration.
+                    workerInfo.networkLocation_$eq(
+                        rackResolver.resolve(workerInfo.host()).getNetworkLocation());
+                    return workerInfo;
+                  })
+              .collect(Collectors.toSet()));
 
       snapshotMetaInfo
           .getLostWorkersMap()

@@ -28,7 +28,7 @@ import org.apache.hadoop.util.ReflectionUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.service.deploy.master.util.CelebornHadoopUtils
+import org.apache.celeborn.service.deploy.master.utils.CelebornHadoopUtils
 
 class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
 
@@ -77,5 +77,15 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
       }
     }
     nodes.toList
+  }
+
+  def isOnSameRack(masterHost: String, slaveHost: String): Boolean = {
+    val masterNode = resolve(masterHost)
+    val slaveNode = resolve(slaveHost)
+    if (masterNode == null || slaveNode == null) {
+      false
+    } else {
+      masterNode.getNetworkLocation == slaveNode.getNetworkLocation
+    }
   }
 }

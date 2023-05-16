@@ -53,7 +53,7 @@ public class SlotsAllocator {
           List<WorkerInfo> workers,
           List<Integer> partitionIds,
           boolean shouldReplicate,
-          boolean shoudlRackAware) {
+          boolean shouldRackAware) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -75,9 +75,9 @@ public class SlotsAllocator {
       }
     }
     List<Integer> remain =
-        roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate, shoudlRackAware);
+        roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate, shouldRackAware);
     if (!remain.isEmpty()) {
-      remain = roundRobin(slots, remain, workers, null, shouldReplicate, shoudlRackAware);
+      remain = roundRobin(slots, remain, workers, null, shouldReplicate, shouldRackAware);
     }
 
     if (!remain.isEmpty()) {
@@ -268,8 +268,9 @@ public class SlotsAllocator {
   private static boolean satisfyRackAware(
       boolean shouldRackAware, List<WorkerInfo> workers, int masterIndex, int nextSlaveInd) {
     return !shouldRackAware
-        || workers.get(masterIndex).networkLocation()
-            != workers.get(nextSlaveInd).networkLocation();
+        || !Objects.equals(
+            workers.get(masterIndex).networkLocation(),
+            workers.get(nextSlaveInd).networkLocation());
   }
 
   private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {

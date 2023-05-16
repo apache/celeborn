@@ -69,7 +69,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, true);
 
-    Consumer<PartitionLocation> printConsumer =
+    Consumer<PartitionLocation> assertCustomer =
         new Consumer<PartitionLocation>() {
           public void accept(PartitionLocation location) {
             Assert.assertNotEquals(
@@ -77,7 +77,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
                 resolver.resolve(location.getPeer().getHost()).getNetworkLocation());
           }
         };
-    slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(printConsumer);
+    slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(assertCustomer);
   }
 
   @Test
@@ -104,7 +104,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, true);
 
-    Consumer<PartitionLocation> printConsumer =
+    Consumer<PartitionLocation> assertConsumer =
         new Consumer<PartitionLocation>() {
           public void accept(PartitionLocation location) {
             Assert.assertEquals(
@@ -115,7 +115,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
                 resolver.resolve(location.getPeer().getHost()).getNetworkLocation());
           }
         };
-    slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(printConsumer);
+    slots.values().stream().map(Tuple2::_1).flatMap(Collection::stream).forEach(assertConsumer);
   }
 
   private List<WorkerInfo> prepareWorkers(CelebornRackResolver resolver) {
