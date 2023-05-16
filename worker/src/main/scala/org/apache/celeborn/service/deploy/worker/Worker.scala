@@ -90,6 +90,7 @@ private[celeborn] class Worker(
     } catch {
       case e: Exception =>
         logError("Check or create recover root path failed: ", e)
+        throw e
     }
   }
 
