@@ -26,10 +26,10 @@ public class TaskInterruptedHelper {
 
   /**
    * Apache Celeborn implement shuffle writer in java, Celeborn must catch InterruptedException.
-   * According to the constraint of the ShuffleWriter interface,
-   * Celeborn cannot throw InterruptedException. Since Spark executor side handle TaskKilledException
-   * and InterruptedException in the same way and Spark throw TaskKilledException with
-   * the TaskContext's kill reason, so here we throw the TaskKilledException.
+   * According to the constraint of the ShuffleWriter interface, Celeborn cannot throw
+   * InterruptedException. Since Spark executor side handle TaskKilledException and
+   * InterruptedException in the same way and Spark throw TaskKilledException with the TaskContext's
+   * kill reason, so here we throw the TaskKilledException.
    */
   public static void throwTaskKillException() {
     throw new TaskKilledException(
