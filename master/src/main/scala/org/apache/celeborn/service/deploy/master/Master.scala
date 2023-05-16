@@ -41,7 +41,6 @@ import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Ut
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
-import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver
 
 private[celeborn] class Master(
     override val conf: CelebornConf,
