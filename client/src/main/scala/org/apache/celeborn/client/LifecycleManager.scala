@@ -933,7 +933,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     if (pushReplicateEnabled) {
       var slaveIndex = (masterIndex + 1) % candidates.size
-      while (pushRackAwareEnabled && isOnSameRack(masterIndex, slaveIndex) && slaveIndex != masterIndex) {
+      while (pushRackAwareEnabled && isOnSameRack(masterIndex, slaveIndex)
+        && slaveIndex != masterIndex) {
         slaveIndex = (slaveIndex + 1) % candidates.size
       }
       // If one turn no suitable peer, then just use the next worker.
