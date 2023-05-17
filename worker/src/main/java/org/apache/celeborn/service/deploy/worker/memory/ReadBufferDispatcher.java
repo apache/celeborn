@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.network.util.TransportConf;
 
 public class ReadBufferDispatcher extends Thread {
   private final Logger logger = LoggerFactory.getLogger(ReadBufferDispatcher.class);
@@ -42,7 +43,9 @@ public class ReadBufferDispatcher extends Thread {
 
   public ReadBufferDispatcher(MemoryManager memoryManager, CelebornConf conf) {
     this.readBufferAllocationWait = conf.readBufferAllocationWait();
-    readBufferAllocator = NettyUtils.getShardPooledByteBufAllocator(conf, null);
+    // readBuffer is not a module name, it's a placeholder.
+    readBufferAllocator =
+        NettyUtils.getPooledByteBufAllocator(new TransportConf("readBuffer", conf), null, true);
     this.memoryManager = memoryManager;
     this.setName("Read-Buffer-Dispatcher");
     this.start();

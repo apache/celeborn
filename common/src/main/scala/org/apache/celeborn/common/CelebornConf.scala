@@ -796,6 +796,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
   def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
 
+  def shareMemoryAllocator: Boolean = get(MEMORY_ALLOCATOR_SHARE)
   def allocatorArenas: Int = get(MEMORY_ALLOCATOR_ARENAS).getOrElse(Math.max(
     Runtime.getRuntime.availableProcessors(),
     2))
@@ -3209,6 +3210,14 @@ object CelebornConf extends Logging {
       .doc("Min buffers count for map data partition to trigger read.")
       .intConf
       .createWithDefault(32)
+
+  val MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
+    buildConf("celeborn.memory.allocator.share")
+      .categories("worker", "client")
+      .version("0.3.0")
+      .doc("Whether to share memory allocator.")
+      .booleanConf
+      .createWithDefault(false)
 
   val MEMORY_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
     buildConf("celeborn.memory.allocator.numArenas")

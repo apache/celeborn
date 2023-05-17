@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.network.util;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 
 import io.netty.buffer.PooledByteBufAllocator;
@@ -34,10 +35,13 @@ import io.netty.util.internal.PlatformDependent;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.util.JavaUtils;
 
 /** Utilities for creating various Netty constructs based on whether we're using EPOLL or NIO. */
 public class NettyUtils {
   private static volatile PooledByteBufAllocator _allocator;
+  private static ConcurrentHashMap<String, Integer> allocatorsIndex =
+      JavaUtils.newConcurrentHashMap();
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
   public static ThreadFactory createThreadFactory(String threadPoolPrefix) {
     return new DefaultThreadFactory(threadPoolPrefix, true);
@@ -95,7 +99,7 @@ public class NettyUtils {
    * released by the executor thread rather than the event loop thread. Those thread-local caches
    * actually delay the recycling of buffers, leading to larger memory usage.
    */
-  public static PooledByteBufAllocator createPooledByteBufAllocator(
+  private static PooledByteBufAllocator createPooledByteBufAllocator(
       boolean allowDirectBufs, boolean allowCache, int numCores) {
     if (numCores == 0) {
       numCores = Runtime.getRuntime().availableProcessors();
@@ -108,18 +112,50 @@ public class NettyUtils {
         PooledByteBufAllocator.defaultMaxOrder(),
         allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
         allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
-        allowCache ? PooledByteBufAllocator.defaultUseCacheForAllThreads() : false);
+        allowCache && PooledByteBufAllocator.defaultUseCacheForAllThreads());
   }
 
-  public static PooledByteBufAllocator getShardPooledByteBufAllocator(
+  private static PooledByteBufAllocator getShardPooledByteBufAllocator(
       CelebornConf conf, AbstractSource source) {
     synchronized (PooledByteBufAllocator.class) {
       if (_allocator == null) {
         // each core should have one arena to allocate memory
         _allocator = createPooledByteBufAllocator(true, true, conf.allocatorArenas());
-        new NettyMemoryMetrics(_allocator, "common-pool", conf.allocatorVerboseMetric(), source);
+        new NettyMemoryMetrics(_allocator, "shard-pool", conf.allocatorVerboseMetric(), source);
       }
       return _allocator;
+    }
+  }
+
+  public static PooledByteBufAllocator getPooledByteBufAllocator(
+      TransportConf conf, AbstractSource source, boolean allowCache) {
+    if (conf.getCelebornConf().shareMemoryAllocator()) {
+      return getShardPooledByteBufAllocator(conf.getCelebornConf(), source);
+    } else {
+      PooledByteBufAllocator allocator =
+          createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, conf.clientThreads());
+      if (source != null) {
+        String poolName = "default-netty-pool";
+        String moduleName = conf.getModuleName();
+        if (!moduleName.isEmpty()) {
+          poolName =
+              moduleName
+                  + "-"
+                  + allocatorsIndex.compute(
+                      moduleName,
+                      (k, v) -> {
+                        if (v == null) {
+                          v = 0;
+                        } else {
+                          v = v + 1;
+                        }
+                        return v;
+                      });
+        }
+        new NettyMemoryMetrics(
+            allocator, poolName, conf.getCelebornConf().allocatorVerboseMetric(), source);
+      }
+      return allocator;
     }
   }
 }
