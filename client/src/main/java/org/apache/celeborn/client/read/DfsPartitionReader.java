@@ -206,7 +206,7 @@ public class DfsPartitionReader implements PartitionReader {
   }
 
   @Override
-  public ByteBuf next() throws IOException {
+  public ByteBuf next() throws IOException, InterruptedException {
     ByteBuf chunk = null;
     try {
       while (chunk == null) {
@@ -215,10 +215,8 @@ public class DfsPartitionReader implements PartitionReader {
         logger.debug("poll result with result size: {}", results.size());
       }
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      IOException ioe = new IOException(e);
-      exception.set(ioe);
-      throw ioe;
+      logger.error("PartitionReader thread interrupted while fetching data.");
+      throw e;
     }
     returnedChunks++;
     return chunk;

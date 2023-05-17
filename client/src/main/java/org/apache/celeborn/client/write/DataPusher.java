@@ -73,7 +73,7 @@ public class DataPusher {
       ShuffleClient client,
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths)
-      throws IOException {
+      throws InterruptedException {
     final int pushQueueCapacity = conf.pushQueueCapacity();
     final int pushBufferMaxSize = conf.pushBufferMaxSize();
 
@@ -83,12 +83,7 @@ public class DataPusher {
             conf, this, client, appId, shuffleId, mapId, attemptId, numMappers, numPartitions);
 
     for (int i = 0; i < pushQueueCapacity; i++) {
-      try {
-        idleQueue.put(new PushTask(pushBufferMaxSize));
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new CelebornIOException(e);
-      }
+      idleQueue.put(new PushTask(pushBufferMaxSize));
     }
 
     this.appId = appId;
@@ -111,8 +106,8 @@ public class DataPusher {
                 idleFull.signal();
               }
             } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              exceptionRef.set(new CelebornIOException(e));
+              logger.error("DataPusher thread interrupted while reclaiming data.");
+              throw e;
             } finally {
               idleLock.unlock();
             }
@@ -130,8 +125,11 @@ public class DataPusher {
                 }
               } catch (CelebornIOException e) {
                 exceptionRef.set(e);
-              } catch (InterruptedException | IOException e) {
+              } catch (IOException e) {
                 exceptionRef.set(new CelebornIOException(e));
+              } catch (InterruptedException e) {
+                logger.error("DataPusher push thread interrupted while pushing data.");
+                break;
               }
             }
           }
@@ -140,7 +138,8 @@ public class DataPusher {
     pushThread.start();
   }
 
-  public void addTask(int partitionId, byte[] buffer, int size) throws IOException {
+  public void addTask(int partitionId, byte[] buffer, int size)
+      throws IOException, InterruptedException {
     try {
       PushTask task = null;
       while (task == null) {
@@ -154,27 +153,29 @@ public class DataPusher {
         checkException();
       }
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      IOException ioe = new CelebornIOException(e);
-      exceptionRef.set(ioe);
-      throw ioe;
+      logger.error("DataPusher thread interrupted while adding push task.");
+      pushThread.interrupt();
+      throw e;
     }
   }
 
-  public void waitOnTermination() throws IOException {
+  public void waitOnTermination() throws IOException, InterruptedException {
     try {
       idleLock.lockInterruptibly();
       waitIdleQueueFullWithLock();
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      exceptionRef.set(new CelebornIOException(e));
+      logger.error("DataPusher thread interrupted while waitOnTermination.");
+      pushThread.interrupt();
+      throw e;
     }
 
     terminated = true;
     try {
       pushThread.join();
-    } catch (InterruptedException ignored) {
+    } catch (InterruptedException e) {
       logger.info("Thread interrupted while joining pushThread");
+      Thread.currentThread().interrupt();
+      throw e;
     }
     idleQueue.clear();
     dataPushQueue.clear();
@@ -208,14 +209,14 @@ public class DataPusher {
     mapStatusLengths[task.getPartitionId()].add(bytesWritten);
   }
 
-  private void waitIdleQueueFullWithLock() {
+  private void waitIdleQueueFullWithLock() throws InterruptedException {
     try {
       while (idleQueue.remainingCapacity() > 0 && exceptionRef.get() == null) {
         idleFull.await(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
       }
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      exceptionRef.set(new CelebornIOException(e));
+      logger.error("Thread interrupted while waitIdleQueueFullWithLock.", e);
+      throw e;
     } finally {
       idleLock.unlock();
     }

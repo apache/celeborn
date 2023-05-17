@@ -139,7 +139,7 @@ public class DataPushQueueSuitJ {
                         partitionBatchIdMap.get(partitionId),
                         reducePartitionMap.get(partitionId).hostAndPushPort());
                   }
-                } catch (IOException e) {
+                } catch (IOException | InterruptedException e) {
                   throw new RuntimeException(e);
                 }
               }

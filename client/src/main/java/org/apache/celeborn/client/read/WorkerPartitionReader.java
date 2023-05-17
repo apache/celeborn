@@ -71,7 +71,7 @@ public class WorkerPartitionReader implements PartitionReader {
       int endMapIndex,
       int fetchChunkRetryCnt,
       int fetchChunkMaxRetry)
-      throws IOException {
+      throws IOException, InterruptedException {
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     // only add the buffer to results queue if this reader is not closed.
@@ -96,11 +96,12 @@ public class WorkerPartitionReader implements PartitionReader {
             exception.set(new CelebornIOException(errorMsg, e));
           }
         };
-    TransportClient client;
+    TransportClient client = null;
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     } catch (InterruptedException ie) {
-      throw new CelebornIOException("Interrupted when createClient", ie);
+      logger.error("PartitionReader thread interrupted while creating client.");
+      throw ie;
     }
     OpenStream openBlocks =
         new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
@@ -119,7 +120,7 @@ public class WorkerPartitionReader implements PartitionReader {
     return returnedChunks < streamHandle.numChunks;
   }
 
-  public ByteBuf next() throws IOException {
+  public ByteBuf next() throws IOException, InterruptedException {
     checkException();
     if (chunkIndex < streamHandle.numChunks) {
       fetchChunks();
@@ -131,10 +132,8 @@ public class WorkerPartitionReader implements PartitionReader {
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
       }
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      IOException ioe = new CelebornIOException(e);
-      exception.set(ioe);
-      throw ioe;
+      logger.error("PartitionReader thread interrupted while polling data.");
+      throw e;
     }
     returnedChunks++;
     return chunk;
@@ -155,7 +154,7 @@ public class WorkerPartitionReader implements PartitionReader {
     return location;
   }
 
-  private void fetchChunks() throws IOException {
+  private void fetchChunks() throws IOException, InterruptedException {
     final int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
@@ -169,13 +168,16 @@ public class WorkerPartitionReader implements PartitionReader {
                 clientFactory.createClient(location.getHost(), location.getFetchPort());
             client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
             chunkIndex++;
-          } catch (IOException | InterruptedException e) {
+          } catch (IOException e) {
             logger.error(
                 "fetchChunk for streamId: {}, chunkIndex: {} failed.",
                 streamHandle.streamId,
                 chunkIndex,
                 e);
             ExceptionUtils.wrapAndThrowIOException(e);
+          } catch (InterruptedException e) {
+            logger.error("PartitionReader thread interrupted while fetching chunks.");
+            throw e;
           }
         }
       }

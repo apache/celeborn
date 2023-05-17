@@ -94,7 +94,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
    */
   private volatile boolean stopping = false;
 
-  private final DataPusher dataPusher;
+  private DataPusher dataPusher;
 
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
@@ -140,35 +140,43 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     sendOffsets = new int[numPartitions];
 
-    dataPusher =
-        new DataPusher(
-            appId,
-            shuffleId,
-            mapId,
-            taskContext.attemptNumber(),
-            taskContext.taskAttemptId(),
-            numMappers,
-            numPartitions,
-            conf,
-            rssShuffleClient,
-            writeMetrics::incBytesWritten,
-            mapStatusLengths);
+    try {
+      dataPusher =
+          new DataPusher(
+              appId,
+              shuffleId,
+              mapId,
+              taskContext.attemptNumber(),
+              taskContext.taskAttemptId(),
+              numMappers,
+              numPartitions,
+              conf,
+              rssShuffleClient,
+              writeMetrics::incBytesWritten,
+              mapStatusLengths);
+    } catch (InterruptedException e) {
+      TaskInterruptedHelper.throwTaskKillException();
+    }
   }
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
-    if (canUseFastWrite()) {
-      fastWrite0(records);
-    } else if (dep.mapSideCombine()) {
-      if (dep.aggregator().isEmpty()) {
-        throw new UnsupportedOperationException(
-            "When using map side combine, an aggregator must be specified.");
+    try {
+      if (canUseFastWrite()) {
+        fastWrite0(records);
+      } else if (dep.mapSideCombine()) {
+        if (dep.aggregator().isEmpty()) {
+          throw new UnsupportedOperationException(
+              "When using map side combine, an aggregator must be specified.");
+        }
+        write0(dep.aggregator().get().combineValuesByKey(records, taskContext));
+      } else {
+        write0(records);
       }
-      write0(dep.aggregator().get().combineValuesByKey(records, taskContext));
-    } else {
-      write0(records);
+      close();
+    } catch (InterruptedException e) {
+      TaskInterruptedHelper.throwTaskKillException();
     }
-    close();
   }
 
   @VisibleForTesting
@@ -177,7 +185,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         && partitioner instanceof PartitionIdPassthrough;
   }
 
-  private void fastWrite0(scala.collection.Iterator iterator) throws IOException {
+  private void fastWrite0(scala.collection.Iterator iterator)
+      throws IOException, InterruptedException {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
     SQLMetric dataSize =
@@ -220,7 +229,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
-  private void write0(scala.collection.Iterator iterator) throws IOException {
+  private void write0(scala.collection.Iterator iterator) throws IOException, InterruptedException {
     final scala.collection.Iterator<Product2<K, ?>> records = iterator;
 
     while (records.hasNext()) {
@@ -277,7 +286,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
 
-  private int getOrUpdateOffset(int partitionId, int serializedRecordSize) throws IOException {
+  private int getOrUpdateOffset(int partitionId, int serializedRecordSize)
+      throws IOException, InterruptedException {
     int offset = sendOffsets[partitionId];
     byte[] buffer = getOrCreateBuffer(partitionId);
     while ((buffer.length - offset) < serializedRecordSize
@@ -298,14 +308,15 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     return offset;
   }
 
-  private void flushSendBuffer(int partitionId, byte[] buffer, int size) throws IOException {
+  private void flushSendBuffer(int partitionId, byte[] buffer, int size)
+      throws IOException, InterruptedException {
     long pushStartTime = System.nanoTime();
     logger.debug("Flush buffer for partition {}, size {}.", partitionId, size);
     dataPusher.addTask(partitionId, buffer, size);
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
 
-  private void close() throws IOException {
+  private void close() throws IOException, InterruptedException {
     // here we wait for all the in-flight batches to return which sent by dataPusher thread
     dataPusher.waitOnTermination();
     rssShuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());

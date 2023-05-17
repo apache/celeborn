@@ -26,7 +26,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 public interface PartitionReader {
   boolean hasNext();
 
-  ByteBuf next() throws IOException;
+  ByteBuf next() throws IOException, InterruptedException;
 
   void close();
 

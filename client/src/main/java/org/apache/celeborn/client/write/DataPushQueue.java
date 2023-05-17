@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 
@@ -83,7 +82,7 @@ public class DataPushQueue {
    * Now, `takePushTasks` is only used by one thread,
    * so it is not thread-safe.
    * */
-  public ArrayList<PushTask> takePushTasks() throws IOException {
+  public ArrayList<PushTask> takePushTasks() throws IOException, InterruptedException {
     ArrayList<PushTask> tasks = new ArrayList<>();
     HashMap<String, Integer> workerCapacity = new HashMap<>();
     while (dataPusher.stillRunning()) {
@@ -126,7 +125,8 @@ public class DataPushQueue {
         // Reaching here means no available tasks can be pushed to any worker, wait for a while
         Thread.sleep(takeTaskWaitTimeMs);
       } catch (InterruptedException ie) {
-        ExceptionUtils.wrapAndThrowIOException(ie);
+        logger.info("Thread interrupted while waiting push task.");
+        throw ie;
       }
     }
     return tasks;

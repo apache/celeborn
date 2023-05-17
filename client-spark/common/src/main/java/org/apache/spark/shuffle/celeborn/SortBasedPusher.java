@@ -50,7 +50,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private long pageCursor = -1;
 
   private final ShuffleClient rssShuffleClient;
-  private final DataPusher dataPusher;
+  private DataPusher dataPusher;
   private final int pushBufferMaxSize;
   private final long pushSortMemoryThreshold;
   final int uaoSize = UnsafeAlignedOffset.getUaoSize();
@@ -88,8 +88,7 @@ public class SortBasedPusher extends MemoryConsumer {
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
       Object sharedPushLock,
-      ExecutorService executorService)
-      throws IOException {
+      ExecutorService executorService) {
     super(
         memoryManager,
         (int) Math.min(PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES, memoryManager.pageSizeBytes()),
@@ -115,19 +114,23 @@ public class SortBasedPusher extends MemoryConsumer {
     this.afterPush = afterPush;
     this.mapStatusLengths = mapStatusLengths;
 
-    dataPusher =
-        new DataPusher(
-            appId,
-            shuffleId,
-            mapId,
-            attemptNumber,
-            taskAttemptId,
-            numMappers,
-            numPartitions,
-            conf,
-            rssShuffleClient,
-            afterPush,
-            mapStatusLengths);
+    try {
+      dataPusher =
+          new DataPusher(
+              appId,
+              shuffleId,
+              mapId,
+              attemptNumber,
+              taskAttemptId,
+              numMappers,
+              numPartitions,
+              conf,
+              rssShuffleClient,
+              afterPush,
+              mapStatusLengths);
+    } catch (InterruptedException e) {
+      TaskInterruptedHelper.throwTaskKillException();
+    }
 
     pushBufferMaxSize = conf.pushBufferMaxSize();
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
@@ -181,7 +184,11 @@ public class SortBasedPusher extends MemoryConsumer {
         int recordSize = UnsafeAlignedOffset.getSize(recordPage, recordOffsetInPage);
 
         if (offSet + recordSize > dataBuf.length) {
-          dataPusher.addTask(partition, dataBuf, offSet);
+          try {
+            dataPusher.addTask(partition, dataBuf, offSet);
+          } catch (InterruptedException e) {
+            TaskInterruptedHelper.throwTaskKillException();
+          }
           offSet = 0;
         }
 
@@ -195,7 +202,11 @@ public class SortBasedPusher extends MemoryConsumer {
         offSet += recordSize;
       }
       if (offSet > 0) {
-        dataPusher.addTask(currentPartition, dataBuf, offSet);
+        try {
+          dataPusher.addTask(currentPartition, dataBuf, offSet);
+        } catch (InterruptedException e) {
+          TaskInterruptedHelper.throwTaskKillException();
+        }
       }
 
       long freedBytes = freeMemory();
@@ -279,7 +290,8 @@ public class SortBasedPusher extends MemoryConsumer {
       try {
         Thread.sleep(50);
       } catch (InterruptedException e) {
-        throw new IOException("Interrupted when waitPushFinish", e);
+        logger.error("SortBasedPusher thread interrupted while waiting push finished.");
+        TaskInterruptedHelper.throwTaskKillException();
       }
     }
   }
@@ -405,7 +417,11 @@ public class SortBasedPusher extends MemoryConsumer {
 
   public void close() throws IOException {
     cleanupResources();
-    dataPusher.waitOnTermination();
+    try {
+      dataPusher.waitOnTermination();
+    } catch (InterruptedException e) {
+      TaskInterruptedHelper.throwTaskKillException();
+    }
   }
 
   public long getUsed() {
