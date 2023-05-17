@@ -86,23 +86,7 @@ public class ChunkStreamManager {
     }
 
     FileManagedBuffers buffers = state.buffers;
-    if (buffers.hasAlreadyRead(chunkIndex)) {
-      throw new IllegalStateException(
-          String.format("Chunk %s for stream %s has already been read.", chunkIndex, streamId));
-    }
     ManagedBuffer nextChunk = buffers.chunk(chunkIndex, offset, len);
-
-    if (state.buffers.isFullyRead()) {
-      // Normally, when all chunks are returned to the client, the stream should be removed here.
-      // But if there is a switch on the client side, it will not go here at this time, so we need
-      // to remove the stream when the shuffle is expired, and release the unused buffer.
-      logger.trace("Removing stream id {}", streamId);
-      streams.remove(streamId);
-      Set<Long> streamIds = shuffleStreamIds.get(state.shuffleKey);
-      if (streamIds != null) {
-        streamIds.remove(streamId);
-      }
-    }
 
     return nextChunk;
   }
