@@ -115,7 +115,6 @@ public class MemoryManager {
     double shuffleStorageRatio = conf.workerDirectMemoryRatioForShuffleStorage();
     long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();
     long reportInterval = conf.workerDirectMemoryReportIntervalSecond();
-    long readBufferAllocationWait = conf.readBufferAllocationWait();
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
@@ -219,7 +218,7 @@ public class MemoryManager {
 
     if (readBufferThreshold > 0) {
       // if read buffer threshold is zero means that there will be no map data partitions
-      readBufferDispatcher = new ReadBufferDispatcher(this, readBufferAllocationWait);
+      readBufferDispatcher = new ReadBufferDispatcher(this, conf);
       readBufferTargetChangeListeners = new ArrayList<>();
       readBufferTargetUpdateService.scheduleWithFixedDelay(
           () -> {

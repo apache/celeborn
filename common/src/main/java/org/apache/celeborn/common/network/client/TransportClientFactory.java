@@ -94,7 +94,7 @@ public class TransportClientFactory implements Closeable {
   }
 
   protected void initializeMemoryAllocator() {
-    this.pooledAllocator = NettyUtils.getShardPooledByteBufAllocator(null);
+    this.pooledAllocator = NettyUtils.getShardPooledByteBufAllocator(conf.getCelebornConf(), null);
   }
 
   /**

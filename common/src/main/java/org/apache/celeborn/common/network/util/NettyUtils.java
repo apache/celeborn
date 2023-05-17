@@ -111,15 +111,13 @@ public class NettyUtils {
         allowCache ? PooledByteBufAllocator.defaultUseCacheForAllThreads() : false);
   }
 
-  public static PooledByteBufAllocator getShardPooledByteBufAllocator(AbstractSource source) {
+  public static PooledByteBufAllocator getShardPooledByteBufAllocator(
+      CelebornConf conf, AbstractSource source) {
     synchronized (PooledByteBufAllocator.class) {
       if (_allocator == null) {
-        CelebornConf conf = new CelebornConf();
         // each core should have one arena to allocate memory
-        int arenas = conf.pooledAllocatorArenas();
-        _allocator = createPooledByteBufAllocator(true, true, arenas);
-        new NettyMemoryMetrics(
-            _allocator, "common-pool", conf.pooledAllocatorVerboseMetric(), source);
+        _allocator = createPooledByteBufAllocator(true, true, conf.allocatorArenas());
+        new NettyMemoryMetrics(_allocator, "common-pool", conf.allocatorVerboseMetric(), source);
         return _allocator;
       } else {
         return _allocator;

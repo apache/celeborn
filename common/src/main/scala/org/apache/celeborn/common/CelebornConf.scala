@@ -796,14 +796,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
   def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
 
-  def pooledAllocatorArenas: Int = get(MEMORY_POOLED_ALLOCATOR_ARENAS).getOrElse(
-    if (Runtime.getRuntime.availableProcessors() >= 2) {
-      Runtime.getRuntime.availableProcessors()
-    } else {
-      2
-    })
+  def allocatorArenas: Int = get(MEMORY_ALLOCATOR_ARENAS).getOrElse(Math.max(
+    Runtime.getRuntime.availableProcessors(),
+    2))
 
-  def pooledAllocatorVerboseMetric: Boolean = get(MEMORY_POOLED_ALLOCATOR_VERBOSE_METRIC)
+  def allocatorVerboseMetric: Boolean = get(MEMORY_ALLOCATOR_VERBOSE_METRIC)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -3213,21 +3210,21 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(32)
 
-  val MEMORY_POOLED_ALLOCATOR_VERBOSE_METRIC: ConfigEntry[Boolean] =
-    buildConf("celeborn.pooled.allocator.verbose.metric")
-      .categories("worker", "client")
-      .version("0.3.0")
-      .doc("Weather to enable verbose metric for pooled allocator.")
-      .booleanConf
-      .createWithDefault(false)
-
-  val MEMORY_POOLED_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
-    buildConf("celeborn.pooled.allocator.arenas")
+  val MEMORY_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.memory.allocator.numArenas")
       .categories("worker", "client")
       .version("0.3.0")
       .doc("Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2.")
       .intConf
       .createOptional
+
+  val MEMORY_ALLOCATOR_VERBOSE_METRIC: ConfigEntry[Boolean] =
+    buildConf("celeborn.memory.allocator.verbose.metric")
+      .categories("worker", "client")
+      .version("0.3.0")
+      .doc("Weather to enable verbose metric for pooled allocator.")
+      .booleanConf
+      .createWithDefault(false)
 
   val METRICS_EXTRA_LABELS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.metrics.extraLabels")
