@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.client.TaskInterruptedHelper;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 
@@ -73,7 +72,8 @@ public class DataPusher {
       CelebornConf conf,
       ShuffleClient client,
       Consumer<Integer> afterPush,
-      LongAdder[] mapStatusLengths) {
+      LongAdder[] mapStatusLengths)
+      throws InterruptedException {
     final int pushQueueCapacity = conf.pushQueueCapacity();
     final int pushBufferMaxSize = conf.pushBufferMaxSize();
 
@@ -83,11 +83,7 @@ public class DataPusher {
             conf, this, client, appId, shuffleId, mapId, attemptId, numMappers, numPartitions);
 
     for (int i = 0; i < pushQueueCapacity; i++) {
-      try {
-        idleQueue.put(new PushTask(pushBufferMaxSize));
-      } catch (InterruptedException e) {
-        TaskInterruptedHelper.throwTaskKillException();
-      }
+      idleQueue.put(new PushTask(pushBufferMaxSize));
     }
 
     this.appId = appId;
@@ -140,7 +136,8 @@ public class DataPusher {
     pushThread.start();
   }
 
-  public void addTask(int partitionId, byte[] buffer, int size) throws IOException {
+  public void addTask(int partitionId, byte[] buffer, int size)
+      throws IOException, InterruptedException {
     try {
       PushTask task = null;
       while (task == null) {
@@ -156,18 +153,18 @@ public class DataPusher {
     } catch (InterruptedException e) {
       logger.error("DataPusher thread interrupted while adding push task.");
       pushThread.interrupt();
-      TaskInterruptedHelper.throwTaskKillException();
+      throw e;
     }
   }
 
-  public void waitOnTermination() throws IOException {
+  public void waitOnTermination() throws IOException, InterruptedException {
     try {
       idleLock.lockInterruptibly();
       waitIdleQueueFullWithLock();
     } catch (InterruptedException e) {
       logger.error("DataPusher thread interrupted while waitOnTermination.");
       pushThread.interrupt();
-      TaskInterruptedHelper.throwTaskKillException();
+      throw e;
     }
 
     terminated = true;
