@@ -1353,7 +1353,8 @@ object CelebornConf extends Logging {
 
   val TEST_RETRY_REVIVE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.retryRevive")
-      .categories("client")
+      .internal
+      .categories("client", "test")
       .doc("Fail push data and request for test")
       .version("0.2.0")
       .booleanConf
@@ -1413,7 +1414,8 @@ object CelebornConf extends Logging {
 
   val TEST_FETCH_FAILURE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.fetchFailure")
-      .categories("client")
+      .internal
+      .categories("client", "test")
       .version("0.2.0")
       .doc("Whether to test fetch chunk failure")
       .booleanConf
@@ -1531,7 +1533,8 @@ object CelebornConf extends Logging {
 
   val TEST_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.retryCommitFiles")
-      .categories("client")
+      .internal
+      .categories("client", "test")
       .doc("Fail commitFile request for test")
       .version("0.2.0")
       .booleanConf
@@ -2309,7 +2312,8 @@ object CelebornConf extends Logging {
 
   val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
     buildConf("celeborn.test.pushMasterDataTimeout")
-      .categories("worker")
+      .internal
+      .categories("worker", "test")
       .version("0.2.0")
       .doc("Whether to test push master data timeout")
       .booleanConf
@@ -2317,7 +2321,8 @@ object CelebornConf extends Logging {
 
   val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
     buildConf("celeborn.test.pushSlaveDataTimeout")
-      .categories("worker")
+      .internal
+      .categories("worker", "test")
       .version("0.3.0")
       .doc("Whether to test push slave data timeout")
       .booleanConf
