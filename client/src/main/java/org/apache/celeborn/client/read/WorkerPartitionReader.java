@@ -28,7 +28,6 @@ import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.client.TaskInterruptedHelper;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -72,7 +71,7 @@ public class WorkerPartitionReader implements PartitionReader {
       int endMapIndex,
       int fetchChunkRetryCnt,
       int fetchChunkMaxRetry)
-      throws IOException {
+      throws IOException, InterruptedException {
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     // only add the buffer to results queue if this reader is not closed.
@@ -102,7 +101,7 @@ public class WorkerPartitionReader implements PartitionReader {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     } catch (InterruptedException ie) {
       logger.error("PartitionReader thread interrupted while creating client.");
-      TaskInterruptedHelper.throwTaskKillException();
+      throw ie;
     }
     OpenStream openBlocks =
         new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
@@ -121,7 +120,7 @@ public class WorkerPartitionReader implements PartitionReader {
     return returnedChunks < streamHandle.numChunks;
   }
 
-  public ByteBuf next() throws IOException {
+  public ByteBuf next() throws IOException, InterruptedException {
     checkException();
     if (chunkIndex < streamHandle.numChunks) {
       fetchChunks();
@@ -134,7 +133,7 @@ public class WorkerPartitionReader implements PartitionReader {
       }
     } catch (InterruptedException e) {
       logger.error("PartitionReader thread interrupted while polling data.");
-      TaskInterruptedHelper.throwTaskKillException();
+      throw e;
     }
     returnedChunks++;
     return chunk;
@@ -155,7 +154,7 @@ public class WorkerPartitionReader implements PartitionReader {
     return location;
   }
 
-  private void fetchChunks() throws IOException {
+  private void fetchChunks() throws IOException, InterruptedException {
     final int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
@@ -178,7 +177,7 @@ public class WorkerPartitionReader implements PartitionReader {
             ExceptionUtils.wrapAndThrowIOException(e);
           } catch (InterruptedException e) {
             logger.error("PartitionReader thread interrupted while fetching chunks.");
-            TaskInterruptedHelper.throwTaskKillException();
+            throw e;
           }
         }
       }

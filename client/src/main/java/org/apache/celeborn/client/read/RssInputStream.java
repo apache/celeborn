@@ -295,7 +295,7 @@ public abstract class RssInputStream extends InputStream {
 
     private PartitionReader createReader(
         PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
-        throws IOException {
+        throws IOException, InterruptedException {
       if (location.getPeer() == null) {
         logger.debug("Partition {} has only one partition replica.", location);
       }
