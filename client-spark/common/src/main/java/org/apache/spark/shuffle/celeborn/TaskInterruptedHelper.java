@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client;
+package org.apache.spark.shuffle.celeborn;
 
 import org.apache.spark.TaskContext;
 import org.apache.spark.TaskKilledException;

@@ -48,7 +48,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.client.TaskInterruptedHelper;
 import org.apache.celeborn.client.write.DataPusher;
 import org.apache.celeborn.common.CelebornConf;
 
