@@ -129,6 +129,7 @@ public class DataPusher {
                 exceptionRef.set(new CelebornIOException(e));
               } catch (InterruptedException e) {
                 logger.error("DataPusher push thread interrupted while pushing data.");
+                break;
               }
             }
           }
