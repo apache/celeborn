@@ -107,6 +107,7 @@ public class DataPusher {
               }
             } catch (InterruptedException e) {
               logger.error("DataPusher thread interrupted while reclaiming data.");
+              throw e;
             } finally {
               idleLock.unlock();
             }
@@ -170,8 +171,10 @@ public class DataPusher {
     terminated = true;
     try {
       pushThread.join();
-    } catch (InterruptedException ignored) {
+    } catch (InterruptedException e) {
       logger.info("Thread interrupted while joining pushThread");
+      Thread.currentThread().interrupt();
+      throw e;
     }
     idleQueue.clear();
     dataPushQueue.clear();
