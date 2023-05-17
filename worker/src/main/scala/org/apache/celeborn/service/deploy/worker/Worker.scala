@@ -422,6 +422,7 @@ private[celeborn] class Worker(
     }
     partitionsSorter.cleanup(expiredShuffleKeys)
     storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 
   override def getWorkerInfo: String = workerInfo.toString()
