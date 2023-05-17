@@ -115,13 +115,13 @@ public class NettyUtils {
         allowCache && PooledByteBufAllocator.defaultUseCacheForAllThreads());
   }
 
-  private static PooledByteBufAllocator getShardPooledByteBufAllocator(
+  private static PooledByteBufAllocator getSharedPooledByteBufAllocator(
       CelebornConf conf, AbstractSource source) {
     synchronized (PooledByteBufAllocator.class) {
       if (_allocator == null) {
         // each core should have one arena to allocate memory
         _allocator = createPooledByteBufAllocator(true, true, conf.allocatorArenas());
-        new NettyMemoryMetrics(_allocator, "shard-pool", conf.allocatorVerboseMetric(), source);
+        new NettyMemoryMetrics(_allocator, "shared-pool", conf.allocatorVerboseMetric(), source);
       }
       return _allocator;
     }
@@ -130,7 +130,7 @@ public class NettyUtils {
   public static PooledByteBufAllocator getPooledByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache) {
     if (conf.getCelebornConf().shareMemoryAllocator()) {
-      return getShardPooledByteBufAllocator(conf.getCelebornConf(), source);
+      return getSharedPooledByteBufAllocator(conf.getCelebornConf(), source);
     } else {
       PooledByteBufAllocator allocator =
           createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, conf.clientThreads());
