@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.io.File
 import java.lang.{Long => JLong}
 import java.util.{HashMap => JHashMap, HashSet => JHashSet}
 import java.util.concurrent._
@@ -79,6 +80,19 @@ private[celeborn] class Worker(
       conf.workerRpcPort != 0 && conf.workerFetchPort != 0 &&
       conf.workerPushPort != 0 && conf.workerReplicatePort != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
+  if (gracefulShutdown) {
+    try {
+      val recoverRoot = new File(conf.workerRecoverPath)
+      if (!recoverRoot.exists()) {
+        logInfo(s"Recover root path ${conf.workerRecoverPath} does not exists, create it first.")
+        recoverRoot.mkdirs()
+      }
+    } catch {
+      case e: Exception =>
+        logError("Check or create recover root path failed: ", e)
+        throw e
+    }
+  }
 
   val workerSource = new WorkerSource(conf)
   metricsSystem.registerSource(workerSource)
