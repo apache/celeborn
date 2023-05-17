@@ -803,6 +803,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       2
     })
 
+  def pooledAllocatorVerboseMetric: Boolean = get(MEMORY_POOLED_ALLOCATOR_VERBOSE_METRIC)
+
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
   // //////////////////////////////////////////////////////
@@ -3210,6 +3212,14 @@ object CelebornConf extends Logging {
       .doc("Min buffers count for map data partition to trigger read.")
       .intConf
       .createWithDefault(32)
+
+  val MEMORY_POOLED_ALLOCATOR_VERBOSE_METRIC: ConfigEntry[Boolean] =
+    buildConf("celeborn.pooled.allocator.verbose.metric")
+      .categories("worker", "client")
+      .version("0.3.0")
+      .doc("Weather to enable verbose metric for pooled allocator.")
+      .booleanConf
+      .createWithDefault(false)
 
   val MEMORY_POOLED_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
     buildConf("celeborn.pooled.allocator.arenas")

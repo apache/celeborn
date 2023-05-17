@@ -33,6 +33,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.PlatformDependent;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 
 /** Utilities for creating various Netty constructs based on whether we're using EPOLL or NIO. */
 public class NettyUtils {
@@ -110,13 +111,15 @@ public class NettyUtils {
         allowCache ? PooledByteBufAllocator.defaultUseCacheForAllThreads() : false);
   }
 
-  public static PooledByteBufAllocator getShardPooledByteBufAllocator() {
+  public static PooledByteBufAllocator getShardPooledByteBufAllocator(AbstractSource source) {
     synchronized (PooledByteBufAllocator.class) {
       if (_allocator == null) {
         CelebornConf conf = new CelebornConf();
         // each core should have one arena to allocate memory
         int arenas = conf.pooledAllocatorArenas();
         _allocator = createPooledByteBufAllocator(true, true, arenas);
+        new NettyMemoryMetrics(
+            _allocator, "common-pool", conf.pooledAllocatorVerboseMetric(), source);
         return _allocator;
       } else {
         return _allocator;

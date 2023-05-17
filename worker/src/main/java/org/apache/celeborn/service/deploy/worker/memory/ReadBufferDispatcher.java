@@ -41,7 +41,7 @@ public class ReadBufferDispatcher extends Thread {
 
   public ReadBufferDispatcher(MemoryManager memoryManager, long readBufferAllocationWait) {
     this.readBufferAllocationWait = readBufferAllocationWait;
-    readBufferAllocator = NettyUtils.getShardPooledByteBufAllocator();
+    readBufferAllocator = NettyUtils.getShardPooledByteBufAllocator(null);
     this.memoryManager = memoryManager;
     this.setName("Read-Buffer-Dispatcher");
     this.start();
