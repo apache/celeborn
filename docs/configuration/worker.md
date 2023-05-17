@@ -32,8 +32,6 @@ license: |
 | celeborn.shuffle.minPartitionSizeToEstimate | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.2.0 | 
 | celeborn.shuffle.partitionSplit.min | 1m | Min size for a partition to split | 0.2.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
-| celeborn.test.pushMasterDataTimeout | false | Whether to test push master data timeout | 0.2.0 | 
-| celeborn.test.pushSlaveDataTimeout | false | Whether to test push slave data timeout | 0.3.0 | 
 | celeborn.worker.bufferStream.threadsPerMountpoint | 8 | Threads count for read buffer per mount point. | 0.3.0 | 
 | celeborn.worker.closeIdleConnections | false | Whether worker will close idle connections. | 0.2.0 | 
 | celeborn.worker.commit.threads | 32 | Thread number of worker to commit shuffle data files asynchronously. | 0.2.0 | 

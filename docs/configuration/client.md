@@ -83,8 +83,5 @@ license: |
 | celeborn.slots.reserve.maxRetries | 3 | Max retry times for client to reserve slots. | 0.2.0 | 
 | celeborn.slots.reserve.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.2.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
-| celeborn.test.fetchFailure | false | Whether to test fetch chunk failure | 0.2.0 | 
-| celeborn.test.retryCommitFiles | false | Fail commitFile request for test | 0.2.0 | 
-| celeborn.test.retryRevive | false | Fail push data and request for test | 0.2.0 | 
 | celeborn.worker.excluded.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.2.0 | 
 <!--end-include-->
