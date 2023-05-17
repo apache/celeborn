@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.LongAdder;
 
 import javax.annotation.Nullable;
 
-import org.apache.celeborn.client.TaskInterruptedHelper;
 import scala.Option;
 import scala.Product2;
 import scala.reflect.ClassTag;
@@ -49,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.TaskInterruptedHelper;
 import org.apache.celeborn.client.write.DataPusher;
 import org.apache.celeborn.common.CelebornConf;
 
@@ -178,7 +178,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
     }
-
   }
 
   @VisibleForTesting
@@ -187,7 +186,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         && partitioner instanceof PartitionIdPassthrough;
   }
 
-  private void fastWrite0(scala.collection.Iterator iterator) throws IOException, InterruptedException {
+  private void fastWrite0(scala.collection.Iterator iterator)
+      throws IOException, InterruptedException {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
     SQLMetric dataSize =
@@ -287,7 +287,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
 
-  private int getOrUpdateOffset(int partitionId, int serializedRecordSize) throws IOException, InterruptedException {
+  private int getOrUpdateOffset(int partitionId, int serializedRecordSize)
+      throws IOException, InterruptedException {
     int offset = sendOffsets[partitionId];
     byte[] buffer = getOrCreateBuffer(partitionId);
     while ((buffer.length - offset) < serializedRecordSize
@@ -308,7 +309,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     return offset;
   }
 
-  private void flushSendBuffer(int partitionId, byte[] buffer, int size) throws IOException, InterruptedException {
+  private void flushSendBuffer(int partitionId, byte[] buffer, int size)
+      throws IOException, InterruptedException {
     long pushStartTime = System.nanoTime();
     logger.debug("Flush buffer for partition {}, size {}.", partitionId, size);
     dataPusher.addTask(partitionId, buffer, size);
