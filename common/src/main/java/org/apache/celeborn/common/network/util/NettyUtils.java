@@ -118,10 +118,8 @@ public class NettyUtils {
         // each core should have one arena to allocate memory
         _allocator = createPooledByteBufAllocator(true, true, conf.allocatorArenas());
         new NettyMemoryMetrics(_allocator, "common-pool", conf.allocatorVerboseMetric(), source);
-        return _allocator;
-      } else {
-        return _allocator;
       }
+      return _allocator;
     }
   }
 }
