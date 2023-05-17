@@ -1908,7 +1908,7 @@ object CelebornConf extends Logging {
       .doc("Worker's working dir path name.")
       .version("0.2.0")
       .stringConf
-      .createWithDefault("hadoop/rss-worker/shuffle_data")
+      .createWithDefault("rss-worker/shuffle_data")
 
   val WORKER_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.closeIdleConnections")
