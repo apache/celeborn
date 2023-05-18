@@ -19,7 +19,7 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
-| celeborn.application.heartbeat.timeout | 120s | Application heartbeat timeout. | 0.2.0 | 
+| celeborn.application.heartbeat.timeout | 600s | Application heartbeat timeout. | 0.2.0 | 
 | celeborn.ha.enabled | false | When true, master nodes run as Raft cluster mode. | 0.2.0 | 
 | celeborn.ha.master.node.&lt;id&gt;.host | &lt;required&gt; | Host to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.ha.master.node.&lt;id&gt;.port | 9097 | Port to bind of master node <id> in HA mode. | 0.2.0 | 

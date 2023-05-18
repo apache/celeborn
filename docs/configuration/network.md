@@ -36,7 +36,7 @@ license: |
 | celeborn.network.connect.timeout | 10s | Default socket connect timeout. | 0.2.0 | 
 | celeborn.network.timeout | 240s | Default timeout for network operations. | 0.2.0 | 
 | celeborn.port.maxRetries | 1 | When port is occupied, we will retry for max retry times. | 0.2.0 | 
-| celeborn.rpc.askTimeout | &lt;value of celeborn.network.timeout&gt; | Timeout for RPC ask operations. | 0.2.0 | 
+| celeborn.rpc.askTimeout | 30s | Timeout for RPC ask operations. | 0.2.0 | 
 | celeborn.rpc.connect.threads | 64 |  | 0.2.0 | 
 | celeborn.rpc.haClient.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | Timeout for HA client RPC ask operations. | 0.2.0 | 
 | celeborn.rpc.io.threads | &lt;undefined&gt; | Netty IO thread number of NettyRpcEnv to handle RPC request. The default threads number is the number of runtime available processors. | 0.2.0 | 

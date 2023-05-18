@@ -55,12 +55,12 @@ license: |
 | celeborn.rpc.cache.concurrencyLevel | 32 | The number of write locks to update rpc cache. | 0.2.0 | 
 | celeborn.rpc.cache.expireTime | 15s | The time before a cache item is removed. | 0.2.0 | 
 | celeborn.rpc.cache.size | 256 | The max cache items count for rpc cache. | 0.2.0 | 
-| celeborn.rpc.getReducerFileGroup.askTimeout | &lt;undefined&gt; | Timeout for ask operations during get reducer file group. Default value should be `celeborn.rpc.askTimeout * (celeborn.rpc.requestCommitFiles.maxRetries + 1 + 1)`. | 0.2.0 | 
+| celeborn.rpc.getReducerFileGroup.askTimeout | &lt;value of celeborn.&lt;module&gt;.io.connectTimeout&gt; | Timeout for ask operations during get reducer file group. Default value should be `celeborn.rpc.askTimeout * (celeborn.rpc.requestCommitFiles.maxRetries + 1 + 1)`. | 0.2.0 | 
 | celeborn.rpc.maxParallelism | 1024 | Max parallelism of client on sending RPC requests. | 0.2.0 | 
-| celeborn.rpc.registerShuffle.askTimeout | &lt;undefined&gt; | Timeout for ask operations during register shuffle. Default value should be `celeborn.rpc.askTimeout * (celeborn.slots.reserve.maxRetries + 1 + 1)`. | 0.2.0 | 
+| celeborn.rpc.registerShuffle.askTimeout | &lt;value of celeborn.&lt;module&gt;.io.connectionTimeout&gt; | Timeout for ask operations during register shuffle. Default value should be `celeborn.rpc.askTimeout * (celeborn.slots.reserve.maxRetries + 1 + 1)`. | 0.2.0 | 
 | celeborn.rpc.requestCommitFiles.maxRetries | 2 | Max retry times for requestCommitFiles RPC. | 1.0.0 | 
-| celeborn.rpc.requestPartition.askTimeout | &lt;undefined&gt; | Timeout for ask operations during request change partition location, such as revive or split partition. Default value should be `celeborn.rpc.askTimeout * (celeborn.slots.reserve.maxRetries + 1)`. | 0.2.0 | 
-| celeborn.rpc.reserveSlots.askTimeout | 30s | Timeout for LifecycleManager request reserve slots. | 0.3.0 | 
+| celeborn.rpc.requestPartition.askTimeout | &lt;value of celeborn.&lt;module&gt;.io.connectionTimeout&gt; | Timeout for ask operations during request change partition location, such as revive or split partition. Default value should be `celeborn.rpc.askTimeout * (celeborn.slots.reserve.maxRetries + 1)`. | 0.2.0 | 
+| celeborn.rpc.reserveSlots.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | Timeout for LifecycleManager request reserve slots. | 0.3.0 | 
 | celeborn.shuffle.batchHandleChangePartition.enabled | false | When true, LifecycleManager will handle change partition request in batch. Otherwise, LifecycleManager will process the requests one by one | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.interval | 100ms | Interval for LifecycleManager to schedule handling change partition requests in batch. | 0.2.0 | 
 | celeborn.shuffle.batchHandleChangePartition.threads | 8 | Threads number for LifecycleManager to handle change partition request in batch. | 0.2.0 | 
