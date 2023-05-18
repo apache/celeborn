@@ -706,9 +706,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushSlowStartMaxSleepMills: Long = get(PUSH_SLOW_START_MAX_SLEEP_TIME)
   def pushLimitInFlightTimeoutMs: Long =
     if (pushReplicateEnabled) {
-      get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 4)
+      get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * pushMaxReviveTimes * 4)
     } else {
-      get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * 2)
+      get(PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * pushMaxReviveTimes * 2)
     }
   def pushLimitInFlightSleepDeltaMs: Long = get(PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def pushSplitPartitionThreads: Int = get(PUSH_SPLIT_PARTITION_THREADS)
@@ -1390,7 +1390,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Timeout for a task to fetch chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("120s")
+      .createWithDefaultString("30s")
 
   val FETCH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
     buildConf("celeborn.fetch.maxReqsInFlight")
@@ -2317,7 +2317,7 @@ object CelebornConf extends Logging {
       .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
       .timeConf(TimeUnit.MILLISECONDS)
       .checkValue(_ > 0, "celeborn.push.data.timeout must be positive!")
-      .createWithDefaultString("120s")
+      .createWithDefaultString("30s")
 
   val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
     buildConf("celeborn.test.pushMasterDataTimeout")
