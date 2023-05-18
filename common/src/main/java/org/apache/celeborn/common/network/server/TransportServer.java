@@ -46,7 +46,6 @@ public class TransportServer implements Closeable {
 
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
-  private NettyMemoryMetrics nettyMetric;
   private AbstractSource source;
   private int port = -1;
 
@@ -82,9 +81,7 @@ public class TransportServer implements Closeable {
     EventLoopGroup workerGroup =
         NettyUtils.createEventLoop(ioMode, conf.serverThreads(), conf.getModuleName() + "-server");
 
-    PooledByteBufAllocator allocator =
-        NettyUtils.createPooledByteBufAllocator(
-            conf.preferDirectBufs(), true /* allowCache */, conf.serverThreads());
+    PooledByteBufAllocator allocator = NettyUtils.getPooledByteBufAllocator(conf, source, true);
 
     bootstrap =
         new ServerBootstrap()
@@ -95,9 +92,6 @@ public class TransportServer implements Closeable {
             .childOption(ChannelOption.TCP_NODELAY, true)
             .childOption(ChannelOption.SO_KEEPALIVE, true)
             .childOption(ChannelOption.ALLOCATOR, allocator);
-
-    this.nettyMetric =
-        new NettyMemoryMetrics(allocator, conf.getModuleName() + "-server", conf, source);
 
     if (conf.backLog() > 0) {
       bootstrap.option(ChannelOption.SO_BACKLOG, conf.backLog());

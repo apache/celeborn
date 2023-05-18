@@ -9,7 +9,7 @@ management service for intermediate data including shuffle data, spilled data, r
 ### Architecture
 ![Celeborn architecture](assets/img/rss.jpg)
 Celeborn has three primary components: Master, Worker, and Client.
-Master manages all resources and syncs shard states with each other based on Raft.
+Master manages all resources and syncs shared states with each other based on Raft.
 Worker processes read-write requests and merges data for each reducer.
 LifecycleManager maintains metadata of each shuffle and runs within the Spark driver.
 
