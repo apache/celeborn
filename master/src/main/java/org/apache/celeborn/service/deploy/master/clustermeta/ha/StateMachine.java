@@ -55,6 +55,7 @@ import org.apache.ratis.statemachine.StateMachineStorage;
 import org.apache.ratis.statemachine.TransactionContext;
 import org.apache.ratis.statemachine.impl.BaseStateMachine;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
+import org.apache.ratis.statemachine.impl.SimpleStateMachineStorageUtil;
 import org.apache.ratis.statemachine.impl.SingleFileSnapshotInfo;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.util.ExitUtils;
@@ -90,7 +91,7 @@ public class StateMachine extends BaseStateMachine {
             List<SingleFileSnapshotInfo> allSnapshotFiles = new ArrayList<>();
             List<SingleFileSnapshotInfo> allMD5Files = new ArrayList<>();
             try (DirectoryStream<Path> stream =
-                Files.newDirectoryStream(this.getSmDir().toPath())) {
+                Files.newDirectoryStream(SimpleStateMachineStorageUtil.getSmDir(this).toPath())) {
               for (Path path : stream) {
                 if (filePatternMatches(SNAPSHOT_REGEX, allSnapshotFiles, path)) {
                   continue;
@@ -195,7 +196,7 @@ public class StateMachine extends BaseStateMachine {
   public void reinitialize() throws IOException {
     LOG.info("Reinitializing state machine.");
     getLifeCycle().compareAndTransition(PAUSED, STARTING);
-    storage.loadLatestSnapshot();
+    storage.updateLatestSnapshot(SimpleStateMachineStorageUtil.findLatestSnapshot(storage));
     loadSnapshot(storage.getLatestSnapshot());
     getLifeCycle().compareAndTransition(STARTING, RUNNING);
   }
@@ -363,7 +364,7 @@ public class StateMachine extends BaseStateMachine {
         LOG.warn("Failed to rename snapshot from {} to {}.", tempFile, snapshotFile);
         return RaftLog.INVALID_LOG_INDEX;
       }
-      storage.loadLatestSnapshot();
+      storage.updateLatestSnapshot(SimpleStateMachineStorageUtil.findLatestSnapshot(storage));
     } catch (Exception e) {
       tempFile.delete();
       LOG.warn("Failed to complete snapshot: {}.", snapshotFile, e);
