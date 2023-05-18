@@ -158,4 +158,23 @@ class CelebornConfSuite extends CelebornFunSuite {
       .set("celeborn.ha.master.node.3.host", "clb-1")
     assert(conf.haMasterNodeIds.sorted === Array("1", "2", "3"))
   }
+
+  test("CELEBORN-593: Test each RPC timeout value") {
+    val conf = new CelebornConf()
+      .set(CelebornConf.RPC_ASK_TIMEOUT, 1000L)
+      .set(CelebornConf.NETWORK_TIMEOUT, 20000L)
+      .set(CelebornConf.NETWORK_CONNECT_TIMEOUT, 2000L)
+
+    assert(conf.rpcAskTimeout.duration.toMillis == 1000L)
+    assert(conf.haClientRpcAskTimeout.duration.toMillis == 1000L)
+    assert(conf.reserveSlotsRpcTimeout.duration.toMillis == 1000L)
+    assert(conf.networkTimeout.duration.toMillis == 20000L)
+    assert(conf.networkIoConnectionTimeoutMs("data") == 20000L)
+    assert(conf.pushStageEndTimeout == 20000L)
+    assert(conf.registerShuffleRpcAskTimeout.duration.toMillis == 20000L)
+    assert(conf.requestPartitionLocationRpcAskTimeout.duration.toMillis == 20000L)
+    assert(conf.getReducerFileGroupRpcAskTimeout.duration.toMillis == 20000L)
+    assert(conf.networkConnectTimeout.duration.toMillis == 2000L)
+    assert(conf.networkIoConnectTimeoutMs("data") == 2000L)
+  }
 }

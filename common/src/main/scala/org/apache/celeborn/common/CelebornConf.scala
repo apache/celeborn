@@ -371,6 +371,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def portMaxRetries: Int = get(PORT_MAX_RETRY)
   def networkTimeout: RpcTimeout =
     new RpcTimeout(get(NETWORK_TIMEOUT).milli, NETWORK_TIMEOUT.key)
+  def networkConnectTimeout: RpcTimeout =
+    new RpcTimeout(get(NETWORK_CONNECT_TIMEOUT).milli, NETWORK_CONNECT_TIMEOUT.key)
   def rpcIoThreads: Option[Int] = get(RPC_IO_THREAD)
   def rpcConnectThreads: Int = get(RPC_CONNECT_THREADS)
   def rpcLookupTimeout: RpcTimeout =
@@ -392,12 +394,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkIoConnectTimeoutMs(module: String): Int = {
     val key = NETWORK_IO_CONNECT_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, NETWORK_CONNECT_TIMEOUT.defaultValueString).toInt
+    getTimeAsMs(key, s"${networkConnectTimeout.duration.toMillis}ms").toInt
   }
 
   def networkIoConnectionTimeoutMs(module: String): Int = {
     val key = NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, NETWORK_TIMEOUT.defaultValueString).toInt
+    getTimeAsMs(key, s"${networkTimeout.duration.toMillis}ms").toInt
   }
 
   def networkIoNumConnectionsPerPeer(module: String): Int = {
@@ -2562,7 +2564,7 @@ object CelebornConf extends Logging {
         s"During this process, there are `${COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
         s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
         s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .fallbackConf(NETWORK_IO_CONNECT_TIMEOUT)
+      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val PORT_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.port.maxRetries")
