@@ -228,6 +228,7 @@ public class SlotsAllocatorSuiteJ {
             workers,
             partitionIds,
             shouldReplicate,
+            false,
             10 * 1024 * 1024 * 1024L,
             conf.slotsAssignLoadAwareDiskGroupNum(),
             conf.slotsAssignLoadAwareDiskGroupGradient(),

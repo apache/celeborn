@@ -50,7 +50,10 @@ public class SlotsAllocator {
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       offerSlotsRoundRobin(
-          List<WorkerInfo> workers, List<Integer> partitionIds, boolean shouldReplicate) {
+          List<WorkerInfo> workers,
+          List<Integer> partitionIds,
+          boolean shouldReplicate,
+          boolean shouldRackAware) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -71,9 +74,14 @@ public class SlotsAllocator {
         }
       }
     }
-    List<Integer> remain = roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate);
+    List<Integer> remain =
+        roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate, shouldRackAware);
     if (!remain.isEmpty()) {
-      roundRobin(slots, remain, workers, null, shouldReplicate);
+      remain = roundRobin(slots, remain, workers, null, shouldReplicate, shouldRackAware);
+    }
+
+    if (!remain.isEmpty()) {
+      roundRobin(slots, remain, workers, null, shouldReplicate, false);
     }
     return slots;
   }
@@ -88,6 +96,7 @@ public class SlotsAllocator {
           List<WorkerInfo> workers,
           List<Integer> partitionIds,
           boolean shouldReplicate,
+          boolean shouldRackAware,
           long minimumUsableSize,
           int diskGroupCount,
           double diskGroupGradient,
@@ -123,7 +132,7 @@ public class SlotsAllocator {
       logger.warn(
           "offer slots for {} fallback to roundrobin because there is no usable disks",
           StringUtils.join(partitionIds, ','));
-      return offerSlotsRoundRobin(workers, partitionIds, shouldReplicate);
+      return offerSlotsRoundRobin(workers, partitionIds, shouldReplicate, shouldRackAware);
     }
 
     if (!initialized) {
@@ -144,11 +153,21 @@ public class SlotsAllocator {
             partitionIds,
             new ArrayList<>(restriction.keySet()),
             restriction,
-            shouldReplicate);
+            shouldReplicate,
+            shouldRackAware);
     if (!remainPartitions.isEmpty()) {
-      roundRobin(slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate);
+      remainPartitions =
+          roundRobin(
+              slots,
+              remainPartitions,
+              new ArrayList<>(workers),
+              null,
+              shouldReplicate,
+              shouldRackAware);
     }
-
+    if (!remainPartitions.isEmpty()) {
+      roundRobin(slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate, false);
+    }
     return slots;
   }
 
@@ -174,7 +193,8 @@ public class SlotsAllocator {
       List<Integer> partitionIds,
       List<WorkerInfo> workers,
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
-      boolean shouldReplicate) {
+      boolean shouldReplicate,
+      boolean shouldRackAware) {
     // workerInfo -> (diskIndexForMaster, diskIndexForSlave)
     Map<WorkerInfo, Integer> workerDiskIndexForMaster = new HashMap<>();
     Map<WorkerInfo, Integer> workerDiskIndexForSlave = new HashMap<>();
@@ -188,10 +208,7 @@ public class SlotsAllocator {
       int partitionId = iter.next();
       StorageInfo storageInfo = new StorageInfo();
       if (restrictions != null) {
-        while (restrictions.get(workers.get(nextMasterInd)).stream()
-                .mapToLong(i -> i.usableSlots)
-                .sum()
-            <= 0) {
+        while (!haveUsableSlots(restrictions, workers, nextMasterInd)) {
           nextMasterInd = (nextMasterInd + 1) % workers.size();
           if (nextMasterInd == masterIndex) {
             break outer;
@@ -206,10 +223,8 @@ public class SlotsAllocator {
       if (shouldReplicate) {
         int nextSlaveInd = (nextMasterInd + 1) % workers.size();
         if (restrictions != null) {
-          while (restrictions.get(workers.get(nextSlaveInd)).stream()
-                  .mapToLong(i -> i.usableSlots)
-                  .sum()
-              <= 0) {
+          while (!haveUsableSlots(restrictions, workers, nextSlaveInd)
+              || !satisfyRackAware(shouldRackAware, workers, masterIndex, nextSlaveInd)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -217,6 +232,13 @@ public class SlotsAllocator {
           }
           storageInfo =
               getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
+        } else if (shouldRackAware) {
+          while (!satisfyRackAware(true, workers, masterIndex, nextSlaveInd)) {
+            nextSlaveInd = (nextSlaveInd + 1) % workers.size();
+            if (nextSlaveInd == nextMasterInd) {
+              break outer;
+            }
+          }
         }
         PartitionLocation slavePartition =
             createLocation(
@@ -236,6 +258,19 @@ public class SlotsAllocator {
       iter.remove();
     }
     return partitionIdList;
+  }
+
+  private static boolean haveUsableSlots(
+      Map<WorkerInfo, List<UsableDiskInfo>> restrictions, List<WorkerInfo> workers, int index) {
+    return restrictions.get(workers.get(index)).stream().mapToLong(i -> i.usableSlots).sum() > 0;
+  }
+
+  private static boolean satisfyRackAware(
+      boolean shouldRackAware, List<WorkerInfo> workers, int masterIndex, int nextSlaveInd) {
+    return !shouldRackAware
+        || !Objects.equals(
+            workers.get(masterIndex).networkLocation(),
+            workers.get(nextSlaveInd).networkLocation());
   }
 
   private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {

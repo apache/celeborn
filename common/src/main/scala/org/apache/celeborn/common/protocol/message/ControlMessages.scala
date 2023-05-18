@@ -166,6 +166,7 @@ object ControlMessages extends Logging {
       partitionIdList: util.ArrayList[Integer],
       hostname: String,
       shouldReplicate: Boolean,
+      shouldRackAware: Boolean,
       userIdentifier: UserIdentifier,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
@@ -488,6 +489,7 @@ object ControlMessages extends Logging {
           partitionIdList,
           hostname,
           shouldReplicate,
+          shouldRackAware,
           userIdentifier,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
@@ -496,6 +498,7 @@ object ControlMessages extends Logging {
         .addAllPartitionIdList(partitionIdList)
         .setHostname(hostname)
         .setShouldReplicate(shouldReplicate)
+        .setShouldRackAware(shouldRackAware)
         .setRequestId(requestId)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .build().toByteArray
@@ -875,6 +878,7 @@ object ControlMessages extends Logging {
           new util.ArrayList[Integer](pbRequestSlots.getPartitionIdListList),
           pbRequestSlots.getHostname,
           pbRequestSlots.getShouldReplicate,
+          pbRequestSlots.getShouldRackAware,
           userIdentifier,
           pbRequestSlots.getRequestId)
 

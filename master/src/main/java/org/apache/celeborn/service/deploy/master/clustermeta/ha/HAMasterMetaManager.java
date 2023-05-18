@@ -38,6 +38,7 @@ import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.Type;
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public class HAMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(HAMasterMetaManager.class);
@@ -50,6 +51,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
+    this.rackResolver = new CelebornRackResolver(conf);
   }
 
   public HARaftServer getRatisServer() {

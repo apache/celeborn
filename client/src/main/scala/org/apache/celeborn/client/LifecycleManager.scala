@@ -58,6 +58,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
   private val shuffleExpiredCheckIntervalMs = conf.shuffleExpiredCheckIntervalMs
   private val pushReplicateEnabled = conf.pushReplicateEnabled
+  private val pushRackAwareEnabled = conf.reserveSlotsRackAwareEnabled
   private val partitionSplitThreshold = conf.partitionSplitThreshold
   private val partitionSplitMode = conf.partitionSplitMode
   // shuffle id -> partition type
@@ -914,6 +915,11 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       candidates: List[WorkerInfo],
       slots: WorkerResource,
       updateEpoch: Boolean = true): Unit = {
+
+    def isOnSameRack(masterIndex: Int, slaveIndex: Int): Boolean = {
+      candidates(masterIndex).networkLocation.equals(candidates(slaveIndex).networkLocation)
+    }
+
     val masterIndex = Random.nextInt(candidates.size)
     val masterLocation = new PartitionLocation(
       id,
@@ -926,7 +932,15 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       PartitionLocation.Mode.MASTER)
 
     if (pushReplicateEnabled) {
-      val slaveIndex = (masterIndex + 1) % candidates.size
+      var slaveIndex = (masterIndex + 1) % candidates.size
+      while (pushRackAwareEnabled && isOnSameRack(masterIndex, slaveIndex)
+        && slaveIndex != masterIndex) {
+        slaveIndex = (slaveIndex + 1) % candidates.size
+      }
+      // If one turn no suitable peer, then just use the next worker.
+      if (slaveIndex == masterIndex) {
+        slaveIndex = (masterIndex + 1) % candidates.size
+      }
       val slaveLocation = new PartitionLocation(
         id,
         if (updateEpoch) oldEpochId + 1 else oldEpochId,
@@ -1024,6 +1038,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         ids,
         lifecycleHost,
         pushReplicateEnabled,
+        pushRackAwareEnabled,
         userIdentifier)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {

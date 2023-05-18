@@ -530,6 +530,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWaitMs: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
+  def reserveSlotsRackAwareEnabled: Boolean = get(RESERVE_SLOTS_RACKAWARE_ENABLED)
   def reserveSlotsMaxRetries: Int = get(RESERVE_SLOTS_MAX_RETRIES)
   def reserveSlotsRetryWait: Long = get(RESERVE_SLOTS_RETRY_WAIT)
   def rpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
@@ -2516,6 +2517,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
+
+  val RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.reserveSlots.rackware.enabled")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether need to place different replicates on different racks when allocating slots.")
+      .booleanConf
+      .createWithDefault(false)
 
   val RESERVE_SLOTS_RPC_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.rpc.reserveSlots.askTimeout")
