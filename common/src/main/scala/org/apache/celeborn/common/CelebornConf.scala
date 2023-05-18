@@ -698,8 +698,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushSortPipelineEnabled: Boolean = get(PUSH_SORT_PIPELINE_ENABLED)
   def pushSortRandomizePartitionIdEnabled: Boolean = get(PUSH_SORT_RANDOMIZE_PARITION_ENABLED)
   def pushRetryThreads: Int = get(PUSH_RETRY_THREADS)
-  def pushStageEndTimeout: Long =
-    get(PUSH_STAGE_END_TIMEOUT).getOrElse(get(RPC_ASK_TIMEOUT) * (requestCommitFilesMaxRetries + 1))
+  def pushStageEndTimeout: Long = get(PUSH_STAGE_END_TIMEOUT)
   def pushLimitStrategy: String = get(PUSH_LIMIT_STRATEGY)
   def pushSlowStartInitialSleepTime: Long = get(PUSH_SLOW_START_INITIAL_SLEEP_TIME)
   def pushSlowStartMaxSleepMills: Long = get(PUSH_SLOW_START_MAX_SLEEP_TIME)
@@ -2267,15 +2266,16 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val PUSH_STAGE_END_TIMEOUT: OptionalConfigEntry[Long] =
+  val PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.push.stageEnd.timeout")
       .withAlternative("rss.stage.end.timeout")
       .categories("client")
       .doc(s"Timeout for waiting StageEnd. " +
-        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${COMMIT_FILE_REQUEST_MAX_RETRY.key} + 1)`.")
+        s"During this process, there are `${COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
+        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
       .version("0.2.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createOptional
+      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
     buildConf("celeborn.push.limit.strategy")
@@ -2537,23 +2537,31 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during register shuffle. " +
-        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1 + 1)`.")
+        s"During this process, there are two times for retry opportunities for requesting slots, " +
+        s"one request for establishing a connection with Worker and " +
+        s"`${RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
+        s"User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.rpc.requestPartition.askTimeout")
       .categories("client")
       .version("0.2.0")
-      .doc(s"Timeout for ask operations during request change partition location, such as revive or split partition. " +
-        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${RESERVE_SLOTS_MAX_RETRIES.key} + 1)`.")
+      .doc(s"Timeout for ask operations during requesting change partition location, such as reviving or spliting partition. " +
+        s"During this process, there are `${RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
+        s"User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.rpc.getReducerFileGroup.askTimeout")
       .categories("client")
       .version("0.2.0")
-      .doc(s"Timeout for ask operations during get reducer file group. " +
-        s"Default value should be `${RPC_ASK_TIMEOUT.key} * (${COMMIT_FILE_REQUEST_MAX_RETRY.key} + 1 + 1)`.")
+      .doc(s"Timeout for ask operations during getting reducer file group information. " +
+        s"During this process, there are `${COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
+        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
       .fallbackConf(NETWORK_IO_CONNECT_TIMEOUT)
 
   val PORT_MAX_RETRY: ConfigEntry[Int] =
