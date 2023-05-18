@@ -622,6 +622,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
   def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
+  def haMasterRatisFirstElectionTimeoutMin: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN)
+  def haMasterRatisFristElectionTimeoutMax: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX)
   def haMasterRatisNotificationNoLeaderTimeout: Long =
     get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
   def haMasterRatisRpcSlownessTimeout: Long = get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
@@ -1732,6 +1734,22 @@ object CelebornConf extends Logging {
       .internal
       .categories("master")
       .version("0.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("5s")
+
+  val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.first.election.timeout.min")
+      .internal
+      .categories("master")
+      .version("0.3.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("3s")
+
+  val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.ha.master.ratis.first.election.timeout.max")
+      .internal
+      .categories("master")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("5s")
 
