@@ -161,18 +161,16 @@ object PbSerDeUtils {
   def fromPbUserResourceConsumption(pbUserResourceConsumption: util.Map[
     String,
     PbResourceConsumption]): util.Map[UserIdentifier, ResourceConsumption] = {
-    pbUserResourceConsumption.asScala.map {
-      case (userIdentifierString: String, pbResourceConsumption: PbResourceConsumption) =>
-        (UserIdentifier(userIdentifierString), fromPbResourceConsumption(pbResourceConsumption))
+    pbUserResourceConsumption.asScala.map { case (userIdentifierString, pbResourceConsumption) =>
+      (UserIdentifier(userIdentifierString), fromPbResourceConsumption(pbResourceConsumption))
     }.asJava
   }
 
   def toPbUserResourceConsumption(userResourceConsumption: util.Map[
     UserIdentifier,
     ResourceConsumption]): util.Map[String, PbResourceConsumption] = {
-    userResourceConsumption.asScala.map {
-      case (userIdentifier: UserIdentifier, resourceConsumption: ResourceConsumption) =>
-        (userIdentifier.toString, toPbResourceConsumption(resourceConsumption))
+    userResourceConsumption.asScala.map { case (userIdentifier, resourceConsumption) =>
+      (userIdentifier.toString, toPbResourceConsumption(resourceConsumption))
     }.asJava
   }
 
@@ -200,7 +198,7 @@ object PbSerDeUtils {
       eliminateUserResourceConsumption: Boolean): PbWorkerInfo = {
     val diskInfos = workerInfo.diskInfos.values
     val pbDiskInfos = new util.ArrayList[PbDiskInfo]()
-    diskInfos.asScala.foreach(k => pbDiskInfos.add(PbSerDeUtils.toPbDiskInfo(k)))
+    diskInfos.asScala.foreach(diskInfo => pbDiskInfos.add(PbSerDeUtils.toPbDiskInfo(diskInfo)))
     val builder = PbWorkerInfo.newBuilder
       .setHost(workerInfo.host)
       .setRpcPort(workerInfo.rpcPort)
@@ -294,27 +292,25 @@ object PbSerDeUtils {
 
   def fromPbWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource]): WorkerResource = {
     val slots = new WorkerResource()
-    pbWorkerResource.asScala.foreach(item => {
-      val workerInfo = WorkerInfo.fromInfoId(item._1)
-      val masterPartitionLocation = new util.ArrayList[PartitionLocation](item._2
+    pbWorkerResource.asScala.foreach { case (infoId, pbWorkerResource) =>
+      val masterPartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
         .getMasterPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
-      val slavePartitionLocation = new util.ArrayList[PartitionLocation](item._2
+      val slavePartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
         .getSlavePartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
-      slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
-    })
+      slots.put(WorkerInfo.fromInfoId(infoId), (masterPartitionLocation, slavePartitionLocation))
+    }
     slots
   }
 
   def toPbWorkerResource(workerResource: WorkerResource): util.Map[String, PbWorkerResource] = {
-    workerResource.asScala.map(item => {
-      val infoId = item._1.toInfoId()
-      val masterPartitions = item._2._1.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
-      val slavePartitions = item._2._2.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
+    workerResource.asScala.map { case (workerInfo, (masterLocations, slaveLocations)) =>
+      val masterPartitions = masterLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
+      val slavePartitions = slaveLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
       val pbWorkerResource = PbWorkerResource.newBuilder()
         .addAllMasterPartitions(masterPartitions)
         .addAllSlavePartitions(slavePartitions).build()
-      infoId -> pbWorkerResource
-    }).asJava
+      workerInfo.toInfoId() -> pbWorkerResource
+    }.asJava
   }
 
   def fromPbAppDiskUsage(pbAppDiskUsage: PbAppDiskUsage): AppDiskUsage = {
