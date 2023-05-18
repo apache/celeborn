@@ -224,7 +224,7 @@ public class SlotsAllocator {
         int nextSlaveInd = (nextMasterInd + 1) % workers.size();
         if (restrictions != null) {
           while (!haveUsableSlots(restrictions, workers, nextSlaveInd)
-              || !satisfyRackAware(shouldRackAware, workers, masterIndex, nextSlaveInd)) {
+              || !satisfyRackAware(shouldRackAware, workers, nextMasterInd, nextSlaveInd)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
@@ -233,7 +233,7 @@ public class SlotsAllocator {
           storageInfo =
               getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
         } else if (shouldRackAware) {
-          while (!satisfyRackAware(true, workers, masterIndex, nextSlaveInd)) {
+          while (!satisfyRackAware(true, workers, nextMasterInd, nextSlaveInd)) {
             nextSlaveInd = (nextSlaveInd + 1) % workers.size();
             if (nextSlaveInd == nextMasterInd) {
               break outer;
