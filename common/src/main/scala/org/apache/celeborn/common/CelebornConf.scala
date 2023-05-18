@@ -1741,7 +1741,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("120s")
+      .createWithDefaultString("30s")
 
   val HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.rpc.slowness.timeout")
