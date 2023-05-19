@@ -51,7 +51,8 @@ license: |
 | celeborn.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
 | celeborn.push.stageEnd.timeout | &lt;value of celeborn.&lt;module&gt;.io.connectionTimeout&gt; | Timeout for waiting StageEnd. During this process, there are `celeborn.rpc.requestCommitFiles.maxRetries` times for retry opportunities for committing filesand 1 times for releasing slots request. User can customize this value according to your setting. By default, the value is the max timeout value `celeborn.<module>.io.connectionTimeout`. | 0.2.0 | 
 | celeborn.push.takeTaskWaitTime | 50ms | Wait time if no task available to push to worker. | 0.3.0 | 
-| celeborn.push.timeoutCheck.interval | 3s | Interval for checking push data timeout. | 0.3.0 | 
+| celeborn.push.timeoutCheck.interval | 5s | Interval for checking push data timeout. | 0.3.0 | 
+| celeborn.push.timeoutCheck.threads | 16 | Threads num for checking push data timeout. | 0.3.0 | 
 | celeborn.reserveSlots.rackware.enabled | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.0 | 
 | celeborn.rpc.cache.concurrencyLevel | 32 | The number of write locks to update rpc cache. | 0.2.0 | 
 | celeborn.rpc.cache.expireTime | 15s | The time before a cache item is removed. | 0.2.0 | 
