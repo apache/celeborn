@@ -21,20 +21,17 @@ license: |
 | --- | ------- | ----------- | ----- |
 | celeborn.client.heartbeat.interval | 60s | the heartbeat interval between worker and client | 0.3.0 | 
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
+| celeborn.master.app.topDiskUsage.count | 50 | Size for top items about top disk usage applications list. | 0.2.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
+| celeborn.master.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
 | celeborn.memory.allocator.numArenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
 | celeborn.memory.allocator.share | false | Whether to share memory allocator. | 0.3.0 | 
 | celeborn.memory.allocator.verbose.metric | false | Weather to enable verbose metric for pooled allocator. | 0.3.0 | 
-| celeborn.metrics.capacity | 4096 | The maximum number of metrics which a source can use to generate output strings. | 0.2.0 | 
-| celeborn.metrics.collectPerfCritical.enabled | false | It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them. | 0.2.0 | 
-| celeborn.metrics.enabled | true | When true, enable metrics system. | 0.2.0 | 
-| celeborn.metrics.extraLabels |  | If default metric labels are not enough, extra metric labels can be customized. Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1` | 0.3.0 | 
-| celeborn.metrics.sample.rate | 1.0 | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 | 
-| celeborn.metrics.timer.slidingWindow.size | 4096 | The sliding window size of timer metric. | 0.2.0 | 
+| celeborn.metrics.worker.prometheus.host | 0.0.0.0 | Worker's Prometheus host. | 0.2.0 | 
+| celeborn.metrics.worker.prometheus.port | 9096 | Worker's Prometheus port. | 0.2.0 | 
 | celeborn.shuffle.chunk.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 | 
 | celeborn.shuffle.minPartitionSizeToEstimate | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.2.0 | 
 | celeborn.shuffle.partitionSplit.min | 1m | Min size for a partition to split | 0.2.0 | 
-| celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
 | celeborn.worker.bufferStream.threadsPerMountpoint | 8 | Threads count for read buffer per mount point. | 0.3.0 | 
 | celeborn.worker.closeIdleConnections | false | Whether worker will close idle connections. | 0.2.0 | 
 | celeborn.worker.commit.threads | 32 | Thread number of worker to commit shuffle data files asynchronously. | 0.2.0 | 
@@ -68,13 +65,10 @@ license: |
 | celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout | 120s | The wait time of waiting for sorting partition files during worker graceful shutdown. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.recoverPath | &lt;tmp&gt;/recover | The path to store levelDB. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.timeout | 600s | The worker's graceful shutdown timeout time. | 0.2.0 | 
-| celeborn.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
 | celeborn.worker.memory.checkInterval | 10ms | Interval of worker direct memory checking. | 0.2.0 | 
 | celeborn.worker.memory.reportInterval | 10s | Interval of worker direct memory tracker reporting to log. | 0.2.0 | 
 | celeborn.worker.memory.trimChannelWaitInterval | 1s | Wait time after worker trigger channel to trim cache. | 0.3.0 | 
 | celeborn.worker.memory.trimFlushWaitInterval | 1s | Wait time after worker trigger StorageManger to flush data. | 0.3.0 | 
-| celeborn.worker.metrics.prometheus.host | 0.0.0.0 | Worker's Prometheus host. | 0.2.0 | 
-| celeborn.worker.metrics.prometheus.port | 9096 | Worker's Prometheus port. | 0.2.0 | 
 | celeborn.worker.monitor.disk.checkInterval | 60s | Intervals between device monitor to check disk. | 0.2.0 | 
 | celeborn.worker.monitor.disk.checklist | readwrite,diskusage | Monitor type for disk, available items are: iohang, readwrite and diskusage. | 0.2.0 | 
 | celeborn.worker.monitor.disk.enabled | true | When true, worker will monitor device and report to master. | 0.2.0 | 
@@ -107,7 +101,8 @@ license: |
 | celeborn.worker.storage.baseDir.number | 16 | How many directories will be used if `celeborn.worker.storage.dirs` is not set. The directory name is a combination of `celeborn.worker.storage.baseDir.prefix` and from one(inclusive) to `celeborn.worker.storage.baseDir.number`(inclusive) step by one. | 0.2.0 | 
 | celeborn.worker.storage.baseDir.prefix | /mnt/disk | Base directory for Celeborn worker to write if `celeborn.worker.storage.dirs` is not set. | 0.2.0 | 
 | celeborn.worker.storage.dirs | &lt;undefined&gt; | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: `dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]` | 0.2.0 | 
-| celeborn.worker.workingDir | rss-worker/shuffle_data | Worker's working dir path name. | 0.2.0 | 
+| celeborn.worker.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
+| celeborn.worker.storage.workingDir | rss-worker/shuffle_data | Worker's working dir path name. | 0.2.0 | 
 | celeborn.worker.writer.close.timeout | 120s | Timeout for a file writer to close | 0.2.0 | 
 | celeborn.worker.writer.create.maxAttempts | 3 | Retry count for a file writer to create if its creation was failed. | 0.2.0 | 
 <!--end-include-->

@@ -417,7 +417,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleKey.split("-")(0) -> usage
     }.groupBy(_._1).map { case (key, values) =>
       key -> values.map(_._2).sum
-    }.toSeq.sortBy(_._2).reverse.take(conf.metricsAppTopDiskUsageCount * 2).toMap.asJava
+    }.toSeq.sortBy(_._2).reverse.take(conf.masterAppTopDiskUsageCount * 2).toMap.asJava
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {

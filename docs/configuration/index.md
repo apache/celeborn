@@ -94,6 +94,8 @@ end="<!--end-include-->"
 
 ### Metrics
 
+Below metrics configuration both work for master and worker.
+
 {!
 include-markdown "./metrics.md"
 start="<!--begin-include-->"
