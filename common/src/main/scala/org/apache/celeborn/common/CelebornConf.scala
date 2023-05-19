@@ -1435,7 +1435,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Application heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
+      .createWithDefaultString("300s")
 
   val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.application.heartbeatInterval")
