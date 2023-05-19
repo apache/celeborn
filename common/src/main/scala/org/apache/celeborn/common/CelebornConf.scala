@@ -1549,7 +1549,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
-    buildConf(" celeborn.client.push.blacklist.enabled")
+    buildConf("celeborn.client.push.blacklist.enabled")
       .categories("client")
       .doc("Whether to enable shuffle client-side push blacklist of workers.")
       .version("0.3.0")
