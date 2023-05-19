@@ -195,33 +195,22 @@ class WorkerInfo(
     diskInfos.asScala.map(_._2.availableSlots()).sum
   }
 
+  def updateThenGetDiskInfos(newDiskInfos: java.util.Map[String, DiskInfo])
+      : util.Map[String, DiskInfo] = this.synchronized {
+    diskInfos.clear()
+    for ((mountPoint, newDisk) <- newDiskInfos.asScala) {
+      diskInfos.put(mountPoint, newDisk)
+    }
+    JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
+  }
+
   def updateThenGetDiskInfos(
       newDiskInfos: java.util.Map[String, DiskInfo],
       estimatedPartitionSize: Long): util.Map[String, DiskInfo] = this.synchronized {
-    import scala.collection.JavaConverters._
-    for (newDisk <- newDiskInfos.values().asScala) {
-      val mountPoint: String = newDisk.mountPoint
-      val curDisk = diskInfos.get(mountPoint)
-      if (curDisk != null) {
-        curDisk.actualUsableSpace_$eq(newDisk.actualUsableSpace)
-        curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
-        curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
-        curDisk.avgFetchTime_$eq(newDisk.avgFetchTime)
-        curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
-        curDisk.setStatus(newDisk.status)
-      } else {
-        newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
-        diskInfos.put(mountPoint, newDisk)
-      }
-    }
-
-    val nonExistsMountPoints: java.util.Set[String] = new util.HashSet[String]
-    nonExistsMountPoints.addAll(diskInfos.keySet)
-    nonExistsMountPoints.removeAll(newDiskInfos.keySet)
-    if (!nonExistsMountPoints.isEmpty) {
-      for (nonExistsMountPoint <- nonExistsMountPoints.asScala) {
-        diskInfos.remove(nonExistsMountPoint)
-      }
+    diskInfos.clear()
+    for ((mountPoint, newDisk) <- newDiskInfos.asScala) {
+      newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
+      diskInfos.put(mountPoint, newDisk)
     }
     JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
   }
