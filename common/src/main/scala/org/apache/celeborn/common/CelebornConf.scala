@@ -399,7 +399,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkIoConnectionTimeoutMs(module: String): Int = {
     val key = NETWORK_IO_CONNECTION_TIMEOUT.key.replace("<module>", module)
-    getTimeAsMs(key, get(NETWORK_TIMEOUT.key)).toInt
+    getTimeAsMs(key,  get(NETWORK_TIMEOUT.key)).toInt
   }
 
   def networkIoNumConnectionsPerPeer(module: String): Int = {
