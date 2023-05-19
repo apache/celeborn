@@ -65,6 +65,8 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
    */
   protected final int numBuffersPerPartition;
 
+  protected boolean supportFloatingBuffers;
+
   protected String compressionCodec;
 
   public AbstractRemoteShuffleResultPartitionFactory(
@@ -86,6 +88,9 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
     }
 
     this.numBuffersPerPartition = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
+    this.supportFloatingBuffers =
+        FlinkUtils.stringValueAsBoolean(
+            flinkConf, PluginConf.SUPPORT_FLOATING_BUFFER_PER_OUTPUT_GATE);
     if (numBuffersPerPartition < MIN_BUFFERS_PER_PARTITION) {
       throw new IllegalArgumentException(
           String.format(
@@ -184,9 +189,14 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
     int numForOutputGate = numBuffersPerPartition - numForResultPartition;
 
     List<SupplierWithException<BufferPool, IOException>> factories = new ArrayList<>();
-    factories.add(
-        () -> bufferPoolFactory.createBufferPool(numForResultPartition, numForResultPartition));
-    factories.add(() -> bufferPoolFactory.createBufferPool(numForOutputGate, numForOutputGate));
+    if (supportFloatingBuffers) {
+      factories.add(() -> bufferPoolFactory.createBufferPool(1, numForResultPartition));
+      factories.add(() -> bufferPoolFactory.createBufferPool(1, numForOutputGate));
+    } else {
+      factories.add(
+          () -> bufferPoolFactory.createBufferPool(numForResultPartition, numForResultPartition));
+      factories.add(() -> bufferPoolFactory.createBufferPool(numForOutputGate, numForOutputGate));
+    }
     return factories;
   }
 
