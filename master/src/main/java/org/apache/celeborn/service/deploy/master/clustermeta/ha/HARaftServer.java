@@ -347,6 +347,13 @@ public class HARaftServer {
     RaftServerConfigKeys.Rpc.setTimeoutMin(properties, rpcTimeoutMin);
     RaftServerConfigKeys.Rpc.setTimeoutMax(properties, rpcTimeoutMax);
 
+    TimeDuration firstElectionTimeoutMin =
+        TimeDuration.valueOf(conf.haMasterRatisFirstElectionTimeoutMin(), TimeUnit.SECONDS);
+    TimeDuration firstElectionTimeoutMax =
+        TimeDuration.valueOf(conf.haMasterRatisFristElectionTimeoutMax(), TimeUnit.SECONDS);
+    RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMin(properties, firstElectionTimeoutMin);
+    RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMax(properties, firstElectionTimeoutMax);
+
     // Set the number of maximum cached segments
     RaftServerConfigKeys.Log.setSegmentCacheNumMax(properties, 2);
 
