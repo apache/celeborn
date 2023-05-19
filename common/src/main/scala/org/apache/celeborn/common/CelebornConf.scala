@@ -1369,7 +1369,7 @@ object CelebornConf extends Logging {
 
   val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.push.timeoutCheck.interval")
-      .categories("common")
+      .categories("common", "client", "worker")
       .doc("Interval for checking push data timeout.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
