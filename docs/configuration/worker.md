@@ -21,6 +21,8 @@ license: |
 | --- | ------- | ----------- | ----- |
 | celeborn.client.heartbeat.interval | 60s | the heartbeat interval between worker and client | 0.3.0 | 
 | celeborn.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
+| celeborn.client.push.timeoutCheck.interval | 5s | Interval for checking push data timeout. | 0.3.0 | 
+| celeborn.client.push.timeoutCheck.threads | 16 | Threads num for checking push data timeout. | 0.3.0 | 
 | celeborn.master.app.topDiskUsage.count | 50 | Size for top items about top disk usage applications list. | 0.2.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.master.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 

@@ -22,7 +22,7 @@ license: |
 | celeborn.master.app.topDiskUsage.count | 50 | Size for top items about top disk usage applications list. | 0.2.0 | 
 | celeborn.master.app.topDiskUsage.interval | 10min | Time length for a window about top disk usage application list. | 0.2.0 | 
 | celeborn.master.app.topDiskUsage.windowSize | 24 | Window size about top disk usage application list. | 0.2.0 | 
-| celeborn.master.application.heatbeat.timeout | 120s | Application heartbeat timeout. | 0.2.0 | 
+| celeborn.master.application.heatbeat.timeout | 300s | Application heartbeat timeout. | 0.2.0 | 
 | celeborn.master.assginSlots.extraSlots | 2 | Extra slots number when master assign slots. | 0.2.0 | 
 | celeborn.master.assignSlots.loadAware.diskGroupGradient | 0.1 | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.2.0 | 
 | celeborn.master.assignSlots.loadAware.fetchTimeWeight | 1.0 | Weight of average fetch time when calculating ordering in load-aware assignment strategy | 0.2.1 | 
