@@ -474,7 +474,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(SLOTS_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: SlotsAssignPolicy = SlotsAssignPolicy.valueOf(get(SLOTS_ASSIGN_POLICY))
-  def initialEstimatedPartitionSize: Long = get(SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE)
+  def initialEstimatedPartitionSize: Long = get(SHUFFLE_INITIAL_ESTIMATED_PARTITION_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
@@ -2468,7 +2468,7 @@ object CelebornConf extends Logging {
       .checkValues(Set(SlotsAssignPolicy.ROUNDROBIN.name, SlotsAssignPolicy.LOADAWARE.name))
       .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
 
-  val SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE: ConfigEntry[Long] =
+  val SHUFFLE_INITIAL_ESTIMATED_PARTITION_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.initialEstimatedPartitionSize")
       .withAlternative("rss.initial.partition.size")
       .categories("master")
