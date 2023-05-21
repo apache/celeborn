@@ -3,18 +3,18 @@
 [![Celeborn CI](https://github.com/apache/incubator-celeborn/actions/workflows/maven.yml/badge.svg)](https://github.com/apache/incubator-celeborn/actions/workflows/maven.yml)  
 Celeborn is dedicated to improving the efficiency and elasticity of
 different map-reduce engines and provides an elastic, high-efficient 
-management service for intermediate data including shuffle data, spilled data, result data, etc. Currently Celeborn is focusing on shuffle data.
+management service for intermediate data including shuffle data, spilled data, result data, etc. Currently, Celeborn is focusing on shuffle data.
 
 ## Internals
 ### Architecture
 ![Celeborn architecture](assets/img/rss.jpg)
 Celeborn has three primary components: Master, Worker, and Client.
-Master manages all resources and syncs shared states with each other based on Raft.
+Master manages all resources and syncs shared states based on Raft.
 Worker processes read-write requests and merges data for each reducer.
 LifecycleManager maintains metadata of each shuffle and runs within the Spark driver.
 
 ### Feature
-1. Disaggregate Compute and storage.
+1. Disaggregate Computing and storage.
 2. Push-based shuffle write and merged shuffle read.
 3. High availability and high fault tolerance.
 
@@ -35,8 +35,8 @@ LifecycleManager maintains metadata of each shuffle and runs within the Spark dr
 ### Load Balance
 ![Load Balance](assets/img/rss_load_balance.jpg)
 
-We introduce slots to achieve load balance. We will equally distribute partitions on every Celeborn worker by tracking slots usage.
-The Slot is a logical concept in Celeborn Worker that represents how many partitions can be allocated on each Celeborn Worker.
+We introduce slots to achieve load balance. We will equally distribute partitions on every Celeborn worker by tracking slot usage.
+The Slot is a logical concept in Celeborn Worker that represents how many partitions can be allocated to each Celeborn Worker.
 Celeborn Worker's slot count is decided by `total usable disk size / average shuffle file size`.
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
@@ -80,7 +80,7 @@ Flink package layout:
 
 ### Compatibility
 Celeborn server is compatible with all clients inside various engines.
-However, Celeborn client must be consistent with the version of the specified engine.
+However, Celeborn clients must be consistent with the version of the specified engine.
 For example, if you are running Spark 2.4, you must compile Celeborn client with -Pspark-2.4;
 if you are running Spark 3.2, you must compile Celeborn client with -Pspark-3.2; 
 if you are running flink 1.14, you must compile Celeborn client with -Pflink-1.14.
@@ -162,15 +162,15 @@ celeborn.worker.readBuffer.allocationWait 10ms
 ```
 
 4. Copy Celeborn and configurations to all nodes
-5. Start all services. If you install Celeborn distribution in same path on every node and your
+5. Start all services. If you install Celeborn distribution in the same path on every node and your
    cluster can perform SSH login then you can fill `$CELEBORN_HOME/conf/hosts` and
    use `$CELEBORN_HOME/sbin/start-all.sh` to start all
-   services. If the installation paths are not identical, you will need to start service manually.  
+   services. If the installation paths are not identical, you will need to start the service manually.  
    Start Celeborn master  
    `$CELEBORN_HOME/sbin/start-master.sh`  
    Start Celeborn worker  
    `$CELEBORN_HOME/sbin/start-worker.sh`
-6. If Celeborn start success, the output of Master's log should be like this:
+6. If Celeborn starts success, the output of the Master's log should be like this:
 ```
 22/10/08 19:29:11,805 INFO [main] Dispatcher: Dispatcher numThreads: 64
 22/10/08 19:29:11,875 INFO [main] TransportClientFactory: mode NIO threads 64
@@ -191,13 +191,13 @@ WorkerRef: null
 ```
 
 #### Deploy Celeborn on K8S
-Please refer our [website](https://celeborn.apache.org/docs/latest/deploy_on_k8s/)
+Please refer to our [website](https://celeborn.apache.org/docs/latest/deploy_on_k8s/)
 
 ### Deploy Spark client
 Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 
 #### Spark Configuration
-To use Celeborn, following spark configurations should be added.
+To use Celeborn,the following spark configurations should be added.
 ```properties
 spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
 # must use kryo serializer because java serializer do not support relocation
@@ -209,15 +209,15 @@ spark.shuffle.service.enabled false
 
 # options: hash, sort
 # Hash shuffle writer use (partition count) * (celeborn.push.buffer.max.size) * (spark.executor.cores) memory.
-# Sort shuffle writer use less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
+# Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
 spark.celeborn.shuffle.writer hash
 
-# we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication
+# We recommend setting spark.celeborn.push.replicate.enabled to true to enable server-side data replication
 # If you have only one worker, this setting must be false 
 spark.celeborn.push.replicate.enabled true
 
 # Support for Spark AQE only tested under Spark 3
-# we recommend set localShuffleReader to false to get better performance of Celeborn
+# we recommend setting localShuffleReader to false to get better performance of Celeborn
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # we recommend enabling aqe support to gain better performance
@@ -229,7 +229,7 @@ spark.sql.adaptive.skewJoin.enabled true
 Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
 
 #### Flink Configuration
-TO use Celeborn, following flink configurations should be added.
+To use Celeborn, the following flink configurations should be added.
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
@@ -237,14 +237,14 @@ celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
 celeborn.shuffle.batchHandleReleasePartition.enabled: true
 celeborn.push.maxReqsInFlight: 128
 
-# network connections between peers
+# Network connections between peers
 celeborn.data.io.numConnectionsPerPeer: 16
 # threads number may vary according to your cluster but do not set to 1
 celeborn.data.io.threads: 32
 celeborn.shuffle.batchHandleCommitPartition.threads: 32
 celeborn.rpc.dispatcher.numThreads: 32
 
-# floating buffers may need to change `taskmanager.network.memory.fraction` and `taskmanager.network.memory.max`
+# Floating buffers may need to change `taskmanager.network.memory.fraction` and `taskmanager.network.memory.max`
 taskmanager.network.memory.floating-buffers-per-gate: 4096
 taskmanager.network.memory.buffers-per-channel: 0
 taskmanager.memory.task.off-heap.size: 512m
@@ -267,7 +267,7 @@ Celeborn has various metrics. [METRICS](METRICS.md)
 
 ### Subscribe Mailing Lists
 
-Mail List is the most recognized form of communication in Apache community.
+Mail List is the most recognized form of communication in the Apache community.
 Contact us through the following mailing list.
 
 | Name                                                       | Scope                           |                                                          |                                                               |                                                                    |
