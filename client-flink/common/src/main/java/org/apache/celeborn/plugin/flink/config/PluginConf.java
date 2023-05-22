@@ -29,10 +29,10 @@ public enum PluginConf {
   MEMORY_PER_RESULT_PARTITION("remote-shuffle.job.memory-per-partition", "", "64m"),
   MEMORY_PER_INPUT_GATE("remote-shuffle.job.memory-per-gate", "", "32m"),
   SUPPORT_FLOATING_BUFFER_PER_INPUT_GATE(
-      "remote-shuffle.job.support-floating-buffer-per-input-gate", "", "false"),
+      "remote-shuffle.job.support-floating-buffer-per-input-gate", "", "true"),
   ENABLE_DATA_COMPRESSION("remote-shuffle.job.enable-data-compression", "", "true"),
   SUPPORT_FLOATING_BUFFER_PER_OUTPUT_GATE(
-      "remote-shuffle.job.support-floating-buffer-per-output-gate", "", "false"),
+      "remote-shuffle.job.support-floating-buffer-per-output-gate", "", "true"),
   REMOTE_SHUFFLE_COMPRESSION_CODEC(
       "remote-shuffle.job.compression.codec",
       CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(),
