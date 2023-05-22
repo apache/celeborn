@@ -196,8 +196,8 @@ class WorkerInfo(
   }
 
   def updateThenGetDiskInfos(
-      newDiskInfos: java.util.Map[String, DiskInfo],
-      estimatedPartitionSize: Long): util.Map[String, DiskInfo] = this.synchronized {
+    newDiskInfos: java.util.Map[String, DiskInfo],
+    estimatedPartitionSize: Option[Long] = None): util.Map[String, DiskInfo] = this.synchronized {
     import scala.collection.JavaConverters._
     for (newDisk <- newDiskInfos.values().asScala) {
       val mountPoint: String = newDisk.mountPoint
@@ -207,7 +207,9 @@ class WorkerInfo(
         curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
         curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
         curDisk.avgFetchTime_$eq(newDisk.avgFetchTime)
-        curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
+        if (estimatedPartitionSize.nonEmpty) {
+          curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
+        }
         curDisk.setStatus(newDisk.status)
       } else {
         newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
