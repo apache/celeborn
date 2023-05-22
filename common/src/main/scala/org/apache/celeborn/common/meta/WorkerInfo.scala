@@ -196,8 +196,8 @@ class WorkerInfo(
   }
 
   def updateThenGetDiskInfos(
-    newDiskInfos: java.util.Map[String, DiskInfo],
-    estimatedPartitionSize: Option[Long] = None): util.Map[String, DiskInfo] = this.synchronized {
+      newDiskInfos: java.util.Map[String, DiskInfo],
+      estimatedPartitionSize: Option[Long] = None): util.Map[String, DiskInfo] = this.synchronized {
     import scala.collection.JavaConverters._
     for (newDisk <- newDiskInfos.values().asScala) {
       val mountPoint: String = newDisk.mountPoint
