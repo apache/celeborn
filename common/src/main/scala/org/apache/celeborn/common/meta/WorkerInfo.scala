@@ -208,11 +208,13 @@ class WorkerInfo(
         curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
         curDisk.avgFetchTime_$eq(newDisk.avgFetchTime)
         if (estimatedPartitionSize.nonEmpty) {
-          curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
+          curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize.get)
         }
         curDisk.setStatus(newDisk.status)
       } else {
-        newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
+        if (estimatedPartitionSize.nonEmpty) {
+          newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize.get)
+        }
         diskInfos.put(mountPoint, newDisk)
       }
     }
