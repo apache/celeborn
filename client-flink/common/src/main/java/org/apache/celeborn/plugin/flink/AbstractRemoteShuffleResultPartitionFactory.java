@@ -190,8 +190,8 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
 
     List<SupplierWithException<BufferPool, IOException>> factories = new ArrayList<>();
     if (supportFloatingBuffers) {
-      factories.add(() -> bufferPoolFactory.createBufferPool(1, numForResultPartition));
-      factories.add(() -> bufferPoolFactory.createBufferPool(1, numForOutputGate));
+      factories.add(() -> bufferPoolFactory.createBufferPool(2, numForResultPartition));
+      factories.add(() -> bufferPoolFactory.createBufferPool(2, numForOutputGate));
     } else {
       factories.add(
           () -> bufferPoolFactory.createBufferPool(numForResultPartition, numForResultPartition));
