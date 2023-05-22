@@ -195,26 +195,6 @@ class WorkerInfo(
     diskInfos.asScala.map(_._2.availableSlots()).sum
   }
 
-  def updateThenGetDiskInfos(newDiskInfos: java.util.Map[String, DiskInfo])
-      : util.Map[String, DiskInfo] = this.synchronized {
-    diskInfos.clear()
-    for ((mountPoint, newDisk) <- newDiskInfos.asScala) {
-      diskInfos.put(mountPoint, newDisk)
-    }
-    JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
-  }
-
-  def updateThenGetDiskInfos(
-      newDiskInfos: java.util.Map[String, DiskInfo],
-      estimatedPartitionSize: Long): util.Map[String, DiskInfo] = this.synchronized {
-    diskInfos.clear()
-    for ((mountPoint, newDisk) <- newDiskInfos.asScala) {
-      newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
-      diskInfos.put(mountPoint, newDisk)
-    }
-    JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
-  }
-
   def updateThenGetUserResourceConsumption(consumption: util.Map[
     UserIdentifier,
     ResourceConsumption]): util.Map[UserIdentifier, ResourceConsumption] = {
