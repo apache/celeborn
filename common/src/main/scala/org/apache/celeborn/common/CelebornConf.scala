@@ -546,7 +546,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def requestCommitFilesMaxRetries: Int = get(COMMIT_FILE_REQUEST_MAX_RETRY)
   def shuffleClientPushBlacklistEnabled: Boolean = get(SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED)
-  def clientHeartbeatInterval: Long = get(CLIENT_HEARTBEAT_INTERVAL)
+  def clientHeartbeatInterval: Long = get(CHANNEL_HEARTBEAT_INTERVAL)
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
   // //////////////////////////////////////////////////////
@@ -1437,7 +1437,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.timeoutCheck.interval")
+    buildConf("celeborn.channel.push.timeoutCheck.interval")
       .withAlternative("celeborn.push.timeoutCheck.interval")
       .categories("network")
       .doc("Interval for checking push data timeout.")
@@ -1446,7 +1446,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5s")
 
   val PUSH_TIMEOUT_CHECK_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.client.push.timeoutCheck.threads")
+    buildConf("celeborn.channel.push.timeoutCheck.threads")
       .withAlternative("celeborn.push.timeoutCheck.threads")
       .categories("network")
       .doc("Threads num for checking push data timeout.")
@@ -1552,7 +1552,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("50ms")
 
   val PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.sortMemory.threshold")
+    buildConf("celeborn.client.push.sort.memory.threshold")
       .withAlternative("celeborn.push.sortMemory.threshold")
       .withAlternative("rss.sort.push.data.threshold")
       .categories("client")
@@ -1773,7 +1773,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("8m")
 
   val SHUFFLE_REGISTER_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.client.shuffle.register.maxRetries")
+    buildConf("celeborn.client.registerShuffle.maxRetries")
       .withAlternative("celeborn.shuffle.register.maxRetries")
       .withAlternative("rss.register.shuffle.max.retry")
       .categories("client")
@@ -1783,7 +1783,7 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val SHUFFLE_REGISTER_RETRY_WAIT: ConfigEntry[Long] =
-    buildConf("celeborn.client.shuffle.register.retryWait")
+    buildConf("celeborn.client.registerShuffle.retryWait")
       .withAlternative("celeborn.shuffle.register.retryWait")
       .withAlternative("rss.register.shuffle.retry.wait")
       .categories("client")
@@ -2244,7 +2244,8 @@ object CelebornConf extends Logging {
       .createWithDefault(64)
 
   val WORKER_COMMIT_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.worker.commit.threads")
+    buildConf("celeborn.worker.shuffle.commit.threads")
+      .withAlternative("celeborn.worker.commit.threads")
       .withAlternative("rss.worker.asyncCommitFiles.numThreads")
       .categories("worker")
       .version("0.2.0")
@@ -2350,7 +2351,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val WORKER_DISK_RESERVE_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.worker.disk.reserve.size")
+    buildConf("celeborn.worker.storage.disk.reserve.size")
+      .withAlternative("celeborn.worker.disk.reserve.size")
       .withAlternative("rss.disk.minimum.reserve.size")
       .categories("worker")
       .doc("Celeborn worker reserved space for each disk.")
@@ -2359,7 +2361,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5G")
 
   val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.worker.diskTime.slidingWindow.size")
+    buildConf("celeborn.worker.flusher.diskTime.slidingWindow.size")
       .withAlternative("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
       .withAlternative("rss.flusher.avg.time.window")
       .categories("worker")
@@ -3438,8 +3440,8 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val CLIENT_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.client.heartbeat.interval")
+  val CHANNEL_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.channel.heartbeat.interval")
       .categories("network")
       .version("0.3.0")
       .doc("the heartbeat interval between worker and client")

@@ -22,7 +22,6 @@ license: |
 | celeborn.worker.application.topDiskUsage.count | 50 | Size for top items about top disk usage applications list. | 0.2.0 | 
 | celeborn.worker.bufferStream.threadsPerMountpoint | 8 | Threads count for read buffer per mount point. | 0.3.0 | 
 | celeborn.worker.closeIdleConnections | false | Whether worker will close idle connections. | 0.2.0 | 
-| celeborn.worker.commit.threads | 32 | Thread number of worker to commit shuffle data files asynchronously. | 0.2.0 | 
 | celeborn.worker.congestionControl.enabled | false | Whether to enable congestion control or not. | 0.3.0 | 
 | celeborn.worker.congestionControl.high.watermark | &lt;undefined&gt; | If the total bytes in disk buffer exceeds this configure, will start to congestusers whose produce rate is higher than the potential average consume rate. The congestion will stop if the produce rate is lower or equal to the average consume rate, or the total pending bytes lower than celeborn.worker.congestionControl.low.watermark | 0.3.0 | 
 | celeborn.worker.congestionControl.low.watermark | &lt;undefined&gt; | Will stop congest users if the total pending bytes of disk buffer is lower than this configuration | 0.3.0 | 
@@ -33,12 +32,11 @@ license: |
 | celeborn.worker.directMemoryRatioToPauseReceive | 0.85 | If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients. | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToPauseReplicate | 0.95 | If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToResume | 0.5 | If direct memory usage is less than this limit, worker will resume. | 0.2.0 | 
-| celeborn.worker.disk.reserve.size | 5G | Celeborn worker reserved space for each disk. | 0.2.0 | 
-| celeborn.worker.diskTime.slidingWindow.size | 20 | The size of sliding windows used to calculate statistics about flushed time and count. | 0.2.1 | 
 | celeborn.worker.fetch.heartbeat.enabled | true | enable the heartbeat from worker to client when fetching data | 0.3.0 | 
 | celeborn.worker.fetch.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to handle client fetch data. The default threads number is the number of flush thread. | 0.2.0 | 
 | celeborn.worker.fetch.port | 0 | Server port for Worker to receive fetch data request from ShuffleClient. | 0.2.0 | 
 | celeborn.worker.flusher.buffer.size | 256k | Size of buffer used by a single flusher. | 0.2.0 | 
+| celeborn.worker.flusher.diskTime.slidingWindow.size | 20 | The size of sliding windows used to calculate statistics about flushed time and count. | 0.2.1 | 
 | celeborn.worker.flusher.hdd.threads | 1 | Flusher's thread count per disk used for write data to HDD disks. | 0.2.0 | 
 | celeborn.worker.flusher.hdfs.threads | 4 | Flusher's thread count used for write data to HDFS. | 0.2.0 | 
 | celeborn.worker.flusher.shutdownTimeout | 3s | Timeout for a flusher to shutdown. | 0.2.0 | 
@@ -83,6 +81,7 @@ license: |
 | celeborn.worker.replicate.threads | 64 | Thread number of worker to replicate shuffle data. | 0.2.0 | 
 | celeborn.worker.rpc.port | 0 | Server port for Worker to receive RPC request. | 0.2.0 | 
 | celeborn.worker.shuffle.chunk.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 | 
+| celeborn.worker.shuffle.commit.threads | 32 | Thread number of worker to commit shuffle data files asynchronously. | 0.2.0 | 
 | celeborn.worker.shuffle.commit.timeout | &lt;value of celeborn.rpc.askTimeout&gt; | Timeout for a Celeborn worker to commit files of a shuffle. | 0.2.0 | 
 | celeborn.worker.shuffle.partitionSplit.min | 1m | Min size for a partition to split | 0.2.0 | 
 | celeborn.worker.storage.baseDir.number | 16 | How many directories will be used if `celeborn.worker.storage.dirs` is not set. The directory name is a combination of `celeborn.worker.storage.baseDir.prefix` and from one(inclusive) to `celeborn.worker.storage.baseDir.number`(inclusive) step by one. | 0.2.0 | 
@@ -90,6 +89,7 @@ license: |
 | celeborn.worker.storage.checkFileClean.maxRetries | 3 | The number of retries for a worker to check if the working directory is cleaned up before registering with the master. | 0.2.0 | 
 | celeborn.worker.storage.checkFileClean.timeout | 1000ms | The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master. | 0.2.0 | 
 | celeborn.worker.storage.dirs | &lt;undefined&gt; | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: `dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]` | 0.2.0 | 
+| celeborn.worker.storage.disk.reserve.size | 5G | Celeborn worker reserved space for each disk. | 0.2.0 | 
 | celeborn.worker.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
 | celeborn.worker.storage.noneEmptyDirExpireDuration | 1d | If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired. | 0.2.0 | 
 | celeborn.worker.storage.workingDir | rss-worker/shuffle_data | Worker's working dir path name. | 0.2.0 | 

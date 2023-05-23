@@ -52,6 +52,8 @@ start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
 
+Apart from these, the following properties are also available for enable master HA:
+
 ## Master HA
 
 {!

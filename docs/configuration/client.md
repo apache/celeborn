@@ -28,7 +28,7 @@ license: |
 | celeborn.client.push.blacklist.enabled | false | Whether to enable shuffle client-side push blacklist of workers. | 0.3.0 | 
 | celeborn.client.push.buffer.initial.size | 8k |  | 0.2.0 | 
 | celeborn.client.push.buffer.max.size | 64k | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. | 0.2.0 | 
-| celeborn.client.push.data.timeout | 120s | Timeout for a task to push data rpc message. This value should better be more than twice of `celeborn.client.push.timeoutCheck.interval` | 0.2.0 | 
+| celeborn.client.push.data.timeout | 120s | Timeout for a task to push data rpc message. This value should better be more than twice of `celeborn.channel.push.timeoutCheck.interval` | 0.2.0 | 
 | celeborn.client.push.limit.inFlight.sleepInterval | 50ms | Sleep interval when check netty in-flight requests to be done. | 0.2.0 | 
 | celeborn.client.push.limit.inFlight.timeout | &lt;undefined&gt; | Timeout for netty in-flight requests to be done.Default value should be `celeborn.client.push.data.timeout * 2`. | 0.2.0 | 
 | celeborn.client.push.limit.strategy | SIMPLE | The strategy used to control the push speed. Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with congest control mechanism in the worker side. | 0.3.0 | 
@@ -39,12 +39,14 @@ license: |
 | celeborn.client.push.revive.maxRetries | 5 | Max retry times for reviving when celeborn push data failed. | 0.3.0 | 
 | celeborn.client.push.slowStart.initialSleepTime | 500ms | The initial sleep time if the current max in flight requests is 0 | 0.3.0 | 
 | celeborn.client.push.slowStart.maxSleepTime | 2s | If celeborn.client.push.limit.strategy is set to SLOWSTART, push side will take a sleep strategy for each batch of requests, this controls the max sleep time if the max in flight requests limit is 1 for a long time | 0.3.0 | 
+| celeborn.client.push.sort.memory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.2.0 | 
 | celeborn.client.push.sort.pipeline.enabled | false | Whether to enable pipelining for sort based shuffle writer. If true, double buffering will be used to pipeline push | 0.2.1 | 
 | celeborn.client.push.sort.randomizePartitionId.enabled | false | Whether to randomize partitionId in push sorter. If true, partitionId will be randomized when sort data to avoid skew when push to worker | 0.2.1 | 
-| celeborn.client.push.sortMemory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.2.0 | 
 | celeborn.client.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
 | celeborn.client.push.stageEnd.timeout | &lt;value of celeborn.&lt;module&gt;.io.connectionTimeout&gt; | Timeout for waiting StageEnd. During this process, there are `celeborn.client.rpc.requestCommitFiles.maxRetries` times for retry opportunities for committing filesand 1 times for releasing slots request. User can customize this value according to your setting. By default, the value is the max timeout value `celeborn.<module>.io.connectionTimeout`. | 0.2.0 | 
 | celeborn.client.push.takeTaskWaitTime | 50ms | Wait time if no task available to push to worker. | 0.3.0 | 
+| celeborn.client.registerShuffle.maxRetries | 3 | Max retry times for client to register shuffle. | 0.2.0 | 
+| celeborn.client.registerShuffle.retryWait | 3s | Wait time before next retry if register shuffle failed. | 0.2.0 | 
 | celeborn.client.reserveSlots.maxRetries | 3 | Max retry times for client to reserve slots. | 0.2.0 | 
 | celeborn.client.reserveSlots.rackware.enabled | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.0 | 
 | celeborn.client.reserveSlots.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.2.0 | 
@@ -77,8 +79,6 @@ license: |
 | celeborn.client.shuffle.partitionSplit.mode | SOFT | soft: the shuffle file size might be larger than split threshold. hard: the shuffle file size will be limited to split threshold. | 0.2.0 | 
 | celeborn.client.shuffle.partitionSplit.threshold | 1G | Shuffle file size threshold, if file size exceeds this, trigger split. | 0.2.0 | 
 | celeborn.client.shuffle.rangeReadFilter.enabled | false | If a spark application have skewed partition, this value can set to true to improve performance. | 0.2.0 | 
-| celeborn.client.shuffle.register.maxRetries | 3 | Max retry times for client to register shuffle. | 0.2.0 | 
-| celeborn.client.shuffle.register.retryWait | 3s | Wait time before next retry if register shuffle failed. | 0.2.0 | 
 | celeborn.client.shuffle.writer.mode | HASH | Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine when memory pressure is high or shuffle partition count is huge. | 0.2.0 | 
 | celeborn.client.worker.excluded.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.2.0 | 
 <!--end-include-->
