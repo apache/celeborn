@@ -46,7 +46,7 @@ memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs 
 ### Cluster Client
 
 {!
-include-markdown "./cluster-client.md"
+include-markdown "./cluster.md"
 start="<!--begin-include-->"
 end="<!--end-include-->"
 !}

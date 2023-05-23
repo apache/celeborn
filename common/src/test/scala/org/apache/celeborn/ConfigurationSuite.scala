@@ -82,8 +82,8 @@ class ConfigurationSuite extends AnyFunSuite {
     generateConfigurationMarkdown("metrics")
   }
 
-  test("docs - configuration/cluster-client.md") {
-    generateConfigurationMarkdown("cluster-client")
+  test("docs - configuration/cluster.md") {
+    generateConfigurationMarkdown("cluster")
   }
 
   def generateConfigurationMarkdown(category: String): Unit = {

@@ -1302,8 +1302,9 @@ object CelebornConf extends Logging {
       .createWithDefault(Long.MaxValue)
 
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
-    buildConf("celeborn.master.endpoints")
-      .categories("cluster-client")
+    buildConf("celeborn.cluster.master.endpoints")
+      .withAlternative("celeborn.master.endpoints")
+      .categories("cluster")
       .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
         "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
         "If the port is omitted, 9097 will be used.")
@@ -1466,7 +1467,7 @@ object CelebornConf extends Logging {
   val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.push.timeoutCheck.interval")
       .withAlternative("celeborn.push.timeoutCheck.interval")
-      .categories("cluster-client")
+      .categories("network")
       .doc("Interval for checking push data timeout.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
@@ -2756,9 +2757,10 @@ object CelebornConf extends Logging {
       .createWithDefault(1)
 
   val CLIENT_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.client.maxRetries")
+    buildConf("celeborn.cluster.client.maxRetries")
+      .withAlternative("celeborn.client.maxRetries")
       .withAlternative("rss.ha.client.maxTries")
-      .categories("cluster-client")
+      .categories("cluster")
       .doc("Max retry times for client to connect master endpoint")
       .version("0.2.0")
       .intConf
