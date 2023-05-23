@@ -231,7 +231,7 @@ object DeviceInfo {
       getMountPoint(f._1.getAbsolutePath, mountPointToDeviceInfo.keySet())
     }.foreach {
       case (mountPoint, dirs) =>
-        if (mountPoint != "") {
+        if (mountPoint.nonEmpty) {
           val deviceInfo = mountPointToDeviceInfo.get(mountPoint)
           val diskInfo = new DiskInfo(
             mountPoint,

@@ -19,8 +19,6 @@ package org.apache.celeborn.common.meta
 
 import java.util
 
-import org.junit.Assert.assertEquals
-
 import org.apache.celeborn.CelebornFunSuite
 
 class DeviceInfoSuite extends CelebornFunSuite {
@@ -32,11 +30,12 @@ class DeviceInfoSuite extends CelebornFunSuite {
     mountPoints.add("/mnt/disk2")
     mountPoints.add("/data")
 
-    assertEquals(DeviceInfo.getMountPoint("/mnt/disk1/data", mountPoints), "/mnt/disk1")
-    assertEquals(DeviceInfo.getMountPoint("/mnt/disk2/data", mountPoints), "/mnt/disk2")
-    assertEquals(DeviceInfo.getMountPoint("/data", mountPoints), "/data")
-    assertEquals(DeviceInfo.getMountPoint("/data/data", mountPoints), "/data")
-    assertEquals(DeviceInfo.getMountPoint("/data1/data", mountPoints), "/")
-
+    assert(DeviceInfo.getMountPoint("/mnt/disk1/data", mountPoints) === "/mnt/disk1")
+    assert(DeviceInfo.getMountPoint("/mnt/disk1/data", mountPoints) === "/mnt/disk1")
+    assert(DeviceInfo.getMountPoint("/mnt/disk2/data", mountPoints) === "/mnt/disk2")
+    assert(DeviceInfo.getMountPoint("/mnt/disk3/data", mountPoints) === "/")
+    assert(DeviceInfo.getMountPoint("/data", mountPoints) === "/data")
+    assert(DeviceInfo.getMountPoint("/data/data", mountPoints) === "/data")
+    assert(DeviceInfo.getMountPoint("/data1/data", mountPoints) === "/")
   }
 }
