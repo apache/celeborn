@@ -285,9 +285,9 @@ private[celeborn] class Worker(
         Seq.empty[DiskInfo]
       } else {
         storageManager.updateDiskInfos()
-        workerInfo.updateThenGetDiskInfos(
-          storageManager.disksSnapshot().map { disk => disk.mountPoint -> disk }.toMap.asJava,
-          conf.initialEstimatedPartitionSize).values().asScala.toSeq
+        workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
+          disk.mountPoint -> disk
+        }.toMap.asJava).values().asScala.toSeq
       }
     val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
       storageManager.userResourceConsumptionSnapshot().asJava)
