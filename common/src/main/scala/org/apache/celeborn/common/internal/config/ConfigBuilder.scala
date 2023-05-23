@@ -228,7 +228,7 @@ case class ConfigBuilder(key: String) {
   private[config] var _categories = Seq.empty[String]
   private[config] var _version = ""
   private[config] var _onCreate: Option[ConfigEntry[_] => Unit] = None
-  private[config] var _alternatives = List.empty[(String, String => String)]
+  private[config] var _alternatives = List.empty[String]
 
   def internal: ConfigBuilder = {
     _public = false
@@ -265,8 +265,8 @@ case class ConfigBuilder(key: String) {
     this
   }
 
-  def withAlternative(key: String, translate: String => String = null): ConfigBuilder = {
-    _alternatives = _alternatives :+ (key, translate)
+  def withAlternative(key: String): ConfigBuilder = {
+    _alternatives = _alternatives :+ key
     this
   }
 

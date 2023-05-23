@@ -981,7 +981,7 @@ object CelebornConf extends Logging {
    * The alternates are used in the order defined in this map. If deprecated configs are
    * present in the user's configuration, a warning is logged.
    */
-  private val configsWithAlternatives = scala.collection.mutable.Map[String, Seq[AlternateConfig]](
+  private val configsWithAlternatives = Map[String, Seq[AlternateConfig]](
     "none" -> Seq(
       AlternateConfig("none", "1.0")))
 
@@ -996,16 +996,6 @@ object CelebornConf extends Logging {
       configsWithAlternatives(key).map { cfg => (cfg.key -> (key -> cfg)) }
     }.toMap
   }
-
-  def addDeprecatedConfig(entry: ConfigEntry[_], alt: (String, String => String)): Unit =
-    synchronized {
-      configsWithAlternatives.put(
-        entry.key,
-        configsWithAlternatives.getOrElse(entry.key, Seq.empty) :+ AlternateConfig(
-          alt._1,
-          entry.version,
-          alt._2))
-    }
 
   /**
    * Looks for available deprecated keys for the given config option, and return the first
@@ -1062,8 +1052,6 @@ object CelebornConf extends Logging {
     val updatedMap = new JHashMap[String, ConfigEntry[_]](confEntries)
     updatedMap.put(entry.key, entry)
     confEntries = updatedMap
-
-    entry.alternatives.foreach(addDeprecatedConfig(entry, _))
   }
 
   private[celeborn] def unregister(entry: ConfigEntry[_]): Unit =
