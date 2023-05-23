@@ -582,27 +582,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
     val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
 
-    var ids = getAllWithPrefix(nodeConfPrefix)
+    getAllWithPrefix(nodeConfPrefix)
       .map(_._1)
       .filterNot(_.equals("id"))
       .map(k => extractPrefix(k, "."))
       .distinct
-
-    if (ids.nonEmpty) {
-      return ids
-    } else {
-      HA_MASTER_NODE_HOST.alternatives.foreach { alt =>
-        ids = getAllWithPrefix(extractPrefix(alt._1, "<id>"))
-          .map(_._1)
-          .filterNot(_.equals("id"))
-          .map(k => extractPrefix(k, "."))
-          .distinct
-        if (ids.nonEmpty) {
-          return ids
-        }
-      }
-    }
-    ids
   }
 
   def haMasterNodeHost(nodeId: String): String = {
