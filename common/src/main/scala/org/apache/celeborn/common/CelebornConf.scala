@@ -528,6 +528,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleManagerPort: Int = get(SHUFFLE_MANAGER_PORT)
+  def shuffleDfsReadChunkSize: Long = get(DFS_SHUFFLE_CHUNK_SIZE)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWaitMs: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
@@ -557,7 +558,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Address && HA && RATIS                //
   // //////////////////////////////////////////////////////
   def masterEndpoints: Array[String] =
-    get(HA_CLIENT_MASTER_ENDPOINTS).toArray.map { endpoint =>
+    get(MASTER_ENDPOINTS).toArray.map { endpoint =>
       Utils.parseHostPort(endpoint) match {
         case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
         case (host, port) => s"$host:$port"
@@ -1271,7 +1272,7 @@ object CelebornConf extends Logging {
       .longConf
       .createWithDefault(Long.MaxValue)
 
-  val HA_CLIENT_MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
+  val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
       .categories("cluster-client")
       .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
@@ -1443,7 +1444,7 @@ object CelebornConf extends Logging {
   val PUSH_TIMEOUT_CHECK_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.push.timeoutCheck.threads")
       .withAlternative("celeborn.push.timeoutCheck.threads")
-      .categories("client", "worker")
+      .categories("network")
       .doc("Threads num for checking push data timeout.")
       .version("0.3.0")
       .intConf
@@ -1742,11 +1743,22 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.client.shuffle.chunk.size")
+  val DFS_SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.client.shuffle.dfs.read.chunk.size")
       .withAlternative("celeborn.shuffle.chunk.size")
       .withAlternative("rss.chunk.size")
-      .categories("client", "worker")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
+        "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8m")
+
+  val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.shuffle.chunk.size")
+      .withAlternative("celeborn.shuffle.chunk.size")
+      .withAlternative("rss.chunk.size")
+      .categories("worker")
       .version("0.2.0")
       .doc("Max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
         "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
@@ -2493,7 +2505,17 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.application.topDiskUsage.count")
       .withAlternative("celeborn.metrics.app.topDiskUsage.count")
       .withAlternative("rss.metrics.app.topDiskUsage.count")
-      .categories("master", "worker")
+      .categories("master")
+      .doc("Size for top items about top disk usage applications list.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(50)
+
+  val WORKER_APP_TOP_DISK_USAGE_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.application.topDiskUsage.count")
+      .withAlternative("celeborn.metrics.app.topDiskUsage.count")
+      .withAlternative("rss.metrics.app.topDiskUsage.count")
+      .categories("worker")
       .doc("Size for top items about top disk usage applications list.")
       .version("0.2.0")
       .intConf
@@ -2658,6 +2680,7 @@ object CelebornConf extends Logging {
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.registerShuffle.askTimeout")
+      .withAlternative("celeborn.rpc.registerShuffle.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during register shuffle. " +
@@ -3247,7 +3270,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.shuffle.enabled")
+    buildConf("celeborn.columnarShuffle.enabled")
+      .withAlternative("celeborn.columnar.shuffle.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Whether to enable columnar-based shuffle.")
@@ -3255,7 +3279,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_BATCH_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.columnar.shuffle.batch.size")
+    buildConf("celeborn.columnarShuffle.batch.size")
+      .withAlternative("celeborn.columnar.shuffle.batch.size")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Vector batch size for columnar shuffle.")
@@ -3264,7 +3289,7 @@ object CelebornConf extends Logging {
       .createWithDefault(10000)
 
   val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.shuffle.offHeap.enabled")
+    buildConf("celeborn.columnarShuffle.offHeap.enabled")
       .withAlternative("celeborn.columnar.offHeap.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
@@ -3273,7 +3298,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.shuffle.encoding.dictionary.enabled")
+    buildConf("celeborn.columnarShuffle.encoding.dictionary.enabled")
+      .withAlternative("celeborn.columnar.shuffle.encoding.dictionary.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Whether to use dictionary encoding for columnar-based shuffle data.")
@@ -3281,7 +3307,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.columnar.shuffle.encoding.dictionary.maxFactor")
+    buildConf("celeborn.columnarShuffle.encoding.dictionary.maxFactor")
+      .withAlternative("celeborn.columnar.shuffle.encoding.dictionary.maxFactor")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Max factor for dictionary size. The max dictionary size is " +
@@ -3291,7 +3318,8 @@ object CelebornConf extends Logging {
       .createWithDefault(0.3)
 
   val COLUMNAR_SHUFFLE_CODEGEN_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.shuffle.codegen.enabled")
+    buildConf("celeborn.columnarShuffle.codegen.enabled")
+      .withAlternative("celeborn.columnar.shuffle.codegen.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Whether to use codegen for columnar-based shuffle.")

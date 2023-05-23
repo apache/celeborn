@@ -34,6 +34,7 @@ license: |
 | celeborn.&lt;module&gt;.io.sendBuffer | 0b | Send buffer size (SO_SNDBUF). | 0.2.0 | 
 | celeborn.&lt;module&gt;.io.serverThreads | 0 | Number of threads used in the server thread pool. Default to 0, which is 2x#cores. |  | 
 | celeborn.client.heartbeat.interval | 60s | the heartbeat interval between worker and client | 0.3.0 | 
+| celeborn.client.push.timeoutCheck.threads | 16 | Threads num for checking push data timeout. | 0.3.0 | 
 | celeborn.memory.allocator.numArenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
 | celeborn.memory.allocator.share | false | Whether to share memory allocator. | 0.3.0 | 
 | celeborn.memory.allocator.verbose.metric | false | Weather to enable verbose metric for pooled allocator. | 0.3.0 | 

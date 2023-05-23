@@ -65,7 +65,7 @@ public class DfsPartitionReader implements PartitionReader {
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    shuffleChunkSize = (int) conf.shuffleChunkSize();
+    shuffleChunkSize = (int) conf.shuffleDfsReadChunkSize();
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
 
