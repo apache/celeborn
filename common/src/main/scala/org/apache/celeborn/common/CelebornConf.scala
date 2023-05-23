@@ -3442,6 +3442,7 @@ object CelebornConf extends Logging {
 
   val CHANNEL_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.channel.heartbeat.interval")
+      .withAlternative("celeborn.client.heartbeat.interval")
       .categories("network")
       .version("0.3.0")
       .doc("the heartbeat interval between worker and client")
