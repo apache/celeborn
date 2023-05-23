@@ -146,7 +146,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def get[T](entry: ConfigEntry[T]): T = {
     entry.readFrom(reader)
   }
-  
+
   /**
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
@@ -607,7 +607,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def haMasterNodeHost(nodeId: String): String = {
     val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    getInt(key, Utils.localHostName)
+    get(key, Utils.localHostName)
   }
 
   def haMasterNodePort(nodeId: String): Int = {
