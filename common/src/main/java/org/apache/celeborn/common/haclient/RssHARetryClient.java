@@ -64,7 +64,7 @@ public class RssHARetryClient {
     this.rpcEnv = rpcEnv;
     this.masterEndpoints = conf.masterEndpoints();
     this.maxRetries = Math.max(masterEndpoints.length, conf.clientMaxTries());
-    this.rpcTimeout = conf.haClientRpcAskTimeout();
+    this.rpcTimeout = conf.clusterClientRpcAskTimeout();
     this.rpcEndpointRef = new AtomicReference<>();
     this.oneWayMessageSender = ThreadUtils.newDaemonSingleThreadExecutor("One-Way-Message-Sender");
   }
