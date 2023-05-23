@@ -146,20 +146,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def get[T](entry: ConfigEntry[T]): T = {
     entry.readFrom(reader)
   }
-
-  def getWithHolder(
-      entry: ConfigEntry[String],
-      target: String,
-      replaced: String,
-      default: String): String = {
-    val key = entry.key.replace(target, replaced)
-    Option(settings.get(key)).orElse(getDeprecatedConfigWithHolder(
-      entry.key,
-      target,
-      replaced,
-      settings)).getOrElse(default)
-  }
-
+  
   /**
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
@@ -619,7 +606,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def haMasterNodeHost(nodeId: String): String = {
-    getWithHolder(HA_MASTER_NODE_HOST, "<id>", nodeId, Utils.localHostName)
+    val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
+    getInt(key, Utils.localHostName)
   }
 
   def haMasterNodePort(nodeId: String): Int = {
@@ -1045,24 +1033,6 @@ object CelebornConf extends Logging {
         case alt if conf.containsKey(alt.key) =>
           val value = conf.get(alt.key)
           if (alt.translation != null) alt.translation(value) else value
-      }
-    }
-  }
-
-  def getDeprecatedConfigWithHolder(
-      key: String,
-      target: String,
-      replaced: String,
-      conf: JMap[String, String]): Option[String] = {
-    configsWithAlternatives.get(key).flatMap { alts =>
-      alts.collectFirst {
-        case alt if conf.containsKey(alt.key.replace(target, replaced)) =>
-          val value = conf.get(alt.key.replace(target, replaced))
-          if (alt.translation != null) {
-            alt.translation(value)
-          } else {
-            value
-          }
       }
     }
   }
