@@ -53,8 +53,7 @@ end="<!--end-include-->"
 !}
 
 Apart from these, the following properties are also available for enable master HA:
-
-## Master HA
+### Master HA
 
 {!
 include-markdown "./ha.md"

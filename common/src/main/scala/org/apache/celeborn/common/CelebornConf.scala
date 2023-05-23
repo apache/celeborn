@@ -1249,6 +1249,18 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.io.maxChunksBeingTransferred")
+      .withAlternative("rss.shuffle.maxChunksBeingTransferred")
+      .categories("network")
+      .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
+        "that new incoming connections will be closed when the max number is hit. The client will retry " +
+        "according to the shuffle retry configs (see `celeborn.shuffle.io.maxRetries` and " +
+        "`celeborn.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch failure.")
+      .version("0.2.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
   val STORAGE_MEMORY_MAP_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.storage.memoryMapThreshold")
       .withAlternative("rss.storage.memoryMapThreshold")
@@ -1260,18 +1272,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("2m")
-
-  val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.maxChunksBeingTransferred")
-      .withAlternative("rss.shuffle.maxChunksBeingTransferred")
-      .categories("network")
-      .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
-        "that new incoming connections will be closed when the max number is hit. The client will retry " +
-        "according to the shuffle retry configs (see `celeborn.shuffle.io.maxRetries` and " +
-        "`celeborn.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch failure.")
-      .version("0.2.0")
-      .longConf
-      .createWithDefault(Long.MaxValue)
 
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.cluster.master.endpoints")
