@@ -20,5 +20,6 @@ license: |
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
 | celeborn.cluster.client.maxRetries | 15 | Max retry times for client to connect master endpoint | 0.2.0 | 
+| celeborn.cluster.client.rpc.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | Timeout for HA client RPC ask operations. | 0.2.0 | 
 | celeborn.cluster.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 <!--end-include-->
