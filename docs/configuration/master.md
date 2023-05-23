@@ -19,27 +19,28 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
-| celeborn.master.app.topDiskUsage.count | 50 | Size for top items about top disk usage applications list. | 0.2.0 | 
-| celeborn.master.app.topDiskUsage.interval | 10min | Time length for a window about top disk usage application list. | 0.2.0 | 
-| celeborn.master.app.topDiskUsage.windowSize | 24 | Window size about top disk usage application list. | 0.2.0 | 
-| celeborn.master.application.heatbeat.timeout | 300s | Application heartbeat timeout. | 0.2.0 | 
+| celeborn.master.application.topDiskUsage.count | 50 | Size for top items about top disk usage applications list. | 0.2.0 | 
+| celeborn.master.application.topDiskUsage.interval | 10min | Time length for a window about top disk usage application list. | 0.2.0 | 
+| celeborn.master.application.topDiskUsage.windowSize | 24 | Window size about top disk usage application list. | 0.2.0 | 
 | celeborn.master.assginSlots.extraSlots | 2 | Extra slots number when master assign slots. | 0.2.0 | 
 | celeborn.master.assignSlots.loadAware.diskGroupGradient | 0.1 | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.2.0 | 
 | celeborn.master.assignSlots.loadAware.fetchTimeWeight | 1.0 | Weight of average fetch time when calculating ordering in load-aware assignment strategy | 0.2.1 | 
 | celeborn.master.assignSlots.loadAware.flushTimeWeight | 0.0 | Weight of average flush time when calculating ordering in load-aware assignment strategy | 0.2.1 | 
 | celeborn.master.assignSlots.loadAware.numDiskGroups | 5 | This configuration is a guidance for load-aware slot allocation algorithm. This value is control how many disk groups will be created. | 0.2.0 | 
 | celeborn.master.assignSlots.policy | ROUNDROBIN | Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware. | 0.2.0 | 
+| celeborn.master.estimatedPartitionSize.initialSize | 64mb | Initial partition size for estimation, it will change according to runtime stats. | 0.2.0 | 
+| celeborn.master.estimatedPartitionSize.minSize | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.2.0 | 
+| celeborn.master.estimatedPartitionSize.update.initialDelay | 5min | Initial delay time before start updating partition size for estimation. | 0.2.0 | 
+| celeborn.master.estimatedPartitionSize.update.interval | 10min | Interval of updating partition size for estimation. | 0.2.0 | 
 | celeborn.master.ha.enabled | false | When true, master nodes run as Raft cluster mode. | 0.2.0 | 
 | celeborn.master.ha.node.&lt;id&gt;.host | &lt;required&gt; | Host to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.master.ha.node.&lt;id&gt;.port | 9097 | Port to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.master.ha.node.&lt;id&gt;.ratis.port | 9872 | Ratis port to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.master.ha.ratis.raft.rpc.type | netty | RPC type for Ratis, available options: netty, grpc. | 0.2.0 | 
 | celeborn.master.ha.ratis.raft.server.storage.dir | /tmp/ratis |  | 0.2.0 | 
+| celeborn.master.heartbeat.application.timeout | 300s | Application heartbeat timeout. | 0.2.0 | 
+| celeborn.master.heartbeat.worker.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
 | celeborn.master.host | &lt;localhost&gt; | Hostname for master to bind. | 0.2.0 | 
 | celeborn.master.port | 9097 | Port for master to bind. | 0.2.0 | 
 | celeborn.master.userResourceConsumption.update.interval | 30s | Time length for a window about compute user resource consumption. | 0.3.0 | 
-| celeborn.master.worker.heartbeat.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
-| celeborn.shuffle.estimatedPartitionSize.update.initialDelay | 5min | Initial delay time before start updating partition size for estimation. | 0.2.0 | 
-| celeborn.shuffle.estimatedPartitionSize.update.interval | 10min | Interval of updating partition size for estimation. | 0.2.0 | 
-| celeborn.shuffle.initialEstimatedPartitionSize | 64mb | Initial partition size for estimation, it will change according to runtime stats. | 0.2.0 | 
 <!--end-include-->

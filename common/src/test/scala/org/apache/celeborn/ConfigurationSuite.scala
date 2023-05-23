@@ -82,6 +82,10 @@ class ConfigurationSuite extends AnyFunSuite {
     generateConfigurationMarkdown("metrics")
   }
 
+  test("docs - configuration/cluster-client.md") {
+    generateConfigurationMarkdown("cluster-client")
+  }
+
   def generateConfigurationMarkdown(category: String): Unit = {
     val markdown = confMarkdownDir.resolve(s"$category.md")
 

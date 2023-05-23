@@ -43,6 +43,13 @@ Network memory will be consumed when netty reads from a TPC channel, there will 
 memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs  * bufferSize * 1.2)`.
 
 ## All Configurations
+### Cluster Client
+
+{!
+include-markdown "./cluster-client.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
 
 ### Client
 
