@@ -177,4 +177,11 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(conf.networkConnectTimeout.duration.toMillis == 2000L)
     assert(conf.networkIoConnectTimeoutMs("data") == 2000L)
   }
+
+  test("CELEBORN-601: Consolidate configsWithAlternatives with `ConfigBuilder.withAlternative`") {
+    val conf = new CelebornConf()
+      .set("rss.network.timeout", "300s")
+
+    assert(conf.get(CelebornConf.NETWORK_TIMEOUT.key) == "300s")
+  }
 }
