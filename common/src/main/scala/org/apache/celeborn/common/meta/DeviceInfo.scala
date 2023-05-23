@@ -19,7 +19,6 @@ package org.apache.celeborn.common.meta
 
 import java.io.File
 import java.util
-import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -227,8 +226,8 @@ object DeviceInfo {
     val retDeviceInfos = JavaUtils.newConcurrentHashMap[String, DeviceInfo]()
     val retDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
 
-    workingDirs.groupBy { f =>
-      getMountPoint(f._1.getAbsolutePath, mountPointToDeviceInfo.keySet())
+    workingDirs.groupBy { case (dir, _, _, _) =>
+      getMountPoint(dir.getCanonicalPath, mountPointToDeviceInfo.keySet())
     }.foreach {
       case (mountPoint, dirs) =>
         if (mountPoint.nonEmpty) {
@@ -245,7 +244,8 @@ object DeviceInfo {
           deviceInfo.addDiskInfo(diskInfo)
           retDiskInfos.put(mountPoint, diskInfo)
         } else {
-          logger.warn(s"Can't find mount point for ${dirs.map(_._1.getAbsolutePath).mkString(",")}")
+          logger.warn(
+            s"Can't find mount point for ${dirs.map(_._1.getCanonicalPath).mkString(",")}")
         }
     }
     deviceNameToDeviceInfo.asScala.foreach {
