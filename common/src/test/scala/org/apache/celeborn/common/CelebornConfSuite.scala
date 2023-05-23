@@ -18,6 +18,7 @@
 package org.apache.celeborn.common
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.util.Utils
 
 class CelebornConfSuite extends CelebornFunSuite {
@@ -122,7 +123,7 @@ class CelebornConfSuite extends CelebornFunSuite {
       conf.set("celeborn.shuffle.compression.zstd.level", "-100")
       assert(conf.shuffleCompressionZstdCompressLevel == -100)
     }.getMessage
-    assert(error1.contains("'-100' in celeborn.shuffle.compression.zstd.level is invalid. " +
+    assert(error1.contains(s"'-100' in ${SHUFFLE_COMPRESSION_ZSTD_LEVEL.key} is invalid. " +
       "Compression level for Zstd compression codec should be an integer between -5 and 22."))
     conf.set("celeborn.shuffle.compression.zstd.level", "-5")
     assert(conf.shuffleCompressionZstdCompressLevel == -5)
@@ -134,7 +135,7 @@ class CelebornConfSuite extends CelebornFunSuite {
       conf.set("celeborn.shuffle.compression.zstd.level", "100")
       assert(conf.shuffleCompressionZstdCompressLevel == 100)
     }.getMessage
-    assert(error2.contains("'100' in celeborn.shuffle.compression.zstd.level is invalid. " +
+    assert(error2.contains(s"'100' in ${SHUFFLE_COMPRESSION_ZSTD_LEVEL.key} is invalid. " +
       "Compression level for Zstd compression codec should be an integer between -5 and 22."))
   }
 
@@ -156,6 +157,7 @@ class CelebornConfSuite extends CelebornFunSuite {
       .set("celeborn.ha.master.node.1.host", "clb-1")
       .set("celeborn.ha.master.node.2.host", "clb-1")
       .set("celeborn.ha.master.node.3.host", "clb-1")
+    assert(conf.haMasterNodeHost("1") === "clb-1")
     assert(conf.haMasterNodeIds.sorted === Array("1", "2", "3"))
   }
 

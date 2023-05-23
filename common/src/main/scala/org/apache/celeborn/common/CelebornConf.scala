@@ -147,6 +147,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     entry.readFrom(reader)
   }
 
+  def getWithHolder(
+      entry: ConfigEntry[String],
+      target: String,
+      replaced: String,
+      default: String): String = {
+    val key = entry.key.replace(target, replaced)
+    Option(settings.get(key)).orElse(getDeprecatedConfigWithHolder(
+      entry.key,
+      target,
+      replaced,
+      settings)).getOrElse(default)
+  }
+
   /**
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
@@ -581,16 +594,32 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
 
     val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
-    getAllWithPrefix(nodeConfPrefix)
+
+    var ids = getAllWithPrefix(nodeConfPrefix)
       .map(_._1)
       .filterNot(_.equals("id"))
       .map(k => extractPrefix(k, "."))
       .distinct
+
+    if (ids.nonEmpty) {
+      return ids
+    } else {
+      HA_MASTER_NODE_HOST.alternatives.foreach { alt =>
+        ids = getAllWithPrefix(extractPrefix(alt._1, "<id>"))
+          .map(_._1)
+          .filterNot(_.equals("id"))
+          .map(k => extractPrefix(k, "."))
+          .distinct
+        if (ids.nonEmpty) {
+          return ids
+        }
+      }
+    }
+    ids
   }
 
   def haMasterNodeHost(nodeId: String): String = {
-    val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    get(key, Utils.localHostName)
+    getWithHolder(HA_MASTER_NODE_HOST, "<id>", nodeId, Utils.localHostName)
   }
 
   def haMasterNodePort(nodeId: String): Int = {
@@ -980,7 +1009,7 @@ object CelebornConf extends Logging {
    * The alternates are used in the order defined in this map. If deprecated configs are
    * present in the user's configuration, a warning is logged.
    */
-  private val configsWithAlternatives = Map[String, Seq[AlternateConfig]](
+  private val configsWithAlternatives = scala.collection.mutable.Map[String, Seq[AlternateConfig]](
     "none" -> Seq(
       AlternateConfig("none", "1.0")))
 
@@ -996,6 +1025,16 @@ object CelebornConf extends Logging {
     }.toMap
   }
 
+  def addDeprecatedConfig(entry: ConfigEntry[_], alt: (String, String => String)): Unit =
+    synchronized {
+      configsWithAlternatives.put(
+        entry.key,
+        configsWithAlternatives.getOrElse(entry.key, Seq.empty) :+ AlternateConfig(
+          alt._1,
+          entry.version,
+          alt._2))
+    }
+
   /**
    * Looks for available deprecated keys for the given config option, and return the first
    * value available.
@@ -1006,6 +1045,24 @@ object CelebornConf extends Logging {
         case alt if conf.containsKey(alt.key) =>
           val value = conf.get(alt.key)
           if (alt.translation != null) alt.translation(value) else value
+      }
+    }
+  }
+
+  def getDeprecatedConfigWithHolder(
+      key: String,
+      target: String,
+      replaced: String,
+      conf: JMap[String, String]): Option[String] = {
+    configsWithAlternatives.get(key).flatMap { alts =>
+      alts.collectFirst {
+        case alt if conf.containsKey(alt.key.replace(target, replaced)) =>
+          val value = conf.get(alt.key.replace(target, replaced))
+          if (alt.translation != null) {
+            alt.translation(value)
+          } else {
+            value
+          }
       }
     }
   }
@@ -1051,6 +1108,8 @@ object CelebornConf extends Logging {
     val updatedMap = new JHashMap[String, ConfigEntry[_]](confEntries)
     updatedMap.put(entry.key, entry)
     confEntries = updatedMap
+
+    entry.alternatives.foreach(addDeprecatedConfig(entry, _))
   }
 
   private[celeborn] def unregister(entry: ConfigEntry[_]): Unit =
