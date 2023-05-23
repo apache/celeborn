@@ -1351,7 +1351,8 @@ object CelebornConf extends Logging {
       .createWithDefault(2)
 
   val TEST_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.retryCommitFiles")
+    buildConf("celeborn.client.test.retryCommitFiles")
+      .withAlternative("celeborn.test.retryCommitFiles")
       .internal
       .categories("client", "test")
       .doc("Fail commitFile request for test")
@@ -1424,7 +1425,8 @@ object CelebornConf extends Logging {
       .createWithDefault(5)
 
   val TEST_RETRY_REVIVE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.retryRevive")
+    buildConf("celeborn.client.test.retryRevive")
+      .withAlternative("celeborn.test.retryRevive")
       .internal
       .categories("client", "test")
       .doc("Fail push data and request for test")
@@ -1507,7 +1509,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("120s")
 
   val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.pushMasterDataTimeout")
+    buildConf("celeborn.worker.test.pushMasterDataTimeout")
+      .withAlternative("celeborn.test.pushMasterDataTimeout")
       .internal
       .categories("worker", "test")
       .version("0.2.0")
@@ -1516,7 +1519,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.pushSlaveDataTimeout")
+    buildConf("celeborn.worker.test.pushSlaveDataTimeout")
+      .withAlternative("celeborn.test.pushSlaveDataTimeout")
       .internal
       .categories("worker", "test")
       .version("0.3.0")
@@ -1676,7 +1680,8 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val TEST_FETCH_FAILURE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.fetchFailure")
+    buildConf("celeborn.client.test.fetchFailure")
+      .withAlternative("celeborn.test.fetchFailure")
       .internal
       .categories("client", "test")
       .version("0.2.0")
@@ -1808,12 +1813,12 @@ object CelebornConf extends Logging {
   val HA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.enabled")
       .withAlternative("celeborn.ha.enabled")
-    .withAlternative("rss.ha.enabled")
-    .categories("master")
-    .version("0.2.0")
-    .doc("When true, master nodes run as Raft cluster mode.")
-    .booleanConf
-    .createWithDefault(false)
+      .withAlternative("rss.ha.enabled")
+      .categories("master")
+      .version("0.2.0")
+      .doc("When true, master nodes run as Raft cluster mode.")
+      .booleanConf
+      .createWithDefault(false)
 
   val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
     buildConf("celeborn.master.ha.node.id")
@@ -2476,7 +2481,8 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.minPartitionSizeToEstimate")
       .withAlternative("rss.minimum.estimate.partition.size")
       .categories("master")
-      .doc("Ignore partition size smaller than this configuration of partition size for estimation.")
+      .doc(
+        "Ignore partition size smaller than this configuration of partition size for estimation.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8mb")
