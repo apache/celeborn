@@ -231,18 +231,22 @@ object DeviceInfo {
       getMountPoint(f._1.getAbsolutePath, mountPointToDeviceInfo.keySet())
     }.foreach {
       case (mountPoint, dirs) =>
-        val deviceInfo = mountPointToDeviceInfo.get(mountPoint)
-        val diskInfo = new DiskInfo(
-          mountPoint,
-          dirs.map(_._1).toList,
-          deviceInfo,
-          conf)
-        val (_, maxUsableSpace, threadCount, storageType) = dirs(0)
-        diskInfo.configuredUsableSpace = maxUsableSpace
-        diskInfo.threadCount = threadCount
-        diskInfo.storageType = storageType
-        deviceInfo.addDiskInfo(diskInfo)
-        retDiskInfos.put(mountPoint, diskInfo)
+        if (mountPoint != "") {
+          val deviceInfo = mountPointToDeviceInfo.get(mountPoint)
+          val diskInfo = new DiskInfo(
+            mountPoint,
+            dirs.map(_._1).toList,
+            deviceInfo,
+            conf)
+          val (_, maxUsableSpace, threadCount, storageType) = dirs(0)
+          diskInfo.configuredUsableSpace = maxUsableSpace
+          diskInfo.threadCount = threadCount
+          diskInfo.storageType = storageType
+          deviceInfo.addDiskInfo(diskInfo)
+          retDiskInfos.put(mountPoint, diskInfo)
+        } else {
+          logger.warn(s"Can't find mount point for ${dirs.map(_._1.getAbsolutePath).mkString(",")}")
+        }
     }
     deviceNameToDeviceInfo.asScala.foreach {
       case (_, deviceInfo) =>
@@ -262,8 +266,13 @@ object DeviceInfo {
     var curMount = ""
     mountPoints.asScala.foreach(mount => {
       if (absPath.startsWith(mount) && mount.length > curMax) {
-        curMax = mount.length
-        curMount = mount
+        if (absPath.length == mount.length) {
+          return mount
+        } else if (absPath.length > mount.length &&
+          (mount == "/" || absPath.substring(mount.length, mount.length + 1) == "/")) {
+          curMax = mount.length
+          curMount = mount
+        }
       }
     })
     curMount
