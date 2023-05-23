@@ -996,13 +996,13 @@ object CelebornConf extends Logging {
   }
 
   def addDeprecatedConfig(entry: ConfigEntry[_], alt: (String, String => String)): Unit = {
-      configsWithAlternatives.put(
-        entry.key,
-        configsWithAlternatives.getOrElse(entry.key, Seq.empty) :+ AlternateConfig(
-          alt._1,
-          entry.version,
-          alt._2))
-    }
+    configsWithAlternatives.put(
+      entry.key,
+      configsWithAlternatives.getOrElse(entry.key, Seq.empty) :+ AlternateConfig(
+        alt._1,
+        entry.version,
+        alt._2))
+  }
 
   /**
    * Looks for available deprecated keys for the given config option, and return the first
