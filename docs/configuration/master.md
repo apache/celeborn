@@ -32,12 +32,6 @@ license: |
 | celeborn.master.estimatedPartitionSize.minSize | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.2.0 | 
 | celeborn.master.estimatedPartitionSize.update.initialDelay | 5min | Initial delay time before start updating partition size for estimation. | 0.2.0 | 
 | celeborn.master.estimatedPartitionSize.update.interval | 10min | Interval of updating partition size for estimation. | 0.2.0 | 
-| celeborn.master.ha.enabled | false | When true, master nodes run as Raft cluster mode. | 0.2.0 | 
-| celeborn.master.ha.node.&lt;id&gt;.host | &lt;required&gt; | Host to bind of master node <id> in HA mode. | 0.2.0 | 
-| celeborn.master.ha.node.&lt;id&gt;.port | 9097 | Port to bind of master node <id> in HA mode. | 0.2.0 | 
-| celeborn.master.ha.node.&lt;id&gt;.ratis.port | 9872 | Ratis port to bind of master node <id> in HA mode. | 0.2.0 | 
-| celeborn.master.ha.ratis.raft.rpc.type | netty | RPC type for Ratis, available options: netty, grpc. | 0.2.0 | 
-| celeborn.master.ha.ratis.raft.server.storage.dir | /tmp/ratis |  | 0.2.0 | 
 | celeborn.master.heartbeat.application.timeout | 300s | Application heartbeat timeout. | 0.2.0 | 
 | celeborn.master.heartbeat.worker.timeout | 120s | Worker heartbeat timeout. | 0.2.0 | 
 | celeborn.master.host | &lt;localhost&gt; | Hostname for master to bind. | 0.2.0 | 

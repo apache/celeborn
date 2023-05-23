@@ -44,6 +44,31 @@ memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs 
 
 ## All Configurations
 
+### Master
+
+{!
+include-markdown "./master.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+## Master HA
+
+{!
+include-markdown "./ha.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+### Worker
+
+{!
+include-markdown "./worker.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+
 ### Cluster Client
 
 {!
@@ -60,29 +85,6 @@ start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
 
-### Columnar Shuffle
-
-{!
-include-markdown "./columnar-shuffle.md"
-start="<!--begin-include-->"
-end="<!--end-include-->"
-!}
-
-### Master
-
-{!
-include-markdown "./master.md"
-start="<!--begin-include-->"
-end="<!--end-include-->"
-!}
-
-### Worker
-
-{!
-include-markdown "./worker.md"
-start="<!--begin-include-->"
-end="<!--end-include-->"
-!}
 
 ### Quota
 
@@ -96,6 +98,15 @@ end="<!--end-include-->"
 
 {!
 include-markdown "./network.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+
+### Columnar Shuffle
+
+{!
+include-markdown "./columnar-shuffle.md"
 start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
