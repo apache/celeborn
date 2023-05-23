@@ -24,5 +24,5 @@ license: |
 | celeborn.ha.master.node.&lt;id&gt;.port | 9097 | Port to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.ha.master.node.&lt;id&gt;.ratis.port | 9872 | Ratis port to bind of master node <id> in HA mode. | 0.2.0 | 
 | celeborn.ha.master.ratis.raft.rpc.type | netty | RPC type for Ratis, available options: netty, grpc. | 0.2.0 | 
-| cleborn.ha.master.ratis.raft.server.storage.dir | /tmp/ratis |  | 0.2.0 | 
+| celeborn.ha.master.ratis.raft.server.storage.dir | /tmp/ratis |  | 0.2.0 | 
 <!--end-include-->
