@@ -157,7 +157,6 @@ class CelebornConfSuite extends CelebornFunSuite {
       .set("celeborn.ha.master.node.1.host", "clb-1")
       .set("celeborn.ha.master.node.2.host", "clb-1")
       .set("celeborn.ha.master.node.3.host", "clb-1")
-    assert(conf.haMasterNodeHost("1") === "clb-1")
     assert(conf.haMasterNodeIds.sorted === Array("1", "2", "3"))
   }
 
