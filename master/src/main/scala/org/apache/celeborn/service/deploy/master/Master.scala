@@ -734,7 +734,6 @@ private[celeborn] class Master(
     sb.append("====================== Workers Info in Master =========================\n")
 
     workersSnapShot.asScala.foreach { w =>
-      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}\n")
       sb.append(w).append("\n")
     }
 
