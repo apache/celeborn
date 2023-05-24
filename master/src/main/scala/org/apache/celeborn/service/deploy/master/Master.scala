@@ -731,13 +731,10 @@ private[celeborn] class Master(
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
-    sb.append("====================== Workers Info in Master ===========================")
-
+    sb.append("====================== Workers Info in Master =========================\n")
     workersSnapShot.asScala.foreach { w =>
-      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}\n")
       sb.append(w).append("\n")
     }
-
     sb.toString()
   }
 
@@ -816,40 +813,6 @@ private[celeborn] class Master(
   override def isShutdown: String = throw new UnsupportedOperationException()
 
   override def isRegistered: String = throw new UnsupportedOperationException()
-
-  private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
-    try {
-      if (endpoint != null) {
-        return endpoint.askSync[GetWorkerInfosResponse](GetWorkerInfos)
-      }
-    } catch {
-      case e: Exception =>
-        logError(s"AskSync GetWorkerInfos failed.", e)
-    }
-    val result = new util.ArrayList[WorkerInfo]
-    result.add(new WorkerInfo(
-      "unknown",
-      -1,
-      -1,
-      -1,
-      -1,
-      new util.HashMap[String, DiskInfo](),
-      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
-      null))
-    GetWorkerInfosResponse(StatusCode.REQUEST_FAILED, result.asScala: _*)
-  }
-
-  private def requestThreadDump(endpoint: RpcEndpointRef): ThreadDumpResponse = {
-    try {
-      if (endpoint != null) {
-        return endpoint.askSync[ThreadDumpResponse](ThreadDump)
-      }
-    } catch {
-      case e: Exception =>
-        logError(s"AskSync ThreadDump failed.", e)
-    }
-    ThreadDumpResponse("Unknown")
-  }
 
   private def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard
