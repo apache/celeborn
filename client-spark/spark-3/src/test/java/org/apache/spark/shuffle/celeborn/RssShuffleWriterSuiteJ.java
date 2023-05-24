@@ -51,7 +51,6 @@ import org.apache.spark.serializer.Serializer;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
-import org.apache.spark.sql.execution.PartitionIdPassthrough;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.IntegerType$;
@@ -76,6 +75,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.reflect.DynConstructors;
 
 public class RssShuffleWriterSuiteJ {
 
@@ -202,8 +202,17 @@ public class RssShuffleWriterSuiteJ {
       throws Exception {
     final boolean useUnsafe = serializer instanceof UnsafeRowSerializer;
 
+    DynConstructors.Ctor<Partitioner> partitionIdPassthroughCtor =
+        DynConstructors.builder()
+            // for Spark 3.3 and previous
+            .impl("org.apache.spark.sql.execution.PartitionIdPassthrough", Integer.class)
+            // for Spark 3.4
+            .impl("org.apache.spark.PartitionIdPassthrough", Integer.class)
+            .build();
     final Partitioner partitioner =
-        useUnsafe ? new PartitionIdPassthrough(numPartitions) : new HashPartitioner(numPartitions);
+        useUnsafe
+            ? partitionIdPassthroughCtor.newInstance(numPartitions)
+            : new HashPartitioner(numPartitions);
     Mockito.doReturn(partitioner).when(dependency).partitioner();
     Mockito.doReturn(serializer).when(dependency).serializer();
 
