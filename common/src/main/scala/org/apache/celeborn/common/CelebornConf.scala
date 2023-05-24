@@ -3325,8 +3325,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("60s")
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
-    buildConf("celeborn.testAlternative.value")
-      .withAlternative("celeborn.testAlternative.replaceKey")
+    buildConf("celeborn.test.alternative.key")
+      .withAlternative("celeborn.test.alternative.deprecatedKey")
       .categories("test")
       .internal
       .version("0.3.0")
