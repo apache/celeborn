@@ -93,7 +93,7 @@ public class RssShuffleWriterSuiteJ {
   private final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
 
   private final int numMaps = 10;
-  private final int numPartitions = 10;
+  private final Integer numPartitions = 10;
   private final SparkConf sparkConf = new SparkConf(false);
   private final BlockManagerId bmId = BlockManagerId.apply("execId", "host", 1, None$.empty());
 
@@ -205,9 +205,9 @@ public class RssShuffleWriterSuiteJ {
     DynConstructors.Ctor<Partitioner> partitionIdPassthroughCtor =
         DynConstructors.builder()
             // for Spark 3.3 and previous
-            .impl("org.apache.spark.sql.execution.PartitionIdPassthrough", Integer.class)
+            .impl("org.apache.spark.sql.execution.PartitionIdPassthrough", int.class)
             // for Spark 3.4
-            .impl("org.apache.spark.PartitionIdPassthrough", Integer.class)
+            .impl("org.apache.spark.PartitionIdPassthrough", int.class)
             .build();
     final Partitioner partitioner =
         useUnsafe
