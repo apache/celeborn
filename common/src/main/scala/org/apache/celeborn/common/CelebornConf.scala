@@ -997,7 +997,7 @@ object CelebornConf extends Logging {
     }.toMap
   }
 
-  def addDeprecatedConfig(entry: ConfigEntry[_], alt: (String, String => String)): Unit = {
+  private def addDeprecatedConfig(entry: ConfigEntry[_], alt: (String, String => String)): Unit = {
     configsWithAlternatives.put(
       entry.key,
       configsWithAlternatives.getOrElse(entry.key, Seq.empty) :+ AlternateConfig(
@@ -1090,7 +1090,7 @@ object CelebornConf extends Logging {
     confEntries.containsKey(key)
   }
 
-  def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
+  private def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
 
   val NETWORK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.network.timeout")
