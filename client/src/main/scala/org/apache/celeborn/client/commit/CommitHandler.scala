@@ -85,7 +85,7 @@ abstract class CommitHandler(
     // But inProcessStageEndShuffleSet should have contain this shuffle id,
     // can directly return empty.
     if (isStageEndOrInProcess(shuffleId)) {
-      logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
+      logDebug(s"Shuffle $shuffleId ended or during processing stage end.")
       shuffleCommittedInfo.unhandledPartitionLocations.clear()
       Map.empty[WorkerInfo, Set[PartitionLocation]]
     } else {
@@ -99,7 +99,7 @@ abstract class CommitHandler(
       }
 
       if (currentBatch.nonEmpty) {
-        logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
+        logDebug(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
           s"${currentBatch.map(_.getUniqueId).mkString("[", ",", "]")}")
         val workerToRequests = currentBatch.flatMap { partitionLocation =>
           if (partitionLocation.getPeer != null) {
