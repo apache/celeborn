@@ -732,11 +732,9 @@ private[celeborn] class Master(
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Workers Info in Master =========================\n")
-
     workersSnapShot.asScala.foreach { w =>
       sb.append(w).append("\n")
     }
-
     sb.toString()
   }
 
