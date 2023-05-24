@@ -58,4 +58,8 @@ public class FlinkUtils {
   public static long byteStringValueAsBytes(Configuration flinkConf, PluginConf pluginConf) {
     return Utils.byteStringAsBytes(PluginConf.getValue(flinkConf, pluginConf));
   }
+
+  public static boolean stringValueAsBoolean(Configuration flinkConf, PluginConf pluginConf) {
+    return Boolean.valueOf(PluginConf.getValue(flinkConf, pluginConf));
+  }
 }
