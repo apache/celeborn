@@ -904,7 +904,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushMasterDataTimeout: Boolean = get(TEST_PUSH_MASTER_DATA_TIMEOUT)
   def testPushSlaveDataTimeout: Boolean = get(TEST_PUSH_SLAVE_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_RETRY_REVIVE)
-  def testAlternative: String = get(TEST_ALTERNATIVE)
+  def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
 }
 
 object CelebornConf extends Logging {
@@ -3324,12 +3324,12 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
-  val TEST_ALTERNATIVE: ConfigEntry[String] =
+  val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.testAlternative.value")
       .withAlternative("celeborn.testAlternative.replaceKey")
       .categories("test")
       .internal
       .version("0.3.0")
       .stringConf
-      .createWithDefaultString("celeborn")
+      .createOptional
 }
