@@ -22,6 +22,7 @@ import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, L
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -903,6 +904,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushMasterDataTimeout: Boolean = get(TEST_PUSH_MASTER_DATA_TIMEOUT)
   def testPushSlaveDataTimeout: Boolean = get(TEST_PUSH_SLAVE_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_RETRY_REVIVE)
+  def testAlternative: String = get(TEST_ALTERNATIVE)
 }
 
 object CelebornConf extends Logging {
@@ -979,7 +981,7 @@ object CelebornConf extends Logging {
    * The alternates are used in the order defined in this map. If deprecated configs are
    * present in the user's configuration, a warning is logged.
    */
-  private val configsWithAlternatives = scala.collection.mutable.Map[String, Seq[AlternateConfig]](
+  private val configsWithAlternatives = mutable.Map[String, Seq[AlternateConfig]](
     "none" -> Seq(
       AlternateConfig("none", "1.0")))
 
@@ -3321,4 +3323,13 @@ object CelebornConf extends Logging {
       .doc("the heartbeat interval between worker and client")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
+
+  val TEST_ALTERNATIVE: ConfigEntry[String] =
+    buildConf("celeborn.testAlternative.value")
+      .withAlternative("celeborn.testAlternative.replaceKey")
+      .categories("test")
+      .internal
+      .version("0.3.0")
+      .stringConf
+      .createWithDefaultString("celeborn")
 }

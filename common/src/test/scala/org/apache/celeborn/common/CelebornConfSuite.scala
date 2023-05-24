@@ -180,8 +180,8 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("CELEBORN-601: Consolidate configsWithAlternatives with `ConfigBuilder.withAlternative`") {
     val conf = new CelebornConf()
-      .set("rss.network.timeout", "300s")
+      .set(CelebornConf.TEST_ALTERNATIVE.alternatives.head._1, "rss")
 
-    assert(conf.get(CelebornConf.NETWORK_TIMEOUT.key) == "300s")
+    assert(conf.testAlternative == "rss")
   }
 }
