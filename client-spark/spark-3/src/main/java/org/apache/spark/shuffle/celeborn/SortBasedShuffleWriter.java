@@ -192,11 +192,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   boolean canUseFastWrite() {
     boolean keyIsPartitionId = false;
     if (dep.serializer() instanceof UnsafeRowSerializer) {
-      // SPARK-39391 renames PartitionIdPassthrough's package and introduces ConstantPartitioner
+      // SPARK-39391 renames PartitionIdPassthrough's package
       String partitionerClassName = partitioner.getClass().getSimpleName();
-      keyIsPartitionId =
-          "PartitionIdPassthrough".equals(partitionerClassName)
-              || "ConstantPartitioner".equals(partitionerClassName);
+      keyIsPartitionId = "PartitionIdPassthrough".equals(partitionerClassName);
     }
     return keyIsPartitionId;
   }
