@@ -523,7 +523,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleManagerPort: Int = get(SHUFFLE_MANAGER_PORT)
-  def readDfsChunkSize: Long = get(READ_DFS_CHUNK_SIZE)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
   def registerShuffleMaxRetry: Int = get(SHUFFLE_REGISTER_MAX_RETRIES)
   def registerShuffleRetryWaitMs: Long = get(SHUFFLE_REGISTER_RETRY_WAIT)
@@ -1752,22 +1751,10 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val READ_DFS_CHUNK_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.client.read.dfs.chunk.size")
-      .withAlternative("celeborn.shuffle.chunk.size")
-      .withAlternative("rss.chunk.size")
-      .categories("client")
-      .version("0.2.0")
-      .doc("Max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
-        "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("8m")
-
   val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.worker.chunk.size")
-      .withAlternative("celeborn.shuffle.chunk.size")
+    buildConf("celeborn.shuffle.chunk.size")
       .withAlternative("rss.chunk.size")
-      .categories("worker")
+      .categories("client", "worker")
       .version("0.2.0")
       .doc("Max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
         "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
@@ -2425,7 +2412,7 @@ object CelebornConf extends Logging {
       .createWithDefault(1)
 
   val SLOTS_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
-    buildConf("celeborn.master.assginSlots.extraSlots")
+    buildConf("celeborn.master.assignSlots.extraSlots")
       .withAlternative("celeborn.slots.assign.extraSlots")
       .withAlternative("rss.offer.slots.extra.size")
       .categories("master")
