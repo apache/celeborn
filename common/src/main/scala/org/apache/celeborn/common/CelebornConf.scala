@@ -540,7 +540,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def requestCommitFilesMaxRetries: Int = get(COMMIT_FILE_REQUEST_MAX_RETRY)
   def shuffleClientPushBlacklistEnabled: Boolean = get(SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED)
-  def clientHeartbeatInterval: Long = get(CHANNEL_HEARTBEAT_INTERVAL)
+  def clientHeartbeatInterval(module: String): Long = {
+    val key = CHANNEL_HEARTBEAT_INTERVAL.key.replace("<module>", module)
+    getLong(key, CHANNEL_HEARTBEAT_INTERVAL.defaultValue.get)
+  }
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
   // //////////////////////////////////////////////////////
@@ -730,8 +733,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
-  def pushDataTimeoutCheckerThreads: Int = get(PUSH_TIMEOUT_CHECK_THREADS)
-  def pushDataTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
+  def pushDataTimeoutCheckerThreads(module: String): Int = {
+    val key = PUSH_TIMEOUT_CHECK_THREADS.key.replace("<module>", module)
+    getInt(key, PUSH_TIMEOUT_CHECK_THREADS.defaultValue.get)
+  }
+  def pushDataTimeoutCheckInterval(module: String): Long = {
+    val key = PUSH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
+    getLong(key, PUSH_TIMEOUT_CHECK_INTERVAL.defaultValue.get)
+  }
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -1379,7 +1388,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.channel.push.timeoutCheck.interval")
+    buildConf("celeborn.<module>.push.timeoutCheck.interval")
       .categories("network")
       .doc("Interval for checking push data timeout.")
       .version("0.3.0")
@@ -1387,7 +1396,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5s")
 
   val PUSH_TIMEOUT_CHECK_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.channel.push.timeoutCheck.threads")
+    buildConf("celeborn.<module>.push.timeoutCheck.threads")
       .categories("network")
       .doc("Threads num for checking push data timeout.")
       .version("0.3.0")
@@ -3402,7 +3411,7 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val CHANNEL_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.channel.heartbeat.interval")
+    buildConf("celeborn.<module>.heartbeat.interval")
       .withAlternative("celeborn.client.heartbeat.interval")
       .categories("network")
       .version("0.3.0")

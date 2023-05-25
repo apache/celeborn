@@ -72,12 +72,12 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.outstandingRpcs = JavaUtils.newConcurrentHashMap();
     this.outstandingPushes = JavaUtils.newConcurrentHashMap();
     this.timeOfLastRequestNs = new AtomicLong(0);
-    pushTimeoutCheckerInterval = conf.getCelebornConf().pushDataTimeoutCheckInterval();
+    pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
     synchronized (TransportResponseHandler.class) {
       if (pushTimeoutChecker == null) {
         pushTimeoutChecker =
             ThreadUtils.newDaemonThreadPoolScheduledExecutor(
-                "push-timeout-checker", conf.getCelebornConf().pushDataTimeoutCheckerThreads());
+                "push-timeout-checker", conf.pushDataTimeoutCheckerThreads());
       }
     }
     scheduleFuture =

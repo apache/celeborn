@@ -19,6 +19,7 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
+| celeborn.&lt;module&gt;.heartbeat.interval | 60s | the heartbeat interval between worker and client | 0.3.0 | 
 | celeborn.&lt;module&gt;.io.backLog | 0 | Requested maximum length of the queue of incoming connections. Default 0 for no backlog. |  | 
 | celeborn.&lt;module&gt;.io.clientThreads | 0 | Number of threads used in the client thread pool. Default to 0, which is 2x#cores. |  | 
 | celeborn.&lt;module&gt;.io.connectTimeout | &lt;value of celeborn.network.connect.timeout&gt; | Socket connect timeout. |  | 
@@ -33,9 +34,8 @@ license: |
 | celeborn.&lt;module&gt;.io.retryWait | 5s | Time that we will wait in order to perform a retry after an IOException. Only relevant if maxIORetries > 0. | 0.2.0 | 
 | celeborn.&lt;module&gt;.io.sendBuffer | 0b | Send buffer size (SO_SNDBUF). | 0.2.0 | 
 | celeborn.&lt;module&gt;.io.serverThreads | 0 | Number of threads used in the server thread pool. Default to 0, which is 2x#cores. |  | 
-| celeborn.channel.heartbeat.interval | 60s | the heartbeat interval between worker and client | 0.3.0 | 
-| celeborn.channel.push.timeoutCheck.interval | 5s | Interval for checking push data timeout. | 0.3.0 | 
-| celeborn.channel.push.timeoutCheck.threads | 16 | Threads num for checking push data timeout. | 0.3.0 | 
+| celeborn.&lt;module&gt;.push.timeoutCheck.interval | 5s | Interval for checking push data timeout. | 0.3.0 | 
+| celeborn.&lt;module&gt;.push.timeoutCheck.threads | 16 | Threads num for checking push data timeout. | 0.3.0 | 
 | celeborn.memory.allocator.numArenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
 | celeborn.memory.allocator.share | false | Whether to share memory allocator. | 0.3.0 | 
 | celeborn.memory.allocator.verbose.metric | false | Weather to enable verbose metric for pooled allocator. | 0.3.0 | 
