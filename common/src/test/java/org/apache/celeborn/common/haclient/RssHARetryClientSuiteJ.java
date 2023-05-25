@@ -369,6 +369,6 @@ public class RssHARetryClientSuiteJ {
     return conf.clone()
         .set(CelebornConf.HA_ENABLED().key(), "true")
         .set(CelebornConf.MASTER_ENDPOINTS().key(), "host1:9097,host2:9097,host3:9097")
-        .set(CelebornConf.CLIENT_MAX_RETRIES().key(), "5");
+        .set(CelebornConf.MASTER_CLIENT_MAX_RETRIES().key(), "5");
   }
 }

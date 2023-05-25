@@ -168,7 +168,7 @@ class CelebornConfSuite extends CelebornFunSuite {
       .set(CelebornConf.NETWORK_CONNECT_TIMEOUT, 2000L)
 
     assert(conf.rpcAskTimeout.duration.toMillis == 1000L)
-    assert(conf.clusterClientRpcAskTimeout.duration.toMillis == 1000L)
+    assert(conf.masterClientRpcAskTimeout.duration.toMillis == 1000L)
     assert(conf.reserveSlotsRpcTimeout.duration.toMillis == 1000L)
     assert(conf.networkTimeout.duration.toMillis == 20000L)
     assert(conf.networkIoConnectionTimeoutMs("data") == 20000L)

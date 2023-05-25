@@ -130,30 +130,7 @@ public class TransportConf {
     return celebornConf.networkIoVerboseMetrics(module);
   }
 
-  /**
-   * The max number of chunks allowed to be transferred at the same time on shuffle service. Note
-   * that new incoming connections will be closed when the max number is hit. The client will retry
-   * according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and
-   * `celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch
-   * failure.
-   */
-  public long maxChunksBeingTransferred() {
-    return celebornConf.networkIoMaxChunksBeingTransferred(module);
-  }
-
   public CelebornConf getCelebornConf() {
     return celebornConf;
-  }
-
-  public int pushDataTimeoutCheckerThreads() {
-    return celebornConf.pushDataTimeoutCheckerThreads();
-  }
-
-  public long pushDataTimeoutCheckIntervalMs() {
-    return celebornConf.pushTimeoutCheckInterval();
-  }
-
-  public long clientHearbeatInterval() {
-    return celebornConf.clientHeartbeatInterval();
   }
 }

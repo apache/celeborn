@@ -82,10 +82,6 @@ class ConfigurationSuite extends AnyFunSuite {
     generateConfigurationMarkdown("metrics")
   }
 
-  test("docs - configuration/cluster.md") {
-    generateConfigurationMarkdown("cluster")
-  }
-
   test("docs - configuration/ha.md") {
     generateConfigurationMarkdown("ha")
   }

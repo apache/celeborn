@@ -70,14 +70,6 @@ end="<!--end-include-->"
 !}
 
 
-### Cluster Client
-
-{!
-include-markdown "./cluster.md"
-start="<!--begin-include-->"
-end="<!--end-include-->"
-!}
-
 ### Client
 
 {!

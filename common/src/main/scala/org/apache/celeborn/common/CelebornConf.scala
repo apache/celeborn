@@ -379,9 +379,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
-  def clusterClientRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(get(CLUSTER_CLIENT_RPC_ASK_TIMEOUT).milli, CLUSTER_CLIENT_RPC_ASK_TIMEOUT.key)
-
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
     get(key, NETWORK_IO_MODE.defaultValue.get)
@@ -457,9 +454,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getBoolean(key, NETWORK_VERBOSE_METRICS.defaultValue.get)
   }
 
-  def networkIoMaxChunksBeingTransferred(module: String): Long = {
-    val key = MAX_CHUNKS_BEING_TRANSFERRED.key.replace("<module>", module)
-    getSizeAsBytes(key, MAX_CHUNKS_BEING_TRANSFERRED.defaultValueString)
+  def shuffleIoMaxChunksBeingTransferred: Long = {
+    get(MAX_CHUNKS_BEING_TRANSFERRED)
   }
 
   // //////////////////////////////////////////////////////
@@ -522,7 +518,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Client                         //
   // //////////////////////////////////////////////////////
-  def clientMaxTries: Int = get(CLIENT_MAX_RETRIES)
   def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SHUFFLE_WRITER_MODE))
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
@@ -564,6 +559,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         case (host, port) => s"$host:$port"
       }
     }
+
+  def masterClientRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(get(MASTER_CLIENT_RPC_ASK_TIMEOUT).milli, MASTER_CLIENT_RPC_ASK_TIMEOUT.key)
+
+  def masterClientMaxRetries: Int = get(MASTER_CLIENT_MAX_RETRIES)
 
   def masterHost: String = get(MASTER_HOST)
 
@@ -732,7 +732,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
   def pushDataTimeoutCheckerThreads: Int = get(PUSH_TIMEOUT_CHECK_THREADS)
-  def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
+  def pushDataTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -1131,14 +1131,26 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val CLUSTER_CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.cluster.client.rpc.askTimeout")
+  val MASTER_CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.masterClient.rpc.askTimeout")
       .withAlternative("celeborn.rpc.haClient.askTimeout")
       .withAlternative("rss.haclient.rpc.askTimeout")
-      .categories("cluster")
+      .internal
+      .categories("client", "worker")
       .version("0.2.0")
       .doc("Timeout for HA client RPC ask operations.")
       .fallbackConf(RPC_ASK_TIMEOUT)
+
+  val MASTER_CLIENT_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.masterClient.maxRetries")
+      .withAlternative("celeborn.client.maxRetries")
+      .withAlternative("rss.ha.client.maxTries")
+      .internal
+      .categories("client", "worker")
+      .doc("Max retry times for client to connect master endpoint")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(15)
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
@@ -1250,7 +1262,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
-    buildConf("celeborn.<module>.io.maxChunksBeingTransferred")
+    buildConf("celeborn.shuffle.io.maxChunksBeingTransferred")
       .withAlternative("rss.shuffle.maxChunksBeingTransferred")
       .categories("network")
       .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
@@ -1276,7 +1288,7 @@ object CelebornConf extends Logging {
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.cluster.master.endpoints")
       .withAlternative("celeborn.master.endpoints")
-      .categories("cluster")
+      .categories("client", "worker")
       .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
         "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
         "If the port is omitted, 9097 will be used.")
@@ -1290,8 +1302,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString(s"<localhost>:9097")
 
   val SHUFFLE_WRITER_MODE: ConfigEntry[String] =
-    buildConf("celeborn.client.shuffle.writer.mode")
-      .withAlternative("celeborn.shuffle.writer")
+    buildConf("celeborn.client.shuffle.writer")
       .withAlternative("rss.shuffle.writer.mode")
       .categories("client")
       .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
@@ -2690,16 +2701,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .intConf
       .createWithDefault(1)
-
-  val CLIENT_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.cluster.client.maxRetries")
-      .withAlternative("celeborn.client.maxRetries")
-      .withAlternative("rss.ha.client.maxTries")
-      .categories("cluster")
-      .doc("Max retry times for client to connect master endpoint")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(15)
 
   val CLIENT_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.closeIdleConnections")

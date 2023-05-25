@@ -43,7 +43,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
   test("test register when master not available") {
     val celebornConf: CelebornConf = new CelebornConf()
     celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, "localhost:19098")
-    celebornConf.set(CelebornConf.CLIENT_MAX_RETRIES.key, "0")
+    celebornConf.set(CelebornConf.MASTER_CLIENT_MAX_RETRIES.key, "0")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
     val shuffleClient: ShuffleClientImpl = {

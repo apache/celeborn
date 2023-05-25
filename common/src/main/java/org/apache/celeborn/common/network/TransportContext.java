@@ -152,7 +152,7 @@ public class TransportContext {
         conf.connectionTimeoutMs(),
         closeIdleConnections,
         enableHeartbeat,
-        conf.clientHearbeatInterval());
+        conf.getCelebornConf().clientHeartbeatInterval());
   }
 
   public TransportConf getConf() {

@@ -25,7 +25,6 @@ license: |
 | celeborn.&lt;module&gt;.io.connectionTimeout | &lt;value of celeborn.network.timeout&gt; | Connection active timeout. |  | 
 | celeborn.&lt;module&gt;.io.enableVerboseMetrics | false | Whether to track Netty memory detailed metrics. If true, the detailed metrics of Netty PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked. |  | 
 | celeborn.&lt;module&gt;.io.lazyFD | true | Whether to initialize FileDescriptor lazily or not. If true, file descriptors are created only when data is going to be transferred. This can reduce the number of open files. |  | 
-| celeborn.&lt;module&gt;.io.maxChunksBeingTransferred | 9223372036854775807 | The max number of chunks allowed to be transferred at the same time on shuffle service. Note that new incoming connections will be closed when the max number is hit. The client will retry according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and `celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure. | 0.2.0 | 
 | celeborn.&lt;module&gt;.io.maxRetries | 3 | Max number of times we will try IO exceptions (such as connection timeouts) per request. If set to 0, we will not do any retries. |  | 
 | celeborn.&lt;module&gt;.io.mode | NIO | Netty EventLoopGroup backend, available options: NIO, EPOLL. |  | 
 | celeborn.&lt;module&gt;.io.numConnectionsPerPeer | 2 | Number of concurrent connections between two nodes. |  | 
@@ -47,4 +46,5 @@ license: |
 | celeborn.rpc.connect.threads | 64 |  | 0.2.0 | 
 | celeborn.rpc.io.threads | &lt;undefined&gt; | Netty IO thread number of NettyRpcEnv to handle RPC request. The default threads number is the number of runtime available processors. | 0.2.0 | 
 | celeborn.rpc.lookupTimeout | 30s | Timeout for RPC lookup operations. | 0.2.0 | 
+| celeborn.shuffle.io.maxChunksBeingTransferred | 9223372036854775807 | The max number of chunks allowed to be transferred at the same time on shuffle service. Note that new incoming connections will be closed when the max number is hit. The client will retry according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and `celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure. | 0.2.0 | 
 <!--end-include-->
