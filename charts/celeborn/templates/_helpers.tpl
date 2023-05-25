@@ -76,3 +76,48 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- define "celeborn.master.volumeMounts" -}}
+- name: celeborn-master-ratis-volume
+  mountPath: {{ .Values.storage.master.ratis.path }}
+{{- end }}
+
+{{- define "celeborn.master.volumes" -}}
+- name: celeborn-master-ratis-volume
+{{- if eq "emptyDir" .Values.storage.master.ratis.type }}
+  emptyDir:
+    sizeLimit: {{ .Values.storage.master.ratis.sizeLimit }}
+{{- else if eq "hostPath" .Values.storage.master.ratis.type }}
+  hostPath:
+    path: {{ .Values.storage.master.ratis.path }}/ratis
+    type: DirectoryOrCreate
+{{- end }}
+{{- end }}
+
+{{- define "celeborn.worker.volumeMounts" -}}
+{{- $dirs := .Values.storage.worker.dirs.path | splitList "," -}}
+{{- range $index, $dir := $dirs }}
+- name: celeborn-worker-vol-{{ $index }}
+  mountPath: {{ $dir }}
+{{- end }}
+{{- end }}
+
+{{- define "celeborn.worker.volumes" -}}
+{{- if eq "emptyDir" .Values.storage.worker.dirs.type }}
+{{- $dirs := .Values.storage.worker.dirs.path | splitList "," -}}
+{{- range $index, $dir := $dirs }}
+- name: celeborn-worker-vol-{{ $index }}
+  emptyDir:
+    sizeLimit: {{ $.Values.storage.worker.dirs.sizeLimit }}
+{{- end }}
+{{- else if eq "hostPath" .Values.storage.worker.dirs.type }}
+{{- $dirs := .Values.storage.worker.dirs.path | splitList "," -}}
+{{- range $index, $dir := $dirs }}
+- name: celeborn-worker-vol-{{ $index }}
+  hostPath:
+    path: {{ $dir }}/worker
+    type: DirectoryOrCreate
+{{- end }}
+{{- end }}
+{{- end }}
+

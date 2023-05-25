@@ -36,10 +36,25 @@ workerReplicas: 5
 securityContext:
   fsGroup: 10006
 
+# Current Celeborn support followings volume type:
+# - emptyDir
+# - hostPath
+storage:
+  master:
+    ratis:
+      path: &master-storage-ratis /mnt/rss_ratis
+      type: hostPath
+      sizeLimit: 1Gi
+  worker:
+    dirs:
+      path: &worker-storage-dirs /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
+      type: hostPath
+      sizeLimit: 1Gi
+
 # celeborn configurations
 celeborn:
-  celeborn.ha.master.ratis.raft.server.storage.dir: /mnt/rss_ratis/
-  celeborn.worker.storage.dirs: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
+  celeborn.ha.master.ratis.raft.server.storage.dir: *master-storage-ratis
+  celeborn.worker.storage.dirs: *worker-storage-dirs
   celeborn.metrics.enabled: true
   celeborn.master.metrics.prometheus.port: 9098
   celeborn.worker.metrics.prometheus.port: 9096
