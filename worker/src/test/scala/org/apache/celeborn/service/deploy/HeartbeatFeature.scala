@@ -33,8 +33,8 @@ trait HeartbeatFeature extends MiniClusterFeature {
       assertFunc: (TransportClient, TransportClient) => Unit): Unit = {
     logInfo("test initialized , setup rss mini cluster")
     val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> "9097")
+      CelebornConf.MASTER_HOST.key -> "localhost",
+      CelebornConf.MASTER_PORT.key -> "9097")
     var master: Master = null
     var workers: collection.Set[Worker] = null
     try {
@@ -65,11 +65,11 @@ trait HeartbeatFeature extends MiniClusterFeature {
 
   def getTestHeartbeatFromWorker2ClientConf(): (Map[String, String], CelebornConf) = {
     val workerConf = Map(
-      "celeborn.master.endpoints" -> "localhost:9097",
-      "celeborn.client.heartbeat.interval" -> "4s")
+      CelebornConf.MASTER_ENDPOINTS.key -> "localhost:9097",
+      CelebornConf.CHANNEL_HEARTBEAT_INTERVAL.key -> "4s")
     val clientConf = new CelebornConf()
     clientConf.set("celeborn.data.io.connectionTimeout", "6s")
-    clientConf.set("celeborn.client.heartbeat.interval", "3s")
+    clientConf.set(CelebornConf.CHANNEL_HEARTBEAT_INTERVAL.key, "3s")
     (workerConf, clientConf)
   }
   def testHeartbeatFromWorker2Client(dataClientFactory: TransportClientFactory): Unit = {
@@ -119,11 +119,11 @@ trait HeartbeatFeature extends MiniClusterFeature {
   def getTestHeartbeatFromWorker2ClientWithCloseChannelConf()
       : (Map[String, String], CelebornConf) = {
     val workerConf = Map(
-      "celeborn.master.endpoints" -> "localhost:9097",
+      CelebornConf.MASTER_ENDPOINTS.key -> "localhost:9097",
       "celeborn.fetch.io.connectionTimeout" -> "9s",
       "celeborn.push.io.connectionTimeout" -> "9s",
-      "celeborn.client.heartbeat.interval" -> "4s",
-      "celeborn.worker.closeIdleConnections" -> "true")
+      CelebornConf.CHANNEL_HEARTBEAT_INTERVAL.key -> "4s",
+      CelebornConf.WORKER_CLOSE_IDLE_CONNECTIONS.key -> "true")
     val clientConf = new CelebornConf()
     clientConf.set("celeborn.data.io.connectionTimeout", "6s")
     (workerConf, clientConf)

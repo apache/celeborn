@@ -37,7 +37,7 @@ public class RatisBaseSuiteJ {
     File tmpDir1 = File.createTempFile("rss-ratis-tmp", "for-test-only");
     tmpDir1.delete();
     tmpDir1.mkdirs();
-    conf.set("celeborn.ha.master.ratis.raft.server.storage.dir", tmpDir1.getAbsolutePath());
+    conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir1.getAbsolutePath());
     String id = UUID.randomUUID().toString();
     int ratisPort = 9999;
     MasterNode masterNode =

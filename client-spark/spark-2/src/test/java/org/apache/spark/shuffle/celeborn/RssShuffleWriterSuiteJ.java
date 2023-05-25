@@ -172,7 +172,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "1024");
+    final CelebornConf conf = new CelebornConf().set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key(), "1024");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -180,7 +180,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "1024");
+    final CelebornConf conf = new CelebornConf().set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key(), "1024");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -188,7 +188,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecord() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "5");
+    final CelebornConf conf = new CelebornConf().set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key(), "5");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -196,7 +196,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "5");
+    final CelebornConf conf = new CelebornConf().set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key(), "5");
     check(10000, conf, serializer, true);
     check(10000, conf, serializer, false);
   }
@@ -204,7 +204,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordAndMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "128");
+    final CelebornConf conf = new CelebornConf().set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key(), "128");
     check(2 << 30, conf, serializer, true);
     check(2 << 30, conf, serializer, false);
   }
@@ -212,7 +212,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordAndMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "128");
+    final CelebornConf conf = new CelebornConf().set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key()", "128");
     check(2 << 30, conf, serializer, true);
     check(2 << 30, conf, serializer, false);
   }

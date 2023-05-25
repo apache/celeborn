@@ -28,9 +28,9 @@ public class SlowStartPushStrategyTest {
 
   @Test
   public void testSleepTime() {
-    conf.set("celeborn.push.maxReqsInFlight", "32");
-    conf.set("celeborn.push.limit.strategy", "slowstart");
-    conf.set("celeborn.push.slowStart.maxSleepTime", "3s");
+    conf.set(CelebornConf.PUSH_MAX_REQS_IN_FLIGHT().key(), "32");
+    conf.set(CelebornConf.PUSH_LIMIT_STRATEGY().key(), "slowstart");
+    conf.set(CelebornConf.PUSH_SLOW_START_MAX_SLEEP_TIME().key(), "3s");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
     String dummyHostPort = "test:9087";
     SlowStartPushStrategy.CongestControlContext context =
@@ -84,9 +84,9 @@ public class SlowStartPushStrategyTest {
 
   @Test
   public void testCongestStrategy() {
-    conf.set("celeborn.push.maxReqsInFlight", "5");
-    conf.set("celeborn.push.limit.strategy", "slowstart");
-    conf.set("celeborn.push.slowStart.maxSleepTime", "4s");
+    conf.set(CelebornConf.PUSH_MAX_REQS_IN_FLIGHT().key(), "5");
+    conf.set(CelebornConf.PUSH_LIMIT_STRATEGY().key(), "slowstart");
+    conf.set(CelebornConf.PUSH_SLOW_START_MAX_SLEEP_TIME().key(), "4s");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
     String dummyHostPort = "test:9087";
     // Slow start, should exponentially increase the currentReq
@@ -122,9 +122,9 @@ public class SlowStartPushStrategyTest {
 
   @Test
   public void testMultiHosts() {
-    conf.set("celeborn.push.maxReqsInFlight", "3");
-    conf.set("celeborn.push.limit.strategy", "slowstart");
-    conf.set("celeborn.push.slowStart.maxSleepTime", "3s");
+    conf.set(CelebornConf.PUSH_MAX_REQS_IN_FLIGHT().key(), "3");
+    conf.set(CelebornConf.PUSH_LIMIT_STRATEGY().key(), "slowstart");
+    conf.set(CelebornConf.PUSH_SLOW_START_MAX_SLEEP_TIME().key(), "3s");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
     String dummyHostPort1 = "test1:9087";
     String dummyHostPort2 = "test2:9087";

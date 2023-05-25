@@ -25,7 +25,7 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("celeborn.master.endpoints support multi nodes") {
     val conf = new CelebornConf()
-      .set("celeborn.master.endpoints", "localhost1:9097,localhost2:9097")
+      .set(CelebornConf.MASTER_ENDPOINTS.key, "localhost1:9097,localhost2:9097")
     val masterEndpoints = conf.masterEndpoints
     assert(masterEndpoints.length == 2)
     assert(masterEndpoints(0) == "localhost1:9097")
@@ -35,7 +35,7 @@ class CelebornConfSuite extends CelebornFunSuite {
   test("storage test") {
     val conf = new CelebornConf()
     val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
-    conf.set("celeborn.worker.storage.dirs", "/mnt/disk1")
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.size == 1)
     assert(workerBaseDirs.head._3 == 2)
@@ -44,8 +44,7 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("storage test2") {
     val conf = new CelebornConf()
-    val defaultMaxUsableSpace = 1024L * 1024 * 1024 * 1024 * 1024
-    conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g")
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1:disktype=SSD:capacity=10g")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.size == 1)
     assert(workerBaseDirs.head._3 == 8)
@@ -54,7 +53,9 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("storage test3") {
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3")
+    conf.set(
+      CelebornConf.WORKER_STORAGE_DIRS.key,
+      "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.size == 1)
     assert(workerBaseDirs.head._3 == 3)
@@ -64,7 +65,7 @@ class CelebornConfSuite extends CelebornFunSuite {
   test("storage test4") {
     val conf = new CelebornConf()
     conf.set(
-      "celeborn.worker.storage.dirs",
+      CelebornConf.WORKER_STORAGE_DIRS.key,
       "/mnt/disk1:disktype=SSD:capacity=10g:flushthread=3," +
         "/mnt/disk2:disktype=HDD:capacity=15g:flushthread=7")
     val workerBaseDirs = conf.workerBaseDirs
@@ -80,39 +81,39 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("storage test5") {
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.storage.dirs", "/mnt/disk1")
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.head._3 == 2)
   }
 
   test("storage test6") {
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.flusher.threads", "4")
-      .set("celeborn.worker.storage.dirs", "/mnt/disk1")
+    conf.set(CelebornConf.WORKER_FLUSHER_THREADS.key, "4")
+      .set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.head._3 == 4)
   }
 
   test("storage test7") {
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.flusher.threads", "4")
-      .set("celeborn.worker.storage.dirs", "/mnt/disk1:flushthread=8")
+    conf.set(CelebornConf.WORKER_FLUSHER_THREADS.key, "4")
+      .set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1:flushthread=8")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.head._3 == 8)
   }
 
   test("storage test8") {
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.flusher.threads", "4")
-      .set("celeborn.worker.storage.dirs", "/mnt/disk1:disktype=SSD")
+    conf.set(CelebornConf.WORKER_FLUSHER_THREADS.key, "4")
+      .set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1:disktype=SSD")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.head._3 == 8)
   }
 
   test("storage test9") {
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.flusher.threads", "4")
-      .set("celeborn.worker.storage.dirs", "/mnt/disk1:flushthread=9:disktype=HDD")
+    conf.set(CelebornConf.WORKER_FLUSHER_THREADS.key, "4")
+      .set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1:flushthread=9:disktype=HDD")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.head._3 == 9)
   }
@@ -120,19 +121,19 @@ class CelebornConfSuite extends CelebornFunSuite {
   test("zstd level") {
     val conf = new CelebornConf()
     val error1 = intercept[IllegalArgumentException] {
-      conf.set("celeborn.shuffle.compression.zstd.level", "-100")
+      conf.set(CelebornConf.SHUFFLE_COMPRESSION_ZSTD_LEVEL.key, "-100")
       assert(conf.shuffleCompressionZstdCompressLevel == -100)
     }.getMessage
     assert(error1.contains(s"'-100' in ${SHUFFLE_COMPRESSION_ZSTD_LEVEL.key} is invalid. " +
       "Compression level for Zstd compression codec should be an integer between -5 and 22."))
-    conf.set("celeborn.shuffle.compression.zstd.level", "-5")
+    conf.set(CelebornConf.SHUFFLE_COMPRESSION_ZSTD_LEVEL.key, "-5")
     assert(conf.shuffleCompressionZstdCompressLevel == -5)
-    conf.set("celeborn.shuffle.compression.zstd.level", "0")
+    conf.set(CelebornConf.SHUFFLE_COMPRESSION_ZSTD_LEVEL.key, "0")
     assert(conf.shuffleCompressionZstdCompressLevel == 0)
-    conf.set("celeborn.shuffle.compression.zstd.level", "22")
+    conf.set(CelebornConf.SHUFFLE_COMPRESSION_ZSTD_LEVEL.key, "22")
     assert(conf.shuffleCompressionZstdCompressLevel == 22)
     val error2 = intercept[IllegalArgumentException] {
-      conf.set("celeborn.shuffle.compression.zstd.level", "100")
+      conf.set(CelebornConf.SHUFFLE_COMPRESSION_ZSTD_LEVEL.key, "100")
       assert(conf.shuffleCompressionZstdCompressLevel == 100)
     }.getMessage
     assert(error2.contains(s"'100' in ${SHUFFLE_COMPRESSION_ZSTD_LEVEL.key} is invalid. " +

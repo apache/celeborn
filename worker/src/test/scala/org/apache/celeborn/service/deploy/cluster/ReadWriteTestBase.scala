@@ -55,10 +55,10 @@ trait ReadWriteTestBase extends AnyFunSuite
     val APP = "app-1"
 
     val clientConf = new CelebornConf()
-      .set("celeborn.master.endpoints", s"localhost:$masterPort")
-      .set("celeborn.shuffle.compression.codec", codec.name)
-      .set("celeborn.push.replicate.enabled", "true")
-      .set("celeborn.push.buffer.max.size", "256K")
+      .set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
+      .set(CelebornConf.SHUFFLE_COMPRESSION_CODEC.key, codec.name)
+      .set(CelebornConf.PUSH_REPLICATE_ENABLED.key, "true")
+      .set(CelebornConf.PUSH_BUFFER_MAX_SIZE.key, "256K")
       .set("celeborn.data.io.numConnectionsPerPeer", "1")
     val lifecycleManager = new LifecycleManager(APP, clientConf)
     val shuffleClient = new ShuffleClientImpl(clientConf, UserIdentifier("mock", "mock"))

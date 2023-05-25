@@ -741,7 +741,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
   def checkSlotsFinishedInterval: Long = get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
   def checkSlotsFinishedTimeoutMs: Long = get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
-  def workerRecoverPath: String = get(WORKER_RECOVER_PATH)
+  def workerRecoverPath: String = get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH)
   def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
 
@@ -3220,7 +3220,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("480s")
 
-  val WORKER_RECOVER_PATH: ConfigEntry[String] =
+  val WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverPath")
       .withAlternative("rss.worker.recoverPath")
       .categories("worker")
