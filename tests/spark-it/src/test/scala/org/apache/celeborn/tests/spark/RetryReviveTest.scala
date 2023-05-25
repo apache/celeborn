@@ -23,6 +23,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 
 class RetryReviveTest extends AnyFunSuite
   with SparkTestBase
@@ -43,7 +44,7 @@ class RetryReviveTest extends AnyFunSuite
 
   test("celeborn spark integration test - retry revive as configured times") {
     val sparkConf = new SparkConf()
-      .set("spark.celeborn.test.retryRevive", "true")
+      .set(s"spark.${CelebornConf.TEST_RETRY_REVIVE.key}", "true")
       .setAppName("rss-demo").setMaster("local[2]")
     val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
     ss.sparkContext.parallelize(1 to 1000, 2)

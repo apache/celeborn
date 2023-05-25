@@ -24,6 +24,7 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
@@ -52,9 +53,11 @@ trait SparkTestBase extends AnyFunSuite
     sparkConf.set("spark.shuffle.service.enabled", "false")
     sparkConf.set("spark.sql.adaptive.skewJoin.enabled", "false")
     sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
-    sparkConf.set("spark.celeborn.master.endpoints", masterInfo._1.rpcEnv.address.toString)
+    sparkConf.set(
+      s"spark${CelebornConf.MASTER_ENDPOINTS.key}",
+      masterInfo._1.rpcEnv.address.toString)
     if (sort) {
-      sparkConf.set("spark.celeborn.shuffle.writer", "sort")
+      sparkConf.set(s"spark.${CelebornConf.SHUFFLE_WRITER_MODE.key}", "sort")
     }
     sparkConf
   }
