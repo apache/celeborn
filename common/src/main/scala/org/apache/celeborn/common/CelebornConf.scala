@@ -1435,36 +1435,6 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1024)
 
-  val RPC_CACHE_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.client.rpc.cache.size")
-      .withAlternative("celeborn.rpc.cache.size")
-      .categories("client")
-      .withAlternative("rss.rpc.cache.size")
-      .version("0.2.0")
-      .doc("The max cache items count for rpc cache.")
-      .intConf
-      .createWithDefault(256)
-
-  val RPC_CACHE_CONCURRENCY_LEVEL: ConfigEntry[Int] =
-    buildConf("celeborn.client.rpc.cache.concurrencyLevel")
-      .withAlternative("celeborn.rpc.cache.concurrencyLevel")
-      .categories("client")
-      .withAlternative("rss.rpc.cache.concurrent.level")
-      .version("0.2.0")
-      .doc("The number of write locks to update rpc cache.")
-      .intConf
-      .createWithDefault(32)
-
-  val RPC_CACHE_EXPIRE_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.client.rpc.cache.expireTime")
-      .withAlternative("celeborn.rpc.cache.expireTime")
-      .withAlternative("rss.rpc.cache.expire")
-      .categories("client")
-      .version("0.2.0")
-      .doc("The time before a cache item is removed.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("15s")
-
   val FETCH_MAX_RETRIES_FOR_EACH_REPLICA: ConfigEntry[Int] =
     buildConf("celeborn.client.fetch.maxRetriesForEachReplica")
       .withAlternative("celeborn.fetch.maxRetriesForEachReplica")
@@ -1573,14 +1543,6 @@ object CelebornConf extends Logging {
       .doc("Wait time before next retry if register shuffle failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
-
-  val RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.reserveSlots.rackware.enabled")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Whether need to place different replicates on different racks when allocating slots.")
-      .booleanConf
-      .createWithDefault(false)
 
   val RESERVE_SLOTS_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.client.reserveSlots.maxRetries")
@@ -1914,16 +1876,6 @@ object CelebornConf extends Logging {
         "step by one.")
       .intConf
       .createWithDefault(16)
-
-  val HDFS_DIR: OptionalConfigEntry[String] =
-    buildConf("celeborn.worker.storage.hdfs.dir")
-      .withAlternative("celeborn.storage.hdfs.dir")
-      .withAlternative("rss.worker.hdfs.dir")
-      .categories("worker")
-      .version("0.2.0")
-      .doc("HDFS dir configuration for Celeborn to access HDFS.")
-      .stringConf
-      .createOptional
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")
@@ -3225,6 +3177,16 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
+  val HDFS_DIR: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.storage.hdfs.dir")
+      .withAlternative("celeborn.storage.hdfs.dir")
+      .withAlternative("rss.worker.hdfs.dir")
+      .categories("worker")
+      .version("0.2.0")
+      .doc("HDFS dir configuration for Celeborn to access HDFS.")
+      .stringConf
+      .createOptional
+
   val SHUFFLE_RANGE_READ_FILTER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.rangeReadFilter.enabled")
       .withAlternative("celeborn.shuffle.rangeReadFilter.enabled")
@@ -3291,6 +3253,36 @@ object CelebornConf extends Logging {
       .doc("Whether to use codegen for columnar-based shuffle.")
       .booleanConf
       .createWithDefault(false)
+
+  val RPC_CACHE_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.client.rpc.cache.size")
+      .withAlternative("celeborn.rpc.cache.size")
+      .categories("client")
+      .withAlternative("rss.rpc.cache.size")
+      .version("0.2.0")
+      .doc("The max cache items count for rpc cache.")
+      .intConf
+      .createWithDefault(256)
+
+  val RPC_CACHE_CONCURRENCY_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.client.rpc.cache.concurrencyLevel")
+      .withAlternative("celeborn.rpc.cache.concurrencyLevel")
+      .categories("client")
+      .withAlternative("rss.rpc.cache.concurrent.level")
+      .version("0.2.0")
+      .doc("The number of write locks to update rpc cache.")
+      .intConf
+      .createWithDefault(32)
+
+  val RPC_CACHE_EXPIRE_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.rpc.cache.expireTime")
+      .withAlternative("celeborn.rpc.cache.expireTime")
+      .withAlternative("rss.rpc.cache.expire")
+      .categories("client")
+      .version("0.2.0")
+      .doc("The time before a cache item is removed.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("15s")
 
   val WORKER_PARTITION_READ_BUFFERS_MIN: ConfigEntry[Int] =
     buildConf("celeborn.worker.partition.initial.readBuffersMin")
