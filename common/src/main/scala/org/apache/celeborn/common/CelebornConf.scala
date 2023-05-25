@@ -1283,8 +1283,7 @@ object CelebornConf extends Logging {
       .createWithDefault(Long.MaxValue)
 
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
-    buildConf("celeborn.cluster.master.endpoints")
-      .withAlternative("celeborn.master.endpoints")
+    buildConf("celeborn.master.endpoints")
       .categories("client", "worker")
       .doc("Endpoints of master nodes for celeborn client to connect, allowed pattern " +
         "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. " +
@@ -1300,6 +1299,7 @@ object CelebornConf extends Logging {
 
   val SHUFFLE_WRITER_MODE: ConfigEntry[String] =
     buildConf("celeborn.client.shuffle.writer")
+      .withAlternative("celeborn.shuffle.writer")
       .withAlternative("rss.shuffle.writer.mode")
       .categories("client")
       .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
@@ -2055,7 +2055,7 @@ object CelebornConf extends Logging {
       .createWithDefault(64)
 
   val WORKER_COMMIT_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.worker.shuffle.commit.threads")
+    buildConf("celeborn.worker.commitFiles.threads")
       .withAlternative("celeborn.worker.commit.threads")
       .withAlternative("rss.worker.asyncCommitFiles.numThreads")
       .categories("worker")
@@ -2065,7 +2065,8 @@ object CelebornConf extends Logging {
       .createWithDefault(32)
 
   val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.shuffle.commit.timeout")
+    buildConf("celeborn.worker.commitFiles.timeout")
+      .withAlternative("celeborn.worker.shuffle.commit.timeout")
       .withAlternative("rss.flush.timeout")
       .categories("worker")
       .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
@@ -2073,7 +2074,8 @@ object CelebornConf extends Logging {
       .fallbackConf(RPC_ASK_TIMEOUT)
 
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.partitionSorter.sort.timeout")
+    buildConf("celeborn.worker.sortPartition.timeout")
+      .withAlternative("celeborn.worker.partitionSorter.sort.timeout")
       .withAlternative("rss.partition.sort.timeout")
       .categories("worker")
       .doc("Timeout for a shuffle file to sort.")
@@ -2082,7 +2084,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("220s")
 
   val PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY: ConfigEntry[Long] =
-    buildConf("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
+    buildConf("celeborn.worker.sortPartition.reservedMemoryPerPartition")
+      .withAlternative("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
       .withAlternative("rss.worker.initialReserveSingleSortMemory")
       .categories("worker")
       .doc("Reserved memory when sorting a shuffle file off-heap.")
@@ -2091,7 +2094,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("1mb")
 
   val PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
-    buildConf("celeborn.worker.partitionSorter.threads")
+    buildConf("celeborn.worker.sortPartition.threads")
+      .withAlternative("celeborn.worker.partitionSorter.threads")
       .categories("worker")
       .doc("PartitionSorter's thread counts.")
       .version("0.3.0")
@@ -2899,7 +2903,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("readwrite,diskusage")
 
   val WORKER_DISK_MONITOR_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.monitor.disk.checkInterval")
+    buildConf("celeborn.worker.monitor.disk.check.interval")
+      .withAlternative("celeborn.worker.monitor.disk.checkInterval")
       .withAlternative("rss.disk.check.interval")
       .categories("worker")
       .version("0.2.0")
@@ -3040,7 +3045,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0.5)
 
   val WORKER_DIRECT_MEMORY_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.monitor.memory.checkInterval")
+    buildConf("celeborn.worker.monitor.memory.check.interval")
       .withAlternative("celeborn.worker.memory.checkInterval")
       .withAlternative("rss.worker.memory.check.interval")
       .categories("worker")
@@ -3050,7 +3055,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("10ms")
 
   val WORKER_DIRECT_MEMORY_REPORT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.monitor.memory.reportInterval")
+    buildConf("celeborn.worker.monitor.memory.report.interval")
       .withAlternative("celeborn.worker.memory.reportInterval")
       .withAlternative("rss.worker.memory.report.interval")
       .categories("worker")
