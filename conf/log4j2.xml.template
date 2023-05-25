@@ -32,12 +32,22 @@
               -->
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
         </Console>
-        <RollingRandomAccessFile name="file" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log" filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d">
+        <RollingRandomAccessFile name="file" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log"
+                                 filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d-%i">
             <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
             <Policies>
                 <SizeBasedTriggeringPolicy size="200 MB"/>
             </Policies>
-            <DefaultRolloverStrategy max="7"/>
+            <DefaultRolloverStrategy max="7">
+                <Delete basePath="${env:CELEBORN_LOG_DIR}" maxDepth="1">
+                    <IfFileName glob="celeborn.log*">
+                        <IfAny>
+                            <IfAccumulatedFileSize exceeds="1 GB" />
+                            <IfAccumulatedFileCount exceeds="10" />
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
         </RollingRandomAccessFile>
     </Appenders>
 
