@@ -212,7 +212,7 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testGiantRecordAndMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key()", "128");
+    final CelebornConf conf = new CelebornConf().set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key(), "128");
     check(2 << 30, conf, serializer, true);
     check(2 << 30, conf, serializer, false);
   }
