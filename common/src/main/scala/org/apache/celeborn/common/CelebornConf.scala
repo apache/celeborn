@@ -2640,6 +2640,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
 
+  val RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.reserveSlots.rackware.enabled")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether need to place different replicates on different racks when allocating slots.")
+      .booleanConf
+      .createWithDefault(false)
+
   val RESERVE_SLOTS_RPC_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.reserveSlots.askTimeout")
       .categories("client")
