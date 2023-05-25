@@ -46,7 +46,7 @@ import org.apache.celeborn.common.util.Utils;
 public class DfsPartitionReader implements PartitionReader {
   private static Logger logger = LoggerFactory.getLogger(DfsPartitionReader.class);
   PartitionLocation location;
-  private final int shuffleDfsReadChunkSize;
+  private final int shuffleReadDfsChunkSize;
   private final int fetchMaxReqsInFlight;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
@@ -65,7 +65,7 @@ public class DfsPartitionReader implements PartitionReader {
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    shuffleDfsReadChunkSize = (int) conf.shuffleDfsReadChunkSize();
+    shuffleReadDfsChunkSize = (int) conf.readDfsChunkSize();
     fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
 
@@ -193,7 +193,7 @@ public class DfsPartitionReader implements PartitionReader {
             ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
                 startMapIndex,
                 endMapIndex,
-                shuffleDfsReadChunkSize,
+                shuffleReadDfsChunkSize,
                 ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
     indexInputStream.close();
     return offsets;

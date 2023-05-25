@@ -133,8 +133,8 @@ public class TransportConf {
   /**
    * The max number of chunks allowed to be transferred at the same time on shuffle service. Note
    * that new incoming connections will be closed when the max number is hit. The client will retry
-   * according to the shuffle retry configs (see `celeborn.shuffle.io.maxRetries` and
-   * `celeborn.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch
+   * according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and
+   * `celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch
    * failure.
    */
   public long maxChunksBeingTransferred() {

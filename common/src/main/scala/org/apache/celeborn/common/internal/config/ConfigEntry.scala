@@ -17,9 +17,6 @@
 
 package org.apache.celeborn.common.internal.config
 
-import java.util.concurrent.ConcurrentHashMap
-
-import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.JavaUtils
 
 // ====================================================================================
