@@ -288,10 +288,10 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Assert.assertEquals(3, masterStatusSystem.blacklist.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
     Assert.assertEquals(
-        conf.masterAppTopDiskUsageWindowSize(),
+        conf.metricsAppTopDiskUsageWindowSize(),
         masterStatusSystem.appDiskUsageMetric.snapShots().length);
     Assert.assertEquals(
-        conf.masterAppTopDiskUsageCount(),
+        conf.metricsAppTopDiskUsageCount(),
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get().topNItems().length);
     Assert.assertEquals(
         originCurrentSnapshot, masterStatusSystem.appDiskUsageMetric.currentSnapShot().get());

@@ -36,10 +36,10 @@ license: |
 | celeborn.&lt;module&gt;.io.serverThreads | 0 | Number of threads used in the server thread pool. Default to 0, which is 2x#cores. |  | 
 | celeborn.&lt;module&gt;.push.timeoutCheck.interval | 5s | Interval for checking push data timeout. | 0.3.0 | 
 | celeborn.&lt;module&gt;.push.timeoutCheck.threads | 16 | Threads num for checking push data timeout. | 0.3.0 | 
-| celeborn.memory.allocator.numArenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
-| celeborn.memory.allocator.share | false | Whether to share memory allocator. | 0.3.0 | 
-| celeborn.memory.allocator.verbose.metric | false | Weather to enable verbose metric for pooled allocator. | 0.3.0 | 
 | celeborn.network.connect.timeout | 10s | Default socket connect timeout. | 0.2.0 | 
+| celeborn.network.memory.allocator.numArenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
+| celeborn.network.memory.allocator.share | false | Whether to share memory allocator. | 0.3.0 | 
+| celeborn.network.memory.allocator.verbose.metric | false | Weather to enable verbose metric for pooled allocator. | 0.3.0 | 
 | celeborn.network.timeout | 240s | Default timeout for network operations. | 0.2.0 | 
 | celeborn.port.maxRetries | 1 | When port is occupied, we will retry for max retry times. | 0.2.0 | 
 | celeborn.rpc.askTimeout | 30s | Timeout for RPC ask operations. | 0.2.0 | 

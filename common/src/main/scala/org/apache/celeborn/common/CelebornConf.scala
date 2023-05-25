@@ -475,9 +475,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
-  def masterAppTopDiskUsageCount: Int = get(MASTER_APP_TOP_DISK_USAGE_COUNT)
-  def masterAppTopDiskUsageWindowSize: Int = get(MASTER_APP_TOP_DISK_USAGE_WINDOW_SIZE)
-  def masterAppTopDiskUsageInterval: Long = get(MASTER_APP_TOP_DISK_USAGE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
@@ -494,7 +491,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
-  def workerNonEmptyDirExpireDuration: Long = get(WORKER_NON_EMPTY_DIR_EXPIRE_DURATION)
+  def workerApplicationDataKeepAliveTime: Long = get(WORKER_APPLICATION_DATA_KEEP_ALIVE_TIME)
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
@@ -652,6 +649,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
   def metricsExtraLabels: Map[String, String] =
     get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels(_)).toMap
+  def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
+  def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
+  def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -1952,8 +1952,8 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
-  val WORKER_NON_EMPTY_DIR_EXPIRE_DURATION: ConfigEntry[Long] =
-    buildConf("celeborn.worker.storage.noneEmptyDirExpireDuration")
+  val WORKER_APPLICATION_DATA_KEEP_ALIVE_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.worker.storage.applicationData.keepAliveTime")
       .withAlternative("celeborn.worker.noneEmptyDirExpireDuration")
       .withAlternative("rss.expire.nonEmptyDir.duration")
       .categories("worker")
@@ -2200,7 +2200,7 @@ object CelebornConf extends Logging {
       .createWithDefault(100)
 
   val SLOTS_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =
-    buildConf("celeborn.master.assignSlots.loadAware.numDiskGroups")
+    buildConf("celeborn.master.slot.assign.loadAware.numDiskGroups")
       .withAlternative("celeborn.slots.assign.loadAware.numDiskGroups")
       .withAlternative("rss.disk.groups")
       .categories("master")
@@ -2211,7 +2211,7 @@ object CelebornConf extends Logging {
       .createWithDefault(5)
 
   val SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT: ConfigEntry[Double] =
-    buildConf("celeborn.master.assignSlots.loadAware.diskGroupGradient")
+    buildConf("celeborn.master.slot.assign.loadAware.diskGroupGradient")
       .withAlternative("celeborn.slots.assign.loadAware.diskGroupGradient")
       .withAlternative("rss.disk.groups.gradient")
       .categories("master")
@@ -2222,7 +2222,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0.1)
 
   val SLOTS_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT: ConfigEntry[Double] =
-    buildConf("celeborn.master.assignSlots.loadAware.flushTimeWeight")
+    buildConf("celeborn.master.slot.assign.loadAware.flushTimeWeight")
       .withAlternative("celeborn.slots.assign.loadAware.flushTimeWeight")
       .categories("master")
       .doc(
@@ -2232,7 +2232,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0)
 
   val SLOTS_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT: ConfigEntry[Double] =
-    buildConf("celeborn.master.assignSlots.loadAware.fetchTimeWeight")
+    buildConf("celeborn.master.slot.assign.loadAware.fetchTimeWeight")
       .withAlternative("celeborn.slots.assign.loadAware.fetchTimeWeight")
       .categories("master")
       .doc(
@@ -2242,7 +2242,7 @@ object CelebornConf extends Logging {
       .createWithDefault(1)
 
   val SLOTS_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
-    buildConf("celeborn.master.assignSlots.extraSlots")
+    buildConf("celeborn.master.slot.assign.extraSlots")
       .withAlternative("celeborn.slots.assign.extraSlots")
       .withAlternative("rss.offer.slots.extra.size")
       .categories("master")
@@ -2252,7 +2252,7 @@ object CelebornConf extends Logging {
       .createWithDefault(2)
 
   val SLOTS_ASSIGN_POLICY: ConfigEntry[String] =
-    buildConf("celeborn.master.assignSlots.policy")
+    buildConf("celeborn.master.slot.assign.policy")
       .withAlternative("celeborn.slots.assign.policy")
       .withAlternative("rss.offer.slots.algorithm")
       .categories("master")
@@ -2304,41 +2304,28 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
 
-  val MASTER_APP_TOP_DISK_USAGE_COUNT: ConfigEntry[Int] =
-    buildConf("celeborn.master.application.topDiskUsage.count")
-      .withAlternative("celeborn.metrics.app.topDiskUsage.count")
+  val METRICS_APP_TOP_DISK_USAGE_COUNT: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.app.topDiskUsage.count")
       .withAlternative("rss.metrics.app.topDiskUsage.count")
-      .categories("master")
+      .categories("metrics")
       .doc("Size for top items about top disk usage applications list.")
       .version("0.2.0")
       .intConf
       .createWithDefault(50)
 
-  val WORKER_APP_TOP_DISK_USAGE_COUNT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.application.topDiskUsage.count")
-      .withAlternative("celeborn.metrics.app.topDiskUsage.count")
-      .withAlternative("rss.metrics.app.topDiskUsage.count")
-      .categories("worker")
-      .doc("Size for top items about top disk usage applications list.")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(50)
-
-  val MASTER_APP_TOP_DISK_USAGE_WINDOW_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.master.application.topDiskUsage.windowSize")
-      .withAlternative("celeborn.metrics.app.topDiskUsage.windowSize")
+  val METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.app.topDiskUsage.windowSize")
       .withAlternative("rss.metrics.app.topDiskUsage.windowSize")
-      .categories("master")
+      .categories("metrics")
       .doc("Window size about top disk usage application list.")
       .version("0.2.0")
       .intConf
       .createWithDefault(24)
 
-  val MASTER_APP_TOP_DISK_USAGE_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.master.application.topDiskUsage.interval")
-      .withAlternative("celeborn.metrics.app.topDiskUsage.interval")
+  val METRICS_APP_TOP_DISK_USAGE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.app.topDiskUsage.interval")
       .withAlternative("rss.metrics.app.topDiskUsage.interval")
-      .categories("master")
+      .categories("metrics")
       .doc("Time length for a window about top disk usage application list.")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
@@ -3360,7 +3347,7 @@ object CelebornConf extends Logging {
       .createWithDefault(32)
 
   val MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
-    buildConf("celeborn.memory.allocator.share")
+    buildConf("celeborn.network.memory.allocator.share")
       .categories("network")
       .version("0.3.0")
       .doc("Whether to share memory allocator.")
@@ -3368,7 +3355,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val MEMORY_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
-    buildConf("celeborn.memory.allocator.numArenas")
+    buildConf("celeborn.network.memory.allocator.numArenas")
       .categories("network")
       .version("0.3.0")
       .doc("Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2.")
@@ -3376,7 +3363,7 @@ object CelebornConf extends Logging {
       .createOptional
 
   val MEMORY_ALLOCATOR_VERBOSE_METRIC: ConfigEntry[Boolean] =
-    buildConf("celeborn.memory.allocator.verbose.metric")
+    buildConf("celeborn.network.memory.allocator.verbose.metric")
       .categories("network")
       .version("0.3.0")
       .doc("Weather to enable verbose metric for pooled allocator.")

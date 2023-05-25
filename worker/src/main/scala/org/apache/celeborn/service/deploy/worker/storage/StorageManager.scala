@@ -417,7 +417,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleKey.split("-")(0) -> usage
     }.groupBy(_._1).map { case (key, values) =>
       key -> values.map(_._2).sum
-    }.toSeq.sortBy(_._2).reverse.take(conf.masterAppTopDiskUsageCount * 2).toMap.asJava
+    }.toSeq.sortBy(_._2).reverse.take(conf.metricsAppTopDiskUsageCount * 2).toMap.asJava
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
@@ -488,7 +488,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  private val noneEmptyDirExpireDurationMs = conf.workerNonEmptyDirExpireDuration
+  private val applicationDataKeepAliveTime = conf.workerApplicationDataKeepAliveTime
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
@@ -498,7 +498,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         try {
           // Clean up dirs which has not been modified
           // in the past {{noneEmptyExpireDurationsMs}}.
-          cleanupExpiredAppDirs(System.currentTimeMillis() - noneEmptyDirExpireDurationMs)
+          cleanupExpiredAppDirs(System.currentTimeMillis() - applicationDataKeepAliveTime)
         } catch {
           case exception: Exception =>
             logWarning(s"Cleanup expired shuffle data exception: ${exception.getMessage}")
