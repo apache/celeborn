@@ -50,7 +50,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     Seq("false", "true").foreach { enabled =>
       val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
         .set(s"spark.${CelebornConf.PUSH_DATA_TIMEOUT.key}", "5s")
-        .set(s"spark.${CelebornConf.PUSH_TIMEOUT_CHECK_INTERVAL.key}", "2s")
+        .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.PUSH_REPLICATE_ENABLED.key}", enabled)
         .set(s"spark.${CelebornConf.BLACKLIST_SLAVE_ENABLED.key}", "false")
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
@@ -83,7 +83,7 @@ class PushDataTimeoutTest extends AnyFunSuite
   test("celeborn spark integration test - pushdata timeout will add to balcklist") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
       .set(s"spark.${CelebornConf.PUSH_DATA_TIMEOUT.key}", "5s")
-      .set(s"spark.${CelebornConf.PUSH_TIMEOUT_CHECK_INTERVAL.key}", "2s")
+      .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
       .set(s"spark.${CelebornConf.BLACKLIST_SLAVE_ENABLED.key}", "false")
     val rssSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, false)).getOrCreate()
