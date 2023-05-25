@@ -73,6 +73,7 @@ trait HeartbeatFeature extends MiniClusterFeature {
     clientConf.set("celeborn.data.heartbeat.interval", "3s")
     (workerConf, clientConf)
   }
+
   def testHeartbeatFromWorker2Client(dataClientFactory: TransportClientFactory): Unit = {
     val (workerConf, _) = getTestHeartbeatFromWorker2ClientConf()
     // client <- worker:default client do not send heartbeat to worker, and worker sends hearbeat to client
@@ -92,7 +93,8 @@ trait HeartbeatFeature extends MiniClusterFeature {
       : (Map[String, String], CelebornConf) = {
     val workerConf = Map(
       "celeborn.master.endpoints" -> "localhost:9097",
-      "celeborn.client.heartbeat.interval" -> "4s",
+      "celeborn.push.heartbeat.interval" -> "4s",
+      "celeborn.fetch.heartbeat.interval" -> "4s",
       "celeborn.worker.push.heartbeat.enabled" -> "false",
       "celeborn.worker.fetch.heartbeat.enabled" -> "false")
     val clientConf = new CelebornConf()
