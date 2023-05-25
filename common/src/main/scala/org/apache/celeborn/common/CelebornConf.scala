@@ -1869,7 +1869,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_STORAGE_DIR: ConfigEntry[String] =
     buildConf("celeborn.ha.master.ratis.raft.server.storage.dir")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.storage.dir")
       .categories("ha")
       .withAlternative("rss.ha.storage.dir")
       .version("0.2.0")
@@ -1878,7 +1877,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
       .withAlternative("rss.ha.ratis.segment.size")
       .internal
       .categories("ha")
@@ -1888,7 +1886,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
       .withAlternative("rss.ratis.segment.preallocated.size")
       .internal
       .categories("ha")
@@ -1898,7 +1895,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS: ConfigEntry[Int] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
       .withAlternative("rss.ratis.log.appender.queue.num-elements")
       .internal
       .categories("ha")
@@ -1908,7 +1904,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
       .withAlternative("rss.ratis.log.appender.queue.byte-limit")
       .internal
       .categories("ha")
@@ -1918,7 +1913,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1927,7 +1921,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_LOG_PURGE_GAP: ConfigEntry[Int] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.purge.gap")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.log.purge.gap")
       .withAlternative("rss.ratis.log.purge.gap")
       .internal
       .categories("ha")
@@ -1937,7 +1930,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
       .withAlternative("rss.ratis.server.request.timeout")
       .internal
       .categories("ha")
@@ -1947,7 +1939,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
       .withAlternative("rss.ratis.server.retry.cache.timeout")
       .internal
       .categories("ha")
@@ -1957,7 +1948,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_RPC_TIMEOUT_MIN: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
       .withAlternative("rss.ratis.minimum.timeout")
       .internal
       .categories("ha")
@@ -1967,7 +1957,6 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_RPC_TIMEOUT_MAX: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
-      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
       .internal
       .categories("ha")
       .version("0.2.0")
