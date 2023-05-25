@@ -45,7 +45,7 @@ Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3 and only tested under Java 8.
 
 Build for Spark
 ```
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4
 ```
 
 package apache-celeborn-${project.version}-bin.tgz will be generated.

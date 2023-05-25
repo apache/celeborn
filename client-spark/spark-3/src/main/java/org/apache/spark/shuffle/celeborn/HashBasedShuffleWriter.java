@@ -39,7 +39,6 @@ import org.apache.spark.serializer.SerializerInstance;
 import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
-import org.apache.spark.sql.execution.PartitionIdPassthrough;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.columnar.RssBatchBuilder;
 import org.apache.spark.sql.execution.columnar.RssColumnarBatchBuilder;
@@ -191,8 +190,13 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @VisibleForTesting
   boolean canUseFastWrite() {
-    return dep.serializer() instanceof UnsafeRowSerializer
-        && partitioner instanceof PartitionIdPassthrough;
+    boolean keyIsPartitionId = false;
+    if (dep.serializer() instanceof UnsafeRowSerializer) {
+      // SPARK-39391 renames PartitionIdPassthrough's package
+      String partitionerClassName = partitioner.getClass().getSimpleName();
+      keyIsPartitionId = "PartitionIdPassthrough".equals(partitionerClassName);
+    }
+    return keyIsPartitionId;
   }
 
   private void fastColumnarWrite0(scala.collection.Iterator iterator) throws IOException {
