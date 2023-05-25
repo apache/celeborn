@@ -43,7 +43,7 @@ trait HeartbeatFeature extends MiniClusterFeature {
       workers = _workers
       workers.map(w => {
         val (pushPort, fetchPort) = w.getPushFetchServerPort
-        println(s"worker port1:$pushPort $fetchPort")
+        logInfo(s"worker port1:$pushPort $fetchPort")
         val clientPush =
           dataClientFactory.createClient(Utils.localHostName, pushPort, 0)
         val clientFetch =
