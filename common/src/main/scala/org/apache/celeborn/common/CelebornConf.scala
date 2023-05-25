@@ -1324,61 +1324,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.reserveSlots.rackware.enabled")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Whether need to place different replicates on different racks when allocating slots.")
-      .booleanConf
-      .createWithDefault(false)
-
-  val RESERVE_SLOTS_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.client.reserveSlots.maxRetries")
-      .withAlternative("celeborn.slots.reserve.maxRetries")
-      .withAlternative("rss.reserve.slots.max.retry")
-      .categories("client")
-      .version("0.2.0")
-      .doc("Max retry times for client to reserve slots.")
-      .intConf
-      .createWithDefault(3)
-
-  val RESERVE_SLOTS_RETRY_WAIT: ConfigEntry[Long] =
-    buildConf("celeborn.client.reserveSlots.retryWait")
-      .withAlternative("celeborn.slots.reserve.retryWait")
-      .withAlternative("rss.reserve.slots.retry.wait")
-      .categories("client")
-      .version("0.2.0")
-      .doc("Wait time before next retry if reserve slots failed.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("3s")
-
-  val COMMIT_FILE_REQUEST_MAX_RETRY: ConfigEntry[Int] =
-    buildConf("celeborn.client.rpc.requestCommitFiles.maxRetries")
-      .categories("client")
-      .doc("Max retry times for requestCommitFiles RPC.")
-      .version("0.3.0")
-      .intConf
-      .checkValue(v => v > 0, "value must be positive")
-      .createWithDefault(2)
-
-  val TEST_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.client.retryCommitFiles")
-      .withAlternative("celeborn.test.retryCommitFiles")
-      .internal
-      .categories("test", "client")
-      .doc("Fail commitFile request for test")
-      .version("0.2.0")
-      .booleanConf
-      .createWithDefault(false)
-
-  val SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.blacklist.enabled")
-      .categories("client")
-      .doc("Whether to enable shuffle client-side push blacklist of workers.")
-      .version("0.3.0")
-      .booleanConf
-      .createWithDefault(false)
-
   val PUSH_BUFFER_INITIAL_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.client.push.buffer.initial.size")
       .withAlternative("celeborn.push.buffer.initial.size")
@@ -1780,6 +1725,61 @@ object CelebornConf extends Logging {
       .doc("Wait time before next retry if register shuffle failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
+
+  val RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.reserveSlots.rackware.enabled")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether need to place different replicates on different racks when allocating slots.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val RESERVE_SLOTS_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.client.reserveSlots.maxRetries")
+      .withAlternative("celeborn.slots.reserve.maxRetries")
+      .withAlternative("rss.reserve.slots.max.retry")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Max retry times for client to reserve slots.")
+      .intConf
+      .createWithDefault(3)
+
+  val RESERVE_SLOTS_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.client.reserveSlots.retryWait")
+      .withAlternative("celeborn.slots.reserve.retryWait")
+      .withAlternative("rss.reserve.slots.retry.wait")
+      .categories("client")
+      .version("0.2.0")
+      .doc("Wait time before next retry if reserve slots failed.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3s")
+
+  val COMMIT_FILE_REQUEST_MAX_RETRY: ConfigEntry[Int] =
+    buildConf("celeborn.client.rpc.requestCommitFiles.maxRetries")
+      .categories("client")
+      .doc("Max retry times for requestCommitFiles RPC.")
+      .version("0.3.0")
+      .intConf
+      .checkValue(v => v > 0, "value must be positive")
+      .createWithDefault(2)
+
+  val TEST_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.retryCommitFiles")
+      .withAlternative("celeborn.test.retryCommitFiles")
+      .internal
+      .categories("test", "client")
+      .doc("Fail commitFile request for test")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.blacklist.enabled")
+      .categories("client")
+      .doc("Whether to enable shuffle client-side push blacklist of workers.")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
