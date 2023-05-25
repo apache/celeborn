@@ -79,23 +79,23 @@ Create the name of the service account to use
 
 {{- define "celeborn.master.volumeMounts" -}}
 - name: celeborn-master-ratis-volume
-  mountPath: {{ .Values.storage.master.ratis.path }}
+  mountPath: {{ .Values.volume.master.ratis.path }}
 {{- end }}
 
 {{- define "celeborn.master.volumes" -}}
 - name: celeborn-master-ratis-volume
-{{- if eq "emptyDir" .Values.storage.master.ratis.type }}
+{{- if eq "emptyDir" .Values.volume.master.ratis.type }}
   emptyDir:
-    sizeLimit: {{ .Values.storage.master.ratis.sizeLimit }}
-{{- else if eq "hostPath" .Values.storage.master.ratis.type }}
+    sizeLimit: {{ .Values.volume.master.ratis.sizeLimit }}
+{{- else if eq "hostPath" .Values.volume.master.ratis.type }}
   hostPath:
-    path: {{ .Values.storage.master.ratis.path }}/ratis
+    path: {{ .Values.volume.master.ratis.path }}/ratis
     type: DirectoryOrCreate
 {{- end }}
 {{- end }}
 
 {{- define "celeborn.worker.volumeMounts" -}}
-{{- $dirs := .Values.storage.worker.dirs.path | splitList "," -}}
+{{- $dirs := .Values.volume.worker.dirs.path | splitList "," -}}
 {{- range $index, $dir := $dirs }}
 - name: celeborn-worker-vol-{{ $index }}
   mountPath: {{ $dir }}
@@ -103,15 +103,15 @@ Create the name of the service account to use
 {{- end }}
 
 {{- define "celeborn.worker.volumes" -}}
-{{- if eq "emptyDir" .Values.storage.worker.dirs.type }}
-{{- $dirs := .Values.storage.worker.dirs.path | splitList "," -}}
+{{- if eq "emptyDir" .Values.volume.worker.dirs.type }}
+{{- $dirs := .Values.volume.worker.dirs.path | splitList "," -}}
 {{- range $index, $dir := $dirs }}
 - name: celeborn-worker-vol-{{ $index }}
   emptyDir:
-    sizeLimit: {{ $.Values.storage.worker.dirs.sizeLimit }}
+    sizeLimit: {{ $.Values.volume.worker.dirs.sizeLimit }}
 {{- end }}
-{{- else if eq "hostPath" .Values.storage.worker.dirs.type }}
-{{- $dirs := .Values.storage.worker.dirs.path | splitList "," -}}
+{{- else if eq "hostPath" .Values.volume.worker.dirs.type }}
+{{- $dirs := .Values.volume.worker.dirs.path | splitList "," -}}
 {{- range $index, $dir := $dirs }}
 - name: celeborn-worker-vol-{{ $index }}
   hostPath:

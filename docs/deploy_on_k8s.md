@@ -49,7 +49,7 @@ The configuration in `./charts/celeborn/values.yaml` you should focus on modifyi
 * image tag - Which version of image to use
 * masterReplicas - Number of celeborn master replicas
 * workerReplicas - Number of celeborn worker replicas
-* volumes & volumeMounts - How and where to mount volumes
+* volumes - How and where to mount volumes
 (For more information, [Volumes](https://kubernetes.io/docs/concepts/storage/volumes))
 
 ### [Optional] Build Celeborn Docker Image
