@@ -176,7 +176,7 @@ public class ShuffleClientSuiteJ {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), codec.name());
     conf.set(CelebornConf.PUSH_RETRY_THREADS().key(), "1");
-    conf.set(CelebornConf.PUSH_BUFFER_MAX_SIZE(), "1K");
+    conf.set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key(), "1K");
     shuffleClient = new ShuffleClientImpl(conf, new UserIdentifier("mock", "mock"));
 
     masterLocation.setPeer(slaveLocation);
