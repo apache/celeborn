@@ -43,7 +43,7 @@ trait HeartbeatFeature extends MiniClusterFeature {
       workers = _workers
       workers.map(w => {
         val (pushPort, fetchPort) = w.getPushFetchServerPort
-        logInfo(s"worker port1:$pushPort $fetchPort")
+        println(s"worker port1:$pushPort $fetchPort")
         val clientPush =
           dataClientFactory.createClient(Utils.localHostName, pushPort, 0)
         val clientFetch =
@@ -66,10 +66,11 @@ trait HeartbeatFeature extends MiniClusterFeature {
   def getTestHeartbeatFromWorker2ClientConf(): (Map[String, String], CelebornConf) = {
     val workerConf = Map(
       CelebornConf.MASTER_ENDPOINTS.key -> "localhost:9097",
-      CelebornConf.CHANNEL_HEARTBEAT_INTERVAL.key -> "4s")
+      "celeborn.push.heartbeat.interval" -> "4s",
+      "celeborn.fetch.heartbeat.interval" -> "4s")
     val clientConf = new CelebornConf()
     clientConf.set("celeborn.data.io.connectionTimeout", "6s")
-    clientConf.set(CelebornConf.CHANNEL_HEARTBEAT_INTERVAL.key, "3s")
+    clientConf.set("celeborn.data.heartbeat.interval", "3s")
     (workerConf, clientConf)
   }
   def testHeartbeatFromWorker2Client(dataClientFactory: TransportClientFactory): Unit = {
@@ -122,7 +123,8 @@ trait HeartbeatFeature extends MiniClusterFeature {
       CelebornConf.MASTER_ENDPOINTS.key -> "localhost:9097",
       "celeborn.fetch.io.connectionTimeout" -> "9s",
       "celeborn.push.io.connectionTimeout" -> "9s",
-      CelebornConf.CHANNEL_HEARTBEAT_INTERVAL.key -> "4s",
+      "celeborn.push.heartbeat.interval" -> "4s",
+      "celeborn.fetch.heartbeat.interval" -> "4s",
       CelebornConf.WORKER_CLOSE_IDLE_CONNECTIONS.key -> "true")
     val clientConf = new CelebornConf()
     clientConf.set("celeborn.data.io.connectionTimeout", "6s")

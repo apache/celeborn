@@ -539,7 +539,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleClientPushBlacklistEnabled: Boolean = get(SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED)
   def clientHeartbeatInterval(module: String): Long = {
     val key = CHANNEL_HEARTBEAT_INTERVAL.key.replace("<module>", module)
-    getLong(key, CHANNEL_HEARTBEAT_INTERVAL.defaultValue.get)
+    getTimeAsMs(key, CHANNEL_HEARTBEAT_INTERVAL.defaultValueString)
   }
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -739,7 +739,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
   def pushDataTimeoutCheckInterval(module: String): Long = {
     val key = PUSH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
-    getLong(key, PUSH_TIMEOUT_CHECK_INTERVAL.defaultValue.get)
+    getTimeAsMs(key, PUSH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
   }
 
   // //////////////////////////////////////////////////////
