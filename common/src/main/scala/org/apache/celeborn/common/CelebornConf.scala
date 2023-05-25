@@ -1405,158 +1405,6 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(16)
 
-  val PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.stageEnd.timeout")
-      .withAlternative("celeborn.push.stageEnd.timeout")
-      .withAlternative("rss.stage.end.timeout")
-      .categories("client")
-      .doc(s"Timeout for waiting StageEnd. " +
-        s"During this process, there are `${COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
-        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
-        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .version("0.2.0")
-      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
-
-  val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
-    buildConf("celeborn.client.push.limit.strategy")
-      .categories("client")
-      .doc("The strategy used to control the push speed. " +
-        "Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with " +
-        "congest control mechanism in the worker side.")
-      .version("0.3.0")
-      .stringConf
-      .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set("SIMPLE", "SLOWSTART"))
-      .createWithDefaultString("SIMPLE")
-
-  val PUSH_SLOW_START_INITIAL_SLEEP_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.slowStart.initialSleepTime")
-      .categories("client")
-      .version("0.3.0")
-      .doc(s"The initial sleep time if the current max in flight requests is 0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("500ms")
-
-  val PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.slowStart.maxSleepTime")
-      .categories("client")
-      .version("0.3.0")
-      .doc(s"If ${PUSH_LIMIT_STRATEGY.key} is set to SLOWSTART, push side will " +
-        "take a sleep strategy for each batch of requests, this controls " +
-        "the max sleep time if the max in flight requests limit is 1 for a long time")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("2s")
-
-  val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.data.timeout")
-      .withAlternative("celeborn.push.data.timeout")
-      .withAlternative("rss.push.data.rpc.timeout")
-      .categories("client")
-      .version("0.2.0")
-      .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .checkValue(_ > 0, "celeborn.client.push.data.timeout must be positive!")
-      .createWithDefaultString("120s")
-
-  val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.pushMasterDataTimeout")
-      .withAlternative("celeborn.test.pushMasterDataTimeout")
-      .internal
-      .categories("test", "worker")
-      .version("0.2.0")
-      .doc("Whether to test push master data timeout")
-      .booleanConf
-      .createWithDefault(false)
-
-  val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.pushSlaveDataTimeout")
-      .internal
-      .categories("test", "worker")
-      .version("0.3.0")
-      .doc("Whether to test push slave data timeout")
-      .booleanConf
-      .createWithDefault(false)
-
-  val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: OptionalConfigEntry[Long] =
-    buildConf("celeborn.client.push.limit.inFlight.timeout")
-      .withAlternative("celeborn.push.limit.inFlight.timeout")
-      .withAlternative("rss.limit.inflight.timeout")
-      .categories("client")
-      .doc("Timeout for netty in-flight requests to be done." +
-        s"Default value should be `${PUSH_DATA_TIMEOUT.key} * 2`.")
-      .version("0.2.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createOptional
-
-  val PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.limit.inFlight.sleepInterval")
-      .withAlternative("celeborn.push.limit.inFlight.sleepInterval")
-      .withAlternative("rss.limit.inflight.sleep.delta")
-      .categories("client")
-      .doc("Sleep interval when check netty in-flight requests to be done.")
-      .version("0.2.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("50ms")
-
-  val PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.sort.memory.threshold")
-      .withAlternative("celeborn.push.sortMemory.threshold")
-      .withAlternative("rss.sort.push.data.threshold")
-      .categories("client")
-      .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
-      .version("0.2.0")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("64m")
-
-  val PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.sort.pipeline.enabled")
-      .withAlternative("celeborn.push.sort.pipeline.enabled")
-      .categories("client")
-      .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
-        " will be used to pipeline push")
-      .version("0.2.1")
-      .booleanConf
-      .createWithDefault(false)
-
-  val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.sort.randomizePartitionId.enabled")
-      .withAlternative("celeborn.push.sort.randomizePartitionId.enabled")
-      .categories("client")
-      .doc(
-        "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
-          "when sort data to avoid skew when push to worker")
-      .version("0.2.1")
-      .booleanConf
-      .createWithDefault(false)
-
-  val PUSH_RETRY_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.client.push.retry.threads")
-      .withAlternative("celeborn.push.retry.threads")
-      .withAlternative("rss.pushdata.retry.thread.num")
-      .categories("client")
-      .doc("Thread number to process shuffle re-send push data requests.")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(8)
-
-  val PUSH_SPLIT_PARTITION_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.client.push.splitPartition.threads")
-      .withAlternative("celeborn.push.splitPartition.threads")
-      .withAlternative("rss.client.split.pool.size")
-      .categories("client")
-      .doc("Thread number to process shuffle split request in shuffle client.")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(8)
-
-  val PUSH_TAKE_TASK_WAIT_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.takeTaskWaitTime")
-      .categories("client")
-      .doc("Wait time if no task available to push to worker.")
-      .version("0.3.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("50ms")
-
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.timeout")
       .withAlternative("celeborn.fetch.timeout")
@@ -2521,6 +2369,158 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.stageEnd.timeout")
+      .withAlternative("celeborn.push.stageEnd.timeout")
+      .withAlternative("rss.stage.end.timeout")
+      .categories("client")
+      .doc(s"Timeout for waiting StageEnd. " +
+        s"During this process, there are `${COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
+        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
+      .version("0.2.0")
+      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
+
+  val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
+    buildConf("celeborn.client.push.limit.strategy")
+      .categories("client")
+      .doc("The strategy used to control the push speed. " +
+        "Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with " +
+        "congest control mechanism in the worker side.")
+      .version("0.3.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("SIMPLE", "SLOWSTART"))
+      .createWithDefaultString("SIMPLE")
+
+  val PUSH_SLOW_START_INITIAL_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.slowStart.initialSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"The initial sleep time if the current max in flight requests is 0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("500ms")
+
+  val PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.slowStart.maxSleepTime")
+      .categories("client")
+      .version("0.3.0")
+      .doc(s"If ${PUSH_LIMIT_STRATEGY.key} is set to SLOWSTART, push side will " +
+        "take a sleep strategy for each batch of requests, this controls " +
+        "the max sleep time if the max in flight requests limit is 1 for a long time")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("2s")
+
+  val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.data.timeout")
+      .withAlternative("celeborn.push.data.timeout")
+      .withAlternative("rss.push.data.rpc.timeout")
+      .categories("client")
+      .version("0.2.0")
+      .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "celeborn.client.push.data.timeout must be positive!")
+      .createWithDefaultString("120s")
+
+  val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.worker.pushMasterDataTimeout")
+      .withAlternative("celeborn.test.pushMasterDataTimeout")
+      .internal
+      .categories("test", "worker")
+      .version("0.2.0")
+      .doc("Whether to test push master data timeout")
+      .booleanConf
+      .createWithDefault(false)
+
+  val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.worker.pushSlaveDataTimeout")
+      .internal
+      .categories("test", "worker")
+      .version("0.3.0")
+      .doc("Whether to test push slave data timeout")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: OptionalConfigEntry[Long] =
+    buildConf("celeborn.client.push.limit.inFlight.timeout")
+      .withAlternative("celeborn.push.limit.inFlight.timeout")
+      .withAlternative("rss.limit.inflight.timeout")
+      .categories("client")
+      .doc("Timeout for netty in-flight requests to be done." +
+        s"Default value should be `${PUSH_DATA_TIMEOUT.key} * 2`.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createOptional
+
+  val PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.limit.inFlight.sleepInterval")
+      .withAlternative("celeborn.push.limit.inFlight.sleepInterval")
+      .withAlternative("rss.limit.inflight.sleep.delta")
+      .categories("client")
+      .doc("Sleep interval when check netty in-flight requests to be done.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("50ms")
+
+  val PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.sort.memory.threshold")
+      .withAlternative("celeborn.push.sortMemory.threshold")
+      .withAlternative("rss.sort.push.data.threshold")
+      .categories("client")
+      .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
+      .version("0.2.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64m")
+
+  val PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.sort.pipeline.enabled")
+      .withAlternative("celeborn.push.sort.pipeline.enabled")
+      .categories("client")
+      .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
+        " will be used to pipeline push")
+      .version("0.2.1")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.sort.randomizePartitionId.enabled")
+      .withAlternative("celeborn.push.sort.randomizePartitionId.enabled")
+      .categories("client")
+      .doc(
+        "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
+          "when sort data to avoid skew when push to worker")
+      .version("0.2.1")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PUSH_RETRY_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.client.push.retry.threads")
+      .withAlternative("celeborn.push.retry.threads")
+      .withAlternative("rss.pushdata.retry.thread.num")
+      .categories("client")
+      .doc("Thread number to process shuffle re-send push data requests.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(8)
+
+  val PUSH_SPLIT_PARTITION_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.client.push.splitPartition.threads")
+      .withAlternative("celeborn.push.splitPartition.threads")
+      .withAlternative("rss.client.split.pool.size")
+      .categories("client")
+      .doc("Thread number to process shuffle split request in shuffle client.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(8)
+
+  val PUSH_TAKE_TASK_WAIT_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.takeTaskWaitTime")
+      .categories("client")
+      .doc("Wait time if no task available to push to worker.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("50ms")
 
   val PARTITION_SPLIT_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.client.shuffle.partitionSplit.threshold")
