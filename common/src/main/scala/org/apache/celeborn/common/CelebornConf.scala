@@ -1856,6 +1856,7 @@ object CelebornConf extends Logging {
   val WORKER_STORAGE_BASE_DIR_PREFIX: ConfigEntry[String] =
     buildConf("celeborn.worker.storage.baseDir.prefix")
       .withAlternative("rss.worker.base.dir.prefix")
+      .internal
       .categories("worker")
       .version("0.2.0")
       .doc("Base directory for Celeborn worker to write if " +
@@ -1866,6 +1867,7 @@ object CelebornConf extends Logging {
   val WORKER_STORAGE_BASE_DIR_COUNT: ConfigEntry[Int] =
     buildConf("celeborn.worker.storage.baseDir.number")
       .withAlternative("rss.worker.base.dir.number")
+      .internal
       .categories("worker")
       .version("0.2.0")
       .doc(s"How many directories will be used if `${WORKER_STORAGE_DIRS.key}` is not set. " +
@@ -2010,7 +2012,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("30s")
 
   val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.worker.storage.checkFileClean.maxRetries")
+    buildConf("celeborn.worker.storage.checkDirsEmpty.maxRetries")
       .withAlternative("celeborn.worker.disk.checkFileClean.maxRetries")
       .withAlternative("rss.worker.checkFileCleanRetryTimes")
       .categories("worker")
@@ -2020,7 +2022,7 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val WORKER_CHECK_FILE_CLEAN_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.storage.checkFileClean.timeout")
+    buildConf("celeborn.worker.storage.checkDirsEmpty.timeout")
       .withAlternative("celeborn.worker.disk.checkFileClean.timeout")
       .withAlternative("rss.worker.checkFileCleanTimeoutMs")
       .categories("worker")

@@ -85,10 +85,8 @@ license: |
 | celeborn.worker.shuffle.commit.threads | 32 | Thread number of worker to commit shuffle data files asynchronously. | 0.2.0 | 
 | celeborn.worker.shuffle.commit.timeout | &lt;value of celeborn.rpc.askTimeout&gt; | Timeout for a Celeborn worker to commit files of a shuffle. | 0.2.0 | 
 | celeborn.worker.shuffle.partitionSplit.min | 1m | Min size for a partition to split | 0.2.0 | 
-| celeborn.worker.storage.baseDir.number | 16 | How many directories will be used if `celeborn.worker.storage.dirs` is not set. The directory name is a combination of `celeborn.worker.storage.baseDir.prefix` and from one(inclusive) to `celeborn.worker.storage.baseDir.number`(inclusive) step by one. | 0.2.0 | 
-| celeborn.worker.storage.baseDir.prefix | /mnt/disk | Base directory for Celeborn worker to write if `celeborn.worker.storage.dirs` is not set. | 0.2.0 | 
-| celeborn.worker.storage.checkFileClean.maxRetries | 3 | The number of retries for a worker to check if the working directory is cleaned up before registering with the master. | 0.2.0 | 
-| celeborn.worker.storage.checkFileClean.timeout | 1000ms | The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master. | 0.2.0 | 
+| celeborn.worker.storage.checkDirsEmpty.maxRetries | 3 | The number of retries for a worker to check if the working directory is cleaned up before registering with the master. | 0.2.0 | 
+| celeborn.worker.storage.checkDirsEmpty.timeout | 1000ms | The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master. | 0.2.0 | 
 | celeborn.worker.storage.dirs | &lt;undefined&gt; | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: `dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]` | 0.2.0 | 
 | celeborn.worker.storage.disk.reserve.size | 5G | Celeborn worker reserved space for each disk. | 0.2.0 | 
 | celeborn.worker.storage.hdfs.dir | &lt;undefined&gt; | HDFS dir configuration for Celeborn to access HDFS. | 0.2.0 | 
