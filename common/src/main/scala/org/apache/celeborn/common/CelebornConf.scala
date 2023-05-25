@@ -1363,10 +1363,10 @@ object CelebornConf extends Logging {
       .createWithDefault(2)
 
   val TEST_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.test.retryCommitFiles")
+    buildConf("celeborn.test.client.retryCommitFiles")
       .withAlternative("celeborn.test.retryCommitFiles")
       .internal
-      .categories("client", "test")
+      .categories("test", "client")
       .doc("Fail commitFile request for test")
       .version("0.2.0")
       .booleanConf
@@ -1436,10 +1436,10 @@ object CelebornConf extends Logging {
       .createWithDefault(5)
 
   val TEST_RETRY_REVIVE: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.test.retryRevive")
+    buildConf("celeborn.test.client.retryRevive")
       .withAlternative("celeborn.test.retryRevive")
       .internal
-      .categories("client", "test")
+      .categories("test", "client")
       .doc("Fail push data and request for test")
       .version("0.2.0")
       .booleanConf
@@ -1515,19 +1515,19 @@ object CelebornConf extends Logging {
       .createWithDefaultString("120s")
 
   val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.test.pushMasterDataTimeout")
+    buildConf("celeborn.test.worker.pushMasterDataTimeout")
       .withAlternative("celeborn.test.pushMasterDataTimeout")
       .internal
-      .categories("worker", "test")
+      .categories("test", "worker")
       .version("0.2.0")
       .doc("Whether to test push master data timeout")
       .booleanConf
       .createWithDefault(false)
 
   val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.test.pushSlaveDataTimeout")
+    buildConf("celeborn.test.worker.pushSlaveDataTimeout")
       .internal
-      .categories("worker", "test")
+      .categories("test", "worker")
       .version("0.3.0")
       .doc("Whether to test push slave data timeout")
       .booleanConf
@@ -1684,10 +1684,10 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val TEST_FETCH_FAILURE: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.test.fetchFailure")
+    buildConf("celeborn.test.client.fetchFailure")
       .withAlternative("celeborn.test.fetchFailure")
       .internal
-      .categories("client", "test")
+      .categories("test", "client")
       .version("0.2.0")
       .doc("Whether to test fetch chunk failure")
       .booleanConf
