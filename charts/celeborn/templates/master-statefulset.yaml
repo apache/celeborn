@@ -93,7 +93,7 @@ spec:
           - mountPath: /opt/celeborn/conf
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
-          {{- include "celeborn.master.volumes" . | nindent 10 }}
+          {{- include "celeborn.master.volumeMounts" . | nindent 10 }}
         env:
           {{- range $key, $val := .Values.environments }}
           - name: {{ $key }}
@@ -104,4 +104,4 @@ spec:
         - configMap:
             name: {{ .Values.configmap }}
           name: {{ include "celeborn.fullname" . }}-volume
-        {{- include "celeborn.master.volumeMounts" . | nindent 8 }}
+        {{- include "celeborn.master.volumes" . | nindent 8 }}
