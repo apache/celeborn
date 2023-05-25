@@ -260,7 +260,7 @@ rm -rf "$TARDIR"
 cp -R "$DIST_DIR" "$TARDIR"
 TAR="tar"
 if [ "$(uname -s)" = "Darwin" ]; then
-  TAR="tar --no-mac-metadata --no-xattrs"
+  TAR="tar --no-mac-metadata --no-xattrs --no-fflags"
 fi
 $TAR -czf "apache-celeborn-$VERSION-$NAME.tgz" -C "$PROJECT_DIR" "$TARDIR_NAME"
 rm -rf "$TARDIR"
