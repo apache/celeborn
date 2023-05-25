@@ -1140,17 +1140,6 @@ object CelebornConf extends Logging {
       .doc("Timeout for HA client RPC ask operations.")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
-  val MASTER_CLIENT_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.masterClient.maxRetries")
-      .withAlternative("celeborn.client.maxRetries")
-      .withAlternative("rss.ha.client.maxTries")
-      .internal
-      .categories("client", "worker")
-      .doc("Max retry times for client to connect master endpoint")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(15)
-
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
       .categories("network")
@@ -1260,18 +1249,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.io.maxChunksBeingTransferred")
-      .withAlternative("rss.shuffle.maxChunksBeingTransferred")
-      .categories("network")
-      .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
-        "that new incoming connections will be closed when the max number is hit. The client will retry " +
-        "according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and " +
-        "`celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure.")
-      .version("0.2.0")
-      .longConf
-      .createWithDefault(Long.MaxValue)
-
   val STORAGE_MEMORY_MAP_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.storage.memoryMapThreshold")
       .withAlternative("rss.storage.memoryMapThreshold")
@@ -1283,6 +1260,18 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("2m")
+
+  val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
+    buildConf("celeborn.shuffle.io.maxChunksBeingTransferred")
+      .withAlternative("rss.shuffle.maxChunksBeingTransferred")
+      .categories("network")
+      .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
+        "that new incoming connections will be closed when the max number is hit. The client will retry " +
+        "according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and " +
+        "`celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure.")
+      .version("0.2.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
 
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.cluster.master.endpoints")
@@ -2001,6 +1990,36 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
+  val WORKER_DEVICE_STATUS_CHECK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.monitor.disk.check.timeout")
+      .withAlternative("celeborn.worker.disk.check.timeout")
+      .withAlternative("rss.worker.status.check.timeout")
+      .categories("worker")
+      .doc("Timeout time for worker check device status.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.worker.storage.checkFileClean.maxRetries")
+      .withAlternative("celeborn.worker.disk.checkFileClean.maxRetries")
+      .withAlternative("rss.worker.checkFileCleanRetryTimes")
+      .categories("worker")
+      .doc("The number of retries for a worker to check if the working directory is cleaned up before registering with the master.")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(3)
+
+  val WORKER_CHECK_FILE_CLEAN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.storage.checkFileClean.timeout")
+      .withAlternative("celeborn.worker.disk.checkFileClean.timeout")
+      .withAlternative("rss.worker.checkFileCleanTimeoutMs")
+      .categories("worker")
+      .doc("The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1000ms")
+
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.heartbeat.worker.timeout")
       .withAlternative("celeborn.worker.heartbeat.timeout")
@@ -2649,6 +2668,17 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1)
 
+  val MASTER_CLIENT_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.masterClient.maxRetries")
+      .withAlternative("celeborn.client.maxRetries")
+      .withAlternative("rss.ha.client.maxTries")
+      .internal
+      .categories("client", "worker")
+      .doc("Max retry times for client to connect master endpoint")
+      .version("0.2.0")
+      .intConf
+      .createWithDefault(15)
+
   val CLIENT_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.closeIdleConnections")
       .categories("client")
@@ -2901,36 +2931,6 @@ object CelebornConf extends Logging {
         "errors for a period of time exceeds threshold.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10m")
-
-  val WORKER_DEVICE_STATUS_CHECK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.monitor.disk.check.timeout")
-      .withAlternative("celeborn.worker.disk.check.timeout")
-      .withAlternative("rss.worker.status.check.timeout")
-      .categories("worker")
-      .doc("Timeout time for worker check device status.")
-      .version("0.2.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
-
-  val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.worker.storage.checkFileClean.maxRetries")
-      .withAlternative("celeborn.worker.disk.checkFileClean.maxRetries")
-      .withAlternative("rss.worker.checkFileCleanRetryTimes")
-      .categories("worker")
-      .doc("The number of retries for a worker to check if the working directory is cleaned up before registering with the master.")
-      .version("0.2.0")
-      .intConf
-      .createWithDefault(3)
-
-  val WORKER_CHECK_FILE_CLEAN_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.storage.checkFileClean.timeout")
-      .withAlternative("celeborn.worker.disk.checkFileClean.timeout")
-      .withAlternative("rss.worker.checkFileCleanTimeoutMs")
-      .categories("worker")
-      .doc("The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master.")
-      .version("0.2.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("1000ms")
 
   val WORKER_WRITER_CREATE_MAX_ATTEMPTS: ConfigEntry[Int] =
     buildConf("celeborn.worker.writer.create.maxAttempts")
