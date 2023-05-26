@@ -648,21 +648,24 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def flushFileWriters(): Unit = {
-    workingDirWriters.forEach { (_: File, writers: ConcurrentHashMap[String, FileWriter]) =>
-      writers.forEach { (_: String, writer: FileWriter) =>
-        // Filter out FileWriter that already has IOException to avoid printing too many error logs
-        if (writer.getException != null) {
-          try {
-            writer.flushOnMemoryPressure()
-          } catch {
-            case t: Throwable =>
-              logError(
-                s"FileWrite of ${writer} faces unexpected exception when flush on memory pressure.",
-                t)
+    workingDirWriters.forEach(new BiConsumer[File, ConcurrentHashMap[String, FileWriter]] {
+      override def accept(t: File, writers: ConcurrentHashMap[String, FileWriter]): Unit = {
+        writers.forEach(new BiConsumer[String, FileWriter] {
+          override def accept(file: String, writer: FileWriter): Unit = {
+            if (writer.getException != null) {
+              try {
+                writer.flushOnMemoryPressure()
+              } catch {
+                case t: Throwable =>
+                  logError(
+                    s"FileWrite of $writer faces unexpected exception when flush on memory pressure.",
+                    t)
+              }
+            }
           }
-        }
+        })
       }
-    }
+    })
   }
 
   override def onPause(moduleName: String): Unit = {}
