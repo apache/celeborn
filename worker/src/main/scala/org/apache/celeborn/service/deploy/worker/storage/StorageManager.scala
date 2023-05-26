@@ -23,7 +23,7 @@ import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.function.IntUnaryOperator
+import java.util.function.{BiConsumer, IntUnaryOperator}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -648,22 +648,19 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def flushFileWriters(): Unit = {
-    val allWriters = new util.HashSet[FileWriter]()
-    workingDirWriters.asScala.foreach { case (_, writers) =>
-      writers.synchronized {
+    workingDirWriters.forEach { (_: File, writers: ConcurrentHashMap[String, FileWriter]) =>
+      writers.forEach { (_: String, writer: FileWriter) =>
         // Filter out FileWriter that already has IOException to avoid printing too many error logs
-        allWriters.addAll(writers.values().asScala.filter(_.getException == null).asJavaCollection)
-      }
-    }
-
-    allWriters.asScala.foreach { writer =>
-      try {
-        writer.flushOnMemoryPressure()
-      } catch {
-        case t: Throwable =>
-          logError(
-            s"FileWrite of ${writer} faces unexpected exception when flush on memory pressure.",
-            t)
+        if (writer.getException != null) {
+          try {
+            writer.flushOnMemoryPressure()
+          } catch {
+            case t: Throwable =>
+              logError(
+                s"FileWrite of ${writer} faces unexpected exception when flush on memory pressure.",
+                t)
+          }
+        }
       }
     }
   }
