@@ -49,7 +49,9 @@ public final class ChunkFetchFailure extends ResponseMessage {
   public static ChunkFetchFailure decode(ByteBuf buf) {
     StreamChunkSlice streamChunkSlice = StreamChunkSlice.decode(buf);
     String errorString = Encoders.Strings.decode(buf);
-    return new ChunkFetchFailure(streamChunkSlice, errorString);
+    ChunkFetchFailure chunkFetchFailure = new ChunkFetchFailure(streamChunkSlice, errorString);
+    chunkFetchFailure.setBody(buf);
+    return chunkFetchFailure;
   }
 
   @Override

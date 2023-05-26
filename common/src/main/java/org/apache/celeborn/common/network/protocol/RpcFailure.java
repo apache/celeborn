@@ -49,7 +49,9 @@ public final class RpcFailure extends ResponseMessage {
   public static RpcFailure decode(ByteBuf buf) {
     long requestId = buf.readLong();
     String errorString = Encoders.Strings.decode(buf);
-    return new RpcFailure(requestId, errorString);
+    RpcFailure rpcFailure = new RpcFailure(requestId, errorString);
+    rpcFailure.setBody(buf);
+    return rpcFailure;
   }
 
   @Override

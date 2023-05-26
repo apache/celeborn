@@ -22,6 +22,8 @@ import static org.mockito.Mockito.*;
 
 import java.nio.ByteBuffer;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.local.LocalChannel;
 import org.junit.Test;
@@ -65,7 +67,11 @@ public class TransportResponseHandlerSuiteJ {
     handler.addFetchRequest(streamChunkSlice, callback);
     assertEquals(1, handler.numOutstandingRequests());
 
-    handler.handle(new ChunkFetchFailure(streamChunkSlice, "some error msg"));
+    ChunkFetchFailure chunkFetchFailure = new ChunkFetchFailure(streamChunkSlice, "some error msg");
+    ByteBuf buf = Unpooled.buffer(chunkFetchFailure.encodedLength() + 1);
+    chunkFetchFailure.encode(buf);
+    chunkFetchFailure.setBody(buf);
+    handler.handle(chunkFetchFailure);
     verify(callback, times(1)).onFailure(eq(0), any());
     assertEquals(0, handler.numOutstandingRequests());
   }
@@ -122,10 +128,18 @@ public class TransportResponseHandlerSuiteJ {
     handler.addRpcRequest(12345, callback);
     assertEquals(1, handler.numOutstandingRequests());
 
-    handler.handle(new RpcFailure(54321, "uh-oh!")); // should be ignored
+    RpcFailure rpcFailure1 = new RpcFailure(54321, "uh-oh!");
+    ByteBuf buf1 = Unpooled.buffer(rpcFailure1.encodedLength() + 1);
+    rpcFailure1.encode(buf1);
+    rpcFailure1.setBody(buf1);
+    handler.handle(rpcFailure1); // should be ignored
     assertEquals(1, handler.numOutstandingRequests());
 
-    handler.handle(new RpcFailure(12345, "oh no"));
+    RpcFailure rpcFailure2 = new RpcFailure(12345, "uh-oh!");
+    ByteBuf buf2 = Unpooled.buffer(rpcFailure2.encodedLength() + 1);
+    rpcFailure2.encode(buf2);
+    rpcFailure2.setBody(buf2);
+    handler.handle(rpcFailure2);
     verify(callback, times(1)).onFailure(any());
     assertEquals(0, handler.numOutstandingRequests());
   }
@@ -164,10 +178,18 @@ public class TransportResponseHandlerSuiteJ {
     handler.addPushRequest(12345, info);
     assertEquals(1, handler.numOutstandingRequests());
 
-    handler.handle(new RpcFailure(54321, "uh-oh!")); // should be ignored
+    RpcFailure rpcFailure1 = new RpcFailure(54321, "uh-oh!");
+    ByteBuf buf1 = Unpooled.buffer(rpcFailure1.encodedLength() + 1);
+    rpcFailure1.encode(buf1);
+    rpcFailure1.setBody(buf1);
+    handler.handle(rpcFailure1); // should be ignored
     assertEquals(1, handler.numOutstandingRequests());
 
-    handler.handle(new RpcFailure(12345, "oh no"));
+    RpcFailure rpcFailure2 = new RpcFailure(12345, "uh-oh!");
+    ByteBuf buf2 = Unpooled.buffer(rpcFailure2.encodedLength() + 1);
+    rpcFailure2.encode(buf2);
+    rpcFailure2.setBody(buf2);
+    handler.handle(rpcFailure2);
     verify(callback, times(1)).onFailure(any());
     assertEquals(0, handler.numOutstandingRequests());
   }
