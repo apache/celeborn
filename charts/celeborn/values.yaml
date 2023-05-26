@@ -39,23 +39,21 @@ securityContext:
 # Current Celeborn support followings volume type:
 # - emptyDir
 # - hostPath
-# Note: sizeLimit only works in emptyDir type
-volume:
+# Note: size only works in emptyDir type
+volumes:
   master:
     ratis:
-      path: &master-volume-ratis /mnt/rss_ratis
+      path: /mnt/rss_ratis
       type: hostPath
-      sizeLimit: 1Gi
+      size: 1Gi
   worker:
     dirs:
-      path: &worker-volume-dirs /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
+      path: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
       type: hostPath
-      sizeLimit: 1Gi
+      size: 1Gi
 
 # celeborn configurations
 celeborn:
-  celeborn.ha.master.ratis.raft.server.storage.dir: *master-volume-ratis
-  celeborn.worker.storage.dirs: *worker-volume-dirs
   celeborn.metrics.enabled: true
   celeborn.master.metrics.prometheus.port: 9098
   celeborn.worker.metrics.prometheus.port: 9096
@@ -71,6 +69,7 @@ celeborn:
   celeborn.push.stageEnd.timeout: 120s
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
+  celeborn.ha.enabled: true
 
 environments:
   CELEBORN_MASTER_MEMORY: 2g
