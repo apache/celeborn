@@ -223,8 +223,11 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
             NettyUtils.getRemoteAddress(channel));
         resp.body().release();
       } else {
-        listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
-        resp.body().release();
+        try {
+          listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
+        } finally {
+          resp.body().release();
+        }
       }
     } else if (message instanceof ChunkFetchFailure) {
       ChunkFetchFailure resp = (ChunkFetchFailure) message;
@@ -235,12 +238,18 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
             resp.streamChunkSlice,
             NettyUtils.getRemoteAddress(channel),
             resp.errorString);
+        resp.body().release();
       } else {
         logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
-        listener.onFailure(
-            resp.streamChunkSlice.chunkIndex,
-            new ChunkFetchFailureException(
-                "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
+
+        try {
+          listener.onFailure(
+              resp.streamChunkSlice.chunkIndex,
+              new ChunkFetchFailureException(
+                  "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
+        } finally {
+          resp.body().release();
+        }
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
@@ -279,11 +288,20 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               resp.requestId,
               NettyUtils.getRemoteAddress(channel),
               resp.errorString);
+          resp.body().release();
         } else {
-          listener.onFailure(new IOException(resp.errorString));
+          try {
+            listener.onFailure(new IOException(resp.errorString));
+          } finally {
+            resp.body().release();
+          }
         }
       } else {
-        info.callback.onFailure(new CelebornIOException(resp.errorString));
+        try {
+          info.callback.onFailure(new CelebornIOException(resp.errorString));
+        } finally {
+          resp.body().release();
+        }
       }
     } else {
       throw new IllegalStateException("Unknown response type: " + message.type());
