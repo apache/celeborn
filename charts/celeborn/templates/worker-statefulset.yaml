@@ -113,7 +113,7 @@ spec:
         {{- range $index, $dir := $dirs }}
         - name: celeborn-worker-vol-{{ $index }}
           emptyDir:
-            sizeLimit: {{ $.Values.storage.worker.dirs.size }}
+            sizeLimit: {{ $.Values.volumes.worker.dirs.size }}
         {{- end }}
         {{- else if eq "hostPath" .Values.volumes.worker.dirs.type }}
         {{- range $index, $dir := $dirs }}
