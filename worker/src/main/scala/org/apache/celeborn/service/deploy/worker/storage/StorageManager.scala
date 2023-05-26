@@ -648,7 +648,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def flushFileWriters(): Unit = {
-    workingDirWriters.forEach { (_: File, writers: ConcurrentHashMap[String, FileWriter]) =>
+    workingDirWriters.forEach{ (_: File, writers: ConcurrentHashMap[String, FileWriter]) =>
       writers.forEach { (_: String, writer: FileWriter) =>
         // Filter out FileWriter that already has IOException to avoid printing too many error logs
         if (writer.getException != null) {
