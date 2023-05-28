@@ -17,6 +17,10 @@
 
 package org.apache.celeborn.tests.flink
 
+import java.io.File
+
+import scala.collection.JavaConverters._
+
 import org.apache.flink.api.common.{ExecutionMode, InputDependencyConstraint, RuntimeExecutionMode}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, ExecutionOptions, RestOptions}
 import org.apache.flink.runtime.jobgraph.JobType
@@ -27,9 +31,11 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.worker.Worker
 
 class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
+  var workers: collection.Set[Worker] = null
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup rss mini cluster")
@@ -37,7 +43,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       "celeborn.master.host" -> "localhost",
       "celeborn.master.port" -> "9097")
     val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
-    setUpMiniCluster(masterConf, workerConf)
+    workers = setUpMiniCluster(masterConf, workerConf)._2
   }
 
   override def afterAll(): Unit = {
@@ -73,5 +79,16 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
     graph.setJobType(JobType.BATCH)
     env.execute(graph)
+    checkFlushingFileLength
+  }
+
+  private def checkFlushingFileLength(): Unit = {
+    workers.map(worker => {
+      worker.storageManager.workingDirWriters.values().asScala.map(writers => {
+        writers.forEach((fileName, fileWriter) => {
+          assert(new File(fileName).length() == fileWriter.getFileInfo.getFileLength)
+        })
+      })
+    })
   }
 }

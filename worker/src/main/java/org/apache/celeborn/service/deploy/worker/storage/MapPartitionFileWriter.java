@@ -89,6 +89,11 @@ public final class MapPartitionFileWriter extends FileWriter {
     }
   }
 
+  protected void flush(boolean finalFlush) throws IOException {
+    super.flush(finalFlush);
+    this.fileInfo.updateFileLength(bytesFlushed);
+  }
+
   public void write(ByteBuf data) throws IOException {
     data.markReaderIndex();
     int partitionId = data.readInt();

@@ -110,6 +110,11 @@ public class FileInfo {
     return chunkOffsets.get(chunkOffsets.size() - 1);
   }
 
+  // for mappartition, a file only has one chunk.
+  public synchronized void updateFileLength(long fileLength) {
+    this.chunkOffsets.set(0, fileLength);
+  }
+
   public File getFile() {
     return new File(filePath);
   }
