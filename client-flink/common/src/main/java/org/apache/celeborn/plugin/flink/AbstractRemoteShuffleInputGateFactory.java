@@ -62,6 +62,8 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
   /** Sum of buffers. */
   protected final int numBuffersPerGate;
 
+  protected boolean supportFloatingBuffers;
+
   protected CelebornConf celebornConf;
 
   public AbstractRemoteShuffleInputGateFactory(
@@ -83,6 +85,9 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
     }
 
     this.numBuffersPerGate = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
+    this.supportFloatingBuffers =
+        FlinkUtils.stringValueAsBoolean(
+            flinkConf, PluginConf.SUPPORT_FLOATING_BUFFER_PER_INPUT_GATE);
     if (numBuffersPerGate < MIN_BUFFERS_PER_GATE) {
       throw new IllegalArgumentException(
           String.format(
@@ -107,7 +112,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
         numConcurrentReading);
 
     SupplierWithException<BufferPool, IOException> bufferPoolFactory =
-        createBufferPoolFactory(networkBufferPool, numBuffersPerGate);
+        createBufferPoolFactory(networkBufferPool, numBuffersPerGate, supportFloatingBuffers);
     BufferDecompressor bufferDecompressor =
         new BufferDecompressor(networkBufferSize, compressionCodec);
 
@@ -122,7 +127,11 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
       BufferDecompressor bufferDecompressor);
 
   private SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
-      BufferPoolFactory bufferPoolFactory, int numBuffers) {
-    return () -> bufferPoolFactory.createBufferPool(numBuffers, numBuffers);
+      BufferPoolFactory bufferPoolFactory, int numBuffers, boolean supportFloatingBuffers) {
+    if (supportFloatingBuffers) {
+      return () -> bufferPoolFactory.createBufferPool(1, numBuffers);
+    } else {
+      return () -> bufferPoolFactory.createBufferPool(numBuffers, numBuffers);
+    }
   }
 }

@@ -26,7 +26,9 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.util.ByteUnit
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
-private object ConfigHelpers {
+private[celeborn] object ConfigHelpers {
+
+  type AlternativesTransfer = (String, String => String)
 
   def toNumber[T](s: String, converter: String => T, key: String, configType: String): T = {
     try {
@@ -228,7 +230,7 @@ case class ConfigBuilder(key: String) {
   private[config] var _categories = Seq.empty[String]
   private[config] var _version = ""
   private[config] var _onCreate: Option[ConfigEntry[_] => Unit] = None
-  private[config] var _alternatives = List.empty[String]
+  private[config] var _alternatives = List.empty[AlternativesTransfer]
 
   def internal: ConfigBuilder = {
     _public = false
@@ -265,8 +267,8 @@ case class ConfigBuilder(key: String) {
     this
   }
 
-  def withAlternative(key: String): ConfigBuilder = {
-    _alternatives = _alternatives :+ key
+  def withAlternative(key: String, translate: String => String = null): ConfigBuilder = {
+    _alternatives = _alternatives :+ (key, translate)
     this
   }
 

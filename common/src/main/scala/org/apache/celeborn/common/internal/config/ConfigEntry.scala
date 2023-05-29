@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.common.internal.config
 
+import java.util.concurrent.ConcurrentHashMap
+
+import org.apache.celeborn.common.internal.config.ConfigHelpers.AlternativesTransfer
 import org.apache.celeborn.common.util.JavaUtils
 
 // ====================================================================================
@@ -76,7 +79,7 @@ abstract class ConfigEntry[T](
     val key: String,
     val prependedKey: Option[String],
     val prependSeparator: String,
-    val alternatives: List[String],
+    val alternatives: List[AlternativesTransfer],
     val valueConverter: String => T,
     val stringConverter: T => String,
     val doc: String,
@@ -94,7 +97,7 @@ abstract class ConfigEntry[T](
     val values = Seq(
       prependedKey.flatMap(reader.get),
       alternatives.foldLeft(reader.get(key))((res, nextKey) =>
-        res.orElse(reader.get(nextKey)))).flatten
+        res.orElse(reader.get(nextKey._1)))).flatten
     if (values.nonEmpty) {
       Some(values.mkString(prependSeparator))
     } else {
@@ -116,7 +119,7 @@ private class ConfigEntryWithDefault[T](
     key: String,
     prependedKey: Option[String],
     prependSeparator: String,
-    alternatives: List[String],
+    alternatives: List[AlternativesTransfer],
     _defaultValue: T,
     valueConverter: String => T,
     stringConverter: T => String,
@@ -149,7 +152,7 @@ private class ConfigEntryWithDefaultFunction[T](
     key: String,
     prependedKey: Option[String],
     prependSeparator: String,
-    alternatives: List[String],
+    alternatives: List[AlternativesTransfer],
     _defaultFunction: () => T,
     valueConverter: String => T,
     stringConverter: T => String,
@@ -182,7 +185,7 @@ private class ConfigEntryWithDefaultString[T](
     key: String,
     prependedKey: Option[String],
     prependSeparator: String,
-    alternatives: List[String],
+    alternatives: List[AlternativesTransfer],
     _defaultValue: String,
     valueConverter: String => T,
     stringConverter: T => String,
@@ -219,7 +222,7 @@ class OptionalConfigEntry[T](
     key: String,
     prependedKey: Option[String],
     prependSeparator: String,
-    alternatives: List[String],
+    alternatives: List[AlternativesTransfer],
     val rawValueConverter: String => T,
     val rawStringConverter: T => String,
     doc: String,
@@ -252,7 +255,7 @@ class FallbackConfigEntry[T](
     key: String,
     prependedKey: Option[String],
     prependSeparator: String,
-    alternatives: List[String],
+    alternatives: List[AlternativesTransfer],
     doc: String,
     isPublic: Boolean,
     categories: Seq[String],
