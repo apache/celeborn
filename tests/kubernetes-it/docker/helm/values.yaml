@@ -30,9 +30,27 @@ workerReplicas: 1
 securityContext:
   fsGroup: 10006
 
+# Current Celeborn support followings volume type:
+# - emptyDir
+# - hostPath
+# Note: size only works in emptyDir type
+# Celeborn Master will pick first volumes for store raft log
+volumes:
+  master:
+    - path: /mnt/rss_ratis
+      type: emptyDir
+      size: 1Gi
+  worker:
+    - path: /mnt/disk1
+      type: emptyDir
+      size: 1Gi
+    - path: /mnt/disk2
+      type: emptyDir
+      size: 1Gi
+
+# celeborn configurations
 celeborn:
-  celeborn.ha.master.ratis.raft.server.storage.dir: /mnt/rss_ratis/
-  celeborn.worker.storage.dirs: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
+  celeborn.ha.enabled: false
   celeborn.metrics.enabled: false
   celeborn.master.metrics.prometheus.port: 9098
   celeborn.worker.metrics.prometheus.port: 9096
