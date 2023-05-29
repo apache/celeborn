@@ -40,7 +40,7 @@ data:
     {{- if eq $path "" }}
     {{- $path = $worker.path }}
     {{- else }}
-    {{- $path = ( list  $path $worker.path | join ",") }}
+    {{- $path = ( list $path $worker.path | join ",") }}
     {{- end }}
     {{- end }}
     celeborn.worker.storage.dirs={{ $path }}

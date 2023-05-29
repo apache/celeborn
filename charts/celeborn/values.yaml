@@ -62,6 +62,7 @@ volumes:
 
 # celeborn configurations
 celeborn:
+  celeborn.ha.enabled: true
   celeborn.metrics.enabled: true
   celeborn.master.metrics.prometheus.port: 9098
   celeborn.worker.metrics.prometheus.port: 9096
@@ -77,7 +78,6 @@ celeborn:
   celeborn.push.stageEnd.timeout: 120s
   celeborn.application.heartbeat.timeout: 120s
   celeborn.worker.heartbeat.timeout: 120s
-  celeborn.ha.enabled: true
 
 environments:
   CELEBORN_MASTER_MEMORY: 2g

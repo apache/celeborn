@@ -116,5 +116,7 @@ spec:
           hostPath:
             path: {{ $volume.path }}/master
             type: DirectoryOrCreate
+        {{- else }}
+        {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
         {{- end }}
         {{- end }}
