@@ -23,15 +23,15 @@
 # TODO rebuild celeborn official image
 image:
   repository: aliyunemr/remote-shuffle-service
-  pullPolicy: Never
+  pullPolicy: Always
   tag: 0.1.1-6badd20
 
 imagePullSecrets: {}
 
 # master replicas should not less than 3
-masterReplicas: 1
+masterReplicas: 3
 # worker replicas set on demand, should less than node number
-workerReplicas: 1
+workerReplicas: 5
 
 securityContext:
   runAsUser: 10006
