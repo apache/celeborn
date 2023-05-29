@@ -40,6 +40,7 @@ securityContext:
 # - emptyDir
 # - hostPath
 # Note: size only works in emptyDir type
+# Celeborn Master will pick first volumes for store raft log
 volumes:
   master:
     - path: /mnt/rss_ratis
