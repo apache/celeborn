@@ -119,6 +119,6 @@ spec:
             path: {{ $volume.path }}/worker
             type: DirectoryOrCreate
         {{- else }}
-        {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
+        {{ fail "Currently, Celeborn chart only supports 'emptyDir' and 'hostPath' volume types" }}
         {{- end }}
         {{- end }}
