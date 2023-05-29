@@ -93,8 +93,10 @@ spec:
           - mountPath: /opt/celeborn/conf
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
-          - name: celeborn-master-ratis-volume
-            mountPath: {{ .Values.volumes.master.ratis.path }}
+          {{- range $index, $volume := .Values.volumes.master }}
+          - name: celeborn-master-vol-{{ $index }}
+            mountPath: {{ .path }}
+          {{- end }}
         env:
           {{- range $key, $val := .Values.environments }}
           - name: {{ $key }}
@@ -105,12 +107,14 @@ spec:
         - configMap:
             name: {{ .Values.configmap }}
           name: {{ include "celeborn.fullname" . }}-volume
-        - name: celeborn-master-ratis-volume
-        {{- if eq "emptyDir" .Values.volumes.master.ratis.type }}
+        {{- range $index, $volume := .Values.volumes.master }}
+        - name: celeborn-master-vol-{{ $index }}
+        {{- if eq "emptyDir" $volume.type }}
           emptyDir:
-            sizeLimit: {{ .Values.volumes.master.ratis.size }}
-        {{- else if eq "hostPath" .Values.volumes.master.ratis.type }}
+            sizeLimit: {{ $volume.size }}
+        {{- else if eq "hostPath" $volume.type }}
           hostPath:
-            path: {{ .Values.volumes.master.ratis.path }}/ratis
+            path: {{ $volume.path }}/master
             type: DirectoryOrCreate
+        {{- end }}
         {{- end }}

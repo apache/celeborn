@@ -94,10 +94,9 @@ spec:
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
           {{- end }}
-          {{- $dirs := .Values.volumes.worker.dirs.path | splitList "," -}}
-          {{- range $index, $dir := $dirs }}
+          {{- range $index, $volume := .Values.volumes.worker }}
           - name: celeborn-worker-vol-{{ $index }}
-            mountPath: {{ $dir }}
+            mountPath: {{ .path }}
           {{- end }}
         env:
           {{- range $key, $val := .Values.environments }}
@@ -109,17 +108,15 @@ spec:
         - configMap:
             name: {{ .Values.configmap }}
           name: {{ include "celeborn.fullname" . }}-volume
-        {{- if eq "emptyDir" .Values.volumes.worker.dirs.type }}
-        {{- range $index, $dir := $dirs }}
+        {{- range $index, $volume := .Values.volumes.worker }}
+        {{- if eq "emptyDir" $volume.type }}
         - name: celeborn-worker-vol-{{ $index }}
           emptyDir:
-            sizeLimit: {{ $.Values.volumes.worker.dirs.size }}
-        {{- end }}
-        {{- else if eq "hostPath" .Values.volumes.worker.dirs.type }}
-        {{- range $index, $dir := $dirs }}
+            sizeLimit: {{ $volume.size }}
+        {{- else if eq "hostPath" $volume.type }}
         - name: celeborn-worker-vol-{{ $index }}
           hostPath:
-            path: {{ $dir }}/worker
+            path: {{ $volume.path }}/worker
             type: DirectoryOrCreate
         {{- end }}
         {{- end }}

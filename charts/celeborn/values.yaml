@@ -42,13 +42,20 @@ securityContext:
 # Note: size only works in emptyDir type
 volumes:
   master:
-    ratis:
-      path: /mnt/rss_ratis
+    - path: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
   worker:
-    dirs:
-      path: /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4
+    - path: /mnt/disk1
+      type: hostPath
+      size: 1Gi
+    - path: /mnt/disk2
+      type: hostPath
+      size: 1Gi
+    - path: /mnt/disk3
+      type: hostPath
+      size: 1Gi
+    - path: /mnt/disk4
       type: hostPath
       size: 1Gi
 
