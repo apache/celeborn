@@ -1406,8 +1406,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.push.timeoutCheck.interval")
       .categories("network")
       .doc("Interval for checking push data timeout. " +
-        s"If setting `module` to `${TransportModuleConstants.DATA_MODULE}`, it works for shuffle client push data to worker." +
-        s"If setting `module` to `${TransportModuleConstants.REPLICATE_MODULE}`, it works for worker replicate data to peer worker.")
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push and fetch data and should be configured in client side. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for worker replicate data to peer worker and should be configured in worker side.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
@@ -1416,8 +1418,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.push.timeoutCheck.threads")
       .categories("network")
       .doc("Threads num for checking push data timeout. " +
-        s"If setting `module` to `${TransportModuleConstants.DATA_MODULE}`, it works for shuffle client push data to worker." +
-        s"If setting `module` to `${TransportModuleConstants.REPLICATE_MODULE}`, it works for worker replicate data to peer worker.")
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push and fetch data and should be configured in client side. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for worker replicate data to peer worker and should be configured in worker side.")
       .version("0.3.0")
       .intConf
       .createWithDefault(16)
@@ -2300,7 +2304,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.estimatedPartitionSize.minSize")
       .withAlternative("celeborn.shuffle.minPartitionSizeToEstimate")
       .withAlternative("rss.minimum.estimate.partition.size")
-      .categories("master")
+      .categories("worker")
       .doc(
         "Ignore partition size smaller than this configuration of partition size for estimation.")
       .version("0.2.0")
@@ -3428,7 +3432,11 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.client.heartbeat.interval")
       .categories("network")
       .version("0.3.0")
-      .doc("The heartbeat interval between worker and client")
+      .doc("The heartbeat interval between worker and client. " +
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push and fetch data and should be configured in client side. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for worker replicate data to peer worker and should be configured in worker side.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
