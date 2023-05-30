@@ -1160,7 +1160,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.haclient.rpc.askTimeout")
       .internal
       .categories("client", "worker")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Timeout for HA client RPC ask operations.")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
@@ -1320,7 +1320,7 @@ object CelebornConf extends Logging {
       .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
         "works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
         "when memory pressure is high or shuffle partition count is huge.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
@@ -1333,7 +1333,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("When true, Celeborn worker will replicate shuffle data to another Celeborn worker " +
         "asynchronously to ensure the pushed shuffle data won't be lost after the node failure.")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -1342,7 +1342,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.push.buffer.initial.size")
       .withAlternative("rss.push.data.buffer.initial.size")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8k")
 
@@ -1351,7 +1351,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.push.buffer.max.size")
       .withAlternative("rss.push.data.buffer.size")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Max size of reducer partition buffer memory for shuffle hash writer. The pushed " +
         "data will be buffered in memory before sending to Celeborn worker. For performance " +
         "consideration keep this buffer size higher than 32K. Example: If reducer amount is " +
@@ -1365,7 +1365,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.push.queue.capacity")
       .withAlternative("rss.push.data.queue.capacity")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Push buffer queue size for a task. The maximum memory is " +
         "`celeborn.push.buffer.max.size` * `celeborn.push.queue.capacity`, " +
         "default: 64KiB * 512 = 32MiB")
@@ -1377,7 +1377,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.push.maxReqsInFlight")
       .withAlternative("rss.push.data.maxReqsInFlight")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Amount of Netty in-flight requests per worker. The maximum memory is " +
         "`celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
         "compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib")
@@ -1398,7 +1398,7 @@ object CelebornConf extends Logging {
       .internal
       .categories("test", "client")
       .doc("Fail push data and request for test")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -1431,7 +1431,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.fetch.timeout")
       .withAlternative("rss.fetch.chunk.timeout")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Timeout for a task to fetch chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
@@ -1441,7 +1441,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.fetch.maxReqsInFlight")
       .withAlternative("rss.fetch.chunk.maxReqsInFlight")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Amount of in-flight chunk fetch request.")
       .intConf
       .createWithDefault(3)
@@ -1451,7 +1451,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.rpc.maxParallelism")
       .withAlternative("rss.rpc.max.parallelism")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Max parallelism of client on sending RPC requests.")
       .intConf
       .createWithDefault(1024)
@@ -1461,7 +1461,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.fetch.maxRetriesForEachReplica")
       .withAlternative("celeborn.fetch.maxRetries")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Max retry times of fetch chunk on each replica")
       .intConf
       .createWithDefault(3)
@@ -1471,7 +1471,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.test.fetchFailure")
       .internal
       .categories("test", "client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Whether to test fetch chunk failure")
       .booleanConf
       .createWithDefault(false)
@@ -1481,7 +1481,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.application.heartbeat.timeout")
       .withAlternative("rss.application.timeout")
       .categories("master")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Application heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("300s")
@@ -1491,7 +1491,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.application.heartbeatInterval")
       .withAlternative("rss.application.heartbeatInterval")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Interval for client to send heartbeat message to master.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
@@ -1501,7 +1501,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.expired.checkInterval")
       .withAlternative("rss.remove.shuffle.delay")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Interval for client to check expired shuffles.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
@@ -1521,7 +1521,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.excludedWorker.expireTimeout")
       .withAlternative("celeborn.worker.excluded.expireTimeout")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
@@ -1550,7 +1550,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.register.maxRetries")
       .withAlternative("rss.register.shuffle.max.retry")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Max retry times for client to register shuffle.")
       .intConf
       .createWithDefault(3)
@@ -1560,7 +1560,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.register.retryWait")
       .withAlternative("rss.register.shuffle.retry.wait")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Wait time before next retry if register shuffle failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
@@ -1570,7 +1570,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.reserve.maxRetries")
       .withAlternative("rss.reserve.slots.max.retry")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Max retry times for client to reserve slots.")
       .intConf
       .createWithDefault(3)
@@ -1580,7 +1580,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.reserve.retryWait")
       .withAlternative("rss.reserve.slots.retry.wait")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Wait time before next retry if reserve slots failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
@@ -1600,7 +1600,7 @@ object CelebornConf extends Logging {
       .internal
       .categories("test", "client")
       .doc("Fail commitFile request for test")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -1981,7 +1981,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.expire.nonEmptyDir.duration")
       .categories("worker")
       .doc("If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1d")
 
@@ -1991,7 +1991,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.workingDirName")
       .categories("worker")
       .doc("Worker's working dir path name.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createWithDefault("rss-worker/shuffle_data")
 
@@ -2030,7 +2030,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.status.check.timeout")
       .categories("worker")
       .doc("Timeout time for worker check device status.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
@@ -2040,7 +2040,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.checkFileCleanRetryTimes")
       .categories("worker")
       .doc("The number of retries for a worker to check if the working directory is cleaned up before registering with the master.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(3)
 
@@ -2050,7 +2050,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.checkFileCleanTimeoutMs")
       .categories("worker")
       .doc("The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1000ms")
 
@@ -2059,7 +2059,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.heartbeat.timeout")
       .withAlternative("rss.worker.timeout")
       .categories("master")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Worker heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
@@ -2078,7 +2078,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.commit.threads")
       .withAlternative("rss.worker.asyncCommitFiles.numThreads")
       .categories("worker")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Thread number of worker to commit shuffle data files asynchronously.")
       .intConf
       .createWithDefault(32)
@@ -2089,7 +2089,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.flush.timeout")
       .categories("worker")
       .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
-      .version("0.2.0")
+      .version("0.3.0")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
@@ -2098,7 +2098,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.partition.sort.timeout")
       .categories("worker")
       .doc("Timeout for a shuffle file to sort.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("220s")
 
@@ -2108,7 +2108,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.initialReserveSingleSortMemory")
       .categories("worker")
       .doc("Reserved memory when sorting a shuffle file off-heap.")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1mb")
 
@@ -2190,7 +2190,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.disk.minimum.reserve.size")
       .categories("worker")
       .doc("Celeborn worker reserved space for each disk.")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
 
@@ -2200,7 +2200,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.flusher.avg.time.window")
       .categories("worker")
       .doc("The size of sliding windows used to calculate statistics about flushed time and count.")
-      .version("0.2.1")
+      .version("0.3.0")
       .intConf
       .createWithDefault(20)
 
@@ -2211,7 +2211,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("The minimum flush count to enter a sliding window" +
         " to calculate statistics about flushed time and count.")
-      .version("0.2.1")
+      .version("0.3.0")
       .internal
       .intConf
       .createWithDefault(500)
@@ -2233,7 +2233,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("This configuration is a guidance for load-aware slot allocation algorithm. " +
         "This value is control how many disk groups will be created.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(5)
 
@@ -2244,7 +2244,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("This value means how many more workload will be placed into a faster disk group " +
         "than a slower group.")
-      .version("0.2.0")
+      .version("0.3.0")
       .doubleConf
       .createWithDefault(0.1)
 
@@ -2252,9 +2252,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.slot.assign.loadAware.flushTimeWeight")
       .withAlternative("celeborn.slots.assign.loadAware.flushTimeWeight")
       .categories("master")
-      .doc(
-        "Weight of average flush time when calculating ordering in load-aware assignment strategy")
-      .version("0.2.1")
+      .doc("Weight of average flush time when calculating ordering in load-aware assignment strategy")
+      .version("0.3.0")
       .doubleConf
       .createWithDefault(0)
 
@@ -2262,9 +2261,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.slot.assign.loadAware.fetchTimeWeight")
       .withAlternative("celeborn.slots.assign.loadAware.fetchTimeWeight")
       .categories("master")
-      .doc(
-        "Weight of average fetch time when calculating ordering in load-aware assignment strategy")
-      .version("0.2.1")
+      .doc("Weight of average fetch time when calculating ordering in load-aware assignment strategy")
+      .version("0.3.0")
       .doubleConf
       .createWithDefault(1)
 
@@ -2273,7 +2271,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.assign.extraSlots")
       .withAlternative("rss.offer.slots.extra.size")
       .categories("master")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Extra slots number when master assign slots.")
       .intConf
       .createWithDefault(2)
@@ -2283,7 +2281,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.assign.policy")
       .withAlternative("rss.offer.slots.algorithm")
       .categories("master")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
@@ -2296,7 +2294,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.initial.partition.size")
       .categories("master")
       .doc("Initial partition size for estimation, it will change according to runtime stats.")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64mb")
 
@@ -2305,9 +2303,8 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.minPartitionSizeToEstimate")
       .withAlternative("rss.minimum.estimate.partition.size")
       .categories("worker")
-      .doc(
-        "Ignore partition size smaller than this configuration of partition size for estimation.")
-      .version("0.2.0")
+      .doc("Ignore partition size smaller than this configuration of partition size for estimation.")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8mb")
 
@@ -2317,7 +2314,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.partition.size.update.initial.delay")
       .categories("master")
       .doc("Initial delay time before start updating partition size for estimation.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5min")
 
@@ -2327,7 +2324,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.partition.size.update.interval")
       .categories("master")
       .doc("Interval of updating partition size for estimation.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
 
@@ -2375,7 +2372,7 @@ object CelebornConf extends Logging {
         s"During this process, there are `${COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
         s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
         s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .version("0.2.0")
+      .version("0.3.0")
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
@@ -2413,7 +2410,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.push.data.timeout")
       .withAlternative("rss.push.data.rpc.timeout")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
       .timeConf(TimeUnit.MILLISECONDS)
       .checkValue(_ > 0, "celeborn.client.push.data.timeout must be positive!")
@@ -2424,7 +2421,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.test.pushMasterDataTimeout")
       .internal
       .categories("test", "worker")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Whether to test push master data timeout")
       .booleanConf
       .createWithDefault(false)
@@ -2445,7 +2442,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("Timeout for netty in-flight requests to be done." +
         s"Default value should be `${PUSH_DATA_TIMEOUT.key} * 2`.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createOptional
 
@@ -2455,7 +2452,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.limit.inflight.sleep.delta")
       .categories("client")
       .doc("Sleep interval when check netty in-flight requests to be done.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("50ms")
 
@@ -2465,7 +2462,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.sort.push.data.threshold")
       .categories("client")
       .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64m")
 
@@ -2475,7 +2472,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
         " will be used to pipeline push")
-      .version("0.2.1")
+      .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
 
@@ -2486,7 +2483,7 @@ object CelebornConf extends Logging {
       .doc(
         "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
           "when sort data to avoid skew when push to worker")
-      .version("0.2.1")
+      .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
 
@@ -2496,7 +2493,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.pushdata.retry.thread.num")
       .categories("client")
       .doc("Thread number to process shuffle re-send push data requests.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(8)
 
@@ -2506,7 +2503,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.client.split.pool.size")
       .categories("client")
       .doc("Thread number to process shuffle split request in shuffle client.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(8)
 
@@ -2524,7 +2521,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.partition.split.threshold")
       .categories("client")
       .doc("Shuffle file size threshold, if file size exceeds this, trigger split.")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1G")
 
@@ -2535,7 +2532,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("soft: the shuffle file size might be larger than split threshold. " +
         "hard: the shuffle file size will be limited to split threshold.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(PartitionSplitMode.SOFT.name, PartitionSplitMode.HARD.name))
@@ -2547,7 +2544,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.partition.split.minimum.size")
       .categories("worker")
       .doc("Min size for a partition to split")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1m")
 
@@ -2558,7 +2555,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("When true, LifecycleManager will handle change partition request in batch. " +
         "Otherwise, LifecycleManager will process the requests one by one")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -2568,7 +2565,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.change.partition.numThreads")
       .categories("client")
       .doc("Threads number for LifecycleManager to handle change partition request in batch.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(8)
 
@@ -2578,7 +2575,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.change.partition.batchInterval")
       .categories("client")
       .doc("Interval for LifecycleManager to schedule handling change partition requests in batch.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("100ms")
 
@@ -2588,7 +2585,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("When true, LifecycleManager will handle commit partition request in batch. " +
         "Otherwise, LifecycleManager won't commit partition before stage end")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -2597,7 +2594,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.batchHandleCommitPartition.threads")
       .categories("client")
       .doc("Threads number for LifecycleManager to handle commit partition request in batch.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(8)
 
@@ -2606,7 +2603,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.batchHandleCommitPartition.interval")
       .categories("client")
       .doc("Interval for LifecycleManager to schedule handling commit partition requests in batch.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
 
@@ -2655,7 +2652,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.rpc.registerShuffle.askTimeout")
       .withAlternative("celeborn.rpc.registerShuffle.askTimeout")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc(s"Timeout for ask operations during register shuffle. " +
         s"During this process, there are two times for retry opportunities for requesting slots, " +
         s"one request for establishing a connection with Worker and " +
@@ -2700,7 +2697,7 @@ object CelebornConf extends Logging {
       .internal
       .categories("client", "worker")
       .doc("Max retry times for client to connect master endpoint")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(15)
 
@@ -2764,7 +2761,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.master.prometheus.metric.host")
       .categories("metrics")
       .doc("Master's Prometheus host.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createWithDefault("0.0.0.0")
 
@@ -2774,7 +2771,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.master.prometheus.metric.port")
       .categories("metrics")
       .doc("Master's Prometheus port.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9098)
@@ -2785,7 +2782,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.prometheus.metric.host")
       .categories("metrics")
       .doc("Worker's Prometheus host.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createWithDefault("0.0.0.0")
 
@@ -2795,7 +2792,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.prometheus.metric.port")
       .categories("metrics")
       .doc("Worker's Prometheus port.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9096)
@@ -2864,7 +2861,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.forceFallback.enabled")
       .withAlternative("rss.force.fallback")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Whether force fallback shuffle to Spark's default.")
       .booleanConf
       .createWithDefault(false)
@@ -2874,7 +2871,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.forceFallback.numPartitionsThreshold")
       .withAlternative("rss.max.partition.number")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc(
         "Celeborn will only accept shuffle of partition number lower than this configuration value.")
       .longConf
@@ -2885,7 +2882,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.manager.port")
       .withAlternative("rss.driver.metaService.port")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Port used by the LifecycleManager on the Driver.")
       .intConf
       .checkValue(
@@ -2904,7 +2901,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.monitor.disk.enabled")
       .withAlternative("rss.device.monitor.enabled")
       .categories("worker")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("When true, worker will monitor device and report to master.")
       .booleanConf
       .createWithDefault(true)
@@ -2926,7 +2923,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.monitor.disk.checkInterval")
       .withAlternative("rss.disk.check.interval")
       .categories("worker")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Intervals between device monitor to check disk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
@@ -2973,7 +2970,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.partition.type")
       .categories("client")
       .doc("Type of shuffle's partition.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(
@@ -2988,7 +2985,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.client.compression.codec")
       .categories("client")
       .doc("The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(CompressionCodec.LZ4.name, CompressionCodec.ZSTD.name))
@@ -3002,7 +2999,7 @@ object CelebornConf extends Logging {
       .doc("Compression level for Zstd compression codec, its value should be an integer " +
         "between -5 and 22. Increasing the compression level will result in better compression " +
         "at the expense of more CPU and memory.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .checkValue(
         value => value >= -5 && value <= 22,
@@ -3069,7 +3066,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.memory.check.interval")
       .categories("worker")
       .doc("Interval of worker direct memory checking.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10ms")
 
@@ -3079,7 +3076,7 @@ object CelebornConf extends Logging {
       .withAlternative("rss.worker.memory.report.interval")
       .categories("worker")
       .doc("Interval of worker direct memory tracker reporting to log.")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10s")
 
@@ -3236,7 +3233,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.columnarShuffle.batch.size")
       .withAlternative("celeborn.columnar.shuffle.batch.size")
       .categories("columnar-shuffle")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Vector batch size for columnar shuffle.")
       .intConf
       .checkValue(v => v > 0, "value must be positive")
@@ -3246,7 +3243,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.columnarShuffle.offHeap.enabled")
       .withAlternative("celeborn.columnar.offHeap.enabled")
       .categories("columnar-shuffle")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Whether to use off heap columnar vector.")
       .booleanConf
       .createWithDefault(false)
@@ -3255,7 +3252,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.columnarShuffle.encoding.dictionary.enabled")
       .withAlternative("celeborn.columnar.shuffle.encoding.dictionary.enabled")
       .categories("columnar-shuffle")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Whether to use dictionary encoding for columnar-based shuffle data.")
       .booleanConf
       .createWithDefault(false)
@@ -3264,7 +3261,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.columnarShuffle.encoding.dictionary.maxFactor")
       .withAlternative("celeborn.columnar.shuffle.encoding.dictionary.maxFactor")
       .categories("columnar-shuffle")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Max factor for dictionary size. The max dictionary size is " +
         s"`min(${Utils.bytesToString(Short.MaxValue)}, ${COLUMNAR_SHUFFLE_BATCH_SIZE.key} * " +
         s"celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`.")
@@ -3275,7 +3272,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.columnarShuffle.codegen.enabled")
       .withAlternative("celeborn.columnar.shuffle.codegen.enabled")
       .categories("columnar-shuffle")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("Whether to use codegen for columnar-based shuffle.")
       .booleanConf
       .createWithDefault(false)
@@ -3285,7 +3282,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.rpc.cache.size")
       .categories("client")
       .withAlternative("rss.rpc.cache.size")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("The max cache items count for rpc cache.")
       .intConf
       .createWithDefault(256)
@@ -3295,7 +3292,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.rpc.cache.concurrencyLevel")
       .categories("client")
       .withAlternative("rss.rpc.cache.concurrent.level")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("The number of write locks to update rpc cache.")
       .intConf
       .createWithDefault(32)
@@ -3305,7 +3302,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.rpc.cache.expireTime")
       .withAlternative("rss.rpc.cache.expire")
       .categories("client")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
