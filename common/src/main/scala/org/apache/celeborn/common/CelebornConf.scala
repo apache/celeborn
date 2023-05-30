@@ -2253,7 +2253,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.slot.assign.loadAware.flushTimeWeight")
       .withAlternative("celeborn.slots.assign.loadAware.flushTimeWeight")
       .categories("master")
-      .doc("Weight of average flush time when calculating ordering in load-aware assignment strategy")
+      .doc(
+        "Weight of average flush time when calculating ordering in load-aware assignment strategy")
       .version("0.3.0")
       .doubleConf
       .createWithDefault(0)
@@ -2262,7 +2263,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.slot.assign.loadAware.fetchTimeWeight")
       .withAlternative("celeborn.slots.assign.loadAware.fetchTimeWeight")
       .categories("master")
-      .doc("Weight of average fetch time when calculating ordering in load-aware assignment strategy")
+      .doc(
+        "Weight of average fetch time when calculating ordering in load-aware assignment strategy")
       .version("0.3.0")
       .doubleConf
       .createWithDefault(1)
@@ -2304,7 +2306,8 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.minPartitionSizeToEstimate")
       .withAlternative("rss.minimum.estimate.partition.size")
       .categories("worker")
-      .doc("Ignore partition size smaller than this configuration of partition size for estimation.")
+      .doc(
+        "Ignore partition size smaller than this configuration of partition size for estimation.")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8mb")
