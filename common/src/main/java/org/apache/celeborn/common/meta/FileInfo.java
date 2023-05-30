@@ -111,7 +111,7 @@ public class FileInfo {
   }
 
   public long getFileLength() {
-    return bytesFlushed;
+    return getBytesFlushed();
   }
 
   public long getBytesFlushed() {
