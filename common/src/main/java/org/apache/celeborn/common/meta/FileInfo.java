@@ -47,7 +47,7 @@ public class FileInfo {
   private int bufferSize;
   private int numSubpartitions;
 
-  private long bytesFlushed;
+  private volatile long bytesFlushed;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
