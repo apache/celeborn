@@ -75,7 +75,7 @@ spec:
       {{- $dirs := .Values.volumes.worker }}
       {{- if eq "hostPath" (index $dirs 0).type }}
       - name: chown-celeborn-worker-volume
-        image: alpine:3.18.0
+        image: alpine:3.18
         imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
         securityContext:
           runAsUser: 0
