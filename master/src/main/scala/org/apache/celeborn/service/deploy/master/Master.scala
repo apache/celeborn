@@ -110,12 +110,12 @@ private[celeborn] class Master(
   private def shutdownWorkerSnapshot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers))
 
-  private def diskReserveSize = conf.diskReserveSize
+  private def diskReserveSize = conf.workerDiskReserveSize
 
-  private val slotsAssignLoadAwareDiskGroupNum = conf.slotsAssignLoadAwareDiskGroupNum
-  private val slotsAssignLoadAwareDiskGroupGradient = conf.slotsAssignLoadAwareDiskGroupGradient
-  private val loadAwareFlushTimeWeight = conf.slotsAssignLoadAwareFlushTimeWeight
-  private val loadAwareFetchTimeWeight = conf.slotsAssignLoadAwareFetchTimeWeight
+  private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
+  private val slotsAssignLoadAwareDiskGroupGradient = conf.masterSlotAssignLoadAwareDiskGroupGradient
+  private val loadAwareFlushTimeWeight = conf.masterSlotAssignLoadAwareFlushTimeWeight
+  private val loadAwareFetchTimeWeight = conf.masterSlotAssignLoadAwareFetchTimeWeight
 
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay
@@ -136,7 +136,7 @@ private[celeborn] class Master(
     estimatedPartitionSizeUpdaterInitialDelay,
     estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
-  private val slotsAssignPolicy = conf.slotsAssignPolicy
+  private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
   // init and register master metrics
   val resourceConsumptionSource = new ResourceConsumptionSource(conf)
@@ -577,7 +577,7 @@ private[celeborn] class Master(
       s" on ${slots.size()} workers.")
 
     val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
-    val offerSlotsExtraSize = Math.min(conf.slotsAssignExtraSlots, workersNotSelected.size)
+    val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
       (1 to offerSlotsExtraSize).foreach(_ => {

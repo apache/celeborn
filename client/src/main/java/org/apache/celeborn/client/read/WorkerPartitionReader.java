@@ -72,7 +72,7 @@ public class WorkerPartitionReader implements PartitionReader {
       int fetchChunkRetryCnt,
       int fetchChunkMaxRetry)
       throws IOException, InterruptedException {
-    fetchMaxReqsInFlight = conf.fetchMaxReqsInFlight();
+    fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     // only add the buffer to results queue if this reader is not closed.
     callback =
@@ -105,7 +105,7 @@ public class WorkerPartitionReader implements PartitionReader {
     }
     OpenStream openBlocks =
         new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-    long timeoutMs = conf.fetchTimeoutMs();
+    long timeoutMs = conf.clientFetchTimeoutMs();
     ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
     streamHandle = (StreamHandle) Message.decode(response);
 
