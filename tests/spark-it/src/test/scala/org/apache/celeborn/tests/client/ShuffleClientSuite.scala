@@ -26,9 +26,9 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature {
   private val masterPort = 19097
 
-  celebornConf.set("celeborn.master.endpoints", s"localhost:$masterPort")
-    .set("celeborn.push.replicate.enabled", "true")
-    .set("celeborn.push.buffer.max.size", "256K")
+  celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
+    .set(CelebornConf.PUSH_REPLICATE_ENABLED.key, "true")
+    .set(CelebornConf.PUSH_BUFFER_MAX_SIZE.key, "256K")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -42,8 +42,8 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
 
   test("test register when master not available") {
     val celebornConf: CelebornConf = new CelebornConf()
-    celebornConf.set("celeborn.master.endpoints", "localhost:19098")
-    celebornConf.set("celeborn.client.maxRetries", "0")
+    celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, "localhost:19098")
+    celebornConf.set(CelebornConf.MASTER_CLIENT_MAX_RETRIES.key, "0")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
     val shuffleClient: ShuffleClientImpl = {

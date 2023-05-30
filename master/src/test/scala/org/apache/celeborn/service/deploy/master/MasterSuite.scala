@@ -36,12 +36,12 @@ class MasterSuite extends AnyFunSuite
 
   test("test single node startup functionality") {
     val conf = new CelebornConf()
-    conf.set("celeborn.ha.enabled", "false")
-    conf.set("celeborn.ha.master.ratis.raft.server.storage.dir", getTmpDir())
-    conf.set("celeborn.worker.storage.dirs", getTmpDir())
-    conf.set("celeborn.metrics.enabled", "true")
-    conf.set("celeborn.master.metrics.prometheus.host", "127.0.0.1")
-    conf.set("celeborn.master.metrics.prometheus.port", "11112")
+    conf.set(CelebornConf.HA_ENABLED.key, "false")
+    conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, getTmpDir())
+    conf.set(CelebornConf.METRICS_ENABLED.key, "true")
+    conf.set(CelebornConf.MASTER_PROMETHEUS_HOST.key, "127.0.0.1")
+    conf.set(CelebornConf.MASTER_PROMETHEUS_PORT.key, "11112")
 
     val args = Array("-h", "localhost", "-p", "9097")
 

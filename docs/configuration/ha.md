@@ -19,10 +19,10 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
-| celeborn.columnarShuffle.batch.size | 10000 | Vector batch size for columnar shuffle. | 0.2.0 | 
-| celeborn.columnarShuffle.codegen.enabled | false | Whether to use codegen for columnar-based shuffle. | 0.2.0 | 
-| celeborn.columnarShuffle.enabled | false | Whether to enable columnar-based shuffle. | 0.2.0 | 
-| celeborn.columnarShuffle.encoding.dictionary.enabled | false | Whether to use dictionary encoding for columnar-based shuffle data. | 0.2.0 | 
-| celeborn.columnarShuffle.encoding.dictionary.maxFactor | 0.3 | Max factor for dictionary size. The max dictionary size is `min(32.0 KB, celeborn.columnarShuffle.batch.size * celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`. | 0.2.0 | 
-| celeborn.columnarShuffle.offHeap.enabled | false | Whether to use off heap columnar vector. | 0.2.0 | 
+| celeborn.ha.enabled | false | When true, master nodes run as Raft cluster mode. | 0.2.0 | 
+| celeborn.ha.master.node.&lt;id&gt;.host | &lt;required&gt; | Host to bind of master node <id> in HA mode. | 0.2.0 | 
+| celeborn.ha.master.node.&lt;id&gt;.port | 9097 | Port to bind of master node <id> in HA mode. | 0.2.0 | 
+| celeborn.ha.master.node.&lt;id&gt;.ratis.port | 9872 | Ratis port to bind of master node <id> in HA mode. | 0.2.0 | 
+| celeborn.ha.master.ratis.raft.rpc.type | netty | RPC type for Ratis, available options: netty, grpc. | 0.2.0 | 
+| celeborn.ha.master.ratis.raft.server.storage.dir | /tmp/ratis |  | 0.2.0 | 
 <!--end-include-->

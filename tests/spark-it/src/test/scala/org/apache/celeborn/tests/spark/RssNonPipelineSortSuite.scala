@@ -23,6 +23,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 
 class RssNonPipelineSortSuite extends AnyFunSuite
   with SparkTestBase
@@ -38,8 +39,8 @@ class RssNonPipelineSortSuite extends AnyFunSuite
 
   test("celeborn spark integration test - non pipeline sort") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
-      .set("spark.celeborn.push.sort.pipeline.enabled", "false")
-      .set("spark.celeborn.push.sort.randomizePartitionId.enabled", "false")
+      .set(s"spark.${CelebornConf.PUSH_SORT_PIPELINE_ENABLED.key}", "false")
+      .set(s"spark.${CelebornConf.PUSH_SORT_RANDOMIZE_PARITION_ENABLED.key}", "false")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)
     val groupbyResult = groupBy(sparkSession)
