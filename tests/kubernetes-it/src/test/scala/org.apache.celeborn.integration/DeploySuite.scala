@@ -24,8 +24,13 @@ import org.scalatest.concurrent.Waiters.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.client.WithShuffleClientSuite
 
-class DeploySuite extends CelebornFunSuite with WithMiniKube {
+class DeploySuite extends CelebornFunSuite with WithMiniKube with WithShuffleClientSuite {
+  final val masterPod = kubernetesClient.pods().withName("celeborn-master-0").get()
+
+  celebornConf.set("celeborn.master.endpoints", s"${masterPod.getStatus.getPodIP}:9097")
+    .set("celeborn.push.replicate.enabled", "false")
 
   test("Check Deploy Celeborn") {
     val masterStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-master").get()
@@ -36,7 +41,6 @@ class DeploySuite extends CelebornFunSuite with WithMiniKube {
       val log =
         kubernetesClient.pods().withName(s"${masterStatefulSet.getMetadata.getName}-0").getLog(true)
       assert(log.contains("Master started."))
-      info(log)
     }
   }
 }
