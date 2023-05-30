@@ -65,6 +65,7 @@ license: |
 | celeborn.worker.monitor.memory.trimFlushWaitInterval | 1s | Wait time after worker trigger StorageManger to flush data. | 0.3.0 | 
 | celeborn.worker.partition.initial.readBuffersMax | 1024 | Max number of initial read buffers | 0.3.0 | 
 | celeborn.worker.partition.initial.readBuffersMin | 1 | Min number of initial read buffers | 0.3.0 | 
+| celeborn.worker.partition.split.enabled | true | enable the partition split in worker side | 0.3.0 | 
 | celeborn.worker.partitionSorter.directMemoryRatioThreshold | 0.1 | Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition sorter memory, partition sorter will stop sorting. | 0.2.0 | 
 | celeborn.worker.push.heartbeat.enabled | true | enable the heartbeat from worker to client when pushing data | 0.3.0 | 
 | celeborn.worker.push.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to handle client push data. The default threads number is the number of flush thread. | 0.2.0 | 

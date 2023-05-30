@@ -512,6 +512,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
+  def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                      Client                         //
@@ -3445,4 +3446,12 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .stringConf
       .createOptional
+
+  val WORKER_PARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.partition.split.enabled")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("enable the partition split in worker side")
+      .booleanConf
+      .createWithDefault(true)
 }
