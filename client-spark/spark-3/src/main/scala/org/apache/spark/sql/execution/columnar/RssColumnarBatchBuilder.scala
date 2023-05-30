@@ -28,7 +28,9 @@ class RssColumnarBatchBuilder(
     batchSize: Int = 0,
     maxDictFactor: Double,
     encodingEnabled: Boolean = false) extends RssBatchBuilder {
+
   var rowCnt = 0
+  var columnBuilders: Array[RssColumnBuilder] = _
 
   val typeConversion: PartialFunction[DataType, NativeRssColumnType[_ <: AtomicType]] = {
     case IntegerType => RSS_INT
@@ -59,10 +61,7 @@ class RssColumnarBatchBuilder(
     }
   }.toArray
 
-  var columnBuilders: Array[RssColumnBuilder] = _
-
   def newBuilders(): Unit = {
-    totalSize = 0
     rowCnt = 0
     var i = -1
     columnBuilders = schema.map { attribute =>
@@ -95,8 +94,6 @@ class RssColumnarBatchBuilder(
     giantBuffer.toByteArray
   }
 
-  var totalSize = 0
-
   def writeRow(row: InternalRow): Unit = {
     var i = 0
     while (i < row.numFields) {
@@ -106,21 +103,5 @@ class RssColumnarBatchBuilder(
     rowCnt += 1
   }
 
-  def getTotalSize(): Int = {
-    var i = 0
-    var tempTotalSize = 0
-    while (i < schema.length) {
-      columnBuilders(i) match {
-        case builder: RssCompressibleColumnBuilder[_] =>
-          tempTotalSize += builder.getTotalSize.toInt
-        case builder: RssNullableColumnBuilder => tempTotalSize += builder.getTotalSize.toInt
-        case _ =>
-      }
-      i += 1
-    }
-    totalSize = tempTotalSize + 4 + 4 * schema.length
-    totalSize
-  }
-
-  def getRowCnt(): Int = rowCnt
+  override def getRowCnt: Int = rowCnt
 }

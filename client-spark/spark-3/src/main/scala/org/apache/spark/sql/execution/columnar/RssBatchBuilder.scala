@@ -28,7 +28,20 @@ abstract class RssBatchBuilder {
 
   def writeRow(row: InternalRow): Unit
 
-  def getRowCnt(): Int
+  def getRowCnt: Int
+
+  def getTotalSize(columnBuilders: Array[RssColumnBuilder]): Int = {
+    var tempTotalSize = 0
+    for (builder <- columnBuilders) {
+      builder match {
+        case builder: RssCompressibleColumnBuilder[_] =>
+          tempTotalSize += builder.getTotalSize.toInt
+        case builder: RssNullableColumnBuilder => tempTotalSize += builder.getTotalSize.toInt
+        case _ =>
+      }
+    }
+    tempTotalSize + 4 + 4 * columnBuilders.length
+  }
 
   def int2ByteArray(i: Int): Array[Byte] = {
     val result = new Array[Byte](4)

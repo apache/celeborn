@@ -95,7 +95,7 @@ trait RssCompressibleColumnBuilder[T <: AtomicType]
       else RssPassThrough.encoder(columnType)
     }
     if (encoder.compressedSize == 0) {
-      4 + 4 + columnStats.sizeInBytes
+      4 + nulls.position() + 4 + buffer.position()
     } else {
       4 + 4 * nullCount + 4 + encoder.compressedSize
     }

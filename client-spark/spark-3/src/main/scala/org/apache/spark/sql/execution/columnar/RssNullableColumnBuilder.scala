@@ -73,6 +73,6 @@ trait RssNullableColumnBuilder extends RssColumnBuilder {
   }
 
   override def getTotalSize: Long = {
-    4 + columnStats.sizeInBytes
+    4 + nulls.position()
   }
 }

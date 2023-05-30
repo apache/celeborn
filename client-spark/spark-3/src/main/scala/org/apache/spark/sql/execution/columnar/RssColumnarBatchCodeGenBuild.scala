@@ -45,6 +45,7 @@ class RssColumnarBatchCodeGenBuild {
          |
          |  private Object[] references;
          |  int rowCnt = 0;
+         |  ${classOf[RssColumnBuilder].getName}[] columnBuilders;
          |  ${codes._1}
          |
          |  public SpecificRssColumnarBatchBuilder(Object[] references) {
@@ -53,11 +54,14 @@ class RssColumnarBatchCodeGenBuild {
          |
          |  public void newBuilders() throws Exception {
          |    rowCnt = 0;
+         |    columnBuilders = new ${classOf[RssColumnBuilder].getName}[${schema.length}];
          |    ${codes._2}
          |  }
          |
          |  public byte[] buildColumnBytes() throws Exception {
          |    int offset = 0;
+         |    int totalSize = getTotalSize(columnBuilders);
+         |
          |    byte[] giantBuffer = new byte[totalSize];
          |    byte[] rowCntBytes = int2ByteArray(rowCnt);
          |    System.arraycopy(rowCntBytes, 0, giantBuffer, offset, rowCntBytes.length);
@@ -111,6 +115,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index = new ${classOf[RssNullColumnBuilder].getName}();
                |  builder.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -126,6 +131,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index = new ${classOf[RssByteCodeGenColumnBuilder].getName}();
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -141,6 +147,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index  = new ${classOf[RssBooleanCodeGenColumnBuilder].getName}();
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -156,6 +163,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index = new ${classOf[RssShortCodeGenColumnBuilder].getName}();
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -171,6 +179,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index = new ${classOf[RssIntCodeGenColumnBuilder].getName}();
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -186,6 +195,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index = new ${classOf[RssLongCodeGenColumnBuilder].getName}();
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -201,6 +211,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index = new ${classOf[RssFloatCodeGenColumnBuilder].getName}();
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -216,6 +227,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index = new ${classOf[RssDoubleCodeGenColumnBuilder].getName}();
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -231,6 +243,7 @@ class RssColumnarBatchCodeGenBuild {
             s"""
                |  b$index = new ${classOf[RssStringCodeGenColumnBuilder].getName}();
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -248,6 +261,7 @@ class RssColumnarBatchCodeGenBuild {
                |  new ${classOf[RssCompactMiniDecimalCodeGenColumnBuilder].getName}(
                |  new ${classOf[DecimalType].getName}(${dt.precision}, ${dt.scale}));
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -265,6 +279,7 @@ class RssColumnarBatchCodeGenBuild {
                |  new ${classOf[RssCompactDecimalCodeGenColumnBuilder].getName}
                |  (new ${classOf[DecimalType].getName}(${dt.precision}, ${dt.scale}));
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
@@ -281,6 +296,7 @@ class RssColumnarBatchCodeGenBuild {
                |  b$index = new ${classOf[RssDecimalCodeGenColumnBuilder].getName}
                |  (new ${classOf[DecimalType].getName}(${dt.precision}, ${dt.scale}));
                |  b$index.initialize($batchSize, "${schema.fields(index).name}", false);
+               |  columnBuilders[$index] = b$index;
           """.stripMargin)
           writeCode.append(genWriteCode(index))
           writeRowCode.append(
