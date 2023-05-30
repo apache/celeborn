@@ -1407,7 +1407,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Interval for checking push data timeout. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push and fetch data and should be configured in client side. " +
+        s"it works for shuffle client push data and should be configured in client side. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
         s"it works for worker replicate data to peer worker and should be configured in worker side.")
       .version("0.3.0")
@@ -1419,7 +1419,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Threads num for checking push data timeout. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push and fetch data and should be configured in client side. " +
+        s"it works for shuffle client push data and should be configured in client side. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
         s"it works for worker replicate data to peer worker and should be configured in worker side.")
       .version("0.3.0")
