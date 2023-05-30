@@ -91,7 +91,7 @@ public final class MapPartitionFileWriter extends FileWriter {
 
   protected void flush(boolean finalFlush) throws IOException {
     super.flush(finalFlush);
-    this.fileInfo.updateFileLength(bytesFlushed);
+    this.fileInfo.updateChunkSize(bytesFlushed);
   }
 
   public void write(ByteBuf data) throws IOException {

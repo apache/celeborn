@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -46,6 +47,7 @@ public class FileInfo {
   // members for MapPartition
   private int bufferSize;
   private int numSubpartitions;
+  private volatile long chunkSize;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
@@ -107,12 +109,16 @@ public class FileInfo {
   }
 
   public synchronized long getFileLength() {
-    return chunkOffsets.get(chunkOffsets.size() - 1);
+    if (partitionType == PartitionType.MAP) {
+      return chunkSize;
+    } else {
+      return chunkOffsets.get(chunkOffsets.size() - 1);
+    }
   }
 
-  // for mappartition, a file only has one chunk.
-  public synchronized void updateFileLength(long fileLength) {
-    this.chunkOffsets.set(0, fileLength);
+  // for mappartition, chunksize is infinity
+  public void updateChunkSize(long chunkSize) {
+    this.chunkSize = chunkSize;
   }
 
   public File getFile() {
