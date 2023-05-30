@@ -77,7 +77,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     storageManager = worker.storageManager
     shutdown = worker.shutdown
     conf = worker.conf
-    workerPartitionSplitEnabled = conf.workerPushHeartbeatEnabled
+    workerPartitionSplitEnabled = conf.workerPartitionSplitEnabled
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
