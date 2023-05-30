@@ -86,7 +86,7 @@ license: |
 | celeborn.worker.noneEmptyDirExpireDuration | 1d | If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired. | 0.2.0 | 
 | celeborn.worker.partition.initial.readBuffersMax | 1024 | Max number of initial read buffers | 0.3.0 | 
 | celeborn.worker.partition.initial.readBuffersMin | 1 | Min number of initial read buffers | 0.3.0 | 
-| celeborn.worker.partition.split.enabled | true | enable the partition split in server side | 0.3.0 | 
+| celeborn.worker.partition.split.enabled | true | enable the partition split in worker side | 0.3.0 | 
 | celeborn.worker.partitionSorter.directMemoryRatioThreshold | 0.1 | Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition sorter memory, partition sorter will stop sorting. | 0.2.0 | 
 | celeborn.worker.partitionSorter.reservedMemoryPerPartition | 1mb | Reserved memory when sorting a shuffle file off-heap. | 0.2.0 | 
 | celeborn.worker.partitionSorter.sort.timeout | 220s | Timeout for a shuffle file to sort. | 0.2.0 | 
