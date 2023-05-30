@@ -256,7 +256,7 @@ object DeviceMonitor {
       highDiskUsage
     })(false)(
       deviceCheckThreadPool,
-      conf.workerDeviceStatusCheckTimeout,
+      conf.diskMonitorStatusCheckTimeout,
       s"Disk: ${diskInfo.mountPoint} Usage Check Timeout")
   }
 
@@ -302,7 +302,7 @@ object DeviceMonitor {
       }
     })(false)(
       deviceCheckThreadPool,
-      conf.workerDeviceStatusCheckTimeout,
+      conf.diskMonitorStatusCheckTimeout,
       s"Disk: $dataDir Read_Write Check Timeout")
   }
 

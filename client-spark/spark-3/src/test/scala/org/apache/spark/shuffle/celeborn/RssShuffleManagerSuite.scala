@@ -22,6 +22,7 @@ import org.junit
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 
 @RunWith(classOf[JUnit4])
@@ -30,10 +31,10 @@ class RssShuffleManagerSuite extends Logging {
   def testFallBack(): Unit = {
     val conf = new SparkConf().setIfMissing("spark.master", "local")
       .setIfMissing("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.celeborn.master.endpoints", "localhost:9097")
+      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", "localhost:9097")
+      .set(s"spark.${CelebornConf.PUSH_REPLICATE_ENABLED.key}", "false")
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.shuffle.useOldFetchProtocol", "true")
-      .set("spark.celeborn.push.replicate.enabled", "false")
       .set("spark.sql.adaptive.enabled", "true")
       .setAppName("test")
     val sc = new SparkContext(conf)
@@ -48,10 +49,10 @@ class RssShuffleManagerSuite extends Logging {
   def testClusterNotAvailable(): Unit = {
     val conf = new SparkConf().setIfMissing("spark.master", "local")
       .setIfMissing("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.celeborn.master.endpoints", "localhost:9097")
+      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", "localhost:9097")
+      .set(s"spark.${CelebornConf.PUSH_REPLICATE_ENABLED.key}", "false")
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.shuffle.useOldFetchProtocol", "true")
-      .set("spark.celeborn.push.replicate.enabled", "false")
       .set("spark.sql.adaptive.enabled", "false")
       .setAppName("test")
     val sc = new SparkContext(conf)

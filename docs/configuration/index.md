@@ -44,26 +44,19 @@ memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs 
 
 ## All Configurations
 
-### Client
-
-{!
-include-markdown "./client.md"
-start="<!--begin-include-->"
-end="<!--end-include-->"
-!}
-
-### Columnar Shuffle
-
-{!
-include-markdown "./columnar-shuffle.md"
-start="<!--begin-include-->"
-end="<!--end-include-->"
-!}
-
 ### Master
 
 {!
 include-markdown "./master.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+Apart from these, the following properties are also available for enable master HA:
+### Master HA
+
+{!
+include-markdown "./ha.md"
 start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
@@ -75,6 +68,16 @@ include-markdown "./worker.md"
 start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
+
+
+### Client
+
+{!
+include-markdown "./client.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
 
 ### Quota
 
@@ -92,7 +95,18 @@ start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
 
+
+### Columnar Shuffle
+
+{!
+include-markdown "./columnar-shuffle.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
 ### Metrics
+
+Below metrics configuration both work for master and worker.
 
 {!
 include-markdown "./metrics.md"

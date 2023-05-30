@@ -361,14 +361,14 @@ public class RssHARetryClientSuiteJ {
 
   private CelebornConf prepareForCelebornConfWithoutHA() {
     return conf.clone()
-        .set("celeborn.ha.enabled", "false")
-        .set("celeborn.master.endpoints", masterHost + ":" + masterPort);
+        .set(CelebornConf.HA_ENABLED().key(), "false")
+        .set(CelebornConf.MASTER_ENDPOINTS().key(), masterHost + ":" + masterPort);
   }
 
   private CelebornConf prepareForCelebornConfWithHA() {
     return conf.clone()
-        .set("celeborn.ha.enabled", "true")
-        .set("celeborn.master.endpoints", "host1:9097,host2:9097,host3:9097")
-        .set("celeborn.ha.client.maxRetries", "5");
+        .set(CelebornConf.HA_ENABLED().key(), "true")
+        .set(CelebornConf.MASTER_ENDPOINTS().key(), "host1:9097,host2:9097,host3:9097")
+        .set(CelebornConf.MASTER_CLIENT_MAX_RETRIES().key(), "5");
   }
 }

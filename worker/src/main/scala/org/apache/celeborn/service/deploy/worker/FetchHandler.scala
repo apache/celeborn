@@ -39,12 +39,13 @@ import org.apache.celeborn.common.util.ExceptionUtils
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
+  var celebornConf = conf.getCelebornConf
   var chunkStreamManager = new ChunkStreamManager()
   val creditStreamManager = new CreditStreamManager(
-    conf.getCelebornConf.partitionReadBuffersMin,
-    conf.getCelebornConf.partitionReadBuffersMax,
-    conf.getCelebornConf.creditStreamThreadsPerMountpoint,
-    conf.getCelebornConf.readBuffersToTriggerReadMin)
+    celebornConf.partitionReadBuffersMin,
+    celebornConf.partitionReadBuffersMax,
+    celebornConf.creditStreamThreadsPerMountpoint,
+    celebornConf.readBuffersToTriggerReadMin)
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
@@ -214,10 +215,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       s" to fetch block ${req.streamChunkSlice}")
 
     val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred
-    if (chunksBeingTransferred > conf.maxChunksBeingTransferred) {
+    if (chunksBeingTransferred > celebornConf.shuffleIoMaxChunksBeingTransferred) {
       val message = "Worker is too busy. The number of chunks being transferred " +
         s"$chunksBeingTransferred exceeds celeborn.shuffle.maxChunksBeingTransferred " +
-        s"${conf.maxChunksBeingTransferred}."
+        s"${celebornConf.shuffleIoMaxChunksBeingTransferred}."
       logError(message)
       client.getChannel.writeAndFlush(
         new ChunkFetchFailure(req.streamChunkSlice, message))

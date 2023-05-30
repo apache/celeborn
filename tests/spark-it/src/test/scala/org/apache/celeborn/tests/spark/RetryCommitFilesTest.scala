@@ -23,6 +23,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 
 class RetryCommitFilesTest extends AnyFunSuite
   with SparkTestBase
@@ -45,7 +46,7 @@ class RetryCommitFilesTest extends AnyFunSuite
 
   test("celeborn spark integration test - retry commit files") {
     val sparkConf = new SparkConf()
-      .set("spark.celeborn.test.retryCommitFiles", "true")
+      .set(s"spark.${CelebornConf.TEST_RETRY_COMMIT_FILE.key}", "true")
       .setAppName("rss-demo").setMaster("local[2]")
     val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
     ss.sparkContext.parallelize(1 to 1000, 2)

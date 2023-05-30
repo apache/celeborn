@@ -25,6 +25,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.CompressionCodec
 
 class SkewJoinSuite extends AnyFunSuite
@@ -41,8 +42,8 @@ class SkewJoinSuite extends AnyFunSuite
 
   private def enableRss(conf: SparkConf) = {
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.celeborn.master.endpoints", masterInfo._1.rpcEnv.address.toString)
-      .set("spark.celeborn.shuffle.partitionSplit.threshold", "10MB")
+      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
+      .set(s"spark.${CelebornConf.PARTITION_SPLIT_THRESHOLD.key}", "10MB")
   }
 
   CompressionCodec.values.foreach { codec =>
@@ -57,8 +58,8 @@ class SkewJoinSuite extends AnyFunSuite
         .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
         .set("spark.sql.autoBroadcastJoinThreshold", "-1")
         .set("spark.sql.parquet.compression.codec", "gzip")
-        .set("spark.celeborn.shuffle.compression.codec", codec.name)
-        .set("spark.celeborn.shuffle.rangeReadFilter.enabled", "true")
+        .set(s"spark.${CelebornConf.SHUFFLE_COMPRESSION_CODEC.key}", codec.name)
+        .set(s"spark.${CelebornConf.SHUFFLE_RANGE_READ_FILTER_ENABLED.key}", "true")
 
       enableRss(sparkConf)
 

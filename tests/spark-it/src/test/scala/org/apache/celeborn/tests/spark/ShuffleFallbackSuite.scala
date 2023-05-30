@@ -25,6 +25,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.CompressionCodec
 
 class ShuffleFallbackSuite extends AnyFunSuite
@@ -41,13 +42,13 @@ class ShuffleFallbackSuite extends AnyFunSuite
 
   private def enableRss(conf: SparkConf) = {
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
-      .set("spark.celeborn.master.endpoints", masterInfo._1.rpcEnv.address.toString)
+      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
   }
 
   test(s"celeborn spark integration test - fallback") {
     val sparkConf = new SparkConf().setAppName("rss-demo")
       .setMaster("local[2]")
-      .set("spark.celeborn.shuffle.forceFallback.enabled", "true")
+      .set(s"spark.${CelebornConf.SHUFFLE_FORCE_FALLBACK_ENABLED.key}", "true")
 
     enableRss(sparkConf)
 

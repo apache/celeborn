@@ -197,7 +197,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     logWarning(
       "Worker still has residual files in the working directory before registering with Master, " +
         "please refer to the configuration document to increase celeborn.worker.disk.checkFileClean.maxRetries or " +
-        "celeborn.worker.disk.checkFileClean.timeout .")
+        s"${CelebornConf.WORKER_CHECK_FILE_CLEAN_TIMEOUT.key}.")
   } else {
     logInfo("Successfully remove all files under working directory.")
   }
@@ -488,7 +488,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  private val noneEmptyDirExpireDurationMs = conf.workerNonEmptyDirExpireDuration
+  private val applicationDataKeepAliveTime = conf.workerApplicationDataKeepAliveTime
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
@@ -498,7 +498,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         try {
           // Clean up dirs which has not been modified
           // in the past {{noneEmptyExpireDurationsMs}}.
-          cleanupExpiredAppDirs(System.currentTimeMillis() - noneEmptyDirExpireDurationMs)
+          cleanupExpiredAppDirs(System.currentTimeMillis() - applicationDataKeepAliveTime)
         } catch {
           case exception: Exception =>
             logWarning(s"Cleanup expired shuffle data exception: ${exception.getMessage}")

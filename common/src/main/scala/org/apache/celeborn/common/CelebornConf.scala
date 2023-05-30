@@ -380,9 +380,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
-  def haClientRpcAskTimeout: RpcTimeout =
-    new RpcTimeout(get(HA_CLIENT_RPC_ASK_TIMEOUT).milli, HA_CLIENT_RPC_ASK_TIMEOUT.key)
-
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
     get(key, NETWORK_IO_MODE.defaultValue.get)
@@ -458,9 +455,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getBoolean(key, NETWORK_VERBOSE_METRICS.defaultValue.get)
   }
 
-  def networkIoMaxChunksBeingTransferred(module: String): Long = {
-    val key = MAX_CHUNKS_BEING_TRANSFERRED.key.replace("<module>", module)
-    getSizeAsBytes(key, MAX_CHUNKS_BEING_TRANSFERRED.defaultValueString)
+  def shuffleIoMaxChunksBeingTransferred: Long = {
+    get(MAX_CHUNKS_BEING_TRANSFERRED)
   }
 
   // //////////////////////////////////////////////////////
@@ -475,15 +471,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(SLOTS_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
   def slotsAssignExtraSlots: Int = get(SLOTS_ASSIGN_EXTRA_SLOTS)
   def slotsAssignPolicy: SlotsAssignPolicy = SlotsAssignPolicy.valueOf(get(SLOTS_ASSIGN_POLICY))
-  def initialEstimatedPartitionSize: Long = get(SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE)
+  def initialEstimatedPartitionSize: Long = get(SHUFFLE_INITIAL_ESTIMATED_PARTITION_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
-    get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
+    get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
-    get(SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
-  def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
-  def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
-  def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
-  def metricsResourceConsumptionInterval: Long = get(METRICS_RESOURCE_CONSUMPTION_INTERVAL)
+    get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
+  def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -499,20 +492,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
-  def workerNonEmptyDirExpireDuration: Long = get(WORKER_NON_EMPTY_DIR_EXPIRE_DURATION)
+  def workerApplicationDataKeepAliveTime: Long = get(WORKER_APPLICATION_DATA_KEEP_ALIVE_TIME)
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
   def workerReplicateRandomConnectionEnabled: Boolean =
     get(WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED)
-  def workerDeviceStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
   def workerHeartbeatTimeout: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
-  def minPartitionSizeToEstimate: Long = get(SHUFFLE_MIN_PARTITION_SIZE_TO_ESTIMATE)
+  def minPartitionSizeToEstimate: Long = get(MIN_PARTITION_SIZE_TO_ESTIMATE)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
   def partitionSorterReservedMemoryPerPartition: Long =
     get(PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
@@ -525,7 +517,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Client                         //
   // //////////////////////////////////////////////////////
-  def clientMaxTries: Int = get(CLIENT_MAX_RETRIES)
   def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SHUFFLE_WRITER_MODE))
   def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
@@ -548,7 +539,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def requestCommitFilesMaxRetries: Int = get(COMMIT_FILE_REQUEST_MAX_RETRY)
   def shuffleClientPushBlacklistEnabled: Boolean = get(SHUFFLE_CLIENT_PUSH_BLACKLIST_ENABLED)
-  def clientHeartbeatInterval: Long = get(CLIENT_HEARTBEAT_INTERVAL)
+  def clientHeartbeatInterval(module: String): Long = {
+    val key = CHANNEL_HEARTBEAT_INTERVAL.key.replace("<module>", module)
+    getTimeAsMs(key, CHANNEL_HEARTBEAT_INTERVAL.defaultValueString)
+  }
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
   // //////////////////////////////////////////////////////
@@ -566,6 +560,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         case (host, port) => s"$host:$port"
       }
     }
+
+  def masterClientRpcAskTimeout: RpcTimeout =
+    new RpcTimeout(get(MASTER_CLIENT_RPC_ASK_TIMEOUT).milli, MASTER_CLIENT_RPC_ASK_TIMEOUT.key)
+
+  def masterClientMaxRetries: Int = get(MASTER_CLIENT_MAX_RETRIES)
 
   def masterHost: String = get(MASTER_HOST)
 
@@ -652,6 +651,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
   def metricsExtraLabels: Map[String, String] =
     get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels(_)).toMap
+  def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
+  def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
+  def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -733,8 +735,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs: Long = get(PUSH_DATA_TIMEOUT)
-  def pushDataTimeoutCheckerThreads: Int = get(PUSH_TIMEOUT_CHECK_THREADS)
-  def pushTimeoutCheckInterval: Long = get(PUSH_TIMEOUT_CHECK_INTERVAL)
+  def pushDataTimeoutCheckerThreads(module: String): Int = {
+    val key = PUSH_TIMEOUT_CHECK_THREADS.key.replace("<module>", module)
+    getInt(key, PUSH_TIMEOUT_CHECK_THREADS.defaultValue.get)
+  }
+  def pushDataTimeoutCheckInterval(module: String): Long = {
+    val key = PUSH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
+    getTimeAsMs(key, PUSH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
+  }
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -743,7 +751,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
   def checkSlotsFinishedInterval: Long = get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
   def checkSlotsFinishedTimeoutMs: Long = get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
-  def workerRecoverPath: String = get(WORKER_RECOVER_PATH)
+  def workerRecoverPath: String = get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH)
   def partitionSorterCloseAwaitTimeMs: Long = get(PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
 
@@ -768,6 +776,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def diskMonitorNotifyErrorThreshold: Int = get(WORKER_DISK_MONITOR_NOTIFY_ERROR_THRESHOLD)
   def diskMonitorNotifyErrorExpireTimeout: Long =
     get(WORKER_DISK_MONITOR_NOTIFY_ERROR_EXPIRE_TIMEOUT)
+  def diskMonitorStatusCheckTimeout: Long = get(WORKER_DEVICE_STATUS_CHECK_TIMEOUT)
   def createWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
@@ -1146,10 +1155,12 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val HA_CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.haClient.askTimeout")
+  val MASTER_CLIENT_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.masterClient.rpc.askTimeout")
+      .withAlternative("celeborn.rpc.haClient.askTimeout")
       .withAlternative("rss.haclient.rpc.askTimeout")
-      .categories("network")
+      .internal
+      .categories("client", "worker")
       .version("0.2.0")
       .doc("Timeout for HA client RPC ask operations.")
       .fallbackConf(RPC_ASK_TIMEOUT)
@@ -1276,13 +1287,13 @@ object CelebornConf extends Logging {
       .createWithDefaultString("2m")
 
   val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.maxChunksBeingTransferred")
+    buildConf("celeborn.shuffle.io.maxChunksBeingTransferred")
       .withAlternative("rss.shuffle.maxChunksBeingTransferred")
       .categories("network")
       .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
         "that new incoming connections will be closed when the max number is hit. The client will retry " +
-        "according to the shuffle retry configs (see `celeborn.shuffle.io.maxRetries` and " +
-        "`celeborn.shuffle.io.retryWait`), if those limits are reached the task will fail with fetch failure.")
+        "according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and " +
+        "`celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure.")
       .version("0.2.0")
       .longConf
       .createWithDefault(Long.MaxValue)
@@ -1303,7 +1314,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString(s"<localhost>:9097")
 
   val SHUFFLE_WRITER_MODE: ConfigEntry[String] =
-    buildConf("celeborn.shuffle.writer")
+    buildConf("celeborn.client.shuffle.writer")
+      .withAlternative("celeborn.shuffle.writer")
       .withAlternative("rss.shuffle.writer.mode")
       .categories("client")
       .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
@@ -1316,7 +1328,8 @@ object CelebornConf extends Logging {
       .createWithDefault(ShuffleMode.HASH.name)
 
   val PUSH_REPLICATE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.push.replicate.enabled")
+    buildConf("celeborn.client.push.replicate.enabled")
+      .withAlternative("celeborn.push.replicate.enabled")
       .withAlternative("rss.push.data.replicate")
       .categories("client")
       .doc("When true, Celeborn worker will replicate shuffle data to another Celeborn worker " +
@@ -1326,7 +1339,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val PUSH_BUFFER_INITIAL_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.push.buffer.initial.size")
+    buildConf("celeborn.client.push.buffer.initial.size")
+      .withAlternative("celeborn.push.buffer.initial.size")
       .withAlternative("rss.push.data.buffer.initial.size")
       .categories("client")
       .version("0.2.0")
@@ -1334,7 +1348,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("8k")
 
   val PUSH_BUFFER_MAX_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.push.buffer.max.size")
+    buildConf("celeborn.client.push.buffer.max.size")
+      .withAlternative("celeborn.push.buffer.max.size")
       .withAlternative("rss.push.data.buffer.size")
       .categories("client")
       .version("0.2.0")
@@ -1347,7 +1362,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("64k")
 
   val PUSH_QUEUE_CAPACITY: ConfigEntry[Int] =
-    buildConf("celeborn.push.queue.capacity")
+    buildConf("celeborn.client.push.queue.capacity")
+      .withAlternative("celeborn.push.queue.capacity")
       .withAlternative("rss.push.data.queue.capacity")
       .categories("client")
       .version("0.2.0")
@@ -1358,7 +1374,8 @@ object CelebornConf extends Logging {
       .createWithDefault(512)
 
   val PUSH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
-    buildConf("celeborn.push.maxReqsInFlight")
+    buildConf("celeborn.client.push.maxReqsInFlight")
+      .withAlternative("celeborn.push.maxReqsInFlight")
       .withAlternative("rss.push.data.maxReqsInFlight")
       .categories("client")
       .version("0.2.0")
@@ -1369,7 +1386,7 @@ object CelebornConf extends Logging {
       .createWithDefault(4)
 
   val PUSH_MAX_REVIVE_TIMES: ConfigEntry[Int] =
-    buildConf("celeborn.push.revive.maxRetries")
+    buildConf("celeborn.client.push.revive.maxRetries")
       .categories("client")
       .version("0.3.0")
       .doc("Max retry times for reviving when celeborn push data failed.")
@@ -1377,32 +1394,42 @@ object CelebornConf extends Logging {
       .createWithDefault(5)
 
   val TEST_RETRY_REVIVE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.retryRevive")
+    buildConf("celeborn.test.client.retryRevive")
+      .withAlternative("celeborn.test.retryRevive")
       .internal
-      .categories("client", "test")
+      .categories("test", "client")
       .doc("Fail push data and request for test")
       .version("0.2.0")
       .booleanConf
       .createWithDefault(false)
 
   val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.push.timeoutCheck.interval")
-      .categories("client", "worker")
-      .doc("Interval for checking push data timeout.")
+    buildConf("celeborn.<module>.push.timeoutCheck.interval")
+      .categories("network")
+      .doc("Interval for checking push data timeout. " +
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push data and should be configured in client side. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for worker replicate data to peer worker and should be configured in worker side.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
 
   val PUSH_TIMEOUT_CHECK_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.push.timeoutCheck.threads")
-      .categories("client", "worker")
-      .doc("Threads num for checking push data timeout.")
+    buildConf("celeborn.<module>.push.timeoutCheck.threads")
+      .categories("network")
+      .doc("Threads num for checking push data timeout. " +
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push data and should be configured in client side. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for worker replicate data to peer worker and should be configured in worker side.")
       .version("0.3.0")
       .intConf
       .createWithDefault(16)
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.fetch.timeout")
+    buildConf("celeborn.client.fetch.timeout")
+      .withAlternative("celeborn.fetch.timeout")
       .withAlternative("rss.fetch.chunk.timeout")
       .categories("client")
       .version("0.2.0")
@@ -1411,7 +1438,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("30s")
 
   val FETCH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
-    buildConf("celeborn.fetch.maxReqsInFlight")
+    buildConf("celeborn.client.fetch.maxReqsInFlight")
+      .withAlternative("celeborn.fetch.maxReqsInFlight")
       .withAlternative("rss.fetch.chunk.maxReqsInFlight")
       .categories("client")
       .version("0.2.0")
@@ -1420,7 +1448,8 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val CLIENT_RPC_MAX_PARALLELISM: ConfigEntry[Int] =
-    buildConf("celeborn.rpc.maxParallelism")
+    buildConf("celeborn.client.rpc.maxParallelism")
+      .withAlternative("celeborn.rpc.maxParallelism")
       .withAlternative("rss.rpc.max.parallelism")
       .categories("client")
       .version("0.2.0")
@@ -1429,7 +1458,8 @@ object CelebornConf extends Logging {
       .createWithDefault(1024)
 
   val FETCH_MAX_RETRIES_FOR_EACH_REPLICA: ConfigEntry[Int] =
-    buildConf("celeborn.fetch.maxRetriesForEachReplica")
+    buildConf("celeborn.client.fetch.maxRetriesForEachReplica")
+      .withAlternative("celeborn.fetch.maxRetriesForEachReplica")
       .withAlternative("celeborn.fetch.maxRetries")
       .categories("client")
       .version("0.2.0")
@@ -1438,16 +1468,18 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val TEST_FETCH_FAILURE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.fetchFailure")
+    buildConf("celeborn.test.client.fetchFailure")
+      .withAlternative("celeborn.test.fetchFailure")
       .internal
-      .categories("client", "test")
+      .categories("test", "client")
       .version("0.2.0")
       .doc("Whether to test fetch chunk failure")
       .booleanConf
       .createWithDefault(false)
 
   val APPLICATION_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.application.heartbeat.timeout")
+    buildConf("celeborn.master.heartbeat.application.timeout")
+      .withAlternative("celeborn.application.heartbeat.timeout")
       .withAlternative("rss.application.timeout")
       .categories("master")
       .version("0.2.0")
@@ -1456,7 +1488,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("300s")
 
   val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.application.heartbeatInterval")
+    buildConf("celeborn.client.application.heartbeatInterval")
+      .withAlternative("celeborn.application.heartbeatInterval")
       .withAlternative("rss.application.heartbeatInterval")
       .categories("client")
       .version("0.2.0")
@@ -1465,7 +1498,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("10s")
 
   val SHUFFLE_EXPIRED_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.expired.checkInterval")
+    buildConf("celeborn.client.shuffle.expired.checkInterval")
+      .withAlternative("celeborn.shuffle.expired.checkInterval")
       .withAlternative("rss.remove.shuffle.delay")
       .categories("client")
       .version("0.2.0")
@@ -1485,7 +1519,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val WORKER_EXCLUDED_EXPIRE_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.excluded.expireTimeout")
+    buildConf("celeborn.client.excludedWorker.expireTimeout")
+      .withAlternative("celeborn.worker.excluded.expireTimeout")
       .categories("client")
       .version("0.2.0")
       .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
@@ -1512,7 +1547,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("8m")
 
   val SHUFFLE_REGISTER_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.shuffle.register.maxRetries")
+    buildConf("celeborn.client.registerShuffle.maxRetries")
+      .withAlternative("celeborn.shuffle.register.maxRetries")
       .withAlternative("rss.register.shuffle.max.retry")
       .categories("client")
       .version("0.2.0")
@@ -1521,7 +1557,8 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val SHUFFLE_REGISTER_RETRY_WAIT: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.register.retryWait")
+    buildConf("celeborn.client.registerShuffle.retryWait")
+      .withAlternative("celeborn.shuffle.register.retryWait")
       .withAlternative("rss.register.shuffle.retry.wait")
       .categories("client")
       .version("0.2.0")
@@ -1530,7 +1567,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val RESERVE_SLOTS_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.slots.reserve.maxRetries")
+    buildConf("celeborn.client.reserveSlots.maxRetries")
+      .withAlternative("celeborn.slots.reserve.maxRetries")
       .withAlternative("rss.reserve.slots.max.retry")
       .categories("client")
       .version("0.2.0")
@@ -1539,7 +1577,8 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val RESERVE_SLOTS_RETRY_WAIT: ConfigEntry[Long] =
-    buildConf("celeborn.slots.reserve.retryWait")
+    buildConf("celeborn.client.reserveSlots.retryWait")
+      .withAlternative("celeborn.slots.reserve.retryWait")
       .withAlternative("rss.reserve.slots.retry.wait")
       .categories("client")
       .version("0.2.0")
@@ -1548,18 +1587,19 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val COMMIT_FILE_REQUEST_MAX_RETRY: ConfigEntry[Int] =
-    buildConf("celeborn.rpc.requestCommitFiles.maxRetries")
+    buildConf("celeborn.client.rpc.requestCommitFiles.maxRetries")
       .categories("client")
       .doc("Max retry times for requestCommitFiles RPC.")
-      .version("1.0.0")
+      .version("0.3.0")
       .intConf
       .checkValue(v => v > 0, "value must be positive")
       .createWithDefault(2)
 
   val TEST_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.retryCommitFiles")
+    buildConf("celeborn.test.client.retryCommitFiles")
+      .withAlternative("celeborn.test.retryCommitFiles")
       .internal
-      .categories("client", "test")
+      .categories("test", "client")
       .doc("Fail commitFile request for test")
       .version("0.2.0")
       .booleanConf
@@ -1593,13 +1633,14 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9097)
 
-  val HA_ENABLED: ConfigEntry[Boolean] = buildConf("celeborn.ha.enabled")
-    .withAlternative("rss.ha.enabled")
-    .categories("master")
-    .version("0.2.0")
-    .doc("When true, master nodes run as Raft cluster mode.")
-    .booleanConf
-    .createWithDefault(false)
+  val HA_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.ha.enabled")
+      .withAlternative("rss.ha.enabled")
+      .categories("ha")
+      .version("0.2.0")
+      .doc("When true, master nodes run as Raft cluster mode.")
+      .booleanConf
+      .createWithDefault(false)
 
   val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
     buildConf("celeborn.ha.master.node.id")
@@ -1611,7 +1652,7 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_NODE_HOST: ConfigEntry[String] =
     buildConf("celeborn.ha.master.node.<id>.host")
-      .categories("master")
+      .categories("ha")
       .doc("Host to bind of master node <id> in HA mode.")
       .version("0.2.0")
       .stringConf
@@ -1619,7 +1660,7 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_NODE_PORT: ConfigEntry[Int] =
     buildConf("celeborn.ha.master.node.<id>.port")
-      .categories("master")
+      .categories("ha")
       .doc("Port to bind of master node <id> in HA mode.")
       .version("0.2.0")
       .intConf
@@ -1629,7 +1670,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
     buildConf("celeborn.ha.master.node.<id>.ratis.host")
       .internal
-      .categories("master")
+      .categories("ha")
       .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
         s"fallback to ${HA_MASTER_NODE_HOST.key}.")
       .version("0.2.0")
@@ -1638,7 +1679,7 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_NODE_RATIS_PORT: ConfigEntry[Int] =
     buildConf("celeborn.ha.master.node.<id>.ratis.port")
-      .categories("master")
+      .categories("ha")
       .doc("Ratis port to bind of master node <id> in HA mode.")
       .version("0.2.0")
       .intConf
@@ -1648,7 +1689,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_RATIS_RPC_TYPE: ConfigEntry[String] =
     buildConf("celeborn.ha.master.ratis.raft.rpc.type")
       .withAlternative("rss.ha.rpc.type")
-      .categories("master")
+      .categories("ha")
       .doc("RPC type for Ratis, available options: netty, grpc.")
       .version("0.2.0")
       .stringConf
@@ -1658,7 +1699,7 @@ object CelebornConf extends Logging {
 
   val HA_MASTER_RATIS_STORAGE_DIR: ConfigEntry[String] =
     buildConf("celeborn.ha.master.ratis.raft.server.storage.dir")
-      .categories("master")
+      .categories("ha")
       .withAlternative("rss.ha.storage.dir")
       .version("0.2.0")
       .stringConf
@@ -1668,7 +1709,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
       .withAlternative("rss.ha.ratis.segment.size")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4MB")
@@ -1677,7 +1718,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
       .withAlternative("rss.ratis.segment.preallocated.size")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4MB")
@@ -1686,7 +1727,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
       .withAlternative("rss.ratis.log.appender.queue.num-elements")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .intConf
       .createWithDefault(1024)
@@ -1695,7 +1736,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
       .withAlternative("rss.ratis.log.appender.queue.byte-limit")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32MB")
@@ -1703,7 +1744,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .booleanConf
       .createWithDefault(true)
@@ -1712,7 +1753,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.log.purge.gap")
       .withAlternative("rss.ratis.log.purge.gap")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .intConf
       .createWithDefault(1000000)
@@ -1721,7 +1762,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
       .withAlternative("rss.ratis.server.request.timeout")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
@@ -1730,7 +1771,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
       .withAlternative("rss.ratis.server.retry.cache.timeout")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("600s")
@@ -1739,7 +1780,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
       .withAlternative("rss.ratis.minimum.timeout")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
@@ -1747,7 +1788,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_RATIS_RPC_TIMEOUT_MAX: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("5s")
@@ -1755,7 +1796,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.first.election.timeout.min")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
@@ -1763,7 +1804,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.first.election.timeout.max")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("5s")
@@ -1771,7 +1812,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.ha.master.ratis.raft.server.notification.no-leader.timeout")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("30s")
@@ -1780,7 +1821,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.rpc.slowness.timeout")
       .withAlternative("rss.ratis.server.failure.timeout.duration")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("120s")
@@ -1789,7 +1830,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.role.check.interval")
       .withAlternative("rss.ratis.server.role.check.interval")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1s")
@@ -1798,7 +1839,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.enabled")
       .withAlternative("rss.ha.ratis.snapshot.auto.trigger.enabled")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .booleanConf
       .createWithDefault(true)
@@ -1807,7 +1848,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.threshold")
       .withAlternative("rss.ha.ratis.snapshot.auto.trigger.threshold")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .longConf
       .createWithDefault(200000L)
@@ -1816,7 +1857,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.ha.master.ratis.raft.server.snapshot.retention.file.num")
       .withAlternative("rss.ratis.snapshot.retention.file.num")
       .internal
-      .categories("master")
+      .categories("ha")
       .version("0.2.0")
       .intConf
       .createWithDefault(3)
@@ -1839,6 +1880,7 @@ object CelebornConf extends Logging {
   val WORKER_STORAGE_BASE_DIR_PREFIX: ConfigEntry[String] =
     buildConf("celeborn.worker.storage.baseDir.prefix")
       .withAlternative("rss.worker.base.dir.prefix")
+      .internal
       .categories("worker")
       .version("0.2.0")
       .doc("Base directory for Celeborn worker to write if " +
@@ -1849,6 +1891,7 @@ object CelebornConf extends Logging {
   val WORKER_STORAGE_BASE_DIR_COUNT: ConfigEntry[Int] =
     buildConf("celeborn.worker.storage.baseDir.number")
       .withAlternative("rss.worker.base.dir.number")
+      .internal
       .categories("worker")
       .version("0.2.0")
       .doc(s"How many directories will be used if `${WORKER_STORAGE_DIRS.key}` is not set. " +
@@ -1933,8 +1976,9 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
-  val WORKER_NON_EMPTY_DIR_EXPIRE_DURATION: ConfigEntry[Long] =
-    buildConf("celeborn.worker.noneEmptyDirExpireDuration")
+  val WORKER_APPLICATION_DATA_KEEP_ALIVE_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.worker.storage.applicationData.keepAliveTime")
+      .withAlternative("celeborn.worker.noneEmptyDirExpireDuration")
       .withAlternative("rss.expire.nonEmptyDir.duration")
       .categories("worker")
       .doc("If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired.")
@@ -1943,7 +1987,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("1d")
 
   val WORKER_WORKING_DIR: ConfigEntry[String] =
-    buildConf("celeborn.worker.workingDir")
+    buildConf("celeborn.worker.storage.workingDir")
+      .withAlternative("celeborn.worker.workingDir")
       .withAlternative("rss.worker.workingDirName")
       .categories("worker")
       .doc("Worker's working dir path name.")
@@ -1981,7 +2026,8 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val WORKER_DEVICE_STATUS_CHECK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.disk.check.timeout")
+    buildConf("celeborn.worker.monitor.disk.check.timeout")
+      .withAlternative("celeborn.worker.disk.check.timeout")
       .withAlternative("rss.worker.status.check.timeout")
       .categories("worker")
       .doc("Timeout time for worker check device status.")
@@ -1990,7 +2036,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("30s")
 
   val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.worker.disk.checkFileClean.maxRetries")
+    buildConf("celeborn.worker.storage.checkDirsEmpty.maxRetries")
+      .withAlternative("celeborn.worker.disk.checkFileClean.maxRetries")
       .withAlternative("rss.worker.checkFileCleanRetryTimes")
       .categories("worker")
       .doc("The number of retries for a worker to check if the working directory is cleaned up before registering with the master.")
@@ -1999,7 +2046,8 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val WORKER_CHECK_FILE_CLEAN_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.disk.checkFileClean.timeout")
+    buildConf("celeborn.worker.storage.checkDirsEmpty.timeout")
+      .withAlternative("celeborn.worker.disk.checkFileClean.timeout")
       .withAlternative("rss.worker.checkFileCleanTimeoutMs")
       .categories("worker")
       .doc("The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master.")
@@ -2008,9 +2056,10 @@ object CelebornConf extends Logging {
       .createWithDefaultString("1000ms")
 
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.heartbeat.timeout")
+    buildConf("celeborn.master.heartbeat.worker.timeout")
+      .withAlternative("celeborn.worker.heartbeat.timeout")
       .withAlternative("rss.worker.timeout")
-      .categories("master", "worker")
+      .categories("master")
       .version("0.2.0")
       .doc("Worker heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
@@ -2026,7 +2075,8 @@ object CelebornConf extends Logging {
       .createWithDefault(64)
 
   val WORKER_COMMIT_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.worker.commit.threads")
+    buildConf("celeborn.worker.commitFiles.threads")
+      .withAlternative("celeborn.worker.commit.threads")
       .withAlternative("rss.worker.asyncCommitFiles.numThreads")
       .categories("worker")
       .version("0.2.0")
@@ -2035,7 +2085,8 @@ object CelebornConf extends Logging {
       .createWithDefault(32)
 
   val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.shuffle.commit.timeout")
+    buildConf("celeborn.worker.commitFiles.timeout")
+      .withAlternative("celeborn.worker.shuffle.commit.timeout")
       .withAlternative("rss.flush.timeout")
       .categories("worker")
       .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
@@ -2043,7 +2094,8 @@ object CelebornConf extends Logging {
       .fallbackConf(RPC_ASK_TIMEOUT)
 
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.partitionSorter.sort.timeout")
+    buildConf("celeborn.worker.sortPartition.timeout")
+      .withAlternative("celeborn.worker.partitionSorter.sort.timeout")
       .withAlternative("rss.partition.sort.timeout")
       .categories("worker")
       .doc("Timeout for a shuffle file to sort.")
@@ -2052,7 +2104,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("220s")
 
   val PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY: ConfigEntry[Long] =
-    buildConf("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
+    buildConf("celeborn.worker.sortPartition.reservedMemoryPerPartition")
+      .withAlternative("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
       .withAlternative("rss.worker.initialReserveSingleSortMemory")
       .categories("worker")
       .doc("Reserved memory when sorting a shuffle file off-heap.")
@@ -2061,7 +2114,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("1mb")
 
   val PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
-    buildConf("celeborn.worker.partitionSorter.threads")
+    buildConf("celeborn.worker.sortPartition.threads")
+      .withAlternative("celeborn.worker.partitionSorter.threads")
       .categories("worker")
       .doc("PartitionSorter's thread counts.")
       .version("0.3.0")
@@ -2132,7 +2186,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val WORKER_DISK_RESERVE_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.worker.disk.reserve.size")
+    buildConf("celeborn.worker.storage.disk.reserve.size")
+      .withAlternative("celeborn.worker.disk.reserve.size")
       .withAlternative("rss.disk.minimum.reserve.size")
       .categories("worker")
       .doc("Celeborn worker reserved space for each disk.")
@@ -2141,7 +2196,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5G")
 
   val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.worker.diskTime.slidingWindow.size")
+    buildConf("celeborn.worker.flusher.diskTime.slidingWindow.size")
       .withAlternative("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
       .withAlternative("rss.flusher.avg.time.window")
       .categories("worker")
@@ -2173,7 +2228,8 @@ object CelebornConf extends Logging {
       .createWithDefault(100)
 
   val SLOTS_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =
-    buildConf("celeborn.slots.assign.loadAware.numDiskGroups")
+    buildConf("celeborn.master.slot.assign.loadAware.numDiskGroups")
+      .withAlternative("celeborn.slots.assign.loadAware.numDiskGroups")
       .withAlternative("rss.disk.groups")
       .categories("master")
       .doc("This configuration is a guidance for load-aware slot allocation algorithm. " +
@@ -2183,7 +2239,8 @@ object CelebornConf extends Logging {
       .createWithDefault(5)
 
   val SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT: ConfigEntry[Double] =
-    buildConf("celeborn.slots.assign.loadAware.diskGroupGradient")
+    buildConf("celeborn.master.slot.assign.loadAware.diskGroupGradient")
+      .withAlternative("celeborn.slots.assign.loadAware.diskGroupGradient")
       .withAlternative("rss.disk.groups.gradient")
       .categories("master")
       .doc("This value means how many more workload will be placed into a faster disk group " +
@@ -2193,7 +2250,8 @@ object CelebornConf extends Logging {
       .createWithDefault(0.1)
 
   val SLOTS_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT: ConfigEntry[Double] =
-    buildConf("celeborn.slots.assign.loadAware.flushTimeWeight")
+    buildConf("celeborn.master.slot.assign.loadAware.flushTimeWeight")
+      .withAlternative("celeborn.slots.assign.loadAware.flushTimeWeight")
       .categories("master")
       .doc(
         "Weight of average flush time when calculating ordering in load-aware assignment strategy")
@@ -2202,7 +2260,8 @@ object CelebornConf extends Logging {
       .createWithDefault(0)
 
   val SLOTS_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT: ConfigEntry[Double] =
-    buildConf("celeborn.slots.assign.loadAware.fetchTimeWeight")
+    buildConf("celeborn.master.slot.assign.loadAware.fetchTimeWeight")
+      .withAlternative("celeborn.slots.assign.loadAware.fetchTimeWeight")
       .categories("master")
       .doc(
         "Weight of average fetch time when calculating ordering in load-aware assignment strategy")
@@ -2211,7 +2270,8 @@ object CelebornConf extends Logging {
       .createWithDefault(1)
 
   val SLOTS_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
-    buildConf("celeborn.slots.assign.extraSlots")
+    buildConf("celeborn.master.slot.assign.extraSlots")
+      .withAlternative("celeborn.slots.assign.extraSlots")
       .withAlternative("rss.offer.slots.extra.size")
       .categories("master")
       .version("0.2.0")
@@ -2220,7 +2280,8 @@ object CelebornConf extends Logging {
       .createWithDefault(2)
 
   val SLOTS_ASSIGN_POLICY: ConfigEntry[String] =
-    buildConf("celeborn.slots.assign.policy")
+    buildConf("celeborn.master.slot.assign.policy")
+      .withAlternative("celeborn.slots.assign.policy")
       .withAlternative("rss.offer.slots.algorithm")
       .categories("master")
       .version("0.2.0")
@@ -2230,8 +2291,9 @@ object CelebornConf extends Logging {
       .checkValues(Set(SlotsAssignPolicy.ROUNDROBIN.name, SlotsAssignPolicy.LOADAWARE.name))
       .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
 
-  val SHUFFLE_INITIAL_ESRIMATED_PARTITION_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.initialEstimatedPartitionSize")
+  val SHUFFLE_INITIAL_ESTIMATED_PARTITION_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.master.estimatedPartitionSize.initialSize")
+      .withAlternative("celeborn.shuffle.initialEstimatedPartitionSize")
       .withAlternative("rss.initial.partition.size")
       .categories("master")
       .doc("Initial partition size for estimation, it will change according to runtime stats.")
@@ -2239,8 +2301,9 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64mb")
 
-  val SHUFFLE_MIN_PARTITION_SIZE_TO_ESTIMATE: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.minPartitionSizeToEstimate")
+  val MIN_PARTITION_SIZE_TO_ESTIMATE: ConfigEntry[Long] =
+    buildConf("celeborn.master.estimatedPartitionSize.minSize")
+      .withAlternative("celeborn.shuffle.minPartitionSizeToEstimate")
       .withAlternative("rss.minimum.estimate.partition.size")
       .categories("worker")
       .doc(
@@ -2249,8 +2312,9 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8mb")
 
-  val SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.estimatedPartitionSize.update.initialDelay")
+  val ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY: ConfigEntry[Long] =
+    buildConf("celeborn.master.estimatedPartitionSize.update.initialDelay")
+      .withAlternative("celeborn.shuffle.estimatedPartitionSize.update.initialDelay")
       .withAlternative("rss.partition.size.update.initial.delay")
       .categories("master")
       .doc("Initial delay time before start updating partition size for estimation.")
@@ -2258,8 +2322,9 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5min")
 
-  val SHUFFLE_ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.estimatedPartitionSize.update.interval")
+  val ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.master.estimatedPartitionSize.update.interval")
+      .withAlternative("celeborn.shuffle.estimatedPartitionSize.update.interval")
       .withAlternative("rss.partition.size.update.interval")
       .categories("master")
       .doc("Interval of updating partition size for estimation.")
@@ -2270,7 +2335,7 @@ object CelebornConf extends Logging {
   val METRICS_APP_TOP_DISK_USAGE_COUNT: ConfigEntry[Int] =
     buildConf("celeborn.metrics.app.topDiskUsage.count")
       .withAlternative("rss.metrics.app.topDiskUsage.count")
-      .categories("master")
+      .categories("metrics")
       .doc("Size for top items about top disk usage applications list.")
       .version("0.2.0")
       .intConf
@@ -2279,7 +2344,7 @@ object CelebornConf extends Logging {
   val METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.metrics.app.topDiskUsage.windowSize")
       .withAlternative("rss.metrics.app.topDiskUsage.windowSize")
-      .categories("master")
+      .categories("metrics")
       .doc("Window size about top disk usage application list.")
       .version("0.2.0")
       .intConf
@@ -2288,14 +2353,14 @@ object CelebornConf extends Logging {
   val METRICS_APP_TOP_DISK_USAGE_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.metrics.app.topDiskUsage.interval")
       .withAlternative("rss.metrics.app.topDiskUsage.interval")
-      .categories("master")
+      .categories("metrics")
       .doc("Time length for a window about top disk usage application list.")
       .version("0.2.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10min")
 
-  val METRICS_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.metrics.userResourceConsumption.update.interval")
+  val MASTER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.master.userResourceConsumption.update.interval")
       .categories("master")
       .doc("Time length for a window about compute user resource consumption.")
       .version("0.3.0")
@@ -2303,7 +2368,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("30s")
 
   val PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.push.stageEnd.timeout")
+    buildConf("celeborn.client.push.stageEnd.timeout")
+      .withAlternative("celeborn.push.stageEnd.timeout")
       .withAlternative("rss.stage.end.timeout")
       .categories("client")
       .doc(s"Timeout for waiting StageEnd. " +
@@ -2314,7 +2380,7 @@ object CelebornConf extends Logging {
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
-    buildConf("celeborn.push.limit.strategy")
+    buildConf("celeborn.client.push.limit.strategy")
       .categories("client")
       .doc("The strategy used to control the push speed. " +
         "Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with " +
@@ -2326,7 +2392,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("SIMPLE")
 
   val PUSH_SLOW_START_INITIAL_SLEEP_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.push.slowStart.initialSleepTime")
+    buildConf("celeborn.client.push.slowStart.initialSleepTime")
       .categories("client")
       .version("0.3.0")
       .doc(s"The initial sleep time if the current max in flight requests is 0")
@@ -2334,7 +2400,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("500ms")
 
   val PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.push.slowStart.maxSleepTime")
+    buildConf("celeborn.client.push.slowStart.maxSleepTime")
       .categories("client")
       .version("0.3.0")
       .doc(s"If ${PUSH_LIMIT_STRATEGY.key} is set to SLOWSTART, push side will " +
@@ -2344,35 +2410,38 @@ object CelebornConf extends Logging {
       .createWithDefaultString("2s")
 
   val PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.push.data.timeout")
+    buildConf("celeborn.client.push.data.timeout")
+      .withAlternative("celeborn.push.data.timeout")
       .withAlternative("rss.push.data.rpc.timeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
       .timeConf(TimeUnit.MILLISECONDS)
-      .checkValue(_ > 0, "celeborn.push.data.timeout must be positive!")
-      .createWithDefaultString("30s")
+      .checkValue(_ > 0, "celeborn.client.push.data.timeout must be positive!")
+      .createWithDefaultString("120s")
 
   val TEST_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.pushMasterDataTimeout")
+    buildConf("celeborn.test.worker.pushMasterDataTimeout")
+      .withAlternative("celeborn.test.pushMasterDataTimeout")
       .internal
-      .categories("worker", "test")
+      .categories("test", "worker")
       .version("0.2.0")
       .doc("Whether to test push master data timeout")
       .booleanConf
       .createWithDefault(false)
 
   val TEST_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.pushSlaveDataTimeout")
+    buildConf("celeborn.test.worker.pushSlaveDataTimeout")
       .internal
-      .categories("worker", "test")
+      .categories("test", "worker")
       .version("0.3.0")
       .doc("Whether to test push slave data timeout")
       .booleanConf
       .createWithDefault(false)
 
   val PUSH_LIMIT_IN_FLIGHT_TIMEOUT: OptionalConfigEntry[Long] =
-    buildConf("celeborn.push.limit.inFlight.timeout")
+    buildConf("celeborn.client.push.limit.inFlight.timeout")
+      .withAlternative("celeborn.push.limit.inFlight.timeout")
       .withAlternative("rss.limit.inflight.timeout")
       .categories("client")
       .doc("Timeout for netty in-flight requests to be done." +
@@ -2382,7 +2451,8 @@ object CelebornConf extends Logging {
       .createOptional
 
   val PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.push.limit.inFlight.sleepInterval")
+    buildConf("celeborn.client.push.limit.inFlight.sleepInterval")
+      .withAlternative("celeborn.push.limit.inFlight.sleepInterval")
       .withAlternative("rss.limit.inflight.sleep.delta")
       .categories("client")
       .doc("Sleep interval when check netty in-flight requests to be done.")
@@ -2391,7 +2461,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("50ms")
 
   val PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.push.sortMemory.threshold")
+    buildConf("celeborn.client.push.sort.memory.threshold")
+      .withAlternative("celeborn.push.sortMemory.threshold")
       .withAlternative("rss.sort.push.data.threshold")
       .categories("client")
       .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
@@ -2400,7 +2471,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("64m")
 
   val PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.push.sort.pipeline.enabled")
+    buildConf("celeborn.client.push.sort.pipeline.enabled")
+      .withAlternative("celeborn.push.sort.pipeline.enabled")
       .categories("client")
       .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
         " will be used to pipeline push")
@@ -2409,7 +2481,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.push.sort.randomizePartitionId.enabled")
+    buildConf("celeborn.client.push.sort.randomizePartitionId.enabled")
+      .withAlternative("celeborn.push.sort.randomizePartitionId.enabled")
       .categories("client")
       .doc(
         "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
@@ -2419,7 +2492,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val PUSH_RETRY_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.push.retry.threads")
+    buildConf("celeborn.client.push.retry.threads")
+      .withAlternative("celeborn.push.retry.threads")
       .withAlternative("rss.pushdata.retry.thread.num")
       .categories("client")
       .doc("Thread number to process shuffle re-send push data requests.")
@@ -2428,7 +2502,8 @@ object CelebornConf extends Logging {
       .createWithDefault(8)
 
   val PUSH_SPLIT_PARTITION_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.push.splitPartition.threads")
+    buildConf("celeborn.client.push.splitPartition.threads")
+      .withAlternative("celeborn.push.splitPartition.threads")
       .withAlternative("rss.client.split.pool.size")
       .categories("client")
       .doc("Thread number to process shuffle split request in shuffle client.")
@@ -2437,7 +2512,7 @@ object CelebornConf extends Logging {
       .createWithDefault(8)
 
   val PUSH_TAKE_TASK_WAIT_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.push.takeTaskWaitTime")
+    buildConf("celeborn.client.push.takeTaskWaitTime")
       .categories("client")
       .doc("Wait time if no task available to push to worker.")
       .version("0.3.0")
@@ -2445,7 +2520,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("50ms")
 
   val PARTITION_SPLIT_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.partitionSplit.threshold")
+    buildConf("celeborn.client.shuffle.partitionSplit.threshold")
+      .withAlternative("celeborn.shuffle.partitionSplit.threshold")
       .withAlternative("rss.partition.split.threshold")
       .categories("client")
       .doc("Shuffle file size threshold, if file size exceeds this, trigger split.")
@@ -2454,7 +2530,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("1G")
 
   val PARTITION_SPLIT_MODE: ConfigEntry[String] =
-    buildConf("celeborn.shuffle.partitionSplit.mode")
+    buildConf("celeborn.client.shuffle.partitionSplit.mode")
+      .withAlternative("celeborn.shuffle.partitionSplit.mode")
       .withAlternative("rss.partition.split.mode")
       .categories("client")
       .doc("soft: the shuffle file size might be larger than split threshold. " +
@@ -2466,7 +2543,8 @@ object CelebornConf extends Logging {
       .createWithDefault(PartitionSplitMode.SOFT.name)
 
   val PARTITION_SPLIT_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.partitionSplit.min")
+    buildConf("celeborn.worker.shuffle.partitionSplit.min")
+      .withAlternative("celeborn.shuffle.partitionSplit.min")
       .withAlternative("rss.partition.split.minimum.size")
       .categories("worker")
       .doc("Min size for a partition to split")
@@ -2475,7 +2553,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("1m")
 
   val BATCH_HANDLE_CHANGE_PARTITION_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.shuffle.batchHandleChangePartition.enabled")
+    buildConf("celeborn.client.shuffle.batchHandleChangePartition.enabled")
+      .withAlternative("celeborn.shuffle.batchHandleChangePartition.enabled")
       .withAlternative("rss.change.partition.batch.enabled")
       .categories("client")
       .doc("When true, LifecycleManager will handle change partition request in batch. " +
@@ -2485,7 +2564,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val BATCH_HANDLE_CHANGE_PARTITION_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.shuffle.batchHandleChangePartition.threads")
+    buildConf("celeborn.client.shuffle.batchHandleChangePartition.threads")
+      .withAlternative("celeborn.shuffle.batchHandleChangePartition.threads")
       .withAlternative("rss.change.partition.numThreads")
       .categories("client")
       .doc("Threads number for LifecycleManager to handle change partition request in batch.")
@@ -2494,7 +2574,8 @@ object CelebornConf extends Logging {
       .createWithDefault(8)
 
   val BATCH_HANDLE_CHANGE_PARTITION_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.batchHandleChangePartition.interval")
+    buildConf("celeborn.client.shuffle.batchHandleChangePartition.interval")
+      .withAlternative("celeborn.shuffle.batchHandleChangePartition.interval")
       .withAlternative("rss.change.partition.batchInterval")
       .categories("client")
       .doc("Interval for LifecycleManager to schedule handling change partition requests in batch.")
@@ -2503,7 +2584,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("100ms")
 
   val BATCH_HANDLE_COMMIT_PARTITION_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.shuffle.batchHandleCommitPartition.enabled")
+    buildConf("celeborn.client.shuffle.batchHandleCommitPartition.enabled")
+      .withAlternative("celeborn.shuffle.batchHandleCommitPartition.enabled")
       .categories("client")
       .doc("When true, LifecycleManager will handle commit partition request in batch. " +
         "Otherwise, LifecycleManager won't commit partition before stage end")
@@ -2512,7 +2594,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val BATCH_HANDLE_COMMIT_PARTITION_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.shuffle.batchHandleCommitPartition.threads")
+    buildConf("celeborn.client.shuffle.batchHandleCommitPartition.threads")
+      .withAlternative("celeborn.shuffle.batchHandleCommitPartition.threads")
       .categories("client")
       .doc("Threads number for LifecycleManager to handle commit partition request in batch.")
       .version("0.2.0")
@@ -2520,7 +2603,8 @@ object CelebornConf extends Logging {
       .createWithDefault(8)
 
   val BATCH_HANDLED_COMMIT_PARTITION_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.batchHandleCommitPartition.interval")
+    buildConf("celeborn.client.shuffle.batchHandleCommitPartition.interval")
+      .withAlternative("celeborn.shuffle.batchHandleCommitPartition.interval")
       .categories("client")
       .doc("Interval for LifecycleManager to schedule handling commit partition requests in batch.")
       .version("0.2.0")
@@ -2528,7 +2612,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5s")
 
   val BATCH_HANDLE_RELEASE_PARTITION_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.shuffle.batchHandleReleasePartition.enabled")
+    buildConf("celeborn.client.shuffle.batchHandleReleasePartition.enabled")
       .categories("client")
       .doc("When true, LifecycleManager will handle release partition request in batch. " +
         "Otherwise, LifecycleManager will process release partition request immediately")
@@ -2537,7 +2621,7 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val BATCH_HANDLE_RELEASE_PARTITION_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.shuffle.batchHandleReleasePartition.threads")
+    buildConf("celeborn.client.shuffle.batchHandleReleasePartition.threads")
       .categories("client")
       .doc("Threads number for LifecycleManager to handle release partition request in batch.")
       .version("0.3.0")
@@ -2545,7 +2629,7 @@ object CelebornConf extends Logging {
       .createWithDefault(8)
 
   val BATCH_HANDLED_RELEASE_PARTITION_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.batchHandleReleasePartition.interval")
+    buildConf("celeborn.client.shuffle.batchHandleReleasePartition.interval")
       .categories("client")
       .doc(
         "Interval for LifecycleManager to schedule handling release partition requests in batch.")
@@ -2554,7 +2638,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5s")
 
   val RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.reserveSlots.rackware.enabled")
+    buildConf("celeborn.client.reserveSlots.rackware.enabled")
       .categories("client")
       .version("0.3.0")
       .doc("Whether need to place different replicates on different racks when allocating slots.")
@@ -2562,14 +2646,15 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val RESERVE_SLOTS_RPC_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.reserveSlots.askTimeout")
+    buildConf("celeborn.client.rpc.reserveSlots.askTimeout")
       .categories("client")
       .version("0.3.0")
       .doc("Timeout for LifecycleManager request reserve slots.")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
   val REGISTER_SHUFFLE_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.registerShuffle.askTimeout")
+    buildConf("celeborn.client.rpc.registerShuffle.askTimeout")
+      .withAlternative("celeborn.rpc.registerShuffle.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during register shuffle. " +
@@ -2581,7 +2666,7 @@ object CelebornConf extends Logging {
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val REQUEST_PARTITION_LOCATION_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.requestPartition.askTimeout")
+    buildConf("celeborn.client.rpc.requestPartition.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during requesting change partition location, such as reviving or spliting partition. " +
@@ -2591,7 +2676,7 @@ object CelebornConf extends Logging {
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val GET_REDUCER_FILE_GROUP_RPC_ASK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.getReducerFileGroup.askTimeout")
+    buildConf("celeborn.client.rpc.getReducerFileGroup.askTimeout")
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during getting reducer file group information. " +
@@ -2609,9 +2694,11 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1)
 
-  val CLIENT_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.client.maxRetries")
+  val MASTER_CLIENT_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.masterClient.maxRetries")
+      .withAlternative("celeborn.client.maxRetries")
       .withAlternative("rss.ha.client.maxTries")
+      .internal
       .categories("client", "worker")
       .doc("Max retry times for client to connect master endpoint")
       .version("0.2.0")
@@ -2629,7 +2716,7 @@ object CelebornConf extends Logging {
   val METRICS_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.enabled")
       .withAlternative("rss.metrics.system.enabled")
-      .categories("master", "worker", "metrics")
+      .categories("metrics")
       .doc("When true, enable metrics system.")
       .version("0.2.0")
       .booleanConf
@@ -2638,7 +2725,7 @@ object CelebornConf extends Logging {
   val METRICS_SAMPLE_RATE: ConfigEntry[Double] =
     buildConf("celeborn.metrics.sample.rate")
       .withAlternative("rss.metrics.system.sample.rate")
-      .categories("master", "worker", "metrics")
+      .categories("metrics")
       .doc("It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0].")
       .version("0.2.0")
       .doubleConf
@@ -2648,7 +2735,7 @@ object CelebornConf extends Logging {
   val METRICS_SLIDING_WINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.metrics.timer.slidingWindow.size")
       .withAlternative("rss.metrics.system.sliding.window.size")
-      .categories("master", "worker", "metrics")
+      .categories("metrics")
       .doc("The sliding window size of timer metric.")
       .version("0.2.0")
       .intConf
@@ -2657,7 +2744,7 @@ object CelebornConf extends Logging {
   val METRICS_COLLECT_CRITICAL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.collectPerfCritical.enabled")
       .withAlternative("rss.metrics.system.sample.perf.critical")
-      .categories("master", "worker", "metrics")
+      .categories("metrics")
       .doc("It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them.")
       .version("0.2.0")
       .booleanConf
@@ -2666,25 +2753,27 @@ object CelebornConf extends Logging {
   val METRICS_CAPACITY: ConfigEntry[Int] =
     buildConf("celeborn.metrics.capacity")
       .withAlternative("rss.inner.metrics.size")
-      .categories("master", "worker", "metrics")
+      .categories("metrics")
       .doc("The maximum number of metrics which a source can use to generate output strings.")
       .version("0.2.0")
       .intConf
       .createWithDefault(4096)
 
   val MASTER_PROMETHEUS_HOST: ConfigEntry[String] =
-    buildConf("celeborn.master.metrics.prometheus.host")
+    buildConf("celeborn.metrics.master.prometheus.host")
+      .withAlternative("celeborn.master.metrics.prometheus.host")
       .withAlternative("rss.master.prometheus.metric.host")
-      .categories("master", "metrics")
+      .categories("metrics")
       .doc("Master's Prometheus host.")
       .version("0.2.0")
       .stringConf
       .createWithDefault("0.0.0.0")
 
   val MASTER_PROMETHEUS_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.master.metrics.prometheus.port")
+    buildConf("celeborn.metrics.master.prometheus.port")
+      .withAlternative("celeborn.master.metrics.prometheus.port")
       .withAlternative("rss.master.prometheus.metric.port")
-      .categories("master", "metrics")
+      .categories("metrics")
       .doc("Master's Prometheus port.")
       .version("0.2.0")
       .intConf
@@ -2692,18 +2781,20 @@ object CelebornConf extends Logging {
       .createWithDefault(9098)
 
   val WORKER_PROMETHEUS_HOST: ConfigEntry[String] =
-    buildConf("celeborn.worker.metrics.prometheus.host")
+    buildConf("celeborn.metrics.worker.prometheus.host")
+      .withAlternative("celeborn.worker.metrics.prometheus.host")
       .withAlternative("rss.worker.prometheus.metric.host")
-      .categories("worker", "metrics")
+      .categories("metrics")
       .doc("Worker's Prometheus host.")
       .version("0.2.0")
       .stringConf
       .createWithDefault("0.0.0.0")
 
   val WORKER_PROMETHEUS_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.metrics.prometheus.port")
+    buildConf("celeborn.metrics.worker.prometheus.port")
+      .withAlternative("celeborn.worker.metrics.prometheus.port")
       .withAlternative("rss.worker.prometheus.metric.port")
-      .categories("worker", "metrics")
+      .categories("metrics")
       .doc("Worker's Prometheus port.")
       .version("0.2.0")
       .intConf
@@ -2770,7 +2861,8 @@ object CelebornConf extends Logging {
       .createOptional
 
   val SHUFFLE_FORCE_FALLBACK_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.shuffle.forceFallback.enabled")
+    buildConf("celeborn.client.shuffle.forceFallback.enabled")
+      .withAlternative("celeborn.shuffle.forceFallback.enabled")
       .withAlternative("rss.force.fallback")
       .categories("client")
       .version("0.2.0")
@@ -2779,7 +2871,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.shuffle.forceFallback.numPartitionsThreshold")
+    buildConf("celeborn.client.shuffle.forceFallback.numPartitionsThreshold")
+      .withAlternative("celeborn.shuffle.forceFallback.numPartitionsThreshold")
       .withAlternative("rss.max.partition.number")
       .categories("client")
       .version("0.2.0")
@@ -2789,7 +2882,8 @@ object CelebornConf extends Logging {
       .createWithDefault(500000)
 
   val SHUFFLE_MANAGER_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.shuffle.manager.port")
+    buildConf("celeborn.client.shuffle.manager.port")
+      .withAlternative("celeborn.shuffle.manager.port")
       .withAlternative("rss.driver.metaService.port")
       .categories("client")
       .version("0.2.0")
@@ -2829,7 +2923,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("readwrite,diskusage")
 
   val WORKER_DISK_MONITOR_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.monitor.disk.checkInterval")
+    buildConf("celeborn.worker.monitor.disk.check.interval")
+      .withAlternative("celeborn.worker.monitor.disk.checkInterval")
       .withAlternative("rss.disk.check.interval")
       .categories("worker")
       .version("0.2.0")
@@ -2874,7 +2969,8 @@ object CelebornConf extends Logging {
       .createWithDefault(3)
 
   val SHUFFLE_PARTITION_TYPE: ConfigEntry[String] =
-    buildConf("celeborn.shuffle.partition.type")
+    buildConf("celeborn.client.shuffle.partition.type")
+      .withAlternative("celeborn.shuffle.partition.type")
       .withAlternative("rss.partition.type")
       .categories("client")
       .doc("Type of shuffle's partition.")
@@ -2888,7 +2984,8 @@ object CelebornConf extends Logging {
       .createWithDefault(PartitionType.REDUCE.name)
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
-    buildConf("celeborn.shuffle.compression.codec")
+    buildConf("celeborn.client.shuffle.compression.codec")
+      .withAlternative("celeborn.shuffle.compression.codec")
       .withAlternative("rss.client.compression.codec")
       .categories("client")
       .doc("The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`.")
@@ -2899,7 +2996,8 @@ object CelebornConf extends Logging {
       .createWithDefault(CompressionCodec.LZ4.name)
 
   val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =
-    buildConf("celeborn.shuffle.compression.zstd.level")
+    buildConf("celeborn.client.shuffle.compression.zstd.level")
+      .withAlternative("celeborn.shuffle.compression.zstd.level")
       .withAlternative("rss.client.compression.zstd.level")
       .categories("client")
       .doc("Compression level for Zstd compression codec, its value should be an integer " +
@@ -2967,7 +3065,8 @@ object CelebornConf extends Logging {
       .createWithDefault(0.5)
 
   val WORKER_DIRECT_MEMORY_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.memory.checkInterval")
+    buildConf("celeborn.worker.monitor.memory.check.interval")
+      .withAlternative("celeborn.worker.memory.checkInterval")
       .withAlternative("rss.worker.memory.check.interval")
       .categories("worker")
       .doc("Interval of worker direct memory checking.")
@@ -2976,7 +3075,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("10ms")
 
   val WORKER_DIRECT_MEMORY_REPORT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.memory.reportInterval")
+    buildConf("celeborn.worker.monitor.memory.report.interval")
+      .withAlternative("celeborn.worker.memory.reportInterval")
       .withAlternative("rss.worker.memory.report.interval")
       .categories("worker")
       .doc("Interval of worker direct memory tracker reporting to log.")
@@ -2985,7 +3085,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("10s")
 
   val WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.memory.trimChannelWaitInterval")
+    buildConf("celeborn.worker.monitor.memory.trimChannelWaitInterval")
       .categories("worker")
       .doc("Wait time after worker trigger channel to trim cache.")
       .version("0.3.0")
@@ -2993,7 +3093,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("1s")
 
   val WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.memory.trimFlushWaitInterval")
+    buildConf("celeborn.worker.monitor.memory.trimFlushWaitInterval")
       .categories("worker")
       .doc("Wait time after worker trigger StorageManger to flush data.")
       .version("0.3.0")
@@ -3084,7 +3184,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("480s")
 
-  val WORKER_RECOVER_PATH: ConfigEntry[String] =
+  val WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverPath")
       .withAlternative("rss.worker.recoverPath")
       .categories("worker")
@@ -3105,16 +3205,18 @@ object CelebornConf extends Logging {
       .createWithDefaultString("120s")
 
   val HDFS_DIR: OptionalConfigEntry[String] =
-    buildConf("celeborn.storage.hdfs.dir")
+    buildConf("celeborn.worker.storage.hdfs.dir")
+      .withAlternative("celeborn.storage.hdfs.dir")
       .withAlternative("rss.worker.hdfs.dir")
-      .categories("worker", "client")
+      .categories("worker")
       .version("0.2.0")
       .doc("HDFS dir configuration for Celeborn to access HDFS.")
       .stringConf
       .createOptional
 
   val SHUFFLE_RANGE_READ_FILTER_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.shuffle.rangeReadFilter.enabled")
+    buildConf("celeborn.client.shuffle.rangeReadFilter.enabled")
+      .withAlternative("celeborn.shuffle.rangeReadFilter.enabled")
       .withAlternative("rss.range.read.filter.enabled")
       .categories("client")
       .version("0.2.0")
@@ -3123,7 +3225,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.shuffle.enabled")
+    buildConf("celeborn.columnarShuffle.enabled")
+      .withAlternative("celeborn.columnar.shuffle.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Whether to enable columnar-based shuffle.")
@@ -3131,7 +3234,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_BATCH_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.columnar.shuffle.batch.size")
+    buildConf("celeborn.columnarShuffle.batch.size")
+      .withAlternative("celeborn.columnar.shuffle.batch.size")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Vector batch size for columnar shuffle.")
@@ -3140,7 +3244,8 @@ object CelebornConf extends Logging {
       .createWithDefault(10000)
 
   val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.offHeap.enabled")
+    buildConf("celeborn.columnarShuffle.offHeap.enabled")
+      .withAlternative("celeborn.columnar.offHeap.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Whether to use off heap columnar vector.")
@@ -3148,7 +3253,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.shuffle.encoding.dictionary.enabled")
+    buildConf("celeborn.columnarShuffle.encoding.dictionary.enabled")
+      .withAlternative("celeborn.columnar.shuffle.encoding.dictionary.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Whether to use dictionary encoding for columnar-based shuffle data.")
@@ -3156,7 +3262,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_MAX_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.columnar.shuffle.encoding.dictionary.maxFactor")
+    buildConf("celeborn.columnarShuffle.encoding.dictionary.maxFactor")
+      .withAlternative("celeborn.columnar.shuffle.encoding.dictionary.maxFactor")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Max factor for dictionary size. The max dictionary size is " +
@@ -3166,7 +3273,8 @@ object CelebornConf extends Logging {
       .createWithDefault(0.3)
 
   val COLUMNAR_SHUFFLE_CODEGEN_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.columnar.shuffle.codegen.enabled")
+    buildConf("celeborn.columnarShuffle.codegen.enabled")
+      .withAlternative("celeborn.columnar.shuffle.codegen.enabled")
       .categories("columnar-shuffle")
       .version("0.2.0")
       .doc("Whether to use codegen for columnar-based shuffle.")
@@ -3174,7 +3282,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val RPC_CACHE_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.rpc.cache.size")
+    buildConf("celeborn.client.rpc.cache.size")
+      .withAlternative("celeborn.rpc.cache.size")
       .categories("client")
       .withAlternative("rss.rpc.cache.size")
       .version("0.2.0")
@@ -3183,7 +3292,8 @@ object CelebornConf extends Logging {
       .createWithDefault(256)
 
   val RPC_CACHE_CONCURRENCY_LEVEL: ConfigEntry[Int] =
-    buildConf("celeborn.rpc.cache.concurrencyLevel")
+    buildConf("celeborn.client.rpc.cache.concurrencyLevel")
+      .withAlternative("celeborn.rpc.cache.concurrencyLevel")
       .categories("client")
       .withAlternative("rss.rpc.cache.concurrent.level")
       .version("0.2.0")
@@ -3192,9 +3302,10 @@ object CelebornConf extends Logging {
       .createWithDefault(32)
 
   val RPC_CACHE_EXPIRE_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.rpc.cache.expireTime")
-      .categories("client")
+    buildConf("celeborn.client.rpc.cache.expireTime")
+      .withAlternative("celeborn.rpc.cache.expireTime")
       .withAlternative("rss.rpc.cache.expire")
+      .categories("client")
       .version("0.2.0")
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
@@ -3265,24 +3376,24 @@ object CelebornConf extends Logging {
       .createWithDefault(32)
 
   val MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
-    buildConf("celeborn.memory.allocator.share")
-      .categories("worker", "client")
+    buildConf("celeborn.network.memory.allocator.share")
+      .categories("network")
       .version("0.3.0")
       .doc("Whether to share memory allocator.")
       .booleanConf
       .createWithDefault(false)
 
   val MEMORY_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
-    buildConf("celeborn.memory.allocator.numArenas")
-      .categories("worker", "client")
+    buildConf("celeborn.network.memory.allocator.numArenas")
+      .categories("network")
       .version("0.3.0")
       .doc("Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2.")
       .intConf
       .createOptional
 
   val MEMORY_ALLOCATOR_VERBOSE_METRIC: ConfigEntry[Boolean] =
-    buildConf("celeborn.memory.allocator.verbose.metric")
-      .categories("worker", "client")
+    buildConf("celeborn.network.memory.allocator.verbose.metric")
+      .categories("network")
       .version("0.3.0")
       .doc("Weather to enable verbose metric for pooled allocator.")
       .booleanConf
@@ -3290,7 +3401,7 @@ object CelebornConf extends Logging {
 
   val METRICS_EXTRA_LABELS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.metrics.extraLabels")
-      .categories("master", "worker", "metrics")
+      .categories("metrics")
       .doc("If default metric labels are not enough, extra metric labels can be customized. " +
         "Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1`")
       .version("0.3.0")
@@ -3317,11 +3428,16 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val CLIENT_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.client.heartbeat.interval")
-      .categories("client", "worker")
+  val CHANNEL_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.heartbeat.interval")
+      .withAlternative("celeborn.client.heartbeat.interval")
+      .categories("network")
       .version("0.3.0")
-      .doc("the heartbeat interval between worker and client")
+      .doc("The heartbeat interval between worker and client. " +
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push and fetch data and should be configured in client side. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for worker replicate data to peer worker and should be configured in worker side.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
