@@ -50,7 +50,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.plugin.flink.config.PluginConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
 public class RemoteShuffleMasterTest {
@@ -208,12 +208,12 @@ public class RemoteShuffleMasterTest {
                 inputPartitionTypes,
                 resultPartitionTypes));
 
-    long numBytesPerGate =
-        FlinkUtils.byteStringValueAsBytes(configuration, PluginConf.MEMORY_PER_INPUT_GATE);
+    CelebornConf celebornConf = FlinkUtils.toCelebornConf(configuration);
+
+    long numBytesPerGate = celebornConf.memoryPerInputGate();
     long expectedInput = 2 * numBytesPerGate;
 
-    long numBytesPerResultPartition =
-        FlinkUtils.byteStringValueAsBytes(configuration, PluginConf.MEMORY_PER_RESULT_PARTITION);
+    long numBytesPerResultPartition = celebornConf.memoryPerPartition();
     long expectedOutput = 3 * numBytesPerResultPartition;
     MemorySize expected = new MemorySize(expectedInput + expectedOutput);
 

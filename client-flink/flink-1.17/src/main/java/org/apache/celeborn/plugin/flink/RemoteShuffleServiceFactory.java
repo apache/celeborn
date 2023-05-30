@@ -42,17 +42,13 @@ public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFac
         initializePreCreateShuffleEnvironment(shuffleEnvironmentContext);
     RemoteShuffleResultPartitionFactory resultPartitionFactory =
         new RemoteShuffleResultPartitionFactory(
-            parameters.configuration,
             parameters.celebornConf,
             parameters.resultPartitionManager,
             parameters.networkBufferPool,
             parameters.bufferSize);
     RemoteShuffleInputGateFactory inputGateFactory =
         new RemoteShuffleInputGateFactory(
-            parameters.configuration,
-            parameters.celebornConf,
-            parameters.networkBufferPool,
-            parameters.bufferSize);
+            parameters.celebornConf, parameters.networkBufferPool, parameters.bufferSize);
 
     return new RemoteShuffleEnvironment(
         parameters.networkBufferPool,

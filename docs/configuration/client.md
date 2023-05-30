@@ -22,10 +22,18 @@ license: |
 | celeborn.client.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.3.0 | 
 | celeborn.client.blacklistSlave.enabled | true | When true, Celeborn will add partition's peer worker into blacklist when push data to slave failed. | 0.3.0 | 
 | celeborn.client.closeIdleConnections | true | Whether client will close idle connections. | 0.3.0 | 
+| celeborn.client.compression.enabled | true | Whether to compress data in Flink plugin. | 0.3.0 | 
 | celeborn.client.excludedWorker.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.3.0 | 
 | celeborn.client.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.3.0 | 
 | celeborn.client.fetch.maxRetriesForEachReplica | 3 | Max retry times of fetch chunk on each replica | 0.3.0 | 
 | celeborn.client.fetch.timeout | 30s | Timeout for a task to fetch chunk. | 0.3.0 | 
+| celeborn.client.flink.inputGate.concurrentReadings | 2147483647 | Max concurrent reading channels for a input gate. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.flink.inputGate.memory | 33554432b | Memory reserved for a input gate. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.flink.partition.memory | 67108864b | Memory reserved for a partition. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.inputGate.minMemory | 8388608b | Min memory reserved for a InputGate. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.inputGate.supportFloatingBuffer | true | Whether to support floating buffer in Flink input gates. | 0.3.0 | 
+| celeborn.client.partition.minMemory | 8388608b | Min memory reserved for a partition. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.partition.supportFloatingBuffer | true | Whether to support floating buffer for result partitions. For Flink plugin only. | 0.3.0 | 
 | celeborn.client.push.blacklist.enabled | false | Whether to enable shuffle client-side push blacklist of workers. | 0.3.0 | 
 | celeborn.client.push.buffer.initial.size | 8k |  | 0.3.0 | 
 | celeborn.client.push.buffer.max.size | 64k | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. | 0.3.0 | 
@@ -69,7 +77,7 @@ license: |
 | celeborn.client.shuffle.batchHandleReleasePartition.enabled | true | When true, LifecycleManager will handle release partition request in batch. Otherwise, LifecycleManager will process release partition request immediately | 0.3.0 | 
 | celeborn.client.shuffle.batchHandleReleasePartition.interval | 5s | Interval for LifecycleManager to schedule handling release partition requests in batch. | 0.3.0 | 
 | celeborn.client.shuffle.batchHandleReleasePartition.threads | 8 | Threads number for LifecycleManager to handle release partition request in batch. | 0.3.0 | 
-| celeborn.client.shuffle.compression.codec | LZ4 | The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`. | 0.3.0 | 
+| celeborn.client.shuffle.compression.codec | LZ4 | The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`. For Flink plugin, use LZ4. | 0.3.0 | 
 | celeborn.client.shuffle.compression.zstd.level | 1 | Compression level for Zstd compression codec, its value should be an integer between -5 and 22. Increasing the compression level will result in better compression at the expense of more CPU and memory. | 0.3.0 | 
 | celeborn.client.shuffle.expired.checkInterval | 60s | Interval for client to check expired shuffles. | 0.3.0 | 
 | celeborn.client.shuffle.forceFallback.enabled | false | Whether force fallback shuffle to Spark's default. | 0.3.0 | 

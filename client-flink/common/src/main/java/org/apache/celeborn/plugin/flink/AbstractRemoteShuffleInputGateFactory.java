@@ -20,7 +20,6 @@ package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -32,8 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.plugin.flink.config.PluginConf;
-import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create RemoteShuffleInputGate. */
@@ -67,38 +64,30 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
   protected CelebornConf celebornConf;
 
   public AbstractRemoteShuffleInputGateFactory(
-      Configuration flinkConf,
-      CelebornConf conf,
-      NetworkBufferPool networkBufferPool,
-      int networkBufferSize) {
+      CelebornConf conf, NetworkBufferPool networkBufferPool, int networkBufferSize) {
     this.celebornConf = conf;
-    long configuredMemorySize =
-        FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MEMORY_PER_INPUT_GATE);
-    long minConfiguredMemorySize =
-        FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MIN_MEMORY_PER_GATE);
+    long configuredMemorySize = celebornConf.memoryPerInputGate();
+    long minConfiguredMemorySize = celebornConf.memoryPerInputGateMin();
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per input gate, please increase %s to at " + "least %s.",
-              PluginConf.MEMORY_PER_INPUT_GATE.name,
-              PluginConf.getValue(flinkConf, PluginConf.MIN_MEMORY_PER_GATE)));
+              CelebornConf.MEMORY_PER_INPUT_GATE().key(), celebornConf.memoryPerInputGate()));
     }
 
     this.numBuffersPerGate = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
-    this.supportFloatingBuffers =
-        FlinkUtils.stringValueAsBoolean(
-            flinkConf, PluginConf.SUPPORT_FLOATING_BUFFER_PER_INPUT_GATE);
+    this.supportFloatingBuffers = celebornConf.inputGateSupportFloatingBuffer();
     if (numBuffersPerGate < MIN_BUFFERS_PER_GATE) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per input gate, please increase %s to at "
                   + "least %d bytes.",
-              PluginConf.MEMORY_PER_INPUT_GATE.name, networkBufferSize * MIN_BUFFERS_PER_GATE));
+              CelebornConf.MEMORY_PER_INPUT_GATE().key(),
+              networkBufferSize * MIN_BUFFERS_PER_GATE));
     }
 
     this.networkBufferSize = networkBufferSize;
-    this.numConcurrentReading =
-        Integer.valueOf(PluginConf.getValue(flinkConf, PluginConf.NUM_CONCURRENT_READINGS));
+    this.numConcurrentReading = celebornConf.numConcurrentReading();
     this.networkBufferPool = networkBufferPool;
   }
 

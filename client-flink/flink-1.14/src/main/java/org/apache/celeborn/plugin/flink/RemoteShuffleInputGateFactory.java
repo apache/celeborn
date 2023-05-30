@@ -20,7 +20,6 @@ package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -33,11 +32,8 @@ import org.apache.celeborn.common.CelebornConf;
 public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGateFactory {
 
   public RemoteShuffleInputGateFactory(
-      Configuration flinkConf,
-      CelebornConf conf,
-      NetworkBufferPool networkBufferPool,
-      int networkBufferSize) {
-    super(flinkConf, conf, networkBufferPool, networkBufferSize);
+      CelebornConf conf, NetworkBufferPool networkBufferPool, int networkBufferSize) {
+    super(conf, networkBufferPool, networkBufferSize);
   }
 
   protected RemoteShuffleInputGate createInputGate(
