@@ -817,6 +817,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else {
+                  // StageEnd.
                   response.rewind();
                   pushState.onSuccess(loc.hostAndPushPort());
                   callback.onSuccess(response);
@@ -1203,9 +1204,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                 pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
               } else {
-                // Should not happen in current architecture.
+                // StageEnd.
                 response.rewind();
-                logger.error("Push merged data should not receive this response.");
                 pushState.onSuccess(hostPort);
                 callback.onSuccess(response);
               }
