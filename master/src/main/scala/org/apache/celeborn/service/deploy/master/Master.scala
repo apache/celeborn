@@ -113,7 +113,8 @@ private[celeborn] class Master(
   private def diskReserveSize = conf.workerDiskReserveSize
 
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
-  private val slotsAssignLoadAwareDiskGroupGradient = conf.masterSlotAssignLoadAwareDiskGroupGradient
+  private val slotsAssignLoadAwareDiskGroupGradient =
+    conf.masterSlotAssignLoadAwareDiskGroupGradient
   private val loadAwareFlushTimeWeight = conf.masterSlotAssignLoadAwareFlushTimeWeight
   private val loadAwareFetchTimeWeight = conf.masterSlotAssignLoadAwareFetchTimeWeight
 

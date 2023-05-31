@@ -663,7 +663,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val reserveSlotFailedWorkers = new ShuffleFailedWorkers()
     val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
     val workerPartitionLocations = slots.asScala.filter(p => !p._2._1.isEmpty || !p._2._2.isEmpty)
-    val parallelism = Math.min(Math.max(1, workerPartitionLocations.size), conf.clientRpcMaxParallelism)
+    val parallelism =
+      Math.min(Math.max(1, workerPartitionLocations.size), conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(workerPartitionLocations.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
         val res = requestWorkerReserveSlots(

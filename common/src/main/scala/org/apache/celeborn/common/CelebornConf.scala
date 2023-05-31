@@ -485,7 +485,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
-  def masterSlotAssignPolicy: SlotsAssignPolicy = SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
+  def masterSlotAssignPolicy: SlotsAssignPolicy =
+    SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
   def masterSlotAssignLoadAwareDiskGroupNum: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def masterSlotAssignLoadAwareDiskGroupGradient: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
@@ -621,7 +622,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
 
-
   // //////////////////////////////////////////////////////
   //                 Metrics System                      //
   // //////////////////////////////////////////////////////
@@ -681,7 +681,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientRpcCacheSize: Int = get(CLIENT_RPC_CACHE_SIZE)
   def clientRpcCacheConcurrencyLevel: Int = get(CLIENT_RPC_CACHE_CONCURRENCY_LEVEL)
   def clientRpcReserveSlotsRpcTimeout: RpcTimeout =
-    new RpcTimeout(get(CLIENT_RESERVE_SLOTS_RPC_TIMEOUT).milli, CLIENT_RESERVE_SLOTS_RPC_TIMEOUT.key)
+    new RpcTimeout(
+      get(CLIENT_RESERVE_SLOTS_RPC_TIMEOUT).milli,
+      CLIENT_RESERVE_SLOTS_RPC_TIMEOUT.key)
 
   def clientRpcRegisterShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
@@ -716,7 +718,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushMaxReviveTimes: Int = get(CLIENT_PUSH_MAX_REVIVE_TIMES)
   def clientPushSortMemoryThreshold: Long = get(CLIENT_PUSH_SORT_MEMORY_THRESHOLD)
   def clientPushSortPipelineEnabled: Boolean = get(CLIENT_PUSH_SORT_PIPELINE_ENABLED)
-  def clientPushSortRandomizePartitionIdEnabled: Boolean = get(CLIENT_PUSH_SORT_RANDOMIZE_PARITION_ENABLED)
+  def clientPushSortRandomizePartitionIdEnabled: Boolean =
+    get(CLIENT_PUSH_SORT_RANDOMIZE_PARITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
   def clientPushStageEndTimeout: Long = get(CLIENT_PUSH_STAGE_END_TIMEOUT)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
@@ -726,9 +729,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushSlowStartMaxSleepMills: Long = get(CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME)
   def clientPushLimitInFlightTimeoutMs: Long =
     if (clientPushReplicateEnabled) {
-      get(CLIENT_PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * clientPushMaxReviveTimes * 4)
+      get(CLIENT_PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(
+        pushDataTimeoutMs * clientPushMaxReviveTimes * 4)
     } else {
-      get(CLIENT_PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(pushDataTimeoutMs * clientPushMaxReviveTimes * 2)
+      get(CLIENT_PUSH_LIMIT_IN_FLIGHT_TIMEOUT).getOrElse(
+        pushDataTimeoutMs * clientPushMaxReviveTimes * 2)
     }
   def clientPushLimitInFlightSleepDeltaMs: Long = get(CLIENT_PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def clientPushSplitPartitionThreads: Int = get(CLIENT_PUSH_SPLIT_PARTITION_THREADS)
@@ -745,23 +750,27 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def shuffleManagerPort: Int = get(CLIENT_SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
-  def shufflePartitionSplitMode: PartitionSplitMode = PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
+  def shufflePartitionSplitMode: PartitionSplitMode =
+    PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
   def batchHandleChangePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
   def batchHandleChangePartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS)
-  def batchHandleChangePartitionRequestInterval: Long = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
+  def batchHandleChangePartitionRequestInterval: Long =
+    get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_INTERVAL)
   def batchHandleCommitPartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_COMMIT_PARTITION_ENABLED)
   def batchHandleCommitPartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_COMMIT_PARTITION_THREADS)
-  def batchHandleCommitPartitionRequestInterval: Long = get(CLIENT_BATCH_HANDLED_COMMIT_PARTITION_INTERVAL)
-  def batchHandleReleasePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_RELEASE_PARTITION_ENABLED)
-  def batchHandleReleasePartitionNumThreads: Int = get(CLIENT_BATCH_HANDLE_RELEASE_PARTITION_THREADS)
+  def batchHandleCommitPartitionRequestInterval: Long =
+    get(CLIENT_BATCH_HANDLED_COMMIT_PARTITION_INTERVAL)
+  def batchHandleReleasePartitionEnabled: Boolean =
+    get(CLIENT_BATCH_HANDLE_RELEASE_PARTITION_ENABLED)
+  def batchHandleReleasePartitionNumThreads: Int =
+    get(CLIENT_BATCH_HANDLE_RELEASE_PARTITION_THREADS)
   def batchHandleReleasePartitionRequestInterval: Long =
     get(CLIENT_BATCH_HANDLED_RELEASE_PARTITION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                       Worker                        //
   // //////////////////////////////////////////////////////
-
 
   /**
    * @return workingDir, usable space, flusher thread count, disk type
@@ -843,10 +852,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def workerGracefulShutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
-  def workerGracefulShutdownCheckSlotsFinishedInterval: Long = get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
-  def workerGracefulShutdownCheckSlotsFinishedTimeoutMs: Long = get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
+  def workerGracefulShutdownCheckSlotsFinishedInterval: Long =
+    get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
+  def workerGracefulShutdownCheckSlotsFinishedTimeoutMs: Long =
+    get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
   def workerGracefulShutdownRecoverPath: String = get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH)
-  def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long = get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
+  def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
+    get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
 
   // //////////////////////////////////////////////////////

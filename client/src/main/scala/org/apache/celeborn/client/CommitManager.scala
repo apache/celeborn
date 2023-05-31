@@ -113,7 +113,8 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
 
                     if (workerToRequests.nonEmpty) {
                       val commitFilesFailedWorkers = new ShuffleFailedWorkers()
-                      val parallelism = Math.min(workerToRequests.size, conf.clientRpcMaxParallelism)
+                      val parallelism =
+                        Math.min(workerToRequests.size, conf.clientRpcMaxParallelism)
                       try {
                         ThreadUtils.parmap(
                           workerToRequests.to,

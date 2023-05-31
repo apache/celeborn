@@ -94,7 +94,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
-    this.partitionSorterShutdownAwaitTime = conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
+    this.partitionSorterShutdownAwaitTime =
+        conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.source = source;
     this.memoryManager = memoryManager;
     this.gracefulShutdown = conf.workerGracefulShutdown();
