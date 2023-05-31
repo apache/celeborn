@@ -1260,6 +1260,18 @@ public class ShuffleClientImpl extends ShuffleClient {
                           cause,
                           groupedBatchId,
                           finalRemainReviveTimes));
+            } else {
+              pushState.removeBatch(groupedBatchId, hostPort);
+              logger.info(
+                  "Push merged data to {} failed but mapper already ended for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}, remain revive times {}.",
+                  hostPort,
+                  shuffleId,
+                  mapId,
+                  attemptId,
+                  Arrays.toString(partitionIds),
+                  groupedBatchId,
+                  Arrays.toString(batchIds),
+                  remainReviveTimes);
             }
           }
         };
