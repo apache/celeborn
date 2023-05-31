@@ -71,6 +71,8 @@ function main {
   CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dorg.apache.jasper.compiler.disablejsr199=true"
   CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Djava.net.preferIPv4Stack=true"
   CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Dorg.apache.ratis.thirdparty.io.netty.allocator.useCacheForAllThreads=false"
+  # Netty is supported by default
+  CELEBORN_RATIS_SHELL_JAVA_OPTS+=" -Draft.rpc.type=NETTY"
 
   PARAMETER=""
 
