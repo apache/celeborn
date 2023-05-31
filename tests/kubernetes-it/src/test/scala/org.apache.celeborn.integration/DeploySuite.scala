@@ -27,20 +27,18 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.client.WithShuffleClientSuite
 
 class DeploySuite extends CelebornFunSuite with WithMiniKube with WithShuffleClientSuite {
-  final val masterPod = kubernetesClient.pods().withName("celeborn-master-0").get()
-
-  celebornConf.set("celeborn.master.endpoints", s"${masterPod.getStatus.getPodIP}:9097")
-    .set("celeborn.push.replicate.enabled", "false")
-
-  test("Check Deploy Celeborn") {
-    val masterStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-master").get()
-    assert(masterStatefulSet != null)
-    val workerStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
-    assert(workerStatefulSet != null)
-    eventually(timeout(5 minutes), interval(30 seconds)) {
-      val log =
-        kubernetesClient.pods().withName(s"${masterStatefulSet.getMetadata.getName}-0").getLog(true)
-      assert(log.contains("Master started."))
-    }
+  final val masterStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-master").get()
+  assert(masterStatefulSet != null)
+  final val workerStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
+  assert(workerStatefulSet != null)
+  final val masterPod = kubernetesClient.pods().withName("celeborn-master-0")
+  // wait master start
+  eventually(timeout(5 minutes), interval(30 seconds)) {
+    val log =
+      masterPod.getLog(true)
+    assert(log.contains("Master started."))
   }
+
+  celebornConf.set("celeborn.master.endpoints", s"${masterPod.get().getStatus.getPodIP}:9097")
+    .set("celeborn.push.replicate.enabled", "false")
 }
