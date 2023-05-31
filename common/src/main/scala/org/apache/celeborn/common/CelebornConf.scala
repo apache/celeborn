@@ -3487,7 +3487,7 @@ object CelebornConf extends Logging {
       .createWithDefault(8 * 1024 * 1024)
 
   val NUM_CONCURRENT_READINGS: ConfigEntry[Int] =
-    buildConf("celeborn.client.flink.inputGate.concurrentReadings")
+    buildConf("celeborn.client.inputGate.concurrentReadings")
       .withAlternative("remote-shuffle.job.concurrent-readings-per-gate")
       .categories("client")
       .version("0.3.0")
@@ -3496,7 +3496,7 @@ object CelebornConf extends Logging {
       .createWithDefault(Int.MaxValue)
 
   val MEMORY_PER_PARTITION: ConfigEntry[Long] =
-    buildConf("celeborn.client.flink.partition.memory")
+    buildConf("celeborn.client.partition.memory")
       .withAlternative("remote-shuffle.job.memory-per-partition")
       .categories("client")
       .version("0.3.0")
@@ -3505,7 +3505,7 @@ object CelebornConf extends Logging {
       .createWithDefault(64 * 1024 * 1024)
 
   val MEMORY_PER_INPUT_GATE: ConfigEntry[Long] =
-    buildConf("celeborn.client.flink.inputGate.memory")
+    buildConf("celeborn.client.inputGate.memory")
       .withAlternative("remote-shuffle.job.memory-per-gate")
       .categories("client")
       .version("0.3.0")
