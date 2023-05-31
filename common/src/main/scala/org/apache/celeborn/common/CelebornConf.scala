@@ -2652,18 +2652,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.stageEnd.timeout")
-      .withAlternative("celeborn.push.stageEnd.timeout")
-      .withAlternative("rss.stage.end.timeout")
-      .categories("client")
-      .doc(s"Timeout for waiting StageEnd. " +
-        s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
-        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
-        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
-      .version("0.3.0")
-      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
-
   val CLIENT_PUSH_LIMIT_STRATEGY: ConfigEntry[String] =
     buildConf("celeborn.client.push.limit.strategy")
       .categories("client")
@@ -3127,6 +3115,18 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(v => v > 0, "value must be positive")
       .createWithDefault(2)
+
+  val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.stageEnd.timeout")
+      .withAlternative("celeborn.push.stageEnd.timeout")
+      .withAlternative("rss.stage.end.timeout")
+      .categories("client")
+      .doc(s"Timeout for waiting StageEnd. " +
+        s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
+        s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
+        s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
+      .version("0.3.0")
+      .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
   val CLIENT_RPC_MAX_PARALLELISM: ConfigEntry[Int] =
     buildConf("celeborn.client.rpc.maxParallelism")
