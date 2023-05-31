@@ -28,11 +28,11 @@ license: |
 | celeborn.client.fetch.maxRetriesForEachReplica | 3 | Max retry times of fetch chunk on each replica | 0.3.0 | 
 | celeborn.client.fetch.timeout | 30s | Timeout for a task to fetch chunk. | 0.3.0 | 
 | celeborn.client.inputGate.concurrentReadings | 2147483647 | Max concurrent reading channels for a input gate. For Flink plugin only. | 0.3.0 | 
-| celeborn.client.inputGate.memory | 33554432b | Memory reserved for a input gate. For Flink plugin only. | 0.3.0 | 
-| celeborn.client.inputGate.minMemory | 8388608b | Min memory reserved for a InputGate. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.inputGate.memory | 32m | Memory reserved for a input gate. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.inputGate.minMemory | 8m | Min memory reserved for a InputGate. For Flink plugin only. | 0.3.0 | 
 | celeborn.client.inputGate.supportFloatingBuffer | true | Whether to support floating buffer in Flink input gates. | 0.3.0 | 
-| celeborn.client.partition.memory | 67108864b | Memory reserved for a partition. For Flink plugin only. | 0.3.0 | 
-| celeborn.client.partition.minMemory | 8388608b | Min memory reserved for a partition. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.partition.memory | 64m | Memory reserved for a partition. For Flink plugin only. | 0.3.0 | 
+| celeborn.client.partition.minMemory | 8m | Min memory reserved for a partition. For Flink plugin only. | 0.3.0 | 
 | celeborn.client.partition.supportFloatingBuffer | true | Whether to support floating buffer for result partitions. For Flink plugin only. | 0.3.0 | 
 | celeborn.client.push.blacklist.enabled | false | Whether to enable shuffle client-side push blacklist of workers. | 0.3.0 | 
 | celeborn.client.push.buffer.initial.size | 8k |  | 0.3.0 | 
