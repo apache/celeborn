@@ -3475,7 +3475,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Min memory reserved for a partition. For Flink plugin only.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefault(8 * 1024 * 1024)
+      .createWithDefaultString("8m")
 
   val MEMORY_PER_INPUT_GATE_MIN: ConfigEntry[Long] =
     buildConf("celeborn.client.inputGate.minMemory")
@@ -3484,7 +3484,7 @@ object CelebornConf extends Logging {
       .doc("Min memory reserved for a InputGate. For Flink plugin only.")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefault(8 * 1024 * 1024)
+      .createWithDefaultString("8m")
 
   val NUM_CONCURRENT_READINGS: ConfigEntry[Int] =
     buildConf("celeborn.client.inputGate.concurrentReadings")
@@ -3502,7 +3502,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Memory reserved for a partition. For Flink plugin only.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefault(64 * 1024 * 1024)
+      .createWithDefaultString("64m")
 
   val MEMORY_PER_INPUT_GATE: ConfigEntry[Long] =
     buildConf("celeborn.client.inputGate.memory")
@@ -3511,7 +3511,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Memory reserved for a input gate. For Flink plugin only.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefault(32 * 1024 * 1024)
+      .createWithDefaultString("32m")
 
   val INPUT_GATE_SUPPORT_FLOATING_BUFFER: ConfigEntry[Boolean] =
     buildConf("celeborn.client.inputGate.supportFloatingBuffer")
