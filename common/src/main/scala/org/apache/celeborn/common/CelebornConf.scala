@@ -687,6 +687,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def rpcCacheConcurrencyLevel: Int = get(RPC_CACHE_CONCURRENCY_LEVEL)
   def rpcCacheExpireTime: Long = get(RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs = get(PUSH_DATA_TIMEOUT)
+  def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
 
   def registerShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
@@ -2800,4 +2801,13 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
+
+  val CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.push.unsafeRow.fastWrite.enabled")
+      .categories("client")
+      .version("0.2.2")
+      .doc("This is Celeborn's optimization on UnsafeRow for Spark and it's true by default. " +
+        "If you have changed UnsafeRow's memory layout set this to false.")
+      .booleanConf
+      .createWithDefault(true)
 }

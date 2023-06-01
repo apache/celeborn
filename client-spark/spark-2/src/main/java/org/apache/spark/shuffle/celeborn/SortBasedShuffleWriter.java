@@ -86,6 +86,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
    */
   private volatile boolean stopping = false;
 
+  private boolean unsafeRowFastWrite;
+
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public SortBasedShuffleWriter(
@@ -107,6 +109,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = numMappers;
     this.numPartitions = dep.partitioner().numPartitions();
     this.rssShuffleClient = client;
+    unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
@@ -154,7 +157,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @VisibleForTesting
   boolean canUseFastWrite() {
-    return dep.serializer() instanceof UnsafeRowSerializer
+    return unsafeRowFastWrite
+        && dep.serializer() instanceof UnsafeRowSerializer
         && partitioner instanceof PartitionIdPassthrough;
   }
 

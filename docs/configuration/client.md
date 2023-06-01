@@ -37,6 +37,7 @@ license: |
 | celeborn.push.sortMemory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.2.0 | 
 | celeborn.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.2.0 | 
 | celeborn.push.stageEnd.timeout | &lt;undefined&gt; | Timeout for waiting StageEnd. Default value should be `celeborn.rpc.askTimeout * (celeborn.rpc.requestCommitFiles.maxRetries + 1)`. | 0.2.0 | 
+| celeborn.push.unsafeRow.fastWrite.enabled | true | This is Celeborn's optimization on UnsafeRow for Spark and it's true by default. If you have changed UnsafeRow's memory layout set this to false. | 0.2.2 | 
 | celeborn.rpc.cache.concurrencyLevel | 32 | The number of write locks to update rpc cache. | 0.2.0 | 
 | celeborn.rpc.cache.expireTime | 15s | The time before a cache item is removed. | 0.2.0 | 
 | celeborn.rpc.cache.size | 256 | The max cache items count for rpc cache. | 0.2.0 | 

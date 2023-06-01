@@ -80,6 +80,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final long[] mapStatusRecords;
   private final long[] tmpRecords;
 
+  private boolean unsafeRowFastWrite;
+
   /**
    * Are we in the process of stopping? Because map tasks can call stop() with success = true and
    * then call stop() with success = false if they get an exception, we want to make sure we don't
@@ -109,6 +111,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = numMappers;
     this.numPartitions = dep.partitioner().numPartitions();
     this.rssShuffleClient = client;
+    unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
@@ -157,7 +160,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @VisibleForTesting
   boolean canUseFastWrite() {
     boolean keyIsPartitionId = false;
-    if (dep.serializer() instanceof UnsafeRowSerializer) {
+    if (unsafeRowFastWrite && dep.serializer() instanceof UnsafeRowSerializer) {
       // SPARK-39391 renames PartitionIdPassthrough's package
       String partitionerClassName = partitioner.getClass().getSimpleName();
       keyIsPartitionId = "PartitionIdPassthrough".equals(partitionerClassName);
