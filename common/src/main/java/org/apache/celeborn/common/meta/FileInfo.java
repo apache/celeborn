@@ -114,11 +114,11 @@ public class FileInfo {
     return getBytesFlushed();
   }
 
-  public long getBytesFlushed() {
+  public synchronized long getBytesFlushed() {
     return bytesFlushed;
   }
 
-  public long updateBytesFlushed(int numBytes) {
+  public synchronized long updateBytesFlushed(int numBytes) {
     bytesFlushed += numBytes;
     return bytesFlushed;
   }
