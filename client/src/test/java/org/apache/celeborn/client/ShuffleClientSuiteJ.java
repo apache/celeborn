@@ -175,8 +175,8 @@ public class ShuffleClientSuiteJ {
   private CelebornConf setupEnv(CompressionCodec codec) throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), codec.name());
-    conf.set(CelebornConf.PUSH_RETRY_THREADS().key(), "1");
-    conf.set(CelebornConf.PUSH_BUFFER_MAX_SIZE().key(), "1K");
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_THREADS().key(), "1");
+    conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1K");
     shuffleClient = new ShuffleClientImpl(conf, new UserIdentifier("mock", "mock"));
 
     masterLocation.setPeer(slaveLocation);

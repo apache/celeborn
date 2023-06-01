@@ -122,8 +122,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.mapStatusRecords = new long[numPartitions];
     tmpRecords = new long[numPartitions];
 
-    pushBufferMaxSize = conf.pushBufferMaxSize();
-    pipelined = conf.pushSortPipelineEnabled();
+    pushBufferMaxSize = conf.clientPushBufferMaxSize();
+    pipelined = conf.clientPushSortPipelineEnabled();
 
     if (pipelined) {
       for (int i = 0; i < pushers.length; i++) {
@@ -141,7 +141,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 conf,
                 writeMetrics::incBytesWritten,
                 mapStatusLengths,
-                conf.pushSortMemoryThreshold() / 2,
+                conf.clientPushSortMemoryThreshold() / 2,
                 globalPushLock,
                 executorService);
       }
@@ -161,7 +161,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               conf,
               writeMetrics::incBytesWritten,
               mapStatusLengths,
-              conf.pushSortMemoryThreshold(),
+              conf.clientPushSortMemoryThreshold(),
               globalPushLock,
               null);
     }

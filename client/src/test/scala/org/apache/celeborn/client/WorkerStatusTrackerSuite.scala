@@ -23,7 +23,7 @@ import org.junit.Assert
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.WORKER_EXCLUDED_EXPIRE_TIMEOUT
+import org.apache.celeborn.common.CelebornConf.CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -32,7 +32,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
   test("handleHeartbeatResponse") {
     val celebornConf = new CelebornConf()
-    celebornConf.set(WORKER_EXCLUDED_EXPIRE_TIMEOUT, 2000L);
+    celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L);
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()

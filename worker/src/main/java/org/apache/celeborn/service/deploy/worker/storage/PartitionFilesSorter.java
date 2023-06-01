@@ -94,7 +94,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
-    this.partitionSorterShutdownAwaitTime = conf.partitionSorterCloseAwaitTimeMs();
+    this.partitionSorterShutdownAwaitTime =
+        conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.source = source;
     this.memoryManager = memoryManager;
     this.gracefulShutdown = conf.workerGracefulShutdown();
@@ -102,7 +103,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (gracefulShutdown) {
       try {
-        String recoverPath = conf.workerRecoverPath();
+        String recoverPath = conf.workerGracefulShutdownRecoverPath();
         this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
         reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);

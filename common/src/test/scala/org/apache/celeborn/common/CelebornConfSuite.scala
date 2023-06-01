@@ -169,13 +169,13 @@ class CelebornConfSuite extends CelebornFunSuite {
 
     assert(conf.rpcAskTimeout.duration.toMillis == 1000L)
     assert(conf.masterClientRpcAskTimeout.duration.toMillis == 1000L)
-    assert(conf.reserveSlotsRpcTimeout.duration.toMillis == 1000L)
+    assert(conf.clientRpcReserveSlotsRpcTimeout.duration.toMillis == 1000L)
     assert(conf.networkTimeout.duration.toMillis == 20000L)
     assert(conf.networkIoConnectionTimeoutMs("data") == 20000L)
-    assert(conf.pushStageEndTimeout == 20000L)
-    assert(conf.registerShuffleRpcAskTimeout.duration.toMillis == 20000L)
-    assert(conf.requestPartitionLocationRpcAskTimeout.duration.toMillis == 20000L)
-    assert(conf.getReducerFileGroupRpcAskTimeout.duration.toMillis == 20000L)
+    assert(conf.clientPushStageEndTimeout == 20000L)
+    assert(conf.clientRpcRegisterShuffleRpcAskTimeout.duration.toMillis == 20000L)
+    assert(conf.clientRpcRequestPartitionLocationRpcAskTimeout.duration.toMillis == 20000L)
+    assert(conf.clientRpcGetReducerFileGroupRpcAskTimeout.duration.toMillis == 20000L)
     assert(conf.networkConnectTimeout.duration.toMillis == 2000L)
     assert(conf.networkIoConnectTimeoutMs("data") == 2000L)
   }

@@ -74,8 +74,8 @@ public class DataPusher {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths)
       throws InterruptedException {
-    final int pushQueueCapacity = conf.pushQueueCapacity();
-    final int pushBufferMaxSize = conf.pushBufferMaxSize();
+    final int pushQueueCapacity = conf.clientPushQueueCapacity();
+    final int pushBufferMaxSize = conf.clientPushBufferMaxSize();
 
     idleQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
     dataPushQueue =

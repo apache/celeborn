@@ -39,7 +39,7 @@ public interface Compressor {
 
   static Compressor getCompressor(CelebornConf conf) {
     CompressionCodec codec = conf.shuffleCompressionCodec();
-    int blockSize = conf.pushBufferMaxSize();
+    int blockSize = conf.clientPushBufferMaxSize();
     switch (codec) {
       case LZ4:
         return new RssLz4Compressor(blockSize);

@@ -146,13 +146,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     super();
     this.conf = conf;
     this.userIdentifier = userIdentifier;
-    registerShuffleMaxRetries = conf.registerShuffleMaxRetry();
-    registerShuffleRetryWaitMs = conf.registerShuffleRetryWaitMs();
-    maxReviveTimes = conf.pushMaxReviveTimes();
+    registerShuffleMaxRetries = conf.clientRegisterShuffleMaxRetry();
+    registerShuffleRetryWaitMs = conf.clientRegisterShuffleRetryWaitMs();
+    maxReviveTimes = conf.clientPushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
-    pushBufferMaxSize = conf.pushBufferMaxSize();
-    shuffleClientPushBlacklistEnabled = conf.shuffleClientPushBlacklistEnabled();
-    if (conf.pushReplicateEnabled()) {
+    pushBufferMaxSize = conf.clientPushBufferMaxSize();
+    shuffleClientPushBlacklistEnabled = conf.clientPushBlacklistEnabled();
+    if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
       pushDataTimeout = conf.pushDataTimeoutMs();
@@ -169,11 +169,11 @@ public class ShuffleClientImpl extends ShuffleClient {
             dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
     dataClientFactory = context.createClientFactory();
 
-    int pushDataRetryThreads = conf.pushRetryThreads();
+    int pushDataRetryThreads = conf.clientPushRetryThreads();
     pushDataRetryPool =
         ThreadUtils.newDaemonCachedThreadPool("celeborn-retry-sender", pushDataRetryThreads, 60);
 
-    int pushSplitPartitionThreads = conf.pushSplitPartitionThreads();
+    int pushSplitPartitionThreads = conf.clientPushSplitPartitionThreads();
     partitionSplitPool =
         ThreadUtils.newDaemonCachedThreadPool(
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
@@ -377,7 +377,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         () ->
             driverRssMetaService.askSync(
                 RegisterShuffle$.MODULE$.apply(appId, shuffleId, numMappers, numPartitions),
-                conf.registerShuffleRpcAskTimeout(),
+                conf.clientRpcRegisterShuffleRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
 
@@ -401,7 +401,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 driverRssMetaService.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
                         appId, shuffleId, numMappers, mapId, attemptId, partitionId),
-                    conf.registerShuffleRpcAskTimeout(),
+                    conf.clientRpcRegisterShuffleRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
 
     if (partitionLocationMap == null) {
@@ -579,7 +579,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   epoch,
                   oldLocation,
                   cause),
-              conf.requestPartitionLocationRpcAskTimeout(),
+              conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
       // per partitionKey only serve single PartitionLocation in Client Cache.
       StatusCode respStatus = Utils.toStatusCode(response.getStatus());
@@ -1394,7 +1394,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         GetReducerFileGroupResponse response =
             driverRssMetaService.askSync(
                 getReducerFileGroup,
-                conf.getReducerFileGroupRpcAskTimeout(),
+                conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
 
         if (response.status() == StatusCode.SUCCESS) {

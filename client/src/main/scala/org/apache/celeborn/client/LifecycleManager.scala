@@ -57,10 +57,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   private val lifecycleHost = Utils.localHostName
 
   private val shuffleExpiredCheckIntervalMs = conf.shuffleExpiredCheckIntervalMs
-  private val pushReplicateEnabled = conf.pushReplicateEnabled
-  private val pushRackAwareEnabled = conf.reserveSlotsRackAwareEnabled
-  private val partitionSplitThreshold = conf.partitionSplitThreshold
-  private val partitionSplitMode = conf.partitionSplitMode
+  private val pushReplicateEnabled = conf.clientPushReplicateEnabled
+  private val pushRackAwareEnabled = conf.clientReserveSlotsRackAwareEnabled
+  private val partitionSplitThreshold = conf.shufflePartitionSplitThreshold
+  private val partitionSplitMode = conf.shufflePartitionSplitMode
   // shuffle id -> partition type
   private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
@@ -427,7 +427,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
-    val parallelism = Math.min(Math.max(1, slots.size()), conf.rpcMaxParallelism)
+    val parallelism = Math.min(Math.max(1, slots.size()), conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(slots.asScala.to, "InitWorkerRef", parallelism) { case (workerInfo, _) =>
       try {
         workerInfo.endpoint =
@@ -663,7 +663,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     val reserveSlotFailedWorkers = new ShuffleFailedWorkers()
     val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
     val workerPartitionLocations = slots.asScala.filter(p => !p._2._1.isEmpty || !p._2._2.isEmpty)
-    val parallelism = Math.min(Math.max(1, workerPartitionLocations.size), conf.rpcMaxParallelism)
+    val parallelism =
+      Math.min(Math.max(1, workerPartitionLocations.size), conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(workerPartitionLocations.to, "ReserveSlot", parallelism) {
       case (workerInfo, (masterLocations, slaveLocations)) =>
         val res = requestWorkerReserveSlots(
@@ -826,8 +827,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       slots: WorkerResource,
       updateEpoch: Boolean = true): Boolean = {
     var requestSlots = slots
-    val reserveSlotsMaxRetries = conf.reserveSlotsMaxRetries
-    val reserveSlotsRetryWait = conf.reserveSlotsRetryWait
+    val reserveSlotsMaxRetries = conf.clientReserveSlotsMaxRetries
+    val reserveSlotsRetryWait = conf.clientReserveSlotsRetryWait
     var retryTimes = 1
     var noAvailableSlots = false
     var success = false
@@ -985,7 +986,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       shuffleId: Int,
       slotsToDestroy: WorkerResource): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    val parallelism = Math.min(Math.max(1, slotsToDestroy.size()), conf.rpcMaxParallelism)
+    val parallelism = Math.min(Math.max(1, slotsToDestroy.size()), conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(
       slotsToDestroy.asScala,
       "DestroySlot",
@@ -1064,7 +1065,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       message: ReserveSlots): ReserveSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
-      endpoint.askSync[ReserveSlotsResponse](message, conf.reserveSlotsRpcTimeout)
+      endpoint.askSync[ReserveSlotsResponse](message, conf.clientRpcReserveSlotsRpcTimeout)
     } catch {
       case e: Exception =>
         val msg = s"Exception when askSync ReserveSlots for $shuffleKey " +
