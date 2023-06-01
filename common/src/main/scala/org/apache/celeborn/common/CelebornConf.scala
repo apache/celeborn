@@ -722,6 +722,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
   def clientPushStageEndTimeout: Long = get(CLIENT_PUSH_STAGE_END_TIMEOUT)
+  def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
@@ -3488,4 +3489,13 @@ object CelebornConf extends Logging {
       .doc("Whether to use codegen for columnar-based shuffle.")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.push.unsafeRow.fastWrite.enabled")
+      .categories("client")
+      .version("0.2.2")
+      .doc("This is Celeborn's optimization on UnsafeRow for Spark and it's true by default. " +
+        "If you have changed UnsafeRow's memory layout set this to false.")
+      .booleanConf
+      .createWithDefault(true)
 }
