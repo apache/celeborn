@@ -118,7 +118,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = numMappers;
     this.numPartitions = dep.partitioner().numPartitions();
     this.rssShuffleClient = client;
-    unsafeRowFastWrite = conf.pushUnsafeRowFastWrite();
+    unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
     serOutputStream = serializer.serializeStream(serBuffer);
@@ -130,7 +130,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     tmpRecords = new long[numPartitions];
 
-    pushBufferMaxSize = conf.clientPushUnsafeRowFastWrite();
+    pushBufferMaxSize = conf.clientPushBufferMaxSize();
     pipelined = conf.clientPushSortPipelineEnabled();
 
     if (pipelined) {
