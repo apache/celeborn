@@ -94,10 +94,10 @@ resources:
   master:
     limits:
       cpu: 100m
-      memory: 128Mi
+      memory: 800Mi
     requests:
       cpu: 100m
-      memory: 128Mi
+      memory: 800Mi
   worker:
     limits:
       cpu: 100m

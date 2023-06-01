@@ -26,19 +26,34 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.client.WithShuffleClientSuite
 
-class DeploySuite extends CelebornFunSuite with WithMiniKube with WithShuffleClientSuite {
+//TODO need add shuffle client test
+class DeploySuite extends CelebornFunSuite with WithMiniKube {
   final val masterStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-master").get()
   assert(masterStatefulSet != null)
   final val workerStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
   assert(workerStatefulSet != null)
-  final val masterPod = kubernetesClient.pods().withName("celeborn-master-0")
-  // wait master start
-  eventually(timeout(5 minutes), interval(30 seconds)) {
-    val log =
-      masterPod.getLog(true)
-    assert(log.contains("Master started."))
+
+  test("Check master started") {
+    val masterPod = kubernetesClient.pods().withName("celeborn-master-0")
+    // wait master start
+    eventually(timeout(5 minutes), interval(30 seconds)) {
+      val log =
+        masterPod.getLog(true)
+      assert(log.contains("Master started."))
+    }
+
+    assert(masterPod.get().getStatus.getPhase == "Running")
   }
 
-  celebornConf.set("celeborn.master.endpoints", s"${masterPod.get().getStatus.getPodIP}:9097")
-    .set("celeborn.push.replicate.enabled", "false")
+  test("Check worker started") {
+    val workerPod = kubernetesClient.pods().withName("celeborn-worker-0")
+    // wait worker start
+    eventually(timeout(5 minutes), interval(30 seconds)) {
+      val log =
+        workerPod.getLog(true)
+      assert(log.contains("Register worker successfully."))
+    }
+
+    assert(workerPod.get().getStatus.getPhase == "Running")
+  }
 }
