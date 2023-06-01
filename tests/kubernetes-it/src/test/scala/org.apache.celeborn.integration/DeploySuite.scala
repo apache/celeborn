@@ -28,9 +28,11 @@ import org.apache.celeborn.client.WithShuffleClientSuite
 
 //TODO need add shuffle client test
 class DeploySuite extends CelebornFunSuite with WithMiniKube {
-  final val masterStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-master").get()
+  final val masterStatefulSet =
+    kubernetesClient.apps().statefulSets().withName("celeborn-master").get()
   assert(masterStatefulSet != null)
-  final val workerStatefulSet = kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
+  final val workerStatefulSet =
+    kubernetesClient.apps().statefulSets().withName("celeborn-worker").get()
   assert(workerStatefulSet != null)
 
   test("Check master started") {
