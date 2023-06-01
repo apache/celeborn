@@ -81,7 +81,7 @@ license: |
 | celeborn.worker.replicate.randomConnection.enabled | true | Whether worker will create random connection to peer when replicate data. When false, worker tend to reuse the same cached TransportClient to a specific replicate worker; when true, worker tend to use different cached TransportClient. Netty will use the same thread to serve the same connection, so with more connections replicate server can leverage more netty threads | 0.2.1 | 
 | celeborn.worker.replicate.threads | 64 | Thread number of worker to replicate shuffle data. | 0.2.0 | 
 | celeborn.worker.rpc.port | 0 | Server port for Worker to receive RPC request. | 0.2.0 | 
-| celeborn.worker.shuffle.partitionSplit.enabled | true | enable the partition split in worker side | 0.3.0 | 
+| celeborn.worker.shuffle.partitionSplit.enabled | true | enable the partition split on worker side | 0.3.0 | 
 | celeborn.worker.shuffle.partitionSplit.min | 1m | Min size for a partition to split | 0.3.0 | 
 | celeborn.worker.sortPartition.reservedMemoryPerPartition | 1mb | Reserved memory when sorting a shuffle file off-heap. | 0.3.0 | 
 | celeborn.worker.sortPartition.threads | &lt;undefined&gt; | PartitionSorter's thread counts. | 0.3.0 | 

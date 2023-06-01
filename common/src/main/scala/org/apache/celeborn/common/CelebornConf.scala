@@ -1356,9 +1356,9 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Interval for checking push data timeout. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push data and should be configured in client side. " +
+        s"it works for shuffle client push data and should be configured on client side. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for worker replicate data to peer worker and should be configured in worker side.")
+        s"it works for worker replicate data to peer worker and should be configured on worker side.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
@@ -1368,9 +1368,9 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Threads num for checking push data timeout. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push data and should be configured in client side. " +
+        s"it works for shuffle client push data and should be configured on client side. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for worker replicate data to peer worker and should be configured in worker side.")
+        s"it works for worker replicate data to peer worker and should be configured on worker side.")
       .version("0.3.0")
       .intConf
       .createWithDefault(16)
@@ -1382,9 +1382,9 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("The heartbeat interval between worker and client. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push and fetch data and should be configured in client side. " +
+        s"it works for shuffle client push and fetch data and should be configured on client side. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for worker replicate data to peer worker and should be configured in worker side.")
+        s"it works for worker replicate data to peer worker and should be configured on worker side.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
@@ -1821,7 +1821,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.partition.split.enabled")
       .categories("worker")
       .version("0.3.0")
-      .doc("enable the partition split in worker side")
+      .doc("enable the partition split on worker side")
       .booleanConf
       .createWithDefault(true)
 
