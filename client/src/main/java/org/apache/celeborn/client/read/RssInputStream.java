@@ -146,16 +146,16 @@ public abstract class RssInputStream extends InputStream {
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
-      int blockSize = conf.pushBufferMaxSize() + headerLen;
+      int blockSize = conf.clientPushBufferMaxSize() + headerLen;
       compressedBuf = new byte[blockSize];
       decompressedBuf = new byte[blockSize];
 
       decompressor = Decompressor.getDecompressor(conf);
 
-      if (conf.pushReplicateEnabled()) {
-        fetchChunkMaxRetry = conf.fetchMaxRetriesForEachReplica() * 2;
+      if (conf.clientPushReplicateEnabled()) {
+        fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica() * 2;
       } else {
-        fetchChunkMaxRetry = conf.fetchMaxRetriesForEachReplica();
+        fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica();
       }
       TransportConf transportConf =
           Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);

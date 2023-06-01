@@ -47,8 +47,8 @@ public class InFlightRequestTracker {
       JavaUtils.newConcurrentHashMap();
 
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
-    this.waitInflightTimeoutMs = conf.pushLimitInFlightTimeoutMs();
-    this.delta = conf.pushLimitInFlightSleepDeltaMs();
+    this.waitInflightTimeoutMs = conf.clientPushLimitInFlightTimeoutMs();
+    this.delta = conf.clientPushLimitInFlightSleepDeltaMs();
     this.pushState = pushState;
     this.pushStrategy = PushStrategy.getStrategy(conf);
   }

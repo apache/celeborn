@@ -48,7 +48,7 @@ abstract class CommitHandler(
     conf: CelebornConf,
     committedPartitionInfo: CommittedPartitionInfo) extends Logging {
 
-  private val pushReplicateEnabled = conf.pushReplicateEnabled
+  private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles
 
   private val commitEpoch = new AtomicLong()
@@ -194,7 +194,7 @@ abstract class CommitHandler(
 
     val commitFileStartTime = System.nanoTime()
     val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
-    val parallelism = Math.min(workerPartitionLocations.size, conf.rpcMaxParallelism)
+    val parallelism = Math.min(workerPartitionLocations.size, conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(
       workerPartitionLocations.to,
       "CommitFiles",
@@ -390,7 +390,7 @@ abstract class CommitHandler(
   private def requestCommitFilesWithRetry(
       endpoint: RpcEndpointRef,
       message: CommitFiles): CommitFilesResponse = {
-    val maxRetries = conf.requestCommitFilesMaxRetries
+    val maxRetries = conf.clientRequestCommitFilesMaxRetries
     var retryTimes = 0
     while (retryTimes < maxRetries) {
       try {

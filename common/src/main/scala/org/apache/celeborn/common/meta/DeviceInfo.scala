@@ -57,9 +57,13 @@ class DiskInfo(
       conf: CelebornConf) = {
     this(mountPoint, 0, 0, 0, 0, dirs, deviceInfo)
     flushTimeMetrics =
-      new TimeWindow(conf.diskTimeSlidingWindowSize, conf.diskTimeSlidingWindowMinFlushCount)
+      new TimeWindow(
+        conf.workerDiskTimeSlidingWindowSize,
+        conf.workerDiskTimeSlidingWindowMinFlushCount)
     fetchTimeMetrics =
-      new TimeWindow(conf.diskTimeSlidingWindowSize, conf.diskTimeSlidingWindowMinFetchCount)
+      new TimeWindow(
+        conf.workerDiskTimeSlidingWindowSize,
+        conf.workerDiskTimeSlidingWindowMinFetchCount)
   }
 
   var flushTimeMetrics: TimeWindow = _

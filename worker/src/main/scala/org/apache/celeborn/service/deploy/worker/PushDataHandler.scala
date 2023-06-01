@@ -72,7 +72,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     pushClientFactory = worker.pushClientFactory
     registered = worker.registered
     workerInfo = worker.workerInfo
-    diskReserveSize = worker.conf.diskReserveSize
+    diskReserveSize = worker.conf.workerDiskReserveSize
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     storageManager = worker.storageManager
     shutdown = worker.shutdown

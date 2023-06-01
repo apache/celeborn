@@ -138,8 +138,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       (
         Some(new HdfsFlusher(
           workerSource,
-          conf.hdfsFlusherThreads)),
-        conf.hdfsFlusherThreads)
+          conf.workerHdfsFlusherThreads)),
+        conf.workerHdfsFlusherThreads)
     } else {
       (None, 0)
     }
@@ -183,7 +183,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   // when the worker's fetching port is stable.
   if (conf.workerGracefulShutdown) {
     try {
-      val recoverFile = new File(conf.workerRecoverPath, RECOVERY_FILE_NAME)
+      val recoverFile = new File(conf.workerGracefulShutdownRecoverPath, RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.db)
     } catch {
@@ -272,7 +272,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     var retryCount = 0
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
-    while (retryCount < conf.createWriterMaxAttempts) {
+    while (retryCount < conf.workerCreateWriterMaxAttempts) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
@@ -638,7 +638,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         diskOperators.size()) { entry =>
         ThreadUtils.shutdown(
           entry._2,
-          conf.workerFlusherShutdownTimeoutMs.milliseconds)
+          conf.workerGracefulShutdownFlusherShutdownTimeoutMs.milliseconds)
       }
     }
     storageScheduler.shutdownNow()

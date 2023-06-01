@@ -72,9 +72,9 @@ public class DataPushQueue {
     this.dataPusher = dataPusher;
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     this.pushState = client.getPushState(mapKey);
-    this.maxInFlight = conf.pushMaxReqsInFlight();
-    this.takeTaskWaitTimeMs = conf.pushTakeTaskWaitTimeMs();
-    final int capacity = conf.pushQueueCapacity();
+    this.maxInFlight = conf.clientPushMaxReqsInFlight();
+    this.takeTaskWaitTimeMs = conf.clientPushTakeTaskWaitTimeMs();
+    final int capacity = conf.clientPushQueueCapacity();
     workingQueue = new LinkedBlockingQueue<>(capacity);
   }
 

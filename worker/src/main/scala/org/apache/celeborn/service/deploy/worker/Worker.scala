@@ -82,9 +82,9 @@ private[celeborn] class Worker(
     "If enable graceful shutdown, the worker should use stable server port.")
   if (gracefulShutdown) {
     try {
-      val recoverRoot = new File(conf.workerRecoverPath)
+      val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
       if (!recoverRoot.exists()) {
-        logInfo(s"Recover root path ${conf.workerRecoverPath} does not exists, create it first.")
+        logInfo(s"Recover root path ${conf.workerGracefulShutdownRecoverPath} does not exists, create it first.")
         recoverRoot.mkdirs()
       }
     } catch {
@@ -553,8 +553,8 @@ private[celeborn] class Worker(
                 e)
           }
 
-          val interval = conf.checkSlotsFinishedInterval
-          val timeout = conf.checkSlotsFinishedTimeoutMs
+          val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
+          val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
           var waitTimes = 0
 
           def waitTime: Long = waitTimes * interval

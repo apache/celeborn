@@ -127,7 +127,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         new TransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
     this.flinkTransportClientFactory =
-        new FlinkTransportClientFactory(context, conf.fetchMaxRetriesForEachReplica());
+        new FlinkTransportClientFactory(context, conf.clientFetchMaxRetriesForEachReplica());
     this.setupMetaServiceRef(driverHost, port);
     this.driverTimestamp = driverTimestamp;
   }
@@ -425,7 +425,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                         location.getEpoch(),
                         location,
                         StatusCode.HARD_SPLIT),
-                    conf.requestPartitionLocationRpcAskTimeout(),
+                    conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
             // per partitionKey only serve single PartitionLocation in Client Cache.
             StatusCode respStatus = Utils.toStatusCode(response.getStatus());

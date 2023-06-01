@@ -27,8 +27,8 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
   private val masterPort = 19097
 
   celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
-    .set(CelebornConf.PUSH_REPLICATE_ENABLED.key, "true")
-    .set(CelebornConf.PUSH_BUFFER_MAX_SIZE.key, "256K")
+    .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
+    .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
