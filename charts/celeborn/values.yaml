@@ -46,25 +46,25 @@ securityContext:
 # Celeborn Master will pick first volumes for store raft log
 volumes:
   master:
-    - path: /mnt/rss_ratis
+    - mountPath: /mnt/rss_ratis
       volumePath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
   worker:
-    - path: /mnt/disk1
-      volumePath: /mnt/rss_ratis
+    - mountPath: /mnt/disk1
+      volumePath: /mnt/disk1
       type: hostPath
       size: 1Gi
-    - path: /mnt/disk2
-      volumePath: /mnt/rss_ratis
+    - mountPath: /mnt/disk2
+      volumePath: /mnt/disk2
       type: hostPath
       size: 1Gi
-    - path: /mnt/disk3
-      volumePath: /mnt/rss_ratis
+    - mountPath: /mnt/disk3
+      volumePath: /mnt/disk3
       type: hostPath
       size: 1Gi
-    - path: /mnt/disk4
-      volumePath: /mnt/rss_ratis
+    - mountPath: /mnt/disk4
+      volumePath: /mnt/disk4
       type: hostPath
       size: 1Gi
 

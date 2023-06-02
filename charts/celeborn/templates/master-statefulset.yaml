@@ -82,10 +82,10 @@ spec:
         command:
         - chown
         - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
-        - {{ (index $dirs 0).path }}
+        - {{ (index $dirs 0).mountPath }}
         volumeMounts:
           - name: celeborn-master-vol-0
-            mountPath: {{ (index $dirs 0).path }}
+            mountPath: {{ (index $dirs 0).mountPath }}
       {{- end }}
       containers:
       - name: {{ .Chart.Name }}
@@ -111,7 +111,7 @@ spec:
             readOnly: true
           {{- range $index, $volume := .Values.volumes.master }}
           - name: celeborn-master-vol-{{ $index }}
-            mountPath: {{ .path }}
+            mountPath: {{ .mountPath }}
           {{- end }}
         env:
           {{- range $key, $val := .Values.environments }}
@@ -130,7 +130,7 @@ spec:
             sizeLimit: {{ $volume.size }}
         {{- else if eq "hostPath" $volume.type }}
           hostPath:
-            path: {{ $volume.volumePath | default $volume.path }}/master
+            path: {{ $volume.volumePath | default $volume.mountPath }}/master
             type: DirectoryOrCreate
         {{- else }}
         {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
