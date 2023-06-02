@@ -70,7 +70,7 @@ It support the following content:
 ```
 $ celeborn-ratis sh -D<property=value> ...
 ```
-For example: Using `-Draft.rpc.type=NETTY` to set the rpc type of ratis to netty, the default is grpc.
+For example: Use `-Draft.rpc.type=NETTY` to set the rpc type of ratis to netty, the default is grpc.
 
 ## election
 The `election` command manages leader election.
