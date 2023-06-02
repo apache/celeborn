@@ -65,12 +65,12 @@ Usage: celeborn-ratis sh [generic options]
 ## generic options
 The `generic options` pass values for a given ratis-shell property.
 It support the following content:
-`-D*`, `-X*`, `-agentlib*`, `-javaagent*`  
-For example: Using `-Draft.rpc.type=NETTY` to set the rpc type of ratis to netty, the default is grpc.
+`-D*`, `-X*`, `-agentlib*`, `-javaagent*`
 
 ```
 $ celeborn-ratis sh -D<property=value> ...
 ```
+For example: Using `-Draft.rpc.type=NETTY` to set the rpc type of ratis to netty, the default is grpc.
 
 ## election
 The `election` command manages leader election.
