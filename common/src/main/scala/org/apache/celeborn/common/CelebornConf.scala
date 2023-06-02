@@ -2931,9 +2931,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.compression.codec")
       .withAlternative("celeborn.shuffle.compression.codec")
       .withAlternative("rss.client.compression.codec")
+      .withAlternative("remote-shuffle.job.compression.codec")
       .categories("client")
       .doc("The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`.")
-      .version("0.3.0")
+      .version("0.2.2")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(CompressionCodec.LZ4.name, CompressionCodec.ZSTD.name))
