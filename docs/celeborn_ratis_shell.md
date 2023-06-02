@@ -71,6 +71,8 @@ It support the following content:
 $ celeborn-ratis sh -D<property=value> ...
 ```
 
+For example: use `-Draft.rpc.type=NETTY` to set the RPC type of Ratis to Netty, the default is gRPC.
+
 ## election
 The `election` command manages leader election.
 It has the following subcommands:
