@@ -34,7 +34,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 class WorkerStatusTracker(
     conf: CelebornConf,
     lifecycleManager: LifecycleManager) extends Logging {
-  private val workerExcludedExpireTimeout = conf.workerExcludedExpireTimeout
+  private val excludedWorkerExpireTimeout = conf.clientExcludedWorkerExpireTimeout
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
 
   // blacklist
@@ -46,7 +46,7 @@ class WorkerStatusTracker(
   }
 
   def getNeedCheckedWorkers(): Set[WorkerInfo] = {
-    if (conf.workerCheckedUseAllocatedWorkers) {
+    if (conf.clientCheckedUseAllocatedWorkers) {
       lifecycleManager.getAllocatedWorkers()
     } else {
       blacklist.asScala.keys.toSet
@@ -73,26 +73,26 @@ class WorkerStatusTracker(
         case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
         case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
-            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
+            if oldPartition.getPeer != null && conf.clientBlacklistSlaveEnabled =>
           blacklistWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
-            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
+            if oldPartition.getPeer != null && conf.clientBlacklistSlaveEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
+            if oldPartition.getPeer != null && conf.clientBlacklistSlaveEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
         case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
         case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
-            if oldPartition.getPeer != null && conf.blacklistSlaveEnabled =>
+            if oldPartition.getPeer != null && conf.clientBlacklistSlaveEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
@@ -157,7 +157,7 @@ class WorkerStatusTracker(
                 StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE |
                 StatusCode.PUSH_DATA_TIMEOUT_MASTER |
                 StatusCode.PUSH_DATA_TIMEOUT_SLAVE
-                if current - registerTime < workerExcludedExpireTimeout => // reserve
+                if current - registerTime < excludedWorkerExpireTimeout => // reserve
             case _ =>
               if (!res.blacklist.contains(workerInfo) &&
                 !res.shuttingWorkers.contains(workerInfo) &&

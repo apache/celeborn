@@ -58,10 +58,10 @@ class LocalDeviceMonitor(
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
 
-  val diskCheckInterval = conf.diskMonitorCheckInterval
+  val diskCheckInterval = conf.workerDiskMonitorCheckInterval
 
   // we should choose what the device needs to detect
-  val deviceMonitorCheckList = conf.diskMonitorCheckList
+  val deviceMonitorCheckList = conf.workerDiskMonitorCheckList
   val checkIoHang = deviceMonitorCheckList.contains("iohang")
   val checkReadWrite = deviceMonitorCheckList.contains("readwrite")
   val checkDiskUsage = deviceMonitorCheckList.contains("diskusage")
@@ -208,7 +208,7 @@ object DeviceMonitor {
       diskInfos: util.Map[String, DiskInfo],
       workerSource: AbstractSource): DeviceMonitor = {
     try {
-      if (conf.diskMonitorEnabled) {
+      if (conf.workerDiskMonitorEnabled) {
         val monitor =
           new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos, workerSource)
         monitor.init()
@@ -244,7 +244,7 @@ object DeviceMonitor {
       val used_percent = usage(usage.length - 2)
       // assume no single device capacity exceeds 1EB in this era
       val highDiskUsage =
-        freeSpace.toLong < conf.diskReserveSize || diskInfo.actualUsableSpace <= 0
+        freeSpace.toLong < conf.workerDiskReserveSize || diskInfo.actualUsableSpace <= 0
       if (highDiskUsage) {
         logger.warn(s"${diskInfo.mountPoint} usage is above threshold." +
           s" Disk usage(Report by OS):{total:${Utils.bytesToString(totalSpace.toLong)}," +
@@ -256,7 +256,7 @@ object DeviceMonitor {
       highDiskUsage
     })(false)(
       deviceCheckThreadPool,
-      conf.diskMonitorStatusCheckTimeout,
+      conf.workerDiskMonitorStatusCheckTimeout,
       s"Disk: ${diskInfo.mountPoint} Usage Check Timeout")
   }
 
@@ -302,7 +302,7 @@ object DeviceMonitor {
       }
     })(false)(
       deviceCheckThreadPool,
-      conf.diskMonitorStatusCheckTimeout,
+      conf.workerDiskMonitorStatusCheckTimeout,
       s"Disk: $dataDir Read_Write Check Timeout")
   }
 

@@ -73,9 +73,9 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           CelebornConf celebornConf =
               FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
           // if not set, set to true as default for flink
-          celebornConf.setIfMissing(CelebornConf.WORKER_CHECKED_USE_ALLOCATED_WORKERS(), true);
+          celebornConf.setIfMissing(CelebornConf.CLIENT_CHECKED_USE_ALLOCATED_WORKERS(), true);
           lifecycleManager = new LifecycleManager(celebornAppId, celebornConf);
-          if (celebornConf.pushReplicateEnabled()) {
+          if (celebornConf.clientPushReplicateEnabled()) {
             shuffleMasterContext.onFatalError(
                 new RuntimeException("Currently replicate shuffle data is unsupported for flink."));
             return;

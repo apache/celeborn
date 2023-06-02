@@ -71,6 +71,22 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+      {{- $dirs := .Values.volumes.master }}
+      {{- if eq "hostPath" (index $dirs 0).type }}
+      - name: chown-celeborn-master-volume
+        image: alpine:3.18
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        securityContext:
+          runAsUser: 0
+        command:
+        - chown
+        - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
+        - {{ (index $dirs 0).path }}
+        volumeMounts:
+          - name: celeborn-master-vol-0
+            mountPath: {{ (index $dirs 0).path }}
+      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"

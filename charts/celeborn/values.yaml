@@ -34,6 +34,8 @@ masterReplicas: 3
 workerReplicas: 5
 
 securityContext:
+  runAsUser: 10006
+  runAsGroup: 10006
   fsGroup: 10006
 
 # Current Celeborn support followings volume type:

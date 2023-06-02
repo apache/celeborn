@@ -221,8 +221,8 @@ public class SlotsAllocatorSuiteJ {
       boolean expectSuccess) {
     String shuffleKey = "appId-1";
     CelebornConf conf = new CelebornConf();
-    conf.set(CelebornConf.SLOTS_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "2");
-    conf.set(CelebornConf.SLOTS_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT().key(), "1");
+    conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "2");
+    conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT().key(), "1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsLoadAware(
             workers,
@@ -230,10 +230,10 @@ public class SlotsAllocatorSuiteJ {
             shouldReplicate,
             false,
             10 * 1024 * 1024 * 1024L,
-            conf.slotsAssignLoadAwareDiskGroupNum(),
-            conf.slotsAssignLoadAwareDiskGroupGradient(),
-            conf.slotsAssignLoadAwareFlushTimeWeight(),
-            conf.slotsAssignLoadAwareFetchTimeWeight());
+            conf.masterSlotAssignLoadAwareDiskGroupNum(),
+            conf.masterSlotAssignLoadAwareDiskGroupGradient(),
+            conf.masterSlotAssignLoadAwareFlushTimeWeight(),
+            conf.masterSlotAssignLoadAwareFetchTimeWeight());
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(

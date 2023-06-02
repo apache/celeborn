@@ -39,8 +39,8 @@ class RssPipelineSortSuite extends AnyFunSuite
 
   test("celeborn spark integration test - pipeline sort") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
-      .set(s"spark.${CelebornConf.PUSH_SORT_PIPELINE_ENABLED.key}", "true")
-      .set(s"spark.${CelebornConf.PUSH_SORT_RANDOMIZE_PARITION_ENABLED.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_SORT_PIPELINE_ENABLED.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_SORT_RANDOMIZE_PARITION_ENABLED.key}", "true")
     val ss = SparkSession.builder().config(updateSparkConf(sparkConf, true)).getOrCreate()
     val value = Range(1, 10000).mkString(",")
     val tuples = ss.sparkContext.parallelize(1 to 10000, 2)

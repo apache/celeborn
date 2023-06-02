@@ -120,8 +120,9 @@ public class NettyUtils {
     synchronized (PooledByteBufAllocator.class) {
       if (_allocator == null) {
         // each core should have one arena to allocate memory
-        _allocator = createPooledByteBufAllocator(true, true, conf.allocatorArenas());
-        new NettyMemoryMetrics(_allocator, "shared-pool", conf.allocatorVerboseMetric(), source);
+        _allocator = createPooledByteBufAllocator(true, true, conf.networkAllocatorArenas());
+        new NettyMemoryMetrics(
+            _allocator, "shared-pool", conf.networkAllocatorVerboseMetric(), source);
       }
       return _allocator;
     }
@@ -129,7 +130,7 @@ public class NettyUtils {
 
   public static PooledByteBufAllocator getPooledByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache) {
-    if (conf.getCelebornConf().shareMemoryAllocator()) {
+    if (conf.getCelebornConf().networkShareMemoryAllocator()) {
       return getSharedPooledByteBufAllocator(conf.getCelebornConf(), source);
     } else {
       PooledByteBufAllocator allocator =
@@ -153,7 +154,7 @@ public class NettyUtils {
                       });
         }
         new NettyMemoryMetrics(
-            allocator, poolName, conf.getCelebornConf().allocatorVerboseMetric(), source);
+            allocator, poolName, conf.getCelebornConf().networkAllocatorVerboseMetric(), source);
       }
       return allocator;
     }

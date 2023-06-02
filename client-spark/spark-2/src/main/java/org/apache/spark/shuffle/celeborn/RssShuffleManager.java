@@ -65,7 +65,7 @@ public class RssShuffleManager implements ShuffleManager {
     this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
     this.fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(celebornConf);
     if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
-        && celebornConf.pushSortPipelineEnabled()) {
+        && celebornConf.clientPushSortPipelineEnabled()) {
       asyncPushers = new ExecutorService[cores];
       for (int i = 0; i < asyncPushers.length; i++) {
         asyncPushers[i] = ThreadUtils.newDaemonSingleThreadExecutor("async-pusher-" + i);
@@ -181,7 +181,7 @@ public class RssShuffleManager implements ShuffleManager {
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
-              celebornConf.pushSortPipelineEnabled() ? getPusherThread() : null;
+              celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
           return new SortBasedShuffleWriter<>(
               h.dependency(), h.newAppId(), h.numMaps(), context, celebornConf, client, pushThread);
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {

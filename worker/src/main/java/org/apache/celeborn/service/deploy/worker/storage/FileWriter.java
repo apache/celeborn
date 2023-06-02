@@ -92,7 +92,7 @@ public abstract class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.writerCloseTimeoutMs = conf.writerCloseTimeoutMs();
+    this.writerCloseTimeoutMs = conf.workerWriterCloseTimeoutMs();
     this.splitThreshold = splitThreshold;
     this.flusherBufferSize = conf.workerFlusherBufferSize();
     this.deviceMonitor = deviceMonitor;

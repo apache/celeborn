@@ -60,11 +60,11 @@ class ReducePartitionCommitHandler(
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[Int, Array[Int]]()
-  private val stageEndTimeout = conf.pushStageEndTimeout
+  private val stageEndTimeout = conf.clientPushStageEndTimeout
 
-  private val rpcCacheSize = conf.rpcCacheSize
-  private val rpcCacheConcurrencyLevel = conf.rpcCacheConcurrencyLevel
-  private val rpcCacheExpireTime = conf.rpcCacheExpireTime
+  private val rpcCacheSize = conf.clientRpcCacheSize
+  private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
+  private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
 
   // noinspection UnstableApiUsage
   private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()

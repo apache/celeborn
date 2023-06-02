@@ -32,7 +32,7 @@ public class PushState {
   private final InFlightRequestTracker inFlightRequestTracker;
 
   public PushState(CelebornConf conf) {
-    pushBufferMaxSize = conf.pushBufferMaxSize();
+    pushBufferMaxSize = conf.clientPushBufferMaxSize();
     inFlightRequestTracker = new InFlightRequestTracker(conf, this);
   }
 

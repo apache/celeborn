@@ -104,7 +104,7 @@ public class SortBasedPusher extends MemoryConsumer {
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
 
-    if (conf.pushSortRandomizePartitionIdEnabled()) {
+    if (conf.clientPushSortRandomizePartitionIdEnabled()) {
       shuffledPartitions = new int[numPartitions];
       inversedShuffledPartitions = new int[numPartitions];
       JavaUtils.shuffleArray(shuffledPartitions, inversedShuffledPartitions);
@@ -132,7 +132,7 @@ public class SortBasedPusher extends MemoryConsumer {
       TaskInterruptedHelper.throwTaskKillException();
     }
 
-    pushBufferMaxSize = conf.pushBufferMaxSize();
+    pushBufferMaxSize = conf.clientPushBufferMaxSize();
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
