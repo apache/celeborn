@@ -241,6 +241,7 @@ io.netty:netty-transport-native-unix-common
 io.netty:netty-transport-rxtx
 io.netty:netty-transport-sctp
 io.netty:netty-transport-udt
+io.netty:netty-handler-ssl-ocsp
 org.apache.commons:commons-crypto
 org.apache.commons:commons-lang3
 org.apache.hadoop:hadoop-client-api
