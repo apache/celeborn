@@ -130,7 +130,7 @@ spec:
             sizeLimit: {{ $volume.size }}
         {{- else if eq "hostPath" $volume.type }}
           hostPath:
-            path: {{ $volume.mountPath | default $volume.path }}/master
+            path: {{ $volume.volumePath | default $volume.path }}/master
             type: DirectoryOrCreate
         {{- else }}
         {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}

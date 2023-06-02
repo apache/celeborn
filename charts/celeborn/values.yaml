@@ -47,24 +47,24 @@ securityContext:
 volumes:
   master:
     - path: /mnt/rss_ratis
-      mountPath: /mnt/rss_ratis
+      volumePath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
   worker:
     - path: /mnt/disk1
-      mountPath: /mnt/rss_ratis
+      volumePath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
     - path: /mnt/disk2
-      mountPath: /mnt/rss_ratis
+      volumePath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
     - path: /mnt/disk3
-      mountPath: /mnt/rss_ratis
+      volumePath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
     - path: /mnt/disk4
-      mountPath: /mnt/rss_ratis
+      volumePath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
 
