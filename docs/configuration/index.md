@@ -153,22 +153,22 @@ If `celeborn.worker.flush.buffer.size` is 256 KB, we can have total slots up to 
 
 ## Rack Awareness
 
-Celeborn can be rack-aware by set conf `celeborn.client.reserveSlots.rackware.enabled` to `true` on client side.
+Celeborn can be rack-aware by setting `celeborn.client.reserveSlots.rackware.enabled` to `true` on client side.
 Shuffle partition block replica placement will use rack awareness for fault tolerance by placing one shuffle partition replica
 on a different rack. This provides data availability in the event of a network switch failure or partition within the cluster.
 
-Celeborn master daemons obtain the rack id of the cluster workers by invoking either an external script or java class as specified by configuration files.
-Using either the java class or external script for topology, output must adhere to the java `org.apache.hadoop.net.DNSToSwitchMapping` interface.
+Celeborn master daemons obtain the rack id of the cluster workers by invoking either an external script or Java class as specified by configuration files.
+Using either the Java class or external script for topology, output must adhere to the java `org.apache.hadoop.net.DNSToSwitchMapping` interface.
 The interface expects a one-to-one correspondence to be maintained and the topology information in the format of `/myrack/myhost`,
 where `/` is the topology delimiter, `myrack` is the rack identifier, and `myhost` is the individual host.
 Assuming a single `/24` subnet per rack, one could use the format of `/192.168.100.0/192.168.100.5` as a unique rack-host topology mapping.
 
-To use the java class for topology mapping, the class name is specified by the `celeborn.hadoop.net.topology.node.switch.mapping.impl` parameter in the master configuration file.
+To use the Java class for topology mapping, the class name is specified by the `celeborn.hadoop.net.topology.node.switch.mapping.impl` parameter in the master configuration file.
 An example, `NetworkTopology.java`, is included with the Celeborn distribution and can be customized by the Celeborn administrator. 
 Using a Java class instead of an external script has a performance benefit in that Celeborn doesn't need to fork an external process when a new worker node registers itself.
 
 If implementing an external script, it will be specified with the `celeborn.hadoop.net.topology.script.file.name parameter` in the master side configuration files. 
-Unlike the java class, the external topology script is not included with the Celeborn distribution and is provided by the administrator. 
+Unlike the Java class, the external topology script is not included with the Celeborn distribution and is provided by the administrator. 
 Celeborn will send multiple IP addresses to ARGV when forking the topology script. The number of IP addresses sent to the topology script 
 is controlled with `celeborn.hadoop.net.topology.script.number.args` and defaults to 100.
 If `celeborn.hadoop.net.topology.script.number.args` was changed to 1, a topology script would get forked for each IP submitted by workers.
