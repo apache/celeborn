@@ -26,7 +26,6 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.*;
@@ -36,7 +35,6 @@ import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 public class RssBufferStream {
 
   private static Logger logger = LoggerFactory.getLogger(RssBufferStream.class);
-  private CelebornConf conf;
   private FlinkTransportClientFactory clientFactory;
   private String shuffleKey;
   private PartitionLocation[] locations;
@@ -49,19 +47,20 @@ public class RssBufferStream {
   private boolean isClosed;
   private boolean isOpenSuccess;
   private Object lock = new Object();
+  private Supplier<ByteBuf> bufferSupplier;
+  private int initialCredit;
+  private Consumer<RequestMessage> messageConsumer;
 
   public RssBufferStream() {}
 
   public RssBufferStream(
       FlinkShuffleClientImpl mapShuffleClient,
-      CelebornConf conf,
       FlinkTransportClientFactory dataClientFactory,
       String shuffleKey,
       PartitionLocation[] locations,
       int subIndexStart,
       int subIndexEnd) {
     this.mapShuffleClient = mapShuffleClient;
-    this.conf = conf;
     this.clientFactory = dataClientFactory;
     this.shuffleKey = shuffleKey;
     this.locations = locations;
@@ -69,9 +68,7 @@ public class RssBufferStream {
     this.subIndexEnd = subIndexEnd;
   }
 
-  public void open(
-      Supplier<ByteBuf> supplier, int initialCredit, Consumer<RequestMessage> messageConsumer)
-      throws IOException, InterruptedException {
+  private void openStreamInternal() throws IOException, InterruptedException {
     this.client =
         clientFactory.createClientWithRetry(
             locations[currentLocationIndex].getHost(),
@@ -86,10 +83,10 @@ public class RssBufferStream {
           @Override
           public void onSuccess(ByteBuffer response) {
             StreamHandle streamHandle = (StreamHandle) Message.decode(response);
-            RssBufferStream.this.streamId = streamHandle.streamId;
+            streamId = streamHandle.streamId;
             synchronized (lock) {
               if (!isClosed) {
-                clientFactory.registerSupplier(RssBufferStream.this.streamId, supplier);
+                clientFactory.registerSupplier(RssBufferStream.this.streamId, bufferSupplier);
                 mapShuffleClient
                     .getReadClientHandler()
                     .registerHandler(streamId, messageConsumer, client);
@@ -105,7 +102,7 @@ public class RssBufferStream {
                     client.getSocketAddress(),
                     streamId,
                     fileName);
-                closeStream();
+                closeStream(streamId);
               }
             }
           }
@@ -115,6 +112,15 @@ public class RssBufferStream {
             messageConsumer.accept(new TransportableError(streamId, e));
           }
         });
+  }
+
+  public void open(
+      Supplier<ByteBuf> bufferSupplier, int initialCredit, Consumer<RequestMessage> messageConsumer)
+      throws IOException, InterruptedException {
+    this.bufferSupplier = bufferSupplier;
+    this.initialCredit = initialCredit;
+    this.messageConsumer = messageConsumer;
+    openStreamInternal();
   }
 
   public void addCredit(ReadAddCredit addCredit) {
@@ -144,7 +150,6 @@ public class RssBufferStream {
 
   public static RssBufferStream create(
       FlinkShuffleClientImpl client,
-      CelebornConf conf,
       FlinkTransportClientFactory dataClientFactory,
       String shuffleKey,
       PartitionLocation[] locations,
@@ -154,26 +159,51 @@ public class RssBufferStream {
       return empty();
     } else {
       return new RssBufferStream(
-          client, conf, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
+          client, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
     }
   }
 
   private static final RssBufferStream emptyRssBufferStream = new RssBufferStream();
 
-  private void closeStream() {
+  private void closeStream(long streamId) {
     if (client != null && client.isActive()) {
       client.getChannel().writeAndFlush(new BufferStreamEnd(streamId));
     }
   }
 
+  private void cleanStream(long streamId) {
+    mapShuffleClient.getReadClientHandler().removeHandler(streamId);
+    clientFactory.unregisterSupplier(streamId);
+    closeStream(streamId);
+  }
+
   public void close() {
     synchronized (lock) {
       if (isOpenSuccess) {
-        mapShuffleClient.getReadClientHandler().removeHandler(getStreamId());
-        clientFactory.unregisterSupplier(this.getStreamId());
-        closeStream();
+        cleanStream(streamId);
       }
       isClosed = true;
+    }
+  }
+
+  public void moveToNextPartitionIfPossible(long endedStreamId) {
+    if (endedStreamId == streamId) {
+      logger.debug("get stream end with {}", endedStreamId);
+      cleanStream(endedStreamId);
+      if (currentLocationIndex < locations.length) {
+        currentLocationIndex++;
+        try {
+          openStreamInternal();
+        } catch (Exception e) {
+          logger.warn("Failed to open stream and report to flink framework. ", e);
+          messageConsumer.accept(new TransportableError(0L, e));
+        }
+      }
+    } else {
+      logger.warn(
+          "Received unexpected stream end, current stream id {} received ended stream id {}",
+          this.streamId,
+          endedStreamId);
     }
   }
 }

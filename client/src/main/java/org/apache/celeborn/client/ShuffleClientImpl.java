@@ -112,12 +112,12 @@ public class ShuffleClientImpl extends ShuffleClient {
       };
 
   protected static class ReduceFileGroups {
-    public Map<Integer, Set<PartitionLocation>> partitionGroups;
+    public Map<Integer, LinkedHashSet<PartitionLocation>> partitionGroups;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
 
     ReduceFileGroups(
-        Map<Integer, Set<PartitionLocation>> partitionGroups,
+        Map<Integer, LinkedHashSet<PartitionLocation>> partitionGroups,
         int[] mapAttempts,
         Set<Integer> partitionIds) {
       this.partitionGroups = partitionGroups;

@@ -89,6 +89,10 @@ public class MessageDecoderExt {
       case HEARTBEAT:
         return new Heartbeat();
 
+      case BUFFER_STREAM_END:
+        streamId = in.readLong();
+        return new BufferStreamEnd(streamId);
+
       default:
         throw new IllegalArgumentException("Unexpected message type: " + type);
     }

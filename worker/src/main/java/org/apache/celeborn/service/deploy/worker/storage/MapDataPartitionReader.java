@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.exception.FileCorruptedException;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.util.ExceptionUtils;
@@ -403,7 +404,6 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     synchronized (lock) {
       readFinished = true;
     }
-
     logger.debug("Closed read for stream {}", this.streamId);
   }
 
@@ -431,7 +431,9 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     // we can safely release if reader reaches error or (read/send finished)
     synchronized (lock) {
       if (!isReleased) {
-        logger.debug("release reader for stream {}", this.streamId);
+        logger.debug("release reader for stream {}", streamId);
+        // tell client that this stream is finished.
+        associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
         if (!buffersToSend.isEmpty()) {
           numInUseBuffers.addAndGet(-1 * buffersToSend.size());
           buffersToSend.forEach(RecyclableBuffer::recycle);

@@ -148,7 +148,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     } else {
       return RssBufferStream.create(
           this,
-          conf,
           flinkTransportClientFactory,
           shuffleKey,
           fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]),

@@ -134,7 +134,7 @@ class UtilsSuite extends CelebornFunSuite {
   }
 
   test("GetReducerFileGroupResponse class convert with pb") {
-    val fileGroup = new util.HashMap[Integer, util.Set[PartitionLocation]]
+    val fileGroup = new util.HashMap[Integer, util.LinkedHashSet[PartitionLocation]]
     fileGroup.put(0, partitionLocation(0))
     fileGroup.put(1, partitionLocation(1))
     fileGroup.put(2, partitionLocation(2))
@@ -151,8 +151,8 @@ class UtilsSuite extends CelebornFunSuite {
     assert(set.size == 0)
   }
 
-  def partitionLocation(partitionId: Int): util.HashSet[PartitionLocation] = {
-    val partitionSet = new util.HashSet[PartitionLocation]
+  def partitionLocation(partitionId: Int): util.LinkedHashSet[PartitionLocation] = {
+    val partitionSet = new util.LinkedHashSet[PartitionLocation]
     for (i <- 0 until 3) {
       partitionSet.add(new PartitionLocation(
         partitionId,

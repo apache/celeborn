@@ -23,10 +23,7 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
-import org.apache.celeborn.common.network.protocol.ReadAddCredit;
-import org.apache.celeborn.common.network.protocol.RequestMessage;
-import org.apache.celeborn.common.network.protocol.TransportableError;
+import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
@@ -76,13 +73,15 @@ public class RemoteBufferStreamReader extends CreditListener {
             backlogReceived(((BacklogAnnouncement) requestMessage).getBacklog());
           } else if (requestMessage instanceof TransportableError) {
             errorReceived(((TransportableError) requestMessage).getErrorMessage());
+          } else if (requestMessage instanceof BufferStreamEnd) {
+            onStreamEnd((BufferStreamEnd) requestMessage);
           }
         };
   }
 
   public void open(int initialCredit) {
     try {
-      this.bufferStream =
+      bufferStream =
           client.readBufferedPartition(
               applicationId, shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
       bufferStream.open(
@@ -97,7 +96,7 @@ public class RemoteBufferStreamReader extends CreditListener {
   public void close() {
     // need set closed first before remove Handler
     closed = true;
-    if (this.bufferStream != null) {
+    if (bufferStream != null) {
       bufferStream.close();
     } else {
       logger.warn(
@@ -113,7 +112,7 @@ public class RemoteBufferStreamReader extends CreditListener {
 
   public void notifyAvailableCredits(int numCredits) {
     if (!closed) {
-      ReadAddCredit addCredit = new ReadAddCredit(this.bufferStream.getStreamId(), numCredits);
+      ReadAddCredit addCredit = new ReadAddCredit(bufferStream.getStreamId(), numCredits);
       bufferStream.addCredit(addCredit);
     }
   }
@@ -141,5 +140,11 @@ public class RemoteBufferStreamReader extends CreditListener {
         readData.getStreamId(),
         readData.getFlinkBuffer().readableBytes());
     dataListener.accept(readData.getFlinkBuffer());
+  }
+
+  public void onStreamEnd(BufferStreamEnd streamEnd) {
+    long streamId = streamEnd.getStreamId();
+    logger.debug("Rss buffer stream reader get stream end for {}", streamId);
+    bufferStream.moveToNextPartitionIfPossible(streamId);
   }
 }

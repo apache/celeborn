@@ -73,7 +73,7 @@ public class CreditStreamManager {
   }
 
   public long registerStream(
-      Consumer<Long> callback,
+      Consumer<Long> notifyStreamHandlerCallback,
       Channel channel,
       int initialCredit,
       int startSubIndex,
@@ -117,7 +117,7 @@ public class CreditStreamManager {
     }
     mapDataPartition.tryRequestBufferOrRead();
 
-    callback.accept(streamId);
+    notifyStreamHandlerCallback.accept(streamId);
     addCredit(initialCredit, streamId);
 
     logger.debug("Register stream streamId: {}, fileInfo: {}", streamId, fileInfo);

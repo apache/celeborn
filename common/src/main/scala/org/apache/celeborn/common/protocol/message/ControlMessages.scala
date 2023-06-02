@@ -255,7 +255,7 @@ object ControlMessages extends Logging {
   // Path can't be serialized
   case class GetReducerFileGroupResponse(
       status: StatusCode,
-      fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
+      fileGroup: util.Map[Integer, util.LinkedHashSet[PartitionLocation]],
       attempts: Array[Int],
       partitionIds: util.Set[Integer] = new util.HashSet[Integer]())
     extends MasterMessage
@@ -937,8 +937,8 @@ object ControlMessages extends Logging {
           case (partitionId, fileGroup) =>
             (
               partitionId,
-              fileGroup.getLocationsList.asScala.map(
-                PbSerDeUtils.fromPbPartitionLocation).toSet.asJava)
+              new util.LinkedHashSet[PartitionLocation](fileGroup.getLocationsList.asScala.map(
+                PbSerDeUtils.fromPbPartitionLocation).toSet.asJava))
         }.asJava
 
         val attempts = pbGetReducerFileGroupResponse.getAttemptsList.asScala.map(_.toInt).toArray

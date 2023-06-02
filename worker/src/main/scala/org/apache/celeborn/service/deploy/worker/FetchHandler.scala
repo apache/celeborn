@@ -17,9 +17,9 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.{lang, util}
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
-import java.util
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
@@ -156,7 +156,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
           val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
 
-          val callback = new Consumer[java.lang.Long] {
+          val notifyStreamHandlerCallback = new Consumer[java.lang.Long] {
             override def accept(streamId: java.lang.Long): Unit = {
               val bufferStreamHandle = new StreamHandle(streamId, 0)
               client.getChannel.writeAndFlush(new RpcResponse(
@@ -167,7 +167,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           }
 
           creditStreamManager.registerStream(
-            callback,
+            notifyStreamHandlerCallback,
             client.getChannel,
             initialCredit,
             startIndex,

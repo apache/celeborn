@@ -58,8 +58,8 @@ case class ShuffleCommittedInfo(
     committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
     // number of partition files
     currentShuffleFileCount: LongAdder,
-    unhandledPartitionLocations: util.Set[PartitionLocation],
-    handledPartitionLocations: util.Set[PartitionLocation],
+    unhandledPartitionLocations: util.LinkedHashSet[PartitionLocation],
+    handledPartitionLocations: util.LinkedHashSet[PartitionLocation],
     // for ReducePartition, number of in flight commit requests to worker
     allInFlightCommitRequestNum: AtomicInteger,
     // for MapPartition, partition id -> number of in flight commit requests
@@ -186,8 +186,8 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
         JavaUtils.newConcurrentHashMap[String, StorageInfo](),
         JavaUtils.newConcurrentHashMap[String, RoaringBitmap](),
         new LongAdder,
-        new util.HashSet[PartitionLocation](),
-        new util.HashSet[PartitionLocation](),
+        new util.LinkedHashSet[PartitionLocation](),
+        new util.LinkedHashSet[PartitionLocation](),
         new AtomicInteger(),
         JavaUtils.newConcurrentHashMap[Int, AtomicInteger]()))
 
