@@ -54,8 +54,12 @@ class ConfigurationSuite extends AnyFunSuite {
     .resolve("configuration")
     .normalize
 
-  test("docs - configuration/client.md") {
-    generateConfigurationMarkdown("client")
+  test("docs - configuration/client-common.md") {
+    generateConfigurationMarkdown("client-common")
+  }
+
+  test("docs - configuration/client-spark.md") {
+    generateConfigurationMarkdown("client-spark")
   }
 
   test("docs - configuration/columnar-shuffle.md") {

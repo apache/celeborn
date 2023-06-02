@@ -73,7 +73,17 @@ end="<!--end-include-->"
 ### Client
 
 {!
-include-markdown "./client.md"
+include-markdown "./client-common.md"
+start="<!--begin-include-->"
+end="<!--end-include-->"
+!}
+
+### Spark Client
+
+Specify client properties for Apache Spark. 
+
+{!
+include-markdown "./client-spark.md"
 start="<!--begin-include-->"
 end="<!--end-include-->"
 !}
