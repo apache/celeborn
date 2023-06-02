@@ -192,7 +192,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         this.db = null
     }
   }
-  cleanupExpiredAppDirs(System.currentTimeMillis(), conf.workerGracefulShutdown)
+  cleanupExpiredAppDirs()
   if (!checkIfWorkingDirCleaned) {
     logWarning(
       "Worker still has residual files in the working directory before registering with Master, " +
@@ -488,7 +488,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  private val applicationDataKeepAliveTime = conf.workerApplicationDataKeepAliveTime
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
@@ -496,9 +495,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     new Runnable {
       override def run(): Unit = {
         try {
-          // Clean up dirs which has not been modified
-          // in the past {{noneEmptyExpireDurationsMs}}.
-          cleanupExpiredAppDirs(System.currentTimeMillis() - applicationDataKeepAliveTime)
+          // Clean up dirs which it's application is expired.
+          cleanupExpiredAppDirs()
         } catch {
           case exception: Exception =>
             logWarning(s"Cleanup expired shuffle data exception: ${exception.getMessage}")
@@ -509,19 +507,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     30,
     TimeUnit.MINUTES)
 
-  private def cleanupExpiredAppDirs(expireTime: Long, isGracefulShutdown: Boolean = false): Unit = {
+  private def cleanupExpiredAppDirs(): Unit = {
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
     disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
       diskInfo.dirs.foreach {
         case workingDir if workingDir.exists() =>
           workingDir.listFiles().foreach { appDir =>
-            // Don't delete shuffleKey's data recovered from levelDB when restart with graceful shutdown
-            if (!(isGracefulShutdown && appIds.contains(appDir.getName))) {
-              if (appDir.lastModified() < expireTime) {
-                val threadPool = diskOperators.get(diskInfo.mountPoint)
-                deleteDirectory(appDir, threadPool)
-                logInfo(s"Delete expired app dir $appDir.")
-              }
+            // Don't delete shuffleKey's data that exist correct shuffle file info.
+            if (!appIds.contains(appDir.getName)) {
+              val threadPool = diskOperators.get(diskInfo.mountPoint)
+              deleteDirectory(appDir, threadPool)
+              logInfo(s"Delete expired app dir $appDir.")
             }
           }
         // workingDir not exist when initializing worker on new disk
@@ -535,7 +531,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val iter = hadoopFs.listFiles(hdfsWorkPath, false)
         while (iter.hasNext) {
           val fileStatus = iter.next()
-          if (fileStatus.getModificationTime < expireTime) {
+          if (!appIds.contains(fileStatus.getPath.getName)) {
             hadoopFs.delete(fileStatus.getPath, true)
           }
         }
