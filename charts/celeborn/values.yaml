@@ -42,23 +42,29 @@ securityContext:
 # - emptyDir
 # - hostPath
 # Note: size only works in emptyDir type
+# mountPath works in hostPath type using to set `volumes hostPath path`
 # Celeborn Master will pick first volumes for store raft log
 volumes:
   master:
     - path: /mnt/rss_ratis
+      mountPath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
   worker:
     - path: /mnt/disk1
+      mountPath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
     - path: /mnt/disk2
+      mountPath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
     - path: /mnt/disk3
+      mountPath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
     - path: /mnt/disk4
+      mountPath: /mnt/rss_ratis
       type: hostPath
       size: 1Gi
 
