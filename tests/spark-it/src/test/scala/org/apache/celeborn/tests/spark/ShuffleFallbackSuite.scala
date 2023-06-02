@@ -48,7 +48,7 @@ class ShuffleFallbackSuite extends AnyFunSuite
   test(s"celeborn spark integration test - fallback") {
     val sparkConf = new SparkConf().setAppName("rss-demo")
       .setMaster("local[2]")
-      .set(s"spark.${CelebornConf.SHUFFLE_FORCE_FALLBACK_ENABLED.key}", "true")
+      .set(s"spark.${CelebornConf.SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED.key}", "true")
 
     enableRss(sparkConf)
 
