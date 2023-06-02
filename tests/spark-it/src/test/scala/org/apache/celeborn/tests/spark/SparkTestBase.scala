@@ -57,7 +57,7 @@ trait SparkTestBase extends AnyFunSuite
       s"spark${CelebornConf.MASTER_ENDPOINTS.key}",
       masterInfo._1.rpcEnv.address.toString)
     if (sort) {
-      sparkConf.set(s"spark.${CelebornConf.SHUFFLE_WRITER_MODE.key}", "sort")
+      sparkConf.set(s"spark.${CelebornConf.SPARK_SHUFFLE_WRITER_MODE.key}", "sort")
     }
     sparkConf
   }
