@@ -216,6 +216,7 @@ if [ "$RELEASE" == "true" ]; then
   build_service
   build_spark_client -Pspark-2.4
   build_spark_client -Pspark-3.4
+  build_flink_client -Pflink-1.14
   build_flink_client -Pflink-1.15
   build_flink_client -Pflink-1.17
 else
