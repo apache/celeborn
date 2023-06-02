@@ -66,28 +66,28 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
   public AbstractRemoteShuffleInputGateFactory(
       CelebornConf conf, NetworkBufferPool networkBufferPool, int networkBufferSize) {
     this.celebornConf = conf;
-    long configuredMemorySize = celebornConf.memoryPerInputGate();
-    long minConfiguredMemorySize = celebornConf.memoryPerInputGateMin();
+    long configuredMemorySize = celebornConf.clientMemoryPerInputGate();
+    long minConfiguredMemorySize = celebornConf.clientMemoryPerInputGateMin();
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per input gate, please increase %s to at " + "least %s.",
-              CelebornConf.MEMORY_PER_INPUT_GATE().key(), celebornConf.memoryPerInputGate()));
+              CelebornConf.CLIENT_MEMORY_PER_INPUT_GATE().key(), celebornConf.clientMemoryPerInputGate()));
     }
 
     this.numBuffersPerGate = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
-    this.supportFloatingBuffers = celebornConf.inputGateSupportFloatingBuffer();
+    this.supportFloatingBuffers = celebornConf.clientInputGateSupportFloatingBuffer();
     if (numBuffersPerGate < MIN_BUFFERS_PER_GATE) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per input gate, please increase %s to at "
                   + "least %d bytes.",
-              CelebornConf.MEMORY_PER_INPUT_GATE().key(),
+              CelebornConf.CLIENT_MEMORY_PER_INPUT_GATE().key(),
               networkBufferSize * MIN_BUFFERS_PER_GATE));
     }
 
     this.networkBufferSize = networkBufferSize;
-    this.numConcurrentReading = celebornConf.numConcurrentReading();
+    this.numConcurrentReading = celebornConf.clientNumConcurrentReading();
     this.networkBufferPool = networkBufferPool;
   }
 

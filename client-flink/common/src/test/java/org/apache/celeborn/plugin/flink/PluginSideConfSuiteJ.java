@@ -29,13 +29,13 @@ public class PluginSideConfSuiteJ {
   public void testCoalesce() {
     Configuration flinkConf = new Configuration();
     CelebornConf celebornConf = FlinkUtils.toCelebornConf(flinkConf);
-    Assert.assertEquals(8 * 1024 * 1024, celebornConf.memoryPerPartitionMin());
-    Assert.assertEquals(8 * 1024 * 1024, celebornConf.memoryPerInputGateMin());
-    Assert.assertTrue(Integer.MAX_VALUE == celebornConf.numConcurrentReading());
-    Assert.assertEquals(64 * 1024 * 1024, celebornConf.memoryPerPartition());
-    Assert.assertEquals(32 * 1024 * 1024, celebornConf.memoryPerInputGate());
+    Assert.assertEquals(8 * 1024 * 1024, celebornConf.clientMemoryPerPartitionMin());
+    Assert.assertEquals(8 * 1024 * 1024, celebornConf.clientMemoryPerInputGateMin());
+    Assert.assertTrue(Integer.MAX_VALUE == celebornConf.clientNumConcurrentReading());
+    Assert.assertEquals(64 * 1024 * 1024, celebornConf.clientMemoryPerPartition());
+    Assert.assertEquals(32 * 1024 * 1024, celebornConf.clientMemoryPerInputGate());
 
-    Assert.assertEquals(true, celebornConf.dataCompressionEnabled());
+    Assert.assertEquals(true, celebornConf.clientDataCompressionEnabled());
     Assert.assertEquals("LZ4", celebornConf.shuffleCompressionCodec().name());
 
     flinkConf.setString("remote-shuffle.job.min.memory-per-partition", "16m");
@@ -48,12 +48,12 @@ public class PluginSideConfSuiteJ {
     flinkConf.setString("remote-shuffle.job.compression.codec", "ZSTD");
 
     celebornConf = FlinkUtils.toCelebornConf(flinkConf);
-    Assert.assertEquals(16 * 1024 * 1024, celebornConf.memoryPerPartitionMin());
-    Assert.assertEquals(17 * 1024 * 1024, celebornConf.memoryPerInputGateMin());
-    Assert.assertTrue(12323 == celebornConf.numConcurrentReading());
-    Assert.assertEquals(1888 * 1024 * 1024, celebornConf.memoryPerPartition());
-    Assert.assertEquals(176 * 1024 * 1024, celebornConf.memoryPerInputGate());
-    Assert.assertEquals(false, celebornConf.dataCompressionEnabled());
+    Assert.assertEquals(16 * 1024 * 1024, celebornConf.clientMemoryPerPartitionMin());
+    Assert.assertEquals(17 * 1024 * 1024, celebornConf.clientMemoryPerInputGateMin());
+    Assert.assertTrue(12323 == celebornConf.clientNumConcurrentReading());
+    Assert.assertEquals(1888 * 1024 * 1024, celebornConf.clientMemoryPerPartition());
+    Assert.assertEquals(176 * 1024 * 1024, celebornConf.clientMemoryPerInputGate());
+    Assert.assertEquals(false, celebornConf.clientDataCompressionEnabled());
     Assert.assertEquals("ZSTD", celebornConf.shuffleCompressionCodec().name());
   }
 }

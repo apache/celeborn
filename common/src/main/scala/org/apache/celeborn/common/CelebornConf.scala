@@ -945,14 +945,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushSlaveDataTimeout: Boolean = get(TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
-  def memoryPerPartitionMin: Long = get(MEMORY_PER_PARTITION_MIN)
-  def memoryPerPartition: Long = get(MEMORY_PER_PARTITION)
-  def memoryPerInputGateMin: Long = get(MEMORY_PER_INPUT_GATE_MIN)
-  def memoryPerInputGate: Long = get(MEMORY_PER_INPUT_GATE)
-  def numConcurrentReading: Int = get(NUM_CONCURRENT_READINGS)
-  def inputGateSupportFloatingBuffer: Boolean = get(INPUT_GATE_SUPPORT_FLOATING_BUFFER)
-  def partitionSupportFloatingBuffer: Boolean = get(PARTITION_SUPPORT_FLOATING_BUFFER)
-  def dataCompressionEnabled: Boolean = get(DATA_COMPRESSION_ENABLED)
+  def clientMemoryPerPartitionMin: Long = get(CLIENT_MEMORY_PER_PARTITION_MIN)
+  def clientMemoryPerPartition: Long = get(CLIENT_MEMORY_PER_PARTITION)
+  def clientMemoryPerInputGateMin: Long = get(CLIENT_MEMORY_PER_INPUT_GATE_MIN)
+  def clientMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
+  def clientNumConcurrentReading: Int = get(CLIENT_NUM_CONCURRENT_READINGS)
+  def clientInputGateSupportFloatingBuffer: Boolean = get(CLIENT_INPUT_GATE_SUPPORT_FLOATING_BUFFER)
+  def clientPartitionSupportFloatingBuffer: Boolean = get(CLIENT_PARTITION_SUPPORT_FLOATING_BUFFER)
+  def clientDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -3508,7 +3508,7 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   // Flink specific client configurations.
-  val MEMORY_PER_PARTITION_MIN: ConfigEntry[Long] =
+  val CLIENT_MEMORY_PER_PARTITION_MIN: ConfigEntry[Long] =
     buildConf("celeborn.client.partition.minMemory")
       .withAlternative("remote-shuffle.job.min.memory-per-partition")
       .categories("client")
@@ -3517,7 +3517,7 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8m")
 
-  val MEMORY_PER_INPUT_GATE_MIN: ConfigEntry[Long] =
+  val CLIENT_MEMORY_PER_INPUT_GATE_MIN: ConfigEntry[Long] =
     buildConf("celeborn.client.inputGate.minMemory")
       .withAlternative("remote-shuffle.job.min.memory-per-gate")
       .categories("client")
@@ -3526,7 +3526,7 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8m")
 
-  val NUM_CONCURRENT_READINGS: ConfigEntry[Int] =
+  val CLIENT_NUM_CONCURRENT_READINGS: ConfigEntry[Int] =
     buildConf("celeborn.client.inputGate.concurrentReadings")
       .withAlternative("remote-shuffle.job.concurrent-readings-per-gate")
       .categories("client")
@@ -3535,7 +3535,7 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(Int.MaxValue)
 
-  val MEMORY_PER_PARTITION: ConfigEntry[Long] =
+  val CLIENT_MEMORY_PER_PARTITION: ConfigEntry[Long] =
     buildConf("celeborn.client.partition.memory")
       .withAlternative("remote-shuffle.job.memory-per-partition")
       .categories("client")
@@ -3544,7 +3544,7 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64m")
 
-  val MEMORY_PER_INPUT_GATE: ConfigEntry[Long] =
+  val CLIENT_MEMORY_PER_INPUT_GATE: ConfigEntry[Long] =
     buildConf("celeborn.client.inputGate.memory")
       .withAlternative("remote-shuffle.job.memory-per-gate")
       .categories("client")
@@ -3553,7 +3553,7 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32m")
 
-  val INPUT_GATE_SUPPORT_FLOATING_BUFFER: ConfigEntry[Boolean] =
+  val CLIENT_INPUT_GATE_SUPPORT_FLOATING_BUFFER: ConfigEntry[Boolean] =
     buildConf("celeborn.client.inputGate.supportFloatingBuffer")
       .withAlternative("remote-shuffle.job.support-floating-buffer-per-input-gate")
       .categories("client")
@@ -3562,7 +3562,7 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val DATA_COMPRESSION_ENABLED: ConfigEntry[Boolean] =
+  val CLIENT_DATA_COMPRESSION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.compression.enabled")
       .withAlternative("remote-shuffle.job.enable-data-compression")
       .categories("client")
@@ -3571,7 +3571,7 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val PARTITION_SUPPORT_FLOATING_BUFFER: ConfigEntry[Boolean] =
+  val CLIENT_PARTITION_SUPPORT_FLOATING_BUFFER: ConfigEntry[Boolean] =
     buildConf("celeborn.client.partition.supportFloatingBuffer")
       .withAlternative("remote-shuffle.job.support-floating-buffer-per-output-gate")
       .categories("client")

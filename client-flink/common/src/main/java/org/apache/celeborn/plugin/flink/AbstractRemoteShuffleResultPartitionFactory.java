@@ -71,24 +71,24 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
       ResultPartitionManager partitionManager,
       BufferPoolFactory bufferPoolFactory,
       int networkBufferSize) {
-    long configuredMemorySize = celebornConf.memoryPerPartition();
-    long minConfiguredMemorySize = celebornConf.memoryPerPartitionMin();
+    long configuredMemorySize = celebornConf.clientMemoryPerPartition();
+    long minConfiguredMemorySize = celebornConf.clientMemoryPerPartitionMin();
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per result partition, please increase %s "
                   + "to at least %s.",
-              CelebornConf.MEMORY_PER_PARTITION().key(), minConfiguredMemorySize));
+              CelebornConf.CLIENT_MEMORY_PER_PARTITION().key(), minConfiguredMemorySize));
     }
 
     this.numBuffersPerPartition = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
-    this.supportFloatingBuffers = celebornConf.partitionSupportFloatingBuffer();
+    this.supportFloatingBuffers = celebornConf.clientPartitionSupportFloatingBuffer();
     if (numBuffersPerPartition < MIN_BUFFERS_PER_PARTITION) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per partition, please increase %s to at "
                   + "least %d bytes.",
-              CelebornConf.MEMORY_PER_PARTITION().key(),
+              CelebornConf.CLIENT_MEMORY_PER_PARTITION().key(),
               networkBufferSize * MIN_BUFFERS_PER_PARTITION));
     }
 
