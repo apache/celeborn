@@ -286,6 +286,51 @@ public class FileWriterSuiteJ {
   }
 
   @Test
+  public void testMultiThreadWriteDuringClose()
+      throws IOException, ExecutionException, InterruptedException {
+    final int threadsNum = 8;
+    File file = getTemporaryFile();
+    FileWriter fileWriter =
+        new ReducePartitionFileWriter(
+            new FileInfo(file, userIdentifier),
+            localFlusher,
+            source,
+            CONF,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+
+    List<Future<?>> futures = new ArrayList<>();
+    ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
+    AtomicLong length = new AtomicLong(0);
+    AtomicLong bytesWritten = new AtomicLong(0);
+
+    for (int i = 0; i < threadsNum; ++i) {
+      futures.add(
+          es.submit(
+              () -> {
+                byte[] bytes = generateData();
+                ByteBuf buf = Unpooled.wrappedBuffer(bytes);
+                try {
+                  fileWriter.write(buf);
+                  length.addAndGet(bytes.length);
+                  bytesWritten.set(fileWriter.close());
+                } catch (IOException e) {
+                  LOG.error("Failed to write buffer.", e);
+                }
+              }));
+    }
+    for (Future<?> future : futures) {
+      future.get();
+    }
+
+    assertEquals(length.get(), bytesWritten.get());
+    assertEquals(fileWriter.getFile().length(), bytesWritten.get());
+    assertEquals(fileWriter.getFileInfo().getFileLength(), bytesWritten.get());
+  }
+
+  @Test
   public void testAfterStressfulWriteWillReadCorrect()
       throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
