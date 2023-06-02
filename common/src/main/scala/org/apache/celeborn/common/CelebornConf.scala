@@ -600,7 +600,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchIoThreads: Option[Int] = get(WORKER_FETCH_IO_THREADS)
   def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
-  def workerApplicationDataKeepAliveTime: Long = get(WORKER_APPLICATION_DATA_KEEP_ALIVE_TIME)
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
@@ -1904,16 +1903,6 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
-
-  val WORKER_APPLICATION_DATA_KEEP_ALIVE_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.worker.storage.applicationData.keepAliveTime")
-      .withAlternative("celeborn.worker.noneEmptyDirExpireDuration")
-      .withAlternative("rss.expire.nonEmptyDir.duration")
-      .categories("worker")
-      .doc("If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired.")
-      .version("0.3.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("1d")
 
   val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.worker.storage.checkDirsEmpty.maxRetries")
