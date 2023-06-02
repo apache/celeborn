@@ -746,7 +746,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
-  def shuffleForceFallbackPartitionThreshold: Long = get(SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
+  def shuffleForceFallbackPartitionThreshold: Long =
+    get(SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def shuffleManagerPort: Int = get(CLIENT_SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
@@ -2742,7 +2743,7 @@ object CelebornConf extends Logging {
       .doc(
         "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
           "when sort data to avoid skew when push to worker")
-      .version("0.3.1")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -3185,7 +3186,6 @@ object CelebornConf extends Logging {
       .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
       .createWithDefault(ShuffleMode.HASH.name)
 
-
   val CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.unsafeRow.fastWrite.enabled")
       .categories("client")
@@ -3232,7 +3232,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
         " will be used to pipeline push")
-      .version("0.3.1")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
