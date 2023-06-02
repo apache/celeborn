@@ -136,7 +136,7 @@ spec:
         {{- else if eq "hostPath" $volume.type }}
         - name: celeborn-worker-vol-{{ $index }}
           hostPath:
-            path: {{ $volume.volumePath | default $volume.mountPath }}/worker
+            path: {{ $volume.hostPath | default $volume.mountPath }}/worker
             type: DirectoryOrCreate
         {{- else }}
         {{ fail "Currently, Celeborn chart only supports 'emptyDir' and 'hostPath' volume types" }}
