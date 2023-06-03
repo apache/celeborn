@@ -167,7 +167,7 @@ To use the Java class for topology mapping, the class name is specified by the `
 An example, `NetworkTopology.java`, is included with the Celeborn distribution and can be customized by the Celeborn administrator. 
 Using a Java class instead of an external script has a performance benefit in that Celeborn doesn't need to fork an external process when a new worker node registers itself.
 
-If implementing an external script, it will be specified with the `celeborn.hadoop.net.topology.script.file.name parameter` in the master side configuration files. 
+If implementing an external script, it will be specified with the `celeborn.hadoop.net.topology.script.file.name` parameter in the master side configuration files. 
 Unlike the Java class, the external topology script is not included with the Celeborn distribution and is provided by the administrator. 
 Celeborn will send multiple IP addresses to ARGV when forking the topology script. The number of IP addresses sent to the topology script 
 is controlled with `celeborn.hadoop.net.topology.script.number.args` and defaults to 100.
