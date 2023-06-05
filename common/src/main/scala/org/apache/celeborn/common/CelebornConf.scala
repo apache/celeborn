@@ -600,7 +600,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchIoThreads: Option[Int] = get(WORKER_FETCH_IO_THREADS)
   def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
-  def workerApplicationDataKeepAliveTime: Long = get(WORKER_APPLICATION_DATA_KEEP_ALIVE_TIME)
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
   def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
@@ -743,11 +742,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                   Client Shuffle                    //
   // //////////////////////////////////////////////////////
-  def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SHUFFLE_WRITER_MODE))
+  def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SPARK_SHUFFLE_WRITER_MODE))
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
-  def shuffleForceFallbackEnabled: Boolean = get(SHUFFLE_FORCE_FALLBACK_ENABLED)
-  def shuffleForceFallbackPartitionThreshold: Long = get(SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
+  def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
+  def shuffleForceFallbackPartitionThreshold: Long =
+    get(SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def shuffleManagerPort: Int = get(CLIENT_SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
@@ -1915,16 +1915,6 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
 
-  val WORKER_APPLICATION_DATA_KEEP_ALIVE_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.worker.storage.applicationData.keepAliveTime")
-      .withAlternative("celeborn.worker.noneEmptyDirExpireDuration")
-      .withAlternative("rss.expire.nonEmptyDir.duration")
-      .categories("worker")
-      .doc("If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired.")
-      .version("0.3.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("1d")
-
   val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.worker.storage.checkDirsEmpty.maxRetries")
       .withAlternative("celeborn.worker.disk.checkFileClean.maxRetries")
@@ -2756,26 +2746,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("50ms")
 
-  val CLIENT_PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.sort.memory.threshold")
-      .withAlternative("celeborn.push.sortMemory.threshold")
-      .withAlternative("rss.sort.push.data.threshold")
-      .categories("client")
-      .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
-      .version("0.3.0")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("64m")
-
-  val CLIENT_PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.sort.pipeline.enabled")
-      .withAlternative("celeborn.push.sort.pipeline.enabled")
-      .categories("client")
-      .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
-        " will be used to pipeline push")
-      .version("0.3.1")
-      .booleanConf
-      .createWithDefault(false)
-
   val CLIENT_PUSH_SORT_RANDOMIZE_PARITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.push.sort.randomizePartitionId.enabled")
       .withAlternative("celeborn.push.sort.randomizePartitionId.enabled")
@@ -2783,7 +2753,7 @@ object CelebornConf extends Logging {
       .doc(
         "Whether to randomize partitionId in push sorter. If true, partitionId will be randomized " +
           "when sort data to avoid skew when push to worker")
-      .version("0.3.1")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -2864,20 +2834,6 @@ object CelebornConf extends Logging {
       .doc("Whether to test fetch chunk failure")
       .booleanConf
       .createWithDefault(false)
-
-  val SHUFFLE_WRITER_MODE: ConfigEntry[String] =
-    buildConf("celeborn.client.shuffle.writer")
-      .withAlternative("celeborn.shuffle.writer")
-      .withAlternative("rss.shuffle.writer.mode")
-      .categories("client")
-      .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
-        "works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
-        "when memory pressure is high or shuffle partition count is huge.")
-      .version("0.3.0")
-      .stringConf
-      .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
-      .createWithDefault(ShuffleMode.HASH.name)
 
   val SHUFFLE_RANGE_READ_FILTER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.rangeReadFilter.enabled")
@@ -2964,27 +2920,6 @@ object CelebornConf extends Logging {
       .doc("Interval for client to check expired shuffles.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
-
-  val SHUFFLE_FORCE_FALLBACK_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.shuffle.forceFallback.enabled")
-      .withAlternative("celeborn.shuffle.forceFallback.enabled")
-      .withAlternative("rss.force.fallback")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Whether force fallback shuffle to Spark's default.")
-      .booleanConf
-      .createWithDefault(false)
-
-  val SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.client.shuffle.forceFallback.numPartitionsThreshold")
-      .withAlternative("celeborn.shuffle.forceFallback.numPartitionsThreshold")
-      .withAlternative("rss.max.partition.number")
-      .categories("client")
-      .version("0.3.0")
-      .doc(
-        "Celeborn will only accept shuffle of partition number lower than this configuration value.")
-      .longConf
-      .createWithDefault(500000)
 
   val CLIENT_SHUFFLE_MANAGER_PORT: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.manager.port")
@@ -3247,6 +3182,70 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .booleanConf
       .createWithDefault(true)
+
+  val SPARK_SHUFFLE_WRITER_MODE: ConfigEntry[String] =
+    buildConf("celeborn.client.spark.shuffle.writer")
+      .withAlternative("celeborn.shuffle.writer")
+      .withAlternative("rss.shuffle.writer.mode")
+      .categories("client")
+      .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
+        "works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
+        "when memory pressure is high or shuffle partition count is huge.")
+      .version("0.3.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
+      .createWithDefault(ShuffleMode.HASH.name)
+
+  val CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.unsafeRow.fastWrite.enabled")
+      .categories("client")
+      .version("0.2.2")
+      .doc("This is Celeborn's optimization on UnsafeRow for Spark and it's true by default. " +
+        "If you have changed UnsafeRow's memory layout set this to false.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffle.forceFallback.enabled")
+      .withAlternative("celeborn.shuffle.forceFallback.enabled")
+      .withAlternative("rss.force.fallback")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether force fallback shuffle to Spark's default.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold")
+      .withAlternative("celeborn.shuffle.forceFallback.numPartitionsThreshold")
+      .withAlternative("rss.max.partition.number")
+      .categories("client")
+      .version("0.3.0")
+      .doc(
+        "Celeborn will only accept shuffle of partition number lower than this configuration value.")
+      .longConf
+      .createWithDefault(500000)
+
+  val CLIENT_PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.push.sort.memory.threshold")
+      .withAlternative("celeborn.push.sortMemory.threshold")
+      .withAlternative("rss.sort.push.data.threshold")
+      .categories("client")
+      .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64m")
+
+  val CLIENT_PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.sort.pipeline.enabled")
+      .withAlternative("celeborn.push.sort.pipeline.enabled")
+      .categories("client")
+      .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
+        " will be used to pipeline push")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")

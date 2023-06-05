@@ -257,8 +257,9 @@ See more detail in [CONFIGURATIONS](docs/configuration.md)
 
 ### Support Spark Dynamic Allocation
 We provide a patch to enable users to use Spark with both Dynamic Resource Allocation(DRA) and Celeborn.
-For Spark2.x check [Spark2 Patch](assets/spark-patch/RSS_RDA_spark2.patch).  
-For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_RDA_spark3.patch).
+For Spark2.x check [Spark2 Patch](assets/spark-patch/RSS_DRA_spark2.patch).  
+For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_DRA_spark3.patch).
+For Spark3.4 check [Spark3 Patch](assets/spark-patch/RSS_DRA_spark3_4.patch).
 
 ### Metrics
 Celeborn has various metrics. [METRICS](METRICS.md)
