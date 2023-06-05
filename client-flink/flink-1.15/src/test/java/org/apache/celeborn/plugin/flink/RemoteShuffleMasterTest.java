@@ -35,11 +35,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.shuffle.JobShuffleContext;
-import org.apache.flink.runtime.shuffle.PartitionDescriptor;
-import org.apache.flink.runtime.shuffle.ProducerDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
-import org.apache.flink.runtime.shuffle.TaskInputsOutputsDescriptor;
+import org.apache.flink.runtime.shuffle.*;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -47,7 +43,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.plugin.flink.config.PluginConf;
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
 public class RemoteShuffleMasterTest {
@@ -190,12 +186,12 @@ public class RemoteShuffleMasterTest {
             TaskInputsOutputsDescriptor.from(
                 numberOfInputGateChannels, numbersOfResultSubpartitions, resultPartitionTypes));
 
-    long numBytesPerGate =
-        FlinkUtils.byteStringValueAsBytes(configuration, PluginConf.MEMORY_PER_INPUT_GATE);
+    CelebornConf conf = FlinkUtils.toCelebornConf(configuration);
+
+    long numBytesPerGate = conf.clientFlinkMemoryPerInputGate();
     long expectedInput = 2 * numBytesPerGate;
 
-    long numBytesPerResultPartition =
-        FlinkUtils.byteStringValueAsBytes(configuration, PluginConf.MEMORY_PER_RESULT_PARTITION);
+    long numBytesPerResultPartition = conf.clientFlinkMemoryPerResultPartition();
     long expectedOutput = 3 * numBytesPerResultPartition;
     MemorySize expected = new MemorySize(expectedInput + expectedOutput);
 

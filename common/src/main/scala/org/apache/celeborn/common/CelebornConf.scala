@@ -945,6 +945,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushSlaveDataTimeout: Boolean = get(TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
+  def clientFlinkMemoryPerResultPartitionMin: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION_MIN)
+  def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
+  def clientFlinkMemoryPerInputGateMin: Long = get(CLIENT_MEMORY_PER_INPUT_GATE_MIN)
+  def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
+  def clientFlinkNumConcurrentReading: Int = get(CLIENT_NUM_CONCURRENT_READINGS)
+  def clientFlinkInputGateSupportFloatingBuffer: Boolean =
+    get(CLIENT_INPUT_GATE_SUPPORT_FLOATING_BUFFER)
+  def clientFlinkResultPartitionSupportFloatingBuffer: Boolean =
+    get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
+  def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -2877,6 +2887,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.compression.codec")
       .withAlternative("celeborn.shuffle.compression.codec")
       .withAlternative("rss.client.compression.codec")
+      .withAlternative("remote-shuffle.job.compression.codec")
       .categories("client")
       .doc("The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`.")
       .version("0.3.0")
@@ -3488,4 +3499,78 @@ object CelebornConf extends Logging {
       .doc("Whether to use codegen for columnar-based shuffle.")
       .booleanConf
       .createWithDefault(false)
+
+  // Flink specific client configurations.
+  val CLIENT_MEMORY_PER_RESULT_PARTITION_MIN: ConfigEntry[Long] =
+    buildConf("celeborn.client.flink.resultPartition.minMemory")
+      .withAlternative("remote-shuffle.job.min.memory-per-partition")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Min memory reserved for a result partition.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8m")
+
+  val CLIENT_MEMORY_PER_INPUT_GATE_MIN: ConfigEntry[Long] =
+    buildConf("celeborn.client.flink.inputGate.minMemory")
+      .withAlternative("remote-shuffle.job.min.memory-per-gate")
+      .categories("client")
+      .doc("Min memory reserved for a input gate.")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8m")
+
+  val CLIENT_NUM_CONCURRENT_READINGS: ConfigEntry[Int] =
+    buildConf("celeborn.client.flink.inputGate.concurrentReadings")
+      .withAlternative("remote-shuffle.job.concurrent-readings-per-gate")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Max concurrent reading channels for a input gate.")
+      .intConf
+      .createWithDefault(Int.MaxValue)
+
+  val CLIENT_MEMORY_PER_RESULT_PARTITION: ConfigEntry[Long] =
+    buildConf("celeborn.client.flink.resultPartition.memory")
+      .withAlternative("remote-shuffle.job.memory-per-partition")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Memory reserved for a result partition.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64m")
+
+  val CLIENT_MEMORY_PER_INPUT_GATE: ConfigEntry[Long] =
+    buildConf("celeborn.client.flink.inputGate.memory")
+      .withAlternative("remote-shuffle.job.memory-per-gate")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Memory reserved for a input gate.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("32m")
+
+  val CLIENT_INPUT_GATE_SUPPORT_FLOATING_BUFFER: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.flink.inputGate.supportFloatingBuffer")
+      .withAlternative("remote-shuffle.job.support-floating-buffer-per-input-gate")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether to support floating buffer in Flink input gates.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CLIENT_DATA_COMPRESSION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.flink.compression.enabled")
+      .withAlternative("remote-shuffle.job.enable-data-compression")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether to compress data in Flink plugin.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.flink.resultPartition.supportFloatingBuffer")
+      .withAlternative("remote-shuffle.job.support-floating-buffer-per-output-gate")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether to support floating buffer for result partitions.")
+      .booleanConf
+      .createWithDefault(true)
+
 }
