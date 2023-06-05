@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-Subject: [PATCH] rss support DRA.
+Subject: [PATCH] [CORE][SHUFFLE] Support enabling DRA with Apache Celeborn
 ---
 Index: core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
 IDEA additional info:
