@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-Subject: [PATCH] rss support RDA.
+Subject: [PATCH] rss support DRA.
 ---
 Index: core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
 IDEA additional info:
@@ -22,7 +22,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala b/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala
 --- a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala	(revision efae5362cbeaf1594b18edf594e83b2cf72afce6)
-+++ b/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala	(date 1685515818323)
++++ b/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scala	(date 1685946134830)
 @@ -209,7 +209,7 @@
        } else if (decommissionEnabled &&
            conf.get(config.STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED)) {
@@ -39,7 +39,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala	(revision efae5362cbeaf1594b18edf594e83b2cf72afce6)
-+++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala	(date 1685516413475)
++++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala	(date 1685946134830)
 @@ -2515,7 +2515,7 @@
      // if the cluster manager explicitly tells us that the entire worker was lost, then
      // we know to unregister shuffle output.  (Note that "worker" specifically refers to the process
@@ -56,14 +56,13 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/core/src/main/scala/org/apache/spark/util/Utils.scala b/core/src/main/scala/org/apache/spark/util/Utils.scala
 --- a/core/src/main/scala/org/apache/spark/util/Utils.scala	(revision efae5362cbeaf1594b18edf594e83b2cf72afce6)
-+++ b/core/src/main/scala/org/apache/spark/util/Utils.scala	(date 1685515818317)
-@@ -3271,6 +3271,10 @@
++++ b/core/src/main/scala/org/apache/spark/util/Utils.scala	(date 1685946145650)
+@@ -3271,6 +3271,9 @@
      files.toSeq
    }
 
 +  def isRssEnabled(conf: SparkConf): Boolean =
 +    conf.get("spark.shuffle.manager", "sort").contains("celeborn")
-+  }
 +
    /**
     * Return the median number of a long array
@@ -75,7 +74,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala b/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
 --- a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala	(revision efae5362cbeaf1594b18edf594e83b2cf72afce6)
-+++ b/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala	(date 1685516047047)
++++ b/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala	(date 1685946134830)
 @@ -1055,7 +1055,7 @@
      // data from this dead executor so we would need to rerun these tasks on other executors.
      val maybeShuffleMapOutputLoss = isShuffleMapTasks &&
