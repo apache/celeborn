@@ -22,12 +22,13 @@ image:
 
 imagePullSecrets: {}
 
-# master replicas should not less than 3
+# For integration test, using single celeborn mater & worker
 masterReplicas: 1
-# worker replicas set on demand, should less than node number
 workerReplicas: 1
 
 securityContext:
+  runAsUser: 10006
+  runAsGroup: 10006
   fsGroup: 10006
 
 # Current Celeborn support followings volume type:
@@ -37,14 +38,14 @@ securityContext:
 # Celeborn Master will pick first volumes for store raft log
 volumes:
   master:
-    - path: /mnt/rss_ratis
+    - mountPath: /mnt/rss_ratis
       type: emptyDir
       size: 1Gi
   worker:
-    - path: /mnt/disk1
+    - mountPath: /mnt/disk1
       type: emptyDir
       size: 1Gi
-    - path: /mnt/disk2
+    - mountPath: /mnt/disk2
       type: emptyDir
       size: 1Gi
 

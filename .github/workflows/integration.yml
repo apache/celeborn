@@ -26,6 +26,9 @@ on:
     branches:
       - main
       - branch-*
+  env:
+    MINIKUBE_VERSION: v1.29.0
+    KUBERNETES_VERSION: v1.26.1
 
 jobs:
   celeborn_integration_test:
@@ -56,12 +59,14 @@ jobs:
         with:
           version: v3.10.0
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.7.1
-        with:
-          minikube version: 'v1.25.2'
-          kubernetes version: 'v1.23.3'
+        run: |
+          # https://minikube.sigs.k8s.io/docs/start/
+          curl -LO https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          minikube start --cpus 2 --memory 4096 --kubernetes-version=${KUBERNETES_VERSION} --force
       - name: Deploy Celeborn
         run: |
+          # https://minikube.sigs.k8s.io/docs/handbook/pushing/#7-loading-directly-to-in-cluster-container-runtime
           minikube image load apache/celeborn:latest
           helm install celeborn charts/celeborn -f ./tests/kubernetes-it/docker/helm/values.yaml
       - name: Wait Celeborn Ready

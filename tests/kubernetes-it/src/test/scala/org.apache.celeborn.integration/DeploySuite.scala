@@ -26,7 +26,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.client.WithShuffleClientSuite
 
-//TODO need add shuffle client test
+// TODO need add shuffle client test
 class DeploySuite extends CelebornFunSuite with WithMiniKube {
   final val masterStatefulSet =
     kubernetesClient.apps().statefulSets().withName("celeborn-master").get()
@@ -37,10 +37,9 @@ class DeploySuite extends CelebornFunSuite with WithMiniKube {
 
   test("Check master started") {
     val masterPod = kubernetesClient.pods().withName("celeborn-master-0")
-    // wait master start
-    eventually(timeout(5 minutes), interval(30 seconds)) {
-      val log =
-        masterPod.getLog(true)
+    // wait for master ready
+    eventually(timeout(5 minutes), interval(10 seconds)) {
+      val log = masterPod.getLog(true)
       assert(log.contains("Master started."))
     }
 
@@ -49,10 +48,9 @@ class DeploySuite extends CelebornFunSuite with WithMiniKube {
 
   test("Check worker started") {
     val workerPod = kubernetesClient.pods().withName("celeborn-worker-0")
-    // wait worker start
-    eventually(timeout(5 minutes), interval(30 seconds)) {
-      val log =
-        workerPod.getLog(true)
+    // wait for worker ready
+    eventually(timeout(5 minutes), interval(10 seconds)) {
+      val log = workerPod.getLog(true)
       assert(log.contains("Register worker successfully."))
     }
 
