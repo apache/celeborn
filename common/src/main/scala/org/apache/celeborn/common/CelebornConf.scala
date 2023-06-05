@@ -3506,7 +3506,7 @@ object CelebornConf extends Logging {
       .withAlternative("remote-shuffle.job.min.memory-per-partition")
       .categories("client")
       .version("0.3.0")
-      .doc("Min memory reserved for a partition. For Flink plugin only.")
+      .doc("Min memory reserved for a result partition.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8m")
 
@@ -3514,7 +3514,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.flink.inputGate.minMemory")
       .withAlternative("remote-shuffle.job.min.memory-per-gate")
       .categories("client")
-      .doc("Min memory reserved for a InputGate. For Flink plugin only.")
+      .doc("Min memory reserved for a input gate.")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8m")
@@ -3524,7 +3524,7 @@ object CelebornConf extends Logging {
       .withAlternative("remote-shuffle.job.concurrent-readings-per-gate")
       .categories("client")
       .version("0.3.0")
-      .doc("Max concurrent reading channels for a input gate. For Flink plugin only.")
+      .doc("Max concurrent reading channels for a input gate.")
       .intConf
       .createWithDefault(Int.MaxValue)
 
@@ -3533,7 +3533,7 @@ object CelebornConf extends Logging {
       .withAlternative("remote-shuffle.job.memory-per-partition")
       .categories("client")
       .version("0.3.0")
-      .doc("Memory reserved for a partition. For Flink plugin only.")
+      .doc("Memory reserved for a result partition.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64m")
 
@@ -3542,7 +3542,7 @@ object CelebornConf extends Logging {
       .withAlternative("remote-shuffle.job.memory-per-gate")
       .categories("client")
       .version("0.3.0")
-      .doc("Memory reserved for a input gate. For Flink plugin only.")
+      .doc("Memory reserved for a input gate.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32m")
 
@@ -3569,7 +3569,7 @@ object CelebornConf extends Logging {
       .withAlternative("remote-shuffle.job.support-floating-buffer-per-output-gate")
       .categories("client")
       .version("0.3.0")
-      .doc("Whether to support floating buffer for result partitions. For Flink plugin only.")
+      .doc("Whether to support floating buffer for result partitions.")
       .booleanConf
       .createWithDefault(true)
 
