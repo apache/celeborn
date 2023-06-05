@@ -208,7 +208,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
     int numResultPartitions = taskInputsOutputsDescriptor.getSubpartitionNums().size();
     CelebornConf conf = FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
-    long numBytesPerPartition = conf.clientFlinkMemoryPerPartition();
+    long numBytesPerPartition = conf.clientFlinkMemoryPerResultPartition();
     long numBytesForOutput = numBytesPerPartition * numResultPartitions;
 
     int numInputGates = taskInputsOutputsDescriptor.getInputChannelNums().size();

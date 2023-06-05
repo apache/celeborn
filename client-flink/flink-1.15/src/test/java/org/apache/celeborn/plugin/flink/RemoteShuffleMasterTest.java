@@ -191,7 +191,7 @@ public class RemoteShuffleMasterTest {
     long numBytesPerGate = conf.clientFlinkMemoryPerInputGate();
     long expectedInput = 2 * numBytesPerGate;
 
-    long numBytesPerResultPartition = conf.clientFlinkMemoryPerPartition();
+    long numBytesPerResultPartition = conf.clientFlinkMemoryPerResultPartition();
     long expectedOutput = 3 * numBytesPerResultPartition;
     MemorySize expected = new MemorySize(expectedInput + expectedOutput);
 

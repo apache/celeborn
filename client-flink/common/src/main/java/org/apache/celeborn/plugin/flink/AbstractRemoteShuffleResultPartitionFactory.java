@@ -71,8 +71,8 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
       ResultPartitionManager partitionManager,
       BufferPoolFactory bufferPoolFactory,
       int networkBufferSize) {
-    long configuredMemorySize = celebornConf.clientFlinkMemoryPerPartition();
-    long minConfiguredMemorySize = celebornConf.clientFlinkMemoryPerPartitionMin();
+    long configuredMemorySize = celebornConf.clientFlinkMemoryPerResultPartition();
+    long minConfiguredMemorySize = celebornConf.clientFlinkMemoryPerResultPartitionMin();
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
@@ -82,7 +82,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
     }
 
     this.numBuffersPerPartition = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
-    this.supportFloatingBuffers = celebornConf.clientFlinkPartitionSupportFloatingBuffer();
+    this.supportFloatingBuffers = celebornConf.clientFlinkResultPartitionSupportFloatingBuffer();
     if (numBuffersPerPartition < MIN_BUFFERS_PER_PARTITION) {
       throw new IllegalArgumentException(
           String.format(

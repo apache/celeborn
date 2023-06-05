@@ -213,7 +213,7 @@ public class RemoteShuffleMasterTest {
     long numBytesPerGate = celebornConf.clientFlinkMemoryPerInputGate();
     long expectedInput = 2 * numBytesPerGate;
 
-    long numBytesPerResultPartition = celebornConf.clientFlinkMemoryPerPartition();
+    long numBytesPerResultPartition = celebornConf.clientFlinkMemoryPerResultPartition();
     long expectedOutput = 3 * numBytesPerResultPartition;
     MemorySize expected = new MemorySize(expectedInput + expectedOutput);
 
