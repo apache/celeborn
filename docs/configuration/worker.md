@@ -86,7 +86,6 @@ license: |
 | celeborn.worker.sortPartition.reservedMemoryPerPartition | 1mb | Reserved memory when sorting a shuffle file off-heap. | 0.3.0 | 
 | celeborn.worker.sortPartition.threads | &lt;undefined&gt; | PartitionSorter's thread counts. | 0.3.0 | 
 | celeborn.worker.sortPartition.timeout | 220s | Timeout for a shuffle file to sort. | 0.3.0 | 
-| celeborn.worker.storage.applicationData.keepAliveTime | 1d | If a non-empty application shuffle data dir have not been operated during le duration time, will mark this application as expired. | 0.3.0 | 
 | celeborn.worker.storage.checkDirsEmpty.maxRetries | 3 | The number of retries for a worker to check if the working directory is cleaned up before registering with the master. | 0.3.0 | 
 | celeborn.worker.storage.checkDirsEmpty.timeout | 1000ms | The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master. | 0.3.0 | 
 | celeborn.worker.storage.dirs | &lt;undefined&gt; | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: `dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]` | 0.2.0 | 

@@ -34,13 +34,13 @@ data:
     celeborn.ha.master.node.{{ . }}.host=celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local
     {{- end }}
     {{- $dirs := .Values.volumes.master }}
-    celeborn.ha.master.ratis.raft.server.storage.dir={{ (index $dirs 0).path }}
+    celeborn.ha.master.ratis.raft.server.storage.dir={{ (index $dirs 0).mountPath }}
     {{- $path := "" }}
     {{- range $worker := .Values.volumes.worker }}
     {{- if eq $path "" }}
-    {{- $path = $worker.path }}
+    {{- $path = $worker.mountPath }}
     {{- else }}
-    {{- $path = ( list $path $worker.path | join ",") }}
+    {{- $path = ( list $path $worker.mountPath | join ",") }}
     {{- end }}
     {{- end }}
     celeborn.worker.storage.dirs={{ $path }}
