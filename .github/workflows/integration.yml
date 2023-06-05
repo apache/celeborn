@@ -26,9 +26,9 @@ on:
     branches:
       - main
       - branch-*
-  env:
-    MINIKUBE_VERSION: v1.29.0
-    KUBERNETES_VERSION: v1.26.1
+env:
+  MINIKUBE_VERSION: v1.29.0
+  KUBERNETES_VERSION: v1.26.1
 
 jobs:
   celeborn_integration_test:
