@@ -3500,15 +3500,6 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.push.unsafeRow.fastWrite.enabled")
-      .categories("client")
-      .version("0.2.2")
-      .doc("This is Celeborn's optimization on UnsafeRow for Spark and it's true by default. " +
-        "If you have changed UnsafeRow's memory layout set this to false.")
-      .booleanConf
-      .createWithDefault(true)
-
   // Flink specific client configurations.
   val CLIENT_MEMORY_PER_PARTITION_MIN: ConfigEntry[Long] =
     buildConf("celeborn.client.flink.partition.minMemory")
