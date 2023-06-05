@@ -19,11 +19,7 @@ package org.apache.celeborn.plugin.flink;
 
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
-import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
+import org.apache.flink.runtime.shuffle.*;
 
 public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFactory
     implements ShuffleServiceFactory<
@@ -42,17 +38,13 @@ public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFac
         initializePreCreateShuffleEnvironment(shuffleEnvironmentContext);
     RemoteShuffleResultPartitionFactory resultPartitionFactory =
         new RemoteShuffleResultPartitionFactory(
-            parameters.configuration,
             parameters.celebornConf,
             parameters.resultPartitionManager,
             parameters.networkBufferPool,
             parameters.bufferSize);
     RemoteShuffleInputGateFactory inputGateFactory =
         new RemoteShuffleInputGateFactory(
-            parameters.configuration,
-            parameters.celebornConf,
-            parameters.networkBufferPool,
-            parameters.bufferSize);
+            parameters.celebornConf, parameters.networkBufferPool, parameters.bufferSize);
 
     return new RemoteShuffleEnvironment(
         parameters.networkBufferPool,

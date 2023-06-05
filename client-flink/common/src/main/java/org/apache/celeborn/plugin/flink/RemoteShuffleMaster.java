@@ -26,20 +26,13 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.shuffle.JobShuffleContext;
-import org.apache.flink.runtime.shuffle.PartitionDescriptor;
-import org.apache.flink.runtime.shuffle.ProducerDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
-import org.apache.flink.runtime.shuffle.TaskInputsOutputsDescriptor;
+import org.apache.flink.runtime.shuffle.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
-import org.apache.celeborn.plugin.flink.config.PluginConf;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.celeborn.plugin.flink.utils.ThreadUtils;
 
@@ -214,15 +207,12 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     }
 
     int numResultPartitions = taskInputsOutputsDescriptor.getSubpartitionNums().size();
-    long numBytesPerPartition =
-        FlinkUtils.byteStringValueAsBytes(
-            shuffleMasterContext.getConfiguration(), PluginConf.MEMORY_PER_RESULT_PARTITION);
+    CelebornConf conf = FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
+    long numBytesPerPartition = conf.clientFlinkMemoryPerResultPartition();
     long numBytesForOutput = numBytesPerPartition * numResultPartitions;
 
     int numInputGates = taskInputsOutputsDescriptor.getInputChannelNums().size();
-    long numBytesPerGate =
-        FlinkUtils.byteStringValueAsBytes(
-            shuffleMasterContext.getConfiguration(), PluginConf.MEMORY_PER_INPUT_GATE);
+    long numBytesPerGate = conf.clientFlinkMemoryPerInputGate();
     long numBytesForInput = numBytesPerGate * numInputGates;
 
     LOG.debug(

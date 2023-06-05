@@ -17,7 +17,9 @@
 
 package org.apache.celeborn.plugin.flink.utils;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
@@ -25,18 +27,31 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.util.Utils;
-import org.apache.celeborn.plugin.flink.config.PluginConf;
 
 public class FlinkUtils {
+
+  public static final Set<String> pluginConfNames =
+      new HashSet<String>() {
+        {
+          add("remote-shuffle.job.min.memory-per-partition");
+          add("remote-shuffle.job.min.memory-per-gate");
+          add("remote-shuffle.job.concurrent-readings-per-gate");
+          add("remote-shuffle.job.memory-per-partition");
+          add("remote-shuffle.job.memory-per-gate");
+          add("remote-shuffle.job.support-floating-buffer-per-input-gate");
+          add("remote-shuffle.job.enable-data-compression");
+          add("remote-shuffle.job.support-floating-buffer-per-output-gate");
+          add("remote-shuffle.job.compression.codec");
+        }
+      };
 
   public static CelebornConf toCelebornConf(Configuration configuration) {
     CelebornConf tmpCelebornConf = new CelebornConf();
     Map<String, String> confMap = configuration.toMap();
     for (Map.Entry<String, String> entry : confMap.entrySet()) {
       String key = entry.getKey();
-      if (key.startsWith("celeborn.")) {
-        tmpCelebornConf.set(entry.getKey(), entry.getValue());
+      if (key.startsWith("celeborn.") || pluginConfNames.contains(key)) {
+        tmpCelebornConf.set(key, entry.getValue());
       }
     }
 
@@ -53,13 +68,5 @@ public class FlinkUtils {
 
   public static String toAttemptId(ExecutionAttemptID attemptID) {
     return attemptID.toString();
-  }
-
-  public static long byteStringValueAsBytes(Configuration flinkConf, PluginConf pluginConf) {
-    return Utils.byteStringAsBytes(PluginConf.getValue(flinkConf, pluginConf));
-  }
-
-  public static boolean stringValueAsBoolean(Configuration flinkConf, PluginConf pluginConf) {
-    return Boolean.valueOf(PluginConf.getValue(flinkConf, pluginConf));
   }
 }

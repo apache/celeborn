@@ -20,7 +20,6 @@ package org.apache.celeborn.plugin.flink;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
@@ -37,13 +36,12 @@ public class RemoteShuffleResultPartitionFactory
     extends AbstractRemoteShuffleResultPartitionFactory {
 
   public RemoteShuffleResultPartitionFactory(
-      Configuration flinkConf,
       CelebornConf celebornConf,
       ResultPartitionManager partitionManager,
       BufferPoolFactory bufferPoolFactory,
       int networkBufferSize) {
 
-    super(flinkConf, celebornConf, partitionManager, bufferPoolFactory, networkBufferSize);
+    super(celebornConf, partitionManager, bufferPoolFactory, networkBufferSize);
   }
 
   @Override

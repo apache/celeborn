@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -38,8 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.CompressionCodec;
-import org.apache.celeborn.plugin.flink.config.PluginConf;
-import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create {@link RemoteShuffleResultPartition}. */
@@ -70,33 +67,28 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
   protected String compressionCodec;
 
   public AbstractRemoteShuffleResultPartitionFactory(
-      Configuration flinkConf,
       CelebornConf celebornConf,
       ResultPartitionManager partitionManager,
       BufferPoolFactory bufferPoolFactory,
       int networkBufferSize) {
-    long configuredMemorySize =
-        FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MEMORY_PER_RESULT_PARTITION);
-    long minConfiguredMemorySize =
-        FlinkUtils.byteStringValueAsBytes(flinkConf, PluginConf.MIN_MEMORY_PER_PARTITION);
+    long configuredMemorySize = celebornConf.clientFlinkMemoryPerResultPartition();
+    long minConfiguredMemorySize = celebornConf.clientFlinkMemoryPerResultPartitionMin();
     if (configuredMemorySize < minConfiguredMemorySize) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per result partition, please increase %s "
                   + "to at least %s.",
-              PluginConf.MEMORY_PER_RESULT_PARTITION.name, minConfiguredMemorySize));
+              CelebornConf.CLIENT_MEMORY_PER_RESULT_PARTITION().key(), minConfiguredMemorySize));
     }
 
     this.numBuffersPerPartition = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
-    this.supportFloatingBuffers =
-        FlinkUtils.stringValueAsBoolean(
-            flinkConf, PluginConf.SUPPORT_FLOATING_BUFFER_PER_OUTPUT_GATE);
+    this.supportFloatingBuffers = celebornConf.clientFlinkResultPartitionSupportFloatingBuffer();
     if (numBuffersPerPartition < MIN_BUFFERS_PER_PARTITION) {
       throw new IllegalArgumentException(
           String.format(
               "Insufficient network memory per partition, please increase %s to at "
                   + "least %d bytes.",
-              PluginConf.MEMORY_PER_RESULT_PARTITION.name,
+              CelebornConf.CLIENT_MEMORY_PER_RESULT_PARTITION().key(),
               networkBufferSize * MIN_BUFFERS_PER_PARTITION));
     }
 
@@ -104,8 +96,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
     this.bufferPoolFactory = bufferPoolFactory;
     this.networkBufferSize = networkBufferSize;
 
-    this.compressionCodec =
-        PluginConf.getValue(flinkConf, PluginConf.REMOTE_SHUFFLE_COMPRESSION_CODEC);
+    this.compressionCodec = celebornConf.shuffleCompressionCodec().name();
   }
 
   public ResultPartition create(
