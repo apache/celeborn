@@ -78,7 +78,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
           String.format(
               "Insufficient network memory per result partition, please increase %s "
                   + "to at least %s.",
-              CelebornConf.CLIENT_MEMORY_PER_PARTITION().key(), minConfiguredMemorySize));
+              CelebornConf.CLIENT_MEMORY_PER_RESULT_PARTITION().key(), minConfiguredMemorySize));
     }
 
     this.numBuffersPerPartition = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
@@ -88,7 +88,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
           String.format(
               "Insufficient network memory per partition, please increase %s to at "
                   + "least %d bytes.",
-              CelebornConf.CLIENT_MEMORY_PER_PARTITION().key(),
+              CelebornConf.CLIENT_MEMORY_PER_RESULT_PARTITION().key(),
               networkBufferSize * MIN_BUFFERS_PER_PARTITION));
     }
 
