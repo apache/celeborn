@@ -51,7 +51,8 @@ license: |
 | celeborn.client.push.sort.randomizePartitionId.enabled | false | Whether to randomize partitionId in push sorter. If true, partitionId will be randomized when sort data to avoid skew when push to worker | 0.3.0 | 
 | celeborn.client.push.splitPartition.threads | 8 | Thread number to process shuffle split request in shuffle client. | 0.3.0 | 
 | celeborn.client.push.stageEnd.timeout | &lt;value of celeborn.&lt;module&gt;.io.connectionTimeout&gt; | Timeout for waiting StageEnd. During this process, there are `celeborn.client.requestCommitFiles.maxRetries` times for retry opportunities for committing filesand 1 times for releasing slots request. User can customize this value according to your setting. By default, the value is the max timeout value `celeborn.<module>.io.connectionTimeout`. | 0.3.0 | 
-| celeborn.client.push.takeTaskWaitTime | 50ms | Wait time if no task available to push to worker. | 0.3.0 | 
+| celeborn.client.push.takeTaskMaxWaitTimes | 1 | Wait time if no task available to push to worker. | 0.3.0 | 
+| celeborn.client.push.takeTaskWaitInterval | 50ms | Wait time if no task available to push to worker. | 0.3.0 | 
 | celeborn.client.registerShuffle.maxRetries | 3 | Max retry times for client to register shuffle. | 0.3.0 | 
 | celeborn.client.registerShuffle.retryWait | 3s | Wait time before next retry if register shuffle failed. | 0.3.0 | 
 | celeborn.client.requestCommitFiles.maxRetries | 2 | Max retry times for requestCommitFiles RPC. | 0.3.0 | 

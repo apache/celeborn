@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +53,8 @@ public class DataPushQueue {
   private final int numMappers;
   private final int numPartitions;
   private final ShuffleClient client;
-  private final long takeTaskWaitTimeMs;
+  private final long takeTaskWaitIntervalMs;
+  private final int takeTaskMaxWaitTimes;
 
   public DataPushQueue(
       CelebornConf conf,
@@ -73,7 +75,8 @@ public class DataPushQueue {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     this.pushState = client.getPushState(mapKey);
     this.maxInFlight = conf.clientPushMaxReqsInFlight();
-    this.takeTaskWaitTimeMs = conf.clientPushTakeTaskWaitTimeMs();
+    this.takeTaskWaitIntervalMs = conf.clientPushTakeTaskWaitIntervalMs();
+    this.takeTaskMaxWaitTimes = conf.clientPushTakeTaskMaxWaitTimes();
     final int capacity = conf.clientPushQueueCapacity();
     workingQueue = new LinkedBlockingQueue<>(capacity);
   }
@@ -85,6 +88,7 @@ public class DataPushQueue {
   public ArrayList<PushTask> takePushTasks() throws IOException, InterruptedException {
     ArrayList<PushTask> tasks = new ArrayList<>();
     HashMap<String, Integer> workerCapacity = new HashMap<>();
+    HashMap<String, AtomicInteger> workerWaitTimes = new HashMap<>();
     while (dataPusher.stillRunning()) {
       // clear() here is necessary since inflight pushes might change after sleeping
       // takeTaskWaitTimeMs
@@ -106,10 +110,16 @@ public class DataPushQueue {
               oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
             }
+            workerWaitTimes.putIfAbsent(loc.hostAndPushPort(), new AtomicInteger(0));
             if (oldCapacity > 0) {
               iterator.remove();
               tasks.add(task);
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
+            } else if (workerWaitTimes.get(loc.hostAndPushPort()).get() >= takeTaskMaxWaitTimes) {
+              iterator.remove();
+              tasks.add(task);
+            } else {
+              workerWaitTimes.get(loc.hostAndPushPort()).incrementAndGet();
             }
           } else {
             tasks.add(task);
@@ -123,7 +133,7 @@ public class DataPushQueue {
       }
       try {
         // Reaching here means no available tasks can be pushed to any worker, wait for a while
-        Thread.sleep(takeTaskWaitTimeMs);
+        Thread.sleep(takeTaskWaitIntervalMs);
       } catch (InterruptedException ie) {
         logger.info("Thread interrupted while waiting push task.");
         throw ie;

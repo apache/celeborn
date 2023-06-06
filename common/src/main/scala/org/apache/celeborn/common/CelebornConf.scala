@@ -737,7 +737,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
   def clientPushLimitInFlightSleepDeltaMs: Long = get(CLIENT_PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
   def clientPushSplitPartitionThreads: Int = get(CLIENT_PUSH_SPLIT_PARTITION_THREADS)
-  def clientPushTakeTaskWaitTimeMs: Long = get(CLIENT_PUSH_TAKE_TASK_WAIT_TIME)
+  def clientPushTakeTaskWaitIntervalMs: Long = get(CLIENT_PUSH_TAKE_TASK_WAIT_INTERVAL)
+  def clientPushTakeTaskMaxWaitTimes: Int = get(CLIENT_PUSH_TAKE_TASK_MAX_WAIT_TIMES)
 
   // //////////////////////////////////////////////////////
   //                   Client Shuffle                    //
@@ -2777,13 +2778,21 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(8)
 
-  val CLIENT_PUSH_TAKE_TASK_WAIT_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.takeTaskWaitTime")
+  val CLIENT_PUSH_TAKE_TASK_WAIT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.takeTaskWaitInterval")
       .categories("client")
       .doc("Wait time if no task available to push to worker.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("50ms")
+
+  val CLIENT_PUSH_TAKE_TASK_MAX_WAIT_TIMES: ConfigEntry[Int] =
+    buildConf("celeborn.client.push.takeTaskMaxWaitTimes")
+      .categories("client")
+      .doc("Wait time if no task available to push to worker.")
+      .version("0.3.0")
+      .intConf
+      .createWithDefault(1)
 
   val TEST_CLIENT_RETRY_REVIVE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.client.retryRevive")
