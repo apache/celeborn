@@ -140,7 +140,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /** Get a parameter, falling back to a default if not set */
-  def get(key: String, defaultValue: => String): String = {
+  def get(key: String, defaultValue: String): String = {
     getOption(key).getOrElse(defaultValue)
   }
 
@@ -297,7 +297,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    * Get a parameter as an integer, falling back to a default if not set
    * @throws NumberFormatException If the value cannot be interpreted as an integer
    */
-  def getInt(key: String, defaultValue: => Int): Int = catchIllegalValue(key) {
+  def getInt(key: String, defaultValue: Int): Int = catchIllegalValue(key) {
     getOption(key).map(_.toInt).getOrElse(defaultValue)
   }
 
@@ -305,7 +305,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    * Get a parameter as a long, falling back to a default if not set
    * @throws NumberFormatException If the value cannot be interpreted as a long
    */
-  def getLong(key: String, defaultValue: => Long): Long = catchIllegalValue(key) {
+  def getLong(key: String, defaultValue: Long): Long = catchIllegalValue(key) {
     getOption(key).map(_.toLong).getOrElse(defaultValue)
   }
 
@@ -313,7 +313,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    * Get a parameter as a double, falling back to a default if not ste
    * @throws NumberFormatException If the value cannot be interpreted as a double
    */
-  def getDouble(key: String, defaultValue: => Double): Double = catchIllegalValue(key) {
+  def getDouble(key: String, defaultValue: Double): Double = catchIllegalValue(key) {
     getOption(key).map(_.toDouble).getOrElse(defaultValue)
   }
 
@@ -321,7 +321,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    * Get a parameter as a boolean, falling back to a default if not set
    * @throws IllegalArgumentException If the value cannot be interpreted as a boolean
    */
-  def getBoolean(key: String, defaultValue: => Boolean): Boolean = catchIllegalValue(key) {
+  def getBoolean(key: String, defaultValue: Boolean): Boolean = catchIllegalValue(key) {
     getOption(key).map(_.toBoolean).getOrElse(defaultValue)
   }
 
