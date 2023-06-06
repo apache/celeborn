@@ -36,12 +36,12 @@ import org.apache.celeborn.common.util.Utils
  *
  * To run the entire test suite:
  * {{{
- *   build/mvn clean test -pl common -am -Pspark-3.3 -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite
+ *   build/mvn clean test -pl common -am -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite
  * }}}
  *
  * To re-generate golden files for entire suite, run:
  * {{{
- *   UPDATE=1 build/mvn clean test -pl common -am -Pspark-3.3 -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite
+ *   UPDATE=1 build/mvn clean test -pl common -am -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite
  * }}}
  */
 class ConfigurationSuite extends AnyFunSuite {
