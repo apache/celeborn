@@ -1568,7 +1568,8 @@ object CelebornConf extends Logging {
       .createWithDefault(9872)
 
   val HA_MASTER_RATIS_RPC_TYPE: ConfigEntry[String] =
-    buildConf("celeborn.ha.master.ratis.raft.rpc.type")
+    buildConf("celeborn.master.ha.ratis.raft.rpc.type")
+      .withAlternative("celeborn.ha.master.ratis.raft.rpc.type")
       .categories("ha")
       .doc("RPC type for Ratis, available options: netty, grpc.")
       .version("0.2.0")
@@ -1578,14 +1579,16 @@ object CelebornConf extends Logging {
       .createWithDefault("netty")
 
   val HA_MASTER_RATIS_STORAGE_DIR: ConfigEntry[String] =
-    buildConf("celeborn.ha.master.ratis.raft.server.storage.dir")
+    buildConf("celeborn.master.ha.ratis.raft.server.storage.dir")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.storage.dir")
       .categories("ha")
       .version("0.2.0")
       .stringConf
       .createWithDefault("/tmp/ratis")
 
   val HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.segment.size.max")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1593,7 +1596,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("4MB")
 
   val HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.preallocated.size")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1601,7 +1605,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("4MB")
 
   val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.appender.buffer.element-limit")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1609,7 +1614,8 @@ object CelebornConf extends Logging {
       .createWithDefault(1024)
 
   val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.appender.buffer.byte-limit")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1617,7 +1623,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("32MB")
 
   val HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.appender.install.snapshot.enabled")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1625,7 +1632,8 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val HA_MASTER_RATIS_LOG_PURGE_GAP: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.purge.gap")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.purge.gap")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.purge.gap")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1633,7 +1641,8 @@ object CelebornConf extends Logging {
       .createWithDefault(1000000)
 
   val HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
+    buildConf("celeborn.master.ha.ratis.raft.server.rpc.request.timeout")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1641,7 +1650,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
+    buildConf("celeborn.master.ha.ratis.raft.server.retrycache.expirytime")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1649,7 +1659,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("600s")
 
   val HA_MASTER_RATIS_RPC_TIMEOUT_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
+    buildConf("celeborn.master.ha.ratis.raft.server.rpc.timeout.min")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1657,7 +1668,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val HA_MASTER_RATIS_RPC_TIMEOUT_MAX: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
+    buildConf("celeborn.master.ha.ratis.raft.server.rpc.timeout.max")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1665,7 +1677,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5s")
 
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.first.election.timeout.min")
+    buildConf("celeborn.master.ha.ratis.first.election.timeout.min")
+      .withAlternative("celeborn.ha.master.ratis.first.election.timeout.min")
       .internal
       .categories("ha")
       .version("0.3.0")
@@ -1673,7 +1686,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.first.election.timeout.max")
+    buildConf("celeborn.master.ha.ratis.first.election.timeout.max")
+      .withAlternative("celeborn.ha.master.ratis.first.election.timeout.max")
       .internal
       .categories("ha")
       .version("0.3.0")
@@ -1681,7 +1695,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5s")
 
   val HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.notification.no-leader.timeout")
+    buildConf("celeborn.master.ha.ratis.raft.server.notification.no-leader.timeout")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.notification.no-leader.timeout")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1689,7 +1704,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("30s")
 
   val HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.rpc.slowness.timeout")
+    buildConf("celeborn.master.ha.ratis.raft.server.rpc.slowness.timeout")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.slowness.timeout")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1697,7 +1713,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("120s")
 
   val HA_MASTER_RATIS_ROLE_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.role.check.interval")
+    buildConf("celeborn.master.ha.ratis.raft.server.role.check.interval")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.role.check.interval")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1705,7 +1722,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("1s")
 
   val HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.enabled")
+    buildConf("celeborn.master.ha.ratis.raft.server.snapshot.auto.trigger.enabled")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.enabled")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1713,7 +1731,8 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.threshold")
+    buildConf("celeborn.master.ha.ratis.raft.server.snapshot.auto.trigger.threshold")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.threshold")
       .internal
       .categories("ha")
       .version("0.2.0")
@@ -1721,7 +1740,8 @@ object CelebornConf extends Logging {
       .createWithDefault(200000L)
 
   val HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.retention.file.num")
+    buildConf("celeborn.master.ha.ratis.raft.server.snapshot.retention.file.num")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.retention.file.num")
       .internal
       .categories("ha")
       .version("0.2.0")
