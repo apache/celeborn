@@ -1534,7 +1534,10 @@ public class ShuffleClientImpl extends ShuffleClient {
   private StatusCode getPushDataFailCause(String message) {
     logger.debug("Push data failed cause message: " + message);
     StatusCode cause;
-    if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
+    if (message == null) {
+      logger.error("Push data throw unexpected exception: " + message);
+      cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
       cause = StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE;
     } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_MASTER.name())) {
       cause = StatusCode.PUSH_DATA_WRITE_FAIL_MASTER;
