@@ -544,32 +544,43 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
 
     val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
-    getAllWithPrefix(nodeConfPrefix)
+    val nodeIds = getAllWithPrefix(nodeConfPrefix)
       .map(_._1)
       .filterNot(_.equals("id"))
       .map(k => extractPrefix(k, "."))
       .distinct
+
+    val legacyNodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.alternatives.head._1, "<id>")
+    val legacyNodeIds = getAllWithPrefix(legacyNodeConfPrefix)
+      .map(_._1)
+      .filterNot(_.equals("id"))
+      .map(k => extractPrefix(k, "."))
+      .distinct
+    (nodeIds ++ legacyNodeIds).distinct
   }
 
   def haMasterNodeHost(nodeId: String): String = {
     val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    get(key, Utils.localHostName)
+    val legacyKey = HA_MASTER_NODE_HOST.alternatives.head._1.replace("<id>", nodeId)
+    get(key, get(legacyKey, Utils.localHostName))
   }
 
   def haMasterNodePort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_PORT.key.replace("<id>", nodeId)
-    getInt(key, HA_MASTER_NODE_PORT.defaultValue.get)
+    val legacyKey = HA_MASTER_NODE_PORT.alternatives.head._1.replace("<id>", nodeId)
+    getInt(key, getInt(legacyKey, HA_MASTER_NODE_PORT.defaultValue.get))
   }
 
   def haMasterRatisHost(nodeId: String): String = {
     val key = HA_MASTER_NODE_RATIS_HOST.key.replace("<id>", nodeId)
-    val fallbackKey = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    get(key, get(fallbackKey))
+    val legacyKey = HA_MASTER_NODE_RATIS_HOST.alternatives.head._1.replace("<id>", nodeId)
+    get(key, get(legacyKey, haMasterNodeHost(nodeId)))
   }
 
   def haMasterRatisPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
-    getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
+    val legacyKey = HA_MASTER_NODE_RATIS_PORT.alternatives.head._1.replace("<id>", nodeId)
+    getInt(key, getInt(legacyKey, HA_MASTER_NODE_RATIS_PORT.defaultValue.get))
   }
 
   def haMasterRatisRpcType: String = get(HA_MASTER_RATIS_RPC_TYPE)
@@ -1499,7 +1510,8 @@ object CelebornConf extends Logging {
       .createWithDefault(9097)
 
   val HA_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.ha.enabled")
+    buildConf("celeborn.master.ha.enabled")
+      .withAlternative("celeborn.ha.enabled")
       .categories("ha")
       .version("0.2.0")
       .doc("When true, master nodes run as Raft cluster mode.")
@@ -1507,7 +1519,8 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
-    buildConf("celeborn.ha.master.node.id")
+    buildConf("celeborn.master.ha.node.id")
+      .withAlternative("celeborn.ha.master.node.id")
       .doc("Node id for master raft cluster in HA mode, if not define, " +
         "will be inferred by hostname.")
       .version("0.2.0")
@@ -1515,7 +1528,8 @@ object CelebornConf extends Logging {
       .createOptional
 
   val HA_MASTER_NODE_HOST: ConfigEntry[String] =
-    buildConf("celeborn.ha.master.node.<id>.host")
+    buildConf("celeborn.master.ha.node.<id>.host")
+      .withAlternative("celeborn.ha.master.node.<id>.host")
       .categories("ha")
       .doc("Host to bind of master node <id> in HA mode.")
       .version("0.2.0")
@@ -1523,7 +1537,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("<required>")
 
   val HA_MASTER_NODE_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.node.<id>.port")
+    buildConf("celeborn.master.ha.node.<id>.port")
+      .withAlternative("celeborn.ha.master.node.<id>.port")
       .categories("ha")
       .doc("Port to bind of master node <id> in HA mode.")
       .version("0.2.0")
@@ -1532,7 +1547,8 @@ object CelebornConf extends Logging {
       .createWithDefault(9097)
 
   val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
-    buildConf("celeborn.ha.master.node.<id>.ratis.host")
+    buildConf("celeborn.master.ha.node.<id>.ratis.host")
+      .withAlternative("celeborn.ha.master.node.<id>.ratis.host")
       .internal
       .categories("ha")
       .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
@@ -1542,7 +1558,8 @@ object CelebornConf extends Logging {
       .createOptional
 
   val HA_MASTER_NODE_RATIS_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.node.<id>.ratis.port")
+    buildConf("celeborn.master.ha.node.<id>.ratis.port")
+      .withAlternative("celeborn.ha.master.node.<id>.ratis.port")
       .categories("ha")
       .doc("Ratis port to bind of master node <id> in HA mode.")
       .version("0.2.0")
