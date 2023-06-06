@@ -27,3 +27,6 @@ license: |
 
  - From 0.3.0 on the default value for `celeborn.worker.storage.workingDir` is changed from `hadoop/rss-worker/shuffle_data` to `rss-worker/shuffle_data`,
    users who want to use origin working dir path should set this configuration.
+
+ - Since 0.3.0, configuration namespace `celeborn.ha.master` is deprecated, and will be removed in the future versions.
+   All configurations `celeborn.ha.master.*` should migrate to `celeborn.master.ha.*`.
