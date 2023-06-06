@@ -54,7 +54,7 @@ public class DataPushQueue {
   private final int numPartitions;
   private final ShuffleClient client;
   private final long takeTaskWaitIntervalMs;
-  private final int takeTaskMaxWaitTimes;
+  private final int takeTaskMaxWaitAttempts;
 
   public DataPushQueue(
       CelebornConf conf,
@@ -76,7 +76,7 @@ public class DataPushQueue {
     this.pushState = client.getPushState(mapKey);
     this.maxInFlight = conf.clientPushMaxReqsInFlight();
     this.takeTaskWaitIntervalMs = conf.clientPushTakeTaskWaitIntervalMs();
-    this.takeTaskMaxWaitTimes = conf.clientPushTakeTaskMaxWaitTimes();
+    this.takeTaskMaxWaitAttempts = conf.clientPushTakeTaskMaxWaitAttempts();
     final int capacity = conf.clientPushQueueCapacity();
     workingQueue = new LinkedBlockingQueue<>(capacity);
   }
@@ -88,7 +88,7 @@ public class DataPushQueue {
   public ArrayList<PushTask> takePushTasks() throws IOException, InterruptedException {
     ArrayList<PushTask> tasks = new ArrayList<>();
     HashMap<String, Integer> workerCapacity = new HashMap<>();
-    HashMap<String, AtomicInteger> workerWaitTimes = new HashMap<>();
+    HashMap<String, AtomicInteger> workerWaitAttempts = new HashMap<>();
     while (dataPusher.stillRunning()) {
       // clear() here is necessary since inflight pushes might change after sleeping
       // takeTaskWaitTimeMs
@@ -110,16 +110,17 @@ public class DataPushQueue {
               oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
             }
-            workerWaitTimes.putIfAbsent(loc.hostAndPushPort(), new AtomicInteger(0));
+            AtomicInteger waitAttempts =
+                workerWaitAttempts.putIfAbsent(loc.hostAndPushPort(), new AtomicInteger(0));
             if (oldCapacity > 0) {
               iterator.remove();
               tasks.add(task);
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
-            } else if (workerWaitTimes.get(loc.hostAndPushPort()).get() >= takeTaskMaxWaitTimes) {
+            } else if (waitAttempts.get() >= takeTaskMaxWaitAttempts) {
               iterator.remove();
               tasks.add(task);
             } else {
-              workerWaitTimes.get(loc.hostAndPushPort()).incrementAndGet();
+              workerWaitAttempts.get(loc.hostAndPushPort()).incrementAndGet();
             }
           } else {
             tasks.add(task);
