@@ -113,8 +113,7 @@ public class NettyMemoryMetrics {
     }
   }
 
-  private void registerArenaMetric(
-      PoolArenaMetric arenaMetric, String arenaName) {
+  private void registerArenaMetric(PoolArenaMetric arenaMetric, String arenaName) {
     for (String methodName : VERBOSE_METRICS) {
       Method m;
       try {
