@@ -304,13 +304,10 @@ private[celeborn] class Worker(
         activeShuffleKeys,
         estimatedAppDiskUsage),
       classOf[HeartbeatResponse])
-    if (response.registered) {
-      response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
-      cleanTaskQueue.put(response.expiredShuffleKeys)
-    } else {
+    response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
+    cleanTaskQueue.put(response.expiredShuffleKeys)
+    if (!response.registered) {
       logError("Worker not registered in master, clean expired shuffle data and register again.")
-      // Clean expired shuffle.
-      cleanup(response.expiredShuffleKeys)
       try {
         registerWithMaster()
       } catch {
