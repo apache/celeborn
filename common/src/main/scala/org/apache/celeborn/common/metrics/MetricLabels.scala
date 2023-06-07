@@ -30,7 +30,7 @@ object MetricLabels {
         .map { case (key: String, value: String) => s"""$key="$value"""" }
         .toList
         .sorted
-        .mkString(" ") +
+        .mkString(", ") +
       "}"
   }
 }

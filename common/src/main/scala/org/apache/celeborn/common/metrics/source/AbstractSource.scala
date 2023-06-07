@@ -76,6 +76,17 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addGauge[T](
       name: String,
+      gauge: Gauge[T],
+      labels: java.util.Map[String, String]): Unit = {
+    if (labels == null) {
+      addGauge(name, gauge, Map.empty[String, String])
+    } else {
+      addGauge(name, gauge, labels.asScala.toMap)
+    }
+  }
+
+  def addGauge[T](
+      name: String,
       f: Unit => T,
       labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)

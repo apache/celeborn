@@ -43,6 +43,8 @@ public class NettyMemoryMetrics {
 
   private final AbstractSource source;
 
+  private final Map<String, String> labels;
+
   @VisibleForTesting static final Set<String> VERBOSE_METRICS = new HashSet<>();
 
   static {
@@ -70,11 +72,13 @@ public class NettyMemoryMetrics {
       PooledByteBufAllocator pooledAllocator,
       String metricPrefix,
       boolean verboseMetricsEnabled,
-      AbstractSource source) {
+      AbstractSource source,
+      Map<String, String> labels) {
     this.pooledAllocator = pooledAllocator;
     this.metricPrefix = metricPrefix;
     this.verboseMetricsEnabled = verboseMetricsEnabled;
     this.source = source;
+    this.labels = labels;
 
     registerMetrics(this.pooledAllocator);
   }
@@ -87,27 +91,30 @@ public class NettyMemoryMetrics {
       logger.debug("setup netty metrics");
       source.addGauge(
           MetricRegistry.name(metricPrefix, "usedHeapMemory"),
-          pooledAllocatorMetric::usedHeapMemory);
+          pooledAllocatorMetric::usedHeapMemory,
+          labels);
       source.addGauge(
           MetricRegistry.name(metricPrefix, "usedDirectMemory"),
-          pooledAllocatorMetric::usedDirectMemory);
+          pooledAllocatorMetric::usedDirectMemory,
+          labels);
       if (verboseMetricsEnabled) {
         int directArenaIndex = 0;
         for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
-          registerArenaMetric(metric, "directArena" + directArenaIndex);
+          registerArenaMetric(metric, "directArena" + directArenaIndex, labels);
           directArenaIndex++;
         }
 
         int heapArenaIndex = 0;
         for (PoolArenaMetric metric : pooledAllocatorMetric.heapArenas()) {
-          registerArenaMetric(metric, "heapArena" + heapArenaIndex);
+          registerArenaMetric(metric, "heapArena" + heapArenaIndex, labels);
           heapArenaIndex++;
         }
       }
     }
   }
 
-  private void registerArenaMetric(PoolArenaMetric arenaMetric, String arenaName) {
+  private void registerArenaMetric(
+      PoolArenaMetric arenaMetric, String arenaName, Map<String, String> labels) {
     for (String methodName : VERBOSE_METRICS) {
       Method m;
       try {
@@ -133,7 +140,8 @@ public class NettyMemoryMetrics {
               } catch (Exception e) {
                 return -1; // Swallow the exceptions.
               }
-            });
+            },
+            labels);
 
       } else if (returnType.equals(long.class)) {
         source.addGauge(
@@ -144,7 +152,8 @@ public class NettyMemoryMetrics {
               } catch (Exception e) {
                 return -1L; // Swallow the exceptions.
               }
-            });
+            },
+            labels);
       }
     }
   }

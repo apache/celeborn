@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network.util;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 
@@ -122,7 +124,7 @@ public class NettyUtils {
         // each core should have one arena to allocate memory
         _allocator = createPooledByteBufAllocator(true, true, conf.networkAllocatorArenas());
         new NettyMemoryMetrics(
-            _allocator, "shared-pool", conf.networkAllocatorVerboseMetric(), source);
+            _allocator, "shared-pool", conf.networkAllocatorVerboseMetric(), source, null);
       }
       return _allocator;
     }
@@ -130,6 +132,7 @@ public class NettyUtils {
 
   public static PooledByteBufAllocator getPooledByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache) {
+    Map<String, String> labels = null;
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
       return getSharedPooledByteBufAllocator(conf.getCelebornConf(), source);
     } else {
@@ -139,22 +142,27 @@ public class NettyUtils {
         String poolName = "default-netty-pool";
         String moduleName = conf.getModuleName();
         if (!moduleName.isEmpty()) {
-          poolName =
-              moduleName
-                  + "-"
-                  + allocatorsIndex.compute(
-                      moduleName,
-                      (k, v) -> {
-                        if (v == null) {
-                          v = 0;
-                        } else {
-                          v = v + 1;
-                        }
-                        return v;
-                      });
+          poolName = moduleName;
+          int index =
+              allocatorsIndex.compute(
+                  moduleName,
+                  (k, v) -> {
+                    if (v == null) {
+                      v = 0;
+                    } else {
+                      v = v + 1;
+                    }
+                    return v;
+                  });
+          labels = new HashMap<>();
+          labels.put("allocatorIndex", String.valueOf(index));
         }
         new NettyMemoryMetrics(
-            allocator, poolName, conf.getCelebornConf().networkAllocatorVerboseMetric(), source);
+            allocator,
+            poolName,
+            conf.getCelebornConf().networkAllocatorVerboseMetric(),
+            source,
+            labels);
       }
       return allocator;
     }

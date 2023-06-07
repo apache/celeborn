@@ -18,7 +18,7 @@ license: |
 Monitoring
 ===
 
-There are two ways to monitor Celeborn cluster: prometheus metrics and REST API.
+There are two ways to monitor Celeborn cluster: Prometheus metrics and REST API.
 
 # Metrics
 
@@ -33,11 +33,11 @@ at `$CELEBORN_HOME/conf/metrics.properties`. A custom file location can be speci
 Instead of using the configuration file, a set of configuration parameters with prefix
 `celeborn.metrics.conf.` can be used.
 
-Celeborn's metrics are decoupled into two
+Celeborn's metrics are divided into two
 _instances_ corresponding to Celeborn components.  The following instances are currently supported:
 
 * `master`: The Celeborn cluster master process.
-* `worker`: A Celeborn cluster worker process.
+* `worker`: The Celeborn cluster worker process.
 
 Each instance can report to zero or more _sinks_. Sinks are contained in the
 `org.apache.celeborn.common.metrics.sink` package:
@@ -96,16 +96,16 @@ These metrics are exposed by Celeborn master.
     - RegisteredShuffleCount
     - IsActiveMaster
     - PartitionSize
-      - The size of estimated shuffle partition size.
+      - The size of estimated shuffle partition.
     - OfferSlotsTime
-      - The time for a master to process offers slots request by register shuffle.
+      - The time for masters to handle `RequestSlots` request when registering shuffle.
 
   - namespace=CPU
     - JVMCPUTime
 
   - namespace=system
     - LastMinuteSystemLoad
-      - Returns the system load average for the last minute.
+      - The average system load for the last minute.
     - AvailableProcessors
 
   - namespace=JVM
@@ -181,12 +181,13 @@ These metrics are exposed by Celeborn worker.
     - CreditStreamCount
       - Stream count for map partition reading streams.
     - ActiveMapPartitionCount
-    - DeviceOSFreeCapacity(B)
-    - DeviceOSTotalCapacity(B)
-    - DeviceCelebornFreeCapacity(B)
-    - DeviceCelebornTotalCapacity(B)
+    - DeviceOSFreeBytes
+    - DeviceOSTotalBytes
+    - DeviceCelebornFreeBytes
+    - DeviceCelebornTotalBytes
     - PotentialConsumeSpeed
     - UserProduceSpeed
+    - WorkerConsumeSpeed
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 
