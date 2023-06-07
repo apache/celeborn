@@ -289,7 +289,7 @@ public abstract class FileWriter implements DeviceObserver {
         deviceMonitor.unregisterFileWriter(this);
       }
     }
-    return fileInfo.getBytesFlushed();
+    return fileInfo.getFileLength();
   }
 
   public synchronized void destroy(IOException ioException) {

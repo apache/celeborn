@@ -79,7 +79,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
     graph.setJobType(JobType.BATCH)
     env.execute(graph)
-    checkFlushingFileLength
+    checkFlushingFileLength()
   }
 
   private def checkFlushingFileLength(): Unit = {
