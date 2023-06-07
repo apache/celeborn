@@ -52,8 +52,8 @@ The followings are best practices of naming configs for some common cases:
 /**
  * An entry contains all meta information for a configuration.
  *
- * When applying variable substitution to config values, only references starting with "celeborn."
- * or "rss." are considered in the default namespace. For known RSS configuration
+ * When applying variable substitution to config values, only references starting with
+ * "celeborn." are considered in the default namespace. For known Celeborn configuration
  * keys (i.e. those created using`ConfigBuilder`), references will also consider the default
  * value when it exists.
  *

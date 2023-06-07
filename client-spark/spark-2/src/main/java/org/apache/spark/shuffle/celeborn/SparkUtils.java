@@ -100,7 +100,7 @@ public class SparkUtils {
   public static CelebornConf fromSparkConf(SparkConf conf) {
     CelebornConf tmpCelebornConf = new CelebornConf();
     for (Tuple2<String, String> kv : conf.getAll()) {
-      if (kv._1.startsWith("spark.celeborn.") || kv._1.startsWith("spark.rss.")) {
+      if (kv._1.startsWith("spark.celeborn.")) {
         tmpCelebornConf.set(kv._1.substring("spark.".length()), kv._2);
       }
     }

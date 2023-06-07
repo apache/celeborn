@@ -54,7 +54,7 @@ class MapProvider(conf: JMap[String, String]) extends ConfigProvider {
 class CelebornConfigProvider(conf: JMap[String, String]) extends ConfigProvider {
 
   override def get(key: String): Option[String] = {
-    if (key.startsWith("celeborn.") || key.startsWith("rss.")) {
+    if (key.startsWith("celeborn.")) {
       Option(conf.get(key)).orElse(CelebornConf.getDeprecatedConfig(key, conf))
     } else {
       None
