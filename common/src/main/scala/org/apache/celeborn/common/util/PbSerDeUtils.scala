@@ -103,7 +103,7 @@ object PbSerDeUtils {
       .setPartitionType(fileInfo.getPartitionType.getValue)
       .setBufferSize(fileInfo.getBufferSize)
       .setNumSubpartitions(fileInfo.getNumSubpartitions)
-      .setBytesFlushed(fileInfo.getBytesFlushed)
+      .setBytesFlushed(fileInfo.getFileLength)
       .build
 
   @throws[InvalidProtocolBufferException]
