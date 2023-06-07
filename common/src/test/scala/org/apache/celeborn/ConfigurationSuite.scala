@@ -163,7 +163,7 @@ class ConfigurationSuite extends AnyFunSuite {
       } finally writer.close()
     } else {
       val expected = Files.readAllLines(goldenFile).asScala
-      val updateCmd = "UPDATE=1 build/mvn clean test -pl common -am -Pspark-3.3 " +
+      val updateCmd = "UPDATE=1 build/mvn clean test -pl common -am " +
         "-Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite"
 
       val hint =

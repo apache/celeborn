@@ -1513,7 +1513,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.ha.enabled")
       .withAlternative("celeborn.ha.enabled")
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("When true, master nodes run as Raft cluster mode.")
       .booleanConf
       .createWithDefault(false)
@@ -1523,7 +1523,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.node.id")
       .doc("Node id for master raft cluster in HA mode, if not define, " +
         "will be inferred by hostname.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createOptional
 
@@ -1532,7 +1532,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.node.<id>.host")
       .categories("ha")
       .doc("Host to bind of master node <id> in HA mode.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createWithDefaultString("<required>")
 
@@ -1541,7 +1541,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.node.<id>.port")
       .categories("ha")
       .doc("Port to bind of master node <id> in HA mode.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9097)
@@ -1553,7 +1553,7 @@ object CelebornConf extends Logging {
       .categories("ha")
       .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
         s"fallback to ${HA_MASTER_NODE_HOST.key}.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createOptional
 
@@ -1562,7 +1562,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.node.<id>.ratis.port")
       .categories("ha")
       .doc("Ratis port to bind of master node <id> in HA mode.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9872)
@@ -1572,7 +1572,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.rpc.type")
       .categories("ha")
       .doc("RPC type for Ratis, available options: netty, grpc.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .transform(_.toLowerCase)
       .checkValues(Set("netty", "grpc"))
@@ -1582,7 +1582,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.ha.ratis.raft.server.storage.dir")
       .withAlternative("celeborn.ha.master.ratis.raft.server.storage.dir")
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createWithDefault("/tmp/ratis")
 
@@ -1591,7 +1591,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4MB")
 
@@ -1600,7 +1600,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4MB")
 
@@ -1609,7 +1609,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(1024)
 
@@ -1618,7 +1618,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32MB")
 
@@ -1627,7 +1627,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(true)
 
@@ -1636,7 +1636,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.log.purge.gap")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(1000000)
 
@@ -1645,7 +1645,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
 
@@ -1654,7 +1654,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("600s")
 
@@ -1663,7 +1663,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
 
@@ -1672,7 +1672,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("5s")
 
@@ -1699,7 +1699,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.notification.no-leader.timeout")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("30s")
 
@@ -1708,7 +1708,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.slowness.timeout")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("120s")
 
@@ -1717,7 +1717,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.role.check.interval")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1s")
 
@@ -1726,7 +1726,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.enabled")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(true)
 
@@ -1735,7 +1735,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.threshold")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .longConf
       .createWithDefault(200000L)
 
@@ -1744,7 +1744,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.retention.file.num")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(3)
 
