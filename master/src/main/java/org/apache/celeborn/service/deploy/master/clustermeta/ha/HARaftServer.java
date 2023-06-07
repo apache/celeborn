@@ -37,9 +37,7 @@ import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.netty.NettyConfigKeys;
 import org.apache.ratis.proto.RaftProtos;
 import org.apache.ratis.protocol.*;
-import org.apache.ratis.protocol.exceptions.LeaderNotReadyException;
-import org.apache.ratis.protocol.exceptions.NotLeaderException;
-import org.apache.ratis.protocol.exceptions.StateMachineException;
+import org.apache.ratis.protocol.exceptions.RaftException;
 import org.apache.ratis.rpc.CallId;
 import org.apache.ratis.rpc.RpcType;
 import org.apache.ratis.rpc.SupportedRpcType;
@@ -48,7 +46,6 @@ import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.util.LifeCycle;
 import org.apache.ratis.util.SizeInBytes;
-import org.apache.ratis.util.StringUtils;
 import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -226,36 +223,9 @@ public class HARaftServer {
     }
 
     if (!raftClientReply.isSuccess()) {
-      NotLeaderException notLeaderException = raftClientReply.getNotLeaderException();
-      if (notLeaderException != null) {
-        throw new CelebornRuntimeException("Not leader!");
-      }
-
-      LeaderNotReadyException leaderNotReadyException =
-          raftClientReply.getLeaderNotReadyException();
-      if (leaderNotReadyException != null) {
-        throw new CelebornRuntimeException("Not leader!");
-      }
-
-      StateMachineException stateMachineException = raftClientReply.getStateMachineException();
-      if (stateMachineException != null) {
-        ResourceResponse.Builder response =
-            ResourceResponse.newBuilder().setCmdType(request.getCmdType()).setSuccess(false);
-        if (stateMachineException.getCause() != null) {
-          response.setMessage(stateMachineException.getCause().getMessage());
-          response.setStatus(ResourceProtos.Status.INTERNAL_ERROR);
-        } else {
-          // Current Ratis is setting cause, this is an safer side check.
-          LOG.error("StateMachine exception cause is not set");
-          response.setStatus(ResourceProtos.Status.INTERNAL_ERROR);
-          response.setMessage(StringUtils.stringifyException(stateMachineException));
-        }
-
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Error while executing ratis request.", stateMachineException);
-        }
-        return response.build();
-      }
+      RaftException exception = raftClientReply.getException();
+      throw new CelebornRuntimeException(
+          exception == null ? "Encounter raft exception." : exception.getMessage());
     }
 
     try {
