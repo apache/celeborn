@@ -2781,7 +2781,7 @@ object CelebornConf extends Logging {
   val CLIENT_PUSH_TAKE_TASK_WAIT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.push.takeTaskWaitInterval")
       .categories("client")
-      .doc("Wait time if no task available to push to worker.")
+      .doc("Wait interval if no task available to push to worker.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("50ms")
@@ -2789,7 +2789,7 @@ object CelebornConf extends Logging {
   val CLIENT_PUSH_TAKE_TASK_MAX_WAIT_ATTEMPTS: ConfigEntry[Int] =
     buildConf("celeborn.client.push.takeTaskMaxWaitAttempts")
       .categories("client")
-      .doc("Wait time if no task available to push to worker.")
+      .doc("Max wait times if no task available to push to worker.")
       .version("0.3.0")
       .intConf
       .createWithDefault(1)
