@@ -161,7 +161,7 @@ public abstract class FileWriter implements DeviceObserver {
         }
         addTask(task);
         flushBuffer = null;
-        this.fileInfo.updateBytesFlushed(numBytes);
+        fileInfo.updateBytesFlushed(numBytes);
         if (!finalFlush) {
           takeBuffer();
         }
