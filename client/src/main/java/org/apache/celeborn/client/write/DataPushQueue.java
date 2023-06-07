@@ -110,13 +110,13 @@ public class DataPushQueue {
               oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
             }
-            AtomicInteger waitAttempts =
-                workerWaitAttempts.putIfAbsent(loc.hostAndPushPort(), new AtomicInteger(0));
+            workerWaitAttempts.putIfAbsent(loc.hostAndPushPort(), new AtomicInteger(0));
             if (oldCapacity > 0) {
               iterator.remove();
               tasks.add(task);
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
-            } else if (waitAttempts.get() >= takeTaskMaxWaitAttempts) {
+            } else if (workerWaitAttempts.get(loc.hostAndPushPort()).get()
+                >= takeTaskMaxWaitAttempts) {
               iterator.remove();
               tasks.add(task);
             } else {
