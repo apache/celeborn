@@ -78,11 +78,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       name: String,
       gauge: Gauge[T],
       labels: java.util.Map[String, String]): Unit = {
-    if (labels == null) {
-      addGauge(name, gauge, Map.empty[String, String])
-    } else {
-      addGauge(name, gauge, labels.asScala.toMap)
-    }
+    addGauge(name, gauge, labels.asScala.toMap)
   }
 
   def addGauge[T](
