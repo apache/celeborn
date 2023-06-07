@@ -243,6 +243,11 @@ These metrics are exposed by Celeborn worker.
     - fetch_server_numActiveHugeAllocations
     - fetch_server_numActiveBytes
 
+**Note:**
+
+The Netty DirectArenaMetrics named like `push/fetch/replicate_server_numXX` are not exposed by default, nor in Grafana dashboard. 
+If there is a need, you can enable `celeborn.network.memory.allocator.verbose.metric` to expose these metrics.
+
   - namespace=CPU
     - JVMCPUTime
 
