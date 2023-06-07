@@ -100,13 +100,13 @@ public class NettyMemoryMetrics {
       if (verboseMetricsEnabled) {
         int directArenaIndex = 0;
         for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
-          registerArenaMetric(metric, "directArena" + directArenaIndex, labels);
+          registerArenaMetric(metric, "directArena" + directArenaIndex);
           directArenaIndex++;
         }
 
         int heapArenaIndex = 0;
         for (PoolArenaMetric metric : pooledAllocatorMetric.heapArenas()) {
-          registerArenaMetric(metric, "heapArena" + heapArenaIndex, labels);
+          registerArenaMetric(metric, "heapArena" + heapArenaIndex);
           heapArenaIndex++;
         }
       }
@@ -114,7 +114,7 @@ public class NettyMemoryMetrics {
   }
 
   private void registerArenaMetric(
-      PoolArenaMetric arenaMetric, String arenaName, Map<String, String> labels) {
+      PoolArenaMetric arenaMetric, String arenaName) {
     for (String methodName : VERBOSE_METRICS) {
       Method m;
       try {
