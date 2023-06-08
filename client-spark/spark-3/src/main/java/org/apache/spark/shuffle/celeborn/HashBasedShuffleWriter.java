@@ -103,7 +103,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private StructType schema;
 
   private boolean isColumnarShuffle = false;
-  private boolean unsafeRowFastWrite;
+  private final boolean unsafeRowFastWrite;
 
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
@@ -143,10 +143,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     this.sendBufferPool = sendBufferPool;
     sendBuffers = sendBufferPool.acquireBuffer(numPartitions);
-    if (sendBuffers == null) {
-      logger.info("Acquire failed");
-      sendBuffers = new byte[numPartitions][];
-    }
     sendOffsets = new int[numPartitions];
 
     try {

@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.Utils;
 
 @Private
 public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -296,7 +297,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
-    logger.debug("Push giant record, size {}.", numBytes);
+    logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
     long pushStartTime = System.nanoTime();
     int bytesWritten =
         rssShuffleClient.pushData(
@@ -317,9 +318,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void close() throws IOException {
     if (pipelined) {
-      logger.info("Memory used {}", (pushers[0].getUsed() + pushers[1].getUsed()));
+      logger.info(
+          "Memory used {}", Utils.bytesToString((pushers[0].getUsed() + pushers[1].getUsed())));
     } else {
-      logger.info("Memory used {}", currentPusher.getUsed());
+      logger.info("Memory used {}", Utils.bytesToString(currentPusher.getUsed()));
     }
     long pushStartTime = System.nanoTime();
     if (pipelined) {

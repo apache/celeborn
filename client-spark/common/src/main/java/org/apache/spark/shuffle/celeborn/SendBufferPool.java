@@ -17,6 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.Iterator;
 import java.util.LinkedList;
 
 public class SendBufferPool {
@@ -36,7 +37,7 @@ public class SendBufferPool {
   private final int capacity;
 
   // numPartitions -> buffers
-  private LinkedList<byte[][]> buffers;
+  private final LinkedList<byte[][]> buffers;
 
   public SendBufferPool(int capacity) {
     this.capacity = capacity;
@@ -44,15 +45,15 @@ public class SendBufferPool {
   }
 
   public synchronized byte[][] acquireBuffer(int numPartitions) {
-    for (int i = 0; i < buffers.size(); i++) {
-      if (buffers.get(i).length == numPartitions) {
-        return buffers.remove(i);
+    Iterator<byte[][]> iterator = buffers.iterator();
+    while (iterator.hasNext()) {
+      byte[][] candidate = iterator.next();
+      if (candidate.length == numPartitions) {
+        iterator.remove();
+        return candidate;
       }
     }
-    if (buffers.size() == capacity) {
-      buffers.removeFirst();
-    }
-    return null;
+    return new byte[numPartitions][];
   }
 
   public synchronized void returnBuffer(byte[][] buffer) {
