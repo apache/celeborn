@@ -79,13 +79,12 @@
     <leveldb.version>1.8</leveldb.version>
     <log4j2.version>2.17.2</log4j2.version>
     <lz4-java.version>1.8.0</lz4-java.version>
-    <mockito.version>1.10.19</mockito.version>
-    <mockito-scalatest.version>1.16.37</mockito-scalatest.version>
+    <mockito.version>4.11.0</mockito.version>
+    <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
     <netty.version>4.1.92.Final</netty.version>
     <protobuf.version>3.19.2</protobuf.version>
     <ratis.version>2.5.1</ratis.version>
-    <scalamock.version>5.1.0</scalamock.version>
-    <scalatest.version>3.2.3</scalatest.version>
+    <scalatest.version>3.2.16</scalatest.version>
     <slf4j.version>1.7.36</slf4j.version>
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
     <snakeyaml.version>1.33</snakeyaml.version>
@@ -394,17 +393,6 @@
         <artifactId>scalatest_${scala.binary.version}</artifactId>
         <version>${scalatest.version}</version>
         <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest-funsuite_${scala.binary.version}</artifactId>
-        <version>${scalatest.version}</version>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.scalamock</groupId>
-        <artifactId>scalamock_${scala.binary.version}</artifactId>
-        <version>${scalamock.version}</version>
       </dependency>
       <dependency>
         <groupId>org.mockito</groupId>

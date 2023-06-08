@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
