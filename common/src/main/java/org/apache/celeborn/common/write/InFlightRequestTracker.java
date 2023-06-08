@@ -176,7 +176,7 @@ public class InFlightRequestTracker {
 
   public void cleanup() {
     if (!inflightBatchesPerAddress.isEmpty()) {
-      logger.warn("Clear " + this.getClass().getSimpleName());
+      logger.warn("Clear {}", this.getClass().getSimpleName());
       inflightBatchesPerAddress.clear();
     }
     pushStrategy.clear();
