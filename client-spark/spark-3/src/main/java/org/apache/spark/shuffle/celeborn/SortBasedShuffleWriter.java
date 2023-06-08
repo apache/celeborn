@@ -92,7 +92,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
    */
   private volatile boolean stopping = false;
 
-  private boolean unsafeRowFastWrite;
+  private final boolean unsafeRowFastWrite;
 
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
