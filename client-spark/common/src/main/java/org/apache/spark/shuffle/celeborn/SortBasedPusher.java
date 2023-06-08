@@ -426,4 +426,10 @@ public class SortBasedPusher extends MemoryConsumer {
       TaskInterruptedHelper.throwTaskKillException();
     }
   }
+
+  // SPARK-29310 opens it to public in Spark 3.0, it's necessary to keep compatible with Spark 2
+  @Override
+  public long getUsed() {
+    return super.getUsed();
+  }
 }
