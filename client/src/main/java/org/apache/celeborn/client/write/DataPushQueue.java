@@ -119,8 +119,8 @@ public class DataPushQueue {
                 >= takeTaskMaxWaitAttempts) {
               iterator.remove();
               tasks.add(task);
-            } else {
-              workerWaitAttempts.get(loc.hostAndPushPort()).incrementAndGet();
+              // For such worker under high pressure, we only take one task each turn.
+              workerWaitAttempts.get(loc.hostAndPushPort()).set(0);
             }
           } else {
             tasks.add(task);
@@ -135,6 +135,7 @@ public class DataPushQueue {
       try {
         // Reaching here means no available tasks can be pushed to any worker, wait for a while
         Thread.sleep(takeTaskWaitIntervalMs);
+        workerWaitAttempts.values().forEach(AtomicInteger::incrementAndGet);
       } catch (InterruptedException ie) {
         logger.info("Thread interrupted while waiting push task.");
         throw ie;
