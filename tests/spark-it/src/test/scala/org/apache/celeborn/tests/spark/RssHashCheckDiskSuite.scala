@@ -62,7 +62,7 @@ class RssHashCheckDiskSuite extends AnyFunSuite
     sparkSession.stop()
 
     val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, false)).getOrCreate()
+      .config(updateSparkConf(sparkConf, "hash")).getOrCreate()
     val rssCombineResult = combine(rssSparkSession)
     val rssGroupbyResult = groupBy(rssSparkSession)
     val rssRepartitionResult = repartition(rssSparkSession)

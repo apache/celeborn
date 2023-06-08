@@ -46,7 +46,7 @@ class RetryReviveTest extends AnyFunSuite
     val sparkConf = new SparkConf()
       .set(s"spark.${CelebornConf.TEST_CLIENT_RETRY_REVIVE.key}", "true")
       .setAppName("rss-demo").setMaster("local[2]")
-    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, false)).getOrCreate()
+    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, "hash")).getOrCreate()
     ss.sparkContext.parallelize(1 to 1000, 2)
       .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(16).collect()
     ss.stop()

@@ -51,7 +51,7 @@ class RssNonPipelineSortSuite extends AnyFunSuite
     sparkSession.stop()
 
     val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, true)).getOrCreate()
+      .config(updateSparkConf(sparkConf, "sort")).getOrCreate()
     val rssCombineResult = combine(rssSparkSession)
     val rssGroupbyResult = groupBy(rssSparkSession)
     val rssRepartitionResult = repartition(rssSparkSession)

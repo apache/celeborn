@@ -24,7 +24,7 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
@@ -45,7 +45,7 @@ trait SparkTestBase extends AnyFunSuite
     shutdownMiniCluster()
   }
 
-  def updateSparkConf(sparkConf: SparkConf, sort: Boolean): SparkConf = {
+  def updateSparkConf(sparkConf: SparkConf, shuffleWriteMode: String): SparkConf = {
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
     sparkConf.set("spark.shuffle.useOldFetchProtocol", "true")
@@ -53,12 +53,8 @@ trait SparkTestBase extends AnyFunSuite
     sparkConf.set("spark.shuffle.service.enabled", "false")
     sparkConf.set("spark.sql.adaptive.skewJoin.enabled", "false")
     sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
-    sparkConf.set(
-      s"spark${CelebornConf.MASTER_ENDPOINTS.key}",
-      masterInfo._1.rpcEnv.address.toString)
-    if (sort) {
-      sparkConf.set(s"spark.${CelebornConf.SPARK_SHUFFLE_WRITER_MODE.key}", "sort")
-    }
+    sparkConf.set(s"spark.${MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
+    sparkConf.set(s"spark.${SPARK_SHUFFLE_WRITER_MODE.key}", shuffleWriteMode)
     sparkConf
   }
 

@@ -63,7 +63,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       sparkSession.stop()
 
       val rssSparkSession = SparkSession.builder()
-        .config(updateSparkConf(sparkConf, false)).getOrCreate()
+        .config(updateSparkConf(sparkConf, "hash")).getOrCreate()
       val rssCombineResult = combine(rssSparkSession)
       val rssGroupbyResult = groupBy(rssSparkSession)
       val rssRepartitionResult = repartition(rssSparkSession)
@@ -86,7 +86,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
       .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "false")
     val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, false)).getOrCreate()
+      .config(updateSparkConf(sparkConf, "hash")).getOrCreate()
     try {
       combine(rssSparkSession)
     } catch {
