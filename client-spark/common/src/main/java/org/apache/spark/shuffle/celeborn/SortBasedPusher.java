@@ -319,11 +319,11 @@ public class SortBasedPusher extends MemoryConsumer {
             "Pushdata in growPointerArrayIfNecessary, memory used {}",
             Utils.bytesToString(getUsed()));
         pushData();
-      } catch (SparkOutOfMemoryError rethrowOOM) {
+      } catch (SparkOutOfMemoryError rethrow) {
         // should have trigger spilling
         if (inMemSorter.numRecords() > 0) {
           logger.error("OOM, unable to grow the pointer array");
-          throw rethrowOOM;
+          throw rethrow;
         }
         // The new array could not be allocated, but that is not an issue as it is longer needed,
         // as all records were spilled.
