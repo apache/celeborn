@@ -86,7 +86,7 @@ public class SparkUtils {
     return tmpCelebornConf;
   }
 
-  public static String genNewAppId(SparkContext context) {
+  public static String appUniqueId(SparkContext context) {
     return context
         .applicationAttemptId()
         .map(id -> context.applicationId() + "_" + id)

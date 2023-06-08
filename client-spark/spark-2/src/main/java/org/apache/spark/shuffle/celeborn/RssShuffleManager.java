@@ -47,7 +47,8 @@ public class RssShuffleManager implements ShuffleManager {
   private final SparkConf conf;
   private final CelebornConf celebornConf;
   private final int cores;
-  private String newAppId;
+  // either be "{appId}_{appAttemptId}" or "{appId}"
+  private String appUniqueId;
 
   private LifecycleManager lifecycleManager;
   private ShuffleClient rssShuffleClient;
@@ -114,11 +115,11 @@ public class RssShuffleManager implements ShuffleManager {
   @Override
   public <K, V, C> ShuffleHandle registerShuffle(
       int shuffleId, int numMaps, ShuffleDependency<K, V, C> dependency) {
-    // Note: generate newAppId at driver side, make sure dependency.rdd.context
+    // Note: generate app unique id at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
-    newAppId = SparkUtils.genNewAppId(dependency.rdd().context());
-    initializeLifecycleManager(newAppId);
+    appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
+    initializeLifecycleManager(appUniqueId);
 
     if (fallbackPolicyRunner.applyAllFallbackPolicy(
         lifecycleManager, dependency.partitioner().numPartitions())) {
@@ -127,7 +128,7 @@ public class RssShuffleManager implements ShuffleManager {
       return sortShuffleManager().registerShuffle(shuffleId, numMaps, dependency);
     } else {
       return new RssShuffleHandle<>(
-          newAppId,
+          appUniqueId,
           lifecycleManager.getRssMetaServiceHost(),
           lifecycleManager.getRssMetaServicePort(),
           lifecycleManager.getUserIdentifier(),
@@ -142,13 +143,13 @@ public class RssShuffleManager implements ShuffleManager {
     if (sortShuffleIds.contains(shuffleId)) {
       return sortShuffleManager().unregisterShuffle(shuffleId);
     }
-    if (newAppId == null) {
+    if (appUniqueId == null) {
       return true;
     }
     if (rssShuffleClient == null) {
       return false;
     }
-    return rssShuffleClient.unregisterShuffle(newAppId, shuffleId, isDriver());
+    return rssShuffleClient.unregisterShuffle(appUniqueId, shuffleId, isDriver());
   }
 
   @Override
@@ -183,7 +184,13 @@ public class RssShuffleManager implements ShuffleManager {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
           return new SortBasedShuffleWriter<>(
-              h.dependency(), h.newAppId(), h.numMaps(), context, celebornConf, client, pushThread);
+              h.dependency(),
+              h.appUniqueId(),
+              h.numMaps(),
+              context,
+              celebornConf,
+              client,
+              pushThread);
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
               h, mapId, context, celebornConf, client, SendBufferPool.get(cores));
