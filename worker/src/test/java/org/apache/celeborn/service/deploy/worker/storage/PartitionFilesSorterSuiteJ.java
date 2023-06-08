@@ -104,6 +104,7 @@ public class PartitionFilesSorterSuiteJ {
     }
     originFileLen = channel.size();
     fileInfo.getChunkOffsets().add(originFileLen);
+    fileInfo.updateBytesFlushed((int) originFileLen);
     System.out.println(
         shuffleFile.getAbsolutePath()
             + " filelen "
