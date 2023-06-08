@@ -47,6 +47,8 @@ public class FileInfo {
   private int bufferSize;
   private int numSubpartitions;
 
+  private volatile long bytesFlushed;
+
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
   }
@@ -68,13 +70,15 @@ public class FileInfo {
       UserIdentifier userIdentifier,
       PartitionType partitionType,
       int bufferSize,
-      int numSubpartitions) {
+      int numSubpartitions,
+      long bytesFlushed) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
     this.partitionType = partitionType;
     this.bufferSize = bufferSize;
     this.numSubpartitions = numSubpartitions;
+    this.bytesFlushed = bytesFlushed;
   }
 
   public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
@@ -106,8 +110,13 @@ public class FileInfo {
     return chunkOffsets.get(chunkOffsets.size() - 1);
   }
 
-  public synchronized long getFileLength() {
-    return chunkOffsets.get(chunkOffsets.size() - 1);
+  public long getFileLength() {
+    return bytesFlushed;
+  }
+
+  public long updateBytesFlushed(int numBytes) {
+    bytesFlushed += numBytes;
+    return bytesFlushed;
   }
 
   public File getFile() {

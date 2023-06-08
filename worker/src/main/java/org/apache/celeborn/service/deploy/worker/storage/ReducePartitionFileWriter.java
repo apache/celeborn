@@ -68,6 +68,7 @@ public final class ReducePartitionFileWriter extends FileWriter {
   }
 
   private void maybeSetChunkOffsets(boolean forceSet) {
+    long bytesFlushed = fileInfo.getFileLength();
     if (bytesFlushed >= nextBoundary || forceSet) {
       fileInfo.addChunkOffset(bytesFlushed);
       nextBoundary = bytesFlushed + shuffleChunkSize;
@@ -83,7 +84,7 @@ public final class ReducePartitionFileWriter extends FileWriter {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return fileInfo.getLastChunkOffset() == bytesFlushed;
+    return fileInfo.getLastChunkOffset() == fileInfo.getFileLength();
   }
 
   public synchronized long close() throws IOException {
