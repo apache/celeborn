@@ -125,19 +125,19 @@ EXAMPLE: HA cluster
 celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
 
 # used by master nodes to bootstrap, every node should know the topology of whole cluster, for each node,
-# `celeborn.ha.master.node.id` should be unique, and `celeborn.ha.master.node.<id>.host` is required.
-celeborn.ha.enabled true
-celeborn.ha.master.node.id 1
-celeborn.ha.master.node.1.host clb-1
-celeborn.ha.master.node.1.port 9097
-celeborn.ha.master.node.1.ratis.port 9872
-celeborn.ha.master.node.2.host clb-2
-celeborn.ha.master.node.2.port 9097
-celeborn.ha.master.node.2.ratis.port 9872
-celeborn.ha.master.node.3.host clb-3
-celeborn.ha.master.node.3.port 9097
-celeborn.ha.master.node.3.ratis.port 9872
-celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
+# `celeborn.master.ha.node.id` should be unique, and `celeborn.master.ha.node.<id>.host` is required.
+celeborn.master.ha.enabled true
+celeborn.master.ha.node.id 1
+celeborn.master.ha.node.1.host clb-1
+celeborn.master.ha.node.1.port 9097
+celeborn.master.ha.node.1.ratis.port 9872
+celeborn.master.ha.node.2.host clb-2
+celeborn.master.ha.node.2.port 9097
+celeborn.master.ha.node.2.ratis.port 9872
+celeborn.master.ha.node.3.host clb-3
+celeborn.master.ha.node.3.port 9097
+celeborn.master.ha.node.3.ratis.port 9872
+celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
@@ -299,6 +299,6 @@ because ratis meta will store expired states of the last running cluster.
 Here are some instructions:
 1. Stop all workers.
 2. Stop all masters.
-3. Clean all master's ratis meta storage directory(celeborn.ha.master.ratis.raft.server.storage.dir).
+3. Clean all master's ratis meta storage directory(celeborn.master.ha.ratis.raft.server.storage.dir).
 4. Start all masters.
 5. Start all workers.

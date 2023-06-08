@@ -70,7 +70,7 @@ volumes:
 
 # celeborn configurations
 celeborn:
-  celeborn.ha.enabled: true
+  celeborn.master.ha.enabled: true
   celeborn.metrics.enabled: true
   celeborn.master.metrics.prometheus.port: 9098
   celeborn.worker.metrics.prometheus.port: 9096
