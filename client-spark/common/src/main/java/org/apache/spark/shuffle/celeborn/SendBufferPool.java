@@ -39,7 +39,7 @@ public class SendBufferPool {
   // numPartitions -> buffers
   private final LinkedList<byte[][]> buffers;
 
-  public SendBufferPool(int capacity) {
+  private SendBufferPool(int capacity) {
     assert capacity > 0;
     this.capacity = capacity;
     buffers = new LinkedList<>();
