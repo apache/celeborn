@@ -79,8 +79,7 @@ public class FlinkShuffleClientImplSuiteJ {
     when(client.pushData(any(), anyLong(), any()))
         .thenAnswer(
             t -> {
-              RpcResponseCallback rpcResponseCallback =
-                  t.getArgument(1, RpcResponseCallback.class);
+              RpcResponseCallback rpcResponseCallback = t.getArgument(1, RpcResponseCallback.class);
               ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[0]);
               rpcResponseCallback.onSuccess(byteBuffer);
               return mockedFuture;
@@ -97,8 +96,7 @@ public class FlinkShuffleClientImplSuiteJ {
     when(client.pushData(any(), anyLong(), any()))
         .thenAnswer(
             t -> {
-              RpcResponseCallback rpcResponseCallback =
-                  t.getArgument(1, RpcResponseCallback.class);
+              RpcResponseCallback rpcResponseCallback = t.getArgument(1, RpcResponseCallback.class);
               ByteBuffer byteBuffer =
                   ByteBuffer.wrap(new byte[] {StatusCode.HARD_SPLIT.getValue()});
               rpcResponseCallback.onSuccess(byteBuffer);
@@ -114,8 +112,7 @@ public class FlinkShuffleClientImplSuiteJ {
     when(client.pushData(any(), anyLong(), any(), any()))
         .thenAnswer(
             t -> {
-              RpcResponseCallback rpcResponseCallback =
-                  t.getArgument(1, RpcResponseCallback.class);
+              RpcResponseCallback rpcResponseCallback = t.getArgument(1, RpcResponseCallback.class);
               rpcResponseCallback.onFailure(new Exception("pushDataFailed"));
               return mockedFuture;
             });
