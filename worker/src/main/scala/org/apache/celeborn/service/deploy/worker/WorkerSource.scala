@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
 
@@ -33,6 +32,10 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addCounter(ReplicateDataCreateConnectionFailCount)
   addCounter(ReplicateDataConnectionExceptionCount)
   addCounter(ReplicateDataTimeoutCount)
+
+  addCounter(PushDataHandshakeFailCount)
+  addCounter(RegionStartFailCount)
+  addCounter(RegionFinishFailCount)
 
   // add Timers
   addTimer(CommitFilesTime)
@@ -89,7 +92,6 @@ object WorkerSource {
 
   // flush
   val TakeBufferTime = "TakeBufferTime"
-  val TakeBufferTimeIndex = "TakeBufferTimeIndex"
 
   val RegisteredShuffleCount = "RegisteredShuffleCount"
 
@@ -113,10 +115,10 @@ object WorkerSource {
   val ActiveMapPartitionCount = "ActiveMapPartitionCount"
 
   // local device
-  val DeviceOSFreeCapacity = "DeviceOSFreeCapacity(B)"
-  val DeviceOSTotalCapacity = "DeviceOSTotalCapacity(B)"
-  val DeviceCelebornFreeCapacity = "DeviceCelebornFreeCapacity(B)"
-  val DeviceCelebornTotalCapacity = "DeviceCelebornTotalCapacity(B)"
+  val DeviceOSFreeCapacity = "DeviceOSFreeBytes"
+  val DeviceOSTotalCapacity = "DeviceOSTotalBytes"
+  val DeviceCelebornFreeCapacity = "DeviceCelebornFreeBytes"
+  val DeviceCelebornTotalCapacity = "DeviceCelebornTotalBytes"
 
   // Congestion control
   val PotentialConsumeSpeed = "PotentialConsumeSpeed"
