@@ -179,21 +179,17 @@ public class RssShuffleManager implements ShuffleManager {
         ShuffleClient client =
             ShuffleClient.get(
                 h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
-        switch (celebornConf.shuffleWriterMode()) {
-          case SORT:
-            ExecutorService pushThread =
-                celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
-            return new SortBasedShuffleWriter<>(
-                h.dependency(),
-                h.newAppId(),
-                h.numMaps(),
-                context,
-                celebornConf,
-                client,
-                pushThread);
-          case HASH:
-            return new HashBasedShuffleWriter<>(
-                h, mapId, context, celebornConf, client, SendBufferPool.get(cores));
+        if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
+          ExecutorService pushThread =
+              celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
+          return new SortBasedShuffleWriter<>(
+              h.dependency(), h.newAppId(), h.numMaps(), context, celebornConf, client, pushThread);
+        } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
+          return new HashBasedShuffleWriter<>(
+              h, mapId, context, celebornConf, client, SendBufferPool.get(cores));
+        } else {
+          throw new UnsupportedOperationException(
+              "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
         }
       } else {
         sortShuffleIds.add(handle.shuffleId());
