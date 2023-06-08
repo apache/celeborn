@@ -54,7 +54,7 @@ public class SendBufferPool {
         return candidate;
       }
     }
-    if (buffers.size() == capacity) {
+    if (buffers.size() > 0) {
       buffers.removeFirst();
     }
     return new byte[numPartitions][];
