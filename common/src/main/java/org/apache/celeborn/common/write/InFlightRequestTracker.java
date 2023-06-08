@@ -66,7 +66,7 @@ public class InFlightRequestTracker {
     if (batchIdSet != null) {
       batchIdSet.remove(batchId);
     } else {
-      logger.error("Batch id set of " + hostAndPushPort + " is null.");
+      logger.warn("BatchIdSet of {} is null.", hostAndPushPort);
     }
   }
 
