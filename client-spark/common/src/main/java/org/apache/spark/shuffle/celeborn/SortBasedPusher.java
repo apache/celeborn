@@ -223,8 +223,7 @@ public class SortBasedPusher extends MemoryConsumer {
     if (getUsed() > pushSortMemoryThreshold
         && pageCursor + bytes8K > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
-          "partition {} memory used {} exceeds threshold {}, need to trigger push. currentPage size: {}",
-          partitionId,
+          "Memory used {} exceeds threshold {}, need to trigger push. currentPage size: {}",
           Utils.bytesToString(getUsed()),
           Utils.bytesToString(pushSortMemoryThreshold),
           Utils.bytesToString(currentPage.size()));
