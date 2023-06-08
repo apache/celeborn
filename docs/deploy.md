@@ -68,7 +68,7 @@ celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
 celeborn.worker.flusher.buffer.size 256k
-# Disk type is HDD by defaut.
+# Disk type is HDD by default.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
