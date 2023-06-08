@@ -63,7 +63,7 @@ class RssShuffleReader[K, C](
       if (handle.numMaps > 0) {
         val start = System.currentTimeMillis()
         val inputStream = essShuffleClient.readPartition(
-          handle.newAppId,
+          handle.appUniqueId,
           handle.shuffleId,
           partitionId,
           context.attemptNumber(),
