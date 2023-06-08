@@ -323,10 +323,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     long pushStartTime = System.nanoTime();
     if (pipelined) {
-      for (int i = 0; i < pushers.length; i++) {
-        pushers[i].waitPushFinish();
-        pushers[i].pushData();
-        pushers[i].close();
+      for (SortBasedPusher pusher : pushers) {
+        pusher.waitPushFinish();
+        pusher.pushData();
+        pusher.close();
       }
     } else {
       currentPusher.pushData();
@@ -344,13 +344,11 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void updateMapStatus() {
-    long recordsWritten = 0;
-    for (int i = 0; i < partitioner.numPartitions(); i++) {
+    for (int i = 0; i < tmpRecords.length; i++) {
       mapStatusRecords[i] += tmpRecords[i];
-      recordsWritten += tmpRecords[i];
+      writeMetrics.incRecordsWritten(tmpRecords[i]);
       tmpRecords[i] = 0;
     }
-    writeMetrics.incRecordsWritten(recordsWritten);
   }
 
   @Override
