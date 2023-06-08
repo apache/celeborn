@@ -40,6 +40,7 @@ public class SendBufferPool {
   private final LinkedList<byte[][]> buffers;
 
   public SendBufferPool(int capacity) {
+    assert capacity > 0;
     this.capacity = capacity;
     buffers = new LinkedList<>();
   }
@@ -52,6 +53,9 @@ public class SendBufferPool {
         iterator.remove();
         return candidate;
       }
+    }
+    if (buffers.size() == capacity) {
+      buffers.removeFirst();
     }
     return new byte[numPartitions][];
   }
