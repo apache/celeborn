@@ -100,7 +100,7 @@ class ShufflePartitionLocationInfo {
       locations: util.List[PartitionLocation]): Unit = synchronized {
     if (locations != null && locations.size() > 0) {
       locations.asScala.foreach { loc =>
-        partitionInfo.putIfAbsent(loc.getId, ConcurrentHashMap.newKeySet())
+        partitionInfo.computeIfAbsent(loc.getId, key -> ConcurrentHashMap.newKeySet())
         val partitionLocations = partitionInfo.get(loc.getId)
         if (partitionLocations != null) {
           partitionLocations.add(loc)

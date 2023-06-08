@@ -112,7 +112,7 @@ class ReleasePartitionManager(
 
   def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
     if (batchHandleReleasePartitionEnabled) {
-      shuffleReleasePartitionRequests.putIfAbsent(shuffleId, new util.HashSet[Int])
+      shuffleReleasePartitionRequests.computeIfAbsent(shuffleId, new util.HashSet[Int])
       val unReleasedPartitionIdRequestSet = shuffleReleasePartitionRequests.get(shuffleId)
       unReleasedPartitionIdRequestSet.synchronized {
         unReleasedPartitionIdRequestSet.add(partitionId)
@@ -142,14 +142,14 @@ class ReleasePartitionManager(
       if (masterLocations != null && !masterLocations.isEmpty) {
         workerResource.computeIfAbsent(
           workerInfo,
-          lifecycleManager.newLocationFunc)._1.addAll(masterLocations)
+          key -> lifecycleManager.newLocationFunc)._1.addAll(masterLocations)
       }
 
       val slaveLocations = partitionLocationInfo.removeSlavePartitions(partitionId)
       if (slaveLocations != null && !slaveLocations.isEmpty) {
         workerResource.computeIfAbsent(
           workerInfo,
-          lifecycleManager.newLocationFunc)._2.addAll(slaveLocations)
+          key -> lifecycleManager.newLocationFunc)._2.addAll(slaveLocations)
       }
     }
   }
