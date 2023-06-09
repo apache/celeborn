@@ -99,7 +99,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
   protected final int numPartitions = 10;
   private final SparkConf sparkConf = new SparkConf(false);
   private final BlockManagerId bmId = BlockManagerId.apply("execId", "host", 1, None$.empty());
-  
+
   private final TaskMemoryManager taskMemoryManager =
       new TaskMemoryManager(UnifiedMemoryManager.apply(sparkConf, 1), 0);
   private final MapStatus mapStatus =
