@@ -78,7 +78,7 @@ jobs:
           # https://minikube.sigs.k8s.io/docs/start/
           curl -LO https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64
           sudo install minikube-linux-amd64 /usr/local/bin/minikube
-          minikube start --cpus 2 --memory 4096 --driver=none --kubernetes-version=${KUBERNETES_VERSION} --force
+          minikube start --cpus 2 --memory 4096 --driver=none --kubernetes-version=${KUBERNETES_VERSION} --force --cni="bridge"
       - name: Build Celeborn Binary
         run:
           ./build/make-distribution.sh -Pspark-3.3 -Pgoogle-mirror
