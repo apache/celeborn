@@ -97,10 +97,9 @@ jobs:
           minikube image load apache/celeborn:latest
           helm install celeborn charts/celeborn -f ./tests/kubernetes-it/docker/helm/values.yaml
       - run: |
-          NODE_NAME=`kubectl get nodes -o json | jq '.items[0].metadata.name'`
-          kubectl taint node $NODE_NAME node.kubernetes.io/not-ready:NoSchedule-
-          kubectl describe nodes $NODE_NAME
-          sleep 30
+          kubectl get nodes -o json | jq '.items[0].metadata.name' | xargs kubectl describe nodes
+          sleep 10
+          kubectl get nodes -o json | jq '.items[0].metadata.name' | xargs -I {} kubectl taint nodes {} node.kubernetes.io/not-ready:NoSchedule-
           kubectl get pods -o yaml
           kubectl get pods celeborn-master-0 -o yaml | grep podIP | grep -Eo "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | xargs ping -c 10
       - name: Wait Celeborn Ready
