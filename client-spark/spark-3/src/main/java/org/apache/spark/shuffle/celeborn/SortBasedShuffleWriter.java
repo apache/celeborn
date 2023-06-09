@@ -83,7 +83,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final SerializationStream serOutputStream;
 
   private final LongAdder[] mapStatusLengths;
-  private final long[] mapStatusRecords;
   private final long[] tmpRecords;
 
   /**
@@ -124,7 +123,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     serOutputStream = serializer.serializeStream(serBuffer);
 
     this.mapStatusLengths = new LongAdder[numPartitions];
-    this.mapStatusRecords = new long[numPartitions];
     for (int i = 0; i < numPartitions; i++) {
       this.mapStatusLengths[i] = new LongAdder();
     }
@@ -331,10 +329,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     long pushStartTime = System.nanoTime();
     if (pipelined) {
-      for (int i = 0; i < pushers.length; i++) {
-        pushers[i].waitPushFinish();
-        pushers[i].pushData();
-        pushers[i].close();
+      for (SortBasedPusher pusher : pushers) {
+        pusher.waitPushFinish();
+        pusher.pushData();
+        pusher.close();
       }
     } else {
       currentPusher.pushData();
@@ -354,13 +352,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void updateMapStatus() {
-    long recordsWritten = 0;
-    for (int i = 0; i < partitioner.numPartitions(); i++) {
-      mapStatusRecords[i] += tmpRecords[i];
-      recordsWritten += tmpRecords[i];
+    for (int i = 0; i < tmpRecords.length; i++) {
+      writeMetrics.incRecordsWritten(tmpRecords[i]);
       tmpRecords[i] = 0;
     }
-    writeMetrics.incRecordsWritten(recordsWritten);
   }
 
   @Override
