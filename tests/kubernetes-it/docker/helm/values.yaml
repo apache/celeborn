@@ -109,7 +109,9 @@ resources:
 
 podAnnotations: {}
 
-affinity: {}
+affinity:
+  master: {}
+  worker: {}
 
 tolerations: []
 
