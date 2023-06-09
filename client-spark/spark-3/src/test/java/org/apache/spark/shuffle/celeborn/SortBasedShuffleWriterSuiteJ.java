@@ -36,13 +36,6 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
       ShuffleWriteMetricsReporter metrics)
       throws IOException {
     return new SortBasedShuffleWriter<Integer, String, String>(
-        handle.dependency(),
-        handle.appUniqueId(),
-        handle.numMappers(),
-        context,
-        conf,
-        client,
-        metrics,
-        null);
+        handle, context, conf, client, metrics, null);
   }
 }
