@@ -53,7 +53,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     }
 
     assertThrows[IOException] {
-      () -> shuffleClient.registerMapPartitionTask(APP, 1, 1, 0, 0, 1)
+      shuffleClient.registerMapPartitionTask(APP, 1, 1, 0, 0, 1)
     }
 
     lifecycleManager.stop()
