@@ -87,9 +87,7 @@ public class ShuffleInMemorySorter {
   public void expandPointerArray(LongArray newArray) {
     if (array != null) {
       if (newArray.size() < array.size()) {
-        // checkstyle.off: RegexpSinglelineJava
         throw new SparkOutOfMemoryError("Not enough memory to grow pointer array");
-        // checkstyle.on: RegexpSinglelineJava
       }
       Platform.copyMemory(
           array.getBaseObject(),
@@ -166,8 +164,7 @@ public class ShuffleInMemorySorter {
       return new ShuffleSorterIterator(0, array, 0);
     }
 
-    int offset = 0;
-    offset =
+    int offset =
         RadixSort.sort(
             array,
             pos,
