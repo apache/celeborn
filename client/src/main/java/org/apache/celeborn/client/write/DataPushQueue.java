@@ -112,9 +112,11 @@ public class DataPushQueue {
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
             }
           } else {
+            iterator.remove();
             tasks.add(task);
           }
         } else {
+          iterator.remove();
           tasks.add(task);
         }
       }
