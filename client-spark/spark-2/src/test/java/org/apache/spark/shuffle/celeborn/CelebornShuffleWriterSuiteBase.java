@@ -91,8 +91,8 @@ public abstract class CelebornShuffleWriterSuiteBase {
   private final String appId = "appId";
   private final String host = "host";
   private final int port = 0;
-
   private final int shuffleId = 0;
+
   private final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
 
   private final int numMaps = 10;
