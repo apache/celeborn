@@ -24,6 +24,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.ShuffleMode
 
 class RssPipelineSortSuite extends AnyFunSuite
   with SparkTestBase
@@ -40,8 +41,10 @@ class RssPipelineSortSuite extends AnyFunSuite
   test("celeborn spark integration test - pipeline sort") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_SORT_PIPELINE_ENABLED.key}", "true")
-      .set(s"spark.${CelebornConf.CLIENT_PUSH_SORT_RANDOMIZE_PARITION_ENABLED.key}", "true")
-    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, "sort")).getOrCreate()
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED.key}", "true")
+    val ss = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.SORT))
+      .getOrCreate()
     val value = Range(1, 10000).mkString(",")
     val tuples = ss.sparkContext.parallelize(1 to 10000, 2)
       .map { i => (i, value) }.groupByKey(16).collect()

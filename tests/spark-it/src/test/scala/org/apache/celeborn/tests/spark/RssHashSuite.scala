@@ -23,6 +23,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.protocol.ShuffleMode
 
 class RssHashSuite extends AnyFunSuite
   with SparkTestBase
@@ -48,7 +49,8 @@ class RssHashSuite extends AnyFunSuite
     sparkSession.stop()
 
     val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, "hash")).getOrCreate()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .getOrCreate()
     val rssCombineResult = combine(rssSparkSession)
     val rssGroupbyResult = groupBy(rssSparkSession)
     val rssRepartitionResult = repartition(rssSparkSession)

@@ -24,6 +24,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.ShuffleMode
 
 class RetryReviveTest extends AnyFunSuite
   with SparkTestBase
@@ -46,7 +47,9 @@ class RetryReviveTest extends AnyFunSuite
     val sparkConf = new SparkConf()
       .set(s"spark.${CelebornConf.TEST_CLIENT_RETRY_REVIVE.key}", "true")
       .setAppName("rss-demo").setMaster("local[2]")
-    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, "hash")).getOrCreate()
+    val ss = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .getOrCreate()
     ss.sparkContext.parallelize(1 to 1000, 2)
       .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(16).collect()
     ss.stop()

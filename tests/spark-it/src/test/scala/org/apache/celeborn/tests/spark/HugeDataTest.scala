@@ -23,6 +23,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.protocol.ShuffleMode
 
 class HugeDataTest extends AnyFunSuite
   with SparkTestBase
@@ -38,7 +39,9 @@ class HugeDataTest extends AnyFunSuite
 
   test("celeborn spark integration test - huge data") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
-    val ss = SparkSession.builder().config(updateSparkConf(sparkConf, "hash")).getOrCreate()
+    val ss = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .getOrCreate()
     val value = Range(1, 10000).mkString(",")
     val tuples = ss.sparkContext.parallelize(1 to 10000, 2)
       .map { i => (i, value) }.groupByKey(16).collect()
