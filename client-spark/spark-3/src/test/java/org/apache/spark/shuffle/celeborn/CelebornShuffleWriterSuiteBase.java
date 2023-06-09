@@ -97,7 +97,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
   private final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
 
   private final int numMaps = 10;
-  private final Integer numPartitions = 10;
+  private final int numPartitions = 10;
   private final SparkConf sparkConf = new SparkConf(false);
   private final BlockManagerId bmId = BlockManagerId.apply("execId", "host", 1, None$.empty());
 
