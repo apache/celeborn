@@ -60,6 +60,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     this.shuffleMasterContext = shuffleMasterContext;
     this.resultPartitionDelegation = resultPartitionDelegation;
     this.rssMetaServiceTimestamp = System.currentTimeMillis();
+    this.celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, new JobID());
+    LOG.info("CelebornAppId: {}", celebornAppId);
   }
 
   @Override
@@ -69,7 +71,6 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       synchronized (RemoteShuffleMaster.class) {
         if (lifecycleManager == null) {
           // use first jobID as celeborn shared appId for all other flink jobs
-          celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, jobID);
           CelebornConf celebornConf =
               FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
           // if not set, set to true as default for flink
