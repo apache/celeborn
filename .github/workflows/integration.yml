@@ -72,6 +72,7 @@ jobs:
           curl -L https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-${CRICTL_VERSION}-linux-amd64.tar.gz --output crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
           sudo tar zxvf crictl-$CRICTL_VERSION-linux-amd64.tar.gz -C /usr/local/bin
           mkdir -p /etc/cni/net.d/
+          chmod 755 /etc/cni /etc/cni/net.d
       - name: Setup Minikube
         run: |
           # https://minikube.sigs.k8s.io/docs/start/
