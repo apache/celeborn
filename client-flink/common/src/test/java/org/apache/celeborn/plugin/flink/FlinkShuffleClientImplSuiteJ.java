@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -29,8 +30,6 @@ import io.netty.channel.ChannelFuture;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
-import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
@@ -77,11 +76,10 @@ public class FlinkShuffleClientImplSuiteJ {
   @Test
   public void testPushDataByteBufSuccess() throws IOException {
     ByteBuf byteBuf = createByteBuf();
-    Mockito.when(client.pushData(Matchers.any(), Matchers.anyLong(), Matchers.any()))
+    when(client.pushData(any(), anyLong(), any()))
         .thenAnswer(
             t -> {
-              RpcResponseCallback rpcResponseCallback =
-                  t.getArgumentAt(1, RpcResponseCallback.class);
+              RpcResponseCallback rpcResponseCallback = t.getArgument(1, RpcResponseCallback.class);
               ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[0]);
               rpcResponseCallback.onSuccess(byteBuffer);
               return mockedFuture;
@@ -95,11 +93,10 @@ public class FlinkShuffleClientImplSuiteJ {
   @Test
   public void testPushDataByteBufHardSplit() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    Mockito.when(client.pushData(Matchers.any(), Matchers.anyLong(), Matchers.any()))
+    when(client.pushData(any(), anyLong(), any()))
         .thenAnswer(
             t -> {
-              RpcResponseCallback rpcResponseCallback =
-                  t.getArgumentAt(1, RpcResponseCallback.class);
+              RpcResponseCallback rpcResponseCallback = t.getArgument(1, RpcResponseCallback.class);
               ByteBuffer byteBuffer =
                   ByteBuffer.wrap(new byte[] {StatusCode.HARD_SPLIT.getValue()});
               rpcResponseCallback.onSuccess(byteBuffer);
@@ -112,12 +109,10 @@ public class FlinkShuffleClientImplSuiteJ {
   @Test
   public void testPushDataByteBufFail() throws IOException {
     ByteBuf byteBuf = Unpooled.wrappedBuffer(TEST_BUF1);
-    Mockito.when(
-            client.pushData(Matchers.any(), Matchers.anyLong(), Matchers.any(), Matchers.any()))
+    when(client.pushData(any(), anyLong(), any(), any()))
         .thenAnswer(
             t -> {
-              RpcResponseCallback rpcResponseCallback =
-                  t.getArgumentAt(1, RpcResponseCallback.class);
+              RpcResponseCallback rpcResponseCallback = t.getArgument(1, RpcResponseCallback.class);
               rpcResponseCallback.onFailure(new Exception("pushDataFailed"));
               return mockedFuture;
             });
