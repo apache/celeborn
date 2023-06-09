@@ -98,8 +98,8 @@ jobs:
           helm install celeborn charts/celeborn -f ./tests/kubernetes-it/docker/helm/values.yaml
       - run: |
           kubectl get nodes -o json | jq '.items[0].metadata.name' | xargs kubectl describe nodes
-          sleep 180
           kubectl get nodes -o json | jq '.items[0].metadata.name' | xargs -I {} kubectl taint nodes {} node.kubernetes.io/not-ready:NoSchedule-
+          sleep 180
           kubectl get pods -o wide
           kubectl get pods -o yaml
           kubectl get pods celeborn-master-0 -o yaml | grep podIP | grep -Eo "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | xargs ping -c 10
