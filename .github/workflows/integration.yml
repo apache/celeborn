@@ -96,6 +96,8 @@ jobs:
           # https://minikube.sigs.k8s.io/docs/handbook/pushing/#7-loading-directly-to-in-cluster-container-runtime
           minikube image load apache/celeborn:latest
           helm install celeborn charts/celeborn -f ./tests/kubernetes-it/docker/helm/values.yaml
+      - run: |
+          kubectl get pods celeborn-master-0 -o yaml | grep podIP | grep -Eo "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | xargs ping -c 10
       - name: Wait Celeborn Ready
         run: >-
           ./build/mvn clean install 
