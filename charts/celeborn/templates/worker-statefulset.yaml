@@ -71,9 +71,10 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if eq true .Values.hostNetwork }}
+      {{- if .Values.hostNetwork }}
       hostNetwork: true
       {{- end }}
+      dnsPolicy: {{ .Values.dnsPolicy | default "Default" }}
       initContainers:
       {{- $dirs := .Values.volumes.worker }}
       {{- if eq "hostPath" (index $dirs 0).type }}
