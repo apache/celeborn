@@ -60,7 +60,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     this.shuffleMasterContext = shuffleMasterContext;
     this.resultPartitionDelegation = resultPartitionDelegation;
     this.rssMetaServiceTimestamp = System.currentTimeMillis();
-    this.celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, new JobID());
+    this.celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, JobID.generate());
     LOG.info("CelebornAppId: {}", celebornAppId);
   }
 
