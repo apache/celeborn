@@ -67,7 +67,7 @@ public class SortBasedPusher extends MemoryConsumer {
   Consumer<Integer> afterPush;
   LongAdder[] mapStatusLengths;
   // this lock is shared between different SortBasedPushers to synchronize pushData
-  Object sharedPushLock;
+  final Object sharedPushLock;
   volatile boolean asyncPushing = false;
   int[] shuffledPartitions = null;
   int[] inversedShuffledPartitions = null;
@@ -223,10 +223,10 @@ public class SortBasedPusher extends MemoryConsumer {
     if (getUsed() > pushSortMemoryThreshold
         && pageCursor + bytes8K > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
-          "Memory Used across threshold, need to trigger push. Memory: "
-              + getUsed()
-              + ", currentPage size: "
-              + currentPage.size());
+          "Memory used {} exceeds threshold {}, need to trigger push. currentPage size: {}",
+          Utils.bytesToString(getUsed()),
+          Utils.bytesToString(pushSortMemoryThreshold),
+          Utils.bytesToString(currentPage.size()));
       return false;
     }
 
@@ -314,13 +314,15 @@ public class SortBasedPusher extends MemoryConsumer {
         array = allocateArray(used / 8 * 2);
       } catch (TooLargePageException e) {
         // The pointer array is too big to fix in a single page, spill.
-        logger.info("Pushdata in growPointerArrayIfNecessary, memory used " + getUsed());
+        logger.info(
+            "Pushdata in growPointerArrayIfNecessary, memory used {}",
+            Utils.bytesToString(getUsed()));
         pushData();
-      } catch (SparkOutOfMemoryError e) {
+      } catch (SparkOutOfMemoryError rethrow) {
         // should have trigger spilling
         if (inMemSorter.numRecords() > 0) {
-          logger.error("Unable to grow the pointer array");
-          throw e;
+          logger.error("OOM, unable to grow the pointer array");
+          throw rethrow;
         }
         // The new array could not be allocated, but that is not an issue as it is longer needed,
         // as all records were spilled.
@@ -424,6 +426,8 @@ public class SortBasedPusher extends MemoryConsumer {
     }
   }
 
+  // SPARK-29310 opens it to public in Spark 3.0, it's necessary to keep compatible with Spark 2
+  @Override
   public long getUsed() {
     return super.getUsed();
   }

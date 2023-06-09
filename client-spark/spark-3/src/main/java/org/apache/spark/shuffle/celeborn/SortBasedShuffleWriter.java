@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.LongAdder;
 
-import javax.annotation.Nullable;
-
 import scala.Option;
 import scala.Product2;
 import scala.reflect.ClassTag;
@@ -50,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.util.Utils;
 
 @Private
 public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -74,10 +73,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // this lock is shared between different SortBasedPushers to synchronize pushData
   private final Object sharedPushLock = new Object();
   private final boolean pipelined;
-  private SortBasedPusher[] pushers = new SortBasedPusher[2];
+  private final SortBasedPusher[] pushers = new SortBasedPusher[2];
   private SortBasedPusher currentPusher;
-
-  @Nullable private long peakMemoryUsedBytes = 0;
+  // TODO it isn't be updated after initialization
+  private long peakMemoryUsedBytes = 0;
 
   private final OpenByteArrayOutputStream serBuffer;
   private final SerializationStream serOutputStream;
@@ -92,7 +91,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
    */
   private volatile boolean stopping = false;
 
-  private boolean unsafeRowFastWrite;
+  private final boolean unsafeRowFastWrite;
 
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
@@ -302,7 +301,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
-    logger.debug("Push giant record, size {}.", numBytes);
+    logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
     long pushStartTime = System.nanoTime();
     int bytesWritten =
         rssShuffleClient.pushData(
@@ -323,9 +322,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void close() throws IOException {
     if (pipelined) {
-      logger.info("Memory used {}", (pushers[0].getUsed() + pushers[1].getUsed()));
+      logger.info(
+          "Memory used {}", Utils.bytesToString((pushers[0].getUsed() + pushers[1].getUsed())));
     } else {
-      logger.info("Memory used {}", currentPusher.getUsed());
+      logger.info("Memory used {}", Utils.bytesToString(currentPusher.getUsed()));
     }
     long pushStartTime = System.nanoTime();
     if (pipelined) {
@@ -388,6 +388,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // Added in SPARK-32917, for Spark 3.2 and above
   public long[] getPartitionLengths() {
     throw new UnsupportedOperationException(
-        "RSS is not compatible with Spark push mode, please set spark.shuffle.push.enabled to false");
+        "Celeborn is not compatible with push-based shuffle, please set spark.shuffle.push.enabled to false");
   }
 }
