@@ -117,7 +117,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = handle.dependency();
-    this.appId = handle.newAppId();
+    this.appId = handle.appUniqueId();
     this.shuffleId = dep.shuffleId();
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();

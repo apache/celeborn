@@ -107,7 +107,7 @@ public class SparkUtils {
     return tmpCelebornConf;
   }
 
-  public static String genNewAppId(SparkContext context) {
+  public static String appUniqueId(SparkContext context) {
     if (context.applicationAttemptId().isDefined()) {
       return context.applicationId() + "_" + context.applicationAttemptId().get();
     } else {
