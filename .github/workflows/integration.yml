@@ -60,7 +60,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get -qq -y install conntrack
-          sudo apt-get -qq -y install socat
+          sudo apt-get -qq -y install socat jq
           CRI_DOCKERD_VERSION="v0.3.2"
           CRI_DOCKERD_COMMIT="23513f4cfe8f02bc02130b4edba2c9d2c8fd320b"
           CRI_DOCKERD_BASE_URL="https://storage.googleapis.com/kicbase-artifacts/cri-dockerd/${CRI_DOCKERD_COMMIT}"
@@ -98,6 +98,7 @@ jobs:
           helm install celeborn charts/celeborn -f ./tests/kubernetes-it/docker/helm/values.yaml
       - run: |
           sleep 30
+          kubectl get nodes -o json | jq '.items[0].metadata.name' | xargs kubectl describe nodes
           kubectl get pods -o yaml
           kubectl get pods celeborn-master-0 -o yaml | grep podIP | grep -Eo "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | xargs ping -c 10
       - name: Wait Celeborn Ready
