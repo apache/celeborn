@@ -183,6 +183,7 @@ message PbRequestSlots {
   int32 storageType = 7;
   PbUserIdentifier userIdentifier = 8;
   bool shouldRackAware = 9;
+  repeated PbWorkerInfo localBlacklist = 10;
 }
 
 message PbSlotInfo {

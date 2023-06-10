@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
+import java.util.{List, Map}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -271,7 +272,7 @@ private[celeborn] class Master(
           userResourceConsumption,
           requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
@@ -524,34 +525,44 @@ private[celeborn] class Master(
     }
   }
 
+  def offerSlots(requestSlots: RequestSlots, ignore: Boolean = false)
+      : util.Map[WorkerInfo, (util.List[PartitionLocation], util.List[PartitionLocation])] = {
+    val candidates =
+      if (ignore) workersNotBlacklisted()
+      else workersNotBlacklisted(requestSlots.localBlacklist.asScala.toSet)
+    masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
+      statusSystem.workers.synchronized {
+        if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
+          SlotsAllocator.offerSlotsRoundRobin(
+            candidates,
+            requestSlots.partitionIdList,
+            requestSlots.shouldReplicate,
+            requestSlots.shouldRackAware)
+        } else {
+          SlotsAllocator.offerSlotsLoadAware(
+            candidates,
+            requestSlots.partitionIdList,
+            requestSlots.shouldReplicate,
+            requestSlots.shouldRackAware,
+            diskReserveSize,
+            slotsAssignLoadAwareDiskGroupNum,
+            slotsAssignLoadAwareDiskGroupGradient,
+            loadAwareFlushTimeWeight,
+            loadAwareFetchTimeWeight)
+        }
+      }
+    }
+  }
+
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     // offer slots
-    val slots =
-      masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
-        statusSystem.workers.synchronized {
-          if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
-            SlotsAllocator.offerSlotsRoundRobin(
-              workersNotBlacklisted(),
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware)
-          } else {
-            SlotsAllocator.offerSlotsLoadAware(
-              workersNotBlacklisted(),
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware,
-              diskReserveSize,
-              slotsAssignLoadAwareDiskGroupNum,
-              slotsAssignLoadAwareDiskGroupGradient,
-              loadAwareFlushTimeWeight,
-              loadAwareFetchTimeWeight)
-          }
-        }
-      }
+    var slots = offerSlots(requestSlots)
+    if (slots == null || slots.isEmpty) {
+      slots = offerSlots(requestSlots, true)
+    }
 
     if (log.isDebugEnabled()) {
       val distributions = SlotsAllocator.slotsToDiskAllocations(slots)

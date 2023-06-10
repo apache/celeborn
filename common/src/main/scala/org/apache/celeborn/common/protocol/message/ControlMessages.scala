@@ -168,6 +168,7 @@ object ControlMessages extends Logging {
       shouldReplicate: Boolean,
       shouldRackAware: Boolean,
       userIdentifier: UserIdentifier,
+      localBlacklist: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -491,6 +492,7 @@ object ControlMessages extends Logging {
           shouldReplicate,
           shouldRackAware,
           userIdentifier,
+          localBlacklist,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -501,6 +503,8 @@ object ControlMessages extends Logging {
         .setShouldRackAware(shouldRackAware)
         .setRequestId(requestId)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
+        .addAllLocalBlacklist(localBlacklist.asScala.map(
+          PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
@@ -880,6 +884,8 @@ object ControlMessages extends Logging {
           pbRequestSlots.getShouldReplicate,
           pbRequestSlots.getShouldRackAware,
           userIdentifier,
+          pbRequestSlots.getLocalBlacklistList.asScala.map(
+            PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbRequestSlots.getRequestId)
 
       case RELEASE_SLOTS =>
