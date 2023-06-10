@@ -1041,7 +1041,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         pushReplicateEnabled,
         pushRackAwareEnabled,
         userIdentifier,
-        workerStatusTracker.blacklist.keySet().asScala.toList.asJava)
+        if (conf.clientRegisterShuffleAvoidLocalBlacklist)
+          workerStatusTracker.blacklist.keySet().asScala.toList.asJava
+        else new util.ArrayList[WorkerInfo]())
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)

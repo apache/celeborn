@@ -654,6 +654,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def clientRegisterShuffleMaxRetry: Int = get(CLIENT_REGISTER_SHUFFLE_MAX_RETRIES)
+  def clientRegisterShuffleAvoidLocalBlacklist: Boolean =
+    get(CLIENT_REGISTER_SHUFFLE_AVOID_LOCAL_BLACKLIST)
   def clientRegisterShuffleRetryWaitMs: Long = get(CLIENT_REGISTER_SHUFFLE_RETRY_WAIT)
   def clientReserveSlotsRackAwareEnabled: Boolean = get(CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED)
   def clientReserveSlotsMaxRetries: Int = get(CLIENT_RESERVE_SLOTS_MAX_RETRIES)
@@ -2929,6 +2931,14 @@ object CelebornConf extends Logging {
       .doc("Max retry times for client to register shuffle.")
       .intConf
       .createWithDefault(3)
+
+  val CLIENT_REGISTER_SHUFFLE_AVOID_LOCAL_BLACKLIST: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.registerShuffle.avoidLocalBlacklist")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether to avoid workers in LifecycleManager's local blacklist when register shuffle.")
+      .booleanConf
+      .createWithDefault(true)
 
   val CLIENT_REGISTER_SHUFFLE_RETRY_WAIT: ConfigEntry[Long] =
     buildConf("celeborn.client.registerShuffle.retryWait")

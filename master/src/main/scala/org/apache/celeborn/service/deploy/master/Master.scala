@@ -20,14 +20,12 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.{List, Map}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.CelebornRuntimeException
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -527,9 +525,12 @@ private[celeborn] class Master(
 
   def offerSlots(requestSlots: RequestSlots, ignore: Boolean = false)
       : util.Map[WorkerInfo, (util.List[PartitionLocation], util.List[PartitionLocation])] = {
+    var localBlacklist = requestSlots.localBlacklist
+    val workers = workersNotBlacklisted()
     val candidates =
-      if (ignore) workersNotBlacklisted()
-      else workersNotBlacklisted(requestSlots.localBlacklist.asScala.toSet)
+      if (!ignore) {
+        localBlacklist.subList(0, Math.min(localBlacklist.size(), workers.size / 3))
+      } else workers.asJava
     masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
       statusSystem.workers.synchronized {
         if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
@@ -588,7 +589,7 @@ private[celeborn] class Master(
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
       s" on ${slots.size()} workers.")
 
-    val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
+    val workersNotSelected = workersNotBlacklisted().filter(!slots.containsKey(_))
     val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
@@ -735,10 +736,10 @@ private[celeborn] class Master(
   }
 
   private def workersNotBlacklisted(
-      tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
+      tmpBlacklist: Set[WorkerInfo] = Set.empty): List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
       !statusSystem.blacklist.contains(w) && !tmpBlacklist.contains(w)
-    }.asJava
+    }.toList
   }
 
   override def getWorkerInfo: String = {
