@@ -71,7 +71,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           if (!ZERO_JOB_ID.equals(jobID)) {
             this.celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, jobID);
           } else {
-            this.celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, JobID.generate());
+            this.celebornAppId =
+                FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, JobID.generate());
           }
 
           LOG.info("CelebornAppId: {}", celebornAppId);
