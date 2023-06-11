@@ -20,6 +20,7 @@ package org.apache.celeborn.client.read;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
@@ -39,12 +40,14 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
 
-  private static final HashSet<String> fetchBlacklist = new HashSet<>();
+  private static final ConcurrentHashMap<String, Long> fetchBlacklist =
+      JavaUtils.newConcurrentHashMap();
 
   public static RssInputStream create(
       CelebornConf conf,
@@ -129,6 +132,7 @@ public abstract class RssInputStream extends InputStream {
     private final boolean rangeReadFilter;
 
     private boolean fetchBlacklistEnabled;
+    private long fetchExcludedWorkerExpireTimeout;
 
     RssInputStreamImpl(
         CelebornConf conf,
@@ -150,6 +154,7 @@ public abstract class RssInputStream extends InputStream {
       this.endMapIndex = endMapIndex;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.fetchBlacklistEnabled = conf.clientFetchBlacklistEnabled();
+      this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = conf.clientPushBufferMaxSize() + headerLen;
@@ -235,8 +240,25 @@ public abstract class RssInputStream extends InputStream {
     private void blacklistFailedLocation(PartitionLocation location, Exception e) {
       if (conf.clientPushReplicateEnabled() && fetchBlacklistEnabled) {
         if (criticalCause(e)) {
-          fetchBlacklist.add(location.hostAndFetchPort());
+          fetchBlacklist.put(location.hostAndFetchPort(), System.currentTimeMillis());
+          // Avoid one data's two replicate both can't be fetched.
+          if (location.getPeer() != null) {
+            fetchBlacklist.remove(location.getPeer().hostAndFetchPort());
+          }
         }
+      }
+    }
+
+    // In RssInputStream, all operation is sync.
+    private boolean isBlacklisted(PartitionLocation location) {
+      Long timestamp = fetchBlacklist.get(location.hostAndFetchPort());
+      if (timestamp == null) {
+        return false;
+      } else if (System.currentTimeMillis() - timestamp > fetchExcludedWorkerExpireTimeout) {
+        fetchBlacklist.remove(location.hostAndFetchPort());
+        return false;
+      } else {
+        return true;
       }
     }
 
@@ -259,11 +281,7 @@ public abstract class RssInputStream extends InputStream {
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
-          if (fetchBlacklist.contains(location.hostAndFetchPort())) {
-            if (location.getPeer() != null
-                && fetchBlacklist.contains(location.getPeer().hostAndFetchPort())) {
-              fetchBlacklist.remove(location.getPeer().hostAndFetchPort());
-            }
+          if (isBlacklisted(location)) {
             throw new CelebornIOException("Fetch data from blacklisted location! " + location);
           }
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
@@ -298,12 +316,7 @@ public abstract class RssInputStream extends InputStream {
     private ByteBuf getNextChunk() throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
-          if (fetchBlacklist.contains(currentReader.getLocation().hostAndFetchPort())) {
-            if (currentReader.getLocation().getPeer() != null
-                && fetchBlacklist.contains(
-                    currentReader.getLocation().getPeer().hostAndFetchPort())) {
-              fetchBlacklist.remove(currentReader.getLocation().getPeer().hostAndFetchPort());
-            }
+          if (isBlacklisted(currentReader.getLocation())) {
             throw new CelebornIOException(
                 "Fetch data from blacklisted location! " + currentReader.getLocation());
           }
