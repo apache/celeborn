@@ -132,8 +132,7 @@ public abstract class RssInputStream extends InputStream {
     private LongAdder skipCount = new LongAdder();
     private final boolean rangeReadFilter;
 
-    private boolean shuffleClientFetchBlacklistEnabled;
-    private long shuffleClientFetchExcludedExpireTime;
+    private boolean fetchBlacklistEnabled;
 
     RssInputStreamImpl(
         CelebornConf conf,
@@ -154,8 +153,7 @@ public abstract class RssInputStream extends InputStream {
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
-      this.shuffleClientFetchBlacklistEnabled = conf.shuffleClientFetchBlacklistEnabled();
-      this.shuffleClientFetchExcludedExpireTime = conf.shuffleClientFetchExcludedExpireTimeout();
+      this.fetchBlacklistEnabled = conf.clientFetchBlacklistEnabled();
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = conf.clientPushBufferMaxSize() + headerLen;
@@ -238,11 +236,11 @@ public abstract class RssInputStream extends InputStream {
       currentChunk = getNextChunk();
     }
 
-    private boolean blacklistFailedLocation(
+    private void blacklistFailedLocation(
         String shuffleKey,
         PartitionLocation location,
         Exception e) {
-      if (conf.pushReplicateEnabled() && shuffleClientFetchBlacklistEnabled) {
+      if (conf.clientPushReplicateEnabled() && fetchBlacklistEnabled) {
         if (criticalCause(e)) {
           reducerBlacklist.get(shuffleKey).add(location.hostAndFetchPort());
         }
