@@ -133,6 +133,7 @@ public abstract class RssInputStream extends InputStream {
     private final boolean rangeReadFilter;
 
     private boolean shuffleClientFetchBlacklistEnabled;
+    private long shuffleClientFetchExcludedExpireTime;
 
     RssInputStreamImpl(
         CelebornConf conf,
@@ -154,6 +155,7 @@ public abstract class RssInputStream extends InputStream {
       this.endMapIndex = endMapIndex;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.shuffleClientFetchBlacklistEnabled = conf.shuffleClientFetchBlacklistEnabled();
+      this.shuffleClientFetchExcludedExpireTime = conf.shuffleClientFetchExcludedExpireTimeout();
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = conf.pushBufferMaxSize() + headerLen;
@@ -232,6 +234,17 @@ public abstract class RssInputStream extends InputStream {
       currentChunk = getNextChunk();
     }
 
+    private boolean blacklistFailedLocation(
+        String shuffleKey,
+        PartitionLocation location,
+        Exception e) {
+      if (conf.pushReplicateEnabled() && shuffleClientFetchBlacklistEnabled) {
+        if (criticalCause(e)) {
+          reducerBlacklist.get(shuffleKey).add(location.hostAndFetchPort());
+        }
+      }
+    }
+
     private boolean criticalCause(Exception e) {
       boolean isConnectTimeout =
           e instanceof IOException
@@ -262,11 +275,7 @@ public abstract class RssInputStream extends InputStream {
           }
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
-          if (shuffleClientFetchBlacklistEnabled
-              && criticalCause(e)
-              && location.getPeer() != null) {
-            reducerBlacklist.get(shuffleKey).add(location.hostAndFetchPort());
-          }
+          blacklistFailedLocation(shuffleKey, location, e);
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
             location = location.getPeer();
@@ -307,11 +316,7 @@ public abstract class RssInputStream extends InputStream {
           }
           return currentReader.next();
         } catch (Exception e) {
-          if (shuffleClientFetchBlacklistEnabled
-              && criticalCause(e)
-              && currentReader.getLocation().getPeer() != null) {
-            reducerBlacklist.get(shuffleKey).add(currentReader.getLocation().hostAndFetchPort());
-          }
+          blacklistFailedLocation(shuffleKey, currentReader.getLocation(), e);
           fetchChunkRetryCnt++;
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {

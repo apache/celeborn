@@ -658,6 +658,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def shuffleClientFetchBlacklistEnabled: Boolean = get(SHUFFLE_CLIENT_FETCH_BLACKLIST_ENABLED)
+  def shuffleClientFetchExcludedExpireTimeout: Long = get(SHUFFLE_CLIENT_FETCH_EXCLUDED_EXPIRE_TIMEOUT)
   def fetchTimeoutMs: Long = get(FETCH_TIMEOUT)
   def fetchMaxReqsInFlight: Int = get(FETCH_MAX_REQS_IN_FLIGHT)
   def fetchMaxRetries: Int = get(FETCH_MAX_RETRIES)
@@ -1366,12 +1367,21 @@ object CelebornConf extends Logging {
       .createWithDefault(16)
 
   val SHUFFLE_CLIENT_FETCH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
-    buildConf(" celeborn.client.fetch.blacklist.enabled")
+    buildConf("celeborn.client.fetch.blacklist.enabled")
       .categories("client")
       .doc("Whether to enable shuffle client-side fetch blacklist of workers.")
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
+
+  val SHUFFLE_CLIENT_FETCH_EXCLUDED_EXPIRE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.exclude.expireTimeout")
+      .categories("client")
+      .doc("ShuffleClint is a static object, it will be used in the whole lifecycle of Executor," +
+        "We give a expire time for blacklisted worker to avoid a transient worker issues.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
 
   val FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.fetch.timeout")
