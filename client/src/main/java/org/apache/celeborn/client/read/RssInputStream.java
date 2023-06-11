@@ -232,8 +232,7 @@ public abstract class RssInputStream extends InputStream {
       currentChunk = getNextChunk();
     }
 
-    private void blacklistFailedLocation(
-        String shuffleKey, PartitionLocation location, Exception e) {
+    private void blacklistFailedLocation(PartitionLocation location, Exception e) {
       if (conf.clientPushReplicateEnabled() && fetchBlacklistEnabled) {
         if (criticalCause(e)) {
           fetchBlacklist.add(location.hostAndFetchPort());
@@ -269,7 +268,7 @@ public abstract class RssInputStream extends InputStream {
           }
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
-          blacklistFailedLocation(shuffleKey, location, e);
+          blacklistFailedLocation(location, e);
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
@@ -310,7 +309,7 @@ public abstract class RssInputStream extends InputStream {
           }
           return currentReader.next();
         } catch (Exception e) {
-          blacklistFailedLocation(shuffleKey, currentReader.getLocation(), e);
+          blacklistFailedLocation(currentReader.getLocation(), e);
           fetchChunkRetryCnt++;
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
