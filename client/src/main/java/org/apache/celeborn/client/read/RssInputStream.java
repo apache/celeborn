@@ -299,16 +299,11 @@ public abstract class RssInputStream extends InputStream {
     private ByteBuf getNextChunk() throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
-          if (fetchBlacklist
-              .get(shuffleKey)
-              .contains(currentReader.getLocation().hostAndFetchPort())) {
+          if (fetchBlacklist.contains(currentReader.getLocation().hostAndFetchPort())) {
             if (currentReader.getLocation().getPeer() != null
-                && fetchBlacklist
-                    .get(shuffleKey)
-                    .contains(currentReader.getLocation().getPeer().hostAndFetchPort())) {
-              fetchBlacklist
-                  .get(shuffleKey)
-                  .remove(currentReader.getLocation().getPeer().hostAndFetchPort());
+                && fetchBlacklist.contains(
+                    currentReader.getLocation().getPeer().hostAndFetchPort())) {
+              fetchBlacklist.remove(currentReader.getLocation().getPeer().hostAndFetchPort());
             }
             throw new CelebornIOException(
                 "Fetch data from blacklisted location! " + currentReader.getLocation());
