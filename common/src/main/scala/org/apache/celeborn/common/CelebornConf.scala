@@ -705,7 +705,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
-  def clientFetchBlacklistEnabled:Boolean = get(CLIENT_FETCH_BLACKLIST_ENABLED)
+  def clientFetchBlacklistEnabled: Boolean = get(CLIENT_FETCH_BLACKLIST_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Push                   //

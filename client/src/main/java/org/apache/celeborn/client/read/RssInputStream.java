@@ -46,7 +46,7 @@ import org.apache.celeborn.common.util.Utils;
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
 
-  private static final ConcurrentHashMap<String, Set<String>> reducerBlacklist =
+  private static final ConcurrentHashMap<String, Set<String>> fetchBlacklist =
       JavaUtils.newConcurrentHashMap();
 
   public static RssInputStream create(
@@ -62,7 +62,7 @@ public abstract class RssInputStream extends InputStream {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
     } else {
-      reducerBlacklist.putIfAbsent(shuffleKey, ConcurrentHashMap.newKeySet());
+      fetchBlacklist.putIfAbsent(shuffleKey, ConcurrentHashMap.newKeySet());
       return new RssInputStreamImpl(
           conf,
           clientFactory,
@@ -237,12 +237,10 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private void blacklistFailedLocation(
-        String shuffleKey,
-        PartitionLocation location,
-        Exception e) {
+        String shuffleKey, PartitionLocation location, Exception e) {
       if (conf.clientPushReplicateEnabled() && fetchBlacklistEnabled) {
         if (criticalCause(e)) {
-          reducerBlacklist.get(shuffleKey).add(location.hostAndFetchPort());
+          fetchBlacklist.get(shuffleKey).add(location.hostAndFetchPort());
         }
       }
     }
@@ -266,12 +264,12 @@ public abstract class RssInputStream extends InputStream {
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
-          if (reducerBlacklist.get(shuffleKey).contains(location.hostAndFetchPort())) {
+          if (fetchBlacklist.get(shuffleKey).contains(location.hostAndFetchPort())) {
             if (location.getPeer() != null
-                && reducerBlacklist
+                && fetchBlacklist
                     .get(shuffleKey)
                     .contains(location.getPeer().hostAndFetchPort())) {
-              reducerBlacklist.get(shuffleKey).remove(location.getPeer().hostAndFetchPort());
+              fetchBlacklist.get(shuffleKey).remove(location.getPeer().hostAndFetchPort());
             }
             throw new CelebornIOException("Fetch data from blacklisted location! " + location);
           }
@@ -307,14 +305,14 @@ public abstract class RssInputStream extends InputStream {
     private ByteBuf getNextChunk() throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
-          if (reducerBlacklist
+          if (fetchBlacklist
               .get(shuffleKey)
               .contains(currentReader.getLocation().hostAndFetchPort())) {
             if (currentReader.getLocation().getPeer() != null
-                && reducerBlacklist
+                && fetchBlacklist
                     .get(shuffleKey)
                     .contains(currentReader.getLocation().getPeer().hostAndFetchPort())) {
-              reducerBlacklist
+              fetchBlacklist
                   .get(shuffleKey)
                   .remove(currentReader.getLocation().getPeer().hostAndFetchPort());
             }
