@@ -29,7 +29,7 @@ public class CodecSuiteJ {
 
   @Test
   public void testLz4Codec() {
-    int blockSize = (new CelebornConf()).pushBufferMaxSize();
+    int blockSize = (new CelebornConf()).clientPushBufferMaxSize();
     RssLz4Compressor rssLz4Compressor = new RssLz4Compressor(blockSize);
     byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
     int oriLength = data.length;
@@ -48,7 +48,7 @@ public class CodecSuiteJ {
   @Test
   public void testZstdCodec() {
     for (int level = -5; level <= 22; level++) {
-      int blockSize = (new CelebornConf()).pushBufferMaxSize();
+      int blockSize = (new CelebornConf()).clientPushBufferMaxSize();
       RssZstdCompressor rssZstdCompressor = new RssZstdCompressor(blockSize, level);
       byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
       int oriLength = data.length;

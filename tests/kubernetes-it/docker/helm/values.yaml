@@ -1,0 +1,116 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+image:
+  repository: apache/celeborn
+  pullPolicy: IfNotPresent
+  tag: latest
+
+imagePullSecrets: {}
+
+# For integration test, using single celeborn mater & worker
+masterReplicas: 1
+workerReplicas: 1
+
+securityContext:
+  runAsUser: 10006
+  runAsGroup: 10006
+  fsGroup: 10006
+
+# Current Celeborn support followings volume type:
+# - emptyDir
+# - hostPath
+# Note: size only works in emptyDir type
+# Celeborn Master will pick first volumes for store raft log
+volumes:
+  master:
+    - mountPath: /mnt/rss_ratis
+      type: emptyDir
+      size: 1Gi
+  worker:
+    - mountPath: /mnt/disk1
+      type: emptyDir
+      size: 1Gi
+    - mountPath: /mnt/disk2
+      type: emptyDir
+      size: 1Gi
+
+# celeborn configurations
+celeborn:
+  celeborn.ha.enabled: false
+  celeborn.metrics.enabled: false
+  celeborn.master.metrics.prometheus.port: 9098
+  celeborn.worker.metrics.prometheus.port: 9096
+  celeborn.worker.monitor.disk.enabled: false
+  celeborn.shuffle.chunk.size: 8m
+  celeborn.rpc.io.serverThreads: 64
+  celeborn.rpc.io.numConnectionsPerPeer: 2
+  celeborn.rpc.io.clientThreads: 64
+  celeborn.rpc.dispatcher.numThreads: 4
+  celeborn.worker.flusher.buffer.size: 256K
+  celeborn.worker.fetch.io.threads: 32
+  celeborn.worker.push.io.threads: 32
+  celeborn.push.stageEnd.timeout: 120s
+  celeborn.application.heartbeat.timeout: 120s
+  celeborn.worker.heartbeat.timeout: 120s
+
+environments:
+  CELEBORN_MASTER_MEMORY: 100m
+  CELEBORN_WORKER_MEMORY: 100m
+  CELEBORN_WORKER_OFFHEAP_MEMORY: 100m
+  CELEBORN_NO_DAEMONIZE: 1
+  TZ: "Asia/Shanghai"
+
+podMonitor:
+  enable: false
+  podMetricsEndpoint:
+    scheme: http
+    interval: 5s
+    portName: metrics
+
+service:
+  type: ClusterIP
+  port: 9097
+
+cluster:
+  name: cluster
+
+configmap: celeborn-conf
+
+resources:
+  master:
+    limits:
+      cpu: 100m
+      memory: 800Mi
+    requests:
+      cpu: 100m
+      memory: 800Mi
+  worker:
+    limits:
+      cpu: 100m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 1Gi
+
+podAnnotations: {}
+
+affinity: {}
+
+tolerations: []
+
+nodeSelector: {}

@@ -69,11 +69,11 @@ public class NettyMemoryMetrics {
   public NettyMemoryMetrics(
       PooledByteBufAllocator pooledAllocator,
       String metricPrefix,
-      TransportConf conf,
+      boolean verboseMetricsEnabled,
       AbstractSource source) {
     this.pooledAllocator = pooledAllocator;
     this.metricPrefix = metricPrefix;
-    this.verboseMetricsEnabled = conf.verboseMetrics();
+    this.verboseMetricsEnabled = verboseMetricsEnabled;
     this.source = source;
 
     registerMetrics(this.pooledAllocator);

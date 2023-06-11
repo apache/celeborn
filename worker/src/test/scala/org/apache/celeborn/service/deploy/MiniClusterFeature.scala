@@ -27,6 +27,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 trait MiniClusterFeature extends Logging {
   val workerPrometheusPort = new AtomicInteger(12378)
@@ -49,9 +50,9 @@ trait MiniClusterFeature extends Logging {
 
   private def createMaster(map: Map[String, String] = null): Master = {
     val conf = new CelebornConf()
-    conf.set("celeborn.metrics.enabled", "false")
+    conf.set(CelebornConf.METRICS_ENABLED.key, "false")
     val prometheusPort = masterPrometheusPort.getAndIncrement()
-    conf.set("celeborn.master.metrics.prometheus.port", s"$prometheusPort")
+    conf.set(CelebornConf.MASTER_PROMETHEUS_PORT.key, s"$prometheusPort")
     logInfo(s"set celeborn.master.metrics.prometheus.port to $prometheusPort")
     if (map != null) {
       map.foreach(m => conf.set(m._1, m._2))
@@ -68,12 +69,10 @@ trait MiniClusterFeature extends Logging {
   private def createWorker(map: Map[String, String] = null): Worker = {
     logInfo("start create worker for mini cluster")
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.storage.dirs", createTmpDir())
-    conf.set("celeborn.worker.monitor.disk.enabled", "false")
-    conf.set("celeborn.push.buffer.max.size", "256K")
-    conf.set(
-      "celeborn.worker.metrics.prometheus.port",
-      s"${workerPrometheusPort.incrementAndGet()}")
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, createTmpDir())
+    conf.set(CelebornConf.WORKER_DISK_MONITOR_ENABLED.key, "false")
+    conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
+    conf.set(CelebornConf.WORKER_PROMETHEUS_PORT.key, s"${workerPrometheusPort.incrementAndGet()}")
     conf.set("celeborn.fetch.io.threads", "4")
     conf.set("celeborn.push.io.threads", "4")
     if (map != null) {
@@ -104,7 +103,6 @@ trait MiniClusterFeature extends Logging {
     masterThread.start()
     masterInfo = (master, masterThread)
     Thread.sleep(5000L)
-
     for (_ <- 1 to workerNum) {
       val worker = createWorker(workerConfs)
       val workerThread = runnerWrap(worker.initialize())
@@ -137,7 +135,8 @@ trait MiniClusterFeature extends Logging {
       case (_, thread) =>
         thread.interrupt()
     }
-
+    workerInfos.clear()
     masterInfo._2.interrupt()
+    MemoryManager.reset()
   }
 }

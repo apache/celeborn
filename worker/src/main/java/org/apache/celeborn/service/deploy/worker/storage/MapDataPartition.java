@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
@@ -101,8 +100,8 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
                               logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
                             })
                         .build()));
-    this.dataFileChanel = new FileInputStream(fileInfo.getFile()).getChannel();
-    this.indexChannel = new FileInputStream(fileInfo.getIndexPath()).getChannel();
+    this.dataFileChanel = FileChannelUtils.openReadableFileChannel(fileInfo.getFilePath());
+    this.indexChannel = FileChannelUtils.openReadableFileChannel(fileInfo.getIndexPath());
     this.indexSize = indexChannel.size();
 
     MemoryManager.instance().addReadBufferTargetChangeListener(this);

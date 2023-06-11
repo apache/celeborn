@@ -182,6 +182,7 @@ message PbRequestSlots {
   string requestId = 6;
   int32 storageType = 7;
   PbUserIdentifier userIdentifier = 8;
+  bool shouldRackAware = 9;
 }
 
 message PbSlotInfo {
@@ -366,13 +367,13 @@ message PbCommitFilesResponse {
   int32 fileCount = 9;
 }
 
-message PbDestroy {
+message PbDestroyWorkerSlots {
   string shuffleKey = 1;
   repeated string masterLocations = 2;
   repeated string slaveLocation = 3;
 }
 
-message PbDestroyResponse {
+message PbDestroyWorkerSlotsResponse {
   int32 status = 1;
   repeated string failedMasters = 2;
   repeated string failedSlaves = 3;

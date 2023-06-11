@@ -316,10 +316,10 @@ function updateCeleborn() {
     echo -e "update ${host} \n"
     ssh ${host} "export CELEBORN_CONF_DIR=/home/hadoop/conf ; /home/hadoop/${CELEBORN_DIST}/sbin/stop-worker.sh"
     ssh ${host} "rm -rf /home/hadoop/${CELEBORN_DIST}"
-    ssh ${host} "rm -rf /mnt/disk1/hadoop/rss-worker/shuffle_data/*"
-    ssh ${host} "rm -rf /mnt/disk2/hadoop/rss-worker/shuffle_data/*"
-    ssh ${host} "rm -rf /mnt/disk3/hadoop/rss-worker/shuffle_data/*"
-    ssh ${host} "rm -rf /mnt/disk4/hadoop/rss-worker/shuffle_data/*"
+    ssh ${host} "rm -rf /mnt/disk1/rss-worker/shuffle_data/*"
+    ssh ${host} "rm -rf /mnt/disk2/rss-worker/shuffle_data/*"
+    ssh ${host} "rm -rf /mnt/disk3/rss-worker/shuffle_data/*"
+    ssh ${host} "rm -rf /mnt/disk4/rss-worker/shuffle_data/*"
     scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/ ${host}:~/ > /dev/null 2>&1
     scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${CELEBORN_CLIENT_INSTALL_DIR}/ > /dev/null 2>&1
   done

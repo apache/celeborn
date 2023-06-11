@@ -26,7 +26,7 @@ public abstract class PushStrategy {
   protected final CelebornConf conf;
 
   public static PushStrategy getStrategy(CelebornConf conf) {
-    String strategyName = conf.pushLimitStrategy();
+    String strategyName = conf.clientPushLimitStrategy();
     switch (strategyName) {
       case "SIMPLE":
         return new SimplePushStrategy(conf);

@@ -30,6 +30,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
@@ -40,6 +41,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
+    this.rackResolver = new CelebornRackResolver(conf);
   }
 
   @Override

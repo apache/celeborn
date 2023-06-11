@@ -26,6 +26,7 @@ import java.util.concurrent.TimeoutException;
 
 import scala.reflect.ClassTag$;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -34,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClientImpl;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.exception.DriverChangedException;
+import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
@@ -65,23 +68,37 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private ReadClientHandler readClientHandler = new ReadClientHandler();
   private ConcurrentHashMap<String, TransportClient> currentClient =
       JavaUtils.newConcurrentHashMap();
+  private long driverTimestamp;
 
   public static FlinkShuffleClientImpl get(
-      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
-    if (null == _instance || !initialized) {
+      String driverHost,
+      int port,
+      long driverTimestamp,
+      CelebornConf conf,
+      UserIdentifier userIdentifier)
+      throws DriverChangedException {
+    if (null == _instance || !initialized || _instance.driverTimestamp < driverTimestamp) {
       synchronized (FlinkShuffleClientImpl.class) {
         if (null == _instance) {
-          _instance = new FlinkShuffleClientImpl(driverHost, port, conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverHost, port);
+          _instance =
+              new FlinkShuffleClientImpl(driverHost, port, driverTimestamp, conf, userIdentifier);
           initialized = true;
-        } else if (!initialized) {
+        } else if (!initialized || _instance.driverTimestamp < driverTimestamp) {
           _instance.shutdown();
-          _instance = new FlinkShuffleClientImpl(driverHost, port, conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverHost, port);
+          _instance =
+              new FlinkShuffleClientImpl(driverHost, port, driverTimestamp, conf, userIdentifier);
           initialized = true;
         }
       }
     }
+
+    if (driverTimestamp < _instance.driverTimestamp) {
+      String format = "Driver reinitialized or changed driverHost-port-driverTimestamp to %s-%s-%s";
+      String message = String.format(format, driverHost, port, driverTimestamp);
+      logger.warn(message);
+      throw new DriverChangedException(message);
+    }
+
     return _instance;
   }
 
@@ -97,7 +114,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public FlinkShuffleClientImpl(
-      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
+      String driverHost,
+      int port,
+      long driverTimestamp,
+      CelebornConf conf,
+      UserIdentifier userIdentifier) {
     super(conf, userIdentifier);
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
@@ -106,7 +127,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         new TransportContext(
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
     this.flinkTransportClientFactory =
-        new FlinkTransportClientFactory(context, conf.fetchMaxRetries());
+        new FlinkTransportClientFactory(context, conf.clientFetchMaxRetriesForEachReplica());
+    this.setupMetaServiceRef(driverHost, port);
+    this.driverTimestamp = driverTimestamp;
   }
 
   public RssBufferStream readBufferedPartition(
@@ -120,8 +143,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     ReduceFileGroups fileGroups = loadFileGroup(applicationId, shuffleKey, shuffleId, partitionId);
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
-      logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
-      return RssBufferStream.empty();
+      logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
+      throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
       return RssBufferStream.create(
           this,
@@ -302,7 +325,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         dataClientFactory.createClient(
             location.getHost(), location.getPushPort(), location.getId());
     if (currentClient.get(mapKey) != client) {
-      // makesure that messages have been sent by old client, in order to keep receiving data
+      // make sure that messages have been sent by old client, in order to keep receiving data
       // orderly
       if (currentClient.get(mapKey) != null) {
         limitZeroInFlight(mapKey, pushState);
@@ -402,7 +425,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                         location.getEpoch(),
                         location,
                         StatusCode.HARD_SPLIT),
-                    conf.requestPartitionLocationRpcAskTimeout(),
+                    conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
             // per partitionKey only serve single PartitionLocation in Client Cache.
             StatusCode respStatus = Utils.toStatusCode(response.getStatus());
@@ -559,5 +582,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
   public void setDataClientFactory(TransportClientFactory dataClientFactory) {
     this.dataClientFactory = dataClientFactory;
+  }
+
+  @VisibleForTesting
+  public TransportClientFactory getDataClientFactory() {
+    return flinkTransportClientFactory;
   }
 }

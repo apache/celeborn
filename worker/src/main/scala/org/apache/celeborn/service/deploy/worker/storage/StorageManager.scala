@@ -23,7 +23,7 @@ import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.function.IntUnaryOperator
+import java.util.function.{BiConsumer, IntUnaryOperator}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -138,8 +138,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       (
         Some(new HdfsFlusher(
           workerSource,
-          conf.hdfsFlusherThreads)),
-        conf.hdfsFlusherThreads)
+          conf.workerHdfsFlusherThreads)),
+        conf.workerHdfsFlusherThreads)
     } else {
       (None, 0)
     }
@@ -183,7 +183,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   // when the worker's fetching port is stable.
   if (conf.workerGracefulShutdown) {
     try {
-      val recoverFile = new File(conf.workerRecoverPath, RECOVERY_FILE_NAME)
+      val recoverFile = new File(conf.workerGracefulShutdownRecoverPath, RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.db)
     } catch {
@@ -192,12 +192,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         this.db = null
     }
   }
-  cleanupExpiredAppDirs(System.currentTimeMillis(), conf.workerGracefulShutdown)
+  cleanupExpiredAppDirs()
   if (!checkIfWorkingDirCleaned) {
     logWarning(
       "Worker still has residual files in the working directory before registering with Master, " +
         "please refer to the configuration document to increase celeborn.worker.disk.checkFileClean.maxRetries or " +
-        "celeborn.worker.disk.checkFileClean.timeout .")
+        s"${CelebornConf.WORKER_CHECK_FILE_CLEAN_TIMEOUT.key}.")
   } else {
     logInfo("Successfully remove all files under working directory.")
   }
@@ -272,7 +272,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     var retryCount = 0
     var exception: IOException = null
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
-    while (retryCount < conf.createWriterMaxAttempts) {
+    while (retryCount < conf.workerCreateWriterMaxAttempts) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
@@ -488,7 +488,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  private val noneEmptyDirExpireDurationMs = conf.workerNonEmptyDirExpireDuration
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
@@ -496,9 +495,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     new Runnable {
       override def run(): Unit = {
         try {
-          // Clean up dirs which has not been modified
-          // in the past {{noneEmptyExpireDurationsMs}}.
-          cleanupExpiredAppDirs(System.currentTimeMillis() - noneEmptyDirExpireDurationMs)
+          // Clean up dirs which it's application is expired.
+          cleanupExpiredAppDirs()
         } catch {
           case exception: Exception =>
             logWarning(s"Cleanup expired shuffle data exception: ${exception.getMessage}")
@@ -509,19 +507,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     30,
     TimeUnit.MINUTES)
 
-  private def cleanupExpiredAppDirs(expireTime: Long, isGracefulShutdown: Boolean = false): Unit = {
+  private def cleanupExpiredAppDirs(): Unit = {
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
     disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
       diskInfo.dirs.foreach {
         case workingDir if workingDir.exists() =>
           workingDir.listFiles().foreach { appDir =>
-            // Don't delete shuffleKey's data recovered from levelDB when restart with graceful shutdown
-            if (!(isGracefulShutdown && appIds.contains(appDir.getName))) {
-              if (appDir.lastModified() < expireTime) {
-                val threadPool = diskOperators.get(diskInfo.mountPoint)
-                deleteDirectory(appDir, threadPool)
-                logInfo(s"Delete expired app dir $appDir.")
-              }
+            // Don't delete shuffleKey's data that exist correct shuffle file info.
+            if (!appIds.contains(appDir.getName)) {
+              val threadPool = diskOperators.get(diskInfo.mountPoint)
+              deleteDirectory(appDir, threadPool)
+              logInfo(s"Delete expired app dir $appDir.")
             }
           }
         // workingDir not exist when initializing worker on new disk
@@ -535,7 +531,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val iter = hadoopFs.listFiles(hdfsWorkPath, false)
         while (iter.hasNext) {
           val fileStatus = iter.next()
-          if (fileStatus.getModificationTime < expireTime) {
+          if (!appIds.contains(fileStatus.getPath.getName)) {
             hadoopFs.delete(fileStatus.getPath, true)
           }
         }
@@ -638,7 +634,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         diskOperators.size()) { entry =>
         ThreadUtils.shutdown(
           entry._2,
-          conf.workerFlusherShutdownTimeoutMs.milliseconds)
+          conf.workerGracefulShutdownFlusherShutdownTimeoutMs.milliseconds)
       }
     }
     storageScheduler.shutdownNow()
@@ -648,24 +644,24 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def flushFileWriters(): Unit = {
-    val allWriters = new util.HashSet[FileWriter]()
-    workingDirWriters.asScala.foreach { case (_, writers) =>
-      writers.synchronized {
-        // Filter out FileWriter that already has IOException to avoid printing too many error logs
-        allWriters.addAll(writers.values().asScala.filter(_.getException == null).asJavaCollection)
+    workingDirWriters.forEach(new BiConsumer[File, ConcurrentHashMap[String, FileWriter]] {
+      override def accept(t: File, writers: ConcurrentHashMap[String, FileWriter]): Unit = {
+        writers.forEach(new BiConsumer[String, FileWriter] {
+          override def accept(file: String, writer: FileWriter): Unit = {
+            if (writer.getException != null) {
+              try {
+                writer.flushOnMemoryPressure()
+              } catch {
+                case t: Throwable =>
+                  logError(
+                    s"FileWrite of $writer faces unexpected exception when flush on memory pressure.",
+                    t)
+              }
+            }
+          }
+        })
       }
-    }
-
-    allWriters.asScala.foreach { writer =>
-      try {
-        writer.flushOnMemoryPressure()
-      } catch {
-        case t: Throwable =>
-          logError(
-            s"FileWrite of ${writer} faces unexpected exception when flush on memory pressure.",
-            t)
-      }
-    }
+    })
   }
 
   override def onPause(moduleName: String): Unit = {}

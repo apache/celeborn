@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
+import scala.Option;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +50,7 @@ import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractMetaManager.class);
@@ -68,6 +71,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   protected RpcEnv rpcEnv;
   protected CelebornConf conf;
+  protected CelebornRackResolver rackResolver;
 
   public long initialEstimatedPartitionSize;
   public long estimatedPartitionSize;
@@ -198,7 +202,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
       workerInfo.ifPresent(
           info -> {
-            info.updateThenGetDiskInfos(disks, estimatedPartitionSize);
+            info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
             info.updateThenGetUserResourceConsumption(userResourceConsumption);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
@@ -233,6 +237,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             userResourceConsumption,
             null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
+    workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {
@@ -304,6 +309,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workers.addAll(
           snapshotMetaInfo.getWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet())
+              .stream()
+              .map(
+                  workerInfo -> {
+                    // Reset worker's network location with current master's configuration.
+                    workerInfo.networkLocation_$eq(
+                        rackResolver.resolve(workerInfo.host()).getNetworkLocation());
+                    return workerInfo;
+                  })
               .collect(Collectors.toSet()));
 
       snapshotMetaInfo

@@ -86,6 +86,9 @@ public class MessageDecoderExt {
         in.readBytes(errorBytes);
         return new TransportableError(streamId, errorBytes);
 
+      case HEARTBEAT:
+        return new Heartbeat();
+
       default:
         throw new IllegalArgumentException("Unexpected message type: " + type);
     }

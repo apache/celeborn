@@ -29,11 +29,21 @@ metadata:
 data:
   celeborn-defaults.conf: |-
     {{- $namespace := .Release.Namespace }}
-    celeborn.ha.enabled=true
     celeborn.master.endpoints={{ range until (.Values.masterReplicas |int) }}celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local,{{ end }}
     {{- range until (.Values.masterReplicas |int) }}
     celeborn.ha.master.node.{{ . }}.host=celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local
     {{- end }}
+    {{- $dirs := .Values.volumes.master }}
+    celeborn.ha.master.ratis.raft.server.storage.dir={{ (index $dirs 0).mountPath }}
+    {{- $path := "" }}
+    {{- range $worker := .Values.volumes.worker }}
+    {{- if eq $path "" }}
+    {{- $path = $worker.mountPath }}
+    {{- else }}
+    {{- $path = ( list $path $worker.mountPath | join ",") }}
+    {{- end }}
+    {{- end }}
+    celeborn.worker.storage.dirs={{ $path }}
     {{- range $key, $val := .Values.celeborn }}
     {{ $key }}={{ $val }}
     {{- end }}
@@ -66,23 +76,46 @@ data:
     ~ Set to debug or trace if log4j initialization is failing.
     -->
     <Configuration status="INFO">
-      <Appenders>
-        <Console name="stdout" target="SYSTEM_OUT">
-          <!--
-          ~ In the pattern layout configuration below, we specify an explicit `%ex` conversion
-          ~ pattern for logging Throwables. If this was omitted, then (by default) Log4J would
-          ~ implicitly add an `%xEx` conversion pattern which logs stacktraces with additional
-          ~ class packaging information. That extra information can sometimes add a substantial
-          ~ performance overhead, so we disable it in our default logging config.
-          -->
-          <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
-        </Console>
-      </Appenders>
-      <Loggers>
-        <Root level="INFO">
-          <AppenderRef ref="stdout"/>
-        </Root>
-      </Loggers>
+        <Appenders>
+            <Console name="stdout" target="SYSTEM_OUT">
+                <!--
+                  ~ In the pattern layout configuration below, we specify an explicit `%ex` conversion
+                  ~ pattern for logging Throwables. If this was omitted, then (by default) Log4J would
+                  ~ implicitly add an `%xEx` conversion pattern which logs stacktraces with additional
+                  ~ class packaging information. That extra information can sometimes add a substantial
+                  ~ performance overhead, so we disable it in our default logging config.
+                  -->
+                <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
+            </Console>
+            <RollingRandomAccessFile name="file" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log"
+                                     filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d-%i">
+                <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
+                <Policies>
+                    <SizeBasedTriggeringPolicy size="200 MB"/>
+                </Policies>
+                <DefaultRolloverStrategy max="7">
+                    <Delete basePath="${env:CELEBORN_LOG_DIR}" maxDepth="1">
+                        <IfFileName glob="celeborn.log*">
+                            <IfAny>
+                                <IfAccumulatedFileSize exceeds="1 GB" />
+                                <IfAccumulatedFileCount exceeds="10" />
+                            </IfAny>
+                        </IfFileName>
+                    </Delete>
+                </DefaultRolloverStrategy>
+            </RollingRandomAccessFile>
+        </Appenders>
+
+        <Loggers>
+            <Root level="INFO">
+                <AppenderRef ref="stdout"/>
+                <AppenderRef ref="file"/>
+            </Root>
+            <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
+                <Appender-ref ref="stdout" level="WARN" />
+                <Appender-ref ref="file" level="WARN"/>
+            </Logger>
+        </Loggers>
     </Configuration>
 
   metrics.properties: >-

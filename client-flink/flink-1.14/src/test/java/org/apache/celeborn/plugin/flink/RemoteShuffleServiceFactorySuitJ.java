@@ -40,11 +40,11 @@ public class RemoteShuffleServiceFactorySuitJ {
     when(shuffleEnvironmentContext.getConfiguration()).thenReturn(new Configuration());
     when(shuffleEnvironmentContext.getNetworkMemorySize())
         .thenReturn(new MemorySize(64 * 1024 * 1024));
-    MetricGroup parentMeric = mock(MetricGroup.class);
-    when(shuffleEnvironmentContext.getParentMetricGroup()).thenReturn(parentMeric);
+    MetricGroup parentMetric = mock(MetricGroup.class);
+    when(shuffleEnvironmentContext.getParentMetricGroup()).thenReturn(parentMetric);
     MetricGroup childGroup = mock(MetricGroup.class);
     MetricGroup childChildGroup = mock(MetricGroup.class);
-    when(parentMeric.addGroup(anyString())).thenReturn(childGroup);
+    when(parentMetric.addGroup(anyString())).thenReturn(childGroup);
     when(childGroup.addGroup(any())).thenReturn(childChildGroup);
     when(childChildGroup.gauge(any(), any())).thenReturn(null);
     ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate> shuffleEnvironment =

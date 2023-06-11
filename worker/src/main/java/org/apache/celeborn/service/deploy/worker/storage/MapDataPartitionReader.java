@@ -348,7 +348,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
           currentPartitionRemainingBytes);
       return true;
     } catch (Throwable throwable) {
-      logger.debug("Failed to read partition file.", throwable);
+      logger.error("Failed to read partition file.", throwable);
       isReleased = true;
       throw throwable;
     }

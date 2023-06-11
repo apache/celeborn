@@ -42,13 +42,13 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
   }
   val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
-  val sysBlockDir = conf.diskMonitorSysBlockDir
+  val sysBlockDir = conf.workerDiskMonitorSysBlockDir
   val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
   val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
   val nonCriticalErrors = JavaUtils.newConcurrentHashMap[DiskStatus, util.Set[Long]]()
-  val notifyErrorThreshold = conf.diskMonitorNotifyErrorThreshold
-  val notifyErrorExpireTimeout = conf.diskMonitorNotifyErrorExpireTimeout
+  val notifyErrorThreshold = conf.workerDiskMonitorNotifyErrorThreshold
+  val notifyErrorExpireTimeout = conf.workerDiskMonitorNotifyErrorExpireTimeout
 
   var lastReadComplete: Long = -1
   var lastWriteComplete: Long = -1

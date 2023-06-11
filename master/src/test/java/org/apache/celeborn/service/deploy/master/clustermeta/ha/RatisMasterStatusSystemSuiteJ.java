@@ -29,6 +29,7 @@ import org.junit.*;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
@@ -58,9 +59,25 @@ public class RatisMasterStatusSystemSuiteJ {
 
   @BeforeClass
   public static void init() throws IOException, InterruptedException {
+    resetRaftServer();
+  }
+
+  public static void resetRaftServer() throws IOException, InterruptedException {
     Mockito.when(mockRpcEnv.setupEndpointRef(Mockito.any(), Mockito.any()))
         .thenReturn(mockRpcEndpoint);
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
+
+    if (RATISSERVER1 != null) {
+      RATISSERVER1.stop();
+    }
+
+    if (RATISSERVER2 != null) {
+      RATISSERVER2.stop();
+    }
+
+    if (RATISSERVER3 != null) {
+      RATISSERVER3.stop();
+    }
 
     STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
     STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
@@ -74,19 +91,19 @@ public class RatisMasterStatusSystemSuiteJ {
     File tmpDir1 = File.createTempFile("rss-ratis1", "for-test-only");
     tmpDir1.delete();
     tmpDir1.mkdirs();
-    conf1.set("celeborn.ha.master.ratis.raft.server.storage.dir", tmpDir1.getAbsolutePath());
+    conf1.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir1.getAbsolutePath());
 
     CelebornConf conf2 = new CelebornConf();
     File tmpDir2 = File.createTempFile("rss-ratis2", "for-test-only");
     tmpDir2.delete();
     tmpDir2.mkdirs();
-    conf2.set("celeborn.ha.master.ratis.raft.server.storage.dir", tmpDir2.getAbsolutePath());
+    conf2.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir2.getAbsolutePath());
 
     CelebornConf conf3 = new CelebornConf();
     File tmpDir3 = File.createTempFile("rss-ratis3", "for-test-only");
     tmpDir3.delete();
     tmpDir3.mkdirs();
-    conf3.set("celeborn.ha.master.ratis.raft.server.storage.dir", tmpDir3.getAbsolutePath());
+    conf3.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir3.getAbsolutePath());
 
     String id1 = UUID.randomUUID().toString();
     String id2 = UUID.randomUUID().toString();
@@ -195,6 +212,37 @@ public class RatisMasterStatusSystemSuiteJ {
       return STATUSSYSTEM3;
     }
     return null;
+  }
+
+  private void stopNoneLeaderRaftServer(HARaftServer... raftServers) {
+    for (HARaftServer raftServer : raftServers) {
+      if (!raftServer.isLeader()) {
+        raftServer.stop();
+      }
+    }
+  }
+
+  @Test
+  public void testRaftSystemException() throws Exception {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+    try {
+      stopNoneLeaderRaftServer(RATISSERVER1, RATISSERVER2, RATISSERVER3);
+      statusSystem.handleRegisterWorker(
+          HOSTNAME1,
+          RPCPORT1,
+          PUSHPORT1,
+          FETCHPORT1,
+          REPLICATEPORT1,
+          disks1,
+          userResourceConsumption1,
+          getNewReqeustId());
+      Assert.assertTrue(false);
+    } catch (CelebornRuntimeException e) {
+      Assert.assertTrue(true);
+    } finally {
+      resetRaftServer();
+    }
   }
 
   @Test

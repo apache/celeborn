@@ -80,7 +80,7 @@ public class DataPushQueueSuitJ {
     Map<Integer, Integer> partitionBatchIdMap = new HashMap<>();
 
     CelebornConf conf = new CelebornConf();
-    conf.set("celeborn.push.maxReqsInFlight", "2");
+    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT().key(), "2");
 
     String app = "APP-1";
     int shuffleId = 0;
@@ -139,7 +139,7 @@ public class DataPushQueueSuitJ {
                         partitionBatchIdMap.get(partitionId),
                         reducePartitionMap.get(partitionId).hostAndPushPort());
                   }
-                } catch (IOException e) {
+                } catch (IOException | InterruptedException e) {
                   throw new RuntimeException(e);
                 }
               }

@@ -158,13 +158,17 @@ public abstract class RssInputStream extends InputStream {
       this.shuffleClientFetchExcludedExpireTime = conf.shuffleClientFetchExcludedExpireTimeout();
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
-      int blockSize = conf.pushBufferMaxSize() + headerLen;
+      int blockSize = conf.clientPushBufferMaxSize() + headerLen;
       compressedBuf = new byte[blockSize];
       decompressedBuf = new byte[blockSize];
 
       decompressor = Decompressor.getDecompressor(conf);
 
-      fetchChunkMaxRetry = conf.fetchMaxRetries();
+      if (conf.clientPushReplicateEnabled()) {
+        fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica() * 2;
+      } else {
+        fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica();
+      }
       TransportConf transportConf =
           Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
       retryWaitMs = transportConf.ioRetryWaitTimeMs();
@@ -278,6 +282,11 @@ public abstract class RssInputStream extends InputStream {
           blacklistFailedLocation(shuffleKey, location, e);
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
+            // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
+            // so sleep before next try.
+            if (fetchChunkRetryCnt % 2 == 0) {
+              Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+            }
             location = location.getPeer();
             logger.warn(
                 "CreatePartitionReader failed {}/{} times, change to peer",
@@ -330,6 +339,11 @@ public abstract class RssInputStream extends InputStream {
                   fetchChunkRetryCnt,
                   fetchChunkMaxRetry,
                   e);
+              // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
+              // so sleep before next try.
+              if (fetchChunkRetryCnt % 2 == 0) {
+                Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+              }
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
             } else {
               logger.warn(
@@ -345,7 +359,7 @@ public abstract class RssInputStream extends InputStream {
 
     private PartitionReader createReader(
         PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
-        throws IOException {
+        throws IOException, InterruptedException {
       if (location.getPeer() == null) {
         logger.debug("Partition {} has only one partition replica.", location);
       }

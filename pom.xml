@@ -52,7 +52,7 @@
   </distributionManagement>
 
   <properties>
-    <project.version>0.3.0-SNAPSHOT</project.version>
+    <project.version>0.4.0-SNAPSHOT</project.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
@@ -81,15 +81,16 @@
     <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>1.10.19</mockito.version>
     <mockito-scalatest.version>1.16.37</mockito-scalatest.version>
-    <netty.version>4.1.77.Final</netty.version>
+    <netty.version>4.1.92.Final</netty.version>
     <protobuf.version>3.19.2</protobuf.version>
-    <ratis.version>2.4.1</ratis.version>
+    <ratis.version>2.5.1</ratis.version>
     <scalamock.version>5.1.0</scalamock.version>
     <scalatest.version>3.2.3</scalatest.version>
     <slf4j.version>1.7.36</slf4j.version>
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
     <snakeyaml.version>1.33</snakeyaml.version>
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
+    <kubernetes-client.version>6.7.0</kubernetes-client.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
@@ -166,21 +167,6 @@
             <artifactId>commons-cli</artifactId>
           </exclusion>
         </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-        <version>${flink.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-clients_${scala.binary.version}</artifactId>
-        <version>${flink.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
-        <version>${flink.version}</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -334,6 +320,12 @@
         <groupId>io.netty</groupId>
         <artifactId>netty-all</artifactId>
         <version>${netty.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler-ssl-ocsp</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -375,94 +367,6 @@
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-client-api</artifactId>
         <version>${hadoop.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.fusesource.leveldbjni</groupId>
-            <artifactId>leveldbjni-all</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>asm</groupId>
-            <artifactId>asm</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.codehaus.jackson</groupId>
-            <artifactId>jackson-mapper-asl</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.jboss.netty</groupId>
-            <artifactId>netty</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty</artifactId>
-          </exclusion>
-          <exclusion>
-            <!-- BeanUtils >= 1.9.0 no longer splits out -core; exclude it -->
-            <groupId>commons-beanutils</groupId>
-            <artifactId>commons-beanutils-core</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>servlet-api-2.5</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.sun.jersey</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.sun.jersey.jersey-test-framework</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.sun.jersey.contribs</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>net.java.dev.jets3t</groupId>
-            <artifactId>jets3t</artifactId>
-          </exclusion>
-          <!-- Hadoop-3.2 -->
-          <exclusion>
-            <groupId>javax.ws.rs</groupId>
-            <artifactId>jsr311-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-webapp</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.thoughtworks.paranamer</groupId>
-            <artifactId>paranamer</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>ch.qos.reload4j</groupId>
-            <artifactId>reload4j</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
@@ -512,6 +416,12 @@
         <groupId>org.mockito</groupId>
         <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
         <version>${mockito-scalatest.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.fabric8</groupId>
+        <artifactId>kubernetes-client</artifactId>
+        <version>${kubernetes-client.version}</version>
         <scope>test</scope>
       </dependency>
     </dependencies>
@@ -1039,6 +949,25 @@
     </profile>
 
     <profile>
+      <id>spark-3.4</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
+      </modules>
+      <properties>
+        <jackson.version>2.14.2</jackson.version>
+        <jackson.databind.version>2.14.2</jackson.databind.version>
+        <lz4-java.version>1.8.0</lz4-java.version>
+        <scala.version>2.12.17</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <spark.version>3.4.0</spark.version>
+        <zstd-jni.version>1.5.2-5</zstd-jni.version>
+      </properties>
+    </profile>
+
+    <profile>
       <id>jdk-8</id>
       <activation>
         <jdk>1.8</jdk>
@@ -1070,6 +999,53 @@
         <flink.version>1.14.6</flink.version>
         <scala.version>2.12.7</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.14_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streamig.artifact>flink-streaming-java_${scala.binary.version}</flink.streamig.artifact>
+        <flink.clients.artifact>flink-clients_${scala.binary.version}</flink.clients.artifact>
+        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web_${scala.binary.version}</flink.runtime.web.artifact>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>flink-1.15</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-1.15</module>
+        <module>client-flink/flink-1.15-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>1.15.4</flink.version>
+        <flink.binary.version>1.15</flink.binary.version>
+        <scala.version>2.12.7</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.15_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.clients.artifact>flink-clients</flink.clients.artifact>
+        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>flink-1.17</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-1.17</module>
+        <module>client-flink/flink-1.17-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>1.17.0</flink.version>
+        <flink.binary.version>1.17</flink.binary.version>
+        <scala.version>2.12.7</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-1.17_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streamig.artifact>flink-streaming-java</flink.streamig.artifact>
+        <flink.clients.artifact>flink-clients</flink.clients.artifact>
+        <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
       </properties>
     </profile>
 
@@ -1095,6 +1071,7 @@
               <execution>
                 <id>source-release-assembly</id>
                 <phase>none</phase>
+
               </execution>
             </executions>
           </plugin>
@@ -1156,6 +1133,13 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+
+    <profile>
+      <id>kubernetes-it</id>
+      <modules>
+        <module>tests/kubernetes-it</module>
+      </modules>
     </profile>
   </profiles>
 </project>

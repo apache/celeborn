@@ -48,9 +48,21 @@ class ShufflePartitionLocationInfo {
     getPartitions(slavePartitionLocations, partitionIdOpt)
   }
 
+  def isEmpty(): Boolean = {
+    masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
+  }
+
   def containsPartition(partitionId: Int): Boolean = {
     masterPartitionLocations.containsKey(partitionId) ||
     slavePartitionLocations.containsKey(partitionId)
+  }
+
+  def removeAllMasterPartitions(): Unit = {
+    masterPartitionLocations.clear()
+  }
+
+  def removeAllSlavePartitions(): Unit = {
+    slavePartitionLocations.clear()
   }
 
   def removeMasterPartitions(partitionId: Int): util.Set[PartitionLocation] = {

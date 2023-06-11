@@ -18,12 +18,13 @@
 package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
@@ -50,7 +51,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
  */
 public abstract class FileWriter implements DeviceObserver {
   private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
-  private static final long WAIT_INTERVAL_MS = 20;
+  private static final long WAIT_INTERVAL_MS = 5;
 
   protected final FileInfo fileInfo;
   private FileChannel channel;
@@ -62,8 +63,11 @@ public abstract class FileWriter implements DeviceObserver {
 
   public final Flusher flusher;
   private final int flushWorkerIndex;
-  protected CompositeByteBuf flushBuffer;
 
+  @GuardedBy("flushLock")
+  private CompositeByteBuf flushBuffer;
+
+  private Object flushLock = new Object();
   private final long writerCloseTimeoutMs;
 
   protected final long flusherBufferSize;
@@ -93,7 +97,7 @@ public abstract class FileWriter implements DeviceObserver {
     this.fileInfo = fileInfo;
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
-    this.writerCloseTimeoutMs = conf.writerCloseTimeoutMs();
+    this.writerCloseTimeoutMs = conf.workerWriterCloseTimeoutMs();
     this.splitThreshold = splitThreshold;
     this.flusherBufferSize = conf.workerFlusherBufferSize();
     this.deviceMonitor = deviceMonitor;
@@ -101,7 +105,7 @@ public abstract class FileWriter implements DeviceObserver {
     this.partitionType = partitionType;
     this.rangeReadFilter = rangeReadFilter;
     if (!fileInfo.isHdfs()) {
-      channel = new FileOutputStream(fileInfo.getFilePath()).getChannel();
+      channel = FileChannelUtils.createWritableFileChannel(fileInfo.getFilePath());
     } else {
       // We open the stream and close immediately because HDFS output stream will
       // create a DataStreamer that is a thread.
@@ -142,19 +146,28 @@ public abstract class FileWriter implements DeviceObserver {
     numPendingWrites.decrementAndGet();
   }
 
+  @GuardedBy("flushLock")
   protected void flush(boolean finalFlush) throws IOException {
-    int numBytes = flushBuffer.readableBytes();
-    notifier.checkException();
-    notifier.numPendingFlushes.incrementAndGet();
-    FlushTask task = null;
-    if (channel != null) {
-      task = new LocalFlushTask(flushBuffer, channel, notifier);
-    } else if (fileInfo.isHdfs()) {
-      task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
+    // flushBuffer == null here means writer already closed
+    if (flushBuffer != null) {
+      int numBytes = flushBuffer.readableBytes();
+      if (numBytes != 0) {
+        notifier.checkException();
+        notifier.numPendingFlushes.incrementAndGet();
+        FlushTask task = null;
+        if (channel != null) {
+          task = new LocalFlushTask(flushBuffer, channel, notifier);
+        } else if (fileInfo.isHdfs()) {
+          task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
+        }
+        addTask(task);
+        flushBuffer = null;
+        bytesFlushed += numBytes;
+        if (!finalFlush) {
+          takeBuffer();
+        }
+      }
     }
-    addTask(task);
-    flushBuffer = null;
-    bytesFlushed += numBytes;
   }
 
   /**
@@ -190,7 +203,7 @@ public abstract class FileWriter implements DeviceObserver {
             congestionController ->
                 congestionController.produceBytes(fileInfo.getUserIdentifier(), numBytes));
 
-    synchronized (this) {
+    synchronized (flushLock) {
       if (closed) {
         String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();
         logger.warn(msg);
@@ -202,14 +215,13 @@ public abstract class FileWriter implements DeviceObserver {
       if (flushBuffer.readableBytes() != 0
           && flushBuffer.readableBytes() + numBytes >= flusherBufferSize) {
         flush(false);
-        takeBuffer();
       }
 
       data.retain();
       flushBuffer.addComponent(true, data);
-
-      numPendingWrites.decrementAndGet();
     }
+
+    numPendingWrites.decrementAndGet();
   }
 
   public RoaringBitmap getMapIdBitMap() {
@@ -251,13 +263,11 @@ public abstract class FileWriter implements DeviceObserver {
       waitOnNoPending(numPendingWrites);
       closed = true;
 
-      synchronized (this) {
-        if (flushBuffer.readableBytes() > 0) {
-          flush(true);
-        }
-        tryClose.run();
+      synchronized (flushLock) {
+        flush(true);
       }
 
+      tryClose.run();
       waitOnNoPending(notifier.numPendingFlushes);
     } finally {
       returnBuffer();
@@ -369,10 +379,12 @@ public abstract class FileWriter implements DeviceObserver {
     }
   }
 
-  protected synchronized void returnBuffer() {
-    if (flushBuffer != null) {
-      flusher.returnBuffer(flushBuffer);
-      flushBuffer = null;
+  protected void returnBuffer() {
+    synchronized (flushLock) {
+      if (flushBuffer != null) {
+        flusher.returnBuffer(flushBuffer);
+        flushBuffer = null;
+      }
     }
   }
 
@@ -390,11 +402,8 @@ public abstract class FileWriter implements DeviceObserver {
   }
 
   public void flushOnMemoryPressure() throws IOException {
-    synchronized (this) {
-      if (flushBuffer != null && flushBuffer.readableBytes() != 0) {
-        flush(false);
-        takeBuffer();
-      }
+    synchronized (flushLock) {
+      flush(false);
     }
   }
 

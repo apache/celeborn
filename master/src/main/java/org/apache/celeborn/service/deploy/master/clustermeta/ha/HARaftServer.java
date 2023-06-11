@@ -31,7 +31,6 @@ import scala.Tuple2;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.ServiceException;
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
@@ -55,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -92,6 +92,9 @@ public class HARaftServer {
   private final ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();
   private Optional<String> cachedLeaderPeerRpcEndpoint = Optional.empty();
+  private final CelebornConf conf;
+  private long workerTimeoutDeadline;
+  private long appTimeoutDeadline;
 
   /**
    * Returns an Master Ratis server.
@@ -116,7 +119,9 @@ public class HARaftServer {
     this.raftPeerId = localRaftPeerId;
     this.raftGroup = RaftGroup.valueOf(RAFT_GROUP_ID, raftPeers);
     this.masterStateMachine = getStateMachine();
+    this.conf = conf;
     RaftProperties serverProperties = newRaftProperties(conf);
+    setDeadlineTime(Integer.MAX_VALUE, Integer.MAX_VALUE); // for default
     this.server =
         RaftServer.newBuilder()
             .setServerId(this.raftPeerId)
@@ -194,11 +199,12 @@ public class HARaftServer {
   }
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
-      throws ServiceException {
+      throws CelebornRuntimeException {
     String requestId = request.getRequestId();
     Tuple2<String, Long> decoded = RssHARetryClient.decodeRequestId(requestId);
     if (decoded == null) {
-      throw new ServiceException("RequestId:" + requestId + " invalid, should be: uuid#callId.");
+      throw new CelebornRuntimeException(
+          "RequestId:" + requestId + " invalid, should be: uuid#callId.");
     }
     ClientId clientId = ClientId.valueOf(UUID.fromString(decoded._1));
     long callId = decoded._2;
@@ -216,19 +222,19 @@ public class HARaftServer {
     try {
       raftClientReply = server.submitClientRequestAsync(raftClientRequest).get();
     } catch (Exception ex) {
-      throw new ServiceException(ex.getMessage(), ex);
+      throw new CelebornRuntimeException(ex.getMessage(), ex);
     }
 
     if (!raftClientReply.isSuccess()) {
       NotLeaderException notLeaderException = raftClientReply.getNotLeaderException();
       if (notLeaderException != null) {
-        throw new ServiceException("Not leader!");
+        throw new CelebornRuntimeException("Not leader!");
       }
 
       LeaderNotReadyException leaderNotReadyException =
           raftClientReply.getLeaderNotReadyException();
       if (leaderNotReadyException != null) {
-        throw new ServiceException("Not leader!");
+        throw new CelebornRuntimeException("Not leader!");
       }
 
       StateMachineException stateMachineException = raftClientReply.getStateMachineException();
@@ -256,11 +262,7 @@ public class HARaftServer {
       byte[] bytes = raftClientReply.getMessage().getContent().toByteArray();
       return ResourceResponse.newBuilder(ResourceResponse.parseFrom(bytes)).build();
     } catch (InvalidProtocolBufferException ex) {
-      if (ex.getMessage() != null) {
-        throw new ServiceException(ex.getMessage(), ex);
-      } else {
-        throw new ServiceException(ex);
-      }
+      throw new CelebornRuntimeException(ex.getMessage(), ex);
     }
   }
 
@@ -344,6 +346,13 @@ public class HARaftServer {
         TimeDuration.valueOf(conf.haMasterRatisRpcTimeoutMax(), TimeUnit.SECONDS);
     RaftServerConfigKeys.Rpc.setTimeoutMin(properties, rpcTimeoutMin);
     RaftServerConfigKeys.Rpc.setTimeoutMax(properties, rpcTimeoutMax);
+
+    TimeDuration firstElectionTimeoutMin =
+        TimeDuration.valueOf(conf.haMasterRatisFirstElectionTimeoutMin(), TimeUnit.SECONDS);
+    TimeDuration firstElectionTimeoutMax =
+        TimeDuration.valueOf(conf.haMasterRatisFristElectionTimeoutMax(), TimeUnit.SECONDS);
+    RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMin(properties, firstElectionTimeoutMin);
+    RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMax(properties, firstElectionTimeoutMax);
 
     // Set the number of maximum cached segments
     RaftServerConfigKeys.Log.setSegmentCacheNumMax(properties, 2);
@@ -481,6 +490,22 @@ public class HARaftServer {
   private void setServerRole(RaftProtos.RaftPeerRole currentRole, String leaderPeerRpcEndpoint) {
     this.roleCheckLock.writeLock().lock();
     try {
+      boolean leaderChanged = false;
+      if (RaftProtos.RaftPeerRole.LEADER == currentRole && !checkCachedPeerRoleIsLeader()) {
+        leaderChanged = true;
+        setDeadlineTime(conf.workerHeartbeatTimeout(), conf.appHeartbeatTimeoutMs());
+      } else if (RaftProtos.RaftPeerRole.LEADER != currentRole && checkCachedPeerRoleIsLeader()) {
+        leaderChanged = true;
+        setDeadlineTime(Integer.MAX_VALUE, Integer.MAX_VALUE); // for revoke
+      }
+
+      if (leaderChanged) {
+        LOG.warn(
+            "Raft Role changed, CurrentNode Role: {}, Leader: {}",
+            currentRole,
+            leaderPeerRpcEndpoint);
+      }
+
       this.cachedPeerRole = Optional.ofNullable(currentRole);
       this.cachedLeaderPeerRpcEndpoint = Optional.ofNullable(leaderPeerRpcEndpoint);
     } finally {
@@ -521,5 +546,18 @@ public class HARaftServer {
     } catch (Exception e) {
       LOG.warn("Step down leader failed!", e);
     }
+  }
+
+  public void setDeadlineTime(long increaseWorkerTime, long increaseAppTime) {
+    this.workerTimeoutDeadline = System.currentTimeMillis() + increaseWorkerTime;
+    this.appTimeoutDeadline = System.currentTimeMillis() + increaseAppTime;
+  }
+
+  public long getWorkerTimeoutDeadline() {
+    return workerTimeoutDeadline;
+  }
+
+  public long getAppTimeoutDeadline() {
+    return appTimeoutDeadline;
   }
 }

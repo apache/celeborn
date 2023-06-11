@@ -74,7 +74,7 @@ public class BufferPacker {
     } else {
       /**
        * this is an optimization. if cachedBuffer can contain other buffer, then other buffer can
-       * reuse the same HEADER_LENGTH_PREFIX of the cachedBuffer, so cachedbuffer just read datas
+       * reuse the same HEADER_LENGTH_PREFIX of the cachedBuffer, so cachedbuffer just reads data
        * whose length is buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX
        */
       if (cachedBuffer.readableBytes() + buffer.readableBytes() - BufferUtils.HEADER_LENGTH_PREFIX
@@ -145,7 +145,7 @@ public class BufferPacker {
           bufferHeader = BufferUtils.getBufferHeader(buffer, position, isFirst);
           position += BufferUtils.HEADER_LENGTH;
         } else {
-          // in the remaining datas, the headlength is BufferUtils.HEADER_LENGTH -
+          // in the remaining data, the headlength is BufferUtils.HEADER_LENGTH -
           // BufferUtils.HEADER_LENGTH_PREFIX
           logger.debug("readbuffer: total: {}, position: {}", totalBytes, position);
           bufferHeader = BufferUtils.getBufferHeader(buffer, position);

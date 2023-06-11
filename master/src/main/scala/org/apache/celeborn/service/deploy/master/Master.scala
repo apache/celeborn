@@ -26,12 +26,13 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornRuntimeException
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -97,7 +98,7 @@ private[celeborn] class Master(
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
 
   private val quotaManager = QuotaManager.instantiate(conf)
-  private val metricsResourceConsumptionInterval = conf.metricsResourceConsumptionInterval
+  private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
   private val userResourceConsumptions =
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
@@ -109,12 +110,13 @@ private[celeborn] class Master(
   private def shutdownWorkerSnapshot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers))
 
-  private def diskReserveSize = conf.diskReserveSize
+  private def diskReserveSize = conf.workerDiskReserveSize
 
-  private val slotsAssignLoadAwareDiskGroupNum = conf.slotsAssignLoadAwareDiskGroupNum
-  private val slotsAssignLoadAwareDiskGroupGradient = conf.slotsAssignLoadAwareDiskGroupGradient
-  private val loadAwareFlushTimeWeight = conf.slotsAssignLoadAwareFlushTimeWeight
-  private val loadAwareFetchTimeWeight = conf.slotsAssignLoadAwareFetchTimeWeight
+  private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
+  private val slotsAssignLoadAwareDiskGroupGradient =
+    conf.masterSlotAssignLoadAwareDiskGroupGradient
+  private val loadAwareFlushTimeWeight = conf.masterSlotAssignLoadAwareFlushTimeWeight
+  private val loadAwareFetchTimeWeight = conf.masterSlotAssignLoadAwareFetchTimeWeight
 
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay
@@ -135,7 +137,7 @@ private[celeborn] class Master(
     estimatedPartitionSizeUpdaterInitialDelay,
     estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
-  private val slotsAssignPolicy = conf.slotsAssignPolicy
+  private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
   // init and register master metrics
   val resourceConsumptionSource = new ResourceConsumptionSource(conf)
@@ -156,6 +158,7 @@ private[celeborn] class Master(
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
 
@@ -200,7 +203,14 @@ private[celeborn] class Master(
   }
 
   def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
-    if (HAHelper.checkShouldProcess(context, statusSystem)) f
+    if (HAHelper.checkShouldProcess(context, statusSystem)) {
+      try {
+        f
+      } catch {
+        case e: Exception =>
+          HAHelper.sendFailure(context, HAHelper.getRatisServer(statusSystem), e)
+      }
+    }
 
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>
@@ -261,7 +271,7 @@ private[celeborn] class Master(
           userResourceConsumption,
           requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
@@ -330,6 +340,11 @@ private[celeborn] class Master(
 
   private def timeoutDeadWorkers() {
     val currentTime = System.currentTimeMillis()
+    // Need increase timeout deadline to avoid long time leader election period
+    if (HAHelper.getWorkerTimeoutDeadline(statusSystem) > currentTime) {
+      return
+    }
+
     var ind = 0
     workersSnapShot.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
@@ -350,6 +365,10 @@ private[celeborn] class Master(
 
   private def timeoutDeadApplications(): Unit = {
     val currentTime = System.currentTimeMillis()
+    // Need increase timeout deadline to avoid long time leader election period
+    if (HAHelper.getAppTimeoutDeadline(statusSystem) > currentTime) {
+      return
+    }
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
       if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
@@ -517,12 +536,14 @@ private[celeborn] class Master(
             SlotsAllocator.offerSlotsRoundRobin(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
-              requestSlots.shouldReplicate)
+              requestSlots.shouldReplicate,
+              requestSlots.shouldRackAware)
           } else {
             SlotsAllocator.offerSlotsLoadAware(
               workersNotBlacklisted(),
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
+              requestSlots.shouldRackAware,
               diskReserveSize,
               slotsAssignLoadAwareDiskGroupNum,
               slotsAssignLoadAwareDiskGroupGradient,
@@ -557,7 +578,7 @@ private[celeborn] class Master(
       s" on ${slots.size()} workers.")
 
     val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
-    val offerSlotsExtraSize = Math.min(conf.slotsAssignExtraSlots, workersNotSelected.size)
+    val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
       (1 to offerSlotsExtraSize).foreach(_ => {
@@ -656,7 +677,7 @@ private[celeborn] class Master(
     val current = System.currentTimeMillis()
     if (userResourceConsumptions.containsKey(userIdentifier)) {
       val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
-      if (current - resourceConsumptionAndUpdateTime._2 > metricsResourceConsumptionInterval) {
+      if (current - resourceConsumptionAndUpdateTime._2 > masterResourceConsumptionInterval) {
         val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
           workerInfo.userResourceConsumption.asScala.get(userIdentifier)
         }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
@@ -711,13 +732,10 @@ private[celeborn] class Master(
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
-    sb.append("====================== Workers Info in Master ===========================")
-
+    sb.append("====================== Workers Info in Master =========================\n")
     workersSnapShot.asScala.foreach { w =>
-      sb.append(s"${w.toUniqueId().padTo(50, " ").mkString}\n")
       sb.append(w).append("\n")
     }
-
     sb.toString()
   }
 
@@ -725,7 +743,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
     lostWorkersSnapshot.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${simpleDateFormat.format(time)}\n")
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${dateFmt.format(time)}\n")
     }
     sb.toString()
   }
@@ -768,7 +786,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Hostname List ======================\n")
     statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}${simpleDateFormat.format(time)}\n")
+      sb.append(s"${appId.padTo(40, " ").mkString}${dateFmt.format(time)}\n")
     }
     sb.toString()
   }
@@ -796,40 +814,6 @@ private[celeborn] class Master(
   override def isShutdown: String = throw new UnsupportedOperationException()
 
   override def isRegistered: String = throw new UnsupportedOperationException()
-
-  private def requestGetWorkerInfos(endpoint: RpcEndpointRef): GetWorkerInfosResponse = {
-    try {
-      if (endpoint != null) {
-        return endpoint.askSync[GetWorkerInfosResponse](GetWorkerInfos)
-      }
-    } catch {
-      case e: Exception =>
-        logError(s"AskSync GetWorkerInfos failed.", e)
-    }
-    val result = new util.ArrayList[WorkerInfo]
-    result.add(new WorkerInfo(
-      "unknown",
-      -1,
-      -1,
-      -1,
-      -1,
-      new util.HashMap[String, DiskInfo](),
-      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
-      null))
-    GetWorkerInfosResponse(StatusCode.REQUEST_FAILED, result.asScala: _*)
-  }
-
-  private def requestThreadDump(endpoint: RpcEndpointRef): ThreadDumpResponse = {
-    try {
-      if (endpoint != null) {
-        return endpoint.askSync[ThreadDumpResponse](ThreadDump)
-      }
-    } catch {
-      case e: Exception =>
-        logError(s"AskSync ThreadDump failed.", e)
-    }
-    ThreadDumpResponse("Unknown")
-  }
 
   private def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard

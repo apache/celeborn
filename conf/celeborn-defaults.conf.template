@@ -24,11 +24,9 @@ celeborn.rpc.io.numConnectionsPerPeer            2
 celeborn.push.io.numConnectionsPerPeer           2
 celeborn.worker.push.io.threads                  8
 
-celeborn.push.replicate.enabled                  true
-
 celeborn.metrics.enabled                         true
-celeborn.master.metrics.prometheus.port          9098
-celeborn.worker.metrics.prometheus.port          9096
+celeborn.metrics.master.prometheus.port          9098
+celeborn.metrics.worker.prometheus.port          9096
 
 celeborn.worker.storage.dirs                     /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4,/mnt/disk5,/mnt/disk6,/mnt/disk7,/mnt/disk8,/mnt/disk9,/mnt/disk10
 

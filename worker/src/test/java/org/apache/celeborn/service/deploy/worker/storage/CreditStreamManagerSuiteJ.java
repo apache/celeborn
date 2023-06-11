@@ -49,15 +49,15 @@ public class CreditStreamManagerSuiteJ {
   @BeforeClass
   public static void beforeAll() {
     CelebornConf conf = new CelebornConf();
-    conf.set("celeborn.worker.directMemoryRatioToPauseReceive", "0.8");
-    conf.set("celeborn.worker.directMemoryRatioToPauseReplicate", "0.9");
-    conf.set("celeborn.worker.directMemoryRatioToResume", "0.5");
-    conf.set("celeborn.worker.partitionSorter.directMemoryRatioThreshold", "0.6");
-    conf.set("celeborn.worker.directMemoryRatioForReadBuffer", "0.1");
-    conf.set("celeborn.worker.directMemoryRatioForMemoryShuffleStorage", "0.1");
-    conf.set("celeborn.worker.memory.checkInterval", "10");
-    conf.set("celeborn.worker.memory.reportInterval", "10");
-    conf.set("celeborn.worker.readBuffer.allocationWait", "10ms");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE().key(), "0.9");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_RESUME().key(), "0.5");
+    conf.set(CelebornConf.PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD().key(), "0.6");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER().key(), "0.1");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE().key(), "0.1");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL().key(), "10");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL().key(), "10");
+    conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
     MemoryManager.initialize(conf);
   }
 

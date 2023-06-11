@@ -96,7 +96,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
   test("test batch release partition") {
     shuffleId = 2
-    celebornConf.set(CelebornConf.BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "true")
+    celebornConf.set(CelebornConf.CLIENT_BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "true")
     prepareService()
     registerAndFinishPartition()
 
@@ -116,8 +116,8 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
   test("test release single partition") {
     shuffleId = 3
-    celebornConf.set(CelebornConf.BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "false")
-    celebornConf.set(CelebornConf.BATCH_HANDLED_RELEASE_PARTITION_INTERVAL.key, "1s")
+    celebornConf.set(CelebornConf.CLIENT_BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "false")
+    celebornConf.set(CelebornConf.CLIENT_BATCH_HANDLED_RELEASE_PARTITION_INTERVAL.key, "1s")
     prepareService()
     registerAndFinishPartition()
 

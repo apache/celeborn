@@ -126,7 +126,7 @@ private[deploy] class Controller(
     case ThreadDump =>
       handleThreadDump(context)
 
-    case Destroy(shuffleKey, masterLocations, slaveLocations) =>
+    case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 
@@ -257,6 +257,7 @@ private[deploy] class Controller(
       shuffleKey: String,
       uniqueIds: jList[String],
       committedIds: jSet[String],
+      emptyFileIds: jSet[String],
       failedIds: jSet[String],
       committedStorageInfos: ConcurrentHashMap[String, StorageInfo],
       committedMapIdBitMap: ConcurrentHashMap[String, RoaringBitmap],
@@ -298,6 +299,8 @@ private[deploy] class Controller(
                     }
                     committedIds.add(uniqueId)
                   }
+                } else {
+                  emptyFileIds.add(uniqueId)
                 }
               } catch {
                 case e: IOException =>
@@ -407,6 +410,8 @@ private[deploy] class Controller(
     // Use ConcurrentSet to avoid excessive lock contention.
     val committedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val committedSlaveIds = ConcurrentHashMap.newKeySet[String]()
+    val emptyFileMasterIds = ConcurrentHashMap.newKeySet[String]()
+    val emptyFileSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val failedMasterIds = ConcurrentHashMap.newKeySet[String]()
     val failedSlaveIds = ConcurrentHashMap.newKeySet[String]()
     val committedMasterStorageInfos = JavaUtils.newConcurrentHashMap[String, StorageInfo]()
@@ -419,6 +424,7 @@ private[deploy] class Controller(
         shuffleKey,
         masterIds,
         committedMasterIds,
+        emptyFileMasterIds,
         failedMasterIds,
         committedMasterStorageInfos,
         committedMapIdBitMap,
@@ -427,6 +433,7 @@ private[deploy] class Controller(
       shuffleKey,
       slaveIds,
       committedSlaveIds,
+      emptyFileSlaveIds,
       failedSlaveIds,
       committedSlaveStorageInfos,
       committedMapIdBitMap,
@@ -470,8 +477,14 @@ private[deploy] class Controller(
       // reply
       val response =
         if (failedMasterIds.isEmpty && failedSlaveIds.isEmpty) {
-          logInfo(s"CommitFiles for $shuffleKey success with ${committedMasterIds.size()}" +
-            s" master partitions and ${committedSlaveIds.size()} slave partitions!")
+          logInfo(
+            s"CommitFiles for $shuffleKey success with " +
+              s"${committedMasterIds.size()} committed master partitions, " +
+              s"${emptyFileMasterIds.size()} empty master partitions, " +
+              s"${failedMasterIds.size()} failed master partitions, " +
+              s"${committedMasterIds.size()} committed slave partitions, " +
+              s"${emptyFileSlaveIds.size()} empty slave partitions, " +
+              s"${failedSlaveIds.size()} failed slave partitions.")
           CommitFilesResponse(
             StatusCode.SUCCESS,
             committedMasterIdList,
@@ -484,8 +497,14 @@ private[deploy] class Controller(
             totalSize,
             fileCount)
         } else {
-          logWarning(s"CommitFiles for $shuffleKey failed with ${failedMasterIds.size()} master" +
-            s" partitions and ${failedSlaveIds.size()} slave partitions!")
+          logWarning(
+            s"CommitFiles for $shuffleKey failed with " +
+              s"${committedMasterIds.size()} committed master partitions, " +
+              s"${emptyFileMasterIds.size()} empty master partitions, " +
+              s"${failedMasterIds.size()} failed master partitions, " +
+              s"${committedMasterIds.size()} committed slave partitions, " +
+              s"${emptyFileSlaveIds.size()} empty slave partitions, " +
+              s"${failedSlaveIds.size()} failed slave partitions.")
           CommitFilesResponse(
             StatusCode.PARTIAL_SUCCESS,
             committedMasterIdList,
@@ -576,10 +595,11 @@ private[deploy] class Controller(
     // check whether shuffleKey has registered
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logWarning(s"Shuffle $shuffleKey not registered!")
-      context.reply(DestroyResponse(
-        StatusCode.SHUFFLE_NOT_REGISTERED,
-        masterLocations,
-        slaveLocations))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.SHUFFLE_NOT_REGISTERED,
+          masterLocations,
+          slaveLocations))
       return
     }
 
@@ -626,12 +646,20 @@ private[deploy] class Controller(
     if (failedMasters.isEmpty && failedSlaves.isEmpty) {
       logInfo(s"Destroy ${masterLocations.size()} master location and ${slaveLocations.size()}" +
         s" slave locations for $shuffleKey successfully.")
-      context.reply(DestroyResponse(StatusCode.SUCCESS, List.empty.asJava, List.empty.asJava))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.SUCCESS,
+          List.empty.asJava,
+          List.empty.asJava))
     } else {
       logInfo(s"Destroy ${failedMasters.size()}/${masterLocations.size()} master location and" +
         s"${failedSlaves.size()}/${slaveLocations.size()} slave location for" +
         s" $shuffleKey PartialSuccess.")
-      context.reply(DestroyResponse(StatusCode.PARTIAL_SUCCESS, failedMasters, failedSlaves))
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.PARTIAL_SUCCESS,
+          failedMasters,
+          failedSlaves))
     }
   }
 

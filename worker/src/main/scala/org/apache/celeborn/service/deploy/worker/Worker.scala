@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.io.File
 import java.lang.{Long => JLong}
 import java.util.{HashMap => JHashMap, HashSet => JHashSet}
 import java.util.concurrent._
@@ -35,7 +36,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, SystemMiscSource}
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -79,11 +80,25 @@ private[celeborn] class Worker(
       conf.workerRpcPort != 0 && conf.workerFetchPort != 0 &&
       conf.workerPushPort != 0 && conf.workerReplicatePort != 0),
     "If enable graceful shutdown, the worker should use stable server port.")
+  if (gracefulShutdown) {
+    try {
+      val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
+      if (!recoverRoot.exists()) {
+        logInfo(s"Recover root path ${conf.workerGracefulShutdownRecoverPath} does not exists, create it first.")
+        recoverRoot.mkdirs()
+      }
+    } catch {
+      case e: Exception =>
+        logError("Check or create recover root path failed: ", e)
+        throw e
+    }
+  }
 
   val workerSource = new WorkerSource(conf)
   metricsSystem.registerSource(workerSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val storageManager = new StorageManager(conf, workerSource)
 
@@ -117,7 +132,13 @@ private[celeborn] class Worker(
       Utils.fromCelebornConf(conf, TransportModuleConstants.PUSH_MODULE, numThreads)
     val pushServerLimiter = new ChannelsLimiter(TransportModuleConstants.PUSH_MODULE, conf)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, pushDataHandler, closeIdleConnections, pushServerLimiter)
+      new TransportContext(
+        transportConf,
+        pushDataHandler,
+        closeIdleConnections,
+        pushServerLimiter,
+        conf.workerPushHeartbeatEnabled,
+        workerSource)
     (
       transportContext.createServer(conf.workerPushPort),
       transportContext.createClientFactory())
@@ -132,7 +153,13 @@ private[celeborn] class Worker(
       Utils.fromCelebornConf(conf, TransportModuleConstants.REPLICATE_MODULE, numThreads)
     val replicateLimiter = new ChannelsLimiter(TransportModuleConstants.REPLICATE_MODULE, conf)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, replicateHandler, closeIdleConnections, replicateLimiter)
+      new TransportContext(
+        transportConf,
+        replicateHandler,
+        closeIdleConnections,
+        replicateLimiter,
+        false,
+        workerSource)
     transportContext.createServer(conf.workerReplicatePort)
   }
 
@@ -144,7 +171,12 @@ private[celeborn] class Worker(
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(transportConf)
     val transportContext: TransportContext =
-      new TransportContext(transportConf, fetchHandler, closeIdleConnections)
+      new TransportContext(
+        transportConf,
+        fetchHandler,
+        closeIdleConnections,
+        conf.workerFetchHeartbeatEnabled,
+        workerSource)
     transportContext.createServer(conf.workerFetchPort)
   }
 
@@ -253,9 +285,9 @@ private[celeborn] class Worker(
         Seq.empty[DiskInfo]
       } else {
         storageManager.updateDiskInfos()
-        workerInfo.updateThenGetDiskInfos(
-          storageManager.disksSnapshot().map { disk => disk.mountPoint -> disk }.toMap.asJava,
-          conf.initialEstimatedPartitionSize).values().asScala.toSeq
+        workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
+          disk.mountPoint -> disk
+        }.toMap.asJava).values().asScala.toSeq
       }
     val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
       storageManager.userResourceConsumptionSnapshot().asJava)
@@ -496,7 +528,7 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
-      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${simpleDateFormat.format(time)}\n")
+      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${dateFmt.format(time)}\n")
     }
     sb.toString()
   }
@@ -510,9 +542,19 @@ private[celeborn] class Worker(
           // During graceful shutdown, to avoid allocate slots in this worker,
           // add this worker to master's blacklist. When restart, register worker will
           // make master remove this worker from blacklist.
-          rssHARetryClient.send(ReportWorkerUnavailable(List(workerInfo).asJava))
-          val interval = conf.checkSlotsFinishedInterval
-          val timeout = conf.checkSlotsFinishedTimeoutMs
+          try {
+            rssHARetryClient.askSync(
+              ReportWorkerUnavailable(List(workerInfo).asJava),
+              OneWayMessageResponse.getClass)
+          } catch {
+            case e: Throwable =>
+              logError(
+                s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+                e)
+          }
+
+          val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
+          val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
           var waitTimes = 0
 
           def waitTime: Long = waitTimes * interval
@@ -532,6 +574,9 @@ private[celeborn] class Worker(
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)
+
+  @VisibleForTesting
+  def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)
 }
 
 private[deploy] object Worker extends Logging {

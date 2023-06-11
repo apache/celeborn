@@ -71,6 +71,22 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+      {{- $dirs := .Values.volumes.master }}
+      {{- if eq "hostPath" (index $dirs 0).type }}
+      - name: chown-celeborn-master-volume
+        image: alpine:3.18
+        imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+        securityContext:
+          runAsUser: 0
+        command:
+        - chown
+        - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
+        - {{ (index $dirs 0).mountPath }}
+        volumeMounts:
+          - name: celeborn-master-vol-0
+            mountPath: {{ (index $dirs 0).mountPath }}
+      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -93,8 +109,10 @@ spec:
           - mountPath: /opt/celeborn/conf
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
-          - name: {{ include "celeborn.fullname" . }}-master-ratis
-            mountPath: {{get .Values.celeborn "celeborn.ha.master.ratis.raft.server.storage.dir"}}
+          {{- range $index, $volume := .Values.volumes.master }}
+          - name: celeborn-master-vol-{{ $index }}
+            mountPath: {{ .mountPath }}
+          {{- end }}
         env:
           {{- range $key, $val := .Values.environments }}
           - name: {{ $key }}
@@ -105,8 +123,16 @@ spec:
         - configMap:
             name: {{ .Values.configmap }}
           name: {{ include "celeborn.fullname" . }}-volume
-        {{- $dirs := get .Values.celeborn "celeborn.worker.storage.dirs" | splitList ","}}
-        - hostPath:
-            path: {{ index $dirs 0 }}/ratis
+        {{- range $index, $volume := .Values.volumes.master }}
+        - name: celeborn-master-vol-{{ $index }}
+        {{- if eq "emptyDir" $volume.type }}
+          emptyDir:
+            sizeLimit: {{ $volume.size }}
+        {{- else if eq "hostPath" $volume.type }}
+          hostPath:
+            path: {{ $volume.hostPath | default $volume.mountPath }}/master
             type: DirectoryOrCreate
-          name: {{ include "celeborn.fullname" . }}-master-ratis
+        {{- else }}
+        {{ fail "For now Celeborn Helm only support emptyDir or hostPath volume types" }}
+        {{- end }}
+        {{- end }}

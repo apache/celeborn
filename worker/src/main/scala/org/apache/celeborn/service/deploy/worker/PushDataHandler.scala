@@ -59,6 +59,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   var conf: CelebornConf = _
   @volatile var pushMasterDataTimeoutTested = false
   @volatile var pushSlaveDataTimeoutTested = false
+  var workerPartitionSplitEnabled: Boolean = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -71,11 +72,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     pushClientFactory = worker.pushClientFactory
     registered = worker.registered
     workerInfo = worker.workerInfo
-    diskReserveSize = worker.conf.diskReserveSize
+    diskReserveSize = worker.conf.workerDiskReserveSize
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     storageManager = worker.storageManager
     shutdown = worker.shutdown
     conf = worker.conf
+    workerPartitionSplitEnabled = conf.workerPartitionSplitEnabled
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
@@ -830,7 +832,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback: RpcResponseCallback): Unit = {
     val isMaster = PartitionLocation.getMode(mode) == PartitionLocation.Mode.MASTER
     val messageType = message.`type`()
-    log.info(s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, partitionUniqueId:$partitionUniqueId")
+    log.debug(
+      s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, " +
+        s"partitionUniqueId:$partitionUniqueId")
     val (workerSourceMaster, workerSourceSlave) =
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
@@ -1036,8 +1040,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       softSplit: AtomicBoolean,
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
-    if ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
-      (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold())) {
+    if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
+        (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
         softSplit.set(true)
       } else {

@@ -25,6 +25,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
@@ -54,6 +55,8 @@ public class TransportContext {
   private final BaseMessageHandler msgHandler;
   private final ChannelDuplexHandler channelsLimiter;
   private final boolean closeIdleConnections;
+  private final boolean enableHeartbeat;
+  private final AbstractSource source;
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
 
@@ -61,20 +64,33 @@ public class TransportContext {
       TransportConf conf,
       BaseMessageHandler msgHandler,
       boolean closeIdleConnections,
-      ChannelDuplexHandler channelsLimiter) {
+      ChannelDuplexHandler channelsLimiter,
+      boolean enableHeartbeat,
+      AbstractSource source) {
     this.conf = conf;
     this.msgHandler = msgHandler;
     this.closeIdleConnections = closeIdleConnections;
     this.channelsLimiter = channelsLimiter;
+    this.enableHeartbeat = enableHeartbeat;
+    this.source = source;
+  }
+
+  public TransportContext(
+      TransportConf conf,
+      BaseMessageHandler msgHandler,
+      boolean closeIdleConnections,
+      boolean enableHeartbeat,
+      AbstractSource source) {
+    this(conf, msgHandler, closeIdleConnections, null, enableHeartbeat, source);
   }
 
   public TransportContext(
       TransportConf conf, BaseMessageHandler msgHandler, boolean closeIdleConnections) {
-    this(conf, msgHandler, closeIdleConnections, null);
+    this(conf, msgHandler, closeIdleConnections, null, false, null);
   }
 
   public TransportContext(TransportConf conf, BaseMessageHandler msgHandler) {
-    this(conf, msgHandler, false);
+    this(conf, msgHandler, false, false, null);
   }
 
   public TransportClientFactory createClientFactory() {
@@ -83,7 +99,7 @@ public class TransportContext {
 
   /** Create a server which will attempt to bind to a specific host and port. */
   public TransportServer createServer(String host, int port) {
-    return new TransportServer(this, host, port);
+    return new TransportServer(this, host, port, source);
   }
 
   public TransportServer createServer(int port) {
@@ -111,7 +127,10 @@ public class TransportContext {
           .addLast("encoder", ENCODER)
           .addLast(FrameDecoder.HANDLER_NAME, decoder)
           .addLast(
-              "idleStateHandler", new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
+              "idleStateHandler",
+              enableHeartbeat
+                  ? new IdleStateHandler(conf.connectionTimeoutMs() / 1000, 0, 0)
+                  : new IdleStateHandler(0, 0, conf.connectionTimeoutMs() / 1000))
           .addLast("handler", channelHandler);
       return channelHandler;
     } catch (RuntimeException e) {
@@ -127,7 +146,13 @@ public class TransportContext {
     TransportRequestHandler requestHandler =
         new TransportRequestHandler(channel, client, msgHandler);
     return new TransportChannelHandler(
-        client, responseHandler, requestHandler, conf.connectionTimeoutMs(), closeIdleConnections);
+        client,
+        responseHandler,
+        requestHandler,
+        conf.connectionTimeoutMs(),
+        closeIdleConnections,
+        enableHeartbeat,
+        conf.clientHearbeatInterval());
   }
 
   public TransportConf getConf() {

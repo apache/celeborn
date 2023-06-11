@@ -23,8 +23,10 @@ import java.io.IOException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.protocol.Message;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
+import org.apache.ratis.statemachine.impl.SimpleStateMachineStorageUtil;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.haclient.MasterNotLeaderException;
 import org.apache.celeborn.common.rpc.RpcCallContext;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
@@ -34,12 +36,21 @@ public class HAHelper {
 
   public static boolean checkShouldProcess(
       RpcCallContext context, AbstractMetaManager masterStatusSystem) {
-    if ((masterStatusSystem instanceof HAMasterMetaManager)) {
-      HARaftServer ratisServer = ((HAMasterMetaManager) masterStatusSystem).getRatisServer();
+    HARaftServer ratisServer = getRatisServer(masterStatusSystem);
+    if (ratisServer != null) {
       if (ratisServer.isLeader()) {
         return true;
       }
-      if (context != null) {
+      sendFailure(context, ratisServer, null);
+      return false;
+    }
+    return true;
+  }
+
+  public static void sendFailure(
+      RpcCallContext context, HARaftServer ratisServer, Throwable cause) {
+    if (context != null) {
+      if (ratisServer != null) {
         if (ratisServer.getCachedLeaderPeerRpcEndpoint().isPresent()) {
           context.sendFailure(
               new MasterNotLeaderException(
@@ -50,10 +61,37 @@ public class HAHelper {
               new MasterNotLeaderException(
                   ratisServer.getRpcEndpoint(), MasterNotLeaderException.LEADER_NOT_PRESENTED));
         }
+      } else {
+        context.sendFailure(new CelebornIOException(cause.getMessage(), cause));
       }
-      return false;
     }
-    return true;
+  }
+
+  public static long getWorkerTimeoutDeadline(AbstractMetaManager masterStatusSystem) {
+    HARaftServer ratisServer = getRatisServer(masterStatusSystem);
+    if (ratisServer != null) {
+      return ratisServer.getWorkerTimeoutDeadline();
+    } else {
+      return -1;
+    }
+  }
+
+  public static long getAppTimeoutDeadline(AbstractMetaManager masterStatusSystem) {
+    HARaftServer ratisServer = getRatisServer(masterStatusSystem);
+    if (ratisServer != null) {
+      return ratisServer.getAppTimeoutDeadline();
+    } else {
+      return -1;
+    }
+  }
+
+  public static HARaftServer getRatisServer(AbstractMetaManager masterStatusSystem) {
+    if ((masterStatusSystem instanceof HAMasterMetaManager)) {
+      HARaftServer ratisServer = ((HAMasterMetaManager) masterStatusSystem).getRatisServer();
+      return ratisServer;
+    }
+
+    return null;
   }
 
   public static ByteString convertRequestToByteString(ResourceProtos.ResourceRequest request) {
@@ -80,7 +118,7 @@ public class HAHelper {
    * @throws IOException if error occurred while creating the snapshot file
    */
   public static File createTempSnapshotFile(SimpleStateMachineStorage storage) throws IOException {
-    File tempDir = new File(storage.getSmDir().getParentFile(), "tmp");
+    File tempDir = new File(SimpleStateMachineStorageUtil.getSmDir(storage).getParentFile(), "tmp");
     if (!tempDir.isDirectory() && !tempDir.mkdir()) {
       throw new IOException(
           "Cannot create temporary snapshot directory at " + tempDir.getAbsolutePath());

@@ -18,8 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -96,7 +94,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
-    this.partitionSorterShutdownAwaitTime = conf.partitionSorterCloseAwaitTimeMs();
+    this.partitionSorterShutdownAwaitTime =
+        conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.source = source;
     this.memoryManager = memoryManager;
     this.gracefulShutdown = conf.workerGracefulShutdown();
@@ -104,7 +103,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (gracefulShutdown) {
       try {
-        String recoverPath = conf.workerRecoverPath();
+        String recoverPath = conf.workerGracefulShutdownRecoverPath();
         this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
         this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
         reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);
@@ -340,7 +339,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       // So there is no need to check its existence.
       hdfsIndexOutput = StorageManager.hadoopFs().create(new Path(indexFilePath));
     } else {
-      indexFileChannel = new FileOutputStream(indexFilePath).getChannel();
+      indexFileChannel = FileChannelUtils.createWritableFileChannel(indexFilePath);
     }
 
     int indexSize = 0;
@@ -444,7 +443,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         && cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
       indexMap = cachedIndexMaps.get(shuffleKey).get(fileId);
     } else {
-      FileInputStream indexStream = null;
+      FileChannel indexChannel = null;
       FSDataInputStream hdfsIndexStream = null;
       boolean isHdfs = Utils.isHdfsPath(indexFilePath);
       int indexSize = 0;
@@ -454,7 +453,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexSize =
               (int) StorageManager.hadoopFs().getFileStatus(new Path(indexFilePath)).getLen();
         } else {
-          indexStream = new FileInputStream(indexFilePath);
+          indexChannel = FileChannelUtils.openReadableFileChannel(indexFilePath);
           File indexFile = new File(indexFilePath);
           indexSize = (int) indexFile.length();
         }
@@ -462,7 +461,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         if (isHdfs) {
           readStreamFully(hdfsIndexStream, indexBuf, indexFilePath);
         } else {
-          readChannelFully(indexStream.getChannel(), indexBuf, indexFilePath);
+          readChannelFully(indexChannel, indexBuf, indexFilePath);
         }
         indexBuf.rewind();
         indexMap = ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
@@ -473,7 +472,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
         throw new IOException("Read sorted shuffle file index failed.", e);
       } finally {
-        IOUtils.closeQuietly(indexStream, null);
+        IOUtils.closeQuietly(indexChannel, null);
         IOUtils.closeQuietly(hdfsIndexStream, null);
       }
     }
@@ -603,8 +602,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         hdfsOriginInput = StorageManager.hadoopFs().open(new Path(originFilePath));
         hdfsSortedOutput = StorageManager.hadoopFs().create(new Path(sortedFilePath));
       } else {
-        originFileChannel = new FileInputStream(originFilePath).getChannel();
-        sortedFileChannel = new FileOutputStream(sortedFilePath).getChannel();
+        originFileChannel = FileChannelUtils.openReadableFileChannel(originFilePath);
+        sortedFileChannel = FileChannelUtils.createWritableFileChannel(sortedFilePath);
       }
     }
 

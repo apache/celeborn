@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 
@@ -73,9 +72,9 @@ public class DataPushQueue {
     this.dataPusher = dataPusher;
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     this.pushState = client.getPushState(mapKey);
-    this.maxInFlight = conf.pushMaxReqsInFlight();
-    this.takeTaskWaitTimeMs = conf.pushTakeTaskWaitTimeMs();
-    final int capacity = conf.pushQueueCapacity();
+    this.maxInFlight = conf.clientPushMaxReqsInFlight();
+    this.takeTaskWaitTimeMs = conf.clientPushTakeTaskWaitTimeMs();
+    final int capacity = conf.clientPushQueueCapacity();
     workingQueue = new LinkedBlockingQueue<>(capacity);
   }
 
@@ -83,7 +82,7 @@ public class DataPushQueue {
    * Now, `takePushTasks` is only used by one thread,
    * so it is not thread-safe.
    * */
-  public ArrayList<PushTask> takePushTasks() throws IOException {
+  public ArrayList<PushTask> takePushTasks() throws IOException, InterruptedException {
     ArrayList<PushTask> tasks = new ArrayList<>();
     HashMap<String, Integer> workerCapacity = new HashMap<>();
     while (dataPusher.stillRunning()) {
@@ -99,15 +98,21 @@ public class DataPushQueue {
             client.getPartitionLocation(appId, shuffleId, numMappers, numPartitions);
         if (partitionLocationMap != null) {
           PartitionLocation loc = partitionLocationMap.get(partitionId);
-          Integer oldCapacity = workerCapacity.get(loc.hostAndPushPort());
-          if (oldCapacity == null) {
-            oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
-            workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
-          }
-          if (oldCapacity > 0) {
-            iterator.remove();
+          // According to CELEBORN-560, call rerun task and speculative task after LifecycleManager
+          // handle StageEnd will return empty PartitionLocation map, here loc can be null
+          if (loc != null) {
+            Integer oldCapacity = workerCapacity.get(loc.hostAndPushPort());
+            if (oldCapacity == null) {
+              oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
+              workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
+            }
+            if (oldCapacity > 0) {
+              iterator.remove();
+              tasks.add(task);
+              workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
+            }
+          } else {
             tasks.add(task);
-            workerCapacity.put(loc.hostAndPushPort(), oldCapacity - 1);
           }
         } else {
           tasks.add(task);
@@ -120,7 +125,8 @@ public class DataPushQueue {
         // Reaching here means no available tasks can be pushed to any worker, wait for a while
         Thread.sleep(takeTaskWaitTimeMs);
       } catch (InterruptedException ie) {
-        ExceptionUtils.wrapAndThrowIOException(ie);
+        logger.info("Thread interrupted while waiting push task.");
+        throw ie;
       }
     }
     return tasks;

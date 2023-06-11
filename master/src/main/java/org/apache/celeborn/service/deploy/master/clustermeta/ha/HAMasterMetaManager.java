@@ -21,11 +21,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.google.protobuf.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
@@ -38,6 +38,7 @@ import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.Type;
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public class HAMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(HAMasterMetaManager.class);
@@ -50,6 +51,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
+    this.rackResolver = new CelebornRackResolver(conf);
   }
 
   public HARaftServer getRatisServer() {
@@ -84,8 +86,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setRequestId(requestId)
               .setRequestSlotsRequest(builder.build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle request slots for {} failed!", shuffleKey, e);
+      throw e;
     }
   }
 
@@ -112,8 +115,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                               .collect(Collectors.toList()))
                       .build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle release slots for {} failed!", shuffleKey, e);
+      throw e;
     }
   }
 
@@ -129,8 +133,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setShuffleKey(shuffleKey)
                       .build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle unregister shuffle for {} failed!", shuffleKey, e);
+      throw e;
     }
   }
 
@@ -150,8 +155,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFileCount(fileCount)
                       .build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle heart beat for {} failed!", appId, e);
+      throw e;
     }
   }
 
@@ -164,8 +170,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setRequestId(requestId)
               .setAppLostRequest(ResourceProtos.AppLostRequest.newBuilder().setAppId(appId).build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle app lost for {} failed!", appId, e);
+      throw e;
     }
   }
 
@@ -186,8 +193,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setReplicatePort(replicatePort)
                       .build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle worker lost for {} failed!", host, e);
+      throw e;
     }
   }
 
@@ -208,8 +216,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setReplicatePort(replicatePort)
                       .build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle worker lost for {} failed!", host, e);
+      throw e;
     }
   }
 
@@ -244,8 +253,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setTime(time)
                       .build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle worker heartbeat for {} failed!", host, e);
+      throw e;
     }
   }
 
@@ -276,8 +286,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle worker register for {} failed!", host, e);
+      throw e;
     }
   }
 
@@ -295,8 +306,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .addAllUnavailable(addrs)
                       .build())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle report node failure for {} failed!", failedNodes, e);
+      throw e;
     }
   }
 
@@ -308,8 +320,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setCmdType(Type.UpdatePartitionSize)
               .setRequestId(RssHARetryClient.genRequestId())
               .build());
-    } catch (ServiceException e) {
+    } catch (CelebornRuntimeException e) {
       LOG.error("Handle update partition size failed!", e);
+      throw e;
     }
   }
 }

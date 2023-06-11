@@ -51,7 +51,6 @@ import org.apache.spark.serializer.Serializer;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
-import org.apache.spark.sql.execution.PartitionIdPassthrough;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.IntegerType$;
@@ -76,6 +75,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.reflect.DynConstructors;
 
 public class RssShuffleWriterSuiteJ {
 
@@ -93,7 +93,7 @@ public class RssShuffleWriterSuiteJ {
   private final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
 
   private final int numMaps = 10;
-  private final int numPartitions = 10;
+  private final Integer numPartitions = 10;
   private final SparkConf sparkConf = new SparkConf(false);
   private final BlockManagerId bmId = BlockManagerId.apply("execId", "host", 1, None$.empty());
 
@@ -158,42 +158,48 @@ public class RssShuffleWriterSuiteJ {
   @Test
   public void testMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "1024");
+    final CelebornConf conf =
+        new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1024");
     check(10000, conf, serializer);
   }
 
   @Test
   public void testMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "1024");
+    final CelebornConf conf =
+        new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1024");
     check(10000, conf, serializer);
   }
 
   @Test
   public void testGiantRecord() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "5");
+    final CelebornConf conf =
+        new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "5");
     check(10000, conf, serializer);
   }
 
   @Test
   public void testGiantRecordWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "5");
+    final CelebornConf conf =
+        new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "5");
     check(10000, conf, serializer);
   }
 
   @Test
   public void testGiantRecordAndMergeSmallBlock() throws Exception {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "128");
+    final CelebornConf conf =
+        new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "128");
     check(2 << 30, conf, serializer);
   }
 
   @Test
   public void testGiantRecordAndMergeSmallBlockWithFastWrite() throws Exception {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
-    final CelebornConf conf = new CelebornConf().set("celeborn.push.buffer.max.size", "128");
+    final CelebornConf conf =
+        new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "128");
     check(2 << 30, conf, serializer);
   }
 
@@ -202,8 +208,17 @@ public class RssShuffleWriterSuiteJ {
       throws Exception {
     final boolean useUnsafe = serializer instanceof UnsafeRowSerializer;
 
+    DynConstructors.Ctor<Partitioner> partitionIdPassthroughCtor =
+        DynConstructors.builder()
+            // for Spark 3.3 and previous
+            .impl("org.apache.spark.sql.execution.PartitionIdPassthrough", int.class)
+            // for Spark 3.4
+            .impl("org.apache.spark.PartitionIdPassthrough", int.class)
+            .build();
     final Partitioner partitioner =
-        useUnsafe ? new PartitionIdPassthrough(numPartitions) : new HashPartitioner(numPartitions);
+        useUnsafe
+            ? partitionIdPassthroughCtor.newInstance(numPartitions)
+            : new HashPartitioner(numPartitions);
     Mockito.doReturn(partitioner).when(dependency).partitioner();
     Mockito.doReturn(serializer).when(dependency).serializer();
 

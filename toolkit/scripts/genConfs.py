@@ -100,9 +100,9 @@ def set_rss_confs(conf, replicate=False):
     conf["spark.shuffle.service.enabled"] = "false"
 
     if replicate:
-        conf["spark.celeborn.push.replicate.enabled"] = "true"
+        conf["spark.celeborn.client.push.replicate.enabled"] = "true"
     else:
-        conf["spark.celeborn.push.replicate.enabled"] = "false"
+        conf["spark.celeborn.client.push.replicate.enabled"] = "false"
 
 
 def save_ess_conf(dir):
@@ -173,7 +173,7 @@ def update_hibench_confs(hiben_conf_dir):
     normal_hibench_spark_conf_file_path = hibench_spark_conf_file + ".rss"
     save_confs(open(normal_hibench_spark_conf_file_path, "w"), new_hibench_spark_conf)
     splits_hibench_spark_conf_file_path = hibench_spark_conf_file + ".split"
-    new_hibench_spark_conf["spark.celeborn.shuffle.partitionSplit.threshold"] = "16m"
+    new_hibench_spark_conf["spark.celeborn.client.shuffle.partitionSplit.threshold"] = "16m"
     save_confs(open(splits_hibench_spark_conf_file_path, "w"), new_hibench_spark_conf)
 
 

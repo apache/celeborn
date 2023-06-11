@@ -99,7 +99,9 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
       bodySize = first.readInt();
       nextFrameSize = msgSize + bodySize;
       totalSize -= HEADER_SIZE;
-      if (!first.isReadable()) {
+      // The msgsize and bodysize of some messages e.g. HEARTBEAT are both 0, so buffers can't be
+      // released
+      if (!first.isReadable() && nextFrameSize != 0) {
         buffers.removeFirst().release();
       }
       return nextFrameSize;
@@ -130,9 +132,8 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
 
     // Reset size for next frame.
     nextFrameSize = UNKNOWN_FRAME_SIZE;
-
     Preconditions.checkArgument(frameSize < MAX_FRAME_SIZE, "Too large frame: %s", frameSize);
-    Preconditions.checkArgument(frameSize > 0, "Frame length should be positive: %s", frameSize);
+    Preconditions.checkArgument(frameSize >= 0, "Frame length should be >= 0: %s", frameSize);
 
     // If the first buffer holds the entire frame, return it.
     int remaining = (int) frameSize;

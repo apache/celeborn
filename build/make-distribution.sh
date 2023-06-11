@@ -215,8 +215,10 @@ function build_flink_client {
 if [ "$RELEASE" == "true" ]; then
   build_service
   build_spark_client -Pspark-2.4
-  build_spark_client -Pspark-3.3
+  build_spark_client -Pspark-3.4
   build_flink_client -Pflink-1.14
+  build_flink_client -Pflink-1.15
+  build_flink_client -Pflink-1.17
 else
   ## build release package on demand
   build_service $@
@@ -260,7 +262,7 @@ rm -rf "$TARDIR"
 cp -R "$DIST_DIR" "$TARDIR"
 TAR="tar"
 if [ "$(uname -s)" = "Darwin" ]; then
-  TAR="tar --no-mac-metadata --no-xattrs"
+  TAR="tar --no-mac-metadata --no-xattrs --no-fflags"
 fi
 $TAR -czf "apache-celeborn-$VERSION-$NAME.tgz" -C "$PROJECT_DIR" "$TARDIR_NAME"
 rm -rf "$TARDIR"

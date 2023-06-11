@@ -45,7 +45,7 @@ class ChangePartitionManager(
     conf: CelebornConf,
     lifecycleManager: LifecycleManager) extends Logging {
 
-  private val pushReplicateEnabled = conf.pushReplicateEnabled
+  private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   // shuffleId -> (partitionId -> set of ChangePartition)
   private val changePartitionRequests =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
@@ -263,18 +263,6 @@ class ChangePartitionManager(
     // PartitionSplit all contains oldPartition
     val newlyAllocatedLocations =
       reallocateChangePartitionRequestSlotsFromCandidates(changePartitions.toList, candidates)
-
-    if (!lifecycleManager.registeredShuffle.contains(shuffleId)) {
-      logError(s"[handleChangePartition] shuffle $shuffleId not registered!")
-      replyFailure(StatusCode.SHUFFLE_NOT_REGISTERED)
-      return
-    }
-
-    if (lifecycleManager.commitManager.isStageEnd(shuffleId)) {
-      logError(s"[handleChangePartition] shuffle $shuffleId already ended!")
-      replyFailure(StatusCode.STAGE_ENDED)
-      return
-    }
 
     if (!lifecycleManager.reserveSlotsWithRetry(
         applicationId,

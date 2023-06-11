@@ -59,7 +59,9 @@ public class BufferQueue {
    */
   @Nullable
   public ByteBuf poll() {
-    return buffers.poll();
+    synchronized (buffers) {
+      return buffers.poll();
+    }
   }
 
   /**
@@ -72,11 +74,10 @@ public class BufferQueue {
         buffers.addAll(availableBuffers);
         numBuffersOccupied.addAndGet(availableBuffers.size());
         pendingRequestBuffers.addAndGet(-1 * availableBuffers.size());
-      }
-    }
-    if (isReleased) {
-      for (ByteBuf availableBuffer : availableBuffers) {
-        memoryManager.recycleReadBuffer(availableBuffer);
+      } else {
+        for (ByteBuf availableBuffer : availableBuffers) {
+          memoryManager.recycleReadBuffer(availableBuffer);
+        }
       }
     }
   }

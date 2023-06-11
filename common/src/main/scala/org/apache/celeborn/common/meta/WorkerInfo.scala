@@ -40,6 +40,7 @@ class WorkerInfo(
     val userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
+  var networkLocation = "/default-rack"
   var lastHeartbeat: Long = 0
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
@@ -172,6 +173,10 @@ class WorkerInfo(
     s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
   }
 
+  def toInfoId(): String = {
+    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$networkLocation"
+  }
+
   def slotAvailable(): Boolean = this.synchronized {
     diskInfos.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
   }
@@ -192,7 +197,7 @@ class WorkerInfo(
 
   def updateThenGetDiskInfos(
       newDiskInfos: java.util.Map[String, DiskInfo],
-      estimatedPartitionSize: Long): util.Map[String, DiskInfo] = this.synchronized {
+      estimatedPartitionSize: Option[Long] = None): util.Map[String, DiskInfo] = this.synchronized {
     import scala.collection.JavaConverters._
     for (newDisk <- newDiskInfos.values().asScala) {
       val mountPoint: String = newDisk.mountPoint
@@ -202,10 +207,14 @@ class WorkerInfo(
         curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
         curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
         curDisk.avgFetchTime_$eq(newDisk.avgFetchTime)
-        curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize)
+        if (estimatedPartitionSize.nonEmpty) {
+          curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize.get)
+        }
         curDisk.setStatus(newDisk.status)
       } else {
-        newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize)
+        if (estimatedPartitionSize.nonEmpty) {
+          newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize.get)
+        }
         diskInfos.put(mountPoint, newDisk)
       }
     }
@@ -283,5 +292,19 @@ object WorkerInfo {
   def fromUniqueId(id: String): WorkerInfo = {
     val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = id.split(":")
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+  }
+
+  def fromInfoId(id: String): WorkerInfo = {
+    val infoArr = id.split(":")
+    if (infoArr.length == 6) {
+      val Array(host, rpcPort, pushPort, fetchPort, replicatePort, networkLocation) = id.split(":")
+      val workerInfo =
+        new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+      workerInfo.networkLocation = networkLocation
+      workerInfo
+    } else {
+      val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = id.split(":")
+      new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+    }
   }
 }

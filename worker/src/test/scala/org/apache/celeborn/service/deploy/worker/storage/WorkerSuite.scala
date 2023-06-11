@@ -37,7 +37,7 @@ class WorkerSuite extends AnyFunSuite {
   val conf = new CelebornConf()
   val workerArgs = new WorkerArguments(Array(), conf)
   test("clean up") {
-    conf.set("celeborn.worker.storage.dirs", "/tmp")
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
     val worker = new Worker(conf, workerArgs)
 
     val pl1 = new PartitionLocation(0, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.MASTER)
@@ -73,7 +73,7 @@ class WorkerSuite extends AnyFunSuite {
   }
 
   test("flush filewriters") {
-    conf.set("celeborn.worker.storage.dirs", "/tmp")
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
     val worker = new Worker(conf, workerArgs)
     val dir = new File("/tmp")
     val allWriters = new util.HashSet[FileWriter]()

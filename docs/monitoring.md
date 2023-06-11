@@ -96,10 +96,17 @@ These metrics are exposed by Celeborn master.
     - RegisteredShuffleCount
     - IsActiveMaster
     - PartitionSize
+      - The size of estimated shuffle partition size.
     - OfferSlotsTime
+      - The time for a master to process offers slots request by register shuffle.
 
   - namespace=CPU
     - JVMCPUTime
+
+  - namespace=system
+    - LastMinuteSystemLoad
+      - Returns the system load average for the last minute.
+    - AvailableProcessors
 
   - namespace=JVM
     - This source provides information on JVM metrics using the
@@ -119,12 +126,18 @@ These metrics are exposed by Celeborn worker.
 
   - namespace=worker
     - CommitFilesTime
+      - The time for a worker to flush buffers and close files related to specified shuffle.
     - ReserveSlotsTime
     - FlushDataTime
+      - The time for a worker to write a buffer which is 256KB by default to storage.
     - OpenStreamTime
+      - The time for a worker to process openStream RPC and return StreamHandle.
     - FetchChunkTime
+      - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
     - MasterPushDataTime
+      - The time for a worker to handle a pushData RPC sent from a celeborn client.
     - SlavePushDataTime
+      - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
     - WriteDataFailCount
     - ReplicateDataFailCount
     - ReplicateDataWriteFailCount
@@ -141,29 +154,101 @@ These metrics are exposed by Celeborn worker.
     - MasterRegionFinishTime
     - SlaveRegionFinishTime
     - TakeBufferTime
-    - TakeBufferTimeIndex
+      - The time for a worker to take out a buffer from a disk flusher.
     - RegisteredShuffleCount
     - SlotsAllocated
     - NettyMemory
+      - The total amount of off-heap memory used by celeborn worker.
     - SortTime
+      - The time for a worker to sort a shuffle file.
     - SortMemory
+      - The memory used by sorting shuffle files.
     - SortingFiles
     - SortedFiles
     - SortedFileSize
     - DiskBuffer
+      - The memory occupied by pushData and pushMergedData which should be written to disk.
     - PausePushData
+      - The count for a worker to stop receiving pushData from clients because of back pressure.
     - PausePushDataAndReplicate
+      - The count for a worker to stop receiving pushData from clients and other workers because of back pressure.
     - BufferStreamReadBuffer
+      - The memory used by credit stream read buffer.
     - ReadBufferDispatcherRequestsLength
+      - The queue size of read buffer allocation requests.
+    - ReadBufferAllocatedCount
+      - Allocated read buffer count.
+    - CreditStreamCount
+      - Stream count for map partition reading streams.
+    - ActiveMapPartitionCount
     - DeviceOSFreeCapacity(B)
     - DeviceOSTotalCapacity(B)
     - DeviceCelebornFreeCapacity(B)
     - DeviceCelebornTotalCapacity(B)
     - PotentialConsumeSpeed
     - UserProduceSpeed
+    - push_server_usedHeapMemory 
+    - push_server_usedDirectMemory
+    - push_server_numAllocations 
+    - push_server_numTinyAllocations
+    - push_server_numSmallAllocations
+    - push_server_numNormalAllocations
+    - push_server_numHugeAllocations
+    - push_server_numDeallocations
+    - push_server_numTinyDeallocations
+    - push_server_numSmallDeallocations
+    - push_server_numNormalDeallocations
+    - push_server_numHugeDeallocations
+    - push_server_numActiveAllocations
+    - push_server_numActiveTinyAllocations
+    - push_server_numActiveSmallAllocations
+    - push_server_numActiveNormalAllocations
+    - push_server_numActiveHugeAllocations
+    - push_server_numActiveBytes
+    - replicate_server_usedHeapMemory
+    - replicate_server_usedDirectMemory
+    - replicate_server_numAllocations 
+    - replicate_server_numTinyAllocations
+    - replicate_server_numSmallAllocations
+    - replicate_server_numNormalAllocations
+    - replicate_server_numHugeAllocations
+    - replicate_server_numDeallocations
+    - replicate_server_numTinyDeallocations
+    - replicate_server_numSmallDeallocations
+    - replicate_server_numNormalDeallocations
+    - replicate_server_numHugeDeallocations
+    - replicate_server_numActiveAllocations
+    - replicate_server_numActiveTinyAllocations
+    - replicate_server_numActiveSmallAllocations
+    - replicate_server_numActiveNormalAllocations
+    - replicate_server_numActiveHugeAllocations
+    - replicate_server_numActiveBytes
+    - fetch_server_usedHeapMemory
+    - fetch_server_usedDirectMemory
+    - fetch_server_numAllocations 
+    - fetch_server_numTinyAllocations
+    - fetch_server_numSmallAllocations
+    - fetch_server_numNormalAllocations
+    - fetch_server_numHugeAllocations
+    - fetch_server_numDeallocations
+    - fetch_server_numTinyDeallocations
+    - fetch_server_numSmallDeallocations
+    - fetch_server_numNormalDeallocations
+    - fetch_server_numHugeDeallocations
+    - fetch_server_numActiveAllocations
+    - fetch_server_numActiveTinyAllocations
+    - fetch_server_numActiveSmallAllocations
+    - fetch_server_numActiveNormalAllocations
+    - fetch_server_numActiveHugeAllocations
+    - fetch_server_numActiveBytes
 
   - namespace=CPU
     - JVMCPUTime
+
+  - namespace=system
+    - LastMinuteSystemLoad
+      - Returns the system load average for the last minute.
+    - AvailableProcessors
 
   - namespace=JVM
     - This source provides information on JVM metrics using the

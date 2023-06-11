@@ -90,9 +90,9 @@ public class SlowStartPushStrategy extends PushStrategy {
 
   public SlowStartPushStrategy(CelebornConf conf) {
     super(conf);
-    this.maxInFlight = conf.pushMaxReqsInFlight();
-    this.initialSleepMills = conf.pushSlowStartInitialSleepTime();
-    this.maxSleepMills = conf.pushSlowStartMaxSleepMills();
+    this.maxInFlight = conf.clientPushMaxReqsInFlight();
+    this.initialSleepMills = conf.clientPushSlowStartInitialSleepTime();
+    this.maxSleepMills = conf.clientPushSlowStartMaxSleepMills();
     this.congestControlInfoPerAddress = JavaUtils.newConcurrentHashMap();
   }
 
@@ -129,7 +129,7 @@ public class SlowStartPushStrategy extends PushStrategy {
 
   protected long getSleepTime(CongestControlContext context) {
     int currentMaxReqs = context.getCurrentMaxReqsInFlight();
-    if (currentMaxReqs >= conf.pushMaxReqsInFlight()) {
+    if (currentMaxReqs >= conf.clientPushMaxReqsInFlight()) {
       return 0;
     }
 

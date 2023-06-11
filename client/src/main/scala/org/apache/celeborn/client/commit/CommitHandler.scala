@@ -48,7 +48,7 @@ abstract class CommitHandler(
     conf: CelebornConf,
     committedPartitionInfo: CommittedPartitionInfo) extends Logging {
 
-  private val pushReplicateEnabled = conf.pushReplicateEnabled
+  private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles
 
   private val commitEpoch = new AtomicLong()
@@ -85,7 +85,7 @@ abstract class CommitHandler(
     // But inProcessStageEndShuffleSet should have contain this shuffle id,
     // can directly return empty.
     if (isStageEndOrInProcess(shuffleId)) {
-      logWarning(s"Shuffle $shuffleId ended or during processing stage end.")
+      logDebug(s"Shuffle $shuffleId ended or during processing stage end.")
       shuffleCommittedInfo.unhandledPartitionLocations.clear()
       Map.empty[WorkerInfo, Set[PartitionLocation]]
     } else {
@@ -99,7 +99,7 @@ abstract class CommitHandler(
       }
 
       if (currentBatch.nonEmpty) {
-        logWarning(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
+        logDebug(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
           s"${currentBatch.map(_.getUniqueId).mkString("[", ",", "]")}")
         val workerToRequests = currentBatch.flatMap { partitionLocation =>
           if (partitionLocation.getPeer != null) {
@@ -193,9 +193,10 @@ abstract class CommitHandler(
     }
 
     val commitFileStartTime = System.nanoTime()
-    val parallelism = Math.min(allocatedWorkers.size(), conf.rpcMaxParallelism)
+    val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
+    val parallelism = Math.min(workerPartitionLocations.size, conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(
-      allocatedWorkers.asScala.to,
+      workerPartitionLocations.to,
       "CommitFiles",
       parallelism) { case (worker, partitionLocationInfo) =>
       val masterParts =
@@ -389,7 +390,7 @@ abstract class CommitHandler(
   private def requestCommitFilesWithRetry(
       endpoint: RpcEndpointRef,
       message: CommitFiles): CommitFilesResponse = {
-    val maxRetries = conf.requestCommitFilesMaxRetries
+    val maxRetries = conf.clientRequestCommitFilesMaxRetries
     var retryTimes = 0
     while (retryTimes < maxRetries) {
       try {
