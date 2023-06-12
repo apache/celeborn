@@ -131,7 +131,7 @@ public abstract class RssInputStream extends InputStream {
     private boolean fetchBlacklistEnabled;
     private long fetchExcludedWorkerExpireTimeout;
 
-    private static final ConcurrentHashMap<String, Long> fetchBlacklist =
+    private ConcurrentHashMap<String, Long> fetchBlacklist =
         JavaUtils.newConcurrentHashMap();
 
     RssInputStreamImpl(
