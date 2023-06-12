@@ -45,9 +45,13 @@ import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.executor.TaskMetrics;
+import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.memory.UnifiedMemoryManager;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
+import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
+import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
@@ -77,9 +81,9 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynConstructors;
 
-public class RssShuffleWriterSuiteJ {
+public abstract class CelebornShuffleWriterSuiteBase {
 
-  private static final Logger LOG = LoggerFactory.getLogger(RssShuffleWriterSuiteJ.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CelebornShuffleWriterSuiteBase.class);
   private static final String NORMAL_RECORD = "hello, world";
   private static final String GIANT_RECORD = getGiantRecord();
 
@@ -93,9 +97,12 @@ public class RssShuffleWriterSuiteJ {
   private final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
 
   private final int numMaps = 10;
-  private final Integer numPartitions = 10;
+  private final int numPartitions = 10;
   private final SparkConf sparkConf = new SparkConf(false);
   private final BlockManagerId bmId = BlockManagerId.apply("execId", "host", 1, None$.empty());
+
+  private final TaskMemoryManager taskMemoryManager =
+      new TaskMemoryManager(UnifiedMemoryManager.apply(sparkConf, 1), 0);
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
   private TaskContext taskContext = null;
@@ -134,6 +141,7 @@ public class RssShuffleWriterSuiteJ {
     Mockito.doReturn(shuffleId).when(dependency).shuffleId();
 
     Mockito.doReturn(metrics).when(taskContext).taskMetrics();
+    Mockito.doReturn(taskMemoryManager).when(taskContext).taskMemoryManager();
 
     Mockito.doReturn(bmId).when(blockManager).shuffleServerId();
     Mockito.doReturn(blockManager).when(env).blockManager();
@@ -228,15 +236,14 @@ public class RssShuffleWriterSuiteJ {
     final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
     ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, 1);
 
-    final HashBasedShuffleWriter<Integer, String, String> writer =
-        new HashBasedShuffleWriter<>(
-            handle,
-            taskContext,
-            conf,
-            client,
-            metrics.shuffleWriteMetrics(),
-            SendBufferPool.get(1));
-    assertEquals(useUnsafe, writer.canUseFastWrite());
+    final ShuffleWriter<Integer, String> writer =
+        createShuffleWriter(handle, taskContext, conf, client, metrics.shuffleWriteMetrics());
+
+    if (writer instanceof SortBasedShuffleWriter) {
+      assertEquals(useUnsafe, ((SortBasedShuffleWriter) writer).canUseFastWrite());
+    } else if (writer instanceof HashBasedShuffleWriter) {
+      assertEquals(useUnsafe, ((HashBasedShuffleWriter) writer).canUseFastWrite());
+    }
 
     AtomicInteger total = new AtomicInteger(0);
     Iterator iterator = getIterator(approximateSize, total, useUnsafe, false);
@@ -351,4 +358,12 @@ public class RssShuffleWriterSuiteJ {
     int numCopies = (128 + NORMAL_RECORD.length() - 1) / NORMAL_RECORD.length();
     return String.join("/", Collections.nCopies(numCopies, NORMAL_RECORD));
   }
+
+  protected abstract ShuffleWriter<Integer, String> createShuffleWriter(
+      RssShuffleHandle handle,
+      TaskContext context,
+      CelebornConf conf,
+      ShuffleClient client,
+      ShuffleWriteMetricsReporter metrics)
+      throws IOException;
 }
