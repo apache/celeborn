@@ -15,22 +15,26 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.metrics
+package org.apache.spark.shuffle.celeborn;
 
-private[metrics] trait MetricLabels {
-  val labels: Map[String, String]
+import java.io.IOException;
 
-  final val labelString: String = MetricLabels.labelString(labels)
-}
+import org.apache.spark.TaskContext;
+import org.apache.spark.shuffle.ShuffleWriter;
 
-object MetricLabels {
-  def labelString(labels: Map[String, String]): String = {
-    "{" +
-      labels
-        .map { case (key: String, value: String) => s"""$key="$value"""" }
-        .toList
-        .sorted
-        .mkString(", ") +
-      "}"
+import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.common.CelebornConf;
+
+public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
+
+  public HashBasedShuffleWriterSuiteJ() throws IOException {}
+
+  @Override
+  protected ShuffleWriter<Integer, String> createShuffleWriter(
+      RssShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
+      throws IOException {
+    // this test case is independent of the `mapId` value
+    return new HashBasedShuffleWriter<Integer, String, String>(
+        handle, /*mapId=*/ 0, context, conf, client, SendBufferPool.get(1));
   }
 }

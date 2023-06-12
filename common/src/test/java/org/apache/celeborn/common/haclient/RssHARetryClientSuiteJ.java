@@ -228,15 +228,15 @@ public class RssHARetryClientSuiteJ {
     Mockito.doReturn(
             Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097")))
         .when(master1)
-        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
 
     Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
         .when(master3)
-        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
 
     Mockito.doAnswer(
             (invocation) -> {
-              RpcAddress address = invocation.getArgumentAt(0, RpcAddress.class);
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
               switch (address.host()) {
                 case "host1":
                   return master1;
@@ -276,19 +276,17 @@ public class RssHARetryClientSuiteJ {
     Mockito.doReturn(
             Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097")))
         .when(ref1)
-        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
     // Assume host2 down.
     Mockito.doReturn(Future$.MODULE$.failed(new IOException("Test IOException")))
         .when(ref2)
-        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
     // master leader switch to host3 after host2 down.
-    Mockito.doReturn(supplier.get())
-        .when(ref3)
-        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+    Mockito.doReturn(supplier.get()).when(ref3).ask(Mockito.any(), Mockito.any(), Mockito.any());
 
     Mockito.doAnswer(
             invocation -> {
-              RpcAddress address = invocation.getArgumentAt(0, RpcAddress.class);
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
               if (address.port() == masterPort) {
                 switch (address.host()) {
                   case "host1":
@@ -316,7 +314,7 @@ public class RssHARetryClientSuiteJ {
   private void prepareForRpcEnvWithoutHA() {
     Mockito.doAnswer(
             (invocationOnMock) -> {
-              RpcAddress address = invocationOnMock.getArgumentAt(0, RpcAddress.class);
+              RpcAddress address = invocationOnMock.getArgument(0, RpcAddress.class);
               if (address.host().equals(masterHost) && address.port() == masterPort) {
                 return endpointRef;
               } else {
@@ -350,13 +348,13 @@ public class RssHARetryClientSuiteJ {
               }
             })
         .when(endpointRef)
-        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
   }
 
   private void prepareForEndpointRefWithoutRetry(Supplier<Future<?>> supplier) {
     Mockito.doAnswer(invocation -> supplier.get())
         .when(endpointRef)
-        .ask(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
   }
 
   private CelebornConf prepareForCelebornConfWithoutHA() {

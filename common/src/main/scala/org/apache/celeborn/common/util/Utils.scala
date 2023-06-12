@@ -502,9 +502,6 @@ object Utils extends Logging {
     if (TransportModuleConstants.PUSH_MODULE == module) {
       conf.setIfMissing(s"celeborn.$module.io.numConnectionsPerPeer", numThreads.toString)
     }
-    // TODO remove after releasing 0.2.0
-    conf.setIfMissing(s"rss.$module.io.serverThreads", numThreads.toString)
-    conf.setIfMissing(s"rss.$module.io.clientThreads", numThreads.toString)
 
     new TransportConf(module, conf)
   }
@@ -543,7 +540,7 @@ object Utils extends Logging {
     val path = Option(filePath).getOrElse(getDefaultPropertiesFile())
     Option(path).foreach { confFile =>
       getPropertiesFromFile(confFile).filter { case (k, v) =>
-        k.startsWith("celeborn.") || k.startsWith("rss.")
+        k.startsWith("celeborn.")
       }.foreach { case (k, v) =>
         conf.setIfMissing(k, v)
         sys.props.getOrElseUpdate(k, v)
