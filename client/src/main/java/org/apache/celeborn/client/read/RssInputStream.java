@@ -46,9 +46,6 @@ import org.apache.celeborn.common.util.Utils;
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
 
-  private static final ConcurrentHashMap<String, Long> fetchBlacklist =
-      JavaUtils.newConcurrentHashMap();
-
   public static RssInputStream create(
       CelebornConf conf,
       TransportClientFactory clientFactory,
@@ -133,6 +130,9 @@ public abstract class RssInputStream extends InputStream {
 
     private boolean fetchBlacklistEnabled;
     private long fetchExcludedWorkerExpireTimeout;
+
+    private static final ConcurrentHashMap<String, Long> fetchBlacklist =
+        JavaUtils.newConcurrentHashMap();
 
     RssInputStreamImpl(
         CelebornConf conf,
