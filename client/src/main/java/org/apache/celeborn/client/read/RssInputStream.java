@@ -152,7 +152,7 @@ public abstract class RssInputStream extends InputStream {
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
-      this.fetchBlacklistEnabled = conf.clientFetchBlacklistEnabled();
+      this.fetchBlacklistEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
