@@ -96,7 +96,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
   private final boolean shuffleClientPushBlacklistEnabled;
-  private final Set<String> pushBlacklist = ConcurrentHashMap.newKeySet();
+  private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
 
   private final ExecutorService pushDataRetryPool;
 
@@ -182,11 +182,11 @@ public class ShuffleClientImpl extends ShuffleClient {
   private boolean checkPushBlacklisted(
       PartitionLocation location, RpcResponseCallback wrappedCallback) {
     // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
-    if (pushBlacklist.contains(location.hostAndPushPort())) {
+    if (blacklist.contains(location.hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       return true;
     } else if (location.getPeer() != null
-        && pushBlacklist.contains(location.getPeer().hostAndPushPort())) {
+        && blacklist.contains(location.getPeer().hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       return true;
     } else {
@@ -531,17 +531,17 @@ public class ShuffleClientImpl extends ShuffleClient {
     // Add ShuffleClient side blacklist
     if (shuffleClientPushBlacklistEnabled) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
-        pushBlacklist.add(oldLocation.hostAndPushPort());
+        blacklist.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
-        pushBlacklist.add(oldLocation.hostAndPushPort());
+        blacklist.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_MASTER) {
-        pushBlacklist.add(oldLocation.hostAndPushPort());
+        blacklist.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE) {
-        pushBlacklist.add(oldLocation.getPeer().hostAndPushPort());
+        blacklist.add(oldLocation.getPeer().hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE) {
-        pushBlacklist.add(oldLocation.getPeer().hostAndPushPort());
+        blacklist.add(oldLocation.getPeer().hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_SLAVE) {
-        pushBlacklist.add(oldLocation.getPeer().hostAndPushPort());
+        blacklist.add(oldLocation.getPeer().hostAndPushPort());
       }
     }
 
