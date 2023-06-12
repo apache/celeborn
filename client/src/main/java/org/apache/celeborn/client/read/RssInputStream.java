@@ -240,21 +240,23 @@ public abstract class RssInputStream extends InputStream {
             }
             location = location.getPeer();
             logger.warn(
-                "CreatePartitionReader failed {}/{} times, change to peer",
+                "CreatePartitionReader failed {}/{} times for location {}, change to peer",
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry,
+                location,
                 e);
           } else {
             logger.warn(
-                "CreatePartitionReader failed {}/{} times, retry the same location",
+                "CreatePartitionReader failed {}/{} times for location {}, retry the same location",
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry,
+                location,
                 e);
             Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
           }
         }
       }
-      throw new CelebornIOException("createPartitionReader failed!");
+      throw new CelebornIOException("createPartitionReader failed! " + location);
     }
 
     private ByteBuf getNextChunk() throws IOException {
@@ -267,13 +269,18 @@ public abstract class RssInputStream extends InputStream {
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
             logger.warn("Fetch chunk fail exceeds max retry {}", fetchChunkRetryCnt, e);
             throw new CelebornIOException(
-                "Fetch chunk failed for " + fetchChunkRetryCnt + " times", e);
+                "Fetch chunk failed for "
+                    + fetchChunkRetryCnt
+                    + " times for location "
+                    + currentReader.getLocation(),
+                e);
           } else {
             if (currentReader.getLocation().getPeer() != null) {
               logger.warn(
-                  "Fetch chunk failed {}/{} times, change to peer",
+                  "Fetch chunk failed {}/{} times for location {}, change to peer",
                   fetchChunkRetryCnt,
                   fetchChunkMaxRetry,
+                  currentReader.getLocation(),
                   e);
               // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
               // so sleep before next try.
@@ -283,14 +290,18 @@ public abstract class RssInputStream extends InputStream {
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer());
             } else {
               logger.warn(
-                  "Fetch chunk failed {}/{} times", fetchChunkRetryCnt, fetchChunkMaxRetry, e);
+                  "Fetch chunk failed {}/{} times for location {}",
+                  fetchChunkRetryCnt,
+                  fetchChunkMaxRetry,
+                  currentReader.getLocation(),
+                  e);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               currentReader = createReaderWithRetry(currentReader.getLocation());
             }
           }
         }
       }
-      throw new CelebornIOException("Fetch chunk failed!");
+      throw new CelebornIOException("Fetch chunk failed! " + currentReader.getLocation());
     }
 
     private PartitionReader createReader(
