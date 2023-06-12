@@ -265,6 +265,7 @@ public abstract class RssInputStream extends InputStream {
     private boolean criticalCause(Exception e) {
       boolean isConnectTimeout =
           e instanceof IOException
+              && e.getMessage() != null
               && e.getMessage().startsWith("Connecting to")
               && e.getMessage().contains("timed out");
       boolean rpcTimeout =
