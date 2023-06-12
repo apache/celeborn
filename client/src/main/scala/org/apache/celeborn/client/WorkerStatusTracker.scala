@@ -37,8 +37,7 @@ class WorkerStatusTracker(
   private val excludedWorkerExpireTimeout = conf.clientExcludedWorkerExpireTimeout
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
 
-  // blacklist
-  val blacklist = new ShuffleFailedWorkers()
+  val excludedWorkers = new ShuffleFailedWorkers()
   private val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
@@ -49,17 +48,17 @@ class WorkerStatusTracker(
     if (conf.clientCheckedUseAllocatedWorkers) {
       lifecycleManager.getAllocatedWorkers()
     } else {
-      blacklist.asScala.keys.toSet
+      excludedWorkers.asScala.keys.toSet
     }
   }
 
-  def blacklistWorkerFromPartition(
+  def excludeWorkerFromPartition(
       shuffleId: Int,
       oldPartition: PartitionLocation,
       cause: StatusCode): Unit = {
     val failedWorker = new ShuffleFailedWorkers()
 
-    def blacklistWorker(partition: PartitionLocation, statusCode: StatusCode): Unit = {
+    def excludeWorker(partition: PartitionLocation, statusCode: StatusCode): Unit = {
       val tmpWorker = partition.getWorker
       val worker =
         lifecycleManager.workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
@@ -71,29 +70,29 @@ class WorkerStatusTracker(
     if (oldPartition != null) {
       cause match {
         case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
-          blacklistWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
         case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
             if oldPartition.getPeer != null && conf.clientExcludeSlaveOnFailureEnabled =>
-          blacklistWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
+          excludeWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
-          blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
             if oldPartition.getPeer != null && conf.clientExcludeSlaveOnFailureEnabled =>
-          blacklistWorker(
+          excludeWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
-          blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
             if oldPartition.getPeer != null && conf.clientExcludeSlaveOnFailureEnabled =>
-          blacklistWorker(
+          excludeWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
         case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
-          blacklistWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
         case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
             if oldPartition.getPeer != null && conf.clientExcludeSlaveOnFailureEnabled =>
-          blacklistWorker(
+          excludeWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
         case _ =>
@@ -108,26 +107,26 @@ class WorkerStatusTracker(
       val failedWorkerMsg = failedWorker.asScala.map { case (worker, (status, time)) =>
         s"${worker.readableAddress()}   ${status.name()}   $time"
       }.mkString("\n")
-      val blacklistMsg = blacklist.asScala.map { case (worker, (status, time)) =>
+      val excludedWorkersMsg = excludedWorkers.asScala.map { case (worker, (status, time)) =>
         s"${worker.readableAddress()}   ${status.name()}   $time"
       }.mkString("\n")
       logInfo(
         s"""
            |Reporting Worker Failure:
            |$failedWorkerMsg
-           |Current blacklist:
-           |$blacklistMsg
+           |Current excluded workers:
+           |$excludedWorkersMsg
                """.stripMargin)
       failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
-        if (!blacklist.containsKey(worker)) {
-          blacklist.put(worker, (statusCode, registerTime))
+        if (!excludedWorkers.containsKey(worker)) {
+          excludedWorkers.put(worker, (statusCode, registerTime))
         } else {
           statusCode match {
             case StatusCode.WORKER_SHUTDOWN |
                 StatusCode.NO_AVAILABLE_WORKING_DIR |
                 StatusCode.RESERVE_SLOTS_FAILED |
                 StatusCode.UNKNOWN_WORKER =>
-              blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
+              excludedWorkers.put(worker, (statusCode, excludedWorkers.get(worker)._2))
             case _ => // Not cover
           }
         }
@@ -135,17 +134,17 @@ class WorkerStatusTracker(
     }
   }
 
-  def removeFromBlacklist(workers: JHashSet[WorkerInfo]): Unit = {
-    blacklist.keySet.removeAll(workers)
+  def removeFromExcludedList(workers: JHashSet[WorkerInfo]): Unit = {
+    excludedWorkers.keySet.removeAll(workers)
   }
 
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
-      logDebug(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
+      logDebug(s"Received excluded worker from Master, excluded workers: ${res.excludedWorkers} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
       val current = System.currentTimeMillis()
 
-      blacklist.asScala.foreach {
+      excludedWorkers.asScala.foreach {
         case (workerInfo: WorkerInfo, (statusCode, registerTime)) =>
           statusCode match {
             case StatusCode.UNKNOWN_WORKER |
@@ -159,27 +158,27 @@ class WorkerStatusTracker(
                 StatusCode.PUSH_DATA_TIMEOUT_SLAVE
                 if current - registerTime < excludedWorkerExpireTimeout => // reserve
             case _ =>
-              if (!res.blacklist.contains(workerInfo) &&
+              if (!res.excludedWorkers.contains(workerInfo) &&
                 !res.shuttingWorkers.contains(workerInfo) &&
                 !res.unknownWorkers.contains(workerInfo)) {
-                blacklist.remove(workerInfo)
+                excludedWorkers.remove(workerInfo)
               }
           }
       }
 
-      if (!res.blacklist.isEmpty) {
-        blacklist.putAll(res.blacklist.asScala.filterNot(blacklist.containsKey)
-          .map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
+      if (!res.excludedWorkers.isEmpty) {
+        excludedWorkers.putAll(res.excludedWorkers.asScala.filterNot(excludedWorkers.containsKey)
+          .map(_ -> (StatusCode.WORKER_EXCLUDED -> current)).toMap.asJava)
       }
 
       if (!res.shuttingWorkers.isEmpty) {
-        blacklist.putAll(res.shuttingWorkers.asScala.filterNot(blacklist.containsKey)
+        excludedWorkers.putAll(res.shuttingWorkers.asScala.filterNot(excludedWorkers.containsKey)
           .map(_ -> (StatusCode.WORKER_SHUTDOWN -> current)).toMap.asJava)
       }
 
       val newShutdownWorkers = resolveShutdownWorkers(res.shuttingWorkers)
       if (!res.unknownWorkers.isEmpty || !newShutdownWorkers.isEmpty) {
-        blacklist.putAll(res.unknownWorkers.asScala.filterNot(blacklist.containsKey)
+        excludedWorkers.putAll(res.unknownWorkers.asScala.filterNot(excludedWorkers.containsKey)
           .map(_ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
         val workerStatus = new WorkersStatus(res.unknownWorkers, newShutdownWorkers)
         workerStatusListeners.asScala.foreach { listener =>
@@ -192,7 +191,7 @@ class WorkerStatusTracker(
         }
       }
 
-      logDebug(s"Current blacklist $blacklist")
+      logDebug(s"Current excluded workers $excludedWorkers")
     }
   }
 

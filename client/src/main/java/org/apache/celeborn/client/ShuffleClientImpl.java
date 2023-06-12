@@ -96,7 +96,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
   private final boolean pushExcludeOnFailureEnabled;
-  private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
+  private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
 
   private final ExecutorService pushDataRetryPool;
 
@@ -181,12 +181,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private boolean checkPushBlacklisted(
       PartitionLocation location, RpcResponseCallback wrappedCallback) {
-    // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
-    if (blacklist.contains(location.hostAndPushPort())) {
+    // If shuffleClientBlacklistEnabled = false, pushExcludedWorkers should be empty.
+    if (pushExcludedWorkers.contains(location.hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       return true;
     } else if (location.getPeer() != null
-        && blacklist.contains(location.getPeer().hostAndPushPort())) {
+        && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       return true;
     } else {
@@ -528,20 +528,20 @@ public class ShuffleClientImpl extends ShuffleClient {
       int epoch,
       PartitionLocation oldLocation,
       StatusCode cause) {
-    // Add ShuffleClient side blacklist
+    // Add ShuffleClient side pushExcludedWorkers
     if (pushExcludeOnFailureEnabled) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
       }
     }
 
@@ -857,7 +857,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
-                // For blacklisted partition location, Celeborn should not use retry quota.
+                // For excluded partition location, Celeborn should not use retry quota.
                 if (!pushStatusIsBlacklisted(cause)) {
                   remainReviveTimes = remainReviveTimes - 1;
                 }
@@ -1243,7 +1243,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 e);
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               int tmpRemainReviveTimes = remainReviveTimes;
-              // For blacklisted partition location, Celeborn should not use retry quota.
+              // For excluded partition location, Celeborn should not use retry quota.
               if (!pushStatusIsBlacklisted(cause)) {
                 tmpRemainReviveTimes = tmpRemainReviveTimes - 1;
               }

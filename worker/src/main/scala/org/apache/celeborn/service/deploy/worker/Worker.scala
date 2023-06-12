@@ -279,7 +279,7 @@ private[celeborn] class Worker(
       estimatedAppDiskUsage.put(shuffleId, usage)
     }
     // During shutdown, return an empty diskInfo list to mark this worker as unavailable,
-    // and avoid remove this from master's blacklist.
+    // and avoid remove this from master's excluded worker list.
     val diskInfos =
       if (shutdown.get()) {
         Seq.empty[DiskInfo]
@@ -540,8 +540,8 @@ private[celeborn] class Worker(
         shutdown.set(true)
         if (gracefulShutdown) {
           // During graceful shutdown, to avoid allocate slots in this worker,
-          // add this worker to master's blacklist. When restart, register worker will
-          // make master remove this worker from blacklist.
+          // add this worker to master's excluded worker list. When restart, register worker will
+          // make master remove this worker from excluded worker list.
           try {
             rssHARetryClient.askSync(
               ReportWorkerUnavailable(List(workerInfo).asJava),

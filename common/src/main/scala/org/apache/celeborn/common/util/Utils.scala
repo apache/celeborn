@@ -890,7 +890,7 @@ object Utils extends Logging {
       case 26 =>
         StatusCode.NO_AVAILABLE_WORKING_DIR
       case 27 =>
-        StatusCode.WORKER_IN_BLACKLIST
+        StatusCode.WORKER_EXCLUDED
       case 28 =>
         StatusCode.UNKNOWN_WORKER
       case 30 =>
