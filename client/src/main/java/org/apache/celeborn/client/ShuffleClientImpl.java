@@ -100,7 +100,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId-mapId-attemptId
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
-  private final boolean shuffleClientPushBlacklistEnabled;
+  private final boolean pushExcludeOnFailureEnabled;
   private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -161,7 +161,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     maxReviveTimes = conf.clientPushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
-    shuffleClientPushBlacklistEnabled = conf.clientPushBlacklistEnabled();
+    pushExcludeOnFailureEnabled = conf.clientPushExcludeOnFailureEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -524,7 +524,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation oldLocation,
       StatusCode cause) {
     // Add ShuffleClient side blacklist
-    if (shuffleClientPushBlacklistEnabled && oldLocation != null) {
+    if (pushExcludeOnFailureEnabled && oldLocation != null) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
         blacklist.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
