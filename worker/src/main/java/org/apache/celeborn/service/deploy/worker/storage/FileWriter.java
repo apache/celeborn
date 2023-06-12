@@ -59,7 +59,6 @@ public abstract class FileWriter implements DeviceObserver {
   private volatile boolean destroyed;
 
   protected final AtomicInteger numPendingWrites = new AtomicInteger();
-  protected long bytesFlushed;
 
   public final Flusher flusher;
   private final int flushWorkerIndex;
@@ -162,7 +161,7 @@ public abstract class FileWriter implements DeviceObserver {
         }
         addTask(task);
         flushBuffer = null;
-        bytesFlushed += numBytes;
+        fileInfo.updateBytesFlushed(numBytes);
         if (!finalFlush) {
           takeBuffer();
         }
@@ -290,7 +289,7 @@ public abstract class FileWriter implements DeviceObserver {
         deviceMonitor.unregisterFileWriter(this);
       }
     }
-    return bytesFlushed;
+    return fileInfo.getFileLength();
   }
 
   public synchronized void destroy(IOException ioException) {

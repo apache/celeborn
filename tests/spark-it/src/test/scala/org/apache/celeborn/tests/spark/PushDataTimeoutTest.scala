@@ -24,6 +24,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.ShuffleMode
 
 class PushDataTimeoutTest extends AnyFunSuite
   with SparkTestBase
@@ -63,7 +64,8 @@ class PushDataTimeoutTest extends AnyFunSuite
       sparkSession.stop()
 
       val rssSparkSession = SparkSession.builder()
-        .config(updateSparkConf(sparkConf, false)).getOrCreate()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .getOrCreate()
       val rssCombineResult = combine(rssSparkSession)
       val rssGroupbyResult = groupBy(rssSparkSession)
       val rssRepartitionResult = repartition(rssSparkSession)
@@ -86,7 +88,8 @@ class PushDataTimeoutTest extends AnyFunSuite
       .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
       .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED.key}", "false")
     val rssSparkSession = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, false)).getOrCreate()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .getOrCreate()
     try {
       combine(rssSparkSession)
     } catch {

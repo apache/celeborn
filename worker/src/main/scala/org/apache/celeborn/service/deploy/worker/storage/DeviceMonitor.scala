@@ -85,19 +85,24 @@ class LocalDeviceMonitor(
       .toList
       .groupBy(_.deviceInfo)
       .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfo]) =>
+        val deviceLabel = Map("device" -> deviceInfo.name)
         def usage = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
         workerSource.addGauge(
-          s"${WorkerSource.DeviceOSTotalCapacity}_${deviceInfo.name}",
-          _ => usage(usage.length - 5).toLong)
+          s"${WorkerSource.DeviceOSTotalCapacity}",
+          _ => usage(usage.length - 5).toLong,
+          deviceLabel)
         workerSource.addGauge(
-          s"${WorkerSource.DeviceOSFreeCapacity}_${deviceInfo.name}",
-          _ => usage(usage.length - 3).toLong)
+          s"${WorkerSource.DeviceOSFreeCapacity}",
+          _ => usage(usage.length - 3).toLong,
+          deviceLabel)
         workerSource.addGauge(
-          s"${WorkerSource.DeviceCelebornTotalCapacity}_${deviceInfo.name}",
-          _ => diskInfos.map(_.configuredUsableSpace).sum)
+          s"${WorkerSource.DeviceCelebornTotalCapacity}",
+          _ => diskInfos.map(_.configuredUsableSpace).sum,
+          deviceLabel)
         workerSource.addGauge(
-          s"${WorkerSource.DeviceCelebornFreeCapacity}_${deviceInfo.name}",
-          _ => diskInfos.map(_.actualUsableSpace).sum)
+          s"${WorkerSource.DeviceCelebornFreeCapacity}",
+          _ => diskInfos.map(_.actualUsableSpace).sum,
+          deviceLabel)
       }
   }
 

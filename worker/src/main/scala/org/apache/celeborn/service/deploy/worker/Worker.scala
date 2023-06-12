@@ -304,13 +304,10 @@ private[celeborn] class Worker(
         activeShuffleKeys,
         estimatedAppDiskUsage),
       classOf[HeartbeatResponse])
-    if (response.registered) {
-      response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
-      cleanTaskQueue.put(response.expiredShuffleKeys)
-    } else {
+    response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
+    cleanTaskQueue.put(response.expiredShuffleKeys)
+    if (!response.registered) {
       logError("Worker not registered in master, clean expired shuffle data and register again.")
-      // Clean expired shuffle.
-      cleanup(response.expiredShuffleKeys)
       try {
         registerWithMaster()
       } catch {
@@ -537,22 +534,21 @@ private[celeborn] class Worker(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
+        // During shutdown, to avoid allocate slots in this worker,
+        // add this worker to master's blacklist. When restart, register worker will
+        // make master remove this worker from blacklist.
+        try {
+          rssHARetryClient.askSync(
+            ReportWorkerUnavailable(List(workerInfo).asJava),
+            OneWayMessageResponse.getClass)
+        } catch {
+          case e: Throwable =>
+            logError(
+              s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+              e)
+        }
         shutdown.set(true)
         if (gracefulShutdown) {
-          // During graceful shutdown, to avoid allocate slots in this worker,
-          // add this worker to master's excluded worker list. When restart, register worker will
-          // make master remove this worker from excluded worker list.
-          try {
-            rssHARetryClient.askSync(
-              ReportWorkerUnavailable(List(workerInfo).asJava),
-              OneWayMessageResponse.getClass)
-          } catch {
-            case e: Throwable =>
-              logError(
-                s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
-                e)
-          }
-
           val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
           val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
           var waitTimes = 0

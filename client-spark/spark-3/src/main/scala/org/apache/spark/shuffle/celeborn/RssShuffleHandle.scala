@@ -23,7 +23,7 @@ import org.apache.spark.shuffle.BaseShuffleHandle
 import org.apache.celeborn.common.identity.UserIdentifier
 
 class RssShuffleHandle[K, V, C](
-    val newAppId: String,
+    val appUniqueId: String,
     val rssMetaServiceHost: String,
     val rssMetaServicePort: Int,
     val userIdentifier: UserIdentifier,

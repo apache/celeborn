@@ -62,7 +62,12 @@ public class InFlightRequestTracker {
 
   public void removeBatch(int batchId, String hostAndPushPort) {
     Set<Integer> batchIdSet = inflightBatchesPerAddress.get(hostAndPushPort);
-    batchIdSet.remove(batchId);
+    // TODO: Need to debug why batchIdSet will be null.
+    if (batchIdSet != null) {
+      batchIdSet.remove(batchId);
+    } else {
+      logger.warn("BatchIdSet of {} is null.", hostAndPushPort);
+    }
   }
 
   public void onSuccess(String hostAndPushPort) {
@@ -171,6 +176,7 @@ public class InFlightRequestTracker {
 
   public void cleanup() {
     if (!inflightBatchesPerAddress.isEmpty()) {
+      logger.warn("Clear {}", this.getClass().getSimpleName());
       inflightBatchesPerAddress.clear();
     }
     pushStrategy.clear();

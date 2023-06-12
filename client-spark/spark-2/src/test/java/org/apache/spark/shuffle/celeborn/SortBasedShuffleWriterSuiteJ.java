@@ -15,19 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn
+package org.apache.spark.shuffle.celeborn;
 
-import org.apache.spark.ShuffleDependency
-import org.apache.spark.shuffle.BaseShuffleHandle
+import java.io.IOException;
 
-import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.spark.TaskContext;
+import org.apache.spark.shuffle.ShuffleWriter;
 
-class RssShuffleHandle[K, V, C](
-    val appUniqueId: String,
-    val rssMetaServiceHost: String,
-    val rssMetaServicePort: Int,
-    val userIdentifier: UserIdentifier,
-    shuffleId: Int,
-    numMappers: Int,
-    dependency: ShuffleDependency[K, V, C])
-  extends BaseShuffleHandle(shuffleId, numMappers, dependency)
+import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.common.CelebornConf;
+
+public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
+
+  public SortBasedShuffleWriterSuiteJ() throws IOException {}
+
+  @Override
+  protected ShuffleWriter<Integer, String> createShuffleWriter(
+      RssShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
+      throws IOException {
+    return new SortBasedShuffleWriter<Integer, String, String>(
+        handle.dependency(), handle.appUniqueId(), numPartitions, context, conf, client, null);
+  }
+}

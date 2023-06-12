@@ -108,6 +108,8 @@ cd "$PROJECT_DIR"
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
+MVN_DIST_OPT="-DskipTests -Dmaven.javadoc.skip=true -Dmaven.source.skip"
+
 function build_service {
   VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
       | grep -v "INFO" \
@@ -127,7 +129,7 @@ function build_service {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package -DskipTests $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -171,7 +173,7 @@ function build_spark_client {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package -DskipTests -pl :celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-spark-${SPARK_MAJOR_VERSION}-shaded_$SCALA_VERSION -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -199,7 +201,7 @@ function build_flink_client {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package -DskipTests -pl :celeborn-client-flink-${FLINK_BINARY_VERSION}-shaded_$SCALA_VERSION -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-flink-${FLINK_BINARY_VERSION}-shaded_$SCALA_VERSION -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -222,12 +224,15 @@ if [ "$RELEASE" == "true" ]; then
 else
   ## build release package on demand
   build_service $@
-  if [[ $@ == *"spark"* && $@ != *"flink"* ]]; then
+  if [[ $@ != *"spark"* && $@ != *"flink"* ]]; then
+      echo "Skip building client."
+  elif [[ $@ == *"spark"* && $@ != *"flink"* ]]; then
     build_spark_client $@
   elif [[ $@ == *"flink"* && $@ != *"spark"* ]]; then
     build_flink_client $@
   else
-    echo "Error: unsupported command $@, currently we do not support compiling spark and flink at the same time."
+    echo "Error: unsupported build options: $@"
+    echo "       currently we do not support compiling Spark and Flink clients at the same time."
     exit -1
   fi
 fi

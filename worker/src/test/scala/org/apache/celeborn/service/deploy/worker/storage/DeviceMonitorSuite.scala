@@ -392,34 +392,34 @@ class DeviceMonitorSuite extends AnyFunSuite {
       deviceMonitor2.init()
 
       val metrics1 = workerSource2.gauges().filter(
-        _.name.startsWith(WorkerSource.DeviceOSTotalCapacity)).sortBy(_.name)
+        _.name.startsWith(WorkerSource.DeviceOSTotalCapacity)).sortBy(_.labels("device"))
       val metrics2 = workerSource2.gauges().filter(
-        _.name.startsWith(WorkerSource.DeviceOSFreeCapacity)).sortBy(_.name)
+        _.name.startsWith(WorkerSource.DeviceOSFreeCapacity)).sortBy(_.labels("device"))
       val metrics3 = workerSource2.gauges().filter(
-        _.name.startsWith(WorkerSource.DeviceCelebornTotalCapacity)).sortBy(_.name)
+        _.name.startsWith(WorkerSource.DeviceCelebornTotalCapacity)).sortBy(_.labels("device"))
       val metrics4 = workerSource2.gauges().filter(
-        _.name.startsWith(WorkerSource.DeviceCelebornFreeCapacity)).sortBy(_.name)
+        _.name.startsWith(WorkerSource.DeviceCelebornFreeCapacity)).sortBy(_.labels("device"))
 
-      assertEquals(s"${WorkerSource.DeviceOSTotalCapacity}_vda", metrics1.head.name)
+      assertEquals("vda", metrics1.head.labels("device"))
       assertEquals(1395864371200L, metrics1.head.gauge.getValue)
-      assertEquals(s"${WorkerSource.DeviceOSTotalCapacity}_vdb", metrics1.last.name)
+      assertEquals("vdb", metrics1.last.labels("device"))
       assertEquals(1932735283200L, metrics1.last.gauge.getValue)
 
-      assertEquals(s"${WorkerSource.DeviceOSFreeCapacity}_vda", metrics2.head.name)
+      assertEquals("vda", metrics2.head.labels("device"))
       assertEquals(1293858897920L, metrics2.head.gauge.getValue)
-      assertEquals(s"${WorkerSource.DeviceOSFreeCapacity}_vdb", metrics2.last.name)
+      assertEquals("vdb", metrics2.last.labels("device"))
       assertEquals(1835024777216L, metrics2.last.gauge.getValue)
 
-      assertEquals(s"${WorkerSource.DeviceCelebornTotalCapacity}_vda", metrics3.head.name)
+      assertEquals("vda", metrics3.head.labels("device"))
       assertEquals(Int.MaxValue.toLong * 2, metrics3.head.gauge.getValue)
-      assertEquals(s"${WorkerSource.DeviceCelebornTotalCapacity}_vdb", metrics3.last.name)
+      assertEquals("vdb", metrics3.last.labels("device"))
       assertEquals(Int.MaxValue.toLong * 3, metrics3.last.gauge.getValue)
 
       // test if metrics will change when disk usage change
       diskInfos2.values().asScala.foreach(diskInfo => diskInfo.setUsableSpace(1024))
-      assertEquals(s"${WorkerSource.DeviceCelebornFreeCapacity}_vda", metrics4.head.name)
+      assertEquals("vda", metrics4.head.labels("device"))
       assertEquals(1024L * 2, metrics4.head.gauge.getValue)
-      assertEquals(s"${WorkerSource.DeviceCelebornFreeCapacity}_vdb", metrics4.last.name)
+      assertEquals("vdb", metrics4.last.labels("device"))
       assertEquals(1024L * 3, metrics4.last.gauge.getValue)
 
       when(Utils.runCommand(dfBCmd1)).thenReturn(dfBOut6)
