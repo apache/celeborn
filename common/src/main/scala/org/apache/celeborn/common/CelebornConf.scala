@@ -664,8 +664,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
-  def clientBlacklistSlaveEnabled: Boolean = get(CLIENT_BLACKLIST_SLAVE_ENABLED)
-  def clientPushBlacklistEnabled: Boolean = get(CLIENT_PUSH_BLACKLIST_ENABLED)
+  def clientExcludeSlaveOnFailureEnabled: Boolean = get(CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED)
+  def clientPushExcludeOnFailureEnabled: Boolean = get(CLIENT_PUSH_EXCLUDE_ON_FAILURE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -2552,11 +2552,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 
-  val CLIENT_BLACKLIST_SLAVE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.blacklistSlave.enabled")
+  val CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.excludeSlaveOnFailure.enabled")
       .categories("client")
       .version("0.3.0")
-      .doc("When true, Celeborn will add partition's peer worker into blacklist " +
+      .doc("When true, Celeborn will exclude partition's peer worker on failure " +
         "when push data to slave failed.")
       .booleanConf
       .createWithDefault(true)
@@ -2657,10 +2657,10 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
-  val CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.blacklist.enabled")
+  val CLIENT_PUSH_EXCLUDE_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.excludeOnFailure.enabled")
       .categories("client")
-      .doc("Whether to enable shuffle client-side push blacklist of workers.")
+      .doc("Whether to enable shuffle client-side push exclude workers on failures.")
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)

@@ -52,7 +52,7 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled)
-        .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED.key}", "false")
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val combineResult = combine(sparkSession)
       val groupbyResult = groupBy(sparkSession)
@@ -84,7 +84,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
       .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
-      .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "false")
+      .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED.key}", "false")
     val rssSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, false)).getOrCreate()
     try {
