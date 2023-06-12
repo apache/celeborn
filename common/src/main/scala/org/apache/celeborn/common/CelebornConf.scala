@@ -705,7 +705,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
-  def clientFetchBlacklistEnabled: Boolean = get(CLIENT_FETCH_BLACKLIST_ENABLED)
+  def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
+    get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
     get(CLIENT_FETCH_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
 
@@ -2828,10 +2829,10 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val CLIENT_FETCH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.fetch.blacklist.enabled")
+  val CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.fetch.excludeWorkerOnFailure.enabled")
       .categories("client")
-      .doc("Whether to enable shuffle client-side fetch blacklist of workers.")
+      .doc("Whether to enable shuffle client-side fetch exclude workers on failure.")
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)

@@ -131,8 +131,7 @@ public abstract class RssInputStream extends InputStream {
     private boolean fetchBlacklistEnabled;
     private long fetchExcludedWorkerExpireTimeout;
 
-    private ConcurrentHashMap<String, Long> fetchBlacklist =
-        JavaUtils.newConcurrentHashMap();
+    private ConcurrentHashMap<String, Long> fetchBlacklist = JavaUtils.newConcurrentHashMap();
 
     RssInputStreamImpl(
         CelebornConf conf,
