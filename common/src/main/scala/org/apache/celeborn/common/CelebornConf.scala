@@ -2838,7 +2838,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val CLIENT_FETCH_EXCLUDED_WORKER_EXPIRE_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.fetch.exclude.expireTimeout")
+    buildConf("celeborn.client.fetch.excludedWorker.expireTimeout")
       .categories("client")
       .doc("ShuffleClient is a static object, it will be used in the whole lifecycle of Executor," +
         "We give a expire time for blacklisted worker to avoid a transient worker issues.")
