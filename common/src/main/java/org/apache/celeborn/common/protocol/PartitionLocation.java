@@ -154,6 +154,7 @@ public class PartitionLocation implements Serializable {
     this.storageInfo = hint;
     this.mapIdBitMap = mapIdBitMap;
     this._hostPushPort = host + ":" + pushPort;
+    this._hostFetchPort = host + ":" + fetchPort;
   }
 
   public int getId() {
