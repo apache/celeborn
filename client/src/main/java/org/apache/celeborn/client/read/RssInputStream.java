@@ -46,7 +46,8 @@ import org.apache.celeborn.common.util.Utils;
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
 
-  private static final ConcurrentHashMap<String, Long> fetchExcludedWorkers = JavaUtils.newConcurrentHashMap();
+  private static final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
+      JavaUtils.newConcurrentHashMap();
 
   public static RssInputStream create(
       CelebornConf conf,
