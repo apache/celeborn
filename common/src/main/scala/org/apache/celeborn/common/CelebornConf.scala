@@ -2477,9 +2477,10 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.excluded.expireTimeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
+      .doc("Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout`" +
+        "to cover worker heartbeat timeout check period")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
+      .createWithDefaultString("180s")
 
   val CLIENT_CHECKED_USE_ALLOCATED_WORKERS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.checked.useAllocatedWorkers")

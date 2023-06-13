@@ -267,8 +267,8 @@ abstract class CommitHandler(
           getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
         val res =
-          if (conf.clientCommitFilesIgnoreExcludedWorkers && workerStatusTracker.blacklist.containsKey(
-              worker)) {
+          if (conf.clientCommitFilesIgnoreExcludedWorkers &&
+            workerStatusTracker.blacklist.containsKey(worker)) {
             CommitFilesResponse(
               StatusCode.WORKER_IN_BLACKLIST,
               List.empty.asJava,
@@ -281,15 +281,14 @@ abstract class CommitHandler(
 
         res.status match {
           case StatusCode.SUCCESS => // do nothing
-          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED =>
-            logDebug(s"Request $commitFiles return ${res.status} for " +
+          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_IN_BLACKLIST =>
+            logInfo(s"Request $commitFiles return ${res.status} for " +
               s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
-            commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
-          case StatusCode.WORKER_IN_BLACKLIST =>
-            // Do not record worker failure since it's from local excluded worker list
-            logDebug(s"Request $commitFiles return ${res.status} for " +
-              s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
-          case _ => // won't happen
+            if (res.status != StatusCode.WORKER_IN_BLACKLIST) {
+              commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
+            }
+          case _ =>
+            logError(s"Should never reach here! commit files response status ${res.status}")
         }
         res
       } else {
