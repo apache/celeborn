@@ -25,7 +25,7 @@ license: |
 | celeborn.client.excludedWorker.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.3.0 | 
 | celeborn.client.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.3.0 | 
 | celeborn.client.fetch.maxRetriesForEachReplica | 3 | Max retry times of fetch chunk on each replica | 0.3.0 | 
-| celeborn.client.fetch.timeout | 30s | Timeout for a task to open stream for fetching chunk. | 0.3.0 | 
+| celeborn.client.fetch.timeout | 30s | Timeout for a task to open stream and fetch chunk. | 0.3.0 | 
 | celeborn.client.flink.compression.enabled | true | Whether to compress data in Flink plugin. | 0.3.0 | 
 | celeborn.client.flink.inputGate.concurrentReadings | 2147483647 | Max concurrent reading channels for a input gate. | 0.3.0 | 
 | celeborn.client.flink.inputGate.memory | 32m | Memory reserved for a input gate. | 0.3.0 | 

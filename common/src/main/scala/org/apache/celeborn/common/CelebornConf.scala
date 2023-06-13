@@ -2738,7 +2738,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.fetch.timeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout for a task to open stream for fetching chunk.")
+      .doc("Timeout for a task to open stream and fetch chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
