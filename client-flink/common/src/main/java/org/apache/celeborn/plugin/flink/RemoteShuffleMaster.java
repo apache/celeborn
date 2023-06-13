@@ -38,7 +38,6 @@ import org.apache.celeborn.plugin.flink.utils.ThreadUtils;
 
 public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescriptor> {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMaster.class);
-  private static final JobID ZERO_JOB_ID = new JobID(0, 0);
   private final ShuffleMasterContext shuffleMasterContext;
   // Flink JobId -> Celeborn register shuffleIds
   private Map<JobID, Set<Integer>> jobShuffleIds = JavaUtils.newConcurrentHashMap();
@@ -67,15 +66,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     if (lifecycleManager == null) {
       synchronized (RemoteShuffleMaster.class) {
         if (lifecycleManager == null) {
-          // Workaround for FLINK-19358, use first none ZERO_JOB_ID as celeborn shared appId for all
-          // other flink jobs
-          if (!ZERO_JOB_ID.equals(jobID)) {
-            this.celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, jobID);
-          } else {
-            this.celebornAppId =
-                FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, JobID.generate());
-          }
-
+          celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, jobID);
           LOG.info("CelebornAppId: {}", celebornAppId);
           CelebornConf celebornConf =
               FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
