@@ -44,9 +44,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private String celebornAppId;
   private volatile LifecycleManager lifecycleManager;
   private ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
-
   private ShuffleResourceTracker shuffleResourceTracker;
-
   private final ScheduledThreadPoolExecutor executor =
       new ScheduledThreadPoolExecutor(
           1,
@@ -68,8 +66,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     if (lifecycleManager == null) {
       synchronized (RemoteShuffleMaster.class) {
         if (lifecycleManager == null) {
-          // use first jobID as celeborn shared appId for all other flink jobs
           celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, jobID);
+          LOG.info("CelebornAppId: {}", celebornAppId);
           CelebornConf celebornConf =
               FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
           // if not set, set to true as default for flink
