@@ -232,7 +232,7 @@ public class FileWriterSuiteJ {
         };
 
     for (int chunkIndex : chunkIndices) {
-      client.fetchChunk(streamId, chunkIndex, callback);
+      client.fetchChunk(streamId, chunkIndex, 10000, callback);
     }
     if (!sem.tryAcquire(chunkIndices.size(), 5, TimeUnit.SECONDS)) {
       fail("Timeout getting response from the server");

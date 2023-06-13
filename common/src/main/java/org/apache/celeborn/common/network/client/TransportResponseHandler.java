@@ -39,6 +39,7 @@ import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.common.write.FetchRequestInfo;
 import org.apache.celeborn.common.write.PushRequestInfo;
 
 /**
@@ -53,7 +54,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private final TransportConf conf;
   private final Channel channel;
 
-  private final Map<StreamChunkSlice, ChunkReceivedCallback> outstandingFetches;
+  private final Map<StreamChunkSlice, FetchRequestInfo> outstandingFetches;
 
   private final Map<Long, RpcResponseCallback> outstandingRpcs;
   private final ConcurrentHashMap<Long, PushRequestInfo> outstandingPushes;
@@ -63,7 +64,11 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
   private final long pushTimeoutCheckerInterval;
   private static ScheduledExecutorService pushTimeoutChecker = null;
-  private ScheduledFuture scheduleFuture;
+  private ScheduledFuture pushCheckerScheduleFuture;
+
+  private final long fetchTimeoutCheckerInterval;
+  private static ScheduledExecutorService fetchTimeoutChecker = null;
+  private ScheduledFuture fetchCheckerScheduleFuture;
 
   public TransportResponseHandler(TransportConf conf, Channel channel) {
     this.conf = conf;
@@ -72,19 +77,32 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     this.outstandingRpcs = JavaUtils.newConcurrentHashMap();
     this.outstandingPushes = JavaUtils.newConcurrentHashMap();
     this.timeOfLastRequestNs = new AtomicLong(0);
-    pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
+    this.pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
+    this.fetchTimeoutCheckerInterval = conf.fetchDataTimeoutCheckIntervalMs();
     synchronized (TransportResponseHandler.class) {
       if (pushTimeoutChecker == null) {
         pushTimeoutChecker =
             ThreadUtils.newDaemonThreadPoolScheduledExecutor(
                 "push-timeout-checker", conf.pushDataTimeoutCheckerThreads());
       }
+      if (fetchTimeoutChecker == null) {
+        fetchTimeoutChecker =
+            ThreadUtils.newDaemonThreadPoolScheduledExecutor(
+                "fetch-timeout-checker", conf.fetchDataTimeoutCheckerThreads());
+      }
     }
-    scheduleFuture =
+    pushCheckerScheduleFuture =
         pushTimeoutChecker.scheduleAtFixedRate(
             () -> failExpiredPushRequest(),
             pushTimeoutCheckerInterval,
             pushTimeoutCheckerInterval,
+            TimeUnit.MILLISECONDS);
+
+    fetchCheckerScheduleFuture =
+        fetchTimeoutChecker.scheduleAtFixedRate(
+            () -> failExpiredFetchRequest(),
+            fetchTimeoutCheckerInterval,
+            fetchTimeoutCheckerInterval,
             TimeUnit.MILLISECONDS);
   }
 
@@ -113,12 +131,34 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     }
   }
 
-  public void addFetchRequest(StreamChunkSlice streamChunkSlice, ChunkReceivedCallback callback) {
+  public void failExpiredFetchRequest() {
+    long currentTime = System.currentTimeMillis();
+    Iterator<Map.Entry<StreamChunkSlice, FetchRequestInfo>> iter =
+        outstandingFetches.entrySet().iterator();
+    while (iter.hasNext()) {
+      Map.Entry<StreamChunkSlice, FetchRequestInfo> entry = iter.next();
+      if (entry.getValue().dueTime <= currentTime) {
+        FetchRequestInfo info = outstandingFetches.remove(entry.getKey());
+        if (info != null) {
+          if (info.channelFuture != null) {
+            info.channelFuture.cancel(true);
+          }
+          info.callback.onFailure(
+              entry.getKey().chunkIndex, new CelebornIOException(StatusCode.FETCH_DATA_TIMEOUT));
+          info.channelFuture = null;
+          info.callback = null;
+        }
+      }
+    }
+  }
+
+  public void addFetchRequest(
+      StreamChunkSlice streamChunkSlice, FetchRequestInfo fetchRequestInfo) {
     updateTimeOfLastRequest();
     if (outstandingFetches.containsKey(streamChunkSlice)) {
       logger.warn("[addFetchRequest] streamChunkSlice {} already exists!", streamChunkSlice);
     }
-    outstandingFetches.put(streamChunkSlice, callback);
+    outstandingFetches.put(streamChunkSlice, fetchRequestInfo);
   }
 
   public void removeFetchRequest(StreamChunkSlice streamChunkSlice) {
@@ -154,9 +194,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
    * exception or pre-mature connection termination.
    */
   private void failOutstandingRequests(Throwable cause) {
-    for (Map.Entry<StreamChunkSlice, ChunkReceivedCallback> entry : outstandingFetches.entrySet()) {
+    for (Map.Entry<StreamChunkSlice, FetchRequestInfo> entry : outstandingFetches.entrySet()) {
       try {
-        entry.getValue().onFailure(entry.getKey().chunkIndex, cause);
+        entry.getValue().callback.onFailure(entry.getKey().chunkIndex, cause);
       } catch (Exception e) {
         logger.warn("ChunkReceivedCallback.onFailure throws exception", e);
       }
@@ -195,7 +235,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           remoteAddress);
       failOutstandingRequests(new IOException("Connection from " + remoteAddress + " closed"));
     }
-    scheduleFuture.cancel(false);
+    pushCheckerScheduleFuture.cancel(false);
+    fetchCheckerScheduleFuture.cancel(false);
   }
 
   @Override
@@ -208,39 +249,58 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           remoteAddress);
       failOutstandingRequests(cause);
     }
-    scheduleFuture.cancel(false);
+    pushCheckerScheduleFuture.cancel(false);
+    fetchCheckerScheduleFuture.cancel(false);
   }
 
   @Override
   public void handle(ResponseMessage message) throws Exception {
     if (message instanceof ChunkFetchSuccess) {
       ChunkFetchSuccess resp = (ChunkFetchSuccess) message;
-      ChunkReceivedCallback listener = outstandingFetches.remove(resp.streamChunkSlice);
-      if (listener == null) {
+      FetchRequestInfo info = outstandingFetches.remove(resp.streamChunkSlice);
+      if (info == null) {
         logger.warn(
             "Ignoring response for block {} from {} since it is not outstanding",
             resp.streamChunkSlice,
             NettyUtils.getRemoteAddress(channel));
         resp.body().release();
       } else {
-        listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
-        resp.body().release();
+        ChunkReceivedCallback listener = info.callback;
+        if (listener == null) {
+          logger.warn(
+              "Ignoring response for block {} from {} since it is not outstanding",
+              resp.streamChunkSlice,
+              NettyUtils.getRemoteAddress(channel));
+          resp.body().release();
+        } else {
+          listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
+          resp.body().release();
+        }
       }
     } else if (message instanceof ChunkFetchFailure) {
       ChunkFetchFailure resp = (ChunkFetchFailure) message;
-      ChunkReceivedCallback listener = outstandingFetches.remove(resp.streamChunkSlice);
-      if (listener == null) {
+      FetchRequestInfo info = outstandingFetches.remove(resp.streamChunkSlice);
+      if (info == null) {
         logger.warn(
             "Ignoring response for block {} from {} ({}) since it is not outstanding",
             resp.streamChunkSlice,
             NettyUtils.getRemoteAddress(channel),
             resp.errorString);
       } else {
-        logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
-        listener.onFailure(
-            resp.streamChunkSlice.chunkIndex,
-            new ChunkFetchFailureException(
-                "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
+        ChunkReceivedCallback listener = info.callback;
+        if (listener == null) {
+          logger.warn(
+              "Ignoring response for block {} from {} ({}) since it is not outstanding",
+              resp.streamChunkSlice,
+              NettyUtils.getRemoteAddress(channel),
+              resp.errorString);
+        } else {
+          logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
+          listener.onFailure(
+              resp.streamChunkSlice.chunkIndex,
+              new ChunkFetchFailureException(
+                  "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
+        }
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
