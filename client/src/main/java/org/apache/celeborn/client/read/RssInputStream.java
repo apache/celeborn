@@ -256,6 +256,10 @@ public abstract class RssInputStream extends InputStream {
       } else if (System.currentTimeMillis() - timestamp > fetchExcludedWorkerExpireTimeout) {
         fetchBlacklist.remove(location.hostAndFetchPort());
         return false;
+      } else if (location.getPeer() != null
+          && fetchBlacklist.contains(location.getPeer().hostAndFetchPort())) {
+        fetchBlacklist.remove(location.hostAndFetchPort());
+        return true;
       } else {
         return true;
       }
