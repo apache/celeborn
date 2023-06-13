@@ -267,7 +267,8 @@ abstract class CommitHandler(
           getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
         val res =
-          if (workerStatusTracker.blacklist.containsKey(worker)) {
+          if (conf.clientCommitFilesIgnoreExcludedWorkers && workerStatusTracker.blacklist.containsKey(
+              worker)) {
             CommitFilesResponse(
               StatusCode.WORKER_IN_BLACKLIST,
               List.empty.asJava,
