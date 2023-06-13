@@ -172,6 +172,25 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
+  public SortBasedShuffleWriter(
+      RssShuffleHandle<K, V, C> handle,
+      TaskContext taskContext,
+      CelebornConf conf,
+      ShuffleClient client,
+      ShuffleWriteMetricsReporter metrics,
+      ExecutorService executorService)
+      throws IOException {
+    this(
+        handle.dependency(),
+        handle.appUniqueId(),
+        handle.numMappers(),
+        taskContext,
+        conf,
+        client,
+        metrics,
+        executorService);
+  }
+
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     if (canUseFastWrite()) {

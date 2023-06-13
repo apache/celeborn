@@ -38,7 +38,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, SystemMiscSource}
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
@@ -534,22 +534,33 @@ private[celeborn] class Worker(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
-        shutdown.set(true)
-        if (gracefulShutdown) {
-          // During graceful shutdown, to avoid allocate slots in this worker,
-          // add this worker to master's blacklist. When restart, register worker will
-          // make master remove this worker from blacklist.
-          try {
+        // During shutdown, to avoid allocate slots in this worker,
+        // add this worker to master's blacklist. When restart, register worker will
+        // make master remove this worker from blacklist.
+        try {
+          if (gracefulShutdown) {
             rssHARetryClient.askSync(
               ReportWorkerUnavailable(List(workerInfo).asJava),
               OneWayMessageResponse.getClass)
-          } catch {
-            case e: Throwable =>
-              logError(
-                s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
-                e)
+          } else {
+            rssHARetryClient.askSync[PbWorkerLostResponse](
+              WorkerLost(
+                host,
+                rpcPort,
+                pushPort,
+                fetchPort,
+                replicatePort,
+                RssHARetryClient.genRequestId()),
+              classOf[PbWorkerLostResponse])
           }
-
+        } catch {
+          case e: Throwable =>
+            logError(
+              s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+              e)
+        }
+        shutdown.set(true)
+        if (gracefulShutdown) {
           val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
           val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
           var waitTimes = 0
