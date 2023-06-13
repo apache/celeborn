@@ -46,6 +46,8 @@ import org.apache.celeborn.common.util.Utils;
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
 
+  private static final ConcurrentHashMap<String, Long> fetchExcludedWorkers = JavaUtils.newConcurrentHashMap();
+
   public static RssInputStream create(
       CelebornConf conf,
       TransportClientFactory clientFactory,
@@ -130,8 +132,6 @@ public abstract class RssInputStream extends InputStream {
 
     private boolean fetchBlacklistEnabled;
     private long fetchExcludedWorkerExpireTimeout;
-
-    private ConcurrentHashMap<String, Long> fetchBlacklist = JavaUtils.newConcurrentHashMap();
 
     RssInputStreamImpl(
         CelebornConf conf,
@@ -239,10 +239,10 @@ public abstract class RssInputStream extends InputStream {
     private void blacklistFailedLocation(PartitionLocation location, Exception e) {
       if (conf.clientPushReplicateEnabled() && fetchBlacklistEnabled) {
         if (criticalCause(e)) {
-          fetchBlacklist.put(location.hostAndFetchPort(), System.currentTimeMillis());
+          fetchExcludedWorkers.put(location.hostAndFetchPort(), System.currentTimeMillis());
           // Avoid one data's two replicate both can't be fetched.
           if (location.getPeer() != null) {
-            fetchBlacklist.remove(location.getPeer().hostAndFetchPort());
+            fetchExcludedWorkers.remove(location.getPeer().hostAndFetchPort());
           }
         }
       }
@@ -250,15 +250,15 @@ public abstract class RssInputStream extends InputStream {
 
     // In RssInputStream, all operation is sync.
     private boolean isBlacklisted(PartitionLocation location) {
-      Long timestamp = fetchBlacklist.get(location.hostAndFetchPort());
+      Long timestamp = fetchExcludedWorkers.get(location.hostAndFetchPort());
       if (timestamp == null) {
         return false;
       } else if (System.currentTimeMillis() - timestamp > fetchExcludedWorkerExpireTimeout) {
-        fetchBlacklist.remove(location.hostAndFetchPort());
+        fetchExcludedWorkers.remove(location.hostAndFetchPort());
         return false;
       } else if (location.getPeer() != null
-          && fetchBlacklist.contains(location.getPeer().hostAndFetchPort())) {
-        fetchBlacklist.remove(location.hostAndFetchPort());
+          && fetchExcludedWorkers.contains(location.getPeer().hostAndFetchPort())) {
+        fetchExcludedWorkers.remove(location.hostAndFetchPort());
         return true;
       } else {
         return true;
@@ -475,7 +475,6 @@ public abstract class RssInputStream extends InputStream {
         currentReader.close();
         currentReader = null;
       }
-      fetchBlacklist.clear();
     }
 
     private boolean moveToNextChunk() throws IOException {
