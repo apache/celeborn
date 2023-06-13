@@ -67,7 +67,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     if (lifecycleManager == null) {
       synchronized (RemoteShuffleMaster.class) {
         if (lifecycleManager == null) {
-          // Use first none ZERO_JOB_ID as celeborn shared appId for all other flink jobs
+          // Workaround for FLINK-19358, use first none ZERO_JOB_ID as celeborn shared appId for all
+          // other flink jobs
           if (!ZERO_JOB_ID.equals(jobID)) {
             this.celebornAppId = FlinkUtils.toCelebornAppId(rssMetaServiceTimestamp, jobID);
           } else {
