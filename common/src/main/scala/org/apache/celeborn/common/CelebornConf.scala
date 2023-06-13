@@ -659,6 +659,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsMaxRetries: Int = get(CLIENT_RESERVE_SLOTS_MAX_RETRIES)
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
+  def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientRpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
@@ -2480,9 +2481,10 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.excluded.expireTimeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
+      .doc("Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout`" +
+        "to cover worker heartbeat timeout check period")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
+      .createWithDefaultString("180s")
 
   val CLIENT_CHECKED_USE_ALLOCATED_WORKERS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.checked.useAllocatedWorkers")
@@ -2985,6 +2987,14 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(v => v > 0, "value must be positive")
       .createWithDefault(2)
+
+  val CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.commitFiles.ignoreExcludedWorker")
+      .categories("client")
+      .version("0.3.0")
+      .doc("When true, LifecycleManager will skip workers which are in the excluded list.")
+      .booleanConf
+      .createWithDefault(false)
 
   val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.stageEnd.timeout")
