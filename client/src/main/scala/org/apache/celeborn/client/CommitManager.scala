@@ -233,6 +233,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       cause: Option[StatusCode]): Unit = {
     // If a partition location is null, then the cause will be PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.
     // So here is no need to check partition location is null or not.
+    assert(partitionLocation == null && cause.get == StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)
     if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
       val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
       shuffleCommittedInfo.synchronized {

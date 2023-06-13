@@ -252,7 +252,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
         }
       val cause = Utils.toStatusCode(pb.getStatus)
       logTrace(s"Received Revive request, " +
-        s"$applicationId, $shuffleId, $mapId, $attemptId, ,$partitionId," +
+        s"$applicationId, $shuffleId, $mapId, $attemptId ,$partitionId," +
         s" $epoch, $oldPartition, $cause.")
       handleRevive(
         context,
