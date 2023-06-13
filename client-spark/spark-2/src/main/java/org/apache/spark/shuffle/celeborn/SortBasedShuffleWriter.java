@@ -293,7 +293,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             throw new IOException("Unable to push after switching pusher!");
           }
         }
-        writeMetrics.incWriteTime(System.nanoTime() - insertStartTime);
       }
       shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
