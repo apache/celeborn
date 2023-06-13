@@ -231,7 +231,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       shuffleId: Int,
       partitionLocation: PartitionLocation,
       cause: Option[StatusCode]): Unit = {
-    if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
+    if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT && partitionLocation != null) {
       val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
       shuffleCommittedInfo.synchronized {
         shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
