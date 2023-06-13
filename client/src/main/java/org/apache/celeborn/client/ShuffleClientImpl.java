@@ -531,7 +531,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation oldLocation,
       StatusCode cause) {
     // Add ShuffleClient side blacklist
-    if (shuffleClientPushBlacklistEnabled) {
+    if (shuffleClientPushBlacklistEnabled && oldLocation != null) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
         blacklist.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
