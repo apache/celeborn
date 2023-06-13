@@ -171,7 +171,7 @@ public abstract class RssInputStream extends InputStream {
         return false;
       }
       RoaringBitmap bitmap = location.getMapIdBitMap();
-      if (bitmap == null && location.getPeer() != null) {
+      if (bitmap == null && location.hasPeer()) {
         bitmap = location.getPeer().getMapIdBitMap();
       }
       for (int i = startMapIndex; i < endMapIndex; i++) {
@@ -232,7 +232,7 @@ public abstract class RssInputStream extends InputStream {
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
           fetchChunkRetryCnt++;
-          if (location.getPeer() != null) {
+          if (location.hasPeer()) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
             // so sleep before next try.
             if (fetchChunkRetryCnt % 2 == 0) {
@@ -275,7 +275,7 @@ public abstract class RssInputStream extends InputStream {
                     + currentReader.getLocation(),
                 e);
           } else {
-            if (currentReader.getLocation().getPeer() != null) {
+            if (currentReader.getLocation().hasPeer()) {
               logger.warn(
                   "Fetch chunk failed {}/{} times for location {}, change to peer",
                   fetchChunkRetryCnt,
@@ -307,10 +307,10 @@ public abstract class RssInputStream extends InputStream {
     private PartitionReader createReader(
         PartitionLocation location, int fetchChunkRetryCnt, int fetchChunkMaxRetry)
         throws IOException, InterruptedException {
-      if (location.getPeer() == null) {
+      if (!location.hasPeer()) {
         logger.debug("Partition {} has only one partition replica.", location);
       }
-      if (location.getPeer() != null && attemptNumber % 2 == 1) {
+      if (location.hasPeer() && attemptNumber % 2 == 1) {
         location = location.getPeer();
         logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }

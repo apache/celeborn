@@ -93,7 +93,7 @@ abstract class CommitHandler(
       shuffleCommittedInfo.unhandledPartitionLocations.clear()
       currentBatch.foreach { partitionLocation =>
         shuffleCommittedInfo.handledPartitionLocations.add(partitionLocation)
-        if (partitionLocation.getPeer != null) {
+        if (partitionLocation.hasPeer) {
           shuffleCommittedInfo.handledPartitionLocations.add(partitionLocation.getPeer)
         }
       }
@@ -102,7 +102,7 @@ abstract class CommitHandler(
         logDebug(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
           s"${currentBatch.map(_.getUniqueId).mkString("[", ",", "]")}")
         val workerToRequests = currentBatch.flatMap { partitionLocation =>
-          if (partitionLocation.getPeer != null) {
+          if (partitionLocation.hasPeer) {
             Seq(partitionLocation, partitionLocation.getPeer)
           } else {
             Seq(partitionLocation)
