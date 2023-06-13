@@ -22,6 +22,7 @@ license: |
 | celeborn.client.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.3.0 | 
 | celeborn.client.blacklistSlave.enabled | true | When true, Celeborn will add partition's peer worker into blacklist when push data to slave failed. | 0.3.0 | 
 | celeborn.client.closeIdleConnections | true | Whether client will close idle connections. | 0.3.0 | 
+| celeborn.client.commitFiles.ignoreExcludedWorker | false | When true, LifecycleManager will skip workers which are in the excluded list. | 0.3.0 | 
 | celeborn.client.excludedWorker.expireTimeout | 600s | Timeout time for LifecycleManager to clear reserved excluded worker. | 0.3.0 | 
 | celeborn.client.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.3.0 | 
 | celeborn.client.fetch.maxRetriesForEachReplica | 3 | Max retry times of fetch chunk on each replica | 0.3.0 | 
