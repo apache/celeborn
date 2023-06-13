@@ -334,6 +334,18 @@ private[celeborn] class Master(
         context,
         handleReportNodeUnavailable(context, failedWorkers, requestId))
 
+    case pb: PbWorkerLost =>
+      val host = pb.getHost
+      val rpcPort = pb.getRpcPort
+      val pushPort = pb.getPushPort
+      val fetchPort = pb.getFetchPort
+      val replicatePort = pb.getReplicatePort
+      val requestId = pb.getRequestId
+      logInfo(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort.")
+      executeWithLeaderChecker(
+        context,
+        handleWorkerLost(context, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
+
     case CheckQuota(userIdentifier) =>
       executeWithLeaderChecker(context, handleCheckQuota(userIdentifier, context))
   }
