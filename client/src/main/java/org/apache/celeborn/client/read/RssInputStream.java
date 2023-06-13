@@ -40,14 +40,10 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
-import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public abstract class RssInputStream extends InputStream {
   private static final Logger logger = LoggerFactory.getLogger(RssInputStream.class);
-
-  private static final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
-      JavaUtils.newConcurrentHashMap();
 
   public static RssInputStream create(
       CelebornConf conf,
@@ -57,7 +53,8 @@ public abstract class RssInputStream extends InputStream {
       int[] attempts,
       int attemptNumber,
       int startMapIndex,
-      int endMapIndex)
+      int endMapIndex,
+      ConcurrentHashMap<String, Long> fetchExcludedWorkers)
       throws IOException {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
@@ -70,7 +67,8 @@ public abstract class RssInputStream extends InputStream {
           attempts,
           attemptNumber,
           startMapIndex,
-          endMapIndex);
+          endMapIndex,
+          fetchExcludedWorkers);
     }
   }
 
@@ -133,6 +131,7 @@ public abstract class RssInputStream extends InputStream {
 
     private boolean fetchBlacklistEnabled;
     private long fetchExcludedWorkerExpireTimeout;
+    private final ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
     RssInputStreamImpl(
         CelebornConf conf,
@@ -142,7 +141,8 @@ public abstract class RssInputStream extends InputStream {
         int[] attempts,
         int attemptNumber,
         int startMapIndex,
-        int endMapIndex)
+        int endMapIndex,
+        ConcurrentHashMap<String, Long> fetchExcludedWorkers)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -155,6 +155,7 @@ public abstract class RssInputStream extends InputStream {
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.fetchBlacklistEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
+      this.fetchExcludedWorkers = fetchExcludedWorkers;
 
       int headerLen = Decompressor.getCompressionHeaderLength(conf);
       int blockSize = conf.clientPushBufferMaxSize() + headerLen;
@@ -237,36 +238,34 @@ public abstract class RssInputStream extends InputStream {
       currentChunk = getNextChunk();
     }
 
-    private void blacklistFailedLocation(PartitionLocation location, Exception e) {
-      if (conf.clientPushReplicateEnabled() && fetchBlacklistEnabled) {
-        if (criticalCause(e)) {
-          fetchExcludedWorkers.put(location.hostAndFetchPort(), System.currentTimeMillis());
-          // Avoid one data's two replicate both can't be fetched.
-          if (location.getPeer() != null) {
-            fetchExcludedWorkers.remove(location.getPeer().hostAndFetchPort());
-          }
-        }
+    private void excludeFailedLocation(PartitionLocation location, Exception e) {
+      if (conf.clientPushReplicateEnabled() && fetchBlacklistEnabled && isCriticalCause(e)) {
+        fetchExcludedWorkers.put(location.hostAndFetchPort(), System.currentTimeMillis());
       }
     }
 
-    // In RssInputStream, all operation is sync.
-    private boolean isBlacklisted(PartitionLocation location) {
+    private boolean isExcluded(PartitionLocation location) {
       Long timestamp = fetchExcludedWorkers.get(location.hostAndFetchPort());
       if (timestamp == null) {
         return false;
       } else if (System.currentTimeMillis() - timestamp > fetchExcludedWorkerExpireTimeout) {
         fetchExcludedWorkers.remove(location.hostAndFetchPort());
         return false;
-      } else if (location.getPeer() != null
-          && fetchExcludedWorkers.contains(location.getPeer().hostAndFetchPort())) {
-        fetchExcludedWorkers.remove(location.hostAndFetchPort());
-        return true;
+      } else if (location.getPeer() != null) {
+        Long peerTimestamp = fetchExcludedWorkers.get(location.getPeer().hostAndFetchPort());
+        // To avoid both replicate locations is excluded, if peer add to excluded list earlier,
+        // change to try peer.
+        if (peerTimestamp == null || peerTimestamp < timestamp) {
+          return true;
+        } else {
+          return false;
+        }
       } else {
         return true;
       }
     }
 
-    private boolean criticalCause(Exception e) {
+    private boolean isCriticalCause(Exception e) {
       boolean isConnectTimeout =
           e instanceof IOException
               && e.getMessage() != null
@@ -286,12 +285,12 @@ public abstract class RssInputStream extends InputStream {
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
-          if (isBlacklisted(location)) {
+          if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from blacklisted location! " + location);
           }
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
-          blacklistFailedLocation(location, e);
+          excludeFailedLocation(location, e);
           fetchChunkRetryCnt++;
           if (location.getPeer() != null) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
@@ -323,13 +322,13 @@ public abstract class RssInputStream extends InputStream {
     private ByteBuf getNextChunk() throws IOException {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
-          if (isBlacklisted(currentReader.getLocation())) {
+          if (isExcluded(currentReader.getLocation())) {
             throw new CelebornIOException(
                 "Fetch data from blacklisted location! " + currentReader.getLocation());
           }
           return currentReader.next();
         } catch (Exception e) {
-          blacklistFailedLocation(currentReader.getLocation(), e);
+          excludeFailedLocation(currentReader.getLocation(), e);
           fetchChunkRetryCnt++;
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
