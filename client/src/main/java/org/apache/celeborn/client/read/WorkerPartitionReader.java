@@ -51,6 +51,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private int chunkIndex;
 
   private final LinkedBlockingQueue<ByteBuf> results;
+  private final ChunkReceivedCallback callback;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
@@ -75,6 +76,28 @@ public class WorkerPartitionReader implements PartitionReader {
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    // only add the buffer to results queue if this reader is not closed.
+    callback =
+        new ChunkReceivedCallback() {
+          @Override
+          public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
+            // only add the buffer to results queue if this reader is not closed.
+            synchronized (this) {
+              ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
+              if (!closed) {
+                buf.retain();
+                results.add(buf);
+              }
+            }
+          }
+
+          @Override
+          public void onFailure(int chunkIndex, Throwable e) {
+            String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
+            logger.error(errorMsg, e);
+            exception.set(new CelebornIOException(errorMsg, e));
+          }
+        };
     TransportClient client = null;
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
@@ -138,28 +161,6 @@ public class WorkerPartitionReader implements PartitionReader {
       final int toFetch =
           Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandle.numChunks - chunkIndex);
       for (int i = 0; i < toFetch; i++) {
-        // only add the buffer to results queue if this reader is not closed.
-        ChunkReceivedCallback callback =
-            new ChunkReceivedCallback() {
-              @Override
-              public void onSuccess(int chunkIndex, ManagedBuffer buffer) {
-                // only add the buffer to results queue if this reader is not closed.
-                synchronized (this) {
-                  ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
-                  if (!closed) {
-                    buf.retain();
-                    results.add(buf);
-                  }
-                }
-              }
-
-              @Override
-              public void onFailure(int chunkIndex, Throwable e) {
-                String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
-                logger.error(errorMsg, e);
-                exception.set(new CelebornIOException(errorMsg, e));
-              }
-            };
         if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
           callback.onFailure(chunkIndex, new CelebornIOException("Test fetch chunk failure"));
         } else {
