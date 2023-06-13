@@ -702,7 +702,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
-  def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
+  def clientFetchOpenStreamTimeoutMs: Long = get(CLIENT_FETCH_OPENSTREAM_TIMEOUT)
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
 
@@ -2601,7 +2601,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("2s")
 
   val CLIENT_PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.data.timeout")
+    buildConf("celeborn.client.push.pushData.timeout")
       .withAlternative("celeborn.push.data.timeout")
       .categories("client")
       .version("0.3.0")
@@ -2703,12 +2703,12 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val CLIENT_FETCH_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.fetch.timeout")
+  val CLIENT_FETCH_OPENSTREAM_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.openStream.timeout")
       .withAlternative("celeborn.fetch.timeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout for a task to fetch chunk.")
+      .doc("Timeout for a task to open stream for fetching chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 

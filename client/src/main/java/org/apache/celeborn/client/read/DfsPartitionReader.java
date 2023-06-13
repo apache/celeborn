@@ -73,13 +73,13 @@ public class DfsPartitionReader implements PartitionReader {
 
     final List<Long> chunkOffsets = new ArrayList<>();
     if (endMapIndex != Integer.MAX_VALUE) {
-      long fetchTimeoutMs = conf.clientFetchTimeoutMs();
+      long openStreamTimeoutMs = conf.clientFetchOpenStreamTimeoutMs();
       try {
         TransportClient client =
             clientFactory.createClient(location.getHost(), location.getFetchPort());
         OpenStream openBlocks =
             new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-        ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), fetchTimeoutMs);
+        ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), openStreamTimeoutMs);
         Message.decode(response);
         // Parse this message to ensure sort is done.
       } catch (IOException | InterruptedException e) {

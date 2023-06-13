@@ -105,8 +105,8 @@ public class WorkerPartitionReader implements PartitionReader {
     }
     OpenStream openBlocks =
         new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-    long timeoutMs = conf.clientFetchTimeoutMs();
-    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+    long openStreamTimeoutMs = conf.clientFetchOpenStreamTimeoutMs();
+    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), openStreamTimeoutMs);
     streamHandle = (StreamHandle) Message.decode(response);
 
     this.location = location;
