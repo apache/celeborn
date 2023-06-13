@@ -97,6 +97,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final boolean shuffleClientPushBlacklistEnabled;
   private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
+  private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
+      JavaUtils.newConcurrentHashMap();
 
   private final ExecutorService pushDataRetryPool;
 
@@ -1481,7 +1483,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           fileGroups.mapAttempts,
           attemptNumber,
           startMapIndex,
-          endMapIndex);
+          endMapIndex,
+          fetchExcludedWorkers);
     }
   }
 
@@ -1507,6 +1510,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != driverRssMetaService) {
       driverRssMetaService = null;
     }
+    blacklist.clear();
+    fetchExcludedWorkers.clear();
     logger.warn("Shuffle client has been shutdown!");
   }
 
