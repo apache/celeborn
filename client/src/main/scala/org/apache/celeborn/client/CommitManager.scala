@@ -274,12 +274,14 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                 appId,
                 conf,
                 lifecycleManager.shuffleAllocatedWorkers,
-                committedPartitionInfo)
+                committedPartitionInfo,
+                lifecycleManager.workerStatusTracker)
             case PartitionType.MAP => new MapPartitionCommitHandler(
                 appId,
                 conf,
                 lifecycleManager.shuffleAllocatedWorkers,
-                committedPartitionInfo)
+                committedPartitionInfo,
+                lifecycleManager.workerStatusTracker)
             case _ => throw new UnsupportedOperationException(
                 s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
           }
