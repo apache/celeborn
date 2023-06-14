@@ -130,7 +130,6 @@ public class TransportClient implements Closeable {
     StreamChunkSlice streamChunkSlice = new StreamChunkSlice(streamId, chunkIndex, offset, len);
     StdChannelListener listener =
         new StdChannelListener(streamChunkSlice) {
-
           @Override
           protected void handleFailure(String errorMsg, Throwable cause) {
             handler.removeFetchRequest(streamChunkSlice);

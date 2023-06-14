@@ -264,15 +264,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
             NettyUtils.getRemoteAddress(channel));
         resp.body().release();
       } else {
-        ChunkReceivedCallback listener = info.callback;
-        if (listener == null) {
-          logger.warn(
-              "Ignoring response for block {} from {} since it is not outstanding",
-              resp.streamChunkSlice,
-              NettyUtils.getRemoteAddress(channel));
-          resp.body().release();
-        } else {
-          listener.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
+        try {
+          info.callback.onSuccess(resp.streamChunkSlice.chunkIndex, resp.body());
+        } finally {
           resp.body().release();
         }
       }
@@ -286,20 +280,11 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
             NettyUtils.getRemoteAddress(channel),
             resp.errorString);
       } else {
-        ChunkReceivedCallback listener = info.callback;
-        if (listener == null) {
-          logger.warn(
-              "Ignoring response for block {} from {} ({}) since it is not outstanding",
-              resp.streamChunkSlice,
-              NettyUtils.getRemoteAddress(channel),
-              resp.errorString);
-        } else {
-          logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
-          listener.onFailure(
-              resp.streamChunkSlice.chunkIndex,
-              new ChunkFetchFailureException(
-                  "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
-        }
+        logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
+        info.callback.onFailure(
+            resp.streamChunkSlice.chunkIndex,
+            new ChunkFetchFailureException(
+                "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
