@@ -231,6 +231,8 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       shuffleId: Int,
       partitionLocation: PartitionLocation,
       cause: Option[StatusCode]): Unit = {
+    // If a partition location is null, then the cause will be PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.
+    // So here is no need to check partition location is null or not.
     if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
       val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
       shuffleCommittedInfo.synchronized {
@@ -274,12 +276,14 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                 appId,
                 conf,
                 lifecycleManager.shuffleAllocatedWorkers,
-                committedPartitionInfo)
+                committedPartitionInfo,
+                lifecycleManager.workerStatusTracker)
             case PartitionType.MAP => new MapPartitionCommitHandler(
                 appId,
                 conf,
                 lifecycleManager.shuffleAllocatedWorkers,
-                committedPartitionInfo)
+                committedPartitionInfo,
+                lifecycleManager.workerStatusTracker)
             case _ => throw new UnsupportedOperationException(
                 s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
           }
