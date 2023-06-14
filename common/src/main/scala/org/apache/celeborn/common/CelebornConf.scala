@@ -3172,7 +3172,7 @@ object CelebornConf extends Logging {
   val METRICS_CONF: OptionalConfigEntry[String] =
     buildConf("celeborn.metrics.conf")
       .categories("metrics")
-      .doc("Customize metrics conf path.")
+      .doc("Custom metrics configuration file path. Default use `metrics.properties` in classpath.")
       .version("0.3.0")
       .stringConf
       .createOptional
