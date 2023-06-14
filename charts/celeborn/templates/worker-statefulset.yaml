@@ -74,7 +74,7 @@ spec:
       {{- if .Values.hostNetwork }}
       hostNetwork: true
       {{- end }}
-      dnsPolicy: {{ .Values.dnsPolicy | default "Default" }}
+      dnsPolicy: {{ .Values.dnsPolicy | default "ClusterFirst" }}
       initContainers:
       {{- $dirs := .Values.volumes.worker }}
       {{- if eq "hostPath" (index $dirs 0).type }}
