@@ -624,6 +624,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                 Metrics System                      //
   // //////////////////////////////////////////////////////
+  def metricsConf: Option[String] = get(METRICS_CONF)
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
@@ -3164,6 +3165,14 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.test.alternative.deprecatedKey")
       .categories("test")
       .internal
+      .version("0.3.0")
+      .stringConf
+      .createOptional
+
+  val METRICS_CONF: OptionalConfigEntry[String] =
+    buildConf("celeborn.metrics.conf")
+      .categories("metrics")
+      .doc("Custom metrics configuration file path. Default use `metrics.properties` in classpath.")
       .version("0.3.0")
       .stringConf
       .createOptional
