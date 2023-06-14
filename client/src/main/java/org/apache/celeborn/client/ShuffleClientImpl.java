@@ -92,7 +92,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final ConcurrentHashMap<Integer, Set<Integer>> mapperEndMap =
       JavaUtils.newConcurrentHashMap();
 
-  private final Set<Integer> stageEndShuffleSet = ConcurrentHashMap.newKeySet();
+  protected final Set<Integer> stageEndShuffleSet = ConcurrentHashMap.newKeySet();
 
   // key: shuffleId-mapId-attemptId
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
