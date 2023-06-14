@@ -693,6 +693,9 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           failureInfos.add(s"[reserveSlots] Failed to" +
             s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
+          if (res.status.equals(StatusCode.WORKER_SHUTDOWN)) {
+            workerStatusTracker.resolveShutdownWorkers(List(workerInfo).asJava)
+          }
           reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
         }
     }
@@ -864,6 +867,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           retryCandidates.addAll(candidates)
           // remove blacklist from retryCandidates
           retryCandidates.removeAll(workerStatusTracker.blacklist.keys().asScala.toList.asJava)
+          retryCandidates.removeAll(workerStatusTracker.shuttingWorkers.asScala.toList.asJava)
           if (retryCandidates.size < 1 || (pushReplicateEnabled && retryCandidates.size < 2)) {
             logError(s"Retry reserve slots for $shuffleId failed caused by not enough slots.")
             noAvailableSlots = true
