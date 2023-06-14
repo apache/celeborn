@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.write;
+package org.apache.celeborn.common.read;
 
 import io.netty.channel.ChannelFuture;
 

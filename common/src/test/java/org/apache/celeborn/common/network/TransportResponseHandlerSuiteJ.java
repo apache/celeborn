@@ -33,8 +33,8 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.util.Utils;
-import org.apache.celeborn.common.write.FetchRequestInfo;
 import org.apache.celeborn.common.write.PushRequestInfo;
 
 public class TransportResponseHandlerSuiteJ {

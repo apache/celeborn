@@ -37,9 +37,9 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.StatusCode;
+import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
-import org.apache.celeborn.common.write.FetchRequestInfo;
 import org.apache.celeborn.common.write.PushRequestInfo;
 
 /**

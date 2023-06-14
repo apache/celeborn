@@ -39,7 +39,7 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
-import org.apache.celeborn.common.write.FetchRequestInfo;
+import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.write.PushRequestInfo;
 
 /**
