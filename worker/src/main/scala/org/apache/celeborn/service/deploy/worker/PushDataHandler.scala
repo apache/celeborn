@@ -160,7 +160,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     // Fetch real batchId from body will add more cost and no meaning for replicate.
-    val doReplicate = location != null && location.getPeer != null && isMaster
+    val doReplicate = location != null && location.hasPeer && isMaster
     val softSplit = new AtomicBoolean(false)
 
     if (location == null) {
@@ -419,7 +419,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     // Fetch real batchId from body will add more cost and no meaning for replicate.
     val doReplicate =
-      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.getPeer != null && isMaster
+      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.hasPeer && isMaster
 
     // find FileWriters responsible for the data
     partitionIdToLocations.foreach { case (id, loc) =>
@@ -770,7 +770,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     fileWriter.incrementPendingWrites()
 
     // for master, send data to slave
-    if (location.getPeer != null && isMaster) {
+    if (location.hasPeer && isMaster) {
       // to do
       wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     } else {
@@ -893,7 +893,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionFinish()
       }
       // for master, send data to slave
-      if (location.getPeer != null && isMaster) {
+      if (location.hasPeer && isMaster) {
         // TODO replica
         wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
       } else {

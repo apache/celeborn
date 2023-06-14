@@ -65,6 +65,8 @@ public class PartitionLocation implements Serializable {
   private RoaringBitmap mapIdBitMap;
   private transient String _hostPushPort;
 
+  private transient String _hostFetchPort;
+
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
     this.epoch = loc.epoch;
@@ -78,6 +80,7 @@ public class PartitionLocation implements Serializable {
     this.storageInfo = loc.storageInfo;
     this.mapIdBitMap = loc.mapIdBitMap;
     this._hostPushPort = host + ":" + pushPort;
+    this._hostFetchPort = host + ":" + fetchPort;
   }
 
   public PartitionLocation(
@@ -151,6 +154,7 @@ public class PartitionLocation implements Serializable {
     this.storageInfo = hint;
     this.mapIdBitMap = mapIdBitMap;
     this._hostPushPort = host + ":" + pushPort;
+    this._hostFetchPort = host + ":" + fetchPort;
   }
 
   public int getId() {
@@ -206,6 +210,10 @@ public class PartitionLocation implements Serializable {
         + replicatePort;
   }
 
+  public String hostAndFetchPort() {
+    return _hostFetchPort;
+  }
+
   public String hostAndPushPort() {
     return _hostPushPort;
   }
@@ -224,6 +232,10 @@ public class PartitionLocation implements Serializable {
 
   public void setPeer(PartitionLocation peer) {
     this.peer = peer;
+  }
+
+  public boolean hasPeer() {
+    return peer != null;
   }
 
   public String getUniqueId() {

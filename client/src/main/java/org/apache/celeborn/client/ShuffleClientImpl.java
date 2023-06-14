@@ -97,6 +97,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final boolean pushExcludeOnFailureEnabled;
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
+  private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
+      JavaUtils.newConcurrentHashMap();
 
   private final ExecutorService pushDataRetryPool;
 
@@ -185,8 +187,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (pushExcludedWorkers.contains(location.hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       return true;
-    } else if (location.getPeer() != null
-        && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
+    } else if (location.hasPeer() && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       return true;
     } else {
@@ -360,7 +361,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private String genAddressPair(PartitionLocation loc) {
     String addressPair;
-    if (loc.getPeer() != null) {
+    if (loc.hasPeer()) {
       addressPair = loc.hostAndPushPort() + "-" + loc.getPeer().hostAndPushPort();
     } else {
       addressPair = loc.hostAndPushPort();
@@ -528,8 +529,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       int epoch,
       PartitionLocation oldLocation,
       StatusCode cause) {
-    // Add ShuffleClient side pushExcludedWorkers
-    if (pushExcludeOnFailureEnabled) {
+    if (pushExcludeOnFailureEnabled && oldLocation != null) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
         pushExcludedWorkers.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
@@ -1481,7 +1481,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           fileGroups.mapAttempts,
           attemptNumber,
           startMapIndex,
-          endMapIndex);
+          endMapIndex,
+          fetchExcludedWorkers);
     }
   }
 
@@ -1507,6 +1508,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != driverRssMetaService) {
       driverRssMetaService = null;
     }
+    blacklist.clear();
+    fetchExcludedWorkers.clear();
     logger.warn("Shuffle client has been shutdown!");
   }
 

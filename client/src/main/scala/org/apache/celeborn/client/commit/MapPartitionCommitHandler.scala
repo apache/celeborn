@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -51,8 +51,9 @@ class MapPartitionCommitHandler(
     appId: String,
     conf: CelebornConf,
     shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
-    committedPartitionInfo: CommittedPartitionInfo)
-  extends CommitHandler(appId, conf, committedPartitionInfo)
+    committedPartitionInfo: CommittedPartitionInfo,
+    workerStatusTracker: WorkerStatusTracker)
+  extends CommitHandler(appId, conf, committedPartitionInfo, workerStatusTracker)
   with Logging {
 
   private val shuffleSucceedPartitionIds = JavaUtils.newConcurrentHashMap[Int, util.Set[Integer]]()

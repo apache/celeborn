@@ -85,12 +85,16 @@ class RssColumnarBatchBuilder(
     val giantBuffer = new ByteArrayOutputStream
     val rowCntBytes = int2ByteArray(rowCnt)
     giantBuffer.write(rowCntBytes)
-    columnBuilders.foreach { builder =>
+    val builderLen = columnBuilders.length
+    var i = 0
+    while (i < builderLen) {
+      val builder = columnBuilders(i)
       val buffers = builder.build()
       val bytes = JavaUtils.bufferToArray(buffers)
       val columnBuilderBytes = int2ByteArray(bytes.length)
       giantBuffer.write(columnBuilderBytes)
       giantBuffer.write(bytes)
+      i += 1
     }
     giantBuffer.toByteArray
   }

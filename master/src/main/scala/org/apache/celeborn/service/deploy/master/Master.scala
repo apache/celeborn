@@ -221,7 +221,7 @@ private[celeborn] class Master(
       val fetchPort = pb.getFetchPort
       val replicatePort = pb.getReplicatePort
       val requestId = pb.getRequestId
-      logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort.")
+      logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
       executeWithLeaderChecker(
         null,
         handleWorkerLost(null, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
@@ -307,7 +307,7 @@ private[celeborn] class Master(
           estimatedAppDiskUsage,
           requestId) =>
       logDebug(s"Received heartbeat from" +
-        s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
+        s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
       executeWithLeaderChecker(
         context,
         handleHeartbeatFromWorker(
@@ -330,6 +330,18 @@ private[celeborn] class Master(
       executeWithLeaderChecker(
         context,
         handleReportNodeUnavailable(context, failedWorkers, requestId))
+
+    case pb: PbWorkerLost =>
+      val host = pb.getHost
+      val rpcPort = pb.getRpcPort
+      val pushPort = pb.getPushPort
+      val fetchPort = pb.getFetchPort
+      val replicatePort = pb.getReplicatePort
+      val requestId = pb.getRequestId
+      logInfo(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+      executeWithLeaderChecker(
+        context,
+        handleWorkerLost(context, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
 
     case CheckQuota(userIdentifier) =>
       executeWithLeaderChecker(context, handleCheckQuota(userIdentifier, context))
@@ -417,7 +429,8 @@ private[celeborn] class Master(
     val expiredShuffleKeys = new util.HashSet[String]
     activeShuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
-        logWarning(s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort.")
+        logWarning(
+          s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
@@ -446,7 +459,7 @@ private[celeborn] class Master(
       .find(_ == targetWorker)
       .orNull
     if (worker == null) {
-      logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort" +
+      logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort" +
         s" for WorkerLost handler!")
       return
     }
