@@ -303,7 +303,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
          |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2147483647, avgFlushTime: 1, avgFetchTime: 1, activeSlots: 10) status: HEALTHY dirs $placeholder
          |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2147483647, avgFlushTime: 2, avgFetchTime: 2, activeSlots: 20) status: HEALTHY dirs $placeholder
          |UserResourceConsumption: $placeholder
-         |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MB, diskFileCount: 1, hdfsBytesWritten: 50.0 MB, hdfsFileCount: 1)
+         |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1)
          |WorkerRef: NettyRpcEndpointRef(rss://mockRpc@localhost:12345)
          |""".stripMargin;
 
