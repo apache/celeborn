@@ -49,7 +49,7 @@ class QuotaSuite extends BaseQuotaManagerSuite {
       false,
       "User `mock`.`mock` used diskBytesWritten (1000.0 B) exceeds quota (100.0 B). " +
         "User `mock`.`mock` used diskFileCount(2000) exceeds quota(200). " +
-        "User `mock`.`mock` used hdfsBytesWritten(2.9 KB) exceeds quota(300.0 B). " +
+        "User `mock`.`mock` used hdfsBytesWritten(2.9 KiB) exceeds quota(300.0 B). " +
         "User `mock`.`mock` used hdfsFileCount(4000) exceeds quota(400). ")
 
     assert(res1 == exp1)
