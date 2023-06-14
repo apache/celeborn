@@ -206,20 +206,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     // mapKey
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
-    // return if shuffle stage already ended
-    if (mapperEnded(shuffleId, mapId, attemptId)) {
-      logger.info(
-          "Push data byteBuf to location {} ignored because mapper already ended for shuffle {} map {} attempt {}.",
-          location.hostAndPushPort(),
-          shuffleId,
-          mapId,
-          attemptId);
-      PushState pushState = pushStates.get(mapKey);
-      if (pushState != null) {
-        pushState.cleanup();
-      }
-      return 0;
-    }
 
     PushState pushState = getPushState(mapKey);
 
@@ -258,14 +244,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           @Override
           public void onSuccess(ByteBuffer response) {
             pushState.removeBatch(nextBatchId, location.hostAndPushPort());
-            if (response.remaining() > 0) {
-              byte reason = response.get();
-              if (reason == StatusCode.STAGE_ENDED.getValue()) {
-                mapperEndMap
-                    .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
-                    .add(mapKey);
-              }
-            }
             logger.debug(
                 "Push data byteBuf to {} success for shuffle {} map {} attemptId {} batch {}.",
                 location.hostAndPushPort(),
@@ -281,21 +259,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             if (pushState.exception.get() != null) {
               return;
             }
-            if (!mapperEnded(shuffleId, mapId, attemptId)) {
-              String errorMsg =
-                  String.format(
-                      "Push data byteBuf to %s failed for shuffle %d map %d attempt %d batch %d.",
-                      location.hostAndPushPort(), shuffleId, mapId, attemptId, nextBatchId);
-              pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
-            } else {
-              logger.warn(
-                  "Push data to {} failed but mapper already ended for shuffle {} map {} attempt {} batch {}.",
-                  location.hostAndPushPort(),
-                  shuffleId,
-                  mapId,
-                  attemptId,
-                  nextBatchId);
-            }
+            String errorMsg =
+                String.format(
+                    "Push data byteBuf to %s failed for shuffle %d map %d attempt %d batch %d.",
+                    location.hostAndPushPort(), shuffleId, mapId, attemptId, nextBatchId);
+            pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
           }
         };
     // do push data
@@ -431,11 +399,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             StatusCode respStatus = Utils.toStatusCode(response.getStatus());
             if (StatusCode.SUCCESS.equals(respStatus)) {
               return Optional.of(PbSerDeUtils.fromPbPartitionLocation(response.getLocation()));
-            } else if (StatusCode.MAP_ENDED.equals(respStatus)) {
-              mapperEndMap
-                  .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
-                  .add(mapKey);
-              return Optional.empty();
             } else {
               // throw exception
               logger.error(
@@ -492,16 +455,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     try {
       // mapKey
       final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-      // return if shuffle stage already ended
-      if (mapperEnded(shuffleId, mapId, attemptId)) {
-        logger.debug(
-            "Send message to {} ignored because mapper already ended for shuffle {} map {} attempt {}.",
-            location.hostAndPushPort(),
-            shuffleId,
-            mapId,
-            attemptId);
-        return null;
-      }
       pushState = getPushState(mapKey);
 
       // add inFlight requests
