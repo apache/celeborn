@@ -92,8 +92,8 @@ public class TransportClient implements Closeable {
   }
 
   public void fetchChunk(
-      long streamId, int chunkIndex, long fetchTimeoutMs, ChunkReceivedCallback callback) {
-    fetchChunk(streamId, chunkIndex, 0, Integer.MAX_VALUE, fetchTimeoutMs, callback);
+      long streamId, int chunkIndex, long fetchDataTimeout, ChunkReceivedCallback callback) {
+    fetchChunk(streamId, chunkIndex, 0, Integer.MAX_VALUE, fetchDataTimeout, callback);
   }
 
   /**
@@ -118,7 +118,7 @@ public class TransportClient implements Closeable {
       int chunkIndex,
       int offset,
       int len,
-      long fetchTimeoutMs,
+      long fetchDataTimeout,
       ChunkReceivedCallback callback) {
     if (logger.isDebugEnabled()) {
       logger.debug(
@@ -138,7 +138,7 @@ public class TransportClient implements Closeable {
           }
         };
 
-    long dueTime = System.currentTimeMillis() + fetchTimeoutMs;
+    long dueTime = System.currentTimeMillis() + fetchDataTimeout;
     FetchRequestInfo info = new FetchRequestInfo(dueTime, callback);
     handler.addFetchRequest(streamChunkSlice, info);
 

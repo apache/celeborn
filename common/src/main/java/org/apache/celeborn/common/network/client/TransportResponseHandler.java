@@ -152,13 +152,12 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     }
   }
 
-  public void addFetchRequest(
-      StreamChunkSlice streamChunkSlice, FetchRequestInfo fetchRequestInfo) {
+  public void addFetchRequest(StreamChunkSlice streamChunkSlice, FetchRequestInfo info) {
     updateTimeOfLastRequest();
     if (outstandingFetches.containsKey(streamChunkSlice)) {
       logger.warn("[addFetchRequest] streamChunkSlice {} already exists!", streamChunkSlice);
     }
-    outstandingFetches.put(streamChunkSlice, fetchRequestInfo);
+    outstandingFetches.put(streamChunkSlice, info);
   }
 
   public void removeFetchRequest(StreamChunkSlice streamChunkSlice) {
