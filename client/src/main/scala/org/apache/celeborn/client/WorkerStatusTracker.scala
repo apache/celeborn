@@ -39,7 +39,7 @@ class WorkerStatusTracker(
 
   // blacklist
   val blacklist = new ShuffleFailedWorkers()
-  private val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
+  val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusListeners.add(workerStatusListener)

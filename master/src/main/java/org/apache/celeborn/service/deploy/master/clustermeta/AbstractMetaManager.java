@@ -359,8 +359,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
     synchronized (this.workers) {
       shutdownWorkers.addAll(failedWorkers);
-      failedWorkers.retainAll(this.workers);
-      this.blacklist.addAll(failedWorkers);
     }
   }
 
