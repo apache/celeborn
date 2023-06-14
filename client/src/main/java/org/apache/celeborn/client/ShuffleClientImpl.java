@@ -187,8 +187,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (blacklist.contains(location.hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       return true;
-    } else if (location.getPeer() != null
-        && blacklist.contains(location.getPeer().hostAndPushPort())) {
+    } else if (location.hasPeer() && blacklist.contains(location.getPeer().hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       return true;
     } else {
@@ -362,7 +361,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private String genAddressPair(PartitionLocation loc) {
     String addressPair;
-    if (loc.getPeer() != null) {
+    if (loc.hasPeer()) {
       addressPair = loc.hostAndPushPort() + "-" + loc.getPeer().hostAndPushPort();
     } else {
       addressPair = loc.hostAndPushPort();
