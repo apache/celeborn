@@ -34,7 +34,7 @@ masterReplicas: 3
 workerReplicas: 5
 
 hostNetwork: false
-dnsPolicy: Default
+dnsPolicy: ClusterFirst
 
 securityContext:
   runAsUser: 10006
