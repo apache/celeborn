@@ -89,6 +89,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       JavaUtils.newConcurrentHashMap();
 
+  // key: shuffleId, value: Set(mapId)
   protected final ConcurrentHashMap<Integer, Set<Integer>> mapperEndMap =
       JavaUtils.newConcurrentHashMap();
 
