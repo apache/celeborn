@@ -234,6 +234,10 @@ public class PartitionLocation implements Serializable {
     this.peer = peer;
   }
 
+  public boolean hasPeer() {
+    return peer != null;
+  }
+
   public String getUniqueId() {
     return id + "-" + epoch;
   }
