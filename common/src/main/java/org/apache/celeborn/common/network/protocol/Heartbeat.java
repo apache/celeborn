@@ -23,13 +23,16 @@ public class Heartbeat extends RequestMessage {
 
   @Override
   public int encodedLength() {
-    return 0;
+    return 1; // only one byte for Heartbeat
   }
 
   @Override
-  public void encode(ByteBuf buf) {}
+  public void encode(ByteBuf buf) {
+    buf.writeByte(0);
+  }
 
   public static Message decode(ByteBuf buffer) {
+    buffer.skipBytes(1);
     return new Heartbeat();
   }
 
