@@ -61,18 +61,20 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     // test new added workers
     Assert.assertTrue(statusTracker.blacklist.containsKey(mock("host0")))
     Assert.assertTrue(statusTracker.blacklist.containsKey(mock("host3")))
-    Assert.assertTrue(statusTracker.blacklist.containsKey(mock("host4")))
+    Assert.assertTrue(!statusTracker.blacklist.contains(mock("host4")))
+    Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
 
     // test re heartbeat with shutdown workers
     val response3 = buildResponse(Array.empty, Array.empty, Array("host4"))
     statusTracker.handleHeartbeatResponse(response3)
-    Assert.assertTrue(statusTracker.blacklist.containsKey(mock("host4")))
+    Assert.assertTrue(!statusTracker.blacklist.contains(mock("host4")))
+    Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
 
     // test remove
     val workers = new util.HashSet[WorkerInfo]
-    workers.add(mock("host4"))
+    workers.add(mock("host3"))
     statusTracker.removeFromBlacklist(workers)
-    Assert.assertFalse(statusTracker.blacklist.containsKey(mock("host4")))
+    Assert.assertFalse(statusTracker.blacklist.containsKey(mock("host3")))
 
     // test register time elapsed
     Thread.sleep(3000)
