@@ -90,12 +90,11 @@ class WorkerPartitionLocationInfo extends Logging {
     if (locations != null && locations.size() > 0) {
       partitionInfo.computeIfAbsent(
         shuffleKey,
-        key -> {
-          return JavaUtils.newConcurrentHashMap[String, PartitionLocation]()
-      })
+        (k: Int) => {return JavaUtils.newConcurrentHashMap[String, PartitionLocation]()}
+      )
       val partitionMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
-        partitionMap.computeIfAbsent(loc.getUniqueId, key -> loc)
+        partitionMap.computeIfAbsent(loc.getUniqueId, (k: Int) => loc)
       }
     }
   }

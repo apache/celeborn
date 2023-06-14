@@ -151,7 +151,7 @@ class NettyRpcEnv(
         val outbox = outboxes.get(receiver.address)
         if (outbox == null) {
           val newOutbox = new Outbox(this, receiver.address)
-          val oldOutbox = outboxes.computeIfAbsent(receiver.address, key -> newOutbox)
+          val oldOutbox = outboxes.computeIfAbsent(receiver.address, newOutbox)
           if (oldOutbox == null) {
             newOutbox
           } else {
@@ -599,7 +599,7 @@ private[celeborn] class NettyRpcHandler(
       // The remote RpcEnv listens to some port, we should also fire a RemoteProcessConnected for
       // the listening address
       val remoteEnvAddress = requestMessage.senderAddress
-      if (remoteAddresses.computeIfAbsent(clientAddr, key -> remoteEnvAddress) == null) {
+      if (remoteAddresses.computeIfAbsent(clientAddr, remoteEnvAddress) == null) {
         dispatcher.postToAll(RemoteProcessConnected(remoteEnvAddress))
       }
       requestMessage

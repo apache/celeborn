@@ -142,14 +142,14 @@ class ReleasePartitionManager(
       if (masterLocations != null && !masterLocations.isEmpty) {
         workerResource.computeIfAbsent(
           workerInfo,
-          key -> lifecycleManager.newLocationFunc)._1.addAll(masterLocations)
+          lifecycleManager.newLocationFunc)._1.addAll(masterLocations)
       }
 
       val slaveLocations = partitionLocationInfo.removeSlavePartitions(partitionId)
       if (slaveLocations != null && !slaveLocations.isEmpty) {
         workerResource.computeIfAbsent(
           workerInfo,
-          key -> lifecycleManager.newLocationFunc)._2.addAll(slaveLocations)
+          lifecycleManager.newLocationFunc)._2.addAll(slaveLocations)
       }
     }
   }
