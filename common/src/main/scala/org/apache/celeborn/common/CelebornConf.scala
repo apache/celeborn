@@ -2448,7 +2448,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("enable the heartbeat from worker to client when pushing data")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val WORKER_FETCH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.fetch.heartbeat.enabled")
@@ -2456,7 +2456,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("enable the heartbeat from worker to client when fetching data")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.application.heartbeatInterval")

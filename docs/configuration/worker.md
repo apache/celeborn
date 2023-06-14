@@ -36,7 +36,7 @@ license: |
 | celeborn.worker.directMemoryRatioToPauseReceive | 0.85 | If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients. | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToPauseReplicate | 0.95 | If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToResume | 0.5 | If direct memory usage is less than this limit, worker will resume. | 0.2.0 | 
-| celeborn.worker.fetch.heartbeat.enabled | true | enable the heartbeat from worker to client when fetching data | 0.3.0 | 
+| celeborn.worker.fetch.heartbeat.enabled | false | enable the heartbeat from worker to client when fetching data | 0.3.0 | 
 | celeborn.worker.fetch.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to handle client fetch data. The default threads number is the number of flush thread. | 0.2.0 | 
 | celeborn.worker.fetch.port | 0 | Server port for Worker to receive fetch data request from ShuffleClient. | 0.2.0 | 
 | celeborn.worker.flusher.buffer.size | 256k | Size of buffer used by a single flusher. | 0.2.0 | 
@@ -66,7 +66,7 @@ license: |
 | celeborn.worker.partition.initial.readBuffersMax | 1024 | Max number of initial read buffers | 0.3.0 | 
 | celeborn.worker.partition.initial.readBuffersMin | 1 | Min number of initial read buffers | 0.3.0 | 
 | celeborn.worker.partitionSorter.directMemoryRatioThreshold | 0.1 | Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition sorter memory, partition sorter will stop sorting. | 0.2.0 | 
-| celeborn.worker.push.heartbeat.enabled | true | enable the heartbeat from worker to client when pushing data | 0.3.0 | 
+| celeborn.worker.push.heartbeat.enabled | false | enable the heartbeat from worker to client when pushing data | 0.3.0 | 
 | celeborn.worker.push.io.threads | &lt;undefined&gt; | Netty IO thread number of worker to handle client push data. The default threads number is the number of flush thread. | 0.2.0 | 
 | celeborn.worker.push.port | 0 | Server port for Worker to receive push data request from ShuffleClient. | 0.2.0 | 
 | celeborn.worker.readBuffer.allocationWait | 50ms | The time to wait when buffer dispatcher can not allocate a buffer. | 0.3.0 | 
