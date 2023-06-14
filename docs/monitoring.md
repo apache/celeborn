@@ -92,7 +92,7 @@ These metrics are exposed by Celeborn master.
   - namespace=master 
     - WorkerCount
     - LostWorkers
-    - BlacklistedWorkerCount
+    - ExcludedWorkerCount
     - RegisteredShuffleCount
     - IsActiveMaster
     - PartitionSize
