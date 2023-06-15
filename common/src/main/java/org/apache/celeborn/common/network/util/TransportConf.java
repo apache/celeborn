@@ -142,6 +142,14 @@ public class TransportConf {
     return celebornConf.pushDataTimeoutCheckInterval(module);
   }
 
+  public int fetchDataTimeoutCheckerThreads() {
+    return celebornConf.fetchDataTimeoutCheckerThreads(module);
+  }
+
+  public long fetchDataTimeoutCheckIntervalMs() {
+    return celebornConf.fetchDataTimeoutCheckInterval(module);
+  }
+
   public long clientHearbeatInterval() {
     return celebornConf.clientHeartbeatInterval(module);
   }

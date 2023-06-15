@@ -482,6 +482,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getTimeAsMs(key, PUSH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
   }
 
+  def fetchDataTimeoutCheckerThreads(module: String): Int = {
+    val key = FETCH_TIMEOUT_CHECK_THREADS.key.replace("<module>", module)
+    getInt(key, FETCH_TIMEOUT_CHECK_THREADS.defaultValue.get)
+  }
+
+  def fetchDataTimeoutCheckInterval(module: String): Long = {
+    val key = FETCH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
+    getTimeAsMs(key, FETCH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
+  }
+
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
@@ -1381,6 +1391,26 @@ object CelebornConf extends Logging {
         s"it works for shuffle client push data and should be configured on client side. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
         s"it works for worker replicate data to peer worker and should be configured on worker side.")
+      .version("0.3.0")
+      .intConf
+      .createWithDefault(16)
+
+  val FETCH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.fetch.timeoutCheck.interval")
+      .categories("network")
+      .doc("Interval for checking fetch data timeout. " +
+        s"It only support setting <module> to `${TransportModuleConstants.DATA_MODULE}` " +
+        s"since it works for shuffle client fetch data and should be configured on client side.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val FETCH_TIMEOUT_CHECK_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.fetch.timeoutCheck.threads")
+      .categories("network")
+      .doc("Threads num for checking fetch data timeout. " +
+        s"It only support setting <module> to `${TransportModuleConstants.DATA_MODULE}` " +
+        s"since it works for shuffle client fetch data and should be configured on client side.")
       .version("0.3.0")
       .intConf
       .createWithDefault(16)
@@ -2608,7 +2638,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("2s")
 
   val CLIENT_PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.data.timeout")
+    buildConf("celeborn.client.push.timeout")
       .withAlternative("celeborn.push.data.timeout")
       .categories("client")
       .version("0.3.0")
@@ -2715,7 +2745,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.fetch.timeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout for a task to fetch chunk.")
+      .doc("Timeout for a task to open stream and fetch chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
