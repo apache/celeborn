@@ -215,12 +215,12 @@ public class RequestTimeoutIntegrationSuiteJ {
 
     // Send one request, which will eventually fail.
     TestCallback callback0 = new TestCallback();
-    client.fetchChunk(0, 0, callback0);
+    client.fetchChunk(0, 0, 10000, callback0);
     Uninterruptibles.sleepUninterruptibly(1200, TimeUnit.MILLISECONDS);
 
     // Send a second request before the first has failed.
     TestCallback callback1 = new TestCallback();
-    client.fetchChunk(0, 1, callback1);
+    client.fetchChunk(0, 1, 10000, callback1);
     Uninterruptibles.sleepUninterruptibly(1200, TimeUnit.MILLISECONDS);
 
     // not complete yet, but should complete soon

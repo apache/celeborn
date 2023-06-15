@@ -33,6 +33,7 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushRequestInfo;
 
@@ -46,7 +47,8 @@ public class TransportResponseHandlerSuiteJ {
             Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.FETCH_MODULE, 8),
             new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
-    handler.addFetchRequest(streamChunkSlice, callback);
+    FetchRequestInfo info = new FetchRequestInfo(System.currentTimeMillis() + 30000, callback);
+    handler.addFetchRequest(streamChunkSlice, info);
     assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new ChunkFetchSuccess(streamChunkSlice, new TestManagedBuffer(123)));
@@ -62,7 +64,8 @@ public class TransportResponseHandlerSuiteJ {
             Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.FETCH_MODULE, 8),
             new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
-    handler.addFetchRequest(streamChunkSlice, callback);
+    FetchRequestInfo info = new FetchRequestInfo(System.currentTimeMillis() + 30000, callback);
+    handler.addFetchRequest(streamChunkSlice, info);
     assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new ChunkFetchFailure(streamChunkSlice, "some error msg"));
@@ -77,9 +80,10 @@ public class TransportResponseHandlerSuiteJ {
             Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
             new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
-    handler.addFetchRequest(new StreamChunkSlice(1, 0), callback);
-    handler.addFetchRequest(new StreamChunkSlice(1, 1), callback);
-    handler.addFetchRequest(new StreamChunkSlice(1, 2), callback);
+    FetchRequestInfo info = new FetchRequestInfo(System.currentTimeMillis() + 30000, callback);
+    handler.addFetchRequest(new StreamChunkSlice(1, 0), info);
+    handler.addFetchRequest(new StreamChunkSlice(1, 1), info);
+    handler.addFetchRequest(new StreamChunkSlice(1, 2), info);
     assertEquals(3, handler.numOutstandingRequests());
 
     handler.handle(new ChunkFetchSuccess(new StreamChunkSlice(1, 0), new TestManagedBuffer(12)));

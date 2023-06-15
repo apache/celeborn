@@ -903,6 +903,8 @@ object Utils extends Logging {
         StatusCode.PUSH_DATA_MASTER_BLACKLISTED
       case 45 =>
         StatusCode.PUSH_DATA_SLAVE_BLACKLISTED
+      case 46 =>
+        StatusCode.FETCH_DATA_TIMEOUT
       case _ =>
         null
     }

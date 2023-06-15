@@ -55,6 +55,7 @@ public class WorkerPartitionReader implements PartitionReader {
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
+  private final long fetchTimeoutMs;
   private boolean closed = false;
 
   // for test
@@ -74,6 +75,7 @@ public class WorkerPartitionReader implements PartitionReader {
       throws IOException, InterruptedException {
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
+    fetchTimeoutMs = conf.clientFetchTimeoutMs();
     // only add the buffer to results queue if this reader is not closed.
     callback =
         new ChunkReceivedCallback() {
@@ -105,8 +107,7 @@ public class WorkerPartitionReader implements PartitionReader {
     }
     OpenStream openBlocks =
         new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-    long timeoutMs = conf.clientFetchTimeoutMs();
-    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), timeoutMs);
+    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), fetchTimeoutMs);
     streamHandle = (StreamHandle) Message.decode(response);
 
     this.location = location;
@@ -166,7 +167,7 @@ public class WorkerPartitionReader implements PartitionReader {
           try {
             TransportClient client =
                 clientFactory.createClient(location.getHost(), location.getFetchPort());
-            client.fetchChunk(streamHandle.streamId, chunkIndex, callback);
+            client.fetchChunk(streamHandle.streamId, chunkIndex, fetchTimeoutMs, callback);
             chunkIndex++;
           } catch (IOException e) {
             logger.error(
