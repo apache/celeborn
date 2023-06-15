@@ -41,7 +41,7 @@ At startup, it will automatically select a free port, user need to set a fixed v
 At the same time, users need to adjust the number of retry times and retry wait time
 of the client according to cluster rolling restart situation
 to support the shuffle client to read data through retries after worker restarted.
-The shuffle client fetch data retry times configuration is `celeborn.fetch.maxRetries`, default value is `3`.
+The shuffle client fetch data retry times configuration is `celeborn.client.fetch.maxRetriesForEachReplica`, default value is `3`.
 The shuffle client fetch data retry wait time configuration is `celeborn.data.io.retryWait`, default value is `5s`.
 Users can increase the configuration value appropriately according to the situation.
 
@@ -70,7 +70,7 @@ In order to speed up the restart process, worker let all push data requests retu
 during worker shutdown, and shuffle client will re-apply for a new partition location for these allocated partitions.
 Then client side can record all HARD_SPLIT partition information and pre-commit these partition,
 then the worker side allocated partitions can be committed in a very short time. User should enable
-`celeborn.shuffle.batchHandleCommitPartition.enabled`, the default value is false.
+`celeborn.client.shuffle.batchHandleCommitPartition.enabled`, the default value is false.
 
 ## Example setting:
 
@@ -86,8 +86,8 @@ then the worker side allocated partitions can be committed in a very short time.
 
 ### Client
 
-| Key                                                       | Value |
-|-----------------------------------------------------------|-------| 
-| spark.celeborn.shuffle.batchHandleCommitPartition.enabled | true  |
-| spark.celeborn.fetch.maxRetries                           | 5     |
-| spark.celeborn.data.io.retryWait                          | 10s   |
+| Key                                                              | Value |
+|------------------------------------------------------------------|-------| 
+| spark.celeborn.client.shuffle.batchHandleCommitPartition.enabled | true  |
+| spark.celeborn.client.fetch.maxRetriesForEachReplica             | 5     |
+| spark.celeborn.data.io.retryWait                                 | 10s   |

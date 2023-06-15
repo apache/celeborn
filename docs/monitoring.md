@@ -275,10 +275,10 @@ The configuration of `<master-prometheus-host>`, `<master-prometheus-port>`, `<w
 
 | Key                                     | Default | Description                | Since |
 |-----------------------------------------|---------|----------------------------|-------|
-| celeborn.master.metrics.prometheus.host | 0.0.0.0 | Master's Prometheus host.  | 0.2.0 |
-| celeborn.master.metrics.prometheus.port | 9098    | Master's Prometheus port.  | 0.2.0 |
-| celeborn.worker.metrics.prometheus.host | 0.0.0.0 | Worker's Prometheus host.  | 0.2.0 |
-| celeborn.worker.metrics.prometheus.port | 9096    | Worker's Prometheus port.  | 0.2.0 |
+| celeborn.metrics.master.prometheus.host | 0.0.0.0 | Master's Prometheus host.  | 0.2.0 |
+| celeborn.metrics.master.prometheus.port | 9098    | Master's Prometheus port.  | 0.2.0 |
+| celeborn.metrics.worker.prometheus.host | 0.0.0.0 | Worker's Prometheus host.  | 0.2.0 |
+| celeborn.metrics.worker.prometheus.port | 9096    | Worker's Prometheus port.  | 0.2.0 |
 
 API path listed as below:
 
