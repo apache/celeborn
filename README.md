@@ -112,7 +112,7 @@ celeborn.master.host clb-master
 celeborn.master.port 9097
 
 celeborn.metrics.enabled true
-celeborn.worker.flush.buffer.size 256k
+celeborn.worker.flusher.buffer.size 256k
 # Disk type is HDD by defaut.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -141,7 +141,7 @@ celeborn.ha.master.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
-celeborn.worker.flush.buffer.size 256k
+celeborn.worker.flusher.buffer.size 256k
 # Disk type is HDD by defaut.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -210,11 +210,11 @@ spark.shuffle.service.enabled false
 # options: hash, sort
 # Hash shuffle writer use (partition count) * (celeborn.push.buffer.max.size) * (spark.executor.cores) memory.
 # Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
-spark.celeborn.shuffle.writer hash
+spark.celeborn.client.spark.shuffle.writer hash
 
-# We recommend setting spark.celeborn.push.replicate.enabled to true to enable server-side data replication
+# We recommend setting spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
 # If you have only one worker, this setting must be false 
-spark.celeborn.push.replicate.enabled true
+spark.celeborn.client.push.replicate.enabled true
 
 # Support for Spark AQE only tested under Spark 3
 # we recommend setting localShuffleReader to false to get better performance of Celeborn
@@ -234,14 +234,14 @@ To use Celeborn, the following flink configurations should be added.
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
 
-celeborn.shuffle.batchHandleReleasePartition.enabled: true
-celeborn.push.maxReqsInFlight: 128
+celeborn.client.shuffle.batchHandleReleasePartition.enabled: true
+celeborn.client.push.maxReqsInFlight: 128
 
 # Network connections between peers
 celeborn.data.io.numConnectionsPerPeer: 16
 # threads number may vary according to your cluster but do not set to 1
 celeborn.data.io.threads: 32
-celeborn.shuffle.batchHandleCommitPartition.threads: 32
+celeborn.client.shuffle.batchHandleCommitPartition.threads: 32
 celeborn.rpc.dispatcher.numThreads: 32
 
 # Floating buffers may need to change `taskmanager.network.memory.fraction` and `taskmanager.network.memory.max`
