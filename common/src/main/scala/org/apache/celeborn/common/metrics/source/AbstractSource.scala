@@ -115,8 +115,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
           return (
             NamedTimer(name, timer, labels ++ staticLabels),
             JavaUtils.newConcurrentHashMap[String, Long]())
-        }
-      )
+        })
     }
   }
 
