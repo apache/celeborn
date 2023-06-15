@@ -541,7 +541,7 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
-    val availableWorkers = workersAvailable(shutdownWorkerSnapshot.asScala.toSet)
+    val availableWorkers = workersAvailable()
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
@@ -740,7 +740,8 @@ private[celeborn] class Master(
   private def workersAvailable(
       tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.blacklist.contains(w) && !tmpBlacklist.contains(w)
+      !statusSystem.blacklist.contains(w) && !statusSystem.shutdownWorkers.contains(
+        w) && !tmpBlacklist.contains(w)
     }.asJava
   }
 

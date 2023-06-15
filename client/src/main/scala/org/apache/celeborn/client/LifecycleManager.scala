@@ -693,9 +693,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           failureInfos.add(s"[reserveSlots] Failed to" +
             s" reserve buffers for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
             s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
-          if (res.status.equals(StatusCode.WORKER_SHUTDOWN)) {
-            workerStatusTracker.resolveShutdownWorkers(List(workerInfo).asJava)
-          }
           reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
         }
     }

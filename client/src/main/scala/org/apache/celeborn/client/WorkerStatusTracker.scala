@@ -53,6 +53,10 @@ class WorkerStatusTracker(
     }
   }
 
+  def isWorkerAvailable(worker: WorkerInfo) = {
+    !blacklist.containsKey(worker) && !shuttingWorkers.contains(worker)
+  }
+
   def blacklistWorkerFromPartition(
       shuffleId: Int,
       oldPartition: PartitionLocation,
