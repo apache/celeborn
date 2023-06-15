@@ -93,7 +93,7 @@ class WorkerPartitionLocationInfo extends Logging {
         (k: String) => { return JavaUtils.newConcurrentHashMap[String, PartitionLocation]() })
       val partitionMap = partitionInfo.get(shuffleKey)
       locations.asScala.foreach { loc =>
-        partitionMap.git(loc.getUniqueId, (k: Int) => loc)
+        partitionMap.computeIfAbsent(loc.getUniqueId, (k: Int) => loc)
       }
     }
   }
