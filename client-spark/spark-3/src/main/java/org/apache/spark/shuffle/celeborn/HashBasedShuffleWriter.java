@@ -102,8 +102,21 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private StructType schema;
 
-  private boolean isColumnarShuffle = false;
   private final boolean unsafeRowFastWrite;
+
+  // //////////////////////////////////////////////////////
+  //                 Columnar Relate Conf                //
+  // //////////////////////////////////////////////////////
+
+  private boolean isColumnarShuffle = false;
+
+  private int columnarShuffleBatchSize;
+
+  private boolean columnarShuffleCodeGenEnabled;
+
+  private boolean columnarShuffleDictionaryEnabled;
+
+  private double columnarShuffleDictionaryMaxFactor;
 
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
@@ -164,6 +177,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
 
     if (conf.columnarShuffleEnabled()) {
+      columnarShuffleBatchSize = conf.columnarShuffleBatchSize();
+      columnarShuffleCodeGenEnabled = conf.columnarShuffleCodeGenEnabled();
+      columnarShuffleDictionaryEnabled = conf.columnarShuffleDictionaryEnabled();
+      columnarShuffleDictionaryMaxFactor = conf.columnarShuffleDictionaryMaxFactor();
       this.schema = SparkUtils.getSchema(dep);
       this.rssBatchBuilders = new RssBatchBuilder[numPartitions];
       this.isColumnarShuffle = RssBatchBuilder.supportsColumnarType(schema);
@@ -216,22 +233,22 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
       if (rssBatchBuilders[partitionId] == null) {
         RssBatchBuilder columnBuilders;
-        if (conf.columnarShuffleCodeGenEnabled() && !conf.columnarShuffleDictionaryEnabled()) {
+        if (columnarShuffleCodeGenEnabled && !columnarShuffleDictionaryEnabled) {
           columnBuilders =
-              new RssColumnarBatchCodeGenBuild().create(schema, conf.columnarShuffleBatchSize());
+              new RssColumnarBatchCodeGenBuild().create(schema, columnarShuffleBatchSize);
         } else {
           columnBuilders =
               new RssColumnarBatchBuilder(
                   schema,
-                  conf.columnarShuffleBatchSize(),
-                  conf.columnarShuffleDictionaryMaxFactor(),
-                  conf.columnarShuffleDictionaryEnabled());
+                  columnarShuffleBatchSize,
+                  columnarShuffleDictionaryMaxFactor,
+                  columnarShuffleDictionaryEnabled);
         }
         columnBuilders.newBuilders();
         rssBatchBuilders[partitionId] = columnBuilders;
       }
       rssBatchBuilders[partitionId].writeRow(row);
-      if (rssBatchBuilders[partitionId].getRowCnt() >= conf.columnarShuffleBatchSize()) {
+      if (rssBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize) {
         byte[] arr = rssBatchBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {
