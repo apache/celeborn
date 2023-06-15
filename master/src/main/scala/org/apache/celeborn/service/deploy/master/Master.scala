@@ -465,7 +465,7 @@ private[celeborn] class Master(
       logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort" +
         s" for WorkerLost handler!")
       if (context != null) {
-        context.reply(WorkerLostResponse(false))
+        context.reply(WorkerLostResponse(true))
       }
     } else {
       statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
