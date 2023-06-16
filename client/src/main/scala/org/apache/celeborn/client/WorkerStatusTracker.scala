@@ -39,7 +39,7 @@ class WorkerStatusTracker(
 
   // blacklist
   val blacklist = new ShuffleFailedWorkers()
-  private val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
+  val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusListeners.add(workerStatusListener)
@@ -49,8 +49,12 @@ class WorkerStatusTracker(
     if (conf.clientCheckedUseAllocatedWorkers) {
       lifecycleManager.getAllocatedWorkers()
     } else {
-      blacklist.asScala.keys.toSet
+      blacklist.asScala.keys.toSet ++ shuttingWorkers.asScala.toSet
     }
+  }
+
+  def isWorkerAvailable(worker: WorkerInfo) = {
+    !blacklist.containsKey(worker) && !shuttingWorkers.contains(worker)
   }
 
   def blacklistWorkerFromPartition(
@@ -172,11 +176,6 @@ class WorkerStatusTracker(
           .map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
       }
 
-      if (!res.shuttingWorkers.isEmpty) {
-        blacklist.putAll(res.shuttingWorkers.asScala.filterNot(blacklist.containsKey)
-          .map(_ -> (StatusCode.WORKER_SHUTDOWN -> current)).toMap.asJava)
-      }
-
       val newShutdownWorkers = resolveShutdownWorkers(res.shuttingWorkers)
       if (!res.unknownWorkers.isEmpty || !newShutdownWorkers.isEmpty) {
         blacklist.putAll(res.unknownWorkers.asScala.filterNot(blacklist.containsKey)
@@ -196,7 +195,7 @@ class WorkerStatusTracker(
     }
   }
 
-  private def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): JList[WorkerInfo] = {
+  def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): JList[WorkerInfo] = {
     // shutdownWorkers only retain workers appeared in response.
     shuttingWorkers.retainAll(newShutdownWorkers)
     val shutdownList = newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains).asJava

@@ -539,19 +539,20 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
+    val availableWorkers = workersAvailable()
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
             SlotsAllocator.offerSlotsRoundRobin(
-              workersNotBlacklisted(),
+              availableWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware)
           } else {
             SlotsAllocator.offerSlotsLoadAware(
-              workersNotBlacklisted(),
+              availableWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
@@ -588,7 +589,7 @@ private[celeborn] class Master(
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
       s" on ${slots.size()} workers.")
 
-    val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
+    val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
     val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
@@ -734,10 +735,11 @@ private[celeborn] class Master(
     context.reply(CheckQuotaResponse(isAvailable, reason))
   }
 
-  private def workersNotBlacklisted(
+  private def workersAvailable(
       tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.blacklist.contains(w) && !tmpBlacklist.contains(w)
+      !statusSystem.blacklist.contains(w) && !statusSystem.shutdownWorkers.contains(
+        w) && !tmpBlacklist.contains(w)
     }.asJava
   }
 
