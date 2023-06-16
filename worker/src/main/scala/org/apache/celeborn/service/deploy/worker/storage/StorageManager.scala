@@ -354,7 +354,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 deviceMonitor,
                 splitThreshold,
                 splitMode,
-              rangeReadFilter)
+                rangeReadFilter)
             case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
           }
           deviceMonitor.registerFileWriter(fileWriter)

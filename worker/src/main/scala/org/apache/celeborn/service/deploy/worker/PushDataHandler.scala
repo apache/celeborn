@@ -94,7 +94,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               client,
               pushData.requestId,
               pushData.shuffleKey)
-            val partitionType = shufflePartitionType.getOrDefault(pushData.shuffleKey, PartitionType.REDUCE)
+            val partitionType =
+              shufflePartitionType.getOrDefault(pushData.shuffleKey, PartitionType.REDUCE)
             partitionType match {
               case PartitionType.REDUCE => handlePushData(
                   pushData,
