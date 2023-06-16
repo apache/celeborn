@@ -19,7 +19,6 @@ package org.apache.celeborn.client.read;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.ConnectException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -269,24 +268,20 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private boolean isCriticalCause(Exception e) {
-      boolean connectException =
-          e instanceof IOException
-              && e.getCause() != null
-              && e.getCause() instanceof ConnectException;
-      boolean connectTimeout =
-          e instanceof IOException
-              && e.getMessage() != null
-              && e.getMessage().startsWith("Connecting to")
-              && e.getMessage().contains("timed out");
       boolean rpcTimeout =
           e instanceof IOException
               && e.getCause() != null
               && e.getCause() instanceof TimeoutException;
+      boolean connectException =
+          e instanceof CelebornIOException
+              && e.getMessage() != null
+              && (e.getMessage().startsWith("Connecting to")
+                  || e.getMessage().startsWith("Failed to"));
       boolean fetchChunkTimeout =
           e instanceof CelebornIOException
               && e.getCause() != null
               && e.getCause() instanceof IOException;
-      return connectException || connectTimeout || rpcTimeout || fetchChunkTimeout;
+      return connectException || rpcTimeout || fetchChunkTimeout;
     }
 
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
