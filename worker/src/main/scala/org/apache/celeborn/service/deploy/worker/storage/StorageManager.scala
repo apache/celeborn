@@ -311,6 +311,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               splitThreshold,
               splitMode,
               rangeReadFilter)
+          case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
         }
 
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
@@ -353,7 +354,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 deviceMonitor,
                 splitThreshold,
                 splitMode,
-                rangeReadFilter)
+              rangeReadFilter)
+            case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
           }
           deviceMonitor.registerFileWriter(fileWriter)
           val map = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)

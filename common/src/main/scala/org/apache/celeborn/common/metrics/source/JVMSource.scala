@@ -37,6 +37,7 @@ class JVMSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
     .map { x =>
       x.getMetrics.asScala.map {
         case (name: String, metric: Gauge[_]) => addGauge(name, metric)
+        case (name, metric) => new IllegalArgumentException(s"Unknown metric type: $name: $metric")
       }
     }
   // start cleaner

@@ -421,7 +421,7 @@ class TimerSupplier(val slidingWindowSize: Int)
 class GaugeSupplier[T](f: Unit => T) extends MetricRegistry.MetricSupplier[Gauge[_]] {
   override def newMetric(): Gauge[T] = {
     new Gauge[T] {
-      override def getValue: T = f()
+      override def getValue: T = f(())
     }
   }
 }

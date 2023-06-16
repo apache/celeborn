@@ -18,8 +18,6 @@
 package org.apache.celeborn.common.meta
 
 import java.util
-import java.util.Objects
-import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
