@@ -550,6 +550,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       .map(k => extractPrefix(k, "."))
       .distinct
 
+    // CELEBORN-638: compatible with `celeborn.ha.master.*`, expect to remove before 0.4.0
     val legacyNodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.alternatives.head._1, "<id>")
     val legacyNodeIds = getAllWithPrefix(legacyNodeConfPrefix)
       .map(_._1)
