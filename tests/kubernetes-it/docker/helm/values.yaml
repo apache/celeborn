@@ -26,6 +26,8 @@ imagePullSecrets: {}
 masterReplicas: 1
 workerReplicas: 1
 
+hostNetwork: true
+dnsPolicy: ClusterFirstWithHostNet
 securityContext:
   runAsUser: 10006
   runAsGroup: 10006
