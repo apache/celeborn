@@ -73,7 +73,7 @@ $ celeborn-ratis sh -D<property=value> ...
 
 **Note:**
 
-Celeborn HA uses `NETTY` as the default RPC type, for details please refer to configuration `celeborn.ha.master.ratis.raft.rpc.type`. But Ratis uses `GRPC` as the default RPC type. So if the user wants to use Ratis shell to access Ratis cluster which uses `NETTY` RPC type, the generic option `-Draft.rpc.type=NETTY` should be set to change the RPC type of Ratis shell to Netty.
+Celeborn HA uses `NETTY` as the default RPC type, for details please refer to configuration `celeborn.master.ha.ratis.raft.rpc.type`. But Ratis uses `GRPC` as the default RPC type. So if the user wants to use Ratis shell to access Ratis cluster which uses `NETTY` RPC type, the generic option `-Draft.rpc.type=NETTY` should be set to change the RPC type of Ratis shell to Netty.
 
 ## election
 The `election` command manages leader election.
