@@ -1133,8 +1133,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   }
 
   private def shuffleResourceExists(shuffleId: Int): Boolean = {
-    val workers = workerSnapshots(shuffleId)
-    workers != null && !workers.isEmpty
+    val workerPartitionInfos = workerSnapshots(shuffleId)
+    workerPartitionInfos != null && workerPartitionInfos.values().asScala.exists(!_.isEmpty())
   }
 
   // Once a partition is released, it will be never needed anymore
