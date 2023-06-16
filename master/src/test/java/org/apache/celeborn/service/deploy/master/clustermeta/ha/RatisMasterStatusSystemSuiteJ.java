@@ -887,9 +887,12 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.shutdownWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM1.blacklist.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.blacklist.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.blacklist.size());
   }
 
   @Test
