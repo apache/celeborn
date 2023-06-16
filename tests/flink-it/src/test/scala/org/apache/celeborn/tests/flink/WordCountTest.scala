@@ -70,7 +70,6 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(parallelism)
-    env.getConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL)
     env.disableOperatorChaining()
     // make parameters available in the web interface
     WordCountHelper.execute(env, parallelism)
