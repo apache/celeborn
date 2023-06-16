@@ -71,6 +71,8 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      hostNetwork: {{ .Values.hostNetwork | default false }}
+      dnsPolicy: {{ .Values.dnsPolicy | default "ClusterFirst" }}
       initContainers:
       {{- $dirs := .Values.volumes.worker }}
       {{- if eq "hostPath" (index $dirs 0).type }}
