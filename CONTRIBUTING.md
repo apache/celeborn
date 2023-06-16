@@ -10,7 +10,7 @@ This project uses check-style plugins. Run some checks before you create a new p
 
 If you have changed configuration, run following command to refresh docs.
 ```shell
-UPDATE=1 build/mvn clean test -pl common -am -Pspark-3.3 -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite
+UPDATE=1 build/mvn clean test -pl common -am -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite
 ```
 
 ## How to Contribute
