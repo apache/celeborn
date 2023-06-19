@@ -115,12 +115,15 @@ class WorkerStatusTracker(
       val blacklistMsg = blacklist.asScala.map { case (worker, (status, time)) =>
         s"${worker.readableAddress()}   ${status.name()}   $time"
       }.mkString("\n")
+      val shuttingDownMsg = shuttingWorkers.asScala.map { _.readableAddress() }.mkString(";")
       logInfo(
         s"""
            |Reporting Worker Failure:
            |$failedWorkerMsg
            |Current blacklist:
            |$blacklistMsg
+           |Current shutting down:
+           |$shuttingDownMsg
                """.stripMargin)
       failedWorker.asScala.foreach {
         case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
@@ -198,6 +201,6 @@ class WorkerStatusTracker(
     shuttingWorkers.retainAll(newShutdownWorkers)
     val shutdownList = newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains).asJava
     shuttingWorkers.addAll(newShutdownWorkers)
-    shutdownList
+    newShutdownWorkers
   }
 }

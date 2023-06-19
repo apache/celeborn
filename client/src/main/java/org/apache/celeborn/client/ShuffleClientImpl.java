@@ -444,6 +444,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
             PartitionLocation partitionLoc =
                 PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));
+            // remove from blacklist
+            blacklist.remove(partitionLoc.hostAndPushPort());
+
             result.put(partitionLoc.getId(), partitionLoc);
           }
           return result;
