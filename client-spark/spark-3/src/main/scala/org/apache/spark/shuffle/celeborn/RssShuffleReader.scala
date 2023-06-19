@@ -21,7 +21,7 @@ import org.apache.spark.{InterruptibleIterator, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.{ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.sql.execution.UnsafeRowSerializer
-import org.apache.spark.sql.execution.columnar.{RssBatchBuilder, RssColumnarBatchBuilder, RssColumnarBatchSerializer}
+import org.apache.spark.sql.execution.columnar.{RssBatchBuilder, RssColumnarBatchSerializer}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 

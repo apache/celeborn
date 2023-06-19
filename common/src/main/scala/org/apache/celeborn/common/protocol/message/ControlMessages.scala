@@ -574,7 +574,7 @@ object ControlMessages extends Logging {
             PbFileGroup.newBuilder().addAllLocations(fileGroup.asScala.map(PbSerDeUtils
               .toPbPartitionLocation).toList.asJava).build())
         }.asJava)
-      builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
+      builder.addAllAttempts(attempts.map(Integer.valueOf).toIterable.asJava)
       builder.addAllPartitionIds(partitionIds)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
@@ -734,7 +734,7 @@ object ControlMessages extends Logging {
         .setShuffleId(shuffleId)
         .addAllMasterIds(masterIds)
         .addAllSlaveIds(slaveIds)
-        .addAllMapAttempts(mapAttempts.map(new Integer(_)).toIterable.asJava)
+        .addAllMapAttempts(mapAttempts.map(Integer.valueOf).toIterable.asJava)
         .setEpoch(epoch)
         .build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES, payload)

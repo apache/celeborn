@@ -19,7 +19,7 @@ package org.apache.celeborn.common.meta
 
 import java.util
 import java.util.{Map => jMap}
-import java.util.concurrent.{ConcurrentHashMap, Future, ThreadLocalRandom}
+import java.util.concurrent.{Future, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ArrayBuffer
