@@ -250,9 +250,11 @@ private[celeborn] class Master(
       val pushPort = pbRegisterWorker.getPushPort
       val fetchPort = pbRegisterWorker.getFetchPort
       val replicatePort = pbRegisterWorker.getReplicatePort
-      val disks = pbRegisterWorker.getDisksList.asScala
-        .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
-        .toMap.asJava
+      val disks = new util.HashMap[String, DiskInfo]()
+      pbRegisterWorker.getDisksList.asScala
+        .foreach { pbDiskInfo =>
+          disks.put(pbDiskInfo.getMountPoint, PbSerDeUtils.fromPbDiskInfo(pbDiskInfo))
+        }
       val userResourceConsumption =
         PbSerDeUtils.fromPbUserResourceConsumption(pbRegisterWorker.getUserResourceConsumptionMap)
 
