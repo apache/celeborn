@@ -152,7 +152,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public void updateWorkerLostMeta(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, null);
+    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
     workerLostEvents.add(worker);
     // remove worker from workers
     synchronized (workers) {
@@ -166,7 +166,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public void updateWorkerRemoveMeta(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, null);
+    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
     // remove worker from workers
     synchronized (workers) {
       workers.remove(worker);
@@ -188,14 +188,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       long time) {
     WorkerInfo worker =
         new WorkerInfo(
-            host,
-            rpcPort,
-            pushPort,
-            fetchPort,
-            replicatePort,
-            disks,
-            userResourceConsumption,
-            null);
+            host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
     AtomicLong availableSlots = new AtomicLong();
     LOG.debug("update worker {}:{} heart beat {}", host, rpcPort, disks);
     synchronized (workers) {
@@ -228,14 +221,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
     WorkerInfo workerInfo =
         new WorkerInfo(
-            host,
-            rpcPort,
-            pushPort,
-            fetchPort,
-            replicatePort,
-            disks,
-            userResourceConsumption,
-            null);
+            host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);

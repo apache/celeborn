@@ -191,8 +191,7 @@ object PbSerDeUtils {
       pbWorkerInfo.getFetchPort,
       pbWorkerInfo.getReplicatePort,
       disks,
-      userResourceConsumption,
-      null)
+      userResourceConsumption)
   }
 
   def toPbWorkerInfo(

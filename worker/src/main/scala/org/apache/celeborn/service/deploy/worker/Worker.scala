@@ -207,8 +207,7 @@ private[celeborn] class Worker(
       fetchPort,
       replicatePort,
       diskInfos,
-      userResourceConsumption,
-      controller.self)
+      userResourceConsumption)
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)

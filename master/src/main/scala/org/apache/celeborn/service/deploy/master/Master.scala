@@ -249,9 +249,11 @@ private[celeborn] class Master(
       val pushPort = pbRegisterWorker.getPushPort
       val fetchPort = pbRegisterWorker.getFetchPort
       val replicatePort = pbRegisterWorker.getReplicatePort
-      val disks = pbRegisterWorker.getDisksList.asScala
-        .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
-        .toMap.asJava
+      val disks = new util.HashMap[String, DiskInfo]()
+      pbRegisterWorker.getDisksList.asScala
+        .foreach { pbDiskInfo =>
+          disks.put(pbDiskInfo.getMountPoint, PbSerDeUtils.fromPbDiskInfo(pbDiskInfo))
+        }
       val userResourceConsumption =
         PbSerDeUtils.fromPbUserResourceConsumption(pbRegisterWorker.getUserResourceConsumptionMap)
 
@@ -454,8 +456,7 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
-      null)
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
     val worker: WorkerInfo = workersSnapShot
       .asScala
       .find(_ == targetWorker)
@@ -489,8 +490,7 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         disks,
-        userResourceConsumption,
-        null)
+        userResourceConsumption)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
