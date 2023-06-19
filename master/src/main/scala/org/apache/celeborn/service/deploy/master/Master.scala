@@ -454,8 +454,7 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
-      null)
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
     val worker: WorkerInfo = workersSnapShot
       .asScala
       .find(_ == targetWorker)
@@ -489,8 +488,7 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         disks,
-        userResourceConsumption,
-        null)
+        userResourceConsumption)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")

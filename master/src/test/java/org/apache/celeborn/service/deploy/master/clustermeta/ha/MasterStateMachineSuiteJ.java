@@ -246,9 +246,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     userResourceConsumption3.put(
         new UserIdentifier("tenant3", "name3"), new ResourceConsumption(3000, 3, 3000, 3));
 
-    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, disks1, userResourceConsumption1, null);
-    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, disks2, userResourceConsumption2, null);
-    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, disks3, userResourceConsumption3, null);
+    WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, disks1, userResourceConsumption1);
+    WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, disks2, userResourceConsumption2);
+    WorkerInfo info3 = new WorkerInfo("host3", 7, 8, 9, 12, disks3, userResourceConsumption3);
 
     String host1 = "host1";
     String host2 = "host2";
