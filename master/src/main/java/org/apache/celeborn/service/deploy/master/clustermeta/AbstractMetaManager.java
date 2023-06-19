@@ -202,7 +202,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           });
     }
     appDiskUsageMetric.update(estimatedAppDiskUsage);
-    if (!blacklist.contains(worker) && disks.isEmpty() && !shutdownWorkers.contains(worker)) {
+    if (!blacklist.contains(worker) && disks.isEmpty()) {
       LOG.debug("Worker: {} num total slots is 0, add to blacklist", worker);
       blacklist.add(worker);
     } else if (availableSlots.get() > 0) {
