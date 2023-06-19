@@ -130,8 +130,7 @@ class WorkerStatusTracker(
             blacklist.put(worker, (statusCode, registerTime))
           } else {
             statusCode match {
-              case StatusCode.WORKER_SHUTDOWN |
-                  StatusCode.NO_AVAILABLE_WORKING_DIR |
+              case StatusCode.NO_AVAILABLE_WORKING_DIR |
                   StatusCode.RESERVE_SLOTS_FAILED |
                   StatusCode.UNKNOWN_WORKER =>
                 blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
