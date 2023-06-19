@@ -34,12 +34,19 @@ class WorkerInfo(
     val pushPort: Int,
     val fetchPort: Int,
     val replicatePort: Int,
-    val diskInfos: util.Map[String, DiskInfo],
-    val userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
-    var endpoint: RpcEndpointRef) extends Serializable with Logging {
+    _diskInfos: util.Map[String, DiskInfo],
+    _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
+  with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var networkLocation = "/default-rack"
   var lastHeartbeat: Long = 0
+  val diskInfos =
+    if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos) else null
+  val userResourceConsumption =
+    if (_userResourceConsumption != null)
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
+    else null
+  var endpoint: RpcEndpointRef = null
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
@@ -49,26 +56,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
-      null)
-  }
-
-  def this(
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      endpoint: RpcEndpointRef) {
-    this(
-      host,
-      rpcPort,
-      pushPort,
-      fetchPort,
-      replicatePort,
-      new util.HashMap[String, DiskInfo](),
-      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
-      endpoint)
+      new util.HashMap[UserIdentifier, ResourceConsumption]())
   }
 
   val allocationBuckets = new Array[Int](61)
