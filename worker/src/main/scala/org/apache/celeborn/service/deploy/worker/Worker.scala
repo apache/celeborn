@@ -280,14 +280,10 @@ private[celeborn] class Worker(
     // During shutdown, return an empty diskInfo list to mark this worker as unavailable,
     // and avoid remove this from master's blacklist.
     val diskInfos =
-      if (shutdown.get()) {
-        Seq.empty[DiskInfo]
-      } else {
-        storageManager.updateDiskInfos()
-        workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
-          disk.mountPoint -> disk
-        }.toMap.asJava).values().asScala.toSeq
-      }
+      storageManager.updateDiskInfos()
+    workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
+      disk.mountPoint -> disk
+    }.toMap.asJava).values().asScala.toSeq
     val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
       storageManager.userResourceConsumptionSnapshot().asJava)
 

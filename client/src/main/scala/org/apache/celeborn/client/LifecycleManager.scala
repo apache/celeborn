@@ -512,20 +512,29 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
-      context.reply(ChangeLocationResponse(StatusCode.SHUFFLE_NOT_REGISTERED, None))
+      context.reply(ChangeLocationResponse(
+        StatusCode.SHUFFLE_NOT_REGISTERED,
+        None,
+        workerStatusTracker.excluded(oldPartition)))
       return
     }
 
     if (getPartitionType(shuffleId) == PartitionType.MAP) {
       logError(s"[handleRevive] shuffle $shuffleId revived filed, because map partition don't support revive!")
-      context.reply(ChangeLocationResponse(StatusCode.REVIVE_FAILED, None))
+      context.reply(ChangeLocationResponse(
+        StatusCode.REVIVE_FAILED,
+        None,
+        workerStatusTracker.excluded(oldPartition)))
       return
     }
 
     if (commitManager.isMapperEnded(shuffleId, mapId)) {
       logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
         s"ended attemptId ${commitManager.getMapperAttempts(shuffleId)(mapId)}, shuffleId $shuffleId.")
-      context.reply(ChangeLocationResponse(StatusCode.MAP_ENDED, None))
+      context.reply(ChangeLocationResponse(
+        StatusCode.MAP_ENDED,
+        None,
+        workerStatusTracker.excluded(oldPartition)))
       return
     }
 

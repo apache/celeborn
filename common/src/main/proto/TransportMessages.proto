@@ -220,6 +220,7 @@ message PbRevive {
 message PbChangeLocationResponse {
   int32 status = 1;
   PbPartitionLocation location = 2;
+  bool excluded = 3;
 }
 
 message PbPartitionSplit {

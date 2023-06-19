@@ -164,7 +164,10 @@ class ChangePartitionManager(
         // If new slot for the partition has been allocated, reply and return.
         // Else register and allocate for it.
         getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
-          context.reply(StatusCode.SUCCESS, Some(latestLoc))
+          context.reply(
+            StatusCode.SUCCESS,
+            Some(latestLoc),
+            lifecycleManager.workerStatusTracker.excluded(oldPartition))
           logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
@@ -226,9 +229,11 @@ class ChangePartitionManager(
           location -> Option(requestsMap.remove(location.getId))
         }
       }.foreach { case (newLocation, requests) =>
-        requests.map(_.asScala.toList.foreach(_.context.reply(
-          StatusCode.SUCCESS,
-          Option(newLocation))))
+        requests.map(_.asScala.toList.foreach(req =>
+          req.context.reply(
+            StatusCode.SUCCESS,
+            Option(newLocation),
+            lifecycleManager.workerStatusTracker.excluded(req.oldPartition))))
       }
     }
 
@@ -242,7 +247,11 @@ class ChangePartitionManager(
           Option(requestsMap.remove(changePartition.partitionId))
         }
       }.foreach { requests =>
-        requests.map(_.asScala.toList.foreach(_.context.reply(status, None)))
+        requests.map(_.asScala.toList.foreach(req =>
+          req.context.reply(
+            status,
+            None,
+            lifecycleManager.workerStatusTracker.excluded(req.oldPartition))))
       }
     }
 
@@ -252,7 +261,7 @@ class ChangePartitionManager(
         .workerSnapshots(shuffleId)
         .keySet()
         .asScala
-        .filter(lifecycleManager.workerStatusTracker.isWorkerAvailable)
+        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
         .toList
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")

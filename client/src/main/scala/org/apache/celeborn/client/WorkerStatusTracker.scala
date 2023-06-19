@@ -53,8 +53,16 @@ class WorkerStatusTracker(
     }
   }
 
-  def isWorkerAvailable(worker: WorkerInfo) = {
+  def workerAvailable(worker: WorkerInfo) = {
     !blacklist.containsKey(worker) && !shuttingWorkers.contains(worker)
+  }
+
+  def excluded(loc: PartitionLocation): Boolean = {
+    if (loc == null) {
+      false
+    } else {
+      blacklist.containsKey(loc.getWorker)
+    }
   }
 
   def blacklistWorkerFromPartition(
@@ -115,7 +123,7 @@ class WorkerStatusTracker(
       val blacklistMsg = blacklist.asScala.map { case (worker, (status, time)) =>
         s"${worker.readableAddress()}   ${status.name()}   $time"
       }.mkString("\n")
-      val shuttingDownMsg = shuttingWorkers.asScala.map { _.readableAddress() }.mkString(";")
+      val shuttingDownMsg = shuttingWorkers.asScala.map(_.readableAddress()).mkString("\n")
       logInfo(
         s"""
            |Reporting Worker Failure:
@@ -123,8 +131,7 @@ class WorkerStatusTracker(
            |Current blacklist:
            |$blacklistMsg
            |Current shutting down:
-           |$shuttingDownMsg
-               """.stripMargin)
+           |$shuttingDownMsg""".stripMargin)
       failedWorker.asScala.foreach {
         case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
           shuttingWorkers.add(worker)
@@ -177,11 +184,12 @@ class WorkerStatusTracker(
           .map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
       }
 
-      val newShutdownWorkers = resolveShutdownWorkers(res.shuttingWorkers)
-      if (!res.unknownWorkers.isEmpty || !newShutdownWorkers.isEmpty) {
+      shuttingWorkers.retainAll(res.shuttingWorkers)
+      shuttingWorkers.addAll(res.shuttingWorkers)
+      if (!res.unknownWorkers.isEmpty || !res.shuttingWorkers.isEmpty) {
         blacklist.putAll(res.unknownWorkers.asScala.filterNot(blacklist.containsKey)
           .map(_ -> (StatusCode.UNKNOWN_WORKER -> current)).toMap.asJava)
-        val workerStatus = new WorkersStatus(res.unknownWorkers, newShutdownWorkers)
+        val workerStatus = new WorkersStatus(res.unknownWorkers, res.shuttingWorkers)
         workerStatusListeners.asScala.foreach { listener =>
           try {
             listener.notifyChangedWorkersStatus(workerStatus)
@@ -194,13 +202,5 @@ class WorkerStatusTracker(
 
       logDebug(s"Current blacklist $blacklist")
     }
-  }
-
-  def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): JList[WorkerInfo] = {
-    // shutdownWorkers only retain workers appeared in response.
-    shuttingWorkers.retainAll(newShutdownWorkers)
-    val shutdownList = newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains).asJava
-    shuttingWorkers.addAll(newShutdownWorkers)
-    newShutdownWorkers
   }
 }
