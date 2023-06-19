@@ -191,7 +191,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     SQLMetric dataSize =
         SparkUtils.getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
-
+    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -203,6 +203,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(serializedRecordSize);
       }
 
+      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
@@ -225,13 +226,16 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             rowSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
+      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
+    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private void write0(scala.collection.Iterator iterator) throws IOException, InterruptedException {
     final scala.collection.Iterator<Product2<K, ?>> records = iterator;
 
+    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<K, ?> record = records.next();
       final K key = record._1();
@@ -244,6 +248,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
+      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
@@ -252,8 +257,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         System.arraycopy(serBuffer.getBuf(), 0, buffer, offset, serializedRecordSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
+      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
+    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private byte[] getOrCreateBuffer(int partitionId) {
@@ -268,7 +275,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record for partition {}, size {}.", partitionId, numBytes);
-    long pushStartTime = System.nanoTime();
     int bytesWritten =
         rssShuffleClient.pushData(
             appId,
@@ -283,7 +289,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numPartitions);
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
-    writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
 
   private int getOrUpdateOffset(int partitionId, int serializedRecordSize)
@@ -310,10 +315,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void flushSendBuffer(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
-    long pushStartTime = System.nanoTime();
     logger.debug("Flush buffer for partition {}, size {}.", partitionId, size);
     dataPusher.addTask(partitionId, buffer, size);
-    writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
 
   private void close() throws IOException, InterruptedException {
