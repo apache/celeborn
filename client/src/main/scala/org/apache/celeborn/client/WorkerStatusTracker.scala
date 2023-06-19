@@ -122,10 +122,10 @@ class WorkerStatusTracker(
            |Current blacklist:
            |$blacklistMsg
                """.stripMargin)
-      failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
-        if (StatusCode.WORKER_SHUTDOWN == statusCode) {
+      failedWorker.asScala.foreach {
+        case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
           shuttingWorkers.add(worker)
-        } else {
+        case (worker, (statusCode, registerTime)) =>
           if (!blacklist.containsKey(worker)) {
             blacklist.put(worker, (statusCode, registerTime))
           } else {
@@ -137,7 +137,6 @@ class WorkerStatusTracker(
               case _ => // Not cover
             }
           }
-        }
       }
     }
   }
