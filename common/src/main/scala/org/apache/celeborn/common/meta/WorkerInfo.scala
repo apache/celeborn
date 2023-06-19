@@ -40,13 +40,13 @@ class WorkerInfo(
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var networkLocation = "/default-rack"
   var lastHeartbeat: Long = 0
-  var endpoint: RpcEndpointRef = null
   val diskInfos =
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos) else null
   val userResourceConsumption =
     if (_userResourceConsumption != null)
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
     else null
+  var endpoint: RpcEndpointRef = null
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
