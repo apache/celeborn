@@ -505,12 +505,6 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       return
     }
 
-    if (getPartitionType(shuffleId) == PartitionType.MAP) {
-      logError(s"[handleRevive] shuffle $shuffleId revived filed, because map partition don't support revive!")
-      context.reply(ChangeLocationResponse(StatusCode.REVIVE_FAILED, None))
-      return
-    }
-
     if (commitManager.isMapperEnded(shuffleId, mapId)) {
       logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
         s"ended attemptId ${commitManager.getMapperAttempts(shuffleId)(mapId)}, shuffleId $shuffleId.")

@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
@@ -85,6 +86,11 @@ public class ReadClientHandler extends BaseMessageHandler {
             client.getSocketAddress().toString(),
             transportableError.getErrorMessage());
         processMessageInternal(streamId, transportableError);
+        break;
+      case BUFFER_STREAM_END:
+        BufferStreamEnd streamEnd = (BufferStreamEnd) msg;
+        logger.debug("received streamend for {}", streamEnd.getStreamId());
+        processMessageInternal(streamId, streamEnd);
         break;
       case ONE_WAY_MESSAGE:
         // ignore it.
