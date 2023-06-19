@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.util
 
+import scala.language.implicitConversions
+
 /**
  * Implicit conversion for scala(2.11) function to java function
  */

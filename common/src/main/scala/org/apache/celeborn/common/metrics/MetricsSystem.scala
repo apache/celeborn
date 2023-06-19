@@ -109,7 +109,7 @@ class MetricsSystem(
     sourceConfigs.foreach { kv =>
       val classPath = kv._2.getProperty("class")
       try {
-        val source = Utils.classForName(classPath).newInstance()
+        val source = Utils.classForName(classPath).getDeclaredConstructor().newInstance()
         registerSource(source.asInstanceOf[Source])
       } catch {
         case e: Exception => logError("Source class " + classPath + " cannot be instantiated", e)

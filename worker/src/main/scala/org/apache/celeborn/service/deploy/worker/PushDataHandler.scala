@@ -94,13 +94,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               client,
               pushData.requestId,
               pushData.shuffleKey)
-            shufflePartitionType.getOrDefault(pushData.shuffleKey, PartitionType.REDUCE) match {
+            val partitionType =
+              shufflePartitionType.getOrDefault(pushData.shuffleKey, PartitionType.REDUCE)
+            partitionType match {
               case PartitionType.REDUCE => handlePushData(
                   pushData,
                   callback)
               case PartitionType.MAP => handleMapPartitionPushData(
                   pushData,
                   callback)
+              case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
             }
           })
       case pushMergedData: PushMergedData =>
@@ -843,6 +846,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           (WorkerSource.MasterRegionStartTime, WorkerSource.SlaveRegionStartTime)
         case Type.REGION_FINISH =>
           (WorkerSource.MasterRegionFinishTime, WorkerSource.SlaveRegionFinishTime)
+        case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
 
     val location =
@@ -891,6 +895,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             message.asInstanceOf[RegionStart].isBroadcast)
         case Type.REGION_FINISH =>
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionFinish()
+        case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for master, send data to slave
       if (location.hasPeer && isMaster) {
@@ -1004,6 +1009,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         case Type.REGION_FINISH => (
             StatusCode.REGION_FINISH_FAIL_MASTER,
             StatusCode.REGION_FINISH_FAIL_SLAVE)
+        case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
     callback.onFailure(new CelebornIOException(
       if (isMaster) messageMaster else messageSlave,

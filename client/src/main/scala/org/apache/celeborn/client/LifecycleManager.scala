@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.{function, HashSet => JHashSet, List => JList, Set => JSet}
+import java.util.{function, List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -297,6 +297,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             attemptId,
             partitionId,
             numMappers)
+        case _ =>
+          throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
 
     case GetReducerFileGroup(applicationId: String, shuffleId: Int) =>
@@ -340,6 +342,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                 initialLocs)
             case PartitionType.REDUCE =>
               context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
+            case _ =>
+              throw new UnsupportedOperationException(s"Not support $partitionType yet")
           }
           return
         }
@@ -398,6 +402,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                   context.reply(response)
                 }
               case PartitionType.REDUCE => context.reply(response)
+              case _ =>
+                throw new UnsupportedOperationException(s"Not support $partitionType yet")
             }
           }))
         registeringShuffleRequest.remove(shuffleId)
@@ -406,7 +412,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     // First, request to get allocated slots from Master
     val ids = new util.ArrayList[Integer](numPartitions)
-    (0 until numPartitions).foreach(idx => ids.add(new Integer(idx)))
+    (0 until numPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
     val res = requestMasterRequestSlotsWithRetry(applicationId, shuffleId, ids)
 
     res.status match {

@@ -653,6 +653,15 @@
           <groupId>net.alchim31.maven</groupId>
           <artifactId>scala-maven-plugin</artifactId>
           <version>${maven.plugin.scala.version}</version>
+          <configuration>
+            <args>
+              <arg>-unchecked</arg>
+              <arg>-deprecation</arg>
+              <arg>-feature</arg>
+              <arg>-explaintypes</arg>
+              <arg>-Xfatal-warnings</arg>
+            </args>
+          </configuration>
           <executions>
             <execution>
               <id>scala-compile-first</id>
