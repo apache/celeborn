@@ -991,7 +991,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     val (messageMaster, messageSlave) =
       messageType match {
-        case Type.PUSH_DATA | Type.PUSH_DATA_HAND_SHAKE =>
+        case Type.PUSH_DATA =>
           (
             StatusCode.PUSH_DATA_WRITE_FAIL_MASTER,
             StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
