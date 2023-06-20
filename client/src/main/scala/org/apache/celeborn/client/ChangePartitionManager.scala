@@ -229,12 +229,12 @@ class ChangePartitionManager(
           location -> Option(requestsMap.remove(location.getId))
         }
       }.foreach { case (newLocation, requests) =>
-        requests.flatMap(_.asScala.toList).foreach { req =>
+        requests.foreach(_.asScala.foreach { req =>
           req.context.reply(
             StatusCode.SUCCESS,
             Option(newLocation),
             lifecycleManager.workerStatusTracker.workerExcluded(req.oldPartition))
-        }
+        })
       }
     }
 
