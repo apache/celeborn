@@ -293,12 +293,17 @@ object PbSerDeUtils {
 
   def fromPbWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource]): WorkerResource = {
     val slots = new WorkerResource()
-    pbWorkerResource.asScala.foreach { case (infoId, pbWorkerResource) =>
+    pbWorkerResource.asScala.foreach { case (uniqueId, pbWorkerResource) =>
+      val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = uniqueId.split(":")
+      val networkLocation = pbWorkerResource.getNetworkLocation
+      val workerInfo =
+        new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+      workerInfo.networkLocation = networkLocation
       val masterPartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
         .getMasterPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
       val slavePartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
         .getSlavePartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
-      slots.put(WorkerInfo.fromInfoId(infoId), (masterPartitionLocation, slavePartitionLocation))
+      slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
     }
     slots
   }
@@ -309,8 +314,10 @@ object PbSerDeUtils {
       val slavePartitions = slaveLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
       val pbWorkerResource = PbWorkerResource.newBuilder()
         .addAllMasterPartitions(masterPartitions)
-        .addAllSlavePartitions(slavePartitions).build()
-      workerInfo.toInfoId() -> pbWorkerResource
+        .addAllSlavePartitions(slavePartitions)
+        .setNetworkLocation(workerInfo.networkLocation)
+        .build()
+      workerInfo.toUniqueId() -> pbWorkerResource
     }.asJava
   }
 
