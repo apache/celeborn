@@ -23,17 +23,26 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 
 trait RequestLocationCallContext {
-  def reply(status: StatusCode, partitionLocationOpt: Option[PartitionLocation]): Unit
+  def reply(
+      status: StatusCode,
+      partitionLocationOpt: Option[PartitionLocation],
+      excluded: Boolean): Unit
 }
 
 case class ChangeLocationCallContext(context: RpcCallContext) extends RequestLocationCallContext {
-  override def reply(status: StatusCode, partitionLocationOpt: Option[PartitionLocation]): Unit = {
-    context.reply(ChangeLocationResponse(status, partitionLocationOpt))
+  override def reply(
+      status: StatusCode,
+      partitionLocationOpt: Option[PartitionLocation],
+      excluded: Boolean): Unit = {
+    context.reply(ChangeLocationResponse(status, partitionLocationOpt, excluded))
   }
 }
 
 case class ApplyNewLocationCallContext(context: RpcCallContext) extends RequestLocationCallContext {
-  override def reply(status: StatusCode, partitionLocationOpt: Option[PartitionLocation]): Unit = {
+  override def reply(
+      status: StatusCode,
+      partitionLocationOpt: Option[PartitionLocation],
+      excluded: Boolean = false): Unit = {
     partitionLocationOpt match {
       case Some(partitionLocation) =>
         context.reply(RegisterShuffleResponse(status, Array(partitionLocation)))

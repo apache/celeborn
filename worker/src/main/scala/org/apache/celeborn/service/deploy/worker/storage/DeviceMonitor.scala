@@ -70,9 +70,9 @@ class LocalDeviceMonitor(
 
   def init(): Unit = {
     this.observedDevices = new util.HashMap[DeviceInfo, ObservedDevice]()
-    deviceInfos.asScala.filter(_._2.deviceStatAvailable).foreach { case (deviceName, _) =>
-      logger.warn(s"device monitor may not worker properly " +
-        s"because noDevice device $deviceName exists.")
+    deviceInfos.asScala.filter(!_._2.deviceStatAvailable).foreach { case (deviceName, _) =>
+      logger.warn(s"Device monitor may not work properly on $deviceName " +
+        s"because device $deviceName not exists.")
     }
     deviceInfos.asScala.foreach(entry => {
       val observedDevice = new ObservedDevice(entry._2, conf, workerSource)
@@ -137,7 +137,7 @@ class LocalDeviceMonitor(
                     s"${device.deviceInfo.name}, notify observers")
                   device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
                 } else {
-                  device.diskInfos.values().asScala.foreach { case diskInfo =>
+                  device.diskInfos.values().asScala.foreach { diskInfo =>
                     if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
                       logger.error(
                         s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
@@ -273,12 +273,15 @@ object DeviceMonitor {
    * @return true if disk has read-write problem
    */
   def readWriteError(conf: CelebornConf, dataDir: File): Boolean = {
-    if (null == dataDir || !dataDir.isDirectory) {
+    if (null == dataDir) {
       return false
     }
 
     tryWithTimeoutAndCallback({
       try {
+        if (!dataDir.exists()) {
+          dataDir.mkdirs()
+        }
         val file = new File(dataDir, s"_SUCCESS_${System.currentTimeMillis()}")
         if (!file.exists() && !file.createNewFile()) {
           true
