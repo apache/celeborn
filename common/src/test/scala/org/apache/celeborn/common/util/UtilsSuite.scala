@@ -55,9 +55,9 @@ class UtilsSuite extends CelebornFunSuite {
   }
 
   test("bytesToString") {
-    assert("16.0 KB" == Utils.bytesToString(16384))
-    assert("16.0 MB" == Utils.bytesToString(16777216))
-    assert("16.0 GB" == Utils.bytesToString(17179869184L))
+    assert("16.0 KiB" == Utils.bytesToString(16384))
+    assert("16.0 MiB" == Utils.bytesToString(16777216))
+    assert("16.0 GiB" == Utils.bytesToString(17179869184L))
   }
 
   test("extractHostPortFromRssUrl") {

@@ -252,7 +252,7 @@ class ChangePartitionManager(
         .workerSnapshots(shuffleId)
         .keySet()
         .asScala
-        .filter(w => !lifecycleManager.workerStatusTracker.blacklist.keySet().contains(w))
+        .filter(lifecycleManager.workerStatusTracker.isWorkerAvailable)
         .toList
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")

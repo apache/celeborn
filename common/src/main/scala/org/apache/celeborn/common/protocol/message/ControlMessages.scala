@@ -196,17 +196,20 @@ object ControlMessages extends Logging {
         partitionId: Int,
         epoch: Int,
         oldPartition: PartitionLocation,
-        cause: StatusCode): PbRevive =
-      PbRevive.newBuilder()
-        .setApplicationId(appId)
+        cause: StatusCode): PbRevive = {
+      val builder = PbRevive.newBuilder()
+      builder.setApplicationId(appId)
         .setShuffleId(shuffleId)
         .setMapId(mapId)
         .setAttemptId(attemptId)
         .setPartitionId(partitionId)
         .setEpoch(epoch)
-        .setOldPartition(PbSerDeUtils.toPbPartitionLocation(oldPartition))
         .setStatus(cause.getValue)
-        .build()
+      if (oldPartition != null) {
+        builder.setOldPartition(PbSerDeUtils.toPbPartitionLocation(oldPartition))
+      }
+      builder.build()
+    }
   }
 
   object PartitionSplit {
@@ -571,7 +574,7 @@ object ControlMessages extends Logging {
             PbFileGroup.newBuilder().addAllLocations(fileGroup.asScala.map(PbSerDeUtils
               .toPbPartitionLocation).toList.asJava).build())
         }.asJava)
-      builder.addAllAttempts(attempts.map(new Integer(_)).toIterable.asJava)
+      builder.addAllAttempts(attempts.map(Integer.valueOf).toIterable.asJava)
       builder.addAllPartitionIds(partitionIds)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
@@ -731,7 +734,7 @@ object ControlMessages extends Logging {
         .setShuffleId(shuffleId)
         .addAllMasterIds(masterIds)
         .addAllSlaveIds(slaveIds)
-        .addAllMapAttempts(mapAttempts.map(new Integer(_)).toIterable.asJava)
+        .addAllMapAttempts(mapAttempts.map(Integer.valueOf).toIterable.asJava)
         .setEpoch(epoch)
         .build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES, payload)

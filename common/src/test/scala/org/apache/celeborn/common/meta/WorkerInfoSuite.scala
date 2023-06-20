@@ -19,7 +19,7 @@ package org.apache.celeborn.common.meta
 
 import java.util
 import java.util.{Map => jMap}
-import java.util.concurrent.{ConcurrentHashMap, Future, ThreadLocalRandom}
+import java.util.concurrent.{Future, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ArrayBuffer
@@ -56,7 +56,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
       replicatePort: Int,
       workerInfos: jMap[WorkerInfo, util.Map[String, Integer]],
       allocationMap: util.Map[String, Integer]): Unit = {
-    val worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, null)
+    val worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val realWorker = workerInfos.get(worker)
     assertNotNull(s"Worker $worker didn't exist.", realWorker)
   }
@@ -71,7 +71,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]()
     userResourceConsumption.put(UserIdentifier("tenant1", "name1"), ResourceConsumption(1, 1, 1, 1))
     val worker =
-      new WorkerInfo("localhost", 10000, 10001, 10002, 10003, disks, userResourceConsumption, null)
+      new WorkerInfo("localhost", 10000, 10001, 10002, 10003, disks, userResourceConsumption)
 
     val allocatedSlots = new AtomicInteger(0)
     val shuffleKey = "appId-shuffleId"
@@ -137,32 +137,32 @@ class WorkerInfoSuite extends CelebornFunSuite {
   }
 
   test("WorkerInfo not equals when host different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
-    val worker2 = new WorkerInfo("h2", 10001, 10002, 10003, 1000, null, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
+    val worker2 = new WorkerInfo("h2", 10001, 10002, 10003, 1000, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when rpc port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
-    val worker2 = new WorkerInfo("h1", 20001, 10002, 10003, 1000, null, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
+    val worker2 = new WorkerInfo("h1", 20001, 10002, 10003, 1000, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when push port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000, null, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when fetch port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 20003, 1000, null, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 20003, 1000, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when replicate port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 2000, null, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 2000, null, null)
     assertNotEquals(worker1, worker2)
   }
 
@@ -174,9 +174,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
       10003,
       1000,
       new util.HashMap[String, DiskInfo](),
-      null,
       null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
     assertEquals(worker1, worker2)
   }
 
@@ -188,31 +187,20 @@ class WorkerInfoSuite extends CelebornFunSuite {
       10003,
       1000,
       null,
-      new util.HashMap[UserIdentifier, ResourceConsumption](),
-      null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
+      new util.HashMap[UserIdentifier, ResourceConsumption]())
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
     assertEquals(worker1, worker2)
   }
 
   test("WorkerInfo equals when endpoint different") {
-    val mockEndpoint = new RpcEndpointRef(new CelebornConf()) {
-
-      override def address: RpcAddress = ???
-
-      override def name: String = ???
-
-      override def send(message: Any): Unit = ???
-
-      override def ask[T: ClassTag](message: Any, timeout: RpcTimeout): concurrent.Future[T] = ???
-    }
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, mockEndpoint)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
+    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
     assertEquals(worker1, worker2)
   }
 
   test("WorkerInfo toString output") {
     val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000)
-    val worker2 = new WorkerInfo("h2", 20001, 20002, 20003, 2000, null, null, null)
+    val worker2 = new WorkerInfo("h2", 20001, 20002, 20003, 2000, null, null)
 
     val worker3 = new WorkerInfo(
       "h3",
@@ -221,7 +209,6 @@ class WorkerInfoSuite extends CelebornFunSuite {
       30003,
       3000,
       new util.HashMap[String, DiskInfo](),
-      null,
       null)
 
     val disks = new util.HashMap[String, DiskInfo]()
@@ -236,8 +223,6 @@ class WorkerInfoSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     val endpointAddress = new RpcEndpointAddress(new RpcAddress("localhost", 12345), "mockRpc")
     val rpcEnv = RpcEnv.create("mockEnv", "localhost", "localhost", 12345, conf, 64)
-    val rpcEndpointRef =
-      new NettyRpcEndpointRef(conf, endpointAddress, rpcEnv.asInstanceOf[NettyRpcEnv])
     val worker4 = new WorkerInfo(
       "h4",
       40001,
@@ -245,8 +230,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
       40003,
       4000,
       disks,
-      userResourceConsumption,
-      rpcEndpointRef)
+      userResourceConsumption)
 
     val placeholder = ""
     val exp1 =
@@ -303,8 +287,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
          |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2147483647, avgFlushTime: 1, avgFetchTime: 1, activeSlots: 10) status: HEALTHY dirs $placeholder
          |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2147483647, avgFlushTime: 2, avgFetchTime: 2, activeSlots: 20) status: HEALTHY dirs $placeholder
          |UserResourceConsumption: $placeholder
-         |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MB, diskFileCount: 1, hdfsBytesWritten: 50.0 MB, hdfsFileCount: 1)
-         |WorkerRef: NettyRpcEndpointRef(rss://mockRpc@localhost:12345)
+         |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1)
+         |WorkerRef: null
          |""".stripMargin;
 
     println(worker1)

@@ -33,6 +33,7 @@ import io.netty.channel.socket.SocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
 import org.apache.celeborn.common.network.util.*;
@@ -226,10 +227,10 @@ public class TransportClientFactory implements Closeable {
     // Connect to the remote server
     ChannelFuture cf = bootstrap.connect(address);
     if (!cf.await(conf.connectTimeoutMs())) {
-      throw new IOException(
+      throw new CelebornIOException(
           String.format("Connecting to %s timed out (%s ms)", address, conf.connectTimeoutMs()));
     } else if (cf.cause() != null) {
-      throw new IOException(String.format("Failed to connect to %s", address), cf.cause());
+      throw new CelebornIOException(String.format("Failed to connect to %s", address), cf.cause());
     }
 
     TransportClient client = clientRef.get();

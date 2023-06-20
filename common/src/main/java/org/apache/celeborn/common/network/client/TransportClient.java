@@ -39,6 +39,7 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.write.PushRequestInfo;
 
 /**
@@ -90,8 +91,9 @@ public class TransportClient implements Closeable {
     return channel.remoteAddress();
   }
 
-  public void fetchChunk(long streamId, int chunkIndex, ChunkReceivedCallback callback) {
-    fetchChunk(streamId, chunkIndex, 0, Integer.MAX_VALUE, callback);
+  public void fetchChunk(
+      long streamId, int chunkIndex, long fetchDataTimeout, ChunkReceivedCallback callback) {
+    fetchChunk(streamId, chunkIndex, 0, Integer.MAX_VALUE, fetchDataTimeout, callback);
   }
 
   /**
@@ -112,7 +114,12 @@ public class TransportClient implements Closeable {
    * @param callback Callback invoked upon successful receipt of chunk, or upon any failure.
    */
   public void fetchChunk(
-      long streamId, int chunkIndex, int offset, int len, ChunkReceivedCallback callback) {
+      long streamId,
+      int chunkIndex,
+      int offset,
+      int len,
+      long fetchDataTimeout,
+      ChunkReceivedCallback callback) {
     if (logger.isDebugEnabled()) {
       logger.debug(
           "Sending fetch chunk request {} to {}.",
@@ -129,9 +136,14 @@ public class TransportClient implements Closeable {
             callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
           }
         };
-    handler.addFetchRequest(streamChunkSlice, callback);
 
-    channel.writeAndFlush(new ChunkFetchRequest(streamChunkSlice)).addListener(listener);
+    long dueTime = System.currentTimeMillis() + fetchDataTimeout;
+    FetchRequestInfo info = new FetchRequestInfo(dueTime, callback);
+    handler.addFetchRequest(streamChunkSlice, info);
+
+    ChannelFuture channelFuture =
+        channel.writeAndFlush(new ChunkFetchRequest(streamChunkSlice)).addListener(listener);
+    info.setChannelFuture(channelFuture);
   }
 
   /**

@@ -482,6 +482,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getTimeAsMs(key, PUSH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
   }
 
+  def fetchDataTimeoutCheckerThreads(module: String): Int = {
+    val key = FETCH_TIMEOUT_CHECK_THREADS.key.replace("<module>", module)
+    getInt(key, FETCH_TIMEOUT_CHECK_THREADS.defaultValue.get)
+  }
+
+  def fetchDataTimeoutCheckInterval(module: String): Long = {
+    val key = FETCH_TIMEOUT_CHECK_INTERVAL.key.replace("<module>", module)
+    getTimeAsMs(key, FETCH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
+  }
+
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
@@ -534,32 +544,44 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
 
     val nodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.key, "<id>")
-    getAllWithPrefix(nodeConfPrefix)
+    val nodeIds = getAllWithPrefix(nodeConfPrefix)
       .map(_._1)
       .filterNot(_.equals("id"))
       .map(k => extractPrefix(k, "."))
       .distinct
+
+    // CELEBORN-638: compatible with `celeborn.ha.master.*`, expect to remove before 0.4.0
+    val legacyNodeConfPrefix = extractPrefix(HA_MASTER_NODE_HOST.alternatives.head._1, "<id>")
+    val legacyNodeIds = getAllWithPrefix(legacyNodeConfPrefix)
+      .map(_._1)
+      .filterNot(_.equals("id"))
+      .map(k => extractPrefix(k, "."))
+      .distinct
+    (nodeIds ++ legacyNodeIds).distinct
   }
 
   def haMasterNodeHost(nodeId: String): String = {
     val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    get(key, Utils.localHostName)
+    val legacyKey = HA_MASTER_NODE_HOST.alternatives.head._1.replace("<id>", nodeId)
+    get(key, get(legacyKey, Utils.localHostName))
   }
 
   def haMasterNodePort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_PORT.key.replace("<id>", nodeId)
-    getInt(key, HA_MASTER_NODE_PORT.defaultValue.get)
+    val legacyKey = HA_MASTER_NODE_PORT.alternatives.head._1.replace("<id>", nodeId)
+    getInt(key, getInt(legacyKey, HA_MASTER_NODE_PORT.defaultValue.get))
   }
 
   def haMasterRatisHost(nodeId: String): String = {
     val key = HA_MASTER_NODE_RATIS_HOST.key.replace("<id>", nodeId)
-    val fallbackKey = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
-    get(key, get(fallbackKey))
+    val legacyKey = HA_MASTER_NODE_RATIS_HOST.alternatives.head._1.replace("<id>", nodeId)
+    get(key, get(legacyKey, haMasterNodeHost(nodeId)))
   }
 
   def haMasterRatisPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
-    getInt(key, HA_MASTER_NODE_RATIS_PORT.defaultValue.get)
+    val legacyKey = HA_MASTER_NODE_RATIS_PORT.alternatives.head._1.replace("<id>", nodeId)
+    getInt(key, getInt(legacyKey, HA_MASTER_NODE_RATIS_PORT.defaultValue.get))
   }
 
   def haMasterRatisRpcType: String = get(HA_MASTER_RATIS_RPC_TYPE)
@@ -624,6 +646,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                 Metrics System                      //
   // //////////////////////////////////////////////////////
+  def metricsConf: Option[String] = get(METRICS_CONF)
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
@@ -659,6 +682,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsMaxRetries: Int = get(CLIENT_RESERVE_SLOTS_MAX_RETRIES)
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
+  def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientRpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
@@ -705,6 +729,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
+  def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
+    get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
+  def clientFetchExcludedWorkerExpireTimeout: Long =
+    get(CLIENT_FETCH_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Push                   //
@@ -1379,6 +1407,26 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(16)
 
+  val FETCH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.fetch.timeoutCheck.interval")
+      .categories("network")
+      .doc("Interval for checking fetch data timeout. " +
+        s"It only support setting <module> to `${TransportModuleConstants.DATA_MODULE}` " +
+        s"since it works for shuffle client fetch data and should be configured on client side.")
+      .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val FETCH_TIMEOUT_CHECK_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.<module>.fetch.timeoutCheck.threads")
+      .categories("network")
+      .doc("Threads num for checking fetch data timeout. " +
+        s"It only support setting <module> to `${TransportModuleConstants.DATA_MODULE}` " +
+        s"since it works for shuffle client fetch data and should be configured on client side.")
+      .version("0.3.0")
+      .intConf
+      .createWithDefault(16)
+
   val CHANNEL_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.<module>.heartbeat.interval")
       .withAlternative("celeborn.client.heartbeat.interval")
@@ -1463,156 +1511,175 @@ object CelebornConf extends Logging {
       .createWithDefault(9097)
 
   val HA_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.ha.enabled")
+    buildConf("celeborn.master.ha.enabled")
+      .withAlternative("celeborn.ha.enabled")
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .doc("When true, master nodes run as Raft cluster mode.")
       .booleanConf
       .createWithDefault(false)
 
   val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
-    buildConf("celeborn.ha.master.node.id")
+    buildConf("celeborn.master.ha.node.id")
+      .withAlternative("celeborn.ha.master.node.id")
       .doc("Node id for master raft cluster in HA mode, if not define, " +
         "will be inferred by hostname.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createOptional
 
   val HA_MASTER_NODE_HOST: ConfigEntry[String] =
-    buildConf("celeborn.ha.master.node.<id>.host")
+    buildConf("celeborn.master.ha.node.<id>.host")
+      .withAlternative("celeborn.ha.master.node.<id>.host")
       .categories("ha")
       .doc("Host to bind of master node <id> in HA mode.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createWithDefaultString("<required>")
 
   val HA_MASTER_NODE_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.node.<id>.port")
+    buildConf("celeborn.master.ha.node.<id>.port")
+      .withAlternative("celeborn.ha.master.node.<id>.port")
       .categories("ha")
       .doc("Port to bind of master node <id> in HA mode.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9097)
 
   val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
-    buildConf("celeborn.ha.master.node.<id>.ratis.host")
+    buildConf("celeborn.master.ha.node.<id>.ratis.host")
+      .withAlternative("celeborn.ha.master.node.<id>.ratis.host")
       .internal
       .categories("ha")
       .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
         s"fallback to ${HA_MASTER_NODE_HOST.key}.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createOptional
 
   val HA_MASTER_NODE_RATIS_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.node.<id>.ratis.port")
+    buildConf("celeborn.master.ha.node.<id>.ratis.port")
+      .withAlternative("celeborn.ha.master.node.<id>.ratis.port")
       .categories("ha")
       .doc("Ratis port to bind of master node <id> in HA mode.")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "invalid port")
       .createWithDefault(9872)
 
   val HA_MASTER_RATIS_RPC_TYPE: ConfigEntry[String] =
-    buildConf("celeborn.ha.master.ratis.raft.rpc.type")
+    buildConf("celeborn.master.ha.ratis.raft.rpc.type")
+      .withAlternative("celeborn.ha.master.ratis.raft.rpc.type")
       .categories("ha")
       .doc("RPC type for Ratis, available options: netty, grpc.")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .transform(_.toLowerCase)
       .checkValues(Set("netty", "grpc"))
       .createWithDefault("netty")
 
   val HA_MASTER_RATIS_STORAGE_DIR: ConfigEntry[String] =
-    buildConf("celeborn.ha.master.ratis.raft.server.storage.dir")
+    buildConf("celeborn.master.ha.ratis.raft.server.storage.dir")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.storage.dir")
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .stringConf
       .createWithDefault("/tmp/ratis")
 
   val HA_MASTER_RATIS_LOG_SEGMENT_SIZE_MAX: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.segment.size.max")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.segment.size.max")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4MB")
 
   val HA_MASTER_RATIS_LOG_PREALLOCATED_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.preallocated.size")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.preallocated.size")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("4MB")
 
   val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_NUM_ELEMENTS: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.appender.buffer.element-limit")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.buffer.element-limit")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(1024)
 
   val HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.appender.buffer.byte-limit")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.buffer.byte-limit")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32MB")
 
   val HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.appender.install.snapshot.enabled")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(true)
 
   val HA_MASTER_RATIS_LOG_PURGE_GAP: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.ratis.raft.server.log.purge.gap")
+    buildConf("celeborn.master.ha.ratis.raft.server.log.purge.gap")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.log.purge.gap")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(1000000)
 
   val HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
+    buildConf("celeborn.master.ha.ratis.raft.server.rpc.request.timeout")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.request.timeout")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
 
   val HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
+    buildConf("celeborn.master.ha.ratis.raft.server.retrycache.expirytime")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.retrycache.expirytime")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("600s")
 
   val HA_MASTER_RATIS_RPC_TIMEOUT_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
+    buildConf("celeborn.master.ha.ratis.raft.server.rpc.timeout.min")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.timeout.min")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
 
   val HA_MASTER_RATIS_RPC_TIMEOUT_MAX: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
+    buildConf("celeborn.master.ha.ratis.raft.server.rpc.timeout.max")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.timeout.max")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("5s")
 
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.first.election.timeout.min")
+    buildConf("celeborn.master.ha.ratis.first.election.timeout.min")
+      .withAlternative("celeborn.ha.master.ratis.first.election.timeout.min")
       .internal
       .categories("ha")
       .version("0.3.0")
@@ -1620,7 +1687,8 @@ object CelebornConf extends Logging {
       .createWithDefaultString("3s")
 
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.first.election.timeout.max")
+    buildConf("celeborn.master.ha.ratis.first.election.timeout.max")
+      .withAlternative("celeborn.ha.master.ratis.first.election.timeout.max")
       .internal
       .categories("ha")
       .version("0.3.0")
@@ -1628,50 +1696,56 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5s")
 
   val HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.notification.no-leader.timeout")
+    buildConf("celeborn.master.ha.ratis.raft.server.notification.no-leader.timeout")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.notification.no-leader.timeout")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("30s")
 
   val HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.rpc.slowness.timeout")
+    buildConf("celeborn.master.ha.ratis.raft.server.rpc.slowness.timeout")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.rpc.slowness.timeout")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("120s")
 
   val HA_MASTER_RATIS_ROLE_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.role.check.interval")
+    buildConf("celeborn.master.ha.ratis.raft.server.role.check.interval")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.role.check.interval")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1s")
 
   val HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.enabled")
+    buildConf("celeborn.master.ha.ratis.raft.server.snapshot.auto.trigger.enabled")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.enabled")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .booleanConf
       .createWithDefault(true)
 
   val HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.threshold")
+    buildConf("celeborn.master.ha.ratis.raft.server.snapshot.auto.trigger.threshold")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.auto.trigger.threshold")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .longConf
       .createWithDefault(200000L)
 
   val HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM: ConfigEntry[Int] =
-    buildConf("celeborn.ha.master.ratis.raft.server.snapshot.retention.file.num")
+    buildConf("celeborn.master.ha.ratis.raft.server.snapshot.retention.file.num")
+      .withAlternative("celeborn.ha.master.ratis.raft.server.snapshot.retention.file.num")
       .internal
       .categories("ha")
-      .version("0.2.0")
+      .version("0.3.0")
       .intConf
       .createWithDefault(3)
 
@@ -2443,7 +2517,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("enable the heartbeat from worker to client when pushing data")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val WORKER_FETCH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.fetch.heartbeat.enabled")
@@ -2451,7 +2525,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("enable the heartbeat from worker to client when fetching data")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.application.heartbeatInterval")
@@ -2476,9 +2550,10 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.excluded.expireTimeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
+      .doc("Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout`" +
+        "to cover worker heartbeat timeout check period")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
+      .createWithDefaultString("180s")
 
   val CLIENT_CHECKED_USE_ALLOCATED_WORKERS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.checked.useAllocatedWorkers")
@@ -2549,7 +2624,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.3.0")
       .doc("Amount of Netty in-flight requests per worker. The maximum memory is " +
-        "`celeborn.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
+        "`celeborn.client.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
         "compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib")
       .intConf
       .createWithDefault(4)
@@ -2601,7 +2676,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("2s")
 
   val CLIENT_PUSH_DATA_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.data.timeout")
+    buildConf("celeborn.client.push.timeout")
       .withAlternative("celeborn.push.data.timeout")
       .categories("client")
       .version("0.3.0")
@@ -2708,7 +2783,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.fetch.timeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout for a task to fetch chunk.")
+      .doc("Timeout for a task to open stream and fetch chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
@@ -2730,6 +2805,22 @@ object CelebornConf extends Logging {
       .doc("Max retry times of fetch chunk on each replica")
       .intConf
       .createWithDefault(3)
+
+  val CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.fetch.excludeWorkerOnFailure.enabled")
+      .categories("client")
+      .doc("Whether to enable shuffle client-side fetch exclude workers on failure.")
+      .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_FETCH_EXCLUDED_WORKER_EXPIRE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.excludedWorker.expireTimeout")
+      .categories("client")
+      .doc("ShuffleClient is a static object, it will be used in the whole lifecycle of Executor," +
+        "We give a expire time for blacklisted worker to avoid a transient worker issues.")
+      .version("0.3.0")
+      .fallbackConf(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
 
   val TEST_CLIENT_FETCH_FAILURE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.client.fetchFailure")
@@ -2966,6 +3057,14 @@ object CelebornConf extends Logging {
       .checkValue(v => v > 0, "value must be positive")
       .createWithDefault(2)
 
+  val CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.commitFiles.ignoreExcludedWorker")
+      .categories("client")
+      .version("0.3.0")
+      .doc("When true, LifecycleManager will skip workers which are in the excluded list.")
+      .booleanConf
+      .createWithDefault(false)
+
   val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.stageEnd.timeout")
       .withAlternative("celeborn.push.stageEnd.timeout")
@@ -3134,6 +3233,14 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.test.alternative.deprecatedKey")
       .categories("test")
       .internal
+      .version("0.3.0")
+      .stringConf
+      .createOptional
+
+  val METRICS_CONF: OptionalConfigEntry[String] =
+    buildConf("celeborn.metrics.conf")
+      .categories("metrics")
+      .doc("Custom metrics configuration file path. Default use `metrics.properties` in classpath.")
       .version("0.3.0")
       .stringConf
       .createOptional

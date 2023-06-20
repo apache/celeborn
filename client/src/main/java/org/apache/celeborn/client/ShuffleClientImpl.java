@@ -89,14 +89,20 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       JavaUtils.newConcurrentHashMap();
 
-  protected final ConcurrentHashMap<Integer, Set<String>> mapperEndMap =
+  // key: shuffleId, value: Set(mapId)
+  protected final ConcurrentHashMap<Integer, Set<Integer>> mapperEndMap =
       JavaUtils.newConcurrentHashMap();
+
+  // shuffleIds which have finished all map tasks
+  protected final Set<Integer> stageEndShuffleSet = ConcurrentHashMap.newKeySet();
 
   // key: shuffleId-mapId-attemptId
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
   private final boolean shuffleClientPushBlacklistEnabled;
   private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
+  private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
+      JavaUtils.newConcurrentHashMap();
 
   private final ExecutorService pushDataRetryPool;
 
@@ -185,8 +191,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (blacklist.contains(location.hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       return true;
-    } else if (location.getPeer() != null
-        && blacklist.contains(location.getPeer().hostAndPushPort())) {
+    } else if (location.hasPeer() && blacklist.contains(location.getPeer().hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       return true;
     } else {
@@ -211,7 +216,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         applicationId, shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
       wrappedCallback.onFailure(
           new CelebornIOException(cause + " then revive but " + StatusCode.REVIVE_FAILED));
-    } else if (mapperEnded(shuffleId, mapId, attemptId)) {
+    } else if (mapperEnded(shuffleId, mapId)) {
       logger.debug(
           "Revive for push data success, but the mapper already ended for shuffle {} map {} attempt {} partition {} batch {} location {}.",
           shuffleId,
@@ -303,7 +308,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   new CelebornIOException(cause + " then revive but " + StatusCode.REVIVE_FAILED)));
           return;
         }
-      } else if (mapperEnded(shuffleId, mapId, attemptId)) {
+      } else if (mapperEnded(shuffleId, mapId)) {
         logger.debug(
             "Revive for push merged data success, but the mapper already ended for shuffle {} map {} attempt {} partition {} batch {}.",
             shuffleId,
@@ -360,7 +365,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private String genAddressPair(PartitionLocation loc) {
     String addressPair;
-    if (loc.getPeer() != null) {
+    if (loc.hasPeer()) {
       addressPair = loc.hostAndPushPort() + "-" + loc.getPeer().hostAndPushPort();
     } else {
       addressPair = loc.hostAndPushPort();
@@ -529,7 +534,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PartitionLocation oldLocation,
       StatusCode cause) {
     // Add ShuffleClient side blacklist
-    if (shuffleClientPushBlacklistEnabled) {
+    if (shuffleClientPushBlacklistEnabled && oldLocation != null) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
         blacklist.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
@@ -556,8 +561,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           epoch);
       return true;
     }
-    String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    if (mapperEnded(shuffleId, mapId, attemptId)) {
+    if (mapperEnded(shuffleId, mapId)) {
       logger.debug(
           "Revive success, but the mapper ended for shuffle {} map {} attempt {} partition {}, just return true(Assume revive successfully).",
           shuffleId,
@@ -593,7 +597,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             mapId,
             attemptId,
             partitionId);
-        mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet()).add(mapKey);
+        mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet()).add(mapId);
         return true;
       } else {
         return false;
@@ -628,7 +632,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
     // return if shuffle stage already ended
-    if (mapperEnded(shuffleId, mapId, attemptId)) {
+    if (mapperEnded(shuffleId, mapId)) {
       logger.debug(
           "Push or merge data ignored because mapper already ended for shuffle {} map {} attempt {} partition {}.",
           shuffleId,
@@ -667,7 +671,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     }
 
-    if (mapperEnded(shuffleId, mapId, attemptId)) {
+    if (mapperEnded(shuffleId, mapId)) {
       logger.debug(
           "Push or merge data ignored because mapper already ended for shuffle {} map {} attempt {} partition {}.",
           shuffleId,
@@ -727,9 +731,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               // TODO Need to adjust maxReqsInFlight if server response is congested, see
               // CELEBORN-62
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
-                mapperEndMap
-                    .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
-                    .add(mapKey);
+                stageEndShuffleSet.add(shuffleId);
               }
               logger.debug(
                   "Push data to {} success for shuffle {} map {} attempt {} partition {} batch {}.",
@@ -856,7 +858,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   remainReviveTimes,
                   e);
               // async retry push data
-              if (!mapperEnded(shuffleId, mapId, attemptId)) {
+              if (!mapperEnded(shuffleId, mapId)) {
                 // For blacklisted partition location, Celeborn should not use retry quota.
                 if (!pushStatusIsBlacklisted(cause)) {
                   remainReviveTimes = remainReviveTimes - 1;
@@ -1114,9 +1116,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             pushState.removeBatch(groupedBatchId, hostPort);
             // TODO Need to adjust maxReqsInFlight if server response is congested, see CELEBORN-62
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
-              mapperEndMap
-                  .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
-                  .add(Utils.makeMapKey(shuffleId, mapId, attemptId));
+              stageEndShuffleSet.add(shuffleId);
             }
           }
 
@@ -1241,7 +1241,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 Arrays.toString(batchIds),
                 remainReviveTimes,
                 e);
-            if (!mapperEnded(shuffleId, mapId, attemptId)) {
+            if (!mapperEnded(shuffleId, mapId)) {
               int tmpRemainReviveTimes = remainReviveTimes;
               // For blacklisted partition location, Celeborn should not use retry quota.
               if (!pushStatusIsBlacklisted(cause)) {
@@ -1378,6 +1378,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     reducePartitionMap.remove(shuffleId);
     reduceFileGroupsMap.remove(shuffleId);
     mapperEndMap.remove(shuffleId);
+    stageEndShuffleSet.remove(shuffleId);
     splitting.remove(shuffleId);
 
     logger.info("Unregistered shuffle {}.", shuffleId);
@@ -1481,7 +1482,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           fileGroups.mapAttempts,
           attemptNumber,
           startMapIndex,
-          endMapIndex);
+          endMapIndex,
+          fetchExcludedWorkers);
     }
   }
 
@@ -1507,6 +1509,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != driverRssMetaService) {
       driverRssMetaService = null;
     }
+    blacklist.clear();
+    fetchExcludedWorkers.clear();
     logger.warn("Shuffle client has been shutdown!");
   }
 
@@ -1521,9 +1525,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     driverRssMetaService = endpointRef;
   }
 
-  protected boolean mapperEnded(int shuffleId, int mapId, int attemptId) {
-    return mapperEndMap.containsKey(shuffleId)
-        && mapperEndMap.get(shuffleId).contains(Utils.makeMapKey(shuffleId, mapId, attemptId));
+  protected boolean mapperEnded(int shuffleId, int mapId) {
+    return (mapperEndMap.containsKey(shuffleId) && mapperEndMap.get(shuffleId).contains(mapId))
+        || stageEnded(shuffleId);
+  }
+
+  protected boolean stageEnded(int shuffleId) {
+    return stageEndShuffleSet.contains(shuffleId);
   }
 
   private boolean pushStatusIsBlacklisted(StatusCode cause) {

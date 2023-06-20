@@ -15,20 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.util
+package org.apache.celeborn.common.read;
 
-import scala.language.implicitConversions
+import io.netty.channel.ChannelFuture;
 
-/**
- * Implicit conversion for scala(2.11) function to java function
- */
-object FunctionConverter {
+import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 
-  implicit def scalaFunctionToJava[From, To](function: (From) => To)
-      : java.util.function.Function[From, To] = {
-    new java.util.function.Function[From, To] {
-      override def apply(input: From): To = function(input)
-    }
+public class FetchRequestInfo {
+  public ChannelFuture channelFuture;
+  public long dueTime;
+  public ChunkReceivedCallback callback;
+
+  public FetchRequestInfo(long dueTime, ChunkReceivedCallback callback) {
+    this.dueTime = dueTime;
+    this.callback = callback;
   }
 
+  public void setChannelFuture(ChannelFuture future) {
+    this.channelFuture = future;
+  }
 }

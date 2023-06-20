@@ -102,8 +102,21 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private StructType schema;
 
-  private boolean isColumnarShuffle = false;
   private final boolean unsafeRowFastWrite;
+
+  // //////////////////////////////////////////////////////
+  //                 Columnar Relate Conf                //
+  // //////////////////////////////////////////////////////
+
+  private boolean isColumnarShuffle = false;
+
+  private int columnarShuffleBatchSize;
+
+  private boolean columnarShuffleCodeGenEnabled;
+
+  private boolean columnarShuffleDictionaryEnabled;
+
+  private double columnarShuffleDictionaryMaxFactor;
 
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
@@ -164,6 +177,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
 
     if (conf.columnarShuffleEnabled()) {
+      columnarShuffleBatchSize = conf.columnarShuffleBatchSize();
+      columnarShuffleCodeGenEnabled = conf.columnarShuffleCodeGenEnabled();
+      columnarShuffleDictionaryEnabled = conf.columnarShuffleDictionaryEnabled();
+      columnarShuffleDictionaryMaxFactor = conf.columnarShuffleDictionaryMaxFactor();
       this.schema = SparkUtils.getSchema(dep);
       this.rssBatchBuilders = new RssBatchBuilder[numPartitions];
       this.isColumnarShuffle = RssBatchBuilder.supportsColumnarType(schema);
@@ -209,6 +226,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
     SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
+    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -216,22 +234,24 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
       if (rssBatchBuilders[partitionId] == null) {
         RssBatchBuilder columnBuilders;
-        if (conf.columnarShuffleCodeGenEnabled() && !conf.columnarShuffleDictionaryEnabled()) {
+        if (columnarShuffleCodeGenEnabled && !columnarShuffleDictionaryEnabled) {
           columnBuilders =
-              new RssColumnarBatchCodeGenBuild().create(schema, conf.columnarShuffleBatchSize());
+              new RssColumnarBatchCodeGenBuild().create(schema, columnarShuffleBatchSize);
         } else {
           columnBuilders =
               new RssColumnarBatchBuilder(
                   schema,
-                  conf.columnarShuffleBatchSize(),
-                  conf.columnarShuffleDictionaryMaxFactor(),
-                  conf.columnarShuffleDictionaryEnabled());
+                  columnarShuffleBatchSize,
+                  columnarShuffleDictionaryMaxFactor,
+                  columnarShuffleDictionaryEnabled);
         }
         columnBuilders.newBuilders();
         rssBatchBuilders[partitionId] = columnBuilders;
       }
+
+      long insertAndPushStartTime = System.nanoTime();
       rssBatchBuilders[partitionId].writeRow(row);
-      if (rssBatchBuilders[partitionId].getRowCnt() >= conf.columnarShuffleBatchSize()) {
+      if (rssBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize) {
         byte[] arr = rssBatchBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {
@@ -239,8 +259,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         }
         rssBatchBuilders[partitionId].newBuilders();
       }
+      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
+    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private void fastWrite0(scala.collection.Iterator iterator)
@@ -248,6 +270,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
     SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
+    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -260,6 +283,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(rowSize);
       }
 
+      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
@@ -282,13 +306,16 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             rowSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
+      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
+    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private void write0(scala.collection.Iterator iterator) throws IOException, InterruptedException {
     final scala.collection.Iterator<Product2<K, ?>> records = iterator;
 
+    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<K, ?> record = records.next();
       final K key = record._1();
@@ -301,6 +328,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
+      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
@@ -309,8 +337,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         System.arraycopy(serBuffer.getBuf(), 0, buffer, offset, serializedRecordSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
+      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
+    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private byte[] getOrCreateBuffer(int partitionId) {
@@ -325,7 +355,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", numBytes);
-    long pushStartTime = System.nanoTime();
     int bytesWritten =
         rssShuffleClient.pushData(
             appId,
@@ -340,7 +369,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numPartitions);
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
-    writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
 
   private int getOrUpdateOffset(int partitionId, int serializedRecordSize)
@@ -367,10 +395,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void flushSendBuffer(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
-    long pushStartTime = System.nanoTime();
     logger.debug("Flush buffer, size {}.", size);
     dataPusher.addTask(partitionId, buffer, size);
-    writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
 
   private void closeColumnarWrite() throws IOException {

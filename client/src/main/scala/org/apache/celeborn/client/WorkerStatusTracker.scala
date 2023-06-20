@@ -39,7 +39,7 @@ class WorkerStatusTracker(
 
   // blacklist
   val blacklist = new ShuffleFailedWorkers()
-  private val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
+  val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
 
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusListeners.add(workerStatusListener)
@@ -49,8 +49,12 @@ class WorkerStatusTracker(
     if (conf.clientCheckedUseAllocatedWorkers) {
       lifecycleManager.getAllocatedWorkers()
     } else {
-      blacklist.asScala.keys.toSet
+      blacklist.asScala.keys.toSet ++ shuttingWorkers.asScala.toSet
     }
+  }
+
+  def isWorkerAvailable(worker: WorkerInfo) = {
+    !blacklist.containsKey(worker) && !shuttingWorkers.contains(worker)
   }
 
   def blacklistWorkerFromPartition(
@@ -73,26 +77,26 @@ class WorkerStatusTracker(
         case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
         case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
-            if oldPartition.getPeer != null && conf.clientBlacklistSlaveEnabled =>
+            if oldPartition.hasPeer && conf.clientBlacklistSlaveEnabled =>
           blacklistWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
-            if oldPartition.getPeer != null && conf.clientBlacklistSlaveEnabled =>
+            if oldPartition.hasPeer && conf.clientBlacklistSlaveEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-            if oldPartition.getPeer != null && conf.clientBlacklistSlaveEnabled =>
+            if oldPartition.hasPeer && conf.clientBlacklistSlaveEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
         case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
         case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
-            if oldPartition.getPeer != null && conf.clientBlacklistSlaveEnabled =>
+            if oldPartition.hasPeer && conf.clientBlacklistSlaveEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
@@ -118,19 +122,17 @@ class WorkerStatusTracker(
            |Current blacklist:
            |$blacklistMsg
                """.stripMargin)
-      failedWorker.asScala.foreach { case (worker, (statusCode, registerTime)) =>
-        if (!blacklist.containsKey(worker)) {
+      failedWorker.asScala.foreach {
+        case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
+          shuttingWorkers.add(worker)
+        case (worker, (statusCode, registerTime)) if !blacklist.containsKey(worker) =>
           blacklist.put(worker, (statusCode, registerTime))
-        } else {
-          statusCode match {
-            case StatusCode.WORKER_SHUTDOWN |
-                StatusCode.NO_AVAILABLE_WORKING_DIR |
-                StatusCode.RESERVE_SLOTS_FAILED |
-                StatusCode.UNKNOWN_WORKER =>
-              blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
-            case _ => // Not cover
-          }
-        }
+        case (worker, (statusCode, _))
+            if statusCode == StatusCode.NO_AVAILABLE_WORKING_DIR ||
+              statusCode == StatusCode.RESERVE_SLOTS_FAILED ||
+              statusCode == StatusCode.UNKNOWN_WORKER =>
+          blacklist.put(worker, (statusCode, blacklist.get(worker)._2))
+        case _ => // Not cover
       }
     }
   }
@@ -172,11 +174,6 @@ class WorkerStatusTracker(
           .map(_ -> (StatusCode.WORKER_IN_BLACKLIST -> current)).toMap.asJava)
       }
 
-      if (!res.shuttingWorkers.isEmpty) {
-        blacklist.putAll(res.shuttingWorkers.asScala.filterNot(blacklist.containsKey)
-          .map(_ -> (StatusCode.WORKER_SHUTDOWN -> current)).toMap.asJava)
-      }
-
       val newShutdownWorkers = resolveShutdownWorkers(res.shuttingWorkers)
       if (!res.unknownWorkers.isEmpty || !newShutdownWorkers.isEmpty) {
         blacklist.putAll(res.unknownWorkers.asScala.filterNot(blacklist.containsKey)
@@ -196,7 +193,7 @@ class WorkerStatusTracker(
     }
   }
 
-  private def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): JList[WorkerInfo] = {
+  def resolveShutdownWorkers(newShutdownWorkers: JList[WorkerInfo]): JList[WorkerInfo] = {
     // shutdownWorkers only retain workers appeared in response.
     shuttingWorkers.retainAll(newShutdownWorkers)
     val shutdownList = newShutdownWorkers.asScala.filterNot(shuttingWorkers.asScala.contains).asJava

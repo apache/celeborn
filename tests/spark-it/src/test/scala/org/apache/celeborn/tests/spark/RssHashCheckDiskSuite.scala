@@ -25,6 +25,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.worker.Worker
 
@@ -34,10 +35,10 @@ class RssHashCheckDiskSuite extends AnyFunSuite
   var workers: collection.Set[Worker] = null
   override def beforeAll(): Unit = {
     logInfo("RssHashCheckDiskSuite test initialized , setup rss mini cluster")
-    val masterConfs = Map("celeborn.application.heartbeat.timeout" -> "10s")
+    val masterConfs = Map(CelebornConf.APPLICATION_HEARTBEAT_TIMEOUT.key -> "10s")
     val workerConfs = Map(
-      "celeborn.worker.storage.dirs" -> "/tmp:capacity=1000",
-      "celeborn.worker.heartbeat.timeout" -> "10s")
+      CelebornConf.WORKER_STORAGE_DIRS.key -> "/tmp:capacity=1000",
+      CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "10s")
     workers = setUpMiniCluster(masterConfs, workerConfs)._2
   }
 
@@ -51,7 +52,7 @@ class RssHashCheckDiskSuite extends AnyFunSuite
 
   test("celeborn spark integration test - hash-checkDiskFull") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]").set(
-      "spark.celeborn.shuffle.expired.checkInterval",
+      s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}",
       "5s")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)

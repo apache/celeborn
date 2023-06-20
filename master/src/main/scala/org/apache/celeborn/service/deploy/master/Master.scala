@@ -26,7 +26,6 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.CelebornRuntimeException
 import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -455,8 +454,7 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
-      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](),
-      null)
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
     val worker: WorkerInfo = workersSnapShot
       .asScala
       .find(_ == targetWorker)
@@ -464,11 +462,9 @@ private[celeborn] class Master(
     if (worker == null) {
       logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort" +
         s" for WorkerLost handler!")
-      return
+    } else {
+      statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
     }
-
-    statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
-
     if (context != null) {
       context.reply(WorkerLostResponse(true))
     }
@@ -492,8 +488,7 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         disks,
-        userResourceConsumption,
-        null)
+        userResourceConsumption)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
@@ -541,19 +536,20 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
+    val availableWorkers = workersAvailable()
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
             SlotsAllocator.offerSlotsRoundRobin(
-              workersNotBlacklisted(),
+              availableWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware)
           } else {
             SlotsAllocator.offerSlotsLoadAware(
-              workersNotBlacklisted(),
+              availableWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
@@ -590,7 +586,7 @@ private[celeborn] class Master(
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
       s" on ${slots.size()} workers.")
 
-    val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
+    val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
     val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
@@ -736,10 +732,11 @@ private[celeborn] class Master(
     context.reply(CheckQuotaResponse(isAvailable, reason))
   }
 
-  private def workersNotBlacklisted(
+  private def workersAvailable(
       tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.blacklist.contains(w) && !tmpBlacklist.contains(w)
+      !statusSystem.blacklist.contains(w) && !statusSystem.shutdownWorkers.contains(
+        w) && !tmpBlacklist.contains(w)
     }.asJava
   }
 

@@ -368,8 +368,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1,
-            dummyRef);
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
         new WorkerInfo(
             HOSTNAME2,
@@ -378,8 +377,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             disks2,
-            userResourceConsumption2,
-            dummyRef);
+            userResourceConsumption2);
     WorkerInfo workerInfo3 =
         new WorkerInfo(
             HOSTNAME3,
@@ -388,8 +386,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT3,
             REPLICATEPORT3,
             disks3,
-            userResourceConsumption3,
-            dummyRef);
+            userResourceConsumption3);
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocation1 = new HashMap<>();
@@ -566,8 +563,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1,
-            dummyRef);
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
         new WorkerInfo(
             HOSTNAME2,
@@ -576,8 +572,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             disks2,
-            userResourceConsumption2,
-            dummyRef);
+            userResourceConsumption2);
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 5);
@@ -640,8 +635,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1,
-            dummyRef);
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
         new WorkerInfo(
             HOSTNAME2,
@@ -650,8 +644,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             disks2,
-            userResourceConsumption2,
-            dummyRef);
+            userResourceConsumption2);
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocations = new HashMap<>();
@@ -869,8 +862,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1,
-            dummyRef);
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
         new WorkerInfo(
             HOSTNAME2,
@@ -879,17 +871,19 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             disks2,
-            userResourceConsumption2,
-            dummyRef);
+            userResourceConsumption2);
 
     List<WorkerInfo> failedWorkers = new ArrayList<>();
     failedWorkers.add(workerInfo1);
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.shutdownWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM1.blacklist.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.blacklist.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.blacklist.size());
   }
 
   @Test

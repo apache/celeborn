@@ -170,7 +170,7 @@ public class ChunkFetchIntegrationSuiteJ {
         };
 
     for (int chunkIndex : chunkIndices) {
-      client.fetchChunk(STREAM_ID, chunkIndex, callback);
+      client.fetchChunk(STREAM_ID, chunkIndex, 10000, callback);
     }
     if (!sem.tryAcquire(chunkIndices.size(), 5, TimeUnit.SECONDS)) {
       fail("Timeout getting response from the server");

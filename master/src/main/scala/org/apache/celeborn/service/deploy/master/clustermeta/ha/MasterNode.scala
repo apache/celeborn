@@ -20,8 +20,6 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha
 import java.io.IOException
 import java.net.{InetAddress, InetSocketAddress}
 
-import scala.util.{Failure, Success}
-
 import org.apache.ratis.util.NetUtils
 
 import org.apache.celeborn.common.internal.Logging

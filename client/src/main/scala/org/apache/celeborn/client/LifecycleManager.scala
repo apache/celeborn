@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.{function, HashSet => JHashSet, List => JList, Set => JSet}
+import java.util.{function, List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -244,10 +244,15 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val attemptId = pb.getAttemptId
       val partitionId = pb.getPartitionId
       val epoch = pb.getEpoch
-      val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
+      val oldPartition =
+        if (pb.hasOldPartition) {
+          PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
+        } else {
+          null
+        }
       val cause = Utils.toStatusCode(pb.getStatus)
       logTrace(s"Received Revive request, " +
-        s"$applicationId, $shuffleId, $mapId, $attemptId, ,$partitionId," +
+        s"$applicationId, $shuffleId, $mapId, $attemptId ,$partitionId," +
         s" $epoch, $oldPartition, $cause.")
       handleRevive(
         context,
@@ -292,6 +297,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
             attemptId,
             partitionId,
             numMappers)
+        case _ =>
+          throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
 
     case GetReducerFileGroup(applicationId: String, shuffleId: Int) =>
@@ -335,6 +342,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                 initialLocs)
             case PartitionType.REDUCE =>
               context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, initialLocs))
+            case _ =>
+              throw new UnsupportedOperationException(s"Not support $partitionType yet")
           }
           return
         }
@@ -393,6 +402,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
                   context.reply(response)
                 }
               case PartitionType.REDUCE => context.reply(response)
+              case _ =>
+                throw new UnsupportedOperationException(s"Not support $partitionType yet")
             }
           }))
         registeringShuffleRequest.remove(shuffleId)
@@ -401,7 +412,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
 
     // First, request to get allocated slots from Master
     val ids = new util.ArrayList[Integer](numPartitions)
-    (0 until numPartitions).foreach(idx => ids.add(new Integer(idx)))
+    (0 until numPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
     val res = requestMasterRequestSlotsWithRetry(applicationId, shuffleId, ids)
 
     res.status match {
@@ -853,6 +864,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
           retryCandidates.addAll(candidates)
           // remove blacklist from retryCandidates
           retryCandidates.removeAll(workerStatusTracker.blacklist.keys().asScala.toList.asJava)
+          retryCandidates.removeAll(workerStatusTracker.shuttingWorkers.asScala.toList.asJava)
           if (retryCandidates.size < 1 || (pushReplicateEnabled && retryCandidates.size < 2)) {
             logError(s"Retry reserve slots for $shuffleId failed caused by not enough slots.")
             noAvailableSlots = true
@@ -1121,8 +1133,8 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
   }
 
   private def shuffleResourceExists(shuffleId: Int): Boolean = {
-    val workers = workerSnapshots(shuffleId)
-    workers != null && !workers.isEmpty
+    val workerPartitionInfos = workerSnapshots(shuffleId)
+    workerPartitionInfos != null && workerPartitionInfos.values().asScala.exists(!_.isEmpty())
   }
 
   // Once a partition is released, it will be never needed anymore

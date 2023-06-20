@@ -220,8 +220,7 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1,
-            dummyRef);
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
         new WorkerInfo(
             HOSTNAME2,
@@ -230,8 +229,7 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             disks2,
-            userResourceConsumption2,
-            dummyRef);
+            userResourceConsumption2);
     WorkerInfo workerInfo3 =
         new WorkerInfo(
             HOSTNAME3,
@@ -240,8 +238,7 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT3,
             REPLICATEPORT3,
             disks3,
-            userResourceConsumption3,
-            dummyRef);
+            userResourceConsumption3);
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocation = new HashMap<>();
@@ -369,8 +366,7 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1,
-            dummyRef);
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
         new WorkerInfo(
             HOSTNAME2,
@@ -379,8 +375,7 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             disks2,
-            userResourceConsumption2,
-            dummyRef);
+            userResourceConsumption2);
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocation = new HashMap<>();
@@ -435,8 +430,7 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1,
-            dummyRef);
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
         new WorkerInfo(
             HOSTNAME2,
@@ -445,8 +439,7 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             disks2,
-            userResourceConsumption2,
-            dummyRef);
+            userResourceConsumption2);
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocation = new HashMap<>();
@@ -587,8 +580,7 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1,
-            dummyRef);
+            userResourceConsumption1);
     WorkerInfo workerInfo2 =
         new WorkerInfo(
             HOSTNAME2,
@@ -597,14 +589,14 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT2,
             REPLICATEPORT2,
             disks2,
-            userResourceConsumption2,
-            dummyRef);
+            userResourceConsumption2);
 
     List<WorkerInfo> failedWorkers = new ArrayList<>();
     failedWorkers.add(workerInfo1);
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
-    assert 1 == statusSystem.blacklist.size();
+    assert 1 == statusSystem.shutdownWorkers.size();
+    assert 0 == statusSystem.blacklist.size();
   }
 
   @Test

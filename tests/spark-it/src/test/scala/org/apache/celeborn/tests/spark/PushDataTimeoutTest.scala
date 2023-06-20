@@ -33,8 +33,8 @@ class PushDataTimeoutTest extends AnyFunSuite
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
     val workerConf = Map(
-      "celeborn.test.pushMasterDataTimeout" -> "true",
-      "celeborn.test.pushSlaveDataTimeout" -> "true",
+      CelebornConf.TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT.key -> "true",
+      CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true",
       "celeborn.push.timeoutCheck.interval" -> "1s")
     setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
   }

@@ -33,6 +33,9 @@ masterReplicas: 3
 # worker replicas set on demand, should less than node number
 workerReplicas: 5
 
+hostNetwork: false
+dnsPolicy: ClusterFirst
+
 securityContext:
   runAsUser: 10006
   runAsGroup: 10006
@@ -70,7 +73,7 @@ volumes:
 
 # celeborn configurations
 celeborn:
-  celeborn.ha.enabled: true
+  celeborn.master.ha.enabled: true
   celeborn.metrics.enabled: true
   celeborn.master.metrics.prometheus.port: 9098
   celeborn.worker.metrics.prometheus.port: 9096
