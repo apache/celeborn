@@ -31,7 +31,7 @@ license: |
  - Since 0.3.0, configuration namespace `celeborn.ha.master` is deprecated, and will be removed in the future versions.
    All configurations `celeborn.ha.master.*` should migrate to `celeborn.master.ha.*`.
 
- - When using 0.2.1 as client side jar and 0.3.0 as server side, you may see the following Exception in LifecycleManger's
+ - When using 0.2.1 as client side and 0.3.0 as server side, you may see the following Exception in LifecycleManger's
    log. You can safely ignore the log, it's caused by the behavior change when Master receives heartbeat from Application.
 ```
 23/06/20 18:12:30 WARN TransportChannelHandler: Exception in connection from /192.168.1.16:9097
