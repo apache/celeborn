@@ -30,6 +30,8 @@ public interface Compressor {
 
   byte[] getCompressedBuffer();
 
+  String getCompressType();
+
   default void writeIntLE(int i, byte[] buf, int off) {
     buf[off++] = (byte) i;
     buf[off++] = (byte) (i >>> 8);

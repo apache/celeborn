@@ -22,6 +22,8 @@ import java.util.zip.Checksum;
 
 import com.github.luben.zstd.Zstd;
 
+import org.apache.celeborn.common.protocol.CompressionCodec;
+
 public class RssZstdCompressor extends RssZstdTrait implements Compressor {
   private final int compressionLevel;
   private final Checksum checksum;
@@ -85,5 +87,10 @@ public class RssZstdCompressor extends RssZstdTrait implements Compressor {
   @Override
   public byte[] getCompressedBuffer() {
     return compressedBuffer;
+  }
+
+  @Override
+  public String getCompressType() {
+    return CompressionCodec.ZSTD.name();
   }
 }

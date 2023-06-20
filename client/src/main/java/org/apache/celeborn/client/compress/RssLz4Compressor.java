@@ -23,6 +23,8 @@ import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.xxhash.XXHashFactory;
 
+import org.apache.celeborn.common.protocol.CompressionCodec;
+
 public class RssLz4Compressor extends RssLz4Trait implements Compressor {
   private final LZ4Compressor compressor;
   private final Checksum checksum;
@@ -78,5 +80,10 @@ public class RssLz4Compressor extends RssLz4Trait implements Compressor {
   @Override
   public byte[] getCompressedBuffer() {
     return compressedBuffer;
+  }
+
+  @Override
+  public String getCompressType() {
+    return CompressionCodec.LZ4.name();
   }
 }

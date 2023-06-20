@@ -113,7 +113,9 @@ public class ShuffleClientImpl extends ShuffleClient {
       new ThreadLocal<Compressor>() {
         @Override
         protected Compressor initialValue() {
-          return Compressor.getCompressor(conf);
+          Compressor compressor = Compressor.getCompressor(conf);
+          logger.info("Celeborn use {} for shuffle compress.", compressor.getCompressType());
+          return compressor;
         }
       };
 
