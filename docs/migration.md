@@ -30,3 +30,22 @@ license: |
 
  - Since 0.3.0, configuration namespace `celeborn.ha.master` is deprecated, and will be removed in the future versions.
    All configurations `celeborn.ha.master.*` should migrate to `celeborn.master.ha.*`.
+
+ - When using 0.2.1 as client side and 0.3.0 as server side, you may see the following Exception in LifecycleManger's
+   log. You can safely ignore the log, it's caused by the behavior change when Master receives heartbeat from Application.
+
+    ??? warning "logs"
+        ```
+        23/06/20 18:12:30 WARN TransportChannelHandler: Exception in connection from /192.168.1.16:9097
+        java.io.InvalidObjectException: enum constant HEARTBEAT_FROM_APPLICATION_RESPONSE does not exist in class org.apache.celeborn.common.protocol.MessageType
+            at java.io.ObjectInputStream.readEnum(ObjectInputStream.java:2157)
+            at java.io.ObjectInputStream.readObject0(ObjectInputStream.java:1662)
+            at java.io.ObjectInputStream.defaultReadFields(ObjectInputStream.java:2430)
+            at java.io.ObjectInputStream.readSerialData(ObjectInputStream.java:2354)
+            at java.io.ObjectInputStream.readOrdinaryObject(ObjectInputStream.java:2212)
+            at java.io.ObjectInputStream.readObject0(ObjectInputStream.java:1668)
+            at java.io.ObjectInputStream.readObject(ObjectInputStream.java:502)
+            at java.io.ObjectInputStream.readObject(ObjectInputStream.java:460)
+            at org.apache.celeborn.common.serializer.JavaDeserializationStream.readObject(JavaSerializer.scala:76)
+            at org.apache.celeborn.common.serializer.JavaSerializerInstance.deserialize(JavaSerializer.scala:110)
+        ```
