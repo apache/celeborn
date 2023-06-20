@@ -37,7 +37,7 @@ license: |
     ??? warning "logs"
         ```
         23/06/20 18:12:30 WARN TransportChannelHandler: Exception in connection from /192.168.1.16:9097
-            java.io.InvalidObjectException: enum constant HEARTBEAT_FROM_APPLICATION_RESPONSE does not exist in class org.apache.celeborn.common.protocol.MessageType
+        java.io.InvalidObjectException: enum constant HEARTBEAT_FROM_APPLICATION_RESPONSE does not exist in class org.apache.celeborn.common.protocol.MessageType
             at java.io.ObjectInputStream.readEnum(ObjectInputStream.java:2157)
             at java.io.ObjectInputStream.readObject0(ObjectInputStream.java:1662)
             at java.io.ObjectInputStream.defaultReadFields(ObjectInputStream.java:2430)
