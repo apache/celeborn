@@ -232,10 +232,10 @@ object ControlMessages extends Logging {
     def apply(
         status: StatusCode,
         partitionLocationOpt: Option[PartitionLocation],
-        excluded: Boolean): PbChangeLocationResponse = {
+        available: Boolean): PbChangeLocationResponse = {
       val builder = PbChangeLocationResponse.newBuilder()
       builder.setStatus(status.getValue)
-        .setExcluded(excluded)
+        .setAvailable(available)
       partitionLocationOpt.foreach { partitionLocation =>
         builder.setLocation(PbSerDeUtils.toPbPartitionLocation(partitionLocation))
       }

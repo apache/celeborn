@@ -167,7 +167,7 @@ class ChangePartitionManager(
           context.reply(
             StatusCode.SUCCESS,
             Some(latestLoc),
-            lifecycleManager.workerStatusTracker.workerExcluded(oldPartition))
+            lifecycleManager.workerStatusTracker.workerAvailable(oldPartition))
           logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
@@ -233,7 +233,7 @@ class ChangePartitionManager(
           req.context.reply(
             StatusCode.SUCCESS,
             Option(newLocation),
-            lifecycleManager.workerStatusTracker.workerExcluded(req.oldPartition))
+            lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))
         })
       }
     }
@@ -252,7 +252,7 @@ class ChangePartitionManager(
           req.context.reply(
             status,
             None,
-            lifecycleManager.workerStatusTracker.workerExcluded(req.oldPartition))))
+            lifecycleManager.workerStatusTracker.workerAvailable(req.oldPartition))))
       }
     }
 

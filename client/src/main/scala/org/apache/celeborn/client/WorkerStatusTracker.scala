@@ -53,15 +53,15 @@ class WorkerStatusTracker(
     }
   }
 
-  def workerAvailable(worker: WorkerInfo) = {
+  def workerAvailable(worker: WorkerInfo): Boolean = {
     !blacklist.containsKey(worker) && !shuttingWorkers.contains(worker)
   }
 
-  def workerExcluded(loc: PartitionLocation): Boolean = {
+  def workerAvailable(loc: PartitionLocation): Boolean = {
     if (loc == null) {
       false
     } else {
-      blacklist.containsKey(loc.getWorker)
+      workerAvailable(loc.getWorker)
     }
   }
 

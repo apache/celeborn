@@ -589,11 +589,14 @@ public class ShuffleClientImpl extends ShuffleClient {
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
       // per partitionKey only serve single PartitionLocation in Client Cache.
       StatusCode respStatus = Utils.toStatusCode(response.getStatus());
-      if (!response.getExcluded()) {
+      if (response.getAvailable()) {
         blacklist.remove(oldLocation.hostAndPushPort());
       }
       if (StatusCode.SUCCESS.equals(respStatus)) {
-        map.put(partitionId, PbSerDeUtils.fromPbPartitionLocation(response.getLocation()));
+        PartitionLocation newLocation =
+            PbSerDeUtils.fromPbPartitionLocation(response.getLocation());
+        map.put(partitionId, newLocation);
+        blacklist.remove(newLocation.hostAndPushPort());
         return true;
       } else if (StatusCode.MAP_ENDED.equals(respStatus)) {
         logger.debug(
