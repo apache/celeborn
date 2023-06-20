@@ -515,7 +515,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       context.reply(ChangeLocationResponse(
         StatusCode.SHUFFLE_NOT_REGISTERED,
         None,
-        workerStatusTracker.excluded(oldPartition)))
+        workerStatusTracker.workerExcluded(oldPartition)))
       return
     }
 
@@ -524,7 +524,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       context.reply(ChangeLocationResponse(
         StatusCode.REVIVE_FAILED,
         None,
-        workerStatusTracker.excluded(oldPartition)))
+        workerStatusTracker.workerExcluded(oldPartition)))
       return
     }
 
@@ -534,7 +534,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       context.reply(ChangeLocationResponse(
         StatusCode.MAP_ENDED,
         None,
-        workerStatusTracker.excluded(oldPartition)))
+        workerStatusTracker.workerExcluded(oldPartition)))
       return
     }
 

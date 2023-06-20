@@ -167,7 +167,7 @@ class ChangePartitionManager(
           context.reply(
             StatusCode.SUCCESS,
             Some(latestLoc),
-            lifecycleManager.workerStatusTracker.excluded(oldPartition))
+            lifecycleManager.workerStatusTracker.workerExcluded(oldPartition))
           logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
             s" shuffleId: $shuffleId $latestLoc")
           return
@@ -229,11 +229,12 @@ class ChangePartitionManager(
           location -> Option(requestsMap.remove(location.getId))
         }
       }.foreach { case (newLocation, requests) =>
-        requests.map(_.asScala.toList.foreach(req =>
+        requests.flatMap(_.asScala.toList).foreach { req =>
           req.context.reply(
             StatusCode.SUCCESS,
             Option(newLocation),
-            lifecycleManager.workerStatusTracker.excluded(req.oldPartition))))
+            lifecycleManager.workerStatusTracker.workerExcluded(req.oldPartition))
+        }
       }
     }
 
@@ -251,7 +252,7 @@ class ChangePartitionManager(
           req.context.reply(
             status,
             None,
-            lifecycleManager.workerStatusTracker.excluded(req.oldPartition))))
+            lifecycleManager.workerStatusTracker.workerExcluded(req.oldPartition))))
       }
     }
 
