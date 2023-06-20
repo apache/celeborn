@@ -277,17 +277,11 @@ private[celeborn] class Worker(
     storageManager.topAppDiskUsage.asScala.foreach { case (shuffleId, usage) =>
       estimatedAppDiskUsage.put(shuffleId, usage)
     }
-    // During shutdown, return an empty diskInfo list to mark this worker as unavailable,
-    // and avoid remove this from master's blacklist.
+    storageManager.updateDiskInfos()
     val diskInfos =
-      if (shutdown.get()) {
-        Seq.empty[DiskInfo]
-      } else {
-        storageManager.updateDiskInfos()
-        workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
-          disk.mountPoint -> disk
-        }.toMap.asJava).values().asScala.toSeq
-      }
+      workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
+        disk.mountPoint -> disk
+      }.toMap.asJava).values().asScala.toSeq
     val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
       storageManager.userResourceConsumptionSnapshot().asJava)
 
