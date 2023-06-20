@@ -159,10 +159,6 @@ class WorkerInfo(
     s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
   }
 
-  def toInfoId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$networkLocation"
-  }
-
   def slotAvailable(): Boolean = this.synchronized {
     diskInfos.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
   }
