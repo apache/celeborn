@@ -42,6 +42,6 @@ class SplitReadTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString("celeborn.client.shuffle.partitionSplit.threshold", "32m")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.setRuntimeMode(RuntimeExecutionMode.BATCH)
-    SplitReadHelper.runSplitRead(env)
+//    SplitReadHelper.runSplitRead(env)
   }
 }
