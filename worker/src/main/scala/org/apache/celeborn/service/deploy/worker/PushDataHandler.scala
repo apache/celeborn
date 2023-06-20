@@ -56,13 +56,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   private var partitionSplitMinimumSize: Long = _
   private var shutdown: AtomicBoolean = _
   private var storageManager: StorageManager = _
+  private var conf: CelebornConf = _
   private var workerPartitionSplitEnabled: Boolean = _
   private var workerReplicateRandomConnectionEnabled: Boolean = _
 
   @volatile private var pushMasterDataTimeoutTested = false
   @volatile private var pushSlaveDataTimeoutTested = false
-  private var testPushMasterDataTimeout: Boolean = false
-  private var testPushSlaveDataTimeout: Boolean = false
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -79,9 +78,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     storageManager = worker.storageManager
     shutdown = worker.shutdown
-    testPushMasterDataTimeout = worker.conf.testPushMasterDataTimeout
-    testPushSlaveDataTimeout = worker.conf.testPushSlaveDataTimeout
-    workerPartitionSplitEnabled = worker.conf.workerPartitionSplitEnabled
+    conf = worker.conf
+    workerPartitionSplitEnabled = conf.workerPartitionSplitEnabled
     workerReplicateRandomConnectionEnabled = worker.conf.workerReplicateRandomConnectionEnabled
 
     logInfo(s"diskReserveSize $diskReserveSize")
@@ -133,12 +131,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val isMaster = mode == PartitionLocation.Mode.MASTER
 
     // For test
-    if (isMaster && testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
+    if (isMaster && !pushMasterDataTimeoutTested && conf.testPushMasterDataTimeout) {
       pushMasterDataTimeoutTested = true
       return
     }
 
-    if (!isMaster && testPushSlaveDataTimeout && !pushSlaveDataTimeoutTested) {
+    if (!isMaster && !pushSlaveDataTimeoutTested && conf.testPushSlaveDataTimeout) {
       pushSlaveDataTimeoutTested = true
       return
     }
@@ -407,13 +405,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     // For test
-    if (isMaster && testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
-      pushMasterDataTimeoutTested = true
+    if (isMaster && !PushDataHandler.pushMasterMergeDataTimeoutTested && conf.testPushMasterDataTimeout) {
+      PushDataHandler.pushMasterMergeDataTimeoutTested = true
       return
     }
 
-    if (!isMaster && testPushSlaveDataTimeout && !pushSlaveDataTimeoutTested) {
-      pushSlaveDataTimeoutTested = true
+    if (!isMaster && !PushDataHandler.pushSlaveMergeDataTimeoutTested && conf.testPushSlaveDataTimeout) {
+      PushDataHandler.pushSlaveMergeDataTimeoutTested = true
       return
     }
 
@@ -1070,4 +1068,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       pushClientFactory.createClient(host, port, partitionId)
     }
   }
+}
+
+object PushDataHandler {
+  @volatile private var pushMasterMergeDataTimeoutTested = false
+  @volatile private var pushSlaveMergeDataTimeoutTested = false
 }
