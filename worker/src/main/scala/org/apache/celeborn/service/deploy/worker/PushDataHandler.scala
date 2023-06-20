@@ -61,6 +61,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   @volatile private var pushMasterDataTimeoutTested = false
   @volatile private var pushSlaveDataTimeoutTested = false
+  private var testPushMasterDataTimeout: Boolean = false
+  private var testPushSlaveDataTimeout: Boolean = false
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -77,8 +79,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     storageManager = worker.storageManager
     shutdown = worker.shutdown
-    pushMasterDataTimeoutTested = worker.conf.testPushMasterDataTimeout
-    pushSlaveDataTimeoutTested = worker.conf.testPushSlaveDataTimeout
+    testPushMasterDataTimeout = worker.conf.testPushMasterDataTimeout
+    testPushSlaveDataTimeout = worker.conf.testPushSlaveDataTimeout
     workerPartitionSplitEnabled = worker.conf.workerPartitionSplitEnabled
     workerReplicateRandomConnectionEnabled = worker.conf.workerReplicateRandomConnectionEnabled
 
@@ -131,12 +133,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val isMaster = mode == PartitionLocation.Mode.MASTER
 
     // For test
-    if (isMaster && !pushMasterDataTimeoutTested) {
+    if (isMaster && testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
       pushMasterDataTimeoutTested = true
       return
     }
 
-    if (!isMaster && !pushSlaveDataTimeoutTested) {
+    if (!isMaster && testPushSlaveDataTimeout && !pushSlaveDataTimeoutTested) {
       pushSlaveDataTimeoutTested = true
       return
     }
@@ -405,12 +407,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     // For test
-    if (isMaster && !pushMasterDataTimeoutTested) {
+    if (isMaster && testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
       pushMasterDataTimeoutTested = true
       return
     }
 
-    if (!isMaster && !pushSlaveDataTimeoutTested) {
+    if (!isMaster && testPushSlaveDataTimeout && !pushSlaveDataTimeoutTested) {
       pushSlaveDataTimeoutTested = true
       return
     }
