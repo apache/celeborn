@@ -122,7 +122,7 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
    * @return true if device is hang
    */
   def ioHang(): Boolean = {
-    if (deviceInfo.deviceStatAvailable) {
+    if (!deviceInfo.deviceStatAvailable) {
       false
     } else {
       var statsSource: Source = null

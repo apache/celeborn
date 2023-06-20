@@ -52,6 +52,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val workingDirWriters =
     JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, FileWriter]]()
 
+  // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
       conf.workerBaseDirs.map { case (workdir, maxSpace, flusherThread, storageType) =>

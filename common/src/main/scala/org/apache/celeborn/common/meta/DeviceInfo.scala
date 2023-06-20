@@ -145,8 +145,8 @@ class DiskInfo(
 
 class DeviceInfo(val name: String) extends Serializable {
   var diskInfos: ListBuffer[DiskInfo] = new ListBuffer[DiskInfo]()
-  // if noDevice is true means that there is no device info found.
-  var deviceStatAvailable = false
+  // if deviceStatAvailable is false means that there is no device info found.
+  var deviceStatAvailable = true
 
   def addDiskInfo(diskInfo: DiskInfo): Unit = {
     diskInfos.append(diskInfo)
@@ -212,7 +212,8 @@ object DeviceInfo {
           override def apply(s: String): DeviceInfo = {
             val deviceInfo = new DeviceInfo(s)
             if (index < 0) {
-              deviceInfo.deviceStatAvailable = true
+              // device not found in /sys/block/
+              deviceInfo.deviceStatAvailable = false
             }
             deviceInfo
           }
