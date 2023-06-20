@@ -34,7 +34,7 @@ license: |
  - When using 0.2.1 as client side and 0.3.0 as server side, you may see the following Exception in LifecycleManger's
    log. You can safely ignore the log, it's caused by the behavior change when Master receives heartbeat from Application.
 
-    ??? Logs
+    ??? warning "logs"
         ```
         23/06/20 18:12:30 WARN TransportChannelHandler: Exception in connection from /192.168.1.16:9097
             java.io.InvalidObjectException: enum constant HEARTBEAT_FROM_APPLICATION_RESPONSE does not exist in class org.apache.celeborn.common.protocol.MessageType
