@@ -1,12 +1,13 @@
 package org.apache.celeborn.tests.flink
 
-import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.configuration.{ConfigConstants, Configuration, ExecutionOptions, RestOptions}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
+
+import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class SplitReadTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
@@ -24,7 +25,7 @@ class SplitReadTest extends AnyFunSuite with Logging with MiniClusterFeature
     shutdownMiniCluster()
   }
 
-  test("celeborn flink integration test - word count") {
+  test("celeborn flink integration test - simple shuffle test") {
     val configuration = new Configuration
     val parallelism = 8
     configuration.setString(
@@ -39,9 +40,9 @@ class SplitReadTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.min-parallelism",
       "" + parallelism)
-    configuration.setString("celeborn.client.shuffle.partitionSplit.threshold", "32m")
+//    configuration.setString("celeborn.client.shuffle.partitionSplit.threshold", "32m")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.setRuntimeMode(RuntimeExecutionMode.BATCH)
-//    SplitReadHelper.runSplitRead(env)
+    SplitReadHelper.runSplitRead(env)
   }
 }
