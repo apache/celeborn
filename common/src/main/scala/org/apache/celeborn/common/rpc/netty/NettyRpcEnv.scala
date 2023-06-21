@@ -355,6 +355,8 @@ private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
         config.advertiseAddress,
         config.numUsableCores)
     val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
+      logInfo(s"Starting RPC Server [${config.name}] on ${config.bindAddress}:$actualPort " +
+        s"with advisor endpoint ${config.advertiseAddress}:$actualPort")
       nettyEnv.startServer(config.bindAddress, actualPort)
       (nettyEnv, nettyEnv.address.port)
     }
