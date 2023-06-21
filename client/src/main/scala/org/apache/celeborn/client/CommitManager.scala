@@ -214,8 +214,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       attemptId,
       numMappers,
       partitionId,
-      r =>
-        lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
+      r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
   }
 
   def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
@@ -270,21 +269,23 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     } else {
       commitHandlers.computeIfAbsent(
         partitionType,
-        {
-          case PartitionType.REDUCE => new ReducePartitionCommitHandler(
-              appId,
-              conf,
-              lifecycleManager.shuffleAllocatedWorkers,
-              committedPartitionInfo,
-              lifecycleManager.workerStatusTracker)
-          case PartitionType.MAP => new MapPartitionCommitHandler(
-              appId,
-              conf,
-              lifecycleManager.shuffleAllocatedWorkers,
-              committedPartitionInfo,
-              lifecycleManager.workerStatusTracker)
-          case partitionType => throw new UnsupportedOperationException(
-              s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
+        (partitionType: PartitionType) => {
+          partitionType match {
+            case PartitionType.REDUCE => new ReducePartitionCommitHandler(
+                appId,
+                conf,
+                lifecycleManager.shuffleAllocatedWorkers,
+                committedPartitionInfo,
+                lifecycleManager.workerStatusTracker)
+            case PartitionType.MAP => new MapPartitionCommitHandler(
+                appId,
+                conf,
+                lifecycleManager.shuffleAllocatedWorkers,
+                committedPartitionInfo,
+                lifecycleManager.workerStatusTracker)
+            case _ => throw new UnsupportedOperationException(
+                s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
+          }
         })
     }
   }
