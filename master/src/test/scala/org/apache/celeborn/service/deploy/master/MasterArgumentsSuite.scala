@@ -41,13 +41,13 @@ class MasterArgumentsSuite extends AnyFunSuite with Logging {
 
     val arguments2 = new MasterArguments(args1, conf2)
     assert(arguments2.host === sys.env.getOrElse("CELEBORN_LOCAL_HOSTNAME", "test-host-1"))
-    assert(arguments2.port == 19097)
+    assert(arguments2.port === 19097)
 
     // should use cli args
     val args2 = Array("-h", "test-host-2", "-p", "29097")
 
     val arguments3 = new MasterArguments(args2, conf2)
     assert(arguments3.host === "test-host-2")
-    assert(arguments3.port == 29097)
+    assert(arguments3.port === 29097)
   }
 }
