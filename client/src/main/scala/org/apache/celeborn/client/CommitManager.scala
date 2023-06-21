@@ -214,8 +214,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
       attemptId,
       numMappers,
       partitionId,
-      r =>
-        lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
+      r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
   }
 
   def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
@@ -291,14 +290,10 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     }
   }
 
-  def commitMetrics(): (Long, Long) = {
-    var totalWritten = 0L
-    var totalFileCount = 0L
-    commitHandlers.asScala.values.foreach { commitHandler =>
-      totalWritten += commitHandler.commitMetrics._1
-      totalFileCount += commitHandler.commitMetrics._2
-    }
-    (totalWritten, totalFileCount)
+  def commitMetrics(): (Long, Long) = commitHandlers.asScala.values.foldLeft(0L -> 0L) {
+    case ((totalWritten, totalFileCount), commitHandler) =>
+      val (written, fileCount) = commitHandler.commitMetrics()
+      (totalWritten + written, totalFileCount + fileCount)
   }
 
   class ShutdownWorkerListener extends WorkerStatusListener {

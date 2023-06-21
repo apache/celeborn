@@ -269,7 +269,7 @@ private[celeborn] class Worker(
     WorkerSource.ReadBufferAllocatedCount,
     _ => memoryManager.getAllocatedReadBuffers)
 
-  private def heartBeatToMaster(): Unit = {
+  private def heartbeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
     val estimatedAppDiskUsage = new JHashMap[String, JLong]()
     activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
@@ -322,7 +322,7 @@ private[celeborn] class Worker(
     sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          heartBeatToMaster()
+          heartbeatToMaster()
         }
       },
       HEARTBEAT_MILLIS,

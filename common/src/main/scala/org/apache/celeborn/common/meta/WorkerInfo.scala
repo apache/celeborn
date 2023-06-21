@@ -220,7 +220,7 @@ class WorkerInfo(
     userResourceConsumption
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     val (diskInfosString, slots) =
       if (diskInfos == null || diskInfos.isEmpty) {
         ("empty", 0)
@@ -246,7 +246,7 @@ class WorkerInfo(
        |ReplicatePort: $replicatePort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
-       |HeartBeatElapsedSeconds: ${(System.currentTimeMillis() - lastHeartbeat) / 1000}
+       |HeartbeatElapsedSeconds: ${(System.currentTimeMillis() - lastHeartbeat) / 1000}
        |Disks: $diskInfosString
        |UserResourceConsumption: $userResourceConsumptionString
        |WorkerRef: $endpoint
