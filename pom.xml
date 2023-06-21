@@ -61,7 +61,7 @@
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <maven.version>3.6.3</maven.version>
+    <maven.version>3.8.8</maven.version>
 
     <flink.version>1.14.6</flink.version>
     <hadoop.version>3.2.1</hadoop.version>
