@@ -49,7 +49,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   private var replicateThreadPool: ThreadPoolExecutor = _
   private var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
   private var pushClientFactory: TransportClientFactory = _
-  private var registered: AtomicBoolean = new AtomicBoolean(false)
+  private var registered: AtomicBoolean = _
   private var workerInfo: WorkerInfo = _
   private var diskReserveSize: Long = _
   private var partitionSplitMinimumSize: Long = _
