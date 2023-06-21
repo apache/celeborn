@@ -270,35 +270,29 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
     } else {
       commitHandlers.computeIfAbsent(
         partitionType,
-        (partitionType: PartitionType) => {
-          partitionType match {
-            case PartitionType.REDUCE => new ReducePartitionCommitHandler(
-                appId,
-                conf,
-                lifecycleManager.shuffleAllocatedWorkers,
-                committedPartitionInfo,
-                lifecycleManager.workerStatusTracker)
-            case PartitionType.MAP => new MapPartitionCommitHandler(
-                appId,
-                conf,
-                lifecycleManager.shuffleAllocatedWorkers,
-                committedPartitionInfo,
-                lifecycleManager.workerStatusTracker)
-            case _ => throw new UnsupportedOperationException(
-                s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
-          }
+        {
+          case PartitionType.REDUCE => new ReducePartitionCommitHandler(
+              appId,
+              conf,
+              lifecycleManager.shuffleAllocatedWorkers,
+              committedPartitionInfo,
+              lifecycleManager.workerStatusTracker)
+          case PartitionType.MAP => new MapPartitionCommitHandler(
+              appId,
+              conf,
+              lifecycleManager.shuffleAllocatedWorkers,
+              committedPartitionInfo,
+              lifecycleManager.workerStatusTracker)
+          case partitionType => throw new UnsupportedOperationException(
+              s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
         })
     }
   }
 
-  def commitMetrics(): (Long, Long) = {
-    var totalWritten = 0L
-    var totalFileCount = 0L
-    commitHandlers.asScala.values.foreach { commitHandler =>
-      totalWritten += commitHandler.commitMetrics._1
-      totalFileCount += commitHandler.commitMetrics._2
-    }
-    (totalWritten, totalFileCount)
+  def commitMetrics(): (Long, Long) = commitHandlers.asScala.values.foldLeft(0L -> 0L) {
+    case ((totalWritten, totalFileCount), commitHandler) =>
+      val (written, fileCount) = commitHandler.commitMetrics()
+      (totalWritten + written, totalFileCount + fileCount)
   }
 
   class ShutdownWorkerListener extends WorkerStatusListener {

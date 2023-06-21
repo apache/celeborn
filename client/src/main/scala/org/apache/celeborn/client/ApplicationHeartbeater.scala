@@ -27,7 +27,7 @@ import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 class ApplicationHeartbeater(
     appId: String,
@@ -39,7 +39,7 @@ class ApplicationHeartbeater(
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
   private val appHeartbeatHandlerThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-heartbeat")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-app-heartbeat")
   private var appHeartbeat: ScheduledFuture[_] = _
 
   def start(): Unit = {
@@ -48,13 +48,14 @@ class ApplicationHeartbeater(
         override def run(): Unit = {
           try {
             require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
-            val (tmpTotalWritten, tmpFileCount) = shuffleMetrics()
-            logDebug(s"Send app heartbeat with $tmpTotalWritten $tmpFileCount")
+            val (tmpTotalWritten, tmpTotalFileCount) = shuffleMetrics()
+            logInfo("Send app heartbeat with " +
+              s"written: ${Utils.bytesToString(tmpTotalWritten)}, file count: $tmpTotalFileCount")
             val appHeartbeat =
               HeartbeatFromApplication(
                 appId,
                 tmpTotalWritten,
-                tmpFileCount,
+                tmpTotalFileCount,
                 workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
                 ZERO_UUID)
             val response = requestHeartbeat(appHeartbeat)
@@ -85,7 +86,7 @@ class ApplicationHeartbeater(
         classOf[HeartbeatFromApplicationResponse])
     } catch {
       case e: Exception =>
-        logError(s"AskSync HeartbeatFromApplication failed.", e)
+        logError("AskSync HeartbeatFromApplication failed.", e)
         HeartbeatFromApplicationResponse(
           StatusCode.REQUEST_FAILED,
           List.empty.asJava,

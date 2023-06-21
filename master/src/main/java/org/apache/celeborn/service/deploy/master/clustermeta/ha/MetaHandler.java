@@ -106,10 +106,7 @@ public class MetaHandler {
           request
               .getRequestSlotsRequest()
               .getWorkerAllocationsMap()
-              .forEach(
-                  (k, v) -> {
-                    workerAllocations.put(k, new HashMap<>(v.getSlotMap()));
-                  });
+              .forEach((k, v) -> workerAllocations.put(k, new HashMap<>(v.getSlotMap())));
           LOG.debug("Handle request slots for {}", shuffleKey);
           metaSystem.updateRequestSlotsMeta(
               shuffleKey, request.getRequestSlotsRequest().getHostName(), workerAllocations);

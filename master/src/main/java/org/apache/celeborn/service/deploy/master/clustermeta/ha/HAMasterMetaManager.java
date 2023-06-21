@@ -156,7 +156,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle heart beat for {} failed!", appId, e);
+      LOG.error("Handle heartbeat for {} failed!", appId, e);
       throw e;
     }
   }
