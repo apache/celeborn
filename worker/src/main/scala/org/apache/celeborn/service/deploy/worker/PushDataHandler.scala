@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 import com.google.common.base.Throwables
 import io.netty.buffer.ByteBuf
 
-import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
@@ -42,24 +41,27 @@ import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlushe
 
 class PushDataHandler extends BaseMessageHandler with Logging {
 
-  var workerSource: WorkerSource = _
-  var partitionLocationInfo: WorkerPartitionLocationInfo = _
-  var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
-  var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
-  var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
-  var replicateThreadPool: ThreadPoolExecutor = _
-  var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
-  var pushClientFactory: TransportClientFactory = _
-  var registered: AtomicBoolean = new AtomicBoolean(false)
-  var workerInfo: WorkerInfo = _
-  var diskReserveSize: Long = _
-  var partitionSplitMinimumSize: Long = _
-  var shutdown: AtomicBoolean = _
-  var storageManager: StorageManager = _
-  var conf: CelebornConf = _
-  @volatile var pushMasterDataTimeoutTested = false
-  @volatile var pushSlaveDataTimeoutTested = false
-  var workerPartitionSplitEnabled: Boolean = _
+  private var workerSource: WorkerSource = _
+  private var partitionLocationInfo: WorkerPartitionLocationInfo = _
+  private var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
+  private var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
+  private var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
+  private var replicateThreadPool: ThreadPoolExecutor = _
+  private var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
+  private var pushClientFactory: TransportClientFactory = _
+  private var registered: AtomicBoolean = _
+  private var workerInfo: WorkerInfo = _
+  private var diskReserveSize: Long = _
+  private var partitionSplitMinimumSize: Long = _
+  private var shutdown: AtomicBoolean = _
+  private var storageManager: StorageManager = _
+  private var workerPartitionSplitEnabled: Boolean = _
+  private var workerReplicateRandomConnectionEnabled: Boolean = _
+
+  @volatile private var pushMasterDataTimeoutTested = false
+  @volatile private var pushSlaveDataTimeoutTested = false
+  private var testPushMasterDataTimeout: Boolean = _
+  private var testPushSlaveDataTimeout: Boolean = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -76,8 +78,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     storageManager = worker.storageManager
     shutdown = worker.shutdown
-    conf = worker.conf
-    workerPartitionSplitEnabled = conf.workerPartitionSplitEnabled
+    workerPartitionSplitEnabled = worker.conf.workerPartitionSplitEnabled
+    workerReplicateRandomConnectionEnabled = worker.conf.workerReplicateRandomConnectionEnabled
+
+    testPushMasterDataTimeout = worker.conf.testPushMasterDataTimeout
+    testPushSlaveDataTimeout = worker.conf.testPushSlaveDataTimeout
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
@@ -128,12 +133,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val isMaster = mode == PartitionLocation.Mode.MASTER
 
     // For test
-    if (isMaster && conf.testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
+    if (isMaster && testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
       pushMasterDataTimeoutTested = true
       return
     }
 
-    if (!isMaster && conf.testPushSlaveDataTimeout && !pushSlaveDataTimeoutTested) {
+    if (!isMaster && testPushSlaveDataTimeout && !pushSlaveDataTimeoutTested) {
       pushSlaveDataTimeoutTested = true
       return
     }
@@ -402,13 +407,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     // For test
-    if (isMaster && conf.testPushMasterDataTimeout && !PushDataHandler.pushMasterDataTimeoutTested) {
-      PushDataHandler.pushMasterDataTimeoutTested = true
+    if (isMaster && testPushMasterDataTimeout && !PushDataHandler.pushMasterMergeDataTimeoutTested) {
+      PushDataHandler.pushMasterMergeDataTimeoutTested = true
       return
     }
 
-    if (!isMaster && conf.testPushSlaveDataTimeout && !PushDataHandler.pushSlaveDataTimeoutTested) {
-      PushDataHandler.pushSlaveDataTimeoutTested = true
+    if (!isMaster && testPushSlaveDataTimeout && !PushDataHandler.pushSlaveMergeDataTimeoutTested) {
+      PushDataHandler.pushSlaveMergeDataTimeoutTested = true
       return
     }
 
@@ -1059,7 +1064,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   private def getClient(host: String, port: Int, partitionId: Int): TransportClient = {
-    if (conf.workerReplicateRandomConnectionEnabled) {
+    if (workerReplicateRandomConnectionEnabled) {
       pushClientFactory.createClient(host, port)
     } else {
       pushClientFactory.createClient(host, port, partitionId)
@@ -1068,6 +1073,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 }
 
 object PushDataHandler {
-  @volatile var pushMasterDataTimeoutTested = false
-  @volatile var pushSlaveDataTimeoutTested = false
+  @volatile private var pushMasterMergeDataTimeoutTested = false
+  @volatile private var pushSlaveMergeDataTimeoutTested = false
 }
