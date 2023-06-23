@@ -2785,7 +2785,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Timeout for a task to open stream and fetch chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
+      .createWithDefaultString("600s")
 
   val CLIENT_FETCH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
     buildConf("celeborn.client.fetch.maxReqsInFlight")

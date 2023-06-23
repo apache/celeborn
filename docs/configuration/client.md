@@ -28,7 +28,7 @@ license: |
 | celeborn.client.fetch.excludedWorker.expireTimeout | &lt;value of celeborn.client.excludedWorker.expireTimeout&gt; | ShuffleClient is a static object, it will be used in the whole lifecycle of Executor,We give a expire time for blacklisted worker to avoid a transient worker issues. | 0.3.0 | 
 | celeborn.client.fetch.maxReqsInFlight | 3 | Amount of in-flight chunk fetch request. | 0.3.0 | 
 | celeborn.client.fetch.maxRetriesForEachReplica | 3 | Max retry times of fetch chunk on each replica | 0.3.0 | 
-| celeborn.client.fetch.timeout | 30s | Timeout for a task to open stream and fetch chunk. | 0.3.0 | 
+| celeborn.client.fetch.timeout | 600s | Timeout for a task to open stream and fetch chunk. | 0.3.0 | 
 | celeborn.client.flink.compression.enabled | true | Whether to compress data in Flink plugin. | 0.3.0 | 
 | celeborn.client.flink.inputGate.concurrentReadings | 2147483647 | Max concurrent reading channels for a input gate. | 0.3.0 | 
 | celeborn.client.flink.inputGate.memory | 32m | Memory reserved for a input gate. | 0.3.0 | 
