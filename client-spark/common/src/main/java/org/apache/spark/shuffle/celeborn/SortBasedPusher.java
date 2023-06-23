@@ -117,7 +117,6 @@ public class SortBasedPusher extends MemoryConsumer {
     try {
       dataPusher =
           new DataPusher(
-              appId,
               shuffleId,
               mapId,
               attemptNumber,
@@ -162,7 +161,6 @@ public class SortBasedPusher extends MemoryConsumer {
           } else {
             int bytesWritten =
                 rssShuffleClient.mergeData(
-                    appId,
                     shuffleId,
                     mapId,
                     attemptNumber,

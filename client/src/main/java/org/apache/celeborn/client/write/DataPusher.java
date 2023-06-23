@@ -48,7 +48,6 @@ public class DataPusher {
 
   private final AtomicReference<IOException> exceptionRef = new AtomicReference<>();
 
-  private final String appId;
   private final int shuffleId;
   private final int mapId;
   private final int attemptId;
@@ -62,7 +61,6 @@ public class DataPusher {
   private Thread pushThread;
 
   public DataPusher(
-      String appId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -80,13 +78,12 @@ public class DataPusher {
     idleQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
     dataPushQueue =
         new DataPushQueue(
-            conf, this, client, appId, shuffleId, mapId, attemptId, numMappers, numPartitions);
+            conf, this, client, shuffleId, mapId, attemptId, numMappers, numPartitions);
 
     for (int i = 0; i < pushQueueCapacity; i++) {
       idleQueue.put(new PushTask(pushBufferMaxSize));
     }
 
-    this.appId = appId;
     this.shuffleId = shuffleId;
     this.mapId = mapId;
     this.attemptId = attemptId;
@@ -195,7 +192,6 @@ public class DataPusher {
   private void pushData(PushTask task) throws IOException {
     int bytesWritten =
         client.pushData(
-            appId,
             shuffleId,
             mapId,
             attemptId,

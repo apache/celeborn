@@ -109,6 +109,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final ExecutorService partitionSplitPool;
   private final Map<Integer, Set<Integer>> splitting = JavaUtils.newConcurrentHashMap();
 
+  private final String appUniqueId;
+
   ThreadLocal<Compressor> compressorThreadLocal =
       new ThreadLocal<Compressor>() {
         @Override
@@ -148,8 +150,9 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<Integer, ReduceFileGroups> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
 
-  public ShuffleClientImpl(CelebornConf conf, UserIdentifier userIdentifier) {
+  public ShuffleClientImpl(String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
     super();
+    this.appUniqueId = appUniqueId;
     this.conf = conf;
     this.userIdentifier = userIdentifier;
     registerShuffleMaxRetries = conf.clientRegisterShuffleMaxRetry();
@@ -200,7 +203,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private void submitRetryPushData(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -213,7 +215,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       int remainReviveTimes) {
     int partitionId = loc.getId();
     if (!revive(
-        applicationId, shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
+        shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause)) {
       wrappedCallback.onFailure(
           new CelebornIOException(cause + " then revive but " + StatusCode.REVIVE_FAILED));
     } else if (mapperEnded(shuffleId, mapId)) {
@@ -242,7 +244,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             TransportClient client =
                 dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
             NettyManagedBuffer newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
-            String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+            String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
 
             PushData newPushData =
                 new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
@@ -285,7 +287,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     for (DataBatches.DataBatch batch : batches) {
       int partitionId = batch.loc.getId();
       if (!revive(
-          applicationId,
           shuffleId,
           mapId,
           attemptId,
@@ -374,21 +375,21 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffle(
-      String appId, int shuffleId, int numMappers, int numPartitions) {
+      int shuffleId, int numMappers, int numPartitions) {
     return registerShuffleInternal(
         shuffleId,
         numMappers,
         numPartitions,
         () ->
             driverRssMetaService.askSync(
-                RegisterShuffle$.MODULE$.apply(appId, shuffleId, numMappers, numPartitions),
+                RegisterShuffle$.MODULE$.apply(appUniqueId, shuffleId, numMappers, numPartitions),
                 conf.clientRpcRegisterShuffleRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
 
   @VisibleForTesting
   public PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId)
+      int shuffleId, int numMappers, int mapId, int attemptId, int partitionId)
       throws IOException {
     logger.info(
         "Register MapPartition task for shuffle {} map {} attempt {} partition {} with {} mapper.",
@@ -405,12 +406,12 @@ public class ShuffleClientImpl extends ShuffleClient {
             () ->
                 driverRssMetaService.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
-                        appId, shuffleId, numMappers, mapId, attemptId, partitionId),
+                        appUniqueId, shuffleId, numMappers, mapId, attemptId, partitionId),
                     conf.clientRpcRegisterShuffleRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
 
     if (partitionLocationMap == null) {
-      String shuffleKey = Utils.makeShuffleKey(appId, shuffleId);
+      String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
       throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleKey);
     }
 
@@ -419,9 +420,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
-      String applicationId, int shuffleId, int numMappers, int numPartitions) {
+      int shuffleId, int numMappers, int numPartitions) {
     return reducePartitionMap.computeIfAbsent(
-        shuffleId, (id) -> registerShuffle(applicationId, shuffleId, numMappers, numPartitions));
+        shuffleId, (id) -> registerShuffle(shuffleId, numMappers, numPartitions));
   }
 
   @Override
@@ -527,7 +528,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private boolean revive(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -577,7 +577,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PbChangeLocationResponse response =
           driverRssMetaService.askSync(
               Revive$.MODULE$.apply(
-                  applicationId,
+                  appUniqueId,
                   shuffleId,
                   mapId,
                   attemptId,
@@ -624,7 +624,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   public int pushOrMergeData(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -638,7 +637,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       throws IOException {
     // mapKey
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+    final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
     // return if shuffle stage already ended
     if (mapperEnded(shuffleId, mapId)) {
       logger.debug(
@@ -655,7 +654,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     // register shuffle if not registered
     final ConcurrentHashMap<Integer, PartitionLocation> map =
-        getPartitionLocation(applicationId, shuffleId, numMappers, numPartitions);
+        getPartitionLocation(shuffleId, numMappers, numPartitions);
 
     if (map == null) {
       throw new CelebornIOException("Register shuffle failed for shuffle " + shuffleKey + ".");
@@ -666,7 +665,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     // register shuffle will return an empty location map, client need revive for a new location.
     if (!map.containsKey(partitionId)) {
       if (!revive(
-          applicationId,
           shuffleId,
           mapId,
           attemptId,
@@ -778,7 +776,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       partitionId,
                       nextBatchId);
-                  splitPartition(shuffleId, partitionId, applicationId, loc);
+                  splitPartition(shuffleId, partitionId, appUniqueId, loc);
                   pushState.onSuccess(loc.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
@@ -793,7 +791,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                   pushDataRetryPool.submit(
                       () ->
                           submitRetryPushData(
-                              applicationId,
                               shuffleId,
                               mapId,
                               attemptId,
@@ -874,7 +871,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                 pushDataRetryPool.submit(
                     () ->
                         submitRetryPushData(
-                            applicationId,
                             shuffleId,
                             mapId,
                             attemptId,
@@ -937,7 +933,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         DataBatches dataBatches = pushState.takeDataBatches(addressPair);
         doPushMergedData(
             addressPair,
-            applicationId,
+            appUniqueId,
             shuffleId,
             mapId,
             attemptId,
@@ -980,7 +976,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public int pushData(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -992,7 +987,6 @@ public class ShuffleClientImpl extends ShuffleClient {
       int numPartitions)
       throws IOException {
     return pushOrMergeData(
-        applicationId,
         shuffleId,
         mapId,
         attemptId,
@@ -1016,7 +1010,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public int mergeData(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -1028,7 +1021,6 @@ public class ShuffleClientImpl extends ShuffleClient {
       int numPartitions)
       throws IOException {
     return pushOrMergeData(
-        applicationId,
         shuffleId,
         mapId,
         attemptId,
@@ -1041,7 +1033,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         false);
   }
 
-  public void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId)
+  public void pushMergedData(int shuffleId, int mapId, int attemptId)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.get(mapKey);
@@ -1060,7 +1052,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
       doPushMergedData(
           entry.getKey(),
-          applicationId,
+          appUniqueId,
           shuffleId,
           mapId,
           attemptId,
@@ -1315,25 +1307,23 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public void mapperEnd(
-      String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
+      int shuffleId, int mapId, int attemptId, int numMappers)
       throws IOException {
-    mapEndInternal(applicationId, shuffleId, mapId, attemptId, numMappers, -1);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, -1);
   }
 
   @Override
   public void mapPartitionMapperEnd(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
       int numMappers,
       int partitionId)
       throws IOException {
-    mapEndInternal(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, partitionId);
   }
 
   private void mapEndInternal(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -1348,7 +1338,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       MapperEndResponse response =
           driverRssMetaService.askSync(
-              new MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId),
+              new MapperEnd(appUniqueId, shuffleId, mapId, attemptId, numMappers, partitionId),
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
         throw new CelebornIOException("MapperEnd failed! StatusCode: " + response.status());
@@ -1359,7 +1349,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void cleanup(String applicationId, int shuffleId, int mapId, int attemptId) {
+  public void cleanup(int shuffleId, int mapId, int attemptId) {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.remove(mapKey);
     if (pushState != null) {
@@ -1369,12 +1359,12 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver) {
+  public boolean unregisterShuffle(int shuffleId, boolean isDriver) {
     if (isDriver) {
       try {
         driverRssMetaService.send(
             UnregisterShuffle$.MODULE$.apply(
-                applicationId, shuffleId, RssHARetryClient.genRequestId()));
+                appUniqueId, shuffleId, RssHARetryClient.genRequestId()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
         // otherwise it will mislead users.
@@ -1395,9 +1385,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public RssInputStream readPartition(
-      String applicationId, int shuffleId, int partitionId, int attemptNumber) throws IOException {
+      int shuffleId, int partitionId, int attemptNumber) throws IOException {
     return readPartition(
-        applicationId, shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE);
+        shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE);
   }
 
   protected ReduceFileGroups loadFileGroupInternal(
@@ -1467,15 +1457,14 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public RssInputStream readPartition(
-      String applicationId,
       int shuffleId,
       int partitionId,
       int attemptNumber,
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
-    ReduceFileGroups fileGroups = loadFileGroup(applicationId, shuffleKey, shuffleId, partitionId);
+    String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+    ReduceFileGroups fileGroups = loadFileGroup(appUniqueId, shuffleKey, shuffleId, partitionId);
 
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
