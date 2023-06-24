@@ -119,12 +119,10 @@ object ControlMessages extends Logging {
 
   object RegisterShuffle {
     def apply(
-        appId: String,
         shuffleId: Int,
         numMappers: Int,
         numPartitions: Int): PbRegisterShuffle =
       PbRegisterShuffle.newBuilder()
-        .setApplicationId(appId)
         .setShuffleId(shuffleId)
         .setNumMapppers(numMappers)
         .setNumPartitions(numPartitions)
@@ -133,14 +131,12 @@ object ControlMessages extends Logging {
 
   object RegisterMapPartitionTask {
     def apply(
-        appId: String,
         shuffleId: Int,
         numMappers: Int,
         mapId: Int,
         attemptId: Int,
         partitionId: Int): PbRegisterMapPartitionTask =
       PbRegisterMapPartitionTask.newBuilder()
-        .setApplicationId(appId)
         .setShuffleId(shuffleId)
         .setNumMappers(numMappers)
         .setMapId(mapId)
@@ -189,7 +185,6 @@ object ControlMessages extends Logging {
 
   object Revive {
     def apply(
-        appId: String,
         shuffleId: Int,
         mapId: Int,
         attemptId: Int,
@@ -198,7 +193,7 @@ object ControlMessages extends Logging {
         oldPartition: PartitionLocation,
         cause: StatusCode): PbRevive = {
       val builder = PbRevive.newBuilder()
-      builder.setApplicationId(appId)
+      builder
         .setShuffleId(shuffleId)
         .setMapId(mapId)
         .setAttemptId(attemptId)
@@ -214,13 +209,11 @@ object ControlMessages extends Logging {
 
   object PartitionSplit {
     def apply(
-        appId: String,
         shuffleId: Int,
         partitionId: Int,
         epoch: Int,
         oldPartition: PartitionLocation): PbPartitionSplit =
       PbPartitionSplit.newBuilder()
-        .setApplicationId(appId)
         .setShuffleId(shuffleId)
         .setPartitionId(partitionId)
         .setEpoch(epoch)
@@ -244,7 +237,6 @@ object ControlMessages extends Logging {
   }
 
   case class MapperEnd(
-      applicationId: String,
       shuffleId: Int,
       mapId: Int,
       attemptId: Int,
@@ -254,7 +246,7 @@ object ControlMessages extends Logging {
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
 
-  case class GetReducerFileGroup(applicationId: String, shuffleId: Int) extends MasterMessage
+  case class GetReducerFileGroup(shuffleId: Int) extends MasterMessage
 
   // util.Set[String] -> util.Set[Path.toString]
   // Path can't be serialized
@@ -289,7 +281,7 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  case class StageEnd(applicationId: String, shuffleId: Int) extends MasterMessage
+  case class StageEnd(shuffleId: Int) extends MasterMessage
 
   case class StageEndResponse(status: StatusCode)
     extends MasterMessage
@@ -542,9 +534,8 @@ object ControlMessages extends Logging {
     case pb: PbChangeLocationResponse =>
       new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
 
-    case MapperEnd(applicationId, shuffleId, mapId, attemptId, numMappers, partitionId) =>
+    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId) =>
       val payload = PbMapperEnd.newBuilder()
-        .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
         .setMapId(mapId)
         .setAttemptId(attemptId)
@@ -559,9 +550,8 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
 
-    case GetReducerFileGroup(applicationId, shuffleId) =>
+    case GetReducerFileGroup(shuffleId) =>
       val payload = PbGetReducerFileGroup.newBuilder()
-        .setApplicationId(applicationId).setShuffleId(shuffleId)
         .build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload)
 
@@ -587,9 +577,8 @@ object ControlMessages extends Logging {
     case pb: PbWorkerLostResponse =>
       new TransportMessage(MessageType.WORKER_LOST_RESPONSE, pb.toByteArray)
 
-    case StageEnd(applicationId, shuffleId) =>
+    case StageEnd(shuffleId) =>
       val payload = PbStageEnd.newBuilder()
-        .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
         .build().toByteArray
       new TransportMessage(MessageType.STAGE_END, payload)
@@ -918,7 +907,6 @@ object ControlMessages extends Logging {
       case MAPPER_END =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
         MapperEnd(
-          pbMapperEnd.getApplicationId,
           pbMapperEnd.getShuffleId,
           pbMapperEnd.getMapId,
           pbMapperEnd.getAttemptId,
@@ -932,7 +920,6 @@ object ControlMessages extends Logging {
       case GET_REDUCER_FILE_GROUP =>
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
         GetReducerFileGroup(
-          pbGetReducerFileGroup.getApplicationId,
           pbGetReducerFileGroup.getShuffleId)
 
       case GET_REDUCER_FILE_GROUP_RESPONSE =>
@@ -1144,7 +1131,7 @@ object ControlMessages extends Logging {
 
       case STAGE_END =>
         val pbStageEnd = PbStageEnd.parseFrom(message.getPayload)
-        StageEnd(pbStageEnd.getApplicationId, pbStageEnd.getShuffleId)
+        StageEnd(pbStageEnd.getShuffleId)
 
       case PARTITION_SPLIT =>
         PbPartitionSplit.parseFrom(message.getPayload)

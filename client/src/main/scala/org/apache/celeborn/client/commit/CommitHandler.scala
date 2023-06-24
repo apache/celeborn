@@ -44,10 +44,10 @@ case class CommitResult(
     commitFilesFailedWorkers: ShuffleFailedWorkers)
 
 abstract class CommitHandler(
-    appId: String,
-    conf: CelebornConf,
-    committedPartitionInfo: CommittedPartitionInfo,
-    workerStatusTracker: WorkerStatusTracker) extends Logging {
+                              appUniqueId: String,
+                              conf: CelebornConf,
+                              committedPartitionInfo: CommittedPartitionInfo,
+                              workerStatusTracker: WorkerStatusTracker) extends Logging {
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles
@@ -227,7 +227,7 @@ abstract class CommitHandler(
       }
 
       commitFiles(
-        appId,
+        appUniqueId,
         shuffleId,
         shuffleCommittedInfo,
         worker,
@@ -437,7 +437,7 @@ abstract class CommitHandler(
       shuffleId: Int,
       failedMasters: util.Map[String, WorkerInfo],
       failedSlaves: util.Map[String, WorkerInfo]): Boolean = {
-    val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
+    val shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId)
     if (!pushReplicateEnabled && failedMasters.size() != 0) {
       val msg =
         failedMasters.asScala.map {

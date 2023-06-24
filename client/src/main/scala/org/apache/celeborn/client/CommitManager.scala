@@ -69,7 +69,7 @@ object CommitManager {
   type CommittedPartitionInfo = ConcurrentHashMap[Int, ShuffleCommittedInfo]
 }
 
-class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: LifecycleManager)
+class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManager: LifecycleManager)
   extends Logging {
 
   // shuffle id -> ShuffleCommittedInfo
@@ -142,7 +142,7 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
                                 .asJava
 
                             commitHandler.commitFiles(
-                              appId,
+                              appUniqueId,
                               shuffleId,
                               shuffleCommittedInfo,
                               workerInfo,
@@ -272,13 +272,13 @@ class CommitManager(appId: String, val conf: CelebornConf, lifecycleManager: Lif
         (partitionType: PartitionType) => {
           partitionType match {
             case PartitionType.REDUCE => new ReducePartitionCommitHandler(
-                appId,
+                appUniqueId,
                 conf,
                 lifecycleManager.shuffleAllocatedWorkers,
                 committedPartitionInfo,
                 lifecycleManager.workerStatusTracker)
             case PartitionType.MAP => new MapPartitionCommitHandler(
-                appId,
+                appUniqueId,
                 conf,
                 lifecycleManager.shuffleAllocatedWorkers,
                 committedPartitionInfo,

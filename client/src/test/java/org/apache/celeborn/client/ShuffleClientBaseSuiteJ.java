@@ -90,7 +90,7 @@ public abstract class ShuffleClientBaseSuiteJ {
 
     when(endpointRef.askSync(
             ControlMessages.RegisterShuffle$.MODULE$.apply(
-                TEST_APPLICATION_ID, TEST_SHUFFLE_ID, 1, 1),
+                TEST_SHUFFLE_ID, 1, 1),
             ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)))
         .thenAnswer(
             t ->
