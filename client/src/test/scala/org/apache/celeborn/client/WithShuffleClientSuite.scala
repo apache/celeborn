@@ -57,12 +57,12 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     prepareService()
     shuffleId = 1
     var location =
-      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId, 1)
+      shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, 1)
     Assert.assertEquals(location.getId, 1)
 
     // retry register
     location =
-      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId, 1)
+      shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, 1)
     Assert.assertEquals(location.getId, 1)
 
     // check all allocated slots
@@ -73,13 +73,12 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
     // another mapId
     location =
-      shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId, 2)
+      shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 1, attemptId, 2)
     Assert.assertEquals(location.getId, 2)
 
     // another mapId with another attemptId
     location =
       shuffleClient.registerMapPartitionTask(
-        APP,
         shuffleId,
         numMappers,
         mapId + 1,
@@ -142,39 +141,38 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
 
     // reduce normal empty RssInputStream
-    var stream = shuffleClient.readPartition(APP, shuffleId, 1, 1)
+    var stream = shuffleClient.readPartition(shuffleId, 1, 1)
     Assert.assertEquals(stream.read(), -1)
 
     // reduce normal null partition for RssInputStream
-    stream = shuffleClient.readPartition(APP, shuffleId, 3, 1)
+    stream = shuffleClient.readPartition(shuffleId, 3, 1)
     Assert.assertEquals(stream.read(), -1)
   }
 
   private def prepareService(): Unit = {
     lifecycleManager = new LifecycleManager(APP, celebornConf)
-    shuffleClient = new ShuffleClientImpl(celebornConf, userIdentifier)
+    shuffleClient = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
     shuffleClient.setupMetaServiceRef(lifecycleManager.self)
   }
 
   private def registerAndFinishPartition(): Unit = {
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId, 1)
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 1, attemptId, 2)
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId + 2, attemptId, 3)
+    shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, 1)
+    shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 1, attemptId, 2)
+    shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 2, attemptId, 3)
 
     // task number incr to numMappers + 1
-    shuffleClient.registerMapPartitionTask(APP, shuffleId, numMappers, mapId, attemptId + 1, 9)
-    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, 1)
+    shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId + 1, 9)
+    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, 1)
     // retry
-    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId, attemptId, numMappers, 1)
+    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, 1)
     // another attempt
     shuffleClient.mapPartitionMapperEnd(
-      APP,
       shuffleId,
       mapId,
       attemptId + 1,
       numMappers,
       9)
     // another mapper
-    shuffleClient.mapPartitionMapperEnd(APP, shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
+    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
   }
 }

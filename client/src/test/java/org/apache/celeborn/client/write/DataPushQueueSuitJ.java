@@ -82,7 +82,6 @@ public class DataPushQueueSuitJ {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT().key(), "2");
 
-    String app = "APP-1";
     int shuffleId = 0;
     int mapId = 0;
     int attemptId = 0;
@@ -98,7 +97,6 @@ public class DataPushQueueSuitJ {
     }
     DataPusher dataPusher =
         new DataPusher(
-            app,
             shuffleId,
             mapId,
             attemptId,

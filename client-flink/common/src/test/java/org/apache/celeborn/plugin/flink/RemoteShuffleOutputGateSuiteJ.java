@@ -53,17 +53,16 @@ public class RemoteShuffleOutputGateSuiteJ {
 
     PartitionLocation partitionLocation =
         new PartitionLocation(1, 0, "localhost", 123, 245, 789, 238, PartitionLocation.Mode.MASTER);
-    when(shuffleClient.registerMapPartitionTask(
-            any(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt()))
+    when(shuffleClient.registerMapPartitionTask(anyInt(), anyInt(), anyInt(), anyInt(), anyInt()))
         .thenAnswer(t -> partitionLocation);
     doNothing()
         .when(remoteShuffleOutputGate.flinkShuffleClient)
-        .pushDataHandShake(anyString(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
+        .pushDataHandShake(anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
 
     remoteShuffleOutputGate.handshake(true);
 
     when(remoteShuffleOutputGate.flinkShuffleClient.regionStart(
-            any(), anyInt(), anyInt(), anyInt(), any(), anyInt(), anyBoolean()))
+            anyInt(), anyInt(), anyInt(), any(), anyInt(), anyBoolean()))
         .thenAnswer(t -> Optional.empty());
     remoteShuffleOutputGate.regionStart(false);
 
@@ -71,12 +70,12 @@ public class RemoteShuffleOutputGateSuiteJ {
 
     doNothing()
         .when(remoteShuffleOutputGate.flinkShuffleClient)
-        .regionFinish(any(), anyInt(), anyInt(), anyInt(), any());
+        .regionFinish(anyInt(), anyInt(), anyInt(), any());
     remoteShuffleOutputGate.regionFinish();
 
     doNothing()
         .when(remoteShuffleOutputGate.flinkShuffleClient)
-        .mapperEnd(any(), anyInt(), anyInt(), anyInt(), anyInt());
+        .mapperEnd(anyInt(), anyInt(), anyInt(), anyInt());
     remoteShuffleOutputGate.finish();
 
     doNothing().when(remoteShuffleOutputGate.flinkShuffleClient).shutdown();

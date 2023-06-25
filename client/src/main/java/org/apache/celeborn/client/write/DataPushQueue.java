@@ -48,7 +48,6 @@ public class DataPushQueue {
   private final DataPusher dataPusher;
   private final int maxInFlight;
 
-  private final String appId;
   private final int shuffleId;
   private final int numMappers;
   private final int numPartitions;
@@ -60,13 +59,11 @@ public class DataPushQueue {
       CelebornConf conf,
       DataPusher dataPusher,
       ShuffleClient client,
-      String appId,
       int shuffleId,
       int mapId,
       int attemptId,
       int numMappers,
       int numPartitions) {
-    this.appId = appId;
     this.shuffleId = shuffleId;
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
@@ -99,7 +96,7 @@ public class DataPushQueue {
         PushTask task = iterator.next();
         int partitionId = task.getPartitionId();
         Map<Integer, PartitionLocation> partitionLocationMap =
-            client.getPartitionLocation(appId, shuffleId, numMappers, numPartitions);
+            client.getPartitionLocation(shuffleId, numMappers, numPartitions);
         if (partitionLocationMap != null) {
           PartitionLocation loc = partitionLocationMap.get(partitionId);
           // According to CELEBORN-560, call rerun task and speculative task after LifecycleManager

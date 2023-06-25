@@ -90,7 +90,7 @@ public class RssShuffleManager implements ShuffleManager {
     return _sortShuffleManager;
   }
 
-  private void initializeLifecycleManager(String appId) {
+  private void initializeLifecycleManager() {
     // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
     // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
     // considered in this place, because if there is one RDD that depends on multiple RDDs
@@ -98,9 +98,10 @@ public class RssShuffleManager implements ShuffleManager {
     if (isDriver() && lifecycleManager == null) {
       synchronized (this) {
         if (lifecycleManager == null) {
-          lifecycleManager = new LifecycleManager(appId, celebornConf);
+          lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           rssShuffleClient =
               ShuffleClient.get(
+                  appUniqueId,
                   lifecycleManager.getRssMetaServiceHost(),
                   lifecycleManager.getRssMetaServicePort(),
                   celebornConf,
@@ -117,7 +118,7 @@ public class RssShuffleManager implements ShuffleManager {
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
     appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
-    initializeLifecycleManager(appUniqueId);
+    initializeLifecycleManager();
 
     if (fallbackPolicyRunner.applyAllFallbackPolicy(
         lifecycleManager, dependency.partitioner().numPartitions())) {
@@ -147,7 +148,7 @@ public class RssShuffleManager implements ShuffleManager {
     if (rssShuffleClient == null) {
       return false;
     }
-    return rssShuffleClient.unregisterShuffle(appUniqueId, shuffleId, isDriver());
+    return rssShuffleClient.unregisterShuffle(shuffleId, isDriver());
   }
 
   @Override
@@ -181,7 +182,11 @@ public class RssShuffleManager implements ShuffleManager {
         RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
             ShuffleClient.get(
-                h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
+                h.appUniqueId(),
+                h.rssMetaServiceHost(),
+                h.rssMetaServicePort(),
+                celebornConf,
+                h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
