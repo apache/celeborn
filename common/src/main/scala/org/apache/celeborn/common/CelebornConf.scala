@@ -369,6 +369,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Network                        //
   // //////////////////////////////////////////////////////
+  def bindPreferIP: Boolean = get(NETWORK_BIND_PREFER_IP)
   def portMaxRetries: Int = get(PORT_MAX_RETRY)
   def networkTimeout: RpcTimeout =
     new RpcTimeout(get(NETWORK_TIMEOUT).milli, NETWORK_TIMEOUT.key)
@@ -517,7 +518,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def masterEndpoints: Array[String] =
     get(MASTER_ENDPOINTS).toArray.map { endpoint =>
-      Utils.parseHostPort(endpoint) match {
+      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
         case (host, 0) => s"$host:${HA_MASTER_NODE_PORT.defaultValue.get}"
         case (host, port) => s"$host:$port"
       }
@@ -528,7 +529,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def masterClientMaxRetries: Int = get(MASTER_CLIENT_MAX_RETRIES)
 
-  def masterHost: String = get(MASTER_HOST)
+  def masterHost: String = get(MASTER_HOST).replace("<localhost>", Utils.localHostName(this))
 
   def masterPort: Int = get(MASTER_PORT)
 
@@ -563,7 +564,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterNodeHost(nodeId: String): String = {
     val key = HA_MASTER_NODE_HOST.key.replace("<id>", nodeId)
     val legacyKey = HA_MASTER_NODE_HOST.alternatives.head._1.replace("<id>", nodeId)
-    get(key, get(legacyKey, Utils.localHostName))
+    get(key, get(legacyKey, Utils.localHostName(this)))
   }
 
   def haMasterNodePort(nodeId: String): Int = {
@@ -652,12 +653,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
   def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
   def metricsCapacity: Int = get(METRICS_CAPACITY)
-  def masterPrometheusMetricHost: String = get(MASTER_PROMETHEUS_HOST)
+  def masterPrometheusMetricHost: String =
+    get(MASTER_PROMETHEUS_HOST).replace("<localhost>", Utils.localHostName(this))
   def masterPrometheusMetricPort: Int = get(MASTER_PROMETHEUS_PORT)
-  def workerPrometheusMetricHost: String = get(WORKER_PROMETHEUS_HOST)
+  def workerPrometheusMetricHost: String =
+    get(WORKER_PROMETHEUS_HOST).replace("<localhost>", Utils.localHostName(this))
   def workerPrometheusMetricPort: Int = get(WORKER_PROMETHEUS_PORT)
   def metricsExtraLabels: Map[String, String] =
-    get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels(_)).toMap
+    get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels).toMap
   def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
   def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
   def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
@@ -1171,6 +1174,16 @@ object CelebornConf extends Logging {
 
   private def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
 
+  val NETWORK_BIND_PREFER_IP: ConfigEntry[Boolean] =
+    buildConf("celeborn.network.bind.preferIpAddress")
+      .categories("network")
+      .version("0.3.0")
+      .doc("When `ture`, prefer to use IP address, otherwise FQDN. This configuration only " +
+        "takes effects when the bind hostname is not set explicitly, in such case, Celeborn " +
+        "will find the first non-loopback address to bind.")
+      .booleanConf
+      .createWithDefault(true)
+
   val NETWORK_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.network.timeout")
       .categories("network")
@@ -1448,7 +1461,6 @@ object CelebornConf extends Logging {
         "If the port is omitted, 9097 will be used.")
       .version("0.2.0")
       .stringConf
-      .transform(_.replace("<localhost>", Utils.localHostName))
       .toSequence
       .checkValue(
         endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
@@ -1498,7 +1510,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Hostname for master to bind.")
       .stringConf
-      .transform(_.replace("<localhost>", Utils.localHostName))
       .createWithDefaultString("<localhost>")
 
   val MASTER_PORT: ConfigEntry[Int] =
@@ -3293,7 +3304,7 @@ object CelebornConf extends Logging {
       .doc("Master's Prometheus host.")
       .version("0.3.0")
       .stringConf
-      .createWithDefault("0.0.0.0")
+      .createWithDefault("<localhost>")
 
   val MASTER_PROMETHEUS_PORT: ConfigEntry[Int] =
     buildConf("celeborn.metrics.master.prometheus.port")
@@ -3312,7 +3323,7 @@ object CelebornConf extends Logging {
       .doc("Worker's Prometheus host.")
       .version("0.3.0")
       .stringConf
-      .createWithDefault("0.0.0.0")
+      .createWithDefault("<localhost>")
 
   val WORKER_PROMETHEUS_PORT: ConfigEntry[Int] =
     buildConf("celeborn.metrics.worker.prometheus.port")

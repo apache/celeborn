@@ -168,7 +168,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     // init rpc env and master endpointRef
-    rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(), 0, conf);
+    rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(conf), 0, conf);
 
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
