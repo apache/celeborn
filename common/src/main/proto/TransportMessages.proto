@@ -154,19 +154,17 @@ message PbHeartbeatResponse {
 }
 
 message PbRegisterShuffle {
-  string applicationId = 1;
-  int32 shuffleId = 2;
-  int32 numMapppers = 3;
-  int32 numPartitions = 4;
+  int32 shuffleId = 1;
+  int32 numMapppers = 2;
+  int32 numPartitions = 3;
 }
 
 message PbRegisterMapPartitionTask {
-  string applicationId = 1;
-  int32 shuffleId = 2;
-  int32 numMappers = 3;
-  int32 mapId = 4;
-  int32 attemptId = 5;
-  int32 partitionId = 6;
+  int32 shuffleId = 1;
+  int32 numMappers = 2;
+  int32 mapId = 3;
+  int32 attemptId = 4;
+  int32 partitionId = 5;
 }
 
 message PbRegisterShuffleResponse {
@@ -208,14 +206,13 @@ message PbRequestSlotsResponse {
 }
 
 message PbRevive {
-  string applicationId = 1;
-  int32 shuffleId = 2;
-  int32 mapId = 3;
-  int32 attemptId = 4;
-  int32 partitionId = 5;
-  int32 epoch = 6;
-  PbPartitionLocation oldPartition = 7;
-  int32 status = 8;
+  int32 shuffleId = 1;
+  int32 mapId = 2;
+  int32 attemptId = 3;
+  int32 partitionId = 4;
+  int32 epoch = 5;
+  PbPartitionLocation oldPartition = 6;
+  int32 status = 7;
 }
 
 message PbChangeLocationResponse {
@@ -225,20 +222,18 @@ message PbChangeLocationResponse {
 }
 
 message PbPartitionSplit {
-  string applicationId = 1;
-  int32 shuffleId = 2;
-  int32 partitionId = 3;
-  int32 epoch = 4;
-  PbPartitionLocation oldPartition = 5;
+  int32 shuffleId = 1;
+  int32 partitionId = 2;
+  int32 epoch = 3;
+  PbPartitionLocation oldPartition = 4;
 }
 
 message PbMapperEnd {
-  string applicationId = 1;
-  int32 shuffleId = 2;
-  int32 mapId = 3;
-  int32 attemptId = 4;
-  int32 numMappers = 5;
-  int32 partitionId = 6;
+  int32 shuffleId = 1;
+  int32 mapId = 2;
+  int32 attemptId = 3;
+  int32 numMappers = 4;
+  int32 partitionId = 5;
 }
 
 message PbMapperEndResponse {
@@ -246,8 +241,7 @@ message PbMapperEndResponse {
 }
 
 message PbGetReducerFileGroup {
-  string applicationId = 1;
-  int32 shuffleId = 2;
+  int32 shuffleId = 1;
 }
 
 message PbGetReducerFileGroupResponse {
@@ -412,8 +406,7 @@ message PbWorkerLostResponse {
 }
 
 message PbStageEnd {
-  string applicationId = 1;
-  int32 shuffleId = 2;
+  int32 shuffleId = 1;
 }
 
 message PbStageEndResponse {

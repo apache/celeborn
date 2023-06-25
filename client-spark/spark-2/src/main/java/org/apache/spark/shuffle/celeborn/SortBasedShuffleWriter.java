@@ -61,7 +61,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
   private final ShuffleWriteMetrics writeMetrics;
-  private final String appId;
   private final int shuffleId;
   private final int mapId;
   private final TaskContext taskContext;
@@ -105,7 +104,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
-    this.appId = appId;
     this.shuffleId = dep.shuffleId();
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();
@@ -304,7 +302,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
     int bytesWritten =
         rssShuffleClient.pushData(
-            appId,
             shuffleId,
             mapId,
             taskContext.attemptNumber(),
@@ -338,12 +335,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
 
-    rssShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
+    rssShuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
 
     updateMapStatus();
 
     long waitStartTime = System.nanoTime();
-    rssShuffleClient.mapperEnd(appId, shuffleId, mapId, taskContext.attemptNumber(), numMappers);
+    rssShuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
   }
 
@@ -379,7 +376,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } catch (IOException e) {
       return Option.apply(null);
     } finally {
-      rssShuffleClient.cleanup(appId, shuffleId, mapId, taskContext.attemptNumber());
+      rssShuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
     }
   }
 

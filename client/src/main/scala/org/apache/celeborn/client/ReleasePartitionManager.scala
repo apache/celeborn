@@ -30,7 +30,6 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResourc
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 class ReleasePartitionManager(
-    appId: String,
     val conf: CelebornConf,
     lifecycleManager: LifecycleManager)
   extends Logging {
@@ -84,7 +83,6 @@ class ReleasePartitionManager(
 
                             if (!destroyResource.isEmpty) {
                               lifecycleManager.destroySlotsWithRetry(
-                                appId,
                                 shuffleId,
                                 destroyResource)
                               logTrace(s"Destroyed partition resource for shuffle $shuffleId $destroyResource")
@@ -127,7 +125,7 @@ class ReleasePartitionManager(
       }
 
       if (!destroyResource.isEmpty) {
-        lifecycleManager.destroySlotsWithRetry(appId, shuffleId, destroyResource)
+        lifecycleManager.destroySlotsWithRetry(shuffleId, destroyResource)
         logTrace(
           s"Destroyed partition resource for partition $shuffleId-$partitionId, $destroyResource")
       }

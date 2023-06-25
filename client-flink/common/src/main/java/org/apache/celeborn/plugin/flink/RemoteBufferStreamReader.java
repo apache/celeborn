@@ -37,7 +37,6 @@ public class RemoteBufferStreamReader extends CreditListener {
   private static Logger logger = LoggerFactory.getLogger(RemoteBufferStreamReader.class);
   private TransferBufferPool bufferPool;
   private FlinkShuffleClientImpl client;
-  private String applicationId;
   private int shuffleId;
   private int partitionId;
   private int subPartitionIndexStart;
@@ -53,14 +52,12 @@ public class RemoteBufferStreamReader extends CreditListener {
   public RemoteBufferStreamReader(
       FlinkShuffleClientImpl client,
       ShuffleResourceDescriptor shuffleDescriptor,
-      String applicationId,
       int startSubIdx,
       int endSubIdx,
       TransferBufferPool bufferPool,
       Consumer<ByteBuf> dataListener,
       Consumer<Throwable> failureListener) {
     this.client = client;
-    this.applicationId = applicationId;
     this.shuffleId = shuffleDescriptor.getShuffleId();
     this.partitionId = shuffleDescriptor.getPartitionId();
     this.bufferPool = bufferPool;
@@ -84,7 +81,7 @@ public class RemoteBufferStreamReader extends CreditListener {
     try {
       this.bufferStream =
           client.readBufferedPartition(
-              applicationId, shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
+              shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
       bufferStream.open(
           RemoteBufferStreamReader.this::requestBuffer, initialCredit, messageConsumer);
     } catch (Exception e) {

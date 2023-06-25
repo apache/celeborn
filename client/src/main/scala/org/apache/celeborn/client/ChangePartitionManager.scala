@@ -34,7 +34,6 @@ import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 case class ChangePartitionRequest(
     context: RequestLocationCallContext,
-    applicationId: String,
     shuffleId: Int,
     partitionId: Int,
     epoch: Int,
@@ -89,7 +88,6 @@ class ChangePartitionManager(
                         }.toArray
                         if (distinctPartitions.nonEmpty) {
                           handleRequestPartitions(
-                            distinctPartitions.head.applicationId,
                             shuffleId,
                             distinctPartitions)
                         }
@@ -130,7 +128,6 @@ class ChangePartitionManager(
 
   def handleRequestPartitionLocation(
       context: RequestLocationCallContext,
-      applicationId: String,
       shuffleId: Int,
       partitionId: Int,
       oldEpoch: Int,
@@ -139,7 +136,6 @@ class ChangePartitionManager(
 
     val changePartition = ChangePartitionRequest(
       context,
-      applicationId,
       shuffleId,
       partitionId,
       oldEpoch,
@@ -178,7 +174,7 @@ class ChangePartitionManager(
       }
     }
     if (!batchHandleChangePartitionEnabled) {
-      handleRequestPartitions(applicationId, shuffleId, Array(changePartition))
+      handleRequestPartitions(shuffleId, Array(changePartition))
     }
   }
 
@@ -197,7 +193,6 @@ class ChangePartitionManager(
   }
 
   def handleRequestPartitions(
-      applicationId: String,
       shuffleId: Int,
       changePartitions: Array[ChangePartitionRequest]): Unit = {
     val requestsMap = changePartitionRequests.get(shuffleId)
@@ -205,7 +200,7 @@ class ChangePartitionManager(
     val changes = changePartitions.map { change =>
       s"${change.shuffleId}-${change.partitionId}-${change.epoch}"
     }.mkString("[", ",", "]")
-    logWarning(s"Batch handle change partition for $applicationId of $changes")
+    logWarning(s"Batch handle change partition for $changes")
 
     // Blacklist all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
@@ -275,7 +270,6 @@ class ChangePartitionManager(
       reallocateChangePartitionRequestSlotsFromCandidates(changePartitions.toList, candidates)
 
     if (!lifecycleManager.reserveSlotsWithRetry(
-        applicationId,
         shuffleId,
         new util.HashSet(candidates.toSet.asJava),
         newlyAllocatedLocations)) {
@@ -303,7 +297,7 @@ class ChangePartitionManager(
               s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
             }.mkString("[", ", ", "]")
             logDebug(s"[Update partition] success for " +
-              s"shuffle ${Utils.makeShuffleKey(applicationId, shuffleId)}, succeed partitions: " +
+              s"shuffle $shuffleId, succeed partitions: " +
               s"$changes.")
           }
           locations

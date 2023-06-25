@@ -34,6 +34,7 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
         "",
+        "",
         0,
         System.currentTimeMillis(),
         clientConf,
@@ -48,6 +49,7 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
         "",
+        "",
         0,
         System.currentTimeMillis(),
         clientConf,
@@ -61,6 +63,7 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
     val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf()
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
+        "",
         "",
         0,
         System.currentTimeMillis(),

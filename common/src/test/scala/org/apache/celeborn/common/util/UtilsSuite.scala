@@ -99,7 +99,7 @@ class UtilsSuite extends CelebornFunSuite {
   }
 
   test("MapperEnd class convert with pb") {
-    val mapperEnd = MapperEnd("application1", 1, 1, 1, 2, 1)
+    val mapperEnd = MapperEnd(1, 1, 1, 2, 1)
     val mapperEndTrans =
       Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
     assert(mapperEnd == mapperEndTrans)

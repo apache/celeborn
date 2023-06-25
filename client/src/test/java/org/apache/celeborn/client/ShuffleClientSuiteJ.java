@@ -95,7 +95,6 @@ public class ShuffleClientSuiteJ {
 
       int pushDataLen =
           shuffleClient.pushData(
-              TEST_APPLICATION_ID,
               TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID,
@@ -121,7 +120,6 @@ public class ShuffleClientSuiteJ {
 
       int mergeSize =
           shuffleClient.mergeData(
-              TEST_APPLICATION_ID,
               TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID,
@@ -137,7 +135,6 @@ public class ShuffleClientSuiteJ {
       final int compressedTotalSize = compressor.getCompressedTotalSize();
 
       shuffleClient.mergeData(
-          TEST_APPLICATION_ID,
           TEST_SHUFFLE_ID,
           TEST_ATTEMPT_ID,
           TEST_ATTEMPT_ID,
@@ -153,7 +150,6 @@ public class ShuffleClientSuiteJ {
       byte[] buf1k = RandomStringUtils.random(4000).getBytes(StandardCharsets.UTF_8);
       int largeMergeSize =
           shuffleClient.mergeData(
-              TEST_APPLICATION_ID,
               TEST_SHUFFLE_ID,
               TEST_ATTEMPT_ID,
               TEST_ATTEMPT_ID,
@@ -177,7 +173,8 @@ public class ShuffleClientSuiteJ {
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), codec.name());
     conf.set(CelebornConf.CLIENT_PUSH_RETRY_THREADS().key(), "1");
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1K");
-    shuffleClient = new ShuffleClientImpl(conf, new UserIdentifier("mock", "mock"));
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
 
     masterLocation.setPeer(slaveLocation);
     when(endpointRef.askSync(any(), any(), any()))
