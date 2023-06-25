@@ -119,7 +119,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       };
 
-  private final ReviveManager reviveManager = new ReviveManager(this);
+  private final ReviveManager reviveManager = new ReviveManager(this, conf);
 
   protected static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
@@ -230,9 +230,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         accumulatedTime += delta;
       } catch (InterruptedException e) {
         logger.error("Interrupted while waiting for Revive result!");
-        wrappedCallback.onFailure(
-            new CelebornIOException(cause + " then revive but " + StatusCode.REVIVE_FAILED));
-        return;
+        Thread.currentThread().interrupt();
       }
     }
     if (mapperEnded(shuffleId, mapId)) {
@@ -371,7 +369,8 @@ public class ShuffleClientImpl extends ShuffleClient {
         try {
           Thread.sleep(delta);
         } catch (InterruptedException e) {
-          logger.warn("Interrupted while waiting for Revive result!");
+          logger.error("Interrupted while waiting for Revive result!");
+          Thread.currentThread().interrupt();
         }
         accumulatedTime += delta;
       }

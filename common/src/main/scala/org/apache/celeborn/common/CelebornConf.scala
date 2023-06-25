@@ -743,6 +743,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushQueueCapacity: Int = get(CLIENT_PUSH_QUEUE_CAPACITY)
   def clientPushMaxReqsInFlight: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT)
   def clientPushMaxReviveTimes: Int = get(CLIENT_PUSH_MAX_REVIVE_TIMES)
+  def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
+  def clientPushReviveBatchSize: Int = get(CLIENT_PUSH_REVIVE_BATCHSIZE)
   def clientPushSortMemoryThreshold: Long = get(CLIENT_PUSH_SORT_MEMORY_THRESHOLD)
   def clientPushSortPipelineEnabled: Boolean = get(CLIENT_PUSH_SORT_PIPELINE_ENABLED)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
@@ -2636,6 +2638,23 @@ object CelebornConf extends Logging {
       .doc("Max retry times for reviving when celeborn push data failed.")
       .intConf
       .createWithDefault(5)
+
+  val CLIENT_PUSH_REVIVE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.revive.interval")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Interval for client to trigger Revive to LifecycleManager. The number of partitions in one Revive " +
+        "request is `celeborn.client.push.revive.batchSize`.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("100ms")
+
+  val CLIENT_PUSH_REVIVE_BATCHSIZE: ConfigEntry[Int] =
+    buildConf("celeborn.client.push.revive.batchSize")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Max number of partitions in one Revive request.")
+      .intConf
+      .createWithDefault(2048)
 
   val CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.push.blacklist.enabled")

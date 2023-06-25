@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.message.StatusCode;
@@ -34,81 +35,87 @@ class ReviveManager {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
   LinkedBlockingQueue<ReviveRequest> requests = new LinkedBlockingQueue<>();
+  private final long interval;
+  private final int batchSize;
   ShuffleClientImpl shuffleClient;
   private ScheduledExecutorService batchReviveRequestScheduler =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("batch-revive-scheduler");
 
-  public ReviveManager(ShuffleClientImpl shuffleClient) {
+  public ReviveManager(ShuffleClientImpl shuffleClient, CelebornConf conf) {
     this.shuffleClient = shuffleClient;
+    this.interval = conf.clientPushReviveInterval();
+    this.batchSize = conf.clientPushReviveBatchSize();
 
     batchReviveRequestScheduler.scheduleAtFixedRate(
         () -> {
           Map<Integer, Set<ReviveRequest>> shuffleMap = new HashMap<>();
           int count = 0;
-          ReviveRequest request = requests.poll();
-          while (request != null && count < 1000) {
-            Set<ReviveRequest> set =
-                shuffleMap.computeIfAbsent(request.shuffleId, id -> new HashSet<>());
-            set.add(request);
-            count++;
-            request = requests.poll();
-          }
-          if (request != null) {
-            Set<ReviveRequest> set =
-                shuffleMap.computeIfAbsent(request.shuffleId, id -> new HashSet<>());
-            set.add(request);
-            count++;
-          }
-          for (Map.Entry<Integer, Set<ReviveRequest>> shuffleEntry : shuffleMap.entrySet()) {
-            // Call reviveBatch for requests in the same (appId, shuffleId)
-            int shuffleId = shuffleEntry.getKey();
-            Set<ReviveRequest> requests = shuffleEntry.getValue();
-            Set<Integer> mapIds = new HashSet<>();
-            ArrayList<ReviveRequest> filteredRequests = new ArrayList<>();
-            Map<Integer, ReviveRequest> requestsToSend = new HashMap<>();
+          while (!requests.isEmpty()) {
+            ReviveRequest request = requests.poll();
+            while (request != null && count < batchSize) {
+              Set<ReviveRequest> set =
+                  shuffleMap.computeIfAbsent(request.shuffleId, id -> new HashSet<>());
+              set.add(request);
+              count++;
+              request = requests.poll();
+            }
+            if (request != null) {
+              Set<ReviveRequest> set =
+                  shuffleMap.computeIfAbsent(request.shuffleId, id -> new HashSet<>());
+              set.add(request);
+              count++;
+            }
+            for (Map.Entry<Integer, Set<ReviveRequest>> shuffleEntry : shuffleMap.entrySet()) {
+              // Call reviveBatch for requests in the same (appId, shuffleId)
+              int shuffleId = shuffleEntry.getKey();
+              Set<ReviveRequest> requests = shuffleEntry.getValue();
+              Set<Integer> mapIds = new HashSet<>();
+              ArrayList<ReviveRequest> filteredRequests = new ArrayList<>();
+              Map<Integer, ReviveRequest> requestsToSend = new HashMap<>();
 
-            // Insert request that is not MapperEnded and with the max epoch
-            // into requestsToSend
-            Iterator<ReviveRequest> iter = requests.iterator();
-            while (iter.hasNext()) {
-              ReviveRequest req = iter.next();
-              if (shuffleClient.checkRevivedLocation(shuffleId, req.partitionId, req.epoch, false)
-                  || shuffleClient.mapperEnded(shuffleId, req.mapId)) {
-                req.reviveStatus = StatusCode.SUCCESS.getValue();
-              } else {
-                filteredRequests.add(req);
-                mapIds.add(req.mapId);
-                PartitionLocation loc = req.loc;
-                if (!requestsToSend.containsKey(req.partitionId)
-                    || requestsToSend.get(req.partitionId).epoch < req.epoch) {
-                  requestsToSend.put(req.partitionId, req);
+              // Insert request that is not MapperEnded and with the max epoch
+              // into requestsToSend
+              Iterator<ReviveRequest> iter = requests.iterator();
+              while (iter.hasNext()) {
+                ReviveRequest req = iter.next();
+                if (shuffleClient.checkRevivedLocation(shuffleId, req.partitionId, req.epoch, false)
+                    || shuffleClient.mapperEnded(shuffleId, req.mapId)) {
+                  req.reviveStatus = StatusCode.SUCCESS.getValue();
+                } else {
+                  filteredRequests.add(req);
+                  mapIds.add(req.mapId);
+                  PartitionLocation loc = req.loc;
+                  if (!requestsToSend.containsKey(req.partitionId)
+                      || requestsToSend.get(req.partitionId).epoch < req.epoch) {
+                    requestsToSend.put(req.partitionId, req);
+                  }
                 }
               }
-            }
 
-            if (!requestsToSend.isEmpty()) {
-              // Call reviveBatch. Return null means Exception caught or
-              // SHUFFLE_NOT_REGISTERED
-              Map<Integer, Integer> results =
-                  shuffleClient.reviveBatch(shuffleId, mapIds, requestsToSend.values());
-              if (results == null) {
-                for (ReviveRequest req : filteredRequests) {
-                  req.reviveStatus = StatusCode.REVIVE_FAILED.getValue();
-                }
-              } else {
-                for (ReviveRequest req : filteredRequests) {
-                  if (shuffleClient.mapperEnded(shuffleId, req.mapId)) {
-                    req.reviveStatus = StatusCode.SUCCESS.getValue();
-                  } else {
-                    req.reviveStatus = results.get(req.partitionId);
+              if (!requestsToSend.isEmpty()) {
+                // Call reviveBatch. Return null means Exception caught or
+                // SHUFFLE_NOT_REGISTERED
+                Map<Integer, Integer> results =
+                    shuffleClient.reviveBatch(shuffleId, mapIds, requestsToSend.values());
+                if (results == null) {
+                  for (ReviveRequest req : filteredRequests) {
+                    req.reviveStatus = StatusCode.REVIVE_FAILED.getValue();
+                  }
+                } else {
+                  for (ReviveRequest req : filteredRequests) {
+                    if (shuffleClient.mapperEnded(shuffleId, req.mapId)) {
+                      req.reviveStatus = StatusCode.SUCCESS.getValue();
+                    } else {
+                      req.reviveStatus = results.get(req.partitionId);
+                    }
                   }
                 }
               }
             }
           }
         },
-        100,
-        100,
+        interval,
+        interval,
         TimeUnit.MILLISECONDS);
   }
 
