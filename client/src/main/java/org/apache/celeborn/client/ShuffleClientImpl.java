@@ -30,6 +30,7 @@ import scala.reflect.ClassTag$;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -281,7 +282,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       StatusCode cause,
       Integer oldGroupedBatchId,
       int remainReviveTimes) {
-    HashMap<String, DataBatches> newDataBatchesMap = new HashMap<>();
+    HashMap<Pair<String, String>, DataBatches> newDataBatchesMap = new HashMap<>();
     ArrayList<DataBatches.DataBatch> reviveFailedBatchesMap = new ArrayList<>();
     for (DataBatches.DataBatch batch : batches) {
       int partitionId = batch.loc.getId();
@@ -326,8 +327,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       }
     }
 
-    for (Map.Entry<String, DataBatches> entry : newDataBatchesMap.entrySet()) {
-      String addressPair = entry.getKey();
+    for (Map.Entry<Pair<String, String>, DataBatches> entry : newDataBatchesMap.entrySet()) {
+      Pair<String, String> addressPair = entry.getKey();
       DataBatches newDataBatches = entry.getValue();
       doPushMergedData(
           addressPair,
@@ -355,14 +356,12 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  private String genAddressPair(PartitionLocation loc) {
-    String addressPair;
+  private Pair<String, String> genAddressPair(PartitionLocation loc) {
     if (loc.hasPeer()) {
-      addressPair = loc.hostAndPushPort() + "-" + loc.getPeer().hostAndPushPort();
+      return Pair.of(loc.hostAndPushPort(), loc.getPeer().hostAndPushPort());
     } else {
-      addressPair = loc.hostAndPushPort();
+      return Pair.of(loc.hostAndPushPort(), null);
     }
-    return addressPair;
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffle(
@@ -908,7 +907,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else {
       // add batch data
       logger.debug("Merge batch {}.", nextBatchId);
-      String addressPair = genAddressPair(loc);
+      Pair<String, String> addressPair = genAddressPair(loc);
       boolean shouldPush = pushState.addBatchData(addressPair, loc, nextBatchId, body);
       if (shouldPush) {
         limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
@@ -1019,12 +1018,12 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (pushState == null) {
       return;
     }
-    ArrayList<Map.Entry<String, DataBatches>> batchesArr =
+    ArrayList<Map.Entry<Pair<String, String>, DataBatches>> batchesArr =
         new ArrayList<>(pushState.batchesMap.entrySet());
     while (!batchesArr.isEmpty()) {
-      Map.Entry<String, DataBatches> entry = batchesArr.get(RND.nextInt(batchesArr.size()));
-      String[] tokens = entry.getKey().split("-");
-      limitMaxInFlight(mapKey, pushState, tokens[0]);
+      Map.Entry<Pair<String, String>, DataBatches> entry =
+          batchesArr.get(RND.nextInt(batchesArr.size()));
+      limitMaxInFlight(mapKey, pushState, entry.getKey().getLeft());
       ArrayList<DataBatches.DataBatch> batches = entry.getValue().requireBatches(pushBufferMaxSize);
       if (entry.getValue().getTotalSize() == 0) {
         batchesArr.remove(entry);
@@ -1035,14 +1034,14 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private void doPushMergedData(
-      String addressPair,
+      Pair<String, String> addressPair,
       int shuffleId,
       int mapId,
       int attemptId,
       ArrayList<DataBatches.DataBatch> batches,
       PushState pushState,
       int remainReviveTimes) {
-    String hostPort = addressPair.split("-")[0];
+    String hostPort = addressPair.getLeft();
     final String[] splits = hostPort.split(":");
     final String host = splits[0];
     final int port = Integer.parseInt(splits[1]);
