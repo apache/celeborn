@@ -24,7 +24,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.network.protocol.PushData
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.worker.PushDataHandler
 
@@ -60,6 +59,7 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
         .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.CLIENT_PUSH_BLACKLIST_ENABLED.key}", "false")
         // make sure PushDataHandler.handlePushData be triggered
         .set(s"spark.${CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key}", "5")
 
@@ -93,6 +93,7 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
         .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.CLIENT_PUSH_BLACKLIST_ENABLED.key}", "false")
 
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val sqlResult = runsql(sparkSession)
@@ -116,7 +117,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     }
   }
 
-  test("celeborn spark integration test - pushdata timeout will add to balcklist") {
+  test("celeborn spark integration test - pushdata timeout slave will add to blacklist") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
       .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "true")
