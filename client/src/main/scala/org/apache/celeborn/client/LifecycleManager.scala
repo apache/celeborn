@@ -518,15 +518,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       return
     }
 
-    mapIds.asScala foreach (mapId => {
+    mapIds.asScala.foreach { mapId =>
       if (commitManager.isMapperEnded(shuffleId, mapId)) {
         logWarning(s"[handleRevive] Mapper ended, mapId $mapId, ended attemptId ${commitManager.getMapperAttempts(
           shuffleId)(mapId)}, shuffleId $shuffleId")
         contextWrapper.markMapperEnd(mapId)
       }
-    })
+    }
 
-    0 until partitionIds.size() foreach (idx => {
+    (0 until partitionIds.size()).foreach { idx =>
       changePartitionManager.handleRequestPartitionLocation(
         contextWrapper,
         shuffleId,
@@ -534,7 +534,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         oldEpochs.get(idx),
         oldPartitions.get(idx),
         Some(causes.get(idx)))
-    })
+    }
   }
 
   private def handleMapperEnd(

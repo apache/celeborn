@@ -86,7 +86,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final int BATCH_HEADER_SIZE = 4 * 4;
 
   // key: shuffleId, value: (partitionId, PartitionLocation)
-  private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
+  final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       JavaUtils.newConcurrentHashMap();
 
   // key: shuffleId, value: Set(mapId)
@@ -119,7 +119,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       };
 
-  private final ReviveManager reviveManager = new ReviveManager(this, conf);
+  private final ReviveManager reviveManager;
 
   protected static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
@@ -188,6 +188,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     partitionSplitPool =
         ThreadUtils.newDaemonCachedThreadPool(
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
+    reviveManager = new ReviveManager(this, conf);
 
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
@@ -567,9 +568,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  boolean checkRevivedLocation(int shuffleId, int partitionId, int epoch, boolean wait) {
-    ConcurrentHashMap<Integer, PartitionLocation> map = reducePartitionMap.get(shuffleId);
-    PartitionLocation currentLocation = map.get(partitionId);
+  boolean checkRevivedLocation(Map<Integer, PartitionLocation> shuffleMap, int partitionId, int epoch, boolean wait) {
+    PartitionLocation currentLocation = shuffleMap.get(partitionId);
     if (currentLocation != null && currentLocation.getEpoch() > epoch) {
       return true;
     } else if (wait) {
@@ -583,7 +583,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         }
       }
 
-      currentLocation = map.get(partitionId);
+      currentLocation = shuffleMap.get(partitionId);
       return currentLocation != null && currentLocation.getEpoch() > epoch;
     } else {
       return false;
