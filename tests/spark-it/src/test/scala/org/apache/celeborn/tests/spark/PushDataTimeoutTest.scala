@@ -32,14 +32,16 @@ class PushDataTimeoutTest extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
-  val workerConf = Map(
-    CelebornConf.TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT.key -> "true",
-    CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true",
-    "celeborn.push.timeoutCheck.interval" -> "1s")
+  override def beforeAll(): Unit = {
+    logInfo("test initialized , setup celeborn mini cluster")
+    val workerConf = Map(
+      CelebornConf.TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT.key -> "true",
+      CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true",
+      "celeborn.push.timeoutCheck.interval" -> "1s")
+    setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
+  }
 
   override def beforeEach(): Unit = {
-    logInfo("test initialized , setup celeborn mini cluster")
-    setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
     ShuffleClient.reset()
     PushDataHandler.pushMasterDataTimeoutTested.set(false)
     PushDataHandler.pushSlaveDataTimeoutTested.set(false)
