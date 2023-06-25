@@ -52,7 +52,11 @@ public abstract class ShuffleClient {
   protected ShuffleClient() {}
 
   public static ShuffleClient get(
-      String appUniqueId, String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
+      String appUniqueId,
+      String driverHost,
+      int port,
+      CelebornConf conf,
+      UserIdentifier userIdentifier) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -130,22 +134,15 @@ public abstract class ShuffleClient {
       int numPartitions)
       throws IOException;
 
-  public abstract void pushMergedData(int shuffleId, int mapId, int attemptId)
-      throws IOException;
+  public abstract void pushMergedData(int shuffleId, int mapId, int attemptId) throws IOException;
 
   // Report partition locations written by the completed map task of ReducePartition Shuffle Type
-  public abstract void mapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers)
+  public abstract void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
       throws IOException;
 
   // Report partition locations written by the completed map task of MapPartition Shuffle Type
   public abstract void mapPartitionMapperEnd(
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int numMappers,
-      int partitionId)
-      throws IOException;
+      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId) throws IOException;
 
   // Cleanup states of the map task
   public abstract void cleanup(int shuffleId, int mapId, int attemptId);
@@ -153,23 +150,18 @@ public abstract class ShuffleClient {
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
   public abstract RssInputStream readPartition(
-      int shuffleId,
-      int partitionId,
-      int attemptNumber,
-      int startMapIndex,
-      int endMapIndex)
+      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException;
 
-  public abstract RssInputStream readPartition(
-      int shuffleId, int partitionId, int attemptNumber) throws IOException;
+  public abstract RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
+      throws IOException;
 
   public abstract boolean unregisterShuffle(int shuffleId, boolean isDriver);
 
   public abstract void shutdown();
 
   public abstract PartitionLocation registerMapPartitionTask(
-      int shuffleId, int numMappers, int mapId, int attemptId, int partitionId)
-      throws IOException;
+      int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException;
 
   public abstract ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
       int shuffleId, int numMappers, int numPartitions);

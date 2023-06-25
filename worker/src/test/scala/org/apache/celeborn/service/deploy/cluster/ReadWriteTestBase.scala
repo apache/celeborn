@@ -87,7 +87,7 @@ trait ReadWriteTestBase extends AnyFunSuite
     val STR4 = RandomStringUtils.random(16 * 1024)
     val DATA4 = STR4.getBytes(StandardCharsets.UTF_8)
     val LENGTH4 = DATA4.length
-    shuffleClient.mergeData( 1, 0, 0, 0, DATA4, 0, LENGTH4, 1, 1)
+    shuffleClient.mergeData(1, 0, 0, 0, DATA4, 0, LENGTH4, 1, 1)
     shuffleClient.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 

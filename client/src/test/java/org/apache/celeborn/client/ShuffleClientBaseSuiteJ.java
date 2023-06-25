@@ -85,12 +85,12 @@ public abstract class ShuffleClientBaseSuiteJ {
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), codec.name());
     conf.set(CelebornConf.CLIENT_PUSH_RETRY_THREADS().key(), "1");
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1K");
-    shuffleClient = new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     masterLocation.setPeer(slaveLocation);
 
     when(endpointRef.askSync(
-            ControlMessages.RegisterShuffle$.MODULE$.apply(
-                TEST_SHUFFLE_ID, 1, 1),
+            ControlMessages.RegisterShuffle$.MODULE$.apply(TEST_SHUFFLE_ID, 1, 1),
             ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)))
         .thenAnswer(
             t ->

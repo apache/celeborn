@@ -100,16 +100,11 @@ public class DummyShuffleClient extends ShuffleClient {
   public void pushMergedData(int shuffleId, int mapId, int attemptId) {}
 
   @Override
-  public void mapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers) {}
+  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers) {}
 
   @Override
   public void mapPartitionMapperEnd(
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int numMappers,
-      int partitionId)
+      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId)
       throws IOException {}
 
   @Override
@@ -117,17 +112,12 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public RssInputStream readPartition(
-      int shuffleId,
-      int partitionId,
-      int attemptNumber,
-      int startMapIndex,
-      int endMapIndex) {
+      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex) {
     return null;
   }
 
   @Override
-  public RssInputStream readPartition(
-      int shuffleId, int partitionId, int attemptNumber) {
+  public RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber) {
     return null;
   }
 

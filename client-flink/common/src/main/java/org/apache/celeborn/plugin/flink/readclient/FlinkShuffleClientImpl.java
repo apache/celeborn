@@ -72,7 +72,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private final String appUniqueId;
 
   public static FlinkShuffleClientImpl get(
-    String appUniqueId,
+      String appUniqueId,
       String driverHost,
       int port,
       long driverTimestamp,
@@ -83,12 +83,14 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       synchronized (FlinkShuffleClientImpl.class) {
         if (null == _instance) {
           _instance =
-              new FlinkShuffleClientImpl(appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
+              new FlinkShuffleClientImpl(
+                  appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
           initialized = true;
         } else if (!initialized || _instance.driverTimestamp < driverTimestamp) {
           _instance.shutdown();
           _instance =
-              new FlinkShuffleClientImpl(appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
+              new FlinkShuffleClientImpl(
+                  appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
           initialized = true;
         }
       }
@@ -116,7 +118,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public FlinkShuffleClientImpl(
-    String appUniqueId,
+      String appUniqueId,
       String driverHost,
       int port,
       long driverTimestamp,
@@ -137,10 +139,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public RssBufferStream readBufferedPartition(
-      int shuffleId,
-      int partitionId,
-      int subPartitionIndexStart,
-      int subPartitionIndexEnd)
+      int shuffleId, int partitionId, int subPartitionIndexStart, int subPartitionIndexEnd)
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
@@ -161,15 +160,13 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   @Override
-  protected ReduceFileGroups updateFileGroup(
-      int shuffleId, int partitionId) throws IOException {
+  protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId) throws IOException {
     ReduceFileGroups reduceFileGroups =
         reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> new ReduceFileGroups());
     if (reduceFileGroups.partitionIds != null
         && reduceFileGroups.partitionIds.contains(partitionId)) {
       logger.debug(
-          "use cached file groups for partition: {}",
-          Utils.makeReducerKey(shuffleId, partitionId));
+          "use cached file groups for partition: {}", Utils.makeReducerKey(shuffleId, partitionId));
     } else {
       synchronized (reduceFileGroups) {
         if (reduceFileGroups.partitionIds != null
@@ -182,8 +179,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           ReduceFileGroups newGroups = loadFileGroupInternal(shuffleId);
           if (newGroups == null || !newGroups.partitionIds.contains(partitionId)) {
             throw new IOException(
-                "shuffle data lost for partition: "
-                    + Utils.makeReducerKey(shuffleId, partitionId));
+                "shuffle data lost for partition: " + Utils.makeReducerKey(shuffleId, partitionId));
           }
           reduceFileGroups.update(newGroups);
         }
@@ -414,8 +410,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         });
   }
 
-  public void regionFinish(
-      int shuffleId, int mapId, int attemptId, PartitionLocation location)
+  public void regionFinish(int shuffleId, int mapId, int attemptId, PartitionLocation location)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));

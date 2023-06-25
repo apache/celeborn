@@ -101,7 +101,7 @@ public class RssShuffleManager implements ShuffleManager {
           lifecycleManager = new LifecycleManager(appId, celebornConf);
           rssShuffleClient =
               ShuffleClient.get(
-                appId,
+                  appId,
                   lifecycleManager.getRssMetaServiceHost(),
                   lifecycleManager.getRssMetaServicePort(),
                   celebornConf,
@@ -181,8 +181,12 @@ public class RssShuffleManager implements ShuffleManager {
         @SuppressWarnings("unchecked")
         RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
-            ShuffleClient.get(h.appUniqueId(),
-                h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
+            ShuffleClient.get(
+                h.appUniqueId(),
+                h.rssMetaServiceHost(),
+                h.rssMetaServicePort(),
+                celebornConf,
+                h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;

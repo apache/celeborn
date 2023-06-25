@@ -52,7 +52,8 @@ object LifecycleManager {
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
 }
 
-class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends RpcEndpoint with Logging {
+class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends RpcEndpoint
+  with Logging {
 
   private val lifecycleHost = Utils.localHostName
 

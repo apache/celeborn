@@ -47,11 +47,11 @@ import org.apache.celeborn.common.util.JavaUtils
  * @see [[org.apache.celeborn.common.protocol.PartitionType.REDUCE]]
  */
 class ReducePartitionCommitHandler(
-                                    appUniqueId: String,
-                                    conf: CelebornConf,
-                                    shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
-                                    committedPartitionInfo: CommittedPartitionInfo,
-                                    workerStatusTracker: WorkerStatusTracker)
+    appUniqueId: String,
+    conf: CelebornConf,
+    shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
+    committedPartitionInfo: CommittedPartitionInfo,
+    workerStatusTracker: WorkerStatusTracker)
   extends CommitHandler(appUniqueId, conf, committedPartitionInfo, workerStatusTracker)
   with Logging {
 

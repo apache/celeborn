@@ -44,10 +44,10 @@ case class CommitResult(
     commitFilesFailedWorkers: ShuffleFailedWorkers)
 
 abstract class CommitHandler(
-                              appUniqueId: String,
-                              conf: CelebornConf,
-                              committedPartitionInfo: CommittedPartitionInfo,
-                              workerStatusTracker: WorkerStatusTracker) extends Logging {
+    appUniqueId: String,
+    conf: CelebornConf,
+    committedPartitionInfo: CommittedPartitionInfo,
+    workerStatusTracker: WorkerStatusTracker) extends Logging {
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles

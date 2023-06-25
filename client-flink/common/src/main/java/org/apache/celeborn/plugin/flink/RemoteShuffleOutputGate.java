@@ -158,12 +158,7 @@ public class RemoteShuffleOutputGate {
 
       newPartitionLoc =
           flinkShuffleClient.regionStart(
-              shuffleId,
-              mapId,
-              attemptId,
-              partitionLocation,
-              currentRegionIndex,
-              isBroadcast);
+              shuffleId, mapId, attemptId, partitionLocation, currentRegionIndex, isBroadcast);
       // revived
       if (newPartitionLoc.isPresent()) {
         partitionLocation = newPartitionLoc.get();
@@ -171,12 +166,7 @@ public class RemoteShuffleOutputGate {
         handshake(false);
         // send regionstart again
         flinkShuffleClient.regionStart(
-            shuffleId,
-            mapId,
-            attemptId,
-            newPartitionLoc.get(),
-            currentRegionIndex,
-            isBroadcast);
+            shuffleId, mapId, attemptId, newPartitionLoc.get(), currentRegionIndex, isBroadcast);
       }
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
@@ -190,8 +180,7 @@ public class RemoteShuffleOutputGate {
   public void regionFinish() throws InterruptedException {
     bufferPacker.drain();
     try {
-      flinkShuffleClient.regionFinish(
-          shuffleId, mapId, attemptId, partitionLocation);
+      flinkShuffleClient.regionFinish(shuffleId, mapId, attemptId, partitionLocation);
       currentRegionIndex++;
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
@@ -222,7 +211,7 @@ public class RemoteShuffleOutputGate {
   FlinkShuffleClientImpl getShuffleClient() {
     try {
       return FlinkShuffleClientImpl.get(
-        applicationId,
+          applicationId,
           rssMetaServiceHost,
           rssMetaServicePort,
           rssMetaServiceTimestamp,
