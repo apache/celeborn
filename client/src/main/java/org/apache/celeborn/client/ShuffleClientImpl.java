@@ -568,7 +568,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  boolean checkRevivedLocation(Map<Integer, PartitionLocation> shuffleMap, int partitionId, int epoch, boolean wait) {
+  boolean checkRevivedLocation(
+      Map<Integer, PartitionLocation> shuffleMap, int partitionId, int epoch, boolean wait) {
     PartitionLocation currentLocation = shuffleMap.get(partitionId);
     if (currentLocation != null && currentLocation.getEpoch() > epoch) {
       return true;

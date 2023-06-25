@@ -73,13 +73,15 @@ class ReviveManager {
               ArrayList<ReviveRequest> filteredRequests = new ArrayList<>();
               Map<Integer, ReviveRequest> requestsToSend = new HashMap<>();
 
-              Map<Integer, PartitionLocation> partitionMap = shuffleClient.reducePartitionMap.get(shuffleId);
+              Map<Integer, PartitionLocation> partitionMap =
+                  shuffleClient.reducePartitionMap.get(shuffleId);
               // Insert request that is not MapperEnded and with the max epoch
               // into requestsToSend
               Iterator<ReviveRequest> iter = requests.iterator();
               while (iter.hasNext()) {
                 ReviveRequest req = iter.next();
-                if (shuffleClient.checkRevivedLocation(partitionMap, req.partitionId, req.epoch, false)
+                if (shuffleClient.checkRevivedLocation(
+                        partitionMap, req.partitionId, req.epoch, false)
                     || shuffleClient.mapperEnded(shuffleId, req.mapId)) {
                   req.reviveStatus = StatusCode.SUCCESS.getValue();
                 } else {
