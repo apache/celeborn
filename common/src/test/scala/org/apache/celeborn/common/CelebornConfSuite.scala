@@ -186,4 +186,25 @@ class CelebornConfSuite extends CelebornFunSuite {
 
     assert(conf.testAlternative == "rss")
   }
+
+  test("Test empty working dir") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.storage.activeTypes", "HDFS")
+    assert(conf.workerBaseDirs.isEmpty)
+
+    conf.set("celeborn.storage.activeTypes", "SDD,HDD,HDFS")
+    assert(conf.workerBaseDirs.isEmpty)
+
+    conf.set("celeborn.storage.activeTypes", "SDD,HDD")
+    assert(!conf.workerBaseDirs.isEmpty)
+  }
+
+  test("Test commit file threads") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.storage.activeTypes", "HDFS")
+    assert(conf.workerCommitThreads === 128)
+
+    conf.set("celeborn.storage.activeTypes", "SDD,HDD")
+    assert(conf.workerCommitThreads === 32)
+  }
 }
