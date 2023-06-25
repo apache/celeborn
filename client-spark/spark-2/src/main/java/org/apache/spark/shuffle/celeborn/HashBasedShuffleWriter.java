@@ -64,7 +64,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
   private final ShuffleWriteMetrics writeMetrics;
-  private final String appId;
   private final int shuffleId;
   private final int mapId;
   private final TaskContext taskContext;
@@ -109,7 +108,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException {
     this.mapId = mapId;
     this.dep = handle.dependency();
-    this.appId = handle.appUniqueId();
     this.shuffleId = dep.shuffleId();
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();
@@ -142,7 +140,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     try {
       dataPusher =
           new DataPusher(
-              appId,
               shuffleId,
               mapId,
               taskContext.attemptNumber(),
@@ -277,7 +274,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.debug("Push giant record for partition {}, size {}.", partitionId, numBytes);
     int bytesWritten =
         rssShuffleClient.pushData(
-            appId,
             shuffleId,
             mapId,
             taskContext.attemptNumber(),
@@ -332,7 +328,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       if (size > 0) {
         int bytesWritten =
             rssShuffleClient.mergeData(
-                appId,
                 shuffleId,
                 mapId,
                 taskContext.attemptNumber(),
@@ -348,7 +343,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         writeMetrics.incBytesWritten(bytesWritten);
       }
     }
-    rssShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
+    rssShuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
 
     updateMapStatus();
 
@@ -357,7 +352,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     sendOffsets = null;
 
     long waitStartTime = System.nanoTime();
-    rssShuffleClient.mapperEnd(appId, shuffleId, mapId, taskContext.attemptNumber(), numMappers);
+    rssShuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
     BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
@@ -394,7 +389,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         }
       }
     } finally {
-      rssShuffleClient.cleanup(appId, shuffleId, mapId, taskContext.attemptNumber());
+      rssShuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
     }
   }
 }
