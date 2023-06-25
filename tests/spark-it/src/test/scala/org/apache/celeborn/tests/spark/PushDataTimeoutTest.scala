@@ -50,6 +50,7 @@ class PushDataTimeoutTest extends AnyFunSuite
   }
 
   override def afterEach(): Unit = {
+    shutdownMiniCluster()
     System.gc()
   }
 
