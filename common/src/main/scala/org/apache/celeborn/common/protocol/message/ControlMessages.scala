@@ -552,6 +552,7 @@ object ControlMessages extends Logging {
 
     case GetReducerFileGroup(shuffleId) =>
       val payload = PbGetReducerFileGroup.newBuilder()
+        .setShuffleId(shuffleId)
         .build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload)
 
