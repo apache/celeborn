@@ -58,8 +58,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   private var workerPartitionSplitEnabled: Boolean = _
   private var workerReplicateRandomConnectionEnabled: Boolean = _
 
-  @volatile private var pushMasterDataTimeoutTested = false
-  @volatile private var pushSlaveDataTimeoutTested = false
   private var testPushMasterDataTimeout: Boolean = _
   private var testPushSlaveDataTimeout: Boolean = _
 
@@ -133,13 +131,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val isMaster = mode == PartitionLocation.Mode.MASTER
 
     // For test
-    if (isMaster && testPushMasterDataTimeout && !pushMasterDataTimeoutTested) {
-      pushMasterDataTimeoutTested = true
+    if (isMaster && testPushMasterDataTimeout && !PushDataHandler.pushMasterDataTimeoutTested.getAndSet(
+        true)) {
       return
     }
 
-    if (!isMaster && testPushSlaveDataTimeout && !pushSlaveDataTimeoutTested) {
-      pushSlaveDataTimeoutTested = true
+    if (!isMaster && testPushSlaveDataTimeout && !PushDataHandler.pushSlaveDataTimeoutTested.getAndSet(
+        true)) {
       return
     }
 
@@ -407,13 +405,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     // For test
-    if (isMaster && testPushMasterDataTimeout && !PushDataHandler.pushMasterMergeDataTimeoutTested) {
-      PushDataHandler.pushMasterMergeDataTimeoutTested = true
+    if (isMaster && testPushMasterDataTimeout && !PushDataHandler.pushMasterMergeDataTimeoutTested.getAndSet(
+        true)) {
       return
     }
 
-    if (!isMaster && testPushSlaveDataTimeout && !PushDataHandler.pushSlaveMergeDataTimeoutTested) {
-      PushDataHandler.pushSlaveMergeDataTimeoutTested = true
+    if (!isMaster && testPushSlaveDataTimeout && !PushDataHandler.pushSlaveMergeDataTimeoutTested.getAndSet(
+        true)) {
       return
     }
 
@@ -1073,6 +1071,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 }
 
 object PushDataHandler {
-  @volatile private var pushMasterMergeDataTimeoutTested = false
-  @volatile private var pushSlaveMergeDataTimeoutTested = false
+  // for testing
+  @volatile private[celeborn] var pushMasterDataTimeoutTested = new AtomicBoolean(false)
+  @volatile private[celeborn] var pushSlaveDataTimeoutTested = new AtomicBoolean(false)
+  @volatile private[celeborn] var pushMasterMergeDataTimeoutTested = new AtomicBoolean(false)
+  @volatile private[celeborn] var pushSlaveMergeDataTimeoutTested = new AtomicBoolean(false)
 }
