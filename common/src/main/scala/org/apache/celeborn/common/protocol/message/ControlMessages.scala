@@ -19,6 +19,7 @@ package org.apache.celeborn.common.protocol.message
 
 import java.util
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
 
@@ -186,23 +187,23 @@ object ControlMessages extends Logging {
   object Revive {
     def apply(
         shuffleId: Int,
-        mapId: Int,
-        attemptId: Int,
-        partitionId: Int,
-        epoch: Int,
-        oldPartition: PartitionLocation,
-        cause: StatusCode): PbRevive = {
+        mapIds: util.Set[Integer],
+        reviveRequests: util.Collection[ReviveRequest]): PbRevive = {
       val builder = PbRevive.newBuilder()
-      builder
         .setShuffleId(shuffleId)
-        .setMapId(mapId)
-        .setAttemptId(attemptId)
-        .setPartitionId(partitionId)
-        .setEpoch(epoch)
-        .setStatus(cause.getValue)
-      if (oldPartition != null) {
-        builder.setOldPartition(PbSerDeUtils.toPbPartitionLocation(oldPartition))
-      }
+        .addAllMapId(mapIds)
+
+      reviveRequests.asScala.foreach(req => {
+        val partitionInfoBuilder = PbRevivePartitionInfo.newBuilder()
+          .setPartitionId(req.partitionId)
+          .setEpoch(req.epoch)
+          .setStatus(req.cause.getValue)
+        if (req.loc != null) {
+          partitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(req.loc))
+        }
+        builder.addPartitionInfo(partitionInfoBuilder.build())
+      })
+
       builder.build()
     }
   }
@@ -223,14 +224,20 @@ object ControlMessages extends Logging {
 
   object ChangeLocationResponse {
     def apply(
-        status: StatusCode,
-        partitionLocationOpt: Option[PartitionLocation],
-        available: Boolean): PbChangeLocationResponse = {
+        mapIds: util.Set[Integer],
+        newLocs: util.Map[Integer, (StatusCode, Boolean, PartitionLocation)])
+        : PbChangeLocationResponse = {
       val builder = PbChangeLocationResponse.newBuilder()
-      builder.setStatus(status.getValue)
-        .setAvailable(available)
-      partitionLocationOpt.foreach { partitionLocation =>
-        builder.setLocation(PbSerDeUtils.toPbPartitionLocation(partitionLocation))
+      builder.addAllEndedMapId(mapIds)
+      newLocs.asScala.foreach { case (partitionId, (status, available, loc)) =>
+        val pbChangeLocationPartitionInfoBuilder = PbChangeLocationPartitionInfo.newBuilder()
+          .setPartitionId(partitionId)
+          .setStatus(status.getValue)
+          .setOldAvailable(available)
+        if (loc != null) {
+          pbChangeLocationPartitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(loc))
+        }
+        builder.addPartitionInfo(pbChangeLocationPartitionInfoBuilder.build())
       }
       builder.build()
     }

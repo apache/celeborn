@@ -77,7 +77,8 @@ public enum StatusCode {
   PUSH_DATA_MASTER_BLACKLISTED(44),
   PUSH_DATA_SLAVE_BLACKLISTED(45),
 
-  FETCH_DATA_TIMEOUT(46);
+  FETCH_DATA_TIMEOUT(46),
+  REVIVE_INITIALIZED(47);
 
   private final byte value;
 

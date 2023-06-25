@@ -17,6 +17,10 @@
 
 package org.apache.celeborn.client
 
+import java.util
+import java.util.concurrent.ConcurrentHashMap
+
+import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.{ChangeLocationResponse, RegisterShuffleResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -24,25 +28,47 @@ import org.apache.celeborn.common.rpc.RpcCallContext
 
 trait RequestLocationCallContext {
   def reply(
+      partitionId: Int,
       status: StatusCode,
       partitionLocationOpt: Option[PartitionLocation],
-      excluded: Boolean): Unit
+      available: Boolean): Unit
 }
 
-case class ChangeLocationCallContext(context: RpcCallContext) extends RequestLocationCallContext {
+case class ChangeLocationsCallContext(
+    context: RpcCallContext,
+    partitionCount: Int)
+  extends RequestLocationCallContext with Logging {
+  val endedMapIds = new util.HashSet[Integer]()
+  val newLocs =
+    new ConcurrentHashMap[Integer, (StatusCode, Boolean, PartitionLocation)](partitionCount)
+
+  def markMapperEnd(mapId: Int): Unit = this.synchronized {
+    endedMapIds.add(mapId)
+  }
+
   override def reply(
+      partitionId: Int,
       status: StatusCode,
       partitionLocationOpt: Option[PartitionLocation],
-      excluded: Boolean): Unit = {
-    context.reply(ChangeLocationResponse(status, partitionLocationOpt, excluded))
+      available: Boolean): Unit = this.synchronized {
+    if (newLocs.containsKey(partitionId)) {
+      logError(s"PartitionId $partitionId already exists!")
+    }
+    newLocs.put(partitionId, (status, available, partitionLocationOpt.getOrElse(null)))
+
+    if (newLocs.size() == partitionCount || StatusCode.SHUFFLE_NOT_REGISTERED == status
+      || StatusCode.STAGE_ENDED == status) {
+      context.reply(ChangeLocationResponse(endedMapIds, newLocs))
+    }
   }
 }
 
 case class ApplyNewLocationCallContext(context: RpcCallContext) extends RequestLocationCallContext {
   override def reply(
+      partitionId: Int,
       status: StatusCode,
       partitionLocationOpt: Option[PartitionLocation],
-      excluded: Boolean = false): Unit = {
+      available: Boolean): Unit = {
     partitionLocationOpt match {
       case Some(partitionLocation) =>
         context.reply(RegisterShuffleResponse(status, Array(partitionLocation)))

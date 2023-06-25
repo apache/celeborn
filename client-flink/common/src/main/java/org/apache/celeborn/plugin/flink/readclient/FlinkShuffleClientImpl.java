@@ -49,6 +49,7 @@ import org.apache.celeborn.common.network.protocol.RegionFinish;
 import org.apache.celeborn.common.network.protocol.RegionStart;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbChangeLocationPartitionInfo;
 import org.apache.celeborn.common.protocol.PbChangeLocationResponse;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
@@ -381,7 +382,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                     ControlMessages.Revive$.MODULE$.apply(
                         shuffleId,
                         mapId,
-                        attemptId,
                         location.getId(),
                         location.getEpoch(),
                         location,
@@ -389,9 +389,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                     conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
             // per partitionKey only serve single PartitionLocation in Client Cache.
-            StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+            PbChangeLocationPartitionInfo partitionInfo = response.getPartitionInfo(0);
+            StatusCode respStatus = Utils.toStatusCode(partitionInfo.getStatus());
             if (StatusCode.SUCCESS.equals(respStatus)) {
-              return Optional.of(PbSerDeUtils.fromPbPartitionLocation(response.getLocation()));
+              return Optional.of(
+                  PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition()));
             } else {
               // throw exception
               logger.error(

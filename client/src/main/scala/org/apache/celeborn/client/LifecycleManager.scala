@@ -235,29 +235,32 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     case pb: PbRevive =>
       val shuffleId = pb.getShuffleId
-      val mapId = pb.getMapId
-      val attemptId = pb.getAttemptId
-      val partitionId = pb.getPartitionId
-      val epoch = pb.getEpoch
-      val oldPartition =
-        if (pb.hasOldPartition) {
-          PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
+      val mapIds = pb.getMapIdList
+      val partitionInfos = pb.getPartitionInfoList
+
+      val partitionIds = new util.ArrayList[Integer](partitionInfos.size)
+      val epochs = new util.ArrayList[Integer](partitionInfos.size())
+      val oldPartitions = new util.ArrayList[PartitionLocation](partitionInfos.size());
+      val causes = new util.ArrayList[StatusCode](partitionInfos.size());
+      (0 until partitionInfos.size()).foreach { idx =>
+        val info = partitionInfos.get(idx)
+        partitionIds.add(info.getPartitionId)
+        epochs.add(info.getEpoch)
+        if (info.hasPartition) {
+          oldPartitions.add(PbSerDeUtils.fromPbPartitionLocation(info.getPartition))
         } else {
-          null
+          oldPartitions.add(null)
         }
-      val cause = Utils.toStatusCode(pb.getStatus)
-      logTrace(s"Received Revive request, " +
-        s"$shuffleId, $mapId, $attemptId ,$partitionId," +
-        s" $epoch, $oldPartition, $cause.")
+        causes.add(Utils.toStatusCode(info.getStatus))
+      }
       handleRevive(
         context,
         shuffleId,
-        mapId,
-        attemptId,
-        partitionId,
-        epoch,
-        oldPartition,
-        cause)
+        mapIds,
+        partitionIds,
+        epochs,
+        oldPartitions,
+        causes)
 
     case pb: PbPartitionSplit =>
       val shuffleId = pb.getShuffleId
@@ -267,7 +270,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logTrace(s"Received split request, " +
         s"$shuffleId, $partitionId, $epoch, $oldPartition")
       changePartitionManager.handleRequestPartitionLocation(
-        ChangeLocationCallContext(context),
+        ChangeLocationsCallContext(context, 1),
         shuffleId,
         partitionId,
         epoch,
@@ -487,51 +490,51 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private def handleRevive(
       context: RpcCallContext,
       shuffleId: Int,
-      mapId: Int,
-      attemptId: Int,
-      partitionId: Int,
-      oldEpoch: Int,
-      oldPartition: PartitionLocation,
-      cause: StatusCode): Unit = {
+      mapIds: util.List[Integer],
+      partitionIds: util.List[Integer],
+      oldEpochs: util.List[Integer],
+      oldPartitions: util.List[PartitionLocation],
+      causes: util.List[StatusCode]): Unit = {
+    val contextWrapper =
+      ChangeLocationsCallContext(context, partitionIds.size())
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
-      context.reply(ChangeLocationResponse(
+      contextWrapper.reply(
+        -1,
         StatusCode.SHUFFLE_NOT_REGISTERED,
         None,
-        workerStatusTracker.workerAvailable(oldPartition)))
+        false)
       return
     }
 
-    if (getPartitionType(shuffleId) == PartitionType.MAP) {
-      logError(s"[handleRevive] shuffle $shuffleId revived filed, because map partition don't support revive!")
-      context.reply(ChangeLocationResponse(
-        StatusCode.REVIVE_FAILED,
+    if (commitManager.isStageEnd(shuffleId)) {
+      logError(s"[handleRevive] shuffle $shuffleId stage ended!")
+      contextWrapper.reply(
+        -1,
+        StatusCode.STAGE_ENDED,
         None,
-        workerStatusTracker.workerAvailable(oldPartition)))
+        false)
       return
     }
 
-    if (commitManager.isMapperEnded(shuffleId, mapId)) {
-      logWarning(s"[handleRevive] Mapper ended, mapId $mapId, current attemptId $attemptId, " +
-        s"ended attemptId ${commitManager.getMapperAttempts(shuffleId)(mapId)}, shuffleId $shuffleId.")
-      context.reply(ChangeLocationResponse(
-        StatusCode.MAP_ENDED,
-        None,
-        workerStatusTracker.workerAvailable(oldPartition)))
-      return
-    }
+    mapIds.asScala foreach (mapId => {
+      if (commitManager.isMapperEnded(shuffleId, mapId)) {
+        logWarning(s"[handleRevive] Mapper ended, mapId $mapId, ended attemptId ${commitManager.getMapperAttempts(
+          shuffleId)(mapId)}, shuffleId $shuffleId")
+        contextWrapper.markMapperEnd(mapId)
+      }
+    })
 
-    logWarning(s"Do Revive for shuffle shuffleId $shuffleId, " +
-      s"oldPartition: $oldPartition, cause: $cause")
-
-    changePartitionManager.handleRequestPartitionLocation(
-      ChangeLocationCallContext(context),
-      shuffleId,
-      partitionId,
-      oldEpoch,
-      oldPartition,
-      Some(cause))
+    0 until partitionIds.size() foreach (idx => {
+      changePartitionManager.handleRequestPartitionLocation(
+        contextWrapper,
+        shuffleId,
+        partitionIds.get(idx),
+        oldEpochs.get(idx),
+        oldPartitions.get(idx),
+        Some(causes.get(idx)))
+    })
   }
 
   private def handleMapperEnd(
@@ -724,9 +727,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             logWarning(s"Cannot find workInfo for $shuffleId from previous success workResource:" +
               s" ${destroyWorkerInfo.readableAddress()}, init according to partition info")
             try {
-              destroyWorkerInfo.endpoint = rpcEnv.setupEndpointRef(
-                RpcAddress.apply(destroyWorkerInfo.host, destroyWorkerInfo.rpcPort),
-                WORKER_EP)
+              if (workerStatusTracker.workerAvailable(destroyWorkerInfo)) {
+                destroyWorkerInfo.endpoint = rpcEnv.setupEndpointRef(
+                  RpcAddress.apply(destroyWorkerInfo.host, destroyWorkerInfo.rpcPort),
+                  WORKER_EP)
+              } else {
+                logInfo(
+                  s"${destroyWorkerInfo.toUniqueId()} is unavailable, set destroyWorkerInfo to null")
+                destroyWorkerInfo = null
+              }
             } catch {
               case t: Throwable =>
                 logError(
@@ -767,7 +776,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
       val msg = ReleaseSlots(appUniqueId, shuffleId, workerIds, workerSlotsPerDisk)
       requestMasterReleaseSlots(msg)
-      logInfo(s"Released slots for reserve buffer failed workers " +
+      logDebug(s"Released slots for reserve buffer failed workers " +
         s"${workerIds.asScala.mkString(",")}" + s"${slots.asScala.mkString(",")}" +
         s"shuffleId $shuffleId")
     }
