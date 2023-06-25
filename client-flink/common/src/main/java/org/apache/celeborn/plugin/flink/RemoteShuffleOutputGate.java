@@ -158,7 +158,6 @@ public class RemoteShuffleOutputGate {
 
       newPartitionLoc =
           flinkShuffleClient.regionStart(
-              applicationId,
               shuffleId,
               mapId,
               attemptId,
@@ -172,7 +171,6 @@ public class RemoteShuffleOutputGate {
         handshake(false);
         // send regionstart again
         flinkShuffleClient.regionStart(
-            applicationId,
             shuffleId,
             mapId,
             attemptId,
@@ -193,7 +191,7 @@ public class RemoteShuffleOutputGate {
     bufferPacker.drain();
     try {
       flinkShuffleClient.regionFinish(
-          applicationId, shuffleId, mapId, attemptId, partitionLocation);
+          shuffleId, mapId, attemptId, partitionLocation);
       currentRegionIndex++;
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
@@ -203,7 +201,7 @@ public class RemoteShuffleOutputGate {
   /** Indicates the writing/spilling is finished. */
   public void finish() throws InterruptedException, IOException {
     flinkShuffleClient.mapPartitionMapperEnd(
-        applicationId, shuffleId, mapId, attemptId, numMappers, partitionLocation.getId());
+        shuffleId, mapId, attemptId, numMappers, partitionLocation.getId());
   }
 
   /** Close the transportation gate. */
@@ -212,7 +210,7 @@ public class RemoteShuffleOutputGate {
       bufferPool.lazyDestroy();
     }
     bufferPacker.close();
-    flinkShuffleClient.cleanup(applicationId, shuffleId, mapId, attemptId);
+    flinkShuffleClient.cleanup(shuffleId, mapId, attemptId);
   }
 
   /** Returns shuffle descriptor. */
@@ -224,6 +222,7 @@ public class RemoteShuffleOutputGate {
   FlinkShuffleClientImpl getShuffleClient() {
     try {
       return FlinkShuffleClientImpl.get(
+        applicationId,
           rssMetaServiceHost,
           rssMetaServicePort,
           rssMetaServiceTimestamp,
@@ -239,7 +238,6 @@ public class RemoteShuffleOutputGate {
   public void write(ByteBuf byteBuf, int subIdx) {
     try {
       flinkShuffleClient.pushDataToLocation(
-          applicationId,
           shuffleId,
           mapId,
           attemptId,
@@ -256,14 +254,14 @@ public class RemoteShuffleOutputGate {
     if (isFirstHandShake) {
       partitionLocation =
           flinkShuffleClient.registerMapPartitionTask(
-              applicationId, shuffleId, numMappers, mapId, attemptId, partitionId);
+              shuffleId, numMappers, mapId, attemptId, partitionId);
       Utils.checkNotNull(partitionLocation);
 
       currentRegionIndex = 0;
     }
     try {
       flinkShuffleClient.pushDataHandShake(
-          applicationId, shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
+          shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
     }

@@ -100,7 +100,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           () -> {
             try {
               for (Integer shuffleId : shuffleIds) {
-                lifecycleManager.handleUnregisterShuffle(celebornAppId, shuffleId);
+                lifecycleManager.handleUnregisterShuffle(shuffleId);
                 shuffleTaskInfo.removeExpiredShuffle(shuffleId);
               }
               shuffleResourceTracker.unRegisterJob(jobID);

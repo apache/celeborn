@@ -1426,7 +1426,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   protected ReduceFileGroups updateFileGroup(
-      int shuffleId) throws IOException {
+      int shuffleId, int partitionId) throws IOException {
     return reduceFileGroupsMap.computeIfAbsent(
         shuffleId, (id) -> loadFileGroupInternal(shuffleId));
   }
@@ -1434,7 +1434,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected ReduceFileGroups loadFileGroup(
       int shuffleId, int partitionId) throws IOException {
     ReduceFileGroups reduceFileGroups =
-        updateFileGroup(shuffleId);
+        updateFileGroup(shuffleId, partitionId);
     if (reduceFileGroups == null) {
       String msg =
           "Shuffle data lost for shuffle " + shuffleId + " partitionId " + partitionId + "!";
