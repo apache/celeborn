@@ -69,7 +69,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private ConcurrentHashMap<String, TransportClient> currentClient =
       JavaUtils.newConcurrentHashMap();
   private long driverTimestamp;
-  private final String appUniqueId;
 
   public static FlinkShuffleClientImpl get(
       String appUniqueId,
@@ -135,7 +134,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         new FlinkTransportClientFactory(context, conf.clientFetchMaxRetriesForEachReplica());
     this.setupMetaServiceRef(driverHost, port);
     this.driverTimestamp = driverTimestamp;
-    this.appUniqueId = appUniqueId;
   }
 
   public RssBufferStream readBufferedPartition(

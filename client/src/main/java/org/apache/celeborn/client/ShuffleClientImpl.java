@@ -109,7 +109,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final ExecutorService partitionSplitPool;
   private final Map<Integer, Set<Integer>> splitting = JavaUtils.newConcurrentHashMap();
 
-  private final String appUniqueId;
+  protected final String appUniqueId;
 
   ThreadLocal<Compressor> compressorThreadLocal =
       new ThreadLocal<Compressor>() {
@@ -186,6 +186,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     partitionSplitPool =
         ThreadUtils.newDaemonCachedThreadPool(
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
+
+    logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
   private boolean checkPushBlacklisted(
