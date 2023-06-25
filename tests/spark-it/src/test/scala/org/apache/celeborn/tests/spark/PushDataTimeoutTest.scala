@@ -35,8 +35,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     logInfo("test initialized , setup celeborn mini cluster")
     val workerConf = Map(
       CelebornConf.TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT.key -> "true",
-      CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true",
-      "celeborn.push.timeoutCheck.interval" -> "1s")
+      CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true")
     setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
   }
 
