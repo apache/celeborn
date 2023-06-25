@@ -31,6 +31,9 @@ license: |
  - Since 0.3.0, configuration namespace `celeborn.ha.master` is deprecated, and will be removed in the future versions.
    All configurations `celeborn.ha.master.*` should migrate to `celeborn.master.ha.*`.
 
+ - Since 0.3.0, environment variables `CELEBORN_MASTER_HOST` and `CELEBORN_MASTER_PORT` are removed.
+   Instead `CELEBORN_LOCAL_HOSTNAME` works on both master and worker, which takes high priority than configurations defined in properties file.
+
  - When using 0.2.1 as client side and 0.3.0 as server side, you may see the following Exception in LifecycleManger's
    log. You can safely ignore the log, it's caused by the behavior change when Master receives heartbeat from Application.
 
