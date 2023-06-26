@@ -72,7 +72,6 @@ class PushDataTimeoutTest extends AnyFunSuite
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val sqlResult = runsql(sparkSession)
 
-      Thread.sleep(3000L)
       sparkSession.stop()
 
       val rssSparkSession = SparkSession.builder()
@@ -103,7 +102,6 @@ class PushDataTimeoutTest extends AnyFunSuite
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val sqlResult = runsql(sparkSession)
 
-      Thread.sleep(3000L)
       sparkSession.stop()
 
       val rssSparkSession = SparkSession.builder()
