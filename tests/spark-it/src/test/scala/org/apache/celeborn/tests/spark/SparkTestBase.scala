@@ -37,12 +37,12 @@ trait SparkTestBase extends AnyFunSuite
     .map(v => (v.toUpper, Random.nextInt(12) + 1))
 
   override def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
+    logInfo("test initialized , setup Celeborn mini cluster")
     setUpMiniCluster(workerNum = 5)
   }
 
   override def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
+    logInfo("all test complete , stop Celeborn mini cluster")
     shutdownMiniCluster()
   }
 

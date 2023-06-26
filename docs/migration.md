@@ -34,6 +34,9 @@ license: |
  - Since 0.3.0, environment variables `CELEBORN_MASTER_HOST` and `CELEBORN_MASTER_PORT` are removed.
    Instead `CELEBORN_LOCAL_HOSTNAME` works on both master and worker, which takes high priority than configurations defined in properties file.
 
+ - Since 0.3.0, the Celeborn Master URL schema is changed from `rss://` to `celeborn://`, for users who start Worker by
+   `sbin/start-worker.sh rss://<master-host>:<master-port>`, should migrate to `sbin/start-worker.sh celeborn://<master-host>:<master-port>`.
+
  - When using 0.2.1 as client side and 0.3.0 as server side, you may see the following Exception in LifecycleManger's
    log. You can safely ignore the log, it's caused by the behavior change when Master receives heartbeat from Application.
 

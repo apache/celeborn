@@ -335,7 +335,7 @@ function updateCeleborn() {
 
   for host in "${REG_HOSTS[@]}"; do
     echo -e "start worker on ${host} \n"
-    ssh ${host} "export CELEBORN_CONF_DIR=/home/hadoop/conf ; /home/hadoop/${CELEBORN_DIST}/sbin/start-worker.sh rss://master-1-1:9097"
+    ssh ${host} "export CELEBORN_CONF_DIR=/home/hadoop/conf ; /home/hadoop/${CELEBORN_DIST}/sbin/start-worker.sh celeborn://master-1-1:9097"
   done
 }
 

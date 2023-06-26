@@ -62,7 +62,7 @@ class UtilsSuite extends CelebornFunSuite {
 
   test("extractHostPortFromRssUrl") {
     val target = ("abc", 123)
-    val result = Utils.extractHostPortFromRssUrl("rss://abc:123")
+    val result = Utils.extractHostPortFromCelebornUrl("celeborn://abc:123")
     assert(target.equals(result))
   }
 

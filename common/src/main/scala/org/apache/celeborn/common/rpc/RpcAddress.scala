@@ -24,10 +24,10 @@ import org.apache.celeborn.common.util.Utils
  */
 case class RpcAddress(host: String, port: Int) {
 
-  def hostPort: String = host + ":" + port
+  def hostPort: String = s"$host:$port"
 
-  /** Returns a string in the form of "rss://host:port". */
-  def toRssURL: String = "rss://" + hostPort
+  /** Returns a string in the form of "celeborn://host:port". */
+  def toCelebornURL: String = s"celeborn://$hostPort"
 
   override def toString: String = hostPort
 }
@@ -45,9 +45,9 @@ private[celeborn] object RpcAddress {
     RpcAddress(uriObj.getHost, uriObj.getPort)
   }
 
-  /** Returns the [[RpcAddress]] encoded in the form of "rss://host:port" */
-  def fromRssURL(essUrl: String): RpcAddress = {
-    val (host, port) = Utils.extractHostPortFromRssUrl(essUrl)
+  /** Returns the [[RpcAddress]] encoded in the form of "celeborn://host:port" */
+  def fromCelebornURL(celebornUrl: String): RpcAddress = {
+    val (host, port) = Utils.extractHostPortFromCelebornUrl(celebornUrl)
     RpcAddress(host, port)
   }
 }

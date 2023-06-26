@@ -42,12 +42,12 @@ trait ReadWriteTestBase extends AnyFunSuite
       "celeborn.master.port" -> masterPort.toString)
     val workerConf = Map(
       "celeborn.master.endpoints" -> s"localhost:$masterPort")
-    logInfo("test initialized , setup rss mini cluster")
+    logInfo("test initialized , setup Celeborn mini cluster")
     setUpMiniCluster(masterConf, workerConf)
   }
 
   override def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
+    logInfo("all test complete , stop Celeborn mini cluster")
     shutdownMiniCluster()
   }
 

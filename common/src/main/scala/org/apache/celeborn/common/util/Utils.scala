@@ -29,6 +29,7 @@ import java.util
 import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.util.Try
@@ -51,8 +52,6 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, St
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 
 object Utils extends Logging {
-
-  def createDateFormat: SimpleDateFormat = new SimpleDateFormat("yyyyMMddHHmmss", Locale.US)
 
   def stringToSeq(str: String): Seq[String] = {
     str.split(",").map(_.trim()).filter(_.nonEmpty)
@@ -147,24 +146,47 @@ object Utils extends Logging {
   }
 
   @throws(classOf[CelebornException])
-  def extractHostPortFromRssUrl(essUrl: String): (String, Int) = {
+  def extractHostPortFromCelebornUrl(celebornUrl: String): (String, Int) = {
     try {
-      val uri = new java.net.URI(essUrl)
+      val uri = new java.net.URI(celebornUrl)
       val host = uri.getHost
       val port = uri.getPort
-      if (uri.getScheme != "rss" ||
+      if (uri.getScheme != "celeborn" ||
         host == null ||
         port < 0 ||
-        (uri.getPath != null && !uri.getPath.isEmpty) || // uri.getPath returns "" instead of null
+        (uri.getPath != null && uri.getPath.nonEmpty) || // uri.getPath returns "" instead of null
         uri.getFragment != null ||
         uri.getQuery != null ||
         uri.getUserInfo != null) {
-        throw new CelebornException("Invalid master URL: " + essUrl)
+        throw new CelebornException(s"Invalid master URL: $celebornUrl")
       }
       (host, port)
     } catch {
       case e: java.net.URISyntaxException =>
-        throw new CelebornException("Invalid master URL: " + essUrl, e)
+        throw new CelebornException(s"Invalid master URL: $celebornUrl", e)
+    }
+  }
+
+  @throws(classOf[CelebornException])
+  def extractHostPortNameFromCelebornUrl(celebornUrl: String): (String, Int, String) = {
+    try {
+      val uri = new java.net.URI(celebornUrl)
+      val host = uri.getHost
+      val port = uri.getPort
+      val name = uri.getUserInfo
+      if (uri.getScheme != "celeborn" ||
+        host == null ||
+        port < 0 ||
+        name == null ||
+        (uri.getPath != null && uri.getPath.nonEmpty) || // uri.getPath returns "" instead of null
+        uri.getFragment != null ||
+        uri.getQuery != null) {
+        throw new CelebornException(s"Invalid Celeborn URL: $celebornUrl")
+      }
+      (host, port, name)
+    } catch {
+      case e: java.net.URISyntaxException =>
+        throw new CelebornException(s"Invalid Celeborn URL: $celebornUrl", e)
     }
   }
 
@@ -181,7 +203,7 @@ object Utils extends Logging {
     }
   }
 
-  def tryLogNonFatalError(block: => Unit) {
+  def tryLogNonFatalError(block: => Unit): Unit = {
     try {
       block
     } catch {
@@ -190,47 +212,12 @@ object Utils extends Logging {
     }
   }
 
-  def tryOrExit(block: => Unit) {
+  def tryOrExit(block: => Unit): Unit = {
     try {
       block
     } catch {
       case e: ControlThrowable => throw e
       case t: Throwable => throw t
-    }
-  }
-
-  def tryWithSafeFinallyAndFailureCallbacks[T](block: => T)(
-      catchBlock: => Unit = (),
-      finallyBlock: => Unit = ()): T = {
-    var originalThrowable: Throwable = null
-    try {
-      block
-    } catch {
-      case cause: Throwable =>
-        // Purposefully not using NonFatal, because even fatal exceptions
-        // we don't want to have our finallyBlock suppress
-        originalThrowable = cause
-        try {
-          logError("Aborting task", originalThrowable)
-          //          TaskContext.get().markTaskFailed(originalThrowable)
-          catchBlock
-        } catch {
-          case t: Throwable =>
-            if (originalThrowable != t) {
-              originalThrowable.addSuppressed(t)
-              logWarning(s"Suppressing exception in catch: ${t.getMessage}", t)
-            }
-        }
-        throw originalThrowable
-    } finally {
-      try {
-        finallyBlock
-      } catch {
-        case t: Throwable if (originalThrowable != null && originalThrowable != t) =>
-          originalThrowable.addSuppressed(t)
-          logWarning(s"Suppressing exception in finally: ${t.getMessage}", t)
-          throw originalThrowable
-      }
     }
   }
 
@@ -298,6 +285,7 @@ object Utils extends Logging {
     (base + offset - 1024) % (65536 - 1024) + 1024
   }
 
+  @tailrec
   def isBindCollision(exception: Throwable): Boolean = {
     exception match {
       case e: BindException =>
@@ -305,8 +293,6 @@ object Utils extends Logging {
           return true
         }
         isBindCollision(e.getCause)
-      //      case e: MultiException =>
-      //        e.getThrowables.asScala.exists(isBindCollision)
       case e: NativeIoException =>
         (e.getMessage != null && e.getMessage.startsWith("bind() failed: ")) ||
           isBindCollision(e.getCause)
@@ -529,7 +515,7 @@ object Utils extends Logging {
     new File(clazz.getProtectionDomain.getCodeSource.getLocation.toURI).getPath
   }
 
-  def loadDefaultRssProperties(conf: CelebornConf, filePath: String = null): String = {
+  def loadDefaultCelebornProperties(conf: CelebornConf, filePath: String = null): String = {
     val path = Option(filePath).getOrElse(getDefaultPropertiesFile())
     Option(path).foreach { confFile =>
       getPropertiesFromFile(confFile).filter { case (k, v) =>
