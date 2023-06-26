@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.rpc
 
 import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.util.Utils
 
 /**
  * An address identifier for an RPC endpoint.
@@ -37,11 +38,11 @@ private[celeborn] case class RpcEndpointAddress(rpcAddress: RpcAddress, name: St
     this(RpcAddress(host, port), name)
   }
 
-  override val toString =
+  override val toString: String =
     if (rpcAddress != null) {
-      s"rss://$name@${rpcAddress.host}:${rpcAddress.port}"
+      s"celeborn://$name@${rpcAddress.host}:${rpcAddress.port}"
     } else {
-      s"rss-client://$name"
+      s"celeborn-client://$name"
     }
 }
 
@@ -51,25 +52,8 @@ private[celeborn] object RpcEndpointAddress {
     new RpcEndpointAddress(host, port, name)
   }
 
-  def apply(essUrl: String): RpcEndpointAddress = {
-    try {
-      val uri = new java.net.URI(essUrl)
-      val host = uri.getHost
-      val port = uri.getPort
-      val name = uri.getUserInfo
-      if (uri.getScheme != "rss" ||
-        host == null ||
-        port < 0 ||
-        name == null ||
-        (uri.getPath != null && !uri.getPath.isEmpty) || // uri.getPath returns "" instead of null
-        uri.getFragment != null ||
-        uri.getQuery != null) {
-        throw new CelebornException("Invalid RSS URL: " + essUrl)
-      }
-      new RpcEndpointAddress(host, port, name)
-    } catch {
-      case e: java.net.URISyntaxException =>
-        throw new CelebornException("Invalid RSS URL: " + essUrl, e)
-    }
+  def apply(celebornUrl: String): RpcEndpointAddress = {
+    val (host, port, name) = Utils.extractHostPortNameFromCelebornUrl(celebornUrl)
+    new RpcEndpointAddress(host, port, name)
   }
 }
