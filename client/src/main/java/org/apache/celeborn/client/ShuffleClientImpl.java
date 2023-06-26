@@ -254,7 +254,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                   + request.reviveStatus
                   + "("
                   + Utils.toStatusCode(request.reviveStatus)
-                  + ")"));
+                  + ")"
+                  + ", old location: "
+                  + request.loc));
     } else {
       PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(partitionId);
       logger.info(
@@ -326,11 +328,11 @@ public class ShuffleClientImpl extends ShuffleClient {
       Integer oldGroupedBatchId,
       ReviveRequest[] reviveRequests,
       int remainReviveTimes,
-      int dueTime) {
+      long reviveResponseDueTime) {
     HashMap<String, DataBatches> newDataBatchesMap = new HashMap<>();
     ArrayList<DataBatches.DataBatch> reviveFailedBatchesMap = new ArrayList<>();
 
-    long reviveWaitTime = dueTime - System.currentTimeMillis();
+    long reviveWaitTime = reviveResponseDueTime - System.currentTimeMillis();
     final long delta = 50;
     long accumulatedTime = 0;
     int index = 0;
@@ -427,9 +429,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else {
       ReviveRequest[] requests =
           addAndGetReviveRequests(shuffleId, mapId, attemptId, reviveFailedBatchesMap, cause);
-      long dueTime =
-          System.currentTimeMillis()
-              + conf.clientRpcRequestPartitionLocationRpcAskTimeout().duration().toMillis();
       pushDataRetryPool.submit(
           () ->
               submitRetryPushMergedData(
@@ -442,7 +441,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                   oldGroupedBatchId,
                   requests,
                   remainReviveTimes - 1,
-                  dueTime));
+                  System.currentTimeMillis()
+                      + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
+                          .duration()
+                          .toMillis()));
     }
   }
 
@@ -1297,11 +1299,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                 ReviveRequest[] requests =
                     addAndGetReviveRequests(
                         shuffleId, mapId, attemptId, batches, StatusCode.HARD_SPLIT);
-                long dueTime =
-                    System.currentTimeMillis()
-                        + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
-                            .duration()
-                            .toMillis();
                 pushDataRetryPool.submit(
                     () ->
                         submitRetryPushMergedData(
@@ -1314,7 +1311,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                             groupedBatchId,
                             requests,
                             remainReviveTimes,
-                            dueTime));
+                            System.currentTimeMillis()
+                                + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
+                                    .duration()
+                                    .toMillis()));
               } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
                 logger.debug(
                     "Push merged data to {} master congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
@@ -1387,9 +1387,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
               ReviveRequest[] requests =
                   addAndGetReviveRequests(shuffleId, mapId, attemptId, batches, cause);
-              long dueTime =
-                  System.currentTimeMillis()
-                      + conf.clientRpcRequestPartitionLocationRpcAskTimeout().duration().toMillis();
               pushDataRetryPool.submit(
                   () ->
                       submitRetryPushMergedData(
@@ -1402,7 +1399,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                           groupedBatchId,
                           requests,
                           finalRemainReviveTimes,
-                          dueTime));
+                          System.currentTimeMillis()
+                              + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
+                                  .duration()
+                                  .toMillis()));
             } else {
               pushState.removeBatch(groupedBatchId, hostPort);
               logger.info(
