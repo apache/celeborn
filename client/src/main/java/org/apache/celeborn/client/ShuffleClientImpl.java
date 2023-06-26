@@ -568,7 +568,16 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  boolean checkRevivedLocation(
+  /**
+   * check if a newer PartitionLocation(with larger epoch) exists in local cache
+   *
+   * @param shuffleMap
+   * @param partitionId
+   * @param epoch
+   * @param wait wheter to wait for some time for a newer PartitionLocation
+   * @return
+   */
+  boolean newerPartitionLocationExists(
       Map<Integer, PartitionLocation> shuffleMap, int partitionId, int epoch, boolean wait) {
     PartitionLocation currentLocation = shuffleMap.get(partitionId);
     if (currentLocation != null && currentLocation.getEpoch() > epoch) {
@@ -649,7 +658,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     // partitionId -> StatusCode#getValue
     Map<Integer, Integer> results = new HashMap<>();
 
-    ConcurrentHashMap<Integer, PartitionLocation> map = reducePartitionMap.get(shuffleId);
+    // Local cached map of (partitionId -> PartitionLocation)
+    ConcurrentHashMap<Integer, PartitionLocation> partitionLocationMap =
+        reducePartitionMap.get(shuffleId);
 
     Map<Integer, PartitionLocation> oldLocMap = new HashMap<>();
     Iterator<ReviveRequest> iter = requests.iterator();
@@ -680,7 +691,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         if (StatusCode.SUCCESS.getValue() == statusCode) {
           PartitionLocation loc =
               PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition());
-          map.put(partitionId, loc);
+          partitionLocationMap.put(partitionId, loc);
           blacklist.remove(loc.hostAndPushPort());
         } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
           stageEnded(shuffleId);

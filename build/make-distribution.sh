@@ -86,7 +86,7 @@ if [ -z "$JAVA_HOME" ]; then
   exit -1
 fi
 
-MVN="mvn"
+MVN="$PROJECT_DIR/build/mvn"
 export MAVEN_OPTS="${MAVEN_OPTS:--Xmx2g -XX:ReservedCodeCacheSize=1g}"
 
 if [ ! "$(command -v "$MVN")" ] ; then

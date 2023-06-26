@@ -34,7 +34,7 @@ import org.apache.celeborn.common.util.ThreadUtils;
 class ReviveManager {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
-  LinkedBlockingQueue<ReviveRequest> requests = new LinkedBlockingQueue<>();
+  LinkedBlockingQueue<ReviveRequest> requestQueue = new LinkedBlockingQueue<>();
   private final long interval;
   private final int batchSize;
   ShuffleClientImpl shuffleClient;
@@ -49,22 +49,15 @@ class ReviveManager {
     batchReviveRequestScheduler.scheduleAtFixedRate(
         () -> {
           Map<Integer, Set<ReviveRequest>> shuffleMap = new HashMap<>();
-          int count = 0;
           do {
-            ReviveRequest request = requests.poll();
-            while (request != null && count < batchSize) {
-              Set<ReviveRequest> set =
-                  shuffleMap.computeIfAbsent(request.shuffleId, id -> new HashSet<>());
-              set.add(request);
-              count++;
-              request = requests.poll();
-            }
-            if (request != null) {
-              Set<ReviveRequest> set =
-                  shuffleMap.computeIfAbsent(request.shuffleId, id -> new HashSet<>());
-              set.add(request);
-              count++;
-            }
+            ArrayList<ReviveRequest> batchRequests = new ArrayList<>();
+            requestQueue.drainTo(batchRequests, batchSize);
+            batchRequests.forEach(
+                (req) -> {
+                  Set<ReviveRequest> set =
+                      shuffleMap.computeIfAbsent(req.shuffleId, id -> new HashSet<>());
+                  set.add(req);
+                });
             for (Map.Entry<Integer, Set<ReviveRequest>> shuffleEntry : shuffleMap.entrySet()) {
               // Call reviveBatch for requests in the same (appId, shuffleId)
               int shuffleId = shuffleEntry.getKey();
@@ -80,7 +73,7 @@ class ReviveManager {
               Iterator<ReviveRequest> iter = requests.iterator();
               while (iter.hasNext()) {
                 ReviveRequest req = iter.next();
-                if (shuffleClient.checkRevivedLocation(
+                if (shuffleClient.newerPartitionLocationExists(
                         partitionMap, req.partitionId, req.epoch, false)
                     || shuffleClient.mapperEnded(shuffleId, req.mapId)) {
                   req.reviveStatus = StatusCode.SUCCESS.getValue();
@@ -117,7 +110,7 @@ class ReviveManager {
             }
             // break the loop if remaining requests is less than half of
             // `celeborn.client.push.revive.batchSize`
-          } while (requests.size() > batchSize / 2);
+          } while (requestQueue.size() > batchSize / 2);
         },
         interval,
         interval,
@@ -128,7 +121,7 @@ class ReviveManager {
     shuffleClient.excludeWorkerByCause(request.cause, request.loc);
     // This sync is necessary to ensure the add action is atomic
     try {
-      requests.put(request);
+      requestQueue.put(request);
     } catch (InterruptedException e) {
       logger.error("Exception when put into requests!", e);
     }
