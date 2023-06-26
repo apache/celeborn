@@ -17,7 +17,10 @@
 
 package org.apache.celeborn.tests.spark
 
-import org.apache.spark.SparkConf
+import scala.collection.JavaConverters._
+
+import org.apache.spark.{SparkConf, SparkContextHelper}
+import org.apache.spark.shuffle.celeborn.RssShuffleManager
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
@@ -25,6 +28,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
+import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.worker.PushDataHandler
 
 class PushDataTimeoutTest extends AnyFunSuite
@@ -32,7 +36,7 @@ class PushDataTimeoutTest extends AnyFunSuite
   with BeforeAndAfterEach {
 
   override def beforeAll(): Unit = {
-    logInfo("test initialized , setup celeborn mini cluster")
+    logInfo("test initialized, setup celeborn mini cluster")
     val workerConf = Map(
       CelebornConf.TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT.key -> "true",
       CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true")
@@ -114,10 +118,11 @@ class PushDataTimeoutTest extends AnyFunSuite
     }
   }
 
-  test("celeborn spark integration test - pushdata timeout slave will add to blacklist") {
+  test("celeborn spark integration test - pushdata timeout will add to blacklist") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
       .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
     val rssSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
@@ -129,9 +134,22 @@ class PushDataTimeoutTest extends AnyFunSuite
         e.getMessage.concat("Revive Failed in retry push merged data for location")
     }
 
+    assert(PushDataHandler.pushMasterMergeDataTimeoutTested.get())
+    assert(PushDataHandler.pushSlaveMergeDataTimeoutTested.get())
+    val blacklist = SparkContextHelper.env
+      .shuffleManager
+      .asInstanceOf[RssShuffleManager]
+      .getLifecycleManager
+      .workerStatusTracker
+      .blacklist
+
+    assert(blacklist.size() > 0)
+    blacklist.asScala.foreach {
+      case (_, (code, _)) =>
+        assert(code == StatusCode.PUSH_DATA_TIMEOUT_MASTER ||
+          code == StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
+    }
     rssSparkSession.stop()
     ShuffleClient.reset()
-    assert(PushDataHandler.pushMasterMergeDataTimeoutTested.get())
-    assert(!PushDataHandler.pushSlaveMergeDataTimeoutTested.get())
   }
 }
