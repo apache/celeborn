@@ -27,6 +27,9 @@
   <artifactId>celeborn-client-spark-common_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
   <name>Celeborn Client for Spark Common</name>
+  <properties>
+    <sbt.project.name>spark-common</sbt.project.name>
+  </properties>
 
   <dependencies>
     <dependency>
