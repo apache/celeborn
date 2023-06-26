@@ -50,7 +50,7 @@ class ReviveManager {
         () -> {
           Map<Integer, Set<ReviveRequest>> shuffleMap = new HashMap<>();
           int count = 0;
-          while (!requests.isEmpty()) {
+          do {
             ReviveRequest request = requests.poll();
             while (request != null && count < batchSize) {
               Set<ReviveRequest> set =
@@ -115,7 +115,9 @@ class ReviveManager {
                 }
               }
             }
-          }
+            // break the loop if remaining requests is less than half of
+            // `celeborn.client.push.revive.batchSize`
+          } while (requests.size() > batchSize / 2);
         },
         interval,
         interval,
