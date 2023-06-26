@@ -47,6 +47,7 @@ securityContext:
 # Note: size only works in emptyDir type
 # hostPath only works in hostPath type using to set `volumes hostPath path`
 # Celeborn Master will pick first volumes for store raft log
+# diskType only works in Celeborn Worker with hostPath type to manifest local disk type
 volumes:
   master:
     - mountPath: /mnt/rss_ratis
@@ -57,18 +58,22 @@ volumes:
     - mountPath: /mnt/disk1
       hostPath: /mnt/disk1
       type: hostPath
+      diskType: HDD
       size: 1Gi
     - mountPath: /mnt/disk2
       hostPath: /mnt/disk2
       type: hostPath
+      diskType: HDD
       size: 1Gi
     - mountPath: /mnt/disk3
       hostPath: /mnt/disk3
       type: hostPath
+      diskType: HDD
       size: 1Gi
     - mountPath: /mnt/disk4
       hostPath: /mnt/disk4
       type: hostPath
+      diskType: HDD
       size: 1Gi
 
 # celeborn configurations
