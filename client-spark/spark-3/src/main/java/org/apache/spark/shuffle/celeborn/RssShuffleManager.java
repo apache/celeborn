@@ -310,4 +310,9 @@ public class RssShuffleManager implements ShuffleManager {
     pusherIdx.incrementAndGet();
     return pusherThread;
   }
+
+  // for testing
+  public LifecycleManager getLifecycleManager() {
+    return this.lifecycleManager;
+  }
 }
