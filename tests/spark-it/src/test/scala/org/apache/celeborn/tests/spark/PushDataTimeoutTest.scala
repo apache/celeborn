@@ -146,10 +146,9 @@ class PushDataTimeoutTest extends AnyFunSuite
       .blacklist
 
     assert(blacklist.size() > 0)
-    blacklist.asScala.foreach {
-      case (_, (code, _)) =>
-        assert(code == StatusCode.PUSH_DATA_TIMEOUT_MASTER ||
-          code == StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
+    blacklist.asScala.foreach { case (_, (code, _)) =>
+      assert(code == StatusCode.PUSH_DATA_TIMEOUT_MASTER ||
+        code == StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
     }
     rssSparkSession.stop()
     ShuffleClient.reset()

@@ -131,13 +131,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val isMaster = mode == PartitionLocation.Mode.MASTER
 
     // For test
-    if (isMaster && testPushMasterDataTimeout && !PushDataHandler.pushMasterDataTimeoutTested.getAndSet(
-        true)) {
+    if (isMaster && testPushMasterDataTimeout &&
+      !PushDataHandler.pushMasterDataTimeoutTested.getAndSet(true)) {
       return
     }
 
-    if (!isMaster && testPushSlaveDataTimeout && !PushDataHandler.pushSlaveDataTimeoutTested.getAndSet(
-        true)) {
+    if (!isMaster && testPushSlaveDataTimeout &&
+      !PushDataHandler.pushSlaveDataTimeoutTested.getAndSet(true)) {
       return
     }
 
@@ -405,13 +405,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     // For test
-    if (isMaster && testPushMasterDataTimeout && !PushDataHandler.pushMasterMergeDataTimeoutTested.getAndSet(
-        true)) {
+    if (isMaster && testPushMasterDataTimeout &&
+      !PushDataHandler.pushMasterMergeDataTimeoutTested.getAndSet(true)) {
       return
     }
 
-    if (!isMaster && testPushSlaveDataTimeout && !PushDataHandler.pushSlaveMergeDataTimeoutTested.getAndSet(
-        true)) {
+    if (!isMaster && testPushSlaveDataTimeout &&
+      !PushDataHandler.pushSlaveMergeDataTimeoutTested.getAndSet(true)) {
       return
     }
 
