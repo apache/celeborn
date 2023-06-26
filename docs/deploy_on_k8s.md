@@ -82,7 +82,7 @@ celeborn-worker-0   1/1       Running            0          1m
 ...
 ```
 
-Given that Celeborn Master/Worker takes time to start, you can see the following phenomenon:
+Given that Celeborn Master/Worker Pod takes time to start, you can see the following phenomenon:
 
 ```
 ** server can't find celeborn-master-0.celeborn-master-svc.default.svc.cluster.local: NXDOMAIN
@@ -113,7 +113,29 @@ starting org.apache.celeborn.service.deploy.master.Master, logging to /opt/celeb
 23/03/23 14:10:56,216 INFO [main] Master: Master started.
 ```
 
-### 5. Build Celeborn Client
+### 5. Access Celeborn Service
+
+The Celeborn Master/Worker nodes deployed via official Helm charts run as [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/),
+it can be accessed by Pod IP or [Stable Network ID (DNS name)](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#stable-network-id),
+in above case, the Master/Worker nodes can be accessed by:
+
+```
+celeborn-master-0.celeborn-master-svc.default.svc.cluster.local`
+...
+celeborn-worker-0.celeborn-worker-svc.default.svc.cluster.local`
+...
+```
+
+After StatefulSet Pod restarted, the Pod IP would change but the DNS name keeps same, this is important for rolling upgrade.
+
+When bind address is not set explicitly, Celeborn worker is going to find the first non-loopback address to bind. By default,
+it use IP address both for address binding and registering, that causes the Master and Client use the IP address to access the
+Worker, it's problematic after Worker restart as explained above, especially when Graceful Shutdown is enabled.
+
+You may want to set `celeborn.network.bind.preferIpAddress=false` to address such issue. Note that, depends on your Kubernetes
+network infrastructure, this may cause pressure on DNS service or other network issues compared with using IP address directly.
+
+### 6. Build Celeborn Client
 
 Here, without going into detail on how to configure spark/flink to find celeborn master/worker, mention the key
 configuration:
