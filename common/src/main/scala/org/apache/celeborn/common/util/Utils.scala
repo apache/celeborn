@@ -905,6 +905,8 @@ object Utils extends Logging {
         StatusCode.PUSH_DATA_SLAVE_BLACKLISTED
       case 46 =>
         StatusCode.FETCH_DATA_TIMEOUT
+      case 47 =>
+        StatusCode.REVIVE_INITIALIZED
       case _ =>
         null
     }
