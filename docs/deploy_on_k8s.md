@@ -126,7 +126,7 @@ celeborn-worker-0.celeborn-worker-svc.default.svc.cluster.local`
 ...
 ```
 
-After StatefulSet Pod restarted, the Pod IP would change but the DNS name keeps same, this is important for rolling upgrade.
+After a restart, the StatefulSet Pod IP changes but the DNS name remains, this is important for rolling upgrade.
 
 When bind address is not set explicitly, Celeborn worker is going to find the first non-loopback address to bind. By default,
 it use IP address both for address binding and registering, that causes the Master and Client use the IP address to access the
