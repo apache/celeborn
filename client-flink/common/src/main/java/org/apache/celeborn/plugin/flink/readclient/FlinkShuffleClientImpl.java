@@ -19,7 +19,7 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -51,6 +51,7 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbChangeLocationPartitionInfo;
 import org.apache.celeborn.common.protocol.PbChangeLocationResponse;
+import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
@@ -377,15 +378,22 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           if (regionStartResponse.hasRemaining()
               && regionStartResponse.get() == StatusCode.HARD_SPLIT.getValue()) {
             // if split then revive
+            Set<Integer> mapIds = new HashSet<>();
+            mapIds.add(mapId);
+            List<ReviveRequest> requests = new ArrayList<>();
+            ReviveRequest req =
+                new ReviveRequest(
+                    shuffleId,
+                    mapId,
+                    attemptId,
+                    location.getId(),
+                    location.getEpoch(),
+                    location,
+                    StatusCode.HARD_SPLIT);
+            requests.add(req);
             PbChangeLocationResponse response =
                 driverRssMetaService.askSync(
-                    ControlMessages.Revive$.MODULE$.apply(
-                        shuffleId,
-                        mapId,
-                        location.getId(),
-                        location.getEpoch(),
-                        location,
-                        StatusCode.HARD_SPLIT),
+                    ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
                     conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
             // per partitionKey only serve single PartitionLocation in Client Cache.
