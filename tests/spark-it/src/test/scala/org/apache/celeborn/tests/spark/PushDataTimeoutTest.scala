@@ -36,7 +36,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     val workerConf = Map(
       CelebornConf.TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT.key -> "true",
       CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true")
-    setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
+    setUpMiniCluster(masterConfs = null, workerConfs = workerConf, workerNum = 4)
   }
 
   override def beforeEach(): Unit = {
@@ -58,7 +58,6 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
         .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "false")
-        .set(s"spark.${CelebornConf.CLIENT_PUSH_BLACKLIST_ENABLED.key}", "false")
         // make sure PushDataHandler.handlePushData be triggered
         .set(s"spark.${CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key}", "5")
 
@@ -92,7 +91,6 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
         .set(s"spark.${CelebornConf.CLIENT_BLACKLIST_SLAVE_ENABLED.key}", "false")
-        .set(s"spark.${CelebornConf.CLIENT_PUSH_BLACKLIST_ENABLED.key}", "false")
 
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val sqlResult = runsql(sparkSession)
