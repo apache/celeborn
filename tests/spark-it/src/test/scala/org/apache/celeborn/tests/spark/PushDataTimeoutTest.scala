@@ -40,6 +40,10 @@ class PushDataTimeoutTest extends AnyFunSuite
     val workerConf = Map(
       CelebornConf.TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT.key -> "true",
       CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true")
+    // required at least 4 workers, the reason behind this requirement is that when replication is
+    // enabled, there is a possibility that two workers might be added to the blacklist due to
+    // master/slave timeout issues, then there are not enough workers to do replication if available
+    // workers number = 1
     setUpMiniCluster(masterConfs = null, workerConfs = workerConf, workerNum = 4)
   }
 
