@@ -116,8 +116,8 @@ starting org.apache.celeborn.service.deploy.master.Master, logging to /opt/celeb
 ### 5. Access Celeborn Service
 
 The Celeborn Master/Worker nodes deployed via official Helm charts run as [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/),
-it can be accessed by Pod IP or [Stable Network ID (DNS name)](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#stable-network-id),
-in above case, the Master/Worker nodes can be accessed by:
+it can be accessed through Pod IP or [Stable Network ID (DNS name)](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#stable-network-id),
+in above case, the Master/Worker nodes can be accessed through:
 
 ```
 celeborn-master-0.celeborn-master-svc.default.svc.cluster.local`
