@@ -37,10 +37,11 @@ data:
     celeborn.master.ha.ratis.raft.server.storage.dir={{ (index $dirs 0).mountPath }}
     {{- $path := "" }}
     {{- range $worker := .Values.volumes.worker }}
+    {{- $info := (cat $worker.mountPath ":disktype=" (get $worker "disktype" | default "HDD") | nospace) }}
     {{- if eq $path "" }}
-    {{- $path = $worker.mountPath }}
+    {{- $path = $info }}
     {{- else }}
-    {{- $path = ( list $path $worker.mountPath | join ",") }}
+    {{- $path = ( list $path $info | join ",") }}
     {{- end }}
     {{- end }}
     celeborn.worker.storage.dirs={{ $path }}

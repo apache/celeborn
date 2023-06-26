@@ -57,18 +57,22 @@ volumes:
     - mountPath: /mnt/disk1
       hostPath: /mnt/disk1
       type: hostPath
+      disktype: HDD
       size: 1Gi
     - mountPath: /mnt/disk2
       hostPath: /mnt/disk2
       type: hostPath
+      disktype: HDD
       size: 1Gi
     - mountPath: /mnt/disk3
       hostPath: /mnt/disk3
       type: hostPath
+      disktype: HDD
       size: 1Gi
     - mountPath: /mnt/disk4
       hostPath: /mnt/disk4
       type: hostPath
+      disktype: HDD
       size: 1Gi
 
 # celeborn configurations
