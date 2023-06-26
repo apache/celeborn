@@ -193,7 +193,7 @@ object ControlMessages extends Logging {
         .setShuffleId(shuffleId)
         .addAllMapId(mapIds)
 
-      reviveRequests.asScala.foreach(req => {
+      reviveRequests.asScala.foreach { req =>
         val partitionInfoBuilder = PbRevivePartitionInfo.newBuilder()
           .setPartitionId(req.partitionId)
           .setEpoch(req.epoch)
@@ -202,7 +202,7 @@ object ControlMessages extends Logging {
           partitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(req.loc))
         }
         builder.addPartitionInfo(partitionInfoBuilder.build())
-      })
+      }
 
       builder.build()
     }
