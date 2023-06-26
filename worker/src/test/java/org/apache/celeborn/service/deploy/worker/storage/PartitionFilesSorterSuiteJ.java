@@ -59,7 +59,7 @@ public class PartitionFilesSorterSuiteJ {
   public void prepare(boolean largefile) throws IOException {
     byte[] batchHeader = new byte[16];
     Random random = new Random();
-    shuffleFile = File.createTempFile("RSS", "sort-suite");
+    shuffleFile = File.createTempFile("Celeborn", "sort-suite");
 
     originFileName = shuffleFile.getAbsolutePath();
     fileInfo = new FileInfo(shuffleFile, userIdentifier);
