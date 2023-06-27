@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.utils
+package org.apache.celeborn.common.util
 
 import org.apache.hadoop.conf.Configuration
 
