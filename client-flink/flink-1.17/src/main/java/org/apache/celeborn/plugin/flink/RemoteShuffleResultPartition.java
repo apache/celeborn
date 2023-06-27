@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.*;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
@@ -206,5 +207,11 @@ public class RemoteShuffleResultPartition extends ResultPartition {
   @VisibleForTesting
   public RemoteShuffleResultPartitionDelegation getDelegation() {
     return delegation;
+  }
+
+  @Override
+  public void setMetricGroup(TaskIOMetricGroup metrics) {
+    super.setMetricGroup(metrics);
+    this.delegation.setMetricCounters(numBytesOut, numBuffersOut);
   }
 }
