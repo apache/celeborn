@@ -131,7 +131,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val scheme = path.toUri.getScheme
       val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme);
       val hdfsConfiguration = new Configuration
-      hdfsConfiguration.set("dfs.replication", "1")
+      hdfsConfiguration.set("dfs.replication", "2")
       hdfsConfiguration.set(disableCacheName, "false")
       logInfo("Celeborn will ignore cluster settings " +
         disableCacheName + " and set it to false")
