@@ -114,12 +114,13 @@ celeborn.master.port 9097
 celeborn.metrics.enabled true
 celeborn.worker.flusher.buffer.size 256k
 
+# If Celeborn workers have local disks and HDFS. Following configs should be added.
 # If Celeborn workers have local disks, use following config.
 # Disk type is HDD by defaut.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 
 # If Celeborn workers don't have local disks. You can use HDFS.
-# Do not set `celeborn.worker.storage.dirs` and use following config.
+# Do not set `celeborn.worker.storage.dirs` and use following configs.
 celeborn.storage.activeTypes HDFS
 celeborn.worker.sortPartition.threads 64
 celeborn.worker.commitFiles.timeout 240s
@@ -128,6 +129,7 @@ celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
 celeborn.worker.storage.hdfs.dir hdfs://[your-hdfs-namespace]/celeborn
+celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
@@ -157,12 +159,15 @@ celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
 celeborn.worker.flusher.buffer.size 256k
 
+# If Celeborn workers have local disks and HDFS. Following configs should be added.
+# Celeborn will use local disks until local disk become unavailable to gain the best performance.
+# Increase Celeborn's off-heap memory if Celeborn write to HDFS.
 # If Celeborn workers have local disks, use following config.
 # Disk type is HDD by defaut.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 
 # If Celeborn workers don't have local disks. You can use HDFS.
-# Do not set `celeborn.worker.storage.dirs` and use following config.
+# Do not set `celeborn.worker.storage.dirs` and use following configs.
 celeborn.storage.activeTypes HDFS
 celeborn.worker.sortPartition.threads 64
 celeborn.worker.commitFiles.timeout 240s
@@ -171,6 +176,7 @@ celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
 celeborn.worker.storage.hdfs.dir hdfs://[your-hdfs-namespace]/celeborn
+celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false

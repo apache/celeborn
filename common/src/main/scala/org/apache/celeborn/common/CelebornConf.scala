@@ -2053,7 +2053,8 @@ object CelebornConf extends Logging {
   val WORKER_REPLICATE_FAST_FAIL_DURATION: ConfigEntry[Long] =
     buildConf("celeborn.worker.replicate.fastFail.duration")
       .categories("worker")
-      .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed.")
+      .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed." +
+        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
