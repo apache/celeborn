@@ -600,7 +600,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private void initializeFiles() throws IOException {
       if (isHdfs) {
         hdfsOriginInput = StorageManager.hadoopFs().open(new Path(originFilePath));
-        hdfsSortedOutput = StorageManager.hadoopFs().create(new Path(sortedFilePath));
+        hdfsSortedOutput =
+            StorageManager.hadoopFs().create(new Path(sortedFilePath), true, 256 * 1024);
       } else {
         originFileChannel = FileChannelUtils.openReadableFileChannel(originFilePath);
         sortedFileChannel = FileChannelUtils.createWritableFileChannel(sortedFilePath);
