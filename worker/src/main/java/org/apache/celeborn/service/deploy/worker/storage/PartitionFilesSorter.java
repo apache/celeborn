@@ -30,12 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RecursiveAction;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -96,10 +91,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
 
-  private final ForkJoinPool forkJoinPool =
-      new ForkJoinPool(Runtime.getRuntime().availableProcessors());
-  private final AtomicLong forkJoinSortingSize = new AtomicLong();
-  private final AtomicLong forkJoinQueueSize = new AtomicLong();
+  private final ExecutorService sortSingleFileExecutors;
+  private final AtomicLong sortSingleFileExecutorSortingSize = new AtomicLong();
+  private final AtomicLong sortSingleFileExecutorQueueSize = new AtomicLong();
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
@@ -131,6 +125,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
             "worker-file-sorter-execute", conf.partitionSorterThreads(), 120);
+
+    sortSingleFileExecutors =
+        ThreadUtils.newDaemonCachedThreadPool(
+            "sort-single-file-execute", conf.sortSingleFileExecutorThreads(), 120);
 
     fileSorterSchedulerThread =
         new Thread(
@@ -172,12 +170,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFilesSize.get();
   }
 
-  public long getForkJoinSortingSize() {
-    return forkJoinSortingSize.get();
+  public long getSortSingleFileExecutorSortingSize() {
+    return sortSingleFileExecutorSortingSize.get();
   }
 
-  public long getForkJoinQueueSize() {
-    return forkJoinQueueSize.get();
+  public long getSortSingleFileExecutorQueueSize() {
+    return sortSingleFileExecutorQueueSize.get();
   }
 
   public FileInfo getSortedFileInfo(
@@ -267,10 +265,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN()) {
       long start = System.currentTimeMillis();
       try {
-        forkJoinPool.shutdown();
-        forkJoinPool.awaitTermination(partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
-        if (!forkJoinPool.isShutdown()) {
-          forkJoinPool.shutdownNow();
+        sortSingleFileExecutors.shutdown();
+        sortSingleFileExecutors.awaitTermination(
+            partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
+        if (!sortSingleFileExecutors.isShutdown()) {
+          sortSingleFileExecutors.shutdownNow();
         }
         fileSorterExecutors.shutdown();
         fileSorterExecutors.awaitTermination(
@@ -292,7 +291,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       long end = System.currentTimeMillis();
       logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
     } else {
-      forkJoinPool.shutdownNow();
+      sortSingleFileExecutors.shutdownNow();
       fileSorterSchedulerThread.interrupt();
       fileSorterExecutors.shutdownNow();
       if (sortedFilesDb != null) {
@@ -305,6 +304,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
     cachedIndexMaps.clear();
+    cacheSortedSizeMaps.clear();
   }
 
   private void reloadAndCleanSortedShuffleFiles(DB db) {
@@ -668,26 +668,26 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           }
         }
 
-        long[] fileLengthArray = new long[batchSortList.size()];
-        forkJoinQueueSize.addAndGet(batchSortList.size());
-        forkJoinPool.invoke(
-            new MergeSortAction(
-                originFileChannel,
-                hdfsOriginInput,
-                originFilePath,
-                batchSortList,
-                sortedBlockInfoMap,
-                fileLengthArray,
-                0,
-                batchSortList.size(),
-                isHdfs));
+        sortSingleFileExecutorQueueSize.addAndGet(batchSortList.size());
+        List<Future<Long>> futureList = new ArrayList<>(batchSortList.size());
+        for (int i = 0; i < batchSortList.size(); i++) {
+          MergeSortTask task =
+              new MergeSortTask(
+                  originFileChannel,
+                  hdfsOriginInput,
+                  batchSortList.get(i),
+                  sortedBlockInfoMap,
+                  Utils.getSortedFilePath(originFilePath, i),
+                  isHdfs);
+          futureList.add(sortSingleFileExecutors.submit(task));
+        }
 
-        long[] sortedFileLenSumOver = new long[fileLengthArray.length];
-        for (int i = 0; i < fileLengthArray.length; i++) {
+        long[] sortedFileLenSumOver = new long[futureList.size()];
+        for (int i = 0; i < futureList.size(); i++) {
           if (i == 0) {
-            sortedFileLenSumOver[i] = fileLengthArray[i];
+            sortedFileLenSumOver[i] = futureList.get(i).get();
           } else {
-            sortedFileLenSumOver[i] = sortedFileLenSumOver[i - 1] + fileLengthArray[i];
+            sortedFileLenSumOver[i] = sortedFileLenSumOver[i - 1] + futureList.get(i).get();
           }
         }
 
@@ -798,56 +798,41 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
-  class MergeSortAction extends RecursiveAction {
+  class MergeSortTask implements Callable<Long> {
+
     private final FileChannel originFileChannel;
     private final FSDataInputStream hdfsOriginInput;
-    private final String originFilePath;
-    private final List<Map<Integer, SortShuffleBlockWrapper>> batchSortList;
+    private final Map<Integer, SortShuffleBlockWrapper> singleBatchSortList;
     private final Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap;
-    // [left, right)
-    private final int left;
-    private final int right;
-    private final long[] fileLengthArray;
+    private final String targetFilePath;
     private final boolean isHdfs;
 
-    public MergeSortAction(
+    public MergeSortTask(
         FileChannel originFileChannel,
         FSDataInputStream hdfsOriginInput,
-        String originFilePath,
-        List<Map<Integer, SortShuffleBlockWrapper>> batchSortList,
+        Map<Integer, SortShuffleBlockWrapper> singleBatchSortList,
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap,
-        long[] fileLengthArray,
-        int left,
-        int right,
+        String targetFilePath,
         boolean isHdfs) {
       this.originFileChannel = originFileChannel;
       this.hdfsOriginInput = hdfsOriginInput;
-      this.originFilePath = originFilePath;
-      this.batchSortList = batchSortList;
+      this.singleBatchSortList = singleBatchSortList;
       this.sortedBlockInfoMap = sortedBlockInfoMap;
-      this.left = left;
-      this.right = right;
-      this.fileLengthArray = fileLengthArray;
+      this.targetFilePath = targetFilePath;
       this.isHdfs = isHdfs;
     }
 
     @Override
-    protected void compute() {
-      if (left == right - 1) {
-        sequentialMergeSort(left);
-      } else if (left < right - 1) {
-        parallelMergeSort();
-      }
+    public Long call() {
+      return task();
     }
 
-    private void sequentialMergeSort(int idx) {
+    private long task() {
       FileChannel targetChannel = null;
       FSDataOutputStream targetOutputStream = null;
-      forkJoinSortingSize.incrementAndGet();
+      sortSingleFileExecutorSortingSize.incrementAndGet();
       try {
         long fileIndex = 0;
-        Map<Integer, SortShuffleBlockWrapper> batchSort = batchSortList.get(idx);
-        String targetFilePath = Utils.getSortedFilePath(originFilePath, idx);
         if (isHdfs) {
           Path p = new Path(targetFilePath);
           if (StorageManager.hadoopFs().exists(p)) {
@@ -862,7 +847,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           targetChannel = FileChannelUtils.createWritableFileChannel(targetFilePath);
         }
 
-        for (Map.Entry<Integer, SortShuffleBlockWrapper> entry : batchSort.entrySet()) {
+        for (Map.Entry<Integer, SortShuffleBlockWrapper> entry : singleBatchSortList.entrySet()) {
           int mapId = entry.getKey();
           SortShuffleBlockWrapper sortShuffleBlockWrapper = entry.getValue();
           List<ShuffleBlockInfo> sortedShuffleBlocks = new ArrayList<>();
@@ -879,43 +864,15 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           }
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
-        fileLengthArray[idx] = fileIndex;
+        return fileIndex;
       } catch (IOException e) {
         throw new RuntimeException(e);
       } finally {
-        forkJoinSortingSize.decrementAndGet();
-        forkJoinQueueSize.decrementAndGet();
+        sortSingleFileExecutorSortingSize.decrementAndGet();
+        sortSingleFileExecutorQueueSize.decrementAndGet();
         IOUtils.closeQuietly(targetChannel, null);
         IOUtils.closeQuietly(targetOutputStream, null);
       }
-    }
-
-    private void parallelMergeSort() {
-      int mid = (right + left) / 2;
-      MergeSortAction leftAction =
-          new MergeSortAction(
-              originFileChannel,
-              hdfsOriginInput,
-              originFilePath,
-              batchSortList,
-              sortedBlockInfoMap,
-              fileLengthArray,
-              left,
-              mid,
-              isHdfs);
-      MergeSortAction rightAction =
-          new MergeSortAction(
-              originFileChannel,
-              hdfsOriginInput,
-              originFilePath,
-              batchSortList,
-              sortedBlockInfoMap,
-              fileLengthArray,
-              mid,
-              right,
-              isHdfs);
-
-      invokeAll(leftAction, rightAction);
     }
 
     private long transferBlock(FileChannel fc, FSDataOutputStream os, long offset, long length)

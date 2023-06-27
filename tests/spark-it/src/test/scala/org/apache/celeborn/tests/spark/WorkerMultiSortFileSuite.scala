@@ -32,9 +32,9 @@ class WorkerMultiSortFileSuite extends AnyFunSuite
   with BeforeAndAfterEach {
 
   override def beforeAll(): Unit = {
-    logInfo("SkewJoinSuite initialized , setup Celeborn mini cluster")
+    logInfo("WorkerMultiSortFileSuite initialized , setup Celeborn mini cluster")
     val workConf = Map("celeborn.worker.sortPartition.sortFileSizePerThread" -> "3mb");
-    setUpMiniCluster(workerNum = 5)
+    setUpMiniCluster(workerNum = 5, workerConf = workConf)
   }
 
   override def beforeEach(): Unit = {
@@ -62,7 +62,6 @@ class WorkerMultiSortFileSuite extends AnyFunSuite
       .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.parquet.compression.codec", "gzip")
-      .set(s"spark.${CelebornConf.SHUFFLE_COMPRESSION_CODEC.key}", "ZSTD")
       .set(s"spark.${CelebornConf.SHUFFLE_RANGE_READ_FILTER_ENABLED.key}", "true")
 
     enableCeleborn(sparkConf)

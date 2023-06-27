@@ -166,9 +166,9 @@ These metrics are exposed by Celeborn worker.
     - SortingFiles
     - SortedFiles
     - SortedFileSize
-    - ForkJoinQueueSize
+    - SortSingleFileExecutorQueueSize
       - This value means the task count of sorted shuffle files.
-    - ForkJoinSortingSize
+    - SortSingleFileExecutorSortingSize
       - This value means the number of task to sort shuffle files.
     - DiskBuffer
         - The memory occupied by pushData and pushMergedData which should be written to disk.

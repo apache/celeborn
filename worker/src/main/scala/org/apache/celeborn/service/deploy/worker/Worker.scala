@@ -274,11 +274,11 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.SORTED_FILE_SIZE) { () =>
     partitionsSorter.getSortedSize
   }
-  workerSource.addGauge(WorkerSource.FORK_JOIN_SORTING_SIZE) { () =>
-    partitionsSorter.getForkJoinSortingSize
+  workerSource.addGauge(WorkerSource.SORT_SINGLE_FILE_EXECUTOR_SORTING_SIZE) { () =>
+    partitionsSorter.getSortSingleFileExecutorSortingSize
   }
-  workerSource.addGauge(WorkerSource.FORK_JOIN_QUEUE_SIZE) { () =>
-    partitionsSorter.getForkJoinQueueSize
+  workerSource.addGauge(WorkerSource.SORT_SINGLE_FILE_EXECUTOR_QUEUE_SIZE) { () =>
+    partitionsSorter.getSortSingleFileExecutorQueueSize
   }
   workerSource.addGauge(WorkerSource.DISK_BUFFER) { () =>
     memoryManager.getDiskBufferCounter.get()

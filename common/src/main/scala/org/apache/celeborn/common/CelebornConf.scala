@@ -648,6 +648,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_PARTITION_SORTER_SORT_FILE_SIZE_PER_THREAD)
   def partitionSorterThreads: Int =
     get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
+
+  def sortSingleFileExecutorThreads: Int =
+    get(SORT_SINGLE_FILE_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
@@ -2170,6 +2173,14 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("PartitionSorter's thread counts. " +
         "It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
+      .version("0.3.0")
+      .intConf
+      .createOptional
+
+  val SORT_SINGLE_FILE_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.sortSingleFile.threads")
+      .categories("worker")
+      .doc("PartitionSorter's thread counts for sort single large file")
       .version("0.3.0")
       .intConf
       .createOptional
