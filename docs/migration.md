@@ -56,6 +56,6 @@ license: |
             at org.apache.celeborn.common.serializer.JavaSerializerInstance.deserialize(JavaSerializer.scala:110)
         ```
 
- - Since 0.3.0, the Celeborn support cover hadoop configuration from Celeborn conf. 
-   In spark client side user should set hadoop configuration like `spark.celeborn.hadoop.xxx.xxx`,
-   in flink client, master and worker side user should set like `celeborn.hadoop.xxx.xxx`.
+ - Since 0.3.0, Celeborn supports overriding Hadoop configuration(`core-site.xml`, `hdfs-site.xml`, etc.) from Celeborn configuration with the additional prefix `celeborn.hadoop.`. 
+   On Spark client side, user should set Hadoop configuration like `spark.celeborn.hadoop.foo=bar`, note that `spark.hadoop.foo=bar` does not take effect;
+   on Flink client and Celeborn Master/Worker side, user should set like `celeborn.hadoop.foo=bar`.
