@@ -112,25 +112,23 @@ public class RatisMasterStatusSystemSuiteJ {
     int ratisPort2 = 9873;
     int ratisPort3 = 9874;
 
-    String localHost = Utils.localHostName();
-
     MasterNode masterNode1 =
         new MasterNode.Builder()
-            .setHost(localHost)
+            .setHost(Utils.localHostName(conf1))
             .setRatisPort(ratisPort1)
             .setRpcPort(9872)
             .setNodeId(id1)
             .build();
     MasterNode masterNode2 =
         new MasterNode.Builder()
-            .setHost(localHost)
+            .setHost(Utils.localHostName(conf2))
             .setRatisPort(ratisPort2)
             .setRpcPort(9873)
             .setNodeId(id2)
             .build();
     MasterNode masterNode3 =
         new MasterNode.Builder()
-            .setHost(localHost)
+            .setHost(Utils.localHostName(conf3))
             .setRatisPort(ratisPort3)
             .setRpcPort(9874)
             .setNodeId(id3)

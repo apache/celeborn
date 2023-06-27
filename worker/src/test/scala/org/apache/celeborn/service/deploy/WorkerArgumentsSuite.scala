@@ -32,7 +32,7 @@ class WorkerArgumentsSuite extends AnyFunSuite with Logging {
     val conf1 = new CelebornConf()
 
     val arguments1 = new WorkerArguments(args1, conf1)
-    assert(arguments1.host.equals(Utils.localHostName))
+    assert(arguments1.host.equals(Utils.localHostName(conf1)))
     assert(arguments1.port == 0)
 
     // should use celeborn conf
