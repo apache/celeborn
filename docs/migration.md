@@ -55,3 +55,7 @@ license: |
             at org.apache.celeborn.common.serializer.JavaDeserializationStream.readObject(JavaSerializer.scala:76)
             at org.apache.celeborn.common.serializer.JavaSerializerInstance.deserialize(JavaSerializer.scala:110)
         ```
+
+ - Since 0.3.0, the Celeborn support cover hadoop configuration from Celeborn conf. 
+   In spark client side user should set hadoop configuration like `spark.celeborn.hadoop.xxx.xxx`,
+   in flink client, master and worker side user should set like `celeborn.hadoop.xxx.xxx`.
