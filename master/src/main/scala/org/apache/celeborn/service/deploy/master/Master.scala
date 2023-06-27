@@ -230,7 +230,13 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartbeatFromApplication(appId, totalWritten, fileCount, localBlacklist, requestId) =>
+    case HeartbeatFromApplication(
+          appId,
+          totalWritten,
+          fileCount,
+          localBlacklist,
+          requestId,
+          reply) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
@@ -240,7 +246,8 @@ private[celeborn] class Master(
           totalWritten,
           fileCount,
           localBlacklist,
-          requestId))
+          requestId,
+          reply))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -665,7 +672,8 @@ private[celeborn] class Master(
       totalWritten: Long,
       fileCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
-      requestId: String): Unit = {
+      requestId: String,
+      reply: Boolean): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
@@ -674,11 +682,15 @@ private[celeborn] class Master(
       requestId)
     // unknown workers will retain in needCheckedWorkerList
     needCheckedWorkerList.removeAll(workersSnapShot)
-    context.reply(HeartbeatFromApplicationResponse(
-      StatusCode.SUCCESS,
-      new util.ArrayList(statusSystem.blacklist),
-      needCheckedWorkerList,
-      shutdownWorkerSnapshot))
+    if (reply) {
+      context.reply(HeartbeatFromApplicationResponse(
+        StatusCode.SUCCESS,
+        new util.ArrayList(statusSystem.blacklist),
+        needCheckedWorkerList,
+        shutdownWorkerSnapshot))
+    } else {
+      context.reply(OneWayMessageResponse)
+    }
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
