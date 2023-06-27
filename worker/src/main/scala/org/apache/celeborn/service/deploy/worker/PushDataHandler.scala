@@ -178,8 +178,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (shuffleMapperAttempts.containsKey(shuffleKey)) {
         if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
           // partition data has already been committed
-          logInfo(s"Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
-            s" attempt $attemptId), but this mapper has already been ended.")
+          logInfo(
+            s"[Case1] Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
+              s" attempt $attemptId), but this mapper has already been ended.")
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
         } else {
           logInfo(
@@ -192,7 +193,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
           // in StorageManager. This partition should be HARD_SPLIT partition and
           // after worker restart, some task still push data to this HARD_SPLIT partition.
-          logInfo(s"Receive push data for committed hard split partition of " +
+          logInfo(s"[Case2] Receive push data for committed hard split partition of " +
             s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         } else {
