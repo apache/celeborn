@@ -332,4 +332,9 @@ public class RemoteShuffleResultPartitionDelegation {
   public void setEndOfDataNotified(boolean endOfDataNotified) {
     this.endOfDataNotified = endOfDataNotified;
   }
+
+  public void setMetricCounters(Counter numBytesOut, Counter numBuffersOut) {
+    this.numBytesOut = numBytesOut;
+    this.numBuffersOut = numBuffersOut;
+  }
 }
