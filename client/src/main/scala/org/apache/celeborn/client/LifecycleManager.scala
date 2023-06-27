@@ -55,7 +55,7 @@ object LifecycleManager {
 class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends RpcEndpoint
   with Logging {
 
-  private val lifecycleHost = Utils.localHostName
+  private val lifecycleHost = Utils.localHostName(conf)
 
   private val shuffleExpiredCheckIntervalMs = conf.shuffleExpiredCheckIntervalMs
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled

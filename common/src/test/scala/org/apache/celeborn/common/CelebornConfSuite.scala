@@ -144,11 +144,11 @@ class CelebornConfSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     val replacedHost = conf.masterHost
     assert(!replacedHost.contains("<localhost>"))
-    assert(replacedHost === Utils.localHostName)
+    assert(replacedHost === Utils.localHostName(conf))
     val replacedHosts = conf.masterEndpoints
     replacedHosts.foreach { replacedHost =>
       assert(!replacedHost.contains("<localhost>"))
-      assert(replacedHost contains Utils.localHostName)
+      assert(replacedHost contains Utils.localHostName(conf))
     }
   }
 

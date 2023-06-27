@@ -382,22 +382,14 @@ object Utils extends Logging {
 
   private var customHostname: Option[String] = sys.env.get("CELEBORN_LOCAL_HOSTNAME")
 
+  // for testing
   def setCustomHostname(hostname: String) {
-    // DEBUG code
     Utils.checkHost(hostname)
     customHostname = Some(hostname)
   }
 
-  def localCanonicalHostName: String = {
-    customHostname.getOrElse(localIpAddress.getCanonicalHostName)
-  }
-
-  def localHostName: String = {
-    customHostname.getOrElse(localIpAddress.getHostAddress)
-  }
-
-  def localHostNameForURI: String = {
-    customHostname.getOrElse(InetAddresses.toUriString(localIpAddress))
+  def localHostName(conf: CelebornConf): String = customHostname.getOrElse {
+    if (conf.bindPreferIP) localIpAddress.getHostAddress else localIpAddress.getCanonicalHostName
   }
 
   /**

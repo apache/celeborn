@@ -34,7 +34,7 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
   parse(args.toList)
   // 2nd read from configuration file
   _propertiesFile = Some(Utils.loadDefaultCelebornProperties(conf, _propertiesFile.orNull))
-  _host = _host.orElse(Some(Utils.localHostName))
+  _host = _host.orElse(Some(Utils.localHostName(conf)))
   _port = _port.orElse(Some(conf.workerRpcPort))
 
   def host: String = _host.get
