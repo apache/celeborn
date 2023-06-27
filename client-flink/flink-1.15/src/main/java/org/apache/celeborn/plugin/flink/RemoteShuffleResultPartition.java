@@ -34,7 +34,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.*;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
@@ -77,7 +76,10 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
     delegation =
         new RemoteShuffleResultPartitionDelegation(
-            networkBufferSize, outputGate, numBuffersOut, numBytesOut, numSubpartitions);
+            networkBufferSize,
+            outputGate,
+            (bufferWithChannel, isBroadcast) -> updateStatistics(bufferWithChannel, isBroadcast),
+            numSubpartitions);
   }
 
   @Override
@@ -197,9 +199,11 @@ public class RemoteShuffleResultPartition extends ResultPartition {
     return delegation;
   }
 
-  @Override
-  public void setMetricGroup(TaskIOMetricGroup metrics) {
-    super.setMetricGroup(metrics);
-    this.delegation.setMetricCounters(numBytesOut, numBuffersOut);
+  public void updateStatistics(
+      SortBuffer.BufferWithChannel bufferWithChannel, boolean isBroadcast) {
+    numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
+    long readableBytes = bufferWithChannel.getBuffer().readableBytes() - BufferUtils.HEADER_LENGTH;
+    numBytesProduced.inc(readableBytes);
+    numBytesOut.inc(isBroadcast ? readableBytes * numSubpartitions : readableBytes);
   }
 }

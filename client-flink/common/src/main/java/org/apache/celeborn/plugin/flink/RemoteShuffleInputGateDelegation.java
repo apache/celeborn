@@ -442,7 +442,9 @@ public class RemoteShuffleInputGateDelegation {
       numUnconsumedSubpartitions--;
       // not the real end.
       if (numSubPartitionsNotConsumed[channelInfo.getInputChannelIdx()] != 0) {
-        return Optional.empty();
+        LOG.debug(
+            "numSubPartitionsNotConsumed: {}",
+            numSubPartitionsNotConsumed[channelInfo.getInputChannelIdx()]);
       } else {
         // the real end.
         bufferReaders.get(channelIndexToReaderIndex[channelInfo.getInputChannelIdx()]).close();
