@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -40,25 +42,18 @@ public class PushState {
     inFlightRequestTracker.cleanup();
   }
 
-  // key: ${master addr}-${slave addr} value: list of data batch
-  public final ConcurrentHashMap<String, DataBatches> batchesMap = JavaUtils.newConcurrentHashMap();
+  // key: ${master addr}, ${slave addr} value: list of data batch
+  public final ConcurrentHashMap<Pair<String, String>, DataBatches> batchesMap =
+      JavaUtils.newConcurrentHashMap();
 
-  /**
-   * Not thread-safe
-   *
-   * @param addressPair
-   * @param loc
-   * @param batchId
-   * @param body
-   * @return
-   */
-  public boolean addBatchData(String addressPair, PartitionLocation loc, int batchId, byte[] body) {
+  public boolean addBatchData(
+      Pair<String, String> addressPair, PartitionLocation loc, int batchId, byte[] body) {
     DataBatches batches = batchesMap.computeIfAbsent(addressPair, (s) -> new DataBatches());
     batches.addDataBatch(loc, batchId, body);
     return batches.getTotalSize() > pushBufferMaxSize;
   }
 
-  public DataBatches takeDataBatches(String addressPair) {
+  public DataBatches takeDataBatches(Pair<String, String> addressPair) {
     return batchesMap.remove(addressPair);
   }
 

@@ -33,8 +33,8 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
   // 1st parse from cli args
   parse(args.toList)
   // 2nd read from configuration file
-  _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
-  _host = _host.orElse(Some(Utils.localHostName))
+  _propertiesFile = Some(Utils.loadDefaultCelebornProperties(conf, _propertiesFile.orNull))
+  _host = _host.orElse(Some(Utils.localHostName(conf)))
   _port = _port.orElse(Some(conf.workerRpcPort))
 
   def host: String = _host.get
@@ -79,7 +79,7 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
     System.err.println(
       """Usage: Worker [options] <master>
         |
-        |<master> must be a URL of the form rss://hostname:port
+        |<master> must be a URL of the form celeborn://hostname:port
         |Options:
         |  -h HOST, --host HOST     Hostname to listen on
         |  -p PORT, --port PORT     Port to listen on (default: random)

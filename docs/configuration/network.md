@@ -38,6 +38,7 @@ license: |
 | celeborn.&lt;module&gt;.io.serverThreads | 0 | Number of threads used in the server thread pool. Default to 0, which is 2x#cores. |  | 
 | celeborn.&lt;module&gt;.push.timeoutCheck.interval | 5s | Interval for checking push data timeout. If setting <module> to `data`, it works for shuffle client push data and should be configured on client side. If setting <module> to `replicate`, it works for worker replicate data to peer worker and should be configured on worker side. | 0.3.0 | 
 | celeborn.&lt;module&gt;.push.timeoutCheck.threads | 16 | Threads num for checking push data timeout. If setting <module> to `data`, it works for shuffle client push data and should be configured on client side. If setting <module> to `replicate`, it works for worker replicate data to peer worker and should be configured on worker side. | 0.3.0 | 
+| celeborn.network.bind.preferIpAddress | true | When `ture`, prefer to use IP address, otherwise FQDN. This configuration only takes effects when the bind hostname is not set explicitly, in such case, Celeborn will find the first non-loopback address to bind. | 0.3.0 | 
 | celeborn.network.connect.timeout | 10s | Default socket connect timeout. | 0.2.0 | 
 | celeborn.network.memory.allocator.numArenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
 | celeborn.network.memory.allocator.share | false | Whether to share memory allocator. | 0.3.0 | 
