@@ -42,9 +42,14 @@ object ShuffleClientHelper extends Logging {
       req,
       conf.clientRpcRequestPartitionLocationRpcAskTimeout).onComplete {
       case Success(resp) =>
-        val respStatus = Utils.toStatusCode(resp.getStatus)
+        val partitionInfo = resp.getPartitionInfo(0)
+        val respStatus = Utils.toStatusCode(partitionInfo.getStatus)
         if (respStatus == StatusCode.SUCCESS) {
-          shuffleLocs.put(partitionId, PbSerDeUtils.fromPbPartitionLocation(resp.getLocation))
+          shuffleLocs.put(
+            partitionId,
+            PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition))
+        } else if (respStatus == StatusCode.STAGE_ENDED) {
+          logInfo(s"Stage ended for $shuffleId")
         } else {
           logInfo(s"split failed for $respStatus, " +
             s"shuffle file can be larger than expected, try split again");

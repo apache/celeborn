@@ -153,7 +153,7 @@ class WorkerStatusTracker(
 
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
-      logDebug(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
+      logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
       val current = System.currentTimeMillis()
 
@@ -200,7 +200,8 @@ class WorkerStatusTracker(
         }
       }
 
-      logDebug(s"Current blacklist $blacklist")
+      logInfo(s"Current blacklist $blacklist, Current shuttingDown ${shuttingWorkers.asScala.map(
+        _.readableAddress()).mkString("\n")}")
     }
   }
 }
