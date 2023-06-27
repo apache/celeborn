@@ -535,8 +535,8 @@ private[celeborn] class Worker(
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
         // During shutdown, to avoid allocate slots in this worker,
-        // add this worker to master's excluded worker list. When restart, register worker will
-        // make master remove this worker from excluded list.
+        // add this worker to master's blacklist. When restart, register worker will
+        // make master remove this worker from blacklist.
         try {
           if (gracefulShutdown) {
             rssHARetryClient.askSync(

@@ -330,9 +330,9 @@ object ControlMessages extends Logging {
       unknownWorkers: util.List[WorkerInfo],
       shuttingWorkers: util.List[WorkerInfo]) extends Message
 
-  case class GetWorkerStatus(clientExcludedWorkers: util.List[WorkerInfo]) extends MasterMessage
+  case class GetBlacklist(localBlacklist: util.List[WorkerInfo]) extends MasterMessage
 
-  case class GetWorkerStatusResponse(
+  case class GetBlacklistResponse(
       statusCode: StatusCode,
       excludedWorkers: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo]) extends Message
@@ -643,7 +643,7 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
-    case GetWorkerStatus(localBlacklist) =>
+    case GetBlacklist(localBlacklist) =>
       val payload = PbGetBlacklist.newBuilder()
         .addAllLocalBlackList(localBlacklist.asScala.map { workerInfo =>
           PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
@@ -652,11 +652,11 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.GET_BLACKLIST, payload)
 
-    case GetWorkerStatusResponse(statusCode, excludedWorkers, unknownWorkers) =>
+    case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
       val builder = PbGetBlacklistResponse.newBuilder()
         .setStatus(statusCode.getValue)
       builder.addAllBlacklist(
-        excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
       builder.addAllUnknownWorkers(
         unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
 
@@ -991,12 +991,12 @@ object ControlMessages extends Logging {
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
-        GetWorkerStatus(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
+        GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
           .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
-        GetWorkerStatusResponse(
+        GetBlacklistResponse(
           Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
           pbGetBlacklistResponse.getBlacklistList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,

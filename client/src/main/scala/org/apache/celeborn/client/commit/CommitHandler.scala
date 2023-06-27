@@ -268,9 +268,9 @@ abstract class CommitHandler(
           commitEpoch.incrementAndGet())
         val res =
           if (conf.clientCommitFilesIgnoreExcludedWorkers &&
-            workerStatusTracker.excludedWorkers.containsKey(worker)) {
+            workerStatusTracker.blacklist.containsKey(worker)) {
             CommitFilesResponse(
-              StatusCode.WORKER_EXCLUDED,
+              StatusCode.WORKER_IN_BLACKLIST,
               List.empty.asJava,
               List.empty.asJava,
               masterIds,
@@ -281,10 +281,10 @@ abstract class CommitHandler(
 
         res.status match {
           case StatusCode.SUCCESS => // do nothing
-          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED =>
+          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_IN_BLACKLIST =>
             logInfo(s"Request $commitFiles return ${res.status} for " +
               s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
-            if (res.status != StatusCode.WORKER_EXCLUDED) {
+            if (res.status != StatusCode.WORKER_IN_BLACKLIST) {
               commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
             }
           case _ =>

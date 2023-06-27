@@ -95,7 +95,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId-mapId-attemptId
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
-  private final boolean pushExcludeWorkerOnFailureEnabled;
+  private final boolean pushExcludeOnFailureEnabled;
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -153,7 +153,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     maxReviveTimes = conf.clientPushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
-    pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
+    pushExcludeOnFailureEnabled = conf.clientPushExcludeOnFailureEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -181,15 +181,14 @@ public class ShuffleClientImpl extends ShuffleClient {
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
   }
 
-  private boolean checkPushTargetExcluded(
+  private boolean checkPushBlacklisted(
       PartitionLocation location, RpcResponseCallback wrappedCallback) {
-    // If pushExcludeWorkerOnFailureEnabled = false, pushExcludedWorkers should be empty.
+    // If shuffleClientBlacklistEnabled = false, pushExcludedWorkers should be empty.
     if (pushExcludedWorkers.contains(location.hostAndPushPort())) {
-      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_EXCLUDED));
+      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       return true;
-    } else if (location.hasPeer()
-        && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
-      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_EXCLUDED));
+    } else if (location.hasPeer() && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
+      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       return true;
     } else {
       return false;
@@ -234,7 +233,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           batchId,
           newLoc);
       try {
-        if (!checkPushTargetExcluded(newLoc, wrappedCallback)) {
+        if (!checkPushBlacklisted(newLoc, wrappedCallback)) {
           if (!testRetryRevive || remainReviveTimes < 1) {
             TransportClient client =
                 dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
@@ -530,7 +529,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       int epoch,
       PartitionLocation oldLocation,
       StatusCode cause) {
-    if (pushExcludeWorkerOnFailureEnabled && oldLocation != null) {
+    if (pushExcludeOnFailureEnabled && oldLocation != null) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
         pushExcludedWorkers.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
@@ -859,7 +858,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               // async retry push data
               if (!mapperEnded(shuffleId, mapId, attemptId)) {
                 // For excluded partition location, Celeborn should not use retry quota.
-                if (!pushStatusIsExcluded(cause)) {
+                if (!pushStatusIsBlacklisted(cause)) {
                   remainReviveTimes = remainReviveTimes - 1;
                 }
                 pushDataRetryPool.submit(
@@ -893,7 +892,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       // do push data
       try {
-        if (!checkPushTargetExcluded(loc, wrappedCallback)) {
+        if (!checkPushBlacklisted(loc, wrappedCallback)) {
           if (!testRetryRevive) {
             TransportClient client =
                 dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
@@ -1245,7 +1244,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (!mapperEnded(shuffleId, mapId, attemptId)) {
               int tmpRemainReviveTimes = remainReviveTimes;
               // For excluded partition location, Celeborn should not use retry quota.
-              if (!pushStatusIsExcluded(cause)) {
+              if (!pushStatusIsBlacklisted(cause)) {
                 tmpRemainReviveTimes = tmpRemainReviveTimes - 1;
               }
               int finalRemainReviveTimes = tmpRemainReviveTimes;
@@ -1279,7 +1278,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // do push merged data
     try {
-      if (!checkPushTargetExcluded(batches.get(0).loc, wrappedCallback)) {
+      if (!checkPushBlacklisted(batches.get(0).loc, wrappedCallback)) {
         if (!testRetryRevive || remainReviveTimes < 1) {
           TransportClient client = dataClientFactory.createClient(host, port);
           client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
@@ -1509,7 +1508,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != driverRssMetaService) {
       driverRssMetaService = null;
     }
-    pushExcludedWorkers.clear();
+    blacklist.clear();
     fetchExcludedWorkers.clear();
     logger.warn("Shuffle client has been shutdown!");
   }
@@ -1530,9 +1529,9 @@ public class ShuffleClientImpl extends ShuffleClient {
         && mapperEndMap.get(shuffleId).contains(Utils.makeMapKey(shuffleId, mapId, attemptId));
   }
 
-  private boolean pushStatusIsExcluded(StatusCode cause) {
-    return cause == StatusCode.PUSH_DATA_MASTER_EXCLUDED
-        || cause == StatusCode.PUSH_DATA_SLAVE_EXCLUDED;
+  private boolean pushStatusIsBlacklisted(StatusCode cause) {
+    return cause == StatusCode.PUSH_DATA_MASTER_BLACKLISTED
+        || cause == StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
   }
 
   private StatusCode getPushDataFailCause(String message) {
@@ -1559,10 +1558,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_TIMEOUT_SLAVE;
     } else if (message.startsWith(StatusCode.REPLICATE_DATA_FAILED.name())) {
       cause = StatusCode.REPLICATE_DATA_FAILED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_MASTER_EXCLUDED.name())) {
-      cause = StatusCode.PUSH_DATA_MASTER_EXCLUDED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_SLAVE_EXCLUDED.name())) {
-      cause = StatusCode.PUSH_DATA_SLAVE_EXCLUDED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_MASTER_BLACKLISTED.name())) {
+      cause = StatusCode.PUSH_DATA_MASTER_BLACKLISTED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED.name())) {
+      cause = StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
     } else if (connectFail(message)) {
       // Throw when push to master worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;

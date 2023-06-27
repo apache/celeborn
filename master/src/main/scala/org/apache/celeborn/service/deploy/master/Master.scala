@@ -228,12 +228,7 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartbeatFromApplication(
-          appId,
-          totalWritten,
-          fileCount,
-          needCheckedWorkerList,
-          requestId) =>
+    case HeartbeatFromApplication(appId, totalWritten, fileCount, localBlacklist, requestId) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
@@ -242,7 +237,7 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
-          needCheckedWorkerList,
+          localBlacklist,
           requestId))
 
     case pbRegisterWorker: PbRegisterWorker =>
@@ -293,8 +288,8 @@ private[celeborn] class Master(
         context,
         handleUnregisterShuffle(context, applicationId, shuffleId, requestId))
 
-    case msg: GetWorkerStatus =>
-      executeWithLeaderChecker(context, handleGetWorkerStatus(context, msg))
+    case msg: GetBlacklist =>
+      executeWithLeaderChecker(context, handleGetBlacklist(context, msg))
 
     case ApplicationLost(appId, requestId) =>
       logDebug(s"Received ApplicationLost request $requestId, $appId.")
@@ -549,13 +544,13 @@ private[celeborn] class Master(
         statusSystem.workers.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
             SlotsAllocator.offerSlotsRoundRobin(
-              workersNotExcluded(),
+              workersNotBlacklisted(),
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware)
           } else {
             SlotsAllocator.offerSlotsLoadAware(
-              workersNotExcluded(),
+              workersNotBlacklisted(),
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
@@ -592,7 +587,7 @@ private[celeborn] class Master(
     logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
       s" on ${slots.size()} workers.")
 
-    val workersNotSelected = workersNotExcluded().asScala.filter(!slots.containsKey(_))
+    val workersNotSelected = workersNotBlacklisted().asScala.filter(!slots.containsKey(_))
     val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
@@ -632,13 +627,13 @@ private[celeborn] class Master(
     context.reply(UnregisterShuffleResponse(StatusCode.SUCCESS))
   }
 
-  def handleGetWorkerStatus(context: RpcCallContext, msg: GetWorkerStatus): Unit = {
-    msg.clientExcludedWorkers.removeAll(workersSnapShot)
+  def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {
+    msg.localBlacklist.removeAll(workersSnapShot)
     context.reply(
-      GetWorkerStatusResponse(
+      GetBlacklistResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(statusSystem.excludedWorkers),
-        msg.clientExcludedWorkers))
+        msg.localBlacklist))
   }
 
   private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
@@ -738,10 +733,10 @@ private[celeborn] class Master(
     context.reply(CheckQuotaResponse(isAvailable, reason))
   }
 
-  private def workersNotExcluded(
-      tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
+  private def workersNotBlacklisted(
+      tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.excludedWorkers.contains(w) && !tmpExcludedWorkerList.contains(w)
+      !statusSystem.excludedWorkers.contains(w) && !tmpBlacklist.contains(w)
     }.asJava
   }
 
@@ -774,7 +769,7 @@ private[celeborn] class Master(
 
   override def getExcludedWorkers: String = {
     val sb = new StringBuilder
-    sb.append("==================== Excluded Workers in Master =====================\n")
+    sb.append("==================== Blacklisted Workers in Master =====================\n")
     statusSystem.excludedWorkers.asScala.foreach { worker =>
       sb.append(s"${worker.toUniqueId()}\n")
     }

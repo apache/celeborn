@@ -666,8 +666,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeSlaveOnFailureEnabled: Boolean = get(CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED)
-  def clientPushExcludeWorkerOnFailureEnabled: Boolean =
-    get(CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
+  def clientPushExcludeOnFailureEnabled: Boolean = get(CLIENT_PUSH_EXCLUDE_ON_FAILURE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -2569,8 +2568,8 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
-  val CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.excludeWorkerOnFailure.enabled")
+  val CLIENT_PUSH_EXCLUDE_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.excludeOnFailure.enabled")
       .categories("client")
       .doc("Whether to enable shuffle client-side push exclude workers on failures.")
       .version("0.3.0")

@@ -204,7 +204,7 @@ class ChangePartitionManager(
     }.mkString("[", ",", "]")
     logWarning(s"Batch handle change partition for $applicationId of $changes")
 
-    // Exclude all failed workers
+    // Blacklist all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
       changePartitions.filter(_.causes.isDefined).foreach { changePartition =>
         lifecycleManager.workerStatusTracker.excludeWorkerFromPartition(
@@ -246,7 +246,7 @@ class ChangePartitionManager(
       }
     }
 
-    // Get candidate worker that not in excluded worker list of shuffleId
+    // Get candidate worker that not in blacklist of shuffleId
     val candidates =
       lifecycleManager
         .workerSnapshots(shuffleId)
