@@ -238,10 +238,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val mapIds = pb.getMapIdList
       val partitionInfos = pb.getPartitionInfoList
 
-      val partitionIds = new util.ArrayList[Integer](partitionInfos.size)
-      val epochs = new util.ArrayList[Integer](partitionInfos.size())
-      val oldPartitions = new util.ArrayList[PartitionLocation](partitionInfos.size());
-      val causes = new util.ArrayList[StatusCode](partitionInfos.size());
+      val partitionIds = new util.ArrayList[Integer]()
+      val epochs = new util.ArrayList[Integer]()
+      val oldPartitions = new util.ArrayList[PartitionLocation]()
+      val causes = new util.ArrayList[StatusCode]()
       (0 until partitionInfos.size()).foreach { idx =>
         val info = partitionInfos.get(idx)
         partitionIds.add(info.getPartitionId)
