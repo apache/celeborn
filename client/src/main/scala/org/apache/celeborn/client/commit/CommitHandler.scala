@@ -24,9 +24,9 @@ import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers, ShuffleFileGroups}
+import org.apache.celeborn.client.ShuffleCommittedInfo
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -46,8 +46,7 @@ case class CommitResult(
 abstract class CommitHandler(
     appId: String,
     conf: CelebornConf,
-    committedPartitionInfo: CommittedPartitionInfo,
-    workerStatusTracker: WorkerStatusTracker) extends Logging {
+    committedPartitionInfo: CommittedPartitionInfo) extends Logging {
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles
@@ -94,7 +93,7 @@ abstract class CommitHandler(
       shuffleCommittedInfo.unhandledPartitionLocations.clear()
       currentBatch.foreach { partitionLocation =>
         shuffleCommittedInfo.handledPartitionLocations.add(partitionLocation)
-        if (partitionLocation.hasPeer) {
+        if (partitionLocation.getPeer != null) {
           shuffleCommittedInfo.handledPartitionLocations.add(partitionLocation.getPeer)
         }
       }
@@ -103,7 +102,7 @@ abstract class CommitHandler(
         logDebug(s"Commit current batch HARD_SPLIT partitions for $shuffleId: " +
           s"${currentBatch.map(_.getUniqueId).mkString("[", ",", "]")}")
         val workerToRequests = currentBatch.flatMap { partitionLocation =>
-          if (partitionLocation.hasPeer) {
+          if (partitionLocation.getPeer != null) {
             Seq(partitionLocation, partitionLocation.getPeer)
           } else {
             Seq(partitionLocation)
@@ -266,29 +265,15 @@ abstract class CommitHandler(
           slaveIds,
           getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
-        val res =
-          if (conf.clientCommitFilesIgnoreExcludedWorkers &&
-            workerStatusTracker.blacklist.containsKey(worker)) {
-            CommitFilesResponse(
-              StatusCode.WORKER_IN_BLACKLIST,
-              List.empty.asJava,
-              List.empty.asJava,
-              masterIds,
-              slaveIds)
-          } else {
-            requestCommitFilesWithRetry(worker.endpoint, commitFiles)
-          }
+        val res = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 
         res.status match {
           case StatusCode.SUCCESS => // do nothing
-          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_IN_BLACKLIST =>
-            logInfo(s"Request $commitFiles return ${res.status} for " +
+          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED =>
+            logDebug(s"Request $commitFiles return ${res.status} for " +
               s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
-            if (res.status != StatusCode.WORKER_IN_BLACKLIST) {
-              commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
-            }
-          case _ =>
-            logError(s"Should never reach here! commit files response status ${res.status}")
+            commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
+          case _ => // won't happen
         }
         res
       } else {

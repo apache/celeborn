@@ -67,8 +67,6 @@ trait HeartbeatFeature extends MiniClusterFeature {
     val workerConf = Map(
       CelebornConf.MASTER_ENDPOINTS.key -> "localhost:9097",
       "celeborn.push.heartbeat.interval" -> "4s",
-      "celeborn.worker.push.heartbeat.enabled" -> "true",
-      "celeborn.worker.fetch.heartbeat.enabled" -> "true",
       "celeborn.fetch.heartbeat.interval" -> "4s")
     val clientConf = new CelebornConf()
     clientConf.set("celeborn.data.io.connectionTimeout", "6s")
@@ -129,8 +127,6 @@ trait HeartbeatFeature extends MiniClusterFeature {
       "celeborn.push.io.connectionTimeout" -> "9s",
       "celeborn.push.heartbeat.interval" -> "4s",
       "celeborn.fetch.heartbeat.interval" -> "4s",
-      "celeborn.worker.push.heartbeat.enabled" -> "true",
-      "celeborn.worker.fetch.heartbeat.enabled" -> "true",
       CelebornConf.WORKER_CLOSE_IDLE_CONNECTIONS.key -> "true")
     val clientConf = new CelebornConf()
     clientConf.set("celeborn.data.io.connectionTimeout", "6s")

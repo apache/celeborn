@@ -29,7 +29,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.celeborn.common.CelebornConf;
 
 public class FlinkUtils {
-  private static final JobID ZERO_JOB_ID = new JobID(0, 0);
+
   public static final Set<String> pluginConfNames =
       new HashSet<String>() {
         {
@@ -59,13 +59,7 @@ public class FlinkUtils {
   }
 
   public static String toCelebornAppId(long rssMetaServiceTimestamp, JobID jobID) {
-    // Workaround for FLINK-19358, use first none ZERO_JOB_ID as celeborn shared appId for all
-    // other flink jobs
-    if (!ZERO_JOB_ID.equals(jobID)) {
-      return rssMetaServiceTimestamp + "-" + jobID.toString();
-    }
-
-    return rssMetaServiceTimestamp + "-" + JobID.generate();
+    return rssMetaServiceTimestamp + "-" + jobID.toString();
   }
 
   public static String toShuffleId(JobID jobID, IntermediateDataSetID dataSetID) {

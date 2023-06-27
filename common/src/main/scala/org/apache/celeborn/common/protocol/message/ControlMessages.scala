@@ -196,20 +196,17 @@ object ControlMessages extends Logging {
         partitionId: Int,
         epoch: Int,
         oldPartition: PartitionLocation,
-        cause: StatusCode): PbRevive = {
-      val builder = PbRevive.newBuilder()
-      builder.setApplicationId(appId)
+        cause: StatusCode): PbRevive =
+      PbRevive.newBuilder()
+        .setApplicationId(appId)
         .setShuffleId(shuffleId)
         .setMapId(mapId)
         .setAttemptId(attemptId)
         .setPartitionId(partitionId)
         .setEpoch(epoch)
+        .setOldPartition(PbSerDeUtils.toPbPartitionLocation(oldPartition))
         .setStatus(cause.getValue)
-      if (oldPartition != null) {
-        builder.setOldPartition(PbSerDeUtils.toPbPartitionLocation(oldPartition))
-      }
-      builder.build()
-    }
+        .build()
   }
 
   object PartitionSplit {

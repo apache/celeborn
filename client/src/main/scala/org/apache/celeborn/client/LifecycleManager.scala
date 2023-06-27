@@ -244,15 +244,10 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
       val attemptId = pb.getAttemptId
       val partitionId = pb.getPartitionId
       val epoch = pb.getEpoch
-      val oldPartition =
-        if (pb.hasOldPartition) {
-          PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
-        } else {
-          null
-        }
+      val oldPartition = PbSerDeUtils.fromPbPartitionLocation(pb.getOldPartition)
       val cause = Utils.toStatusCode(pb.getStatus)
       logTrace(s"Received Revive request, " +
-        s"$applicationId, $shuffleId, $mapId, $attemptId ,$partitionId," +
+        s"$applicationId, $shuffleId, $mapId, $attemptId, ,$partitionId," +
         s" $epoch, $oldPartition, $cause.")
       handleRevive(
         context,
@@ -407,7 +402,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     // First, request to get allocated slots from Master
     val ids = new util.ArrayList[Integer](numPartitions)
     (0 until numPartitions).foreach(idx => ids.add(new Integer(idx)))
-    val res = requestMasterRequestSlotsWithRetry(applicationId, shuffleId, ids)
+    val res = requestMasterReleaseSlotsWithRetry(applicationId, shuffleId, ids)
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
@@ -1034,7 +1029,7 @@ class LifecycleManager(appId: String, val conf: CelebornConf) extends RpcEndpoin
     }
   }
 
-  private def requestMasterRequestSlotsWithRetry(
+  private def requestMasterReleaseSlotsWithRetry(
       applicationId: String,
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {

@@ -38,7 +38,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, SystemMiscSource}
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
@@ -538,21 +538,9 @@ private[celeborn] class Worker(
         // add this worker to master's blacklist. When restart, register worker will
         // make master remove this worker from blacklist.
         try {
-          if (gracefulShutdown) {
-            rssHARetryClient.askSync(
-              ReportWorkerUnavailable(List(workerInfo).asJava),
-              OneWayMessageResponse.getClass)
-          } else {
-            rssHARetryClient.askSync[PbWorkerLostResponse](
-              WorkerLost(
-                host,
-                rpcPort,
-                pushPort,
-                fetchPort,
-                replicatePort,
-                RssHARetryClient.genRequestId()),
-              classOf[PbWorkerLostResponse])
-          }
+          rssHARetryClient.askSync(
+            ReportWorkerUnavailable(List(workerInfo).asJava),
+            OneWayMessageResponse.getClass)
         } catch {
           case e: Throwable =>
             logError(

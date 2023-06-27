@@ -659,7 +659,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsMaxRetries: Int = get(CLIENT_RESERVE_SLOTS_MAX_RETRIES)
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
-  def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientRpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
@@ -706,10 +705,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
-  def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
-    get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
-  def clientFetchExcludedWorkerExpireTimeout: Long =
-    get(CLIENT_FETCH_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Push                   //
@@ -2448,7 +2443,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("enable the heartbeat from worker to client when pushing data")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val WORKER_FETCH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.fetch.heartbeat.enabled")
@@ -2456,7 +2451,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("enable the heartbeat from worker to client when fetching data")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.application.heartbeatInterval")
@@ -2481,10 +2476,9 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.excluded.expireTimeout")
       .categories("client")
       .version("0.3.0")
-      .doc("Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout`" +
-        "to cover worker heartbeat timeout check period")
+      .doc("Timeout time for LifecycleManager to clear reserved excluded worker.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("180s")
+      .createWithDefaultString("600s")
 
   val CLIENT_CHECKED_USE_ALLOCATED_WORKERS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.checked.useAllocatedWorkers")
@@ -2737,22 +2731,6 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.fetch.excludeWorkerOnFailure.enabled")
-      .categories("client")
-      .doc("Whether to enable shuffle client-side fetch exclude workers on failure.")
-      .version("0.3.0")
-      .booleanConf
-      .createWithDefault(false)
-
-  val CLIENT_FETCH_EXCLUDED_WORKER_EXPIRE_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.client.fetch.excludedWorker.expireTimeout")
-      .categories("client")
-      .doc("ShuffleClient is a static object, it will be used in the whole lifecycle of Executor," +
-        "We give a expire time for blacklisted worker to avoid a transient worker issues.")
-      .version("0.3.0")
-      .fallbackConf(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
-
   val TEST_CLIENT_FETCH_FAILURE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.client.fetchFailure")
       .withAlternative("celeborn.test.fetchFailure")
@@ -2987,14 +2965,6 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(v => v > 0, "value must be positive")
       .createWithDefault(2)
-
-  val CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.commitFiles.ignoreExcludedWorker")
-      .categories("client")
-      .version("0.3.0")
-      .doc("When true, LifecycleManager will skip workers which are in the excluded list.")
-      .booleanConf
-      .createWithDefault(false)
 
   val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.stageEnd.timeout")
