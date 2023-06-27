@@ -74,7 +74,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final boolean pipelined;
   private final SortBasedPusher[] pushers = new SortBasedPusher[2];
   private SortBasedPusher currentPusher;
-  // TODO it isn't be updated after initialization
   private long peakMemoryUsedBytes = 0;
 
   private final OpenByteArrayOutputStream serBuffer;
