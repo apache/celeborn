@@ -52,7 +52,7 @@ class ReviveManager {
           do {
             ArrayList<ReviveRequest> batchRequests = new ArrayList<>();
             requestQueue.drainTo(batchRequests, batchSize);
-            for (ReviveRequest req in batchRequests) {
+            for (ReviveRequest req : batchRequests) {
               Set<ReviveRequest> set =
                   shuffleMap.computeIfAbsent(req.shuffleId, id -> new HashSet<>());
               set.add(req);
