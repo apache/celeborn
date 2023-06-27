@@ -191,10 +191,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void updatePeakMemoryUsed() {
     // sorter can be null if this writer is closed
     if (pipelined) {
-      for (int i = 0; i < pushers.length; i++) {
-
-        if (pushers[i] != null) {
-          long mem = pushers[i].getPeakMemoryUsedBytes();
+      for (SortBasedPusher pusher : pushers) {
+        if (pusher != null) {
+          long mem = pusher.getPeakMemoryUsedBytes();
           if (mem > peakMemoryUsedBytes) {
             peakMemoryUsedBytes = mem;
           }
