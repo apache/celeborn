@@ -75,10 +75,10 @@ class ChangePartitionManager(
           override def run(): Unit = {
             try {
               changePartitionRequests.asScala.foreach { case (shuffleId, requests) =>
-                requests.synchronized {
-                  batchHandleChangePartitionExecutors.submit {
-                    new Runnable {
-                      override def run(): Unit = {
+                batchHandleChangePartitionExecutors.submit {
+                  new Runnable {
+                    override def run(): Unit = {
+                      requests.synchronized {
                         // For each partition only need handle one request
                         val distinctPartitions = requests.asScala.filter { case (partitionId, _) =>
                           !inBatchPartitions.get(shuffleId).contains(partitionId)
