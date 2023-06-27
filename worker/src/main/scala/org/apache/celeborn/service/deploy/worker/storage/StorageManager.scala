@@ -41,7 +41,7 @@ import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileIn
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
@@ -129,8 +129,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (!hdfsDir.isEmpty) {
       val path = new Path(hdfsDir)
       val scheme = path.toUri.getScheme
-      val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme);
-      val hdfsConfiguration = new Configuration
+      val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
+      val hdfsConfiguration = CelebornHadoopUtils.newConfiguration(conf)
       hdfsConfiguration.set("dfs.replication", "2")
       hdfsConfiguration.set(disableCacheName, "false")
       logInfo("Celeborn will ignore cluster settings " +
