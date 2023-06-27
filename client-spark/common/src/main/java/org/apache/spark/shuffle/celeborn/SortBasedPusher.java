@@ -44,6 +44,8 @@ public class SortBasedPusher extends MemoryConsumer {
 
   private static final Logger logger = LoggerFactory.getLogger(SortBasedPusher.class);
 
+  /** Peak memory used by this sorter so far, in bytes. **/
+  private long peakMemoryUsedBytes;
   private ShuffleInMemorySorter inMemSorter;
   private final LinkedList<MemoryBlock> allocatedPages = new LinkedList<>();
   private MemoryBlock currentPage = null;
@@ -103,6 +105,7 @@ public class SortBasedPusher extends MemoryConsumer {
     this.taskAttemptId = taskAttemptId;
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
+    this.peakMemoryUsedBytes = getMemoryUsage();
 
     if (conf.clientPushSortRandomizePartitionIdEnabled()) {
       shuffledPartitions = new int[numPartitions];
@@ -395,7 +398,31 @@ public class SortBasedPusher extends MemoryConsumer {
     return 0;
   }
 
+  private long getMemoryUsage() {
+    long totalPageSize = 0;
+    for (MemoryBlock page : allocatedPages) {
+      totalPageSize += page.size();
+    }
+    return ((inMemSorter == null) ? 0 : inMemSorter.getMemoryUsage()) + totalPageSize;
+  }
+
+  private void updatePeakMemoryUsed() {
+    long mem = getMemoryUsage();
+    if (mem > peakMemoryUsedBytes) {
+      peakMemoryUsedBytes = mem;
+    }
+  }
+
+  /**
+   * Return the peak memory used so far, in bytes.
+   */
+  long getPeakMemoryUsedBytes() {
+    updatePeakMemoryUsed();
+    return peakMemoryUsedBytes;
+  }
+
   private long freeMemory() {
+    updatePeakMemoryUsed();
     long memoryFreed = 0;
     for (MemoryBlock block : allocatedPages) {
       memoryFreed += block.size();

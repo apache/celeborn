@@ -189,6 +189,36 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         executorService);
   }
 
+  private void updatePeakMemoryUsed() {
+    // sorter can be null if this writer is closed
+    if (pipelined) {
+      for (int i = 0; i < pushers.length; i++) {
+
+        if (pushers[i] != null) {
+          long mem = pushers[i].getPeakMemoryUsedBytes();
+          if (mem > peakMemoryUsedBytes) {
+            peakMemoryUsedBytes = mem;
+          }
+        }
+      }
+    } else {
+      if (currentPusher != null) {
+        long mem = currentPusher.getPeakMemoryUsedBytes();
+        if (mem > peakMemoryUsedBytes) {
+          peakMemoryUsedBytes = mem;
+        }
+      }
+    }
+  }
+
+  /**
+   * Return the peak memory used so far, in bytes.
+   */
+  public long getPeakMemoryUsedBytes() {
+    updatePeakMemoryUsed();
+    return peakMemoryUsedBytes;
+  }
+
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     if (canUseFastWrite()) {
@@ -377,7 +407,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @Override
   public Option<MapStatus> stop(boolean success) {
     try {
-      taskContext.taskMetrics().incPeakExecutionMemory(peakMemoryUsedBytes);
+      taskContext.taskMetrics().incPeakExecutionMemory(getPeakMemoryUsedBytes());
 
       if (stopping) {
         return Option.empty();
