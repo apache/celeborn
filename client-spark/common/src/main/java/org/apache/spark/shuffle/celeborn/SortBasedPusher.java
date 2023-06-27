@@ -46,7 +46,6 @@ public class SortBasedPusher extends MemoryConsumer {
 
   /** Peak memory used by this sorter so far, in bytes. * */
   private long peakMemoryUsedBytes;
-
   private ShuffleInMemorySorter inMemSorter;
   private final LinkedList<MemoryBlock> allocatedPages = new LinkedList<>();
   private MemoryBlock currentPage = null;
