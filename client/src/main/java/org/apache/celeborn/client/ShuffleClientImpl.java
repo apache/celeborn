@@ -845,10 +845,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId)) {
-                // For blacklisted partition location, Celeborn should not use retry quota.
-                if (!pushStatusIsBlacklisted(cause)) {
-                  remainReviveTimes = remainReviveTimes - 1;
-                }
+                remainReviveTimes = remainReviveTimes - 1;
                 pushDataRetryPool.submit(
                     () ->
                         submitRetryPushData(
@@ -1211,12 +1208,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                 remainReviveTimes,
                 e);
             if (!mapperEnded(shuffleId, mapId)) {
-              int tmpRemainReviveTimes = remainReviveTimes;
-              // For blacklisted partition location, Celeborn should not use retry quota.
-              if (!pushStatusIsBlacklisted(cause)) {
-                tmpRemainReviveTimes = tmpRemainReviveTimes - 1;
-              }
-              int finalRemainReviveTimes = tmpRemainReviveTimes;
               pushDataRetryPool.submit(
                   () ->
                       submitRetryPushMergedData(
@@ -1227,7 +1218,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                           batches,
                           cause,
                           groupedBatchId,
-                          finalRemainReviveTimes));
+                          remainReviveTimes - 1));
             } else {
               pushState.removeBatch(groupedBatchId, hostPort);
               logger.info(
@@ -1477,11 +1468,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected boolean stageEnded(int shuffleId) {
     return stageEndShuffleSet.contains(shuffleId);
-  }
-
-  private boolean pushStatusIsBlacklisted(StatusCode cause) {
-    return cause == StatusCode.PUSH_DATA_MASTER_BLACKLISTED
-        || cause == StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
   }
 
   private StatusCode getPushDataFailCause(String message) {
