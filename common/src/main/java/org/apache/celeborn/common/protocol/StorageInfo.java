@@ -18,12 +18,9 @@
 package org.apache.celeborn.common.protocol;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class StorageInfo implements Serializable {
-  public static String UNKNOWN_DISK = "UNKNOWN_DISK";
-
   public enum Type {
     MEMORY(0),
     HDD(1),
@@ -41,14 +38,16 @@ public class StorageInfo implements Serializable {
     }
   }
 
-  public static Map<Integer, Type> typesMap =
-      new HashMap() {
-        {
-          for (Type type : Type.values()) {
-            put(type.value, type);
-          }
-        }
-      };
+  public static String UNKNOWN_DISK = "UNKNOWN_DISK";
+  public static Map<Integer, Type> typesMap = new HashMap<>();
+  public static Set<String> typeNames = new HashSet<>();
+
+  static {
+    for (Type type : Type.values()) {
+      typesMap.put(type.value, type);
+      typeNames.add(type.name());
+    }
+  }
 
   // Default storage Type is MEMORY.
   private Type type = Type.MEMORY;
@@ -145,5 +144,9 @@ public class StorageInfo implements Serializable {
         pbStorageInfo.getMountPoint(),
         pbStorageInfo.getFinalResult(),
         pbStorageInfo.getFilePath());
+  }
+
+  public static boolean validateStorageType(String str) {
+    return typeNames.contains(str);
   }
 }

@@ -541,13 +541,7 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
-          if (slotsAssignPolicy == SlotsAssignPolicy.ROUNDROBIN) {
-            SlotsAllocator.offerSlotsRoundRobin(
-              availableWorkers,
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware)
-          } else {
+          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !conf.hasHDFSStorage) {
             SlotsAllocator.offerSlotsLoadAware(
               availableWorkers,
               requestSlots.partitionIdList,
@@ -558,6 +552,12 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
               loadAwareFetchTimeWeight)
+          } else {
+            SlotsAllocator.offerSlotsRoundRobin(
+              availableWorkers,
+              requestSlots.partitionIdList,
+              requestSlots.shouldReplicate,
+              requestSlots.shouldRackAware)
           }
         }
       }
