@@ -30,7 +30,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
-import org.apache.celeborn.common.util.CelebornHadoopUtils;
+import org.apache.celeborn.common.util.CelebornHadoopUtils$;
 import org.apache.celeborn.common.write.PushState;
 
 /**
@@ -84,7 +84,7 @@ public abstract class ShuffleClient {
     if (null == hdfsFs) {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {
-          Configuration hdfsConfiguration = CelebornHadoopUtils.newConfiguration(conf);
+          Configuration hdfsConfiguration = CelebornHadoopUtils$.MODULE$.newConfiguration(conf);
           // enable fs cache to avoid too many fs instances
           hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
           hdfsConfiguration.set("fs.viewfs.impl.disable.cache", "false");
