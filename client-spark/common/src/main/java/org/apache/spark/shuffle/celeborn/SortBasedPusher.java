@@ -105,7 +105,7 @@ public class SortBasedPusher extends MemoryConsumer {
     this.taskAttemptId = taskAttemptId;
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
-    this.peakMemoryUsedBytes = getMemoryUsage();
+
 
     if (conf.clientPushSortRandomizePartitionIdEnabled()) {
       shuffledPartitions = new int[numPartitions];
@@ -138,7 +138,8 @@ public class SortBasedPusher extends MemoryConsumer {
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
-    inMemSorter = new ShuffleInMemorySorter(this, initialSize);
+    this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);
+    this.peakMemoryUsedBytes = getMemoryUsage();
     this.sharedPushLock = sharedPushLock;
     this.executorService = executorService;
   }
