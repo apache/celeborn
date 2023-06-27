@@ -211,9 +211,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
-  /**
-   * Return the peak memory used so far, in bytes.
-   */
+  /** Return the peak memory used so far, in bytes. */
   public long getPeakMemoryUsedBytes() {
     updatePeakMemoryUsed();
     return peakMemoryUsedBytes;

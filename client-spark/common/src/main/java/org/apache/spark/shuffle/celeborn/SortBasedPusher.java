@@ -44,8 +44,9 @@ public class SortBasedPusher extends MemoryConsumer {
 
   private static final Logger logger = LoggerFactory.getLogger(SortBasedPusher.class);
 
-  /** Peak memory used by this sorter so far, in bytes. **/
+  /** Peak memory used by this sorter so far, in bytes. * */
   private long peakMemoryUsedBytes;
+
   private ShuffleInMemorySorter inMemSorter;
   private final LinkedList<MemoryBlock> allocatedPages = new LinkedList<>();
   private MemoryBlock currentPage = null;
@@ -413,9 +414,7 @@ public class SortBasedPusher extends MemoryConsumer {
     }
   }
 
-  /**
-   * Return the peak memory used so far, in bytes.
-   */
+  /** Return the peak memory used so far, in bytes. */
   long getPeakMemoryUsedBytes() {
     updatePeakMemoryUsed();
     return peakMemoryUsedBytes;
