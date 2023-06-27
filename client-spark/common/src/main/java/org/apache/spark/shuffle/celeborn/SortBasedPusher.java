@@ -46,6 +46,7 @@ public class SortBasedPusher extends MemoryConsumer {
 
   /** Peak memory used by this sorter so far, in bytes. * */
   private long peakMemoryUsedBytes;
+
   private ShuffleInMemorySorter inMemSorter;
   private final LinkedList<MemoryBlock> allocatedPages = new LinkedList<>();
   private MemoryBlock currentPage = null;
@@ -105,7 +106,6 @@ public class SortBasedPusher extends MemoryConsumer {
     this.taskAttemptId = taskAttemptId;
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
-
 
     if (conf.clientPushSortRandomizePartitionIdEnabled()) {
       shuffledPartitions = new int[numPartitions];
