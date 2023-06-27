@@ -52,12 +52,11 @@ class ReviveManager {
           do {
             ArrayList<ReviveRequest> batchRequests = new ArrayList<>();
             requestQueue.drainTo(batchRequests, batchSize);
-            batchRequests.forEach(
-                (req) -> {
-                  Set<ReviveRequest> set =
-                      shuffleMap.computeIfAbsent(req.shuffleId, id -> new HashSet<>());
-                  set.add(req);
-                });
+            for (ReviveRequest req in batchRequests) {
+              Set<ReviveRequest> set =
+                  shuffleMap.computeIfAbsent(req.shuffleId, id -> new HashSet<>());
+              set.add(req);
+            }
             for (Map.Entry<Integer, Set<ReviveRequest>> shuffleEntry : shuffleMap.entrySet()) {
               // Call reviveBatch for requests in the same (appId, shuffleId)
               int shuffleId = shuffleEntry.getKey();
