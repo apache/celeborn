@@ -995,10 +995,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   e);
               // async retry push data
               if (!mapperEnded(shuffleId, mapId)) {
-                // For blacklisted partition location, Celeborn should not use retry quota.
-                if (!pushStatusIsBlacklisted(cause)) {
-                  remainReviveTimes = remainReviveTimes - 1;
-                }
+                remainReviveTimes = remainReviveTimes - 1;
                 ReviveRequest reviveRequest =
                     new ReviveRequest(
                         shuffleId, mapId, attemptId, partitionId, loc.getEpoch(), loc, cause);
@@ -1377,13 +1374,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                 remainReviveTimes,
                 e);
             if (!mapperEnded(shuffleId, mapId)) {
-              int tmpRemainReviveTimes = remainReviveTimes;
-              // For blacklisted partition location, Celeborn should not use retry quota.
-              if (!pushStatusIsBlacklisted(cause)) {
-                tmpRemainReviveTimes = tmpRemainReviveTimes - 1;
-              }
-              int finalRemainReviveTimes = tmpRemainReviveTimes;
-
               ReviveRequest[] requests =
                   addAndGetReviveRequests(shuffleId, mapId, attemptId, batches, cause);
               pushDataRetryPool.submit(
@@ -1397,7 +1387,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                           cause,
                           groupedBatchId,
                           requests,
-                          finalRemainReviveTimes,
+                          remainReviveTimes - 1,
                           System.currentTimeMillis()
                               + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
                                   .duration()
@@ -1651,11 +1641,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected boolean stageEnded(int shuffleId) {
     return stageEndShuffleSet.contains(shuffleId);
-  }
-
-  private boolean pushStatusIsBlacklisted(StatusCode cause) {
-    return cause == StatusCode.PUSH_DATA_MASTER_BLACKLISTED
-        || cause == StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
   }
 
   private StatusCode getPushDataFailCause(String message) {
