@@ -2664,7 +2664,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Amount of Netty in-flight requests per worker. The maximum memory is " +
         "`celeborn.client.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
-        "compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib")
+        "compression ratio(1 in worst case), default: 64KiB * 4 = 256MiB")
       .intConf
       .createWithDefault(4)
 
@@ -2705,8 +2705,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.push.limit.strategy")
       .categories("client")
       .doc("The strategy used to control the push speed. " +
-        "Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with " +
-        "congest control mechanism in the worker side.")
+        "Valid strategies are SIMPLE and SLOWSTART. The SLOWSTART strategy usually works with " +
+        "congestion control mechanism on the worker side.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))

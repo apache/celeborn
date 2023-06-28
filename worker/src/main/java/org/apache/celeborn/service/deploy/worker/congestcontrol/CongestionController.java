@@ -139,8 +139,6 @@ public class CongestionController {
     }
 
     long pendingConsumed = getTotalPendingBytes();
-    long avgConsumeSpeed = getPotentialConsumeSpeed();
-
     if (pendingConsumed > highWatermark && overHighWatermark.compareAndSet(false, true)) {
       logger.info(
           "Pending consume bytes: {} higher than high watermark, need to congest it",
@@ -161,6 +159,7 @@ public class CongestionController {
 
       // If the user produce speed is higher that the avg consume speed, will congest it
       long userProduceSpeed = getUserProduceSpeed(userBufferStatuses.get(userIdentifier));
+      long avgConsumeSpeed = getPotentialConsumeSpeed();
       if (logger.isDebugEnabled()) {
         logger.debug(
             "The user {}, produceSpeed is {},"
@@ -172,7 +171,6 @@ public class CongestionController {
       }
       return userProduceSpeed > avgConsumeSpeed;
     }
-
     return false;
   }
 
@@ -244,9 +242,7 @@ public class CongestionController {
         if (currentTimeMillis - userBufferInfo.getTimestamp() >= userInactiveTimeMills) {
           userBufferStatuses.remove(userIdentifier);
           workerSource.removeGauge(WorkerSource.UserProduceSpeed(), userIdentifier.toMap());
-          logger.info(
-              String.format(
-                  "User: %s has been expired, remove it from rate limit list", userIdentifier));
+          logger.info("User {} has been expired, remove from rate limit list", userIdentifier);
         }
       }
     } catch (Exception e) {

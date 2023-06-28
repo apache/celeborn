@@ -574,7 +574,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (reachLimit) {
       throw new CelebornIOException(
-          "Waiting timeout for task " + mapKey, pushState.exception.get());
+          String.format(
+              "Waiting timeout for task %s while limiting max in-flight requests to %s",
+              mapKey, hostAndPushPort),
+          pushState.exception.get());
     }
   }
 
@@ -583,7 +586,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (reachLimit) {
       throw new CelebornIOException(
-          "Waiting timeout for task " + mapKey, pushState.exception.get());
+          String.format(
+              "Waiting timeout for task %s while limiting zero in-flight requests", mapKey),
+          pushState.exception.get());
     }
   }
 
@@ -852,8 +857,6 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onSuccess(ByteBuffer response) {
               pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
-              // TODO Need to adjust maxReqsInFlight if server response is congested, see
-              // CELEBORN-62
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
                 stageEndShuffleSet.add(shuffleId);
               }
@@ -1238,7 +1241,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                 groupedBatchId,
                 Arrays.toString(batchIds));
             pushState.removeBatch(groupedBatchId, hostPort);
-            // TODO Need to adjust maxReqsInFlight if server response is congested, see CELEBORN-62
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
               stageEndShuffleSet.add(shuffleId);
             }
