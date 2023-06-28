@@ -528,7 +528,9 @@ public class ShuffleClientImpl extends ShuffleClient {
             PartitionLocation partitionLoc =
                 PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));
             pushExcludedWorkers.remove(partitionLoc.hostAndPushPort());
-
+            if (partitionLoc.hasPeer()) {
+              pushExcludedWorkers.remove(partitionLoc.getPeer().hostAndPushPort());
+            }
             result.put(partitionLoc.getId(), partitionLoc);
           }
           return result;
@@ -705,7 +707,9 @@ public class ShuffleClientImpl extends ShuffleClient {
         int partitionId = partitionInfo.getPartitionId();
         int statusCode = partitionInfo.getStatus();
         if (partitionInfo.getOldAvailable()) {
-          pushExcludedWorkers.remove(oldLocMap.get(partitionId).hostAndPushPort());
+          PartitionLocation oldLoc = oldLocMap.get(partitionId);
+          // Currently, revive only check if main location available, here won't remove peer loc.
+          pushExcludedWorkers.remove(oldLoc.hostAndPushPort());
         }
 
         if (StatusCode.SUCCESS.getValue() == statusCode) {
@@ -713,6 +717,9 @@ public class ShuffleClientImpl extends ShuffleClient {
               PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition());
           partitionLocationMap.put(partitionId, loc);
           pushExcludedWorkers.remove(loc.hostAndPushPort());
+          if (loc.hasPeer()) {
+            pushExcludedWorkers.remove(loc.getPeer().hostAndPushPort());
+          }
         } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
           stageEnded(shuffleId);
           return results;
