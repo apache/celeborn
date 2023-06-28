@@ -281,7 +281,7 @@ message PbHeartbeatFromApplication {
   int64 fileCount = 3 ;
   string requestId = 4;
   repeated PbWorkerInfo needCheckedWorkerList = 5;
-  bool shouldResponseMoreInfos = 6;
+  bool shouldResponse = 6;
 }
 
 message PbHeartbeatFromApplicationResponse {

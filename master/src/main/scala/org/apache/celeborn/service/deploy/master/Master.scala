@@ -236,7 +236,7 @@ private[celeborn] class Master(
           fileCount,
           localBlacklist,
           requestId,
-          shouldResponseMoreInfos) =>
+          shouldResponse) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
@@ -247,7 +247,7 @@ private[celeborn] class Master(
           fileCount,
           localBlacklist,
           requestId,
-          shouldResponseMoreInfos))
+          shouldResponse))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -673,7 +673,7 @@ private[celeborn] class Master(
       fileCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String,
-      shouldResponseMoreInfos: Boolean): Unit = {
+      shouldResponse: Boolean): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
@@ -682,7 +682,7 @@ private[celeborn] class Master(
       requestId)
     // unknown workers will retain in needCheckedWorkerList
     needCheckedWorkerList.removeAll(workersSnapShot)
-    if (shouldResponseMoreInfos) {
+    if (shouldResponse) {
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
         new util.ArrayList(statusSystem.blacklist),
