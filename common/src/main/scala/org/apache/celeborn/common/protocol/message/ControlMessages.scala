@@ -395,11 +395,11 @@ object ControlMessages extends Logging {
       failedPrimaryIds: util.List[String],
       failedReplicaIds: util.List[String],
       committedPrimaryStorageInfos: util.Map[String, StorageInfo] =
-      Map.empty[String, StorageInfo].asJava,
+        Map.empty[String, StorageInfo].asJava,
       committedReplicaStorageInfos: util.Map[String, StorageInfo] =
-      Map.empty[String, StorageInfo].asJava,
+        Map.empty[String, StorageInfo].asJava,
       committedMapIdBitMap: util.Map[String, RoaringBitmap] =
-      Map.empty[String, RoaringBitmap].asJava,
+        Map.empty[String, RoaringBitmap].asJava,
       totalWritten: Long = 0,
       fileCount: Int = 0) extends WorkerMessage
 
@@ -420,7 +420,8 @@ object ControlMessages extends Logging {
    *              common
    *  ==========================================
    */
-  case class ReplicaLostResponse(status: StatusCode, replicaLocation: PartitionLocation) extends Message
+  case class ReplicaLostResponse(status: StatusCode, replicaLocation: PartitionLocation)
+    extends Message
 
   case object GetWorkerInfos extends Message
 

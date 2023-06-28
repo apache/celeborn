@@ -1669,17 +1669,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_TIMEOUT_REPLICA;
     } else if (message.startsWith(StatusCode.REPLICATE_DATA_FAILED.name())) {
       cause = StatusCode.REPLICATE_DATA_FAILED;
-<<<<<<< HEAD
-    } else if (message.startsWith(StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED.name())) {
-      cause = StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED.name())) {
-      cause = StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED;
-=======
-    } else if (message.startsWith(StatusCode.PUSH_DATA_PRIMARY_BLACKLISTED.name())) {
-      cause = StatusCode.PUSH_DATA_PRIMARY_BLACKLISTED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_REPLICA_BLACKLISTED.name())) {
-      cause = StatusCode.PUSH_DATA_REPLICA_BLACKLISTED;
->>>>>>> update data replication terminology from 'master/slave' to 'primary/replica' in the codebase
+    } else if (message.startsWith(StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED.name())) {
+      cause = StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED.name())) {
+      cause = StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED;
     } else if (connectFail(message)) {
       // Throw when push to primary worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;

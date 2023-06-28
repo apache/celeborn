@@ -246,7 +246,9 @@ private[deploy] class Controller(
     shufflePushDataTimeout.put(
       shuffleKey,
       if (pushDataTimeout <= 0) defaultPushdataTimeout else pushDataTimeout)
-    workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(requestPrimaryLocs, requestReplicaLocs))
+    workerInfo.allocateSlots(
+      shuffleKey,
+      Utils.getSlotsPerDisk(requestPrimaryLocs, requestReplicaLocs))
 
     logInfo(s"Reserved ${primaryLocs.size()} primary location" +
       s" and ${replicaLocs.size()} replica location for $shuffleKey ")
@@ -458,7 +460,8 @@ private[deploy] class Controller(
       // release slots before reply.
       val releasePrimaryLocations =
         partitionLocationInfo.removePrimaryPartitions(shuffleKey, primaryIds)
-      val releaseReplicaLocations = partitionLocationInfo.removeReplicaPartitions(shuffleKey, replicaIds)
+      val releaseReplicaLocations =
+        partitionLocationInfo.removeReplicaPartitions(shuffleKey, replicaIds)
       logDebug(s"$shuffleKey remove" +
         s" slots count ${releasePrimaryLocations._2 + releaseReplicaLocations._2}")
       logDebug(s"CommitFiles result" +
@@ -649,8 +652,9 @@ private[deploy] class Controller(
     }
     // reply
     if (failedPrimaries.isEmpty && failedReplicas.isEmpty) {
-      logInfo(s"Destroy ${primaryLocations.size()} primary location and ${replicaLocations.size()}" +
-        s" replica locations for $shuffleKey successfully.")
+      logInfo(
+        s"Destroy ${primaryLocations.size()} primary location and ${replicaLocations.size()}" +
+          s" replica locations for $shuffleKey successfully.")
       context.reply(
         DestroyWorkerSlotsResponse(
           StatusCode.SUCCESS,

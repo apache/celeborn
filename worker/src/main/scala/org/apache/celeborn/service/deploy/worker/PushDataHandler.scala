@@ -605,7 +605,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                   Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
             } else {
               callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
+                ByteBuffer.wrap(
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
             }
           } else {
             callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -859,7 +860,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       } else {
         partitionLocationInfo.getReplicaLocation(shuffleKey, partitionUniqueId)
       }
-    workerSource.startTimer(if (isPrimary) workerSourcePrimary else workerSourceReplica, s"$requestId")
+    workerSource.startTimer(
+      if (isPrimary) workerSourcePrimary else workerSourceReplica,
+      s"$requestId")
     val wrappedCallback =
       new WrappedRpcResponseCallback(
         messageType,

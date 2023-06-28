@@ -747,7 +747,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             destroyWorkerInfo
           }
         if (slots.containsKey(workerInfoWithRpcRef)) {
-          val (primaryPartitionLocations, replicaPartitionLocations) = slots.get(workerInfoWithRpcRef)
+          val (primaryPartitionLocations, replicaPartitionLocations) =
+            slots.get(workerInfoWithRpcRef)
           partition.getMode match {
             case PartitionLocation.Mode.PRIMARY =>
               primaryPartitionLocations.remove(partition)
@@ -876,11 +877,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               failedPartitionLocations.values.toList,
               retryCandidates.asScala.toList,
               updateEpoch)
-            requestSlots.asScala.foreach { case (workerInfo, (retryPrimaryLocs, retryReplicaLocs)) =>
-              val (primaryPartitionLocations, replicaPartitionLocations) =
-                slots.computeIfAbsent(workerInfo, newLocationFunc)
-              primaryPartitionLocations.addAll(retryPrimaryLocs)
-              replicaPartitionLocations.addAll(retryReplicaLocs)
+            requestSlots.asScala.foreach {
+              case (workerInfo, (retryPrimaryLocs, retryReplicaLocs)) =>
+                val (primaryPartitionLocations, replicaPartitionLocations) =
+                  slots.computeIfAbsent(workerInfo, newLocationFunc)
+                primaryPartitionLocations.addAll(retryPrimaryLocs)
+                replicaPartitionLocations.addAll(retryReplicaLocs)
             }
           }
         } else {

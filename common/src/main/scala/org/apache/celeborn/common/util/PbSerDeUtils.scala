@@ -310,8 +310,10 @@ object PbSerDeUtils {
 
   def toPbWorkerResource(workerResource: WorkerResource): util.Map[String, PbWorkerResource] = {
     workerResource.asScala.map { case (workerInfo, (primaryLocations, replicaLocations)) =>
-      val primaryPartitions = primaryLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
-      val replicaPartitions = replicaLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
+      val primaryPartitions =
+        primaryLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
+      val replicaPartitions =
+        replicaLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
       val pbWorkerResource = PbWorkerResource.newBuilder()
         .addAllPrimaryPartitions(primaryPartitions)
         .addAllReplicaPartitions(replicaPartitions)

@@ -82,7 +82,7 @@ class WorkerStatusTracker(
     if (oldPartition != null) {
       cause match {
         case StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY =>
-          excludeWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY )
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY)
         case StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
             if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
           excludeWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA)
