@@ -418,9 +418,6 @@ object ControlMessages extends Logging {
    *              common
    *  ==========================================
    */
-  case object GetWorkerInfos extends Message
-
-  case class GetWorkerInfosResponse(status: StatusCode, workerInfos: WorkerInfo*) extends Message
 
   // TODO change message type to GeneratedMessageV3
   def toTransportMessage(message: Any): TransportMessage = message match {
@@ -775,19 +772,6 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.DESTROY_RESPONSE, payload)
 
-    case GetWorkerInfos =>
-      new TransportMessage(MessageType.GET_WORKER_INFO, null)
-
-    case GetWorkerInfosResponse(status, workerInfos @ _*) =>
-      val payload = PbGetWorkerInfosResponse.newBuilder()
-        .setStatus(status.getValue)
-        .addAllWorkerInfos(workerInfos.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, false)
-        }
-          .toList.asJava)
-        .build().toByteArray
-      new TransportMessage(MessageType.GET_WORKER_INFO_RESPONSE, payload)
-
     case pb: PbPartitionSplit =>
       new TransportMessage(MessageType.PARTITION_SPLIT, pb.toByteArray)
 
@@ -1070,16 +1054,6 @@ object ControlMessages extends Logging {
           Utils.toStatusCode(pbDestroyResponse.getStatus),
           pbDestroyResponse.getFailedMastersList,
           pbDestroyResponse.getFailedSlavesList)
-
-      case GET_WORKER_INFO =>
-        GetWorkerInfos
-
-      case GET_WORKER_INFO_RESPONSE =>
-        val pbGetWorkerInfoResponse = PbGetWorkerInfosResponse.parseFrom(message.getPayload)
-        GetWorkerInfosResponse(
-          Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
-          pbGetWorkerInfoResponse.getWorkerInfosList.asScala
-            .map(PbSerDeUtils.fromPbWorkerInfo).toList: _*)
 
       case REMOVE_EXPIRED_SHUFFLE =>
         RemoveExpiredShuffle

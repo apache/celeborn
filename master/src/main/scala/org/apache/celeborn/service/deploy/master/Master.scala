@@ -329,9 +329,6 @@ private[celeborn] class Master(
           estimatedAppDiskUsage,
           requestId))
 
-    case GetWorkerInfos =>
-      executeWithLeaderChecker(context, handleGetWorkerInfos(context))
-
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
       executeWithLeaderChecker(
         context,
@@ -637,10 +634,6 @@ private[celeborn] class Master(
         StatusCode.SUCCESS,
         new util.ArrayList(statusSystem.excludedWorkers),
         msg.localExcludedWorkers))
-  }
-
-  private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
-    context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, workersSnapShot.asScala: _*))
   }
 
   private def handleReportNodeUnavailable(

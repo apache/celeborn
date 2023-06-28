@@ -121,9 +121,6 @@ private[deploy] class Controller(
       logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
         s"$commitFilesTimeMs ms.")
 
-    case GetWorkerInfos =>
-      handleGetWorkerInfos(context)
-
     case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
@@ -661,11 +658,5 @@ private[deploy] class Controller(
           failedMasters,
           failedSlaves))
     }
-  }
-
-  private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
-    val list = new jArrayList[WorkerInfo]()
-    list.add(workerInfo)
-    context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, list.asScala.toList: _*))
   }
 }
