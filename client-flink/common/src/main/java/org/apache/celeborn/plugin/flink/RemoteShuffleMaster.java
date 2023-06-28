@@ -83,7 +83,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       }
     }
 
-    Set<Integer> previousShuffleIds = jobShuffleIds.computeIfAbsent(jobID, key -> new HashSet<>());
+    Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
     LOG.info("Register job: {}.", jobID);
     shuffleResourceTracker.registerJob(context);
     if (previousShuffleIds != null) {
