@@ -422,10 +422,6 @@ object ControlMessages extends Logging {
    */
   case class SlaveLostResponse(status: StatusCode, slaveLocation: PartitionLocation) extends Message
 
-  case object GetWorkerInfos extends Message
-
-  case class GetWorkerInfosResponse(status: StatusCode, workerInfos: WorkerInfo*) extends Message
-
   case object ThreadDump extends Message
 
   case class ThreadDumpResponse(threadDump: String) extends Message
@@ -792,19 +788,6 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.SLAVE_LOST_RESPONSE, payload)
 
-    case GetWorkerInfos =>
-      new TransportMessage(MessageType.GET_WORKER_INFO, null)
-
-    case GetWorkerInfosResponse(status, workerInfos @ _*) =>
-      val payload = PbGetWorkerInfosResponse.newBuilder()
-        .setStatus(status.getValue)
-        .addAllWorkerInfos(workerInfos.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, false)
-        }
-          .toList.asJava)
-        .build().toByteArray
-      new TransportMessage(MessageType.GET_WORKER_INFO_RESPONSE, payload)
-
     case ThreadDump =>
       new TransportMessage(MessageType.THREAD_DUMP, null)
 
@@ -1104,16 +1087,6 @@ object ControlMessages extends Logging {
         SlaveLostResponse(
           Utils.toStatusCode(pbSlaveLostResponse.getStatus),
           PbSerDeUtils.fromPbPartitionLocation(pbSlaveLostResponse.getSlaveLocation))
-
-      case GET_WORKER_INFO =>
-        GetWorkerInfos
-
-      case GET_WORKER_INFO_RESPONSE =>
-        val pbGetWorkerInfoResponse = PbGetWorkerInfosResponse.parseFrom(message.getPayload)
-        GetWorkerInfosResponse(
-          Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
-          pbGetWorkerInfoResponse.getWorkerInfosList.asScala
-            .map(PbSerDeUtils.fromPbWorkerInfo).toList: _*)
 
       case THREAD_DUMP =>
         ThreadDump
