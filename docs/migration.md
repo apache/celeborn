@@ -49,16 +49,15 @@ license: |
  - Since 0.3.0, Celeborn master http request url `/blacklistedWorkers` is renamed as `/excludedWorkers`.
 
  - Since 0.3.0, introduces a terminology update for Celeborn worker data replication, replacing the previous `master/slave` terminology with `primary/replica`. In alignment with this change, corresponding metrics keywords have been adjusted.
-
    The following table presents a comprehensive overview of the changes:
 
-   | Key Before v0.3.0 | Key After v0.3.0 |
-   | --- | --- |
-   | MasterPushDataTime | PrimaryPushDataTime|
-   | MasterPushDataHandshakeTime | PrimaryPushDataHandshakeTime |
-   | MasterRegionStartTime | PrimaryRegionStartTime |
-   | MasterRegionFinishTime | PrimaryRegionFinishTime |
-   | SlavePushDataTime | ReplicaPushDataTime |
-   | SlavePushDataHandshakeTime | ReplicaPushDataHandshakeTime |
-   | SlaveRegionStartTime | ReplicaRegionStartTime |
-   | SlaveRegionFinishTime | ReplicaRegionFinishTime |
+     | Key Before v0.3.0             | Key After v0.3.0               |
+     |-------------------------------|--------------------------------|
+     | `MasterPushDataTime`          | `PrimaryPushDataTime`          |
+     | `MasterPushDataHandshakeTime` | `PrimaryPushDataHandshakeTime` |
+     | `MasterRegionStartTime`       | `PrimaryRegionStartTime`       |
+     | `MasterRegionFinishTime`      | `PrimaryRegionFinishTime`      |
+     | `SlavePushDataTime`           | `ReplicaPushDataTime`          |
+     | `SlavePushDataHandshakeTime`  | `ReplicaPushDataHandshakeTime` |
+     | `SlaveRegionStartTime`        | `ReplicaRegionStartTime`       |
+     | `SlaveRegionFinishTime`       | `ReplicaRegionFinishTime`      |
