@@ -438,15 +438,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.", t)
           connectFailedWorkers.put(
             workerInfo,
-            (StatusCode.UNKNOWN_WORKER, System.currentTimeMillis()))
+            (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
       }
     }
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
     // If newly allocated from master and can setup endpoint success, LifecycleManager should remove worker from
-    // the blacklist to improve the accuracy of the blacklist
-    workerStatusTracker.removeFromBlacklist(candidatesWorkers)
+    // the excluded worker list to improve the accuracy of the list.
+    workerStatusTracker.removeFromExcludedWorkers(candidatesWorkers)
 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
@@ -861,8 +861,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           val retryCandidates = new util.HashSet(slots.keySet())
           // add candidates to avoid revive action passed in slots only 2 worker
           retryCandidates.addAll(candidates)
-          // remove blacklist from retryCandidates
-          retryCandidates.removeAll(workerStatusTracker.blacklist.keys().asScala.toList.asJava)
+          // remove excluded workers from retryCandidates
+          retryCandidates.removeAll(
+            workerStatusTracker.excludedWorkers.keys().asScala.toList.asJava)
           retryCandidates.removeAll(workerStatusTracker.shuttingWorkers.asScala.toList.asJava)
           if (retryCandidates.size < 1 || (pushReplicateEnabled && retryCandidates.size < 2)) {
             logError(s"Retry reserve slots for $shuffleId failed caused by not enough slots.")

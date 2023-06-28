@@ -288,7 +288,7 @@ public abstract class RssInputStream extends InputStream {
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           if (isExcluded(location)) {
-            throw new CelebornIOException("Fetch data from blacklisted location! " + location);
+            throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
@@ -326,7 +326,7 @@ public abstract class RssInputStream extends InputStream {
         try {
           if (isExcluded(currentReader.getLocation())) {
             throw new CelebornIOException(
-                "Fetch data from blacklisted location! " + currentReader.getLocation());
+                "Fetch data from excluded worker! " + currentReader.getLocation());
           }
           return currentReader.next();
         } catch (Exception e) {

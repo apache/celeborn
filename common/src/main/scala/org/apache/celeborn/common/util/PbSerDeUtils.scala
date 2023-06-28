@@ -364,7 +364,7 @@ object PbSerDeUtils {
       estimatedPartitionSize: java.lang.Long,
       registeredShuffle: java.util.Set[String],
       hostnameSet: java.util.Set[String],
-      blacklist: java.util.Set[WorkerInfo],
+      excludedWorkers: java.util.Set[WorkerInfo],
       workerLostEvent: java.util.Set[WorkerInfo],
       appHeartbeatTime: java.util.Map[String, java.lang.Long],
       workers: java.util.List[WorkerInfo],
@@ -378,7 +378,7 @@ object PbSerDeUtils {
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
       .addAllHostnameSet(hostnameSet)
-      .addAllBlacklist(blacklist.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .addAllBlacklist(excludedWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
       .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true)).asJava)
       .putAllAppHeartbeatTime(appHeartbeatTime)
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true)).asJava)

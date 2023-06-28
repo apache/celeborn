@@ -736,9 +736,9 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
@@ -753,10 +753,10 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(2, statusSystem.blacklist.size());
-    Assert.assertEquals(2, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(2, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(2, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(2, statusSystem.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
@@ -771,10 +771,10 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, statusSystem.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(1, statusSystem.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
   }
 
   @Before
@@ -783,21 +783,21 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM1.hostnameSet.clear();
     STATUSSYSTEM1.workers.clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
-    STATUSSYSTEM1.blacklist.clear();
+    STATUSSYSTEM1.excludedWorkers.clear();
     STATUSSYSTEM1.workerLostEvents.clear();
 
     STATUSSYSTEM2.registeredShuffle.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.workers.clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
-    STATUSSYSTEM2.blacklist.clear();
+    STATUSSYSTEM2.excludedWorkers.clear();
     STATUSSYSTEM2.workerLostEvents.clear();
 
     STATUSSYSTEM3.registeredShuffle.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.workers.clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
-    STATUSSYSTEM3.blacklist.clear();
+    STATUSSYSTEM3.excludedWorkers.clear();
     STATUSSYSTEM3.workerLostEvents.clear();
 
     disks1.clear();
@@ -879,9 +879,9 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.shutdownWorkers.size());
-    Assert.assertEquals(0, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(0, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(0, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
   }
 
   @Test
