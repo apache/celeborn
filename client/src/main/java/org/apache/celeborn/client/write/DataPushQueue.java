@@ -107,7 +107,7 @@ public class DataPushQueue {
               oldCapacity = maxInFlight - pushState.inflightPushes(loc.hostAndPushPort());
               workerCapacity.put(loc.hostAndPushPort(), oldCapacity);
             }
-            workerWaitAttempts.putIfAbsent(loc.hostAndPushPort(), new AtomicInteger(0));
+            workerWaitAttempts.computeIfAbsent(loc.hostAndPushPort(), key -> new AtomicInteger(0));
             if (oldCapacity > 0) {
               iterator.remove();
               tasks.add(task);
