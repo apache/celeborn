@@ -234,7 +234,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     // build PushData request
     NettyManagedBuffer buffer = new NettyManagedBuffer(data);
     final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-    PushData pushData = new PushData(MASTER_MODE, shuffleKey, location.getUniqueId(), buffer);
+    PushData pushData = new PushData(PRIMARY_MODE, shuffleKey, location.getUniqueId(), buffer);
 
     // build callback
     RpcResponseCallback callback =
@@ -328,7 +328,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           PushDataHandShake handShake =
               new PushDataHandShake(
-                  MASTER_MODE,
+                  PRIMARY_MODE,
                   shuffleKey,
                   location.getUniqueId(),
                   attemptId,
@@ -367,7 +367,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           RegionStart regionStart =
               new RegionStart(
-                  MASTER_MODE,
+                  PRIMARY_MODE,
                   shuffleKey,
                   location.getUniqueId(),
                   attemptId,
@@ -439,7 +439,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           logger.debug("RegionFinish for location {}.", location);
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           RegionFinish regionFinish =
-              new RegionFinish(MASTER_MODE, shuffleKey, location.getUniqueId(), attemptId);
+              new RegionFinish(PRIMARY_MODE, shuffleKey, location.getUniqueId(), attemptId);
           client.sendRpcSync(regionFinish.toByteBuffer(), conf.pushDataTimeoutMs());
           return null;
         });
