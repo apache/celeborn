@@ -816,13 +816,13 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE =>
-        val PbHeartbeatFromWorkerResponse =
+        val pbHeartbeatFromWorkerResponse =
           PbHeartbeatFromWorkerResponse.parseFrom(message.getPayload)
         val expiredShuffleKeys = new util.HashSet[String]()
-        if (PbHeartbeatFromWorkerResponse.getExpiredShuffleKeysCount > 0) {
-          expiredShuffleKeys.addAll(PbHeartbeatFromWorkerResponse.getExpiredShuffleKeysList)
+        if (pbHeartbeatFromWorkerResponse.getExpiredShuffleKeysCount > 0) {
+          expiredShuffleKeys.addAll(pbHeartbeatFromWorkerResponse.getExpiredShuffleKeysList)
         }
-        HeartbeatFromWorkerResponse(expiredShuffleKeys, PbHeartbeatFromWorkerResponse.getRegistered)
+        HeartbeatFromWorkerResponse(expiredShuffleKeys, pbHeartbeatFromWorkerResponse.getRegistered)
 
       case REGISTER_SHUFFLE =>
         PbRegisterShuffle.parseFrom(message.getPayload)
