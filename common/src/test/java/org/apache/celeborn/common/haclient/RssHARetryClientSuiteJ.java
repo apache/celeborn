@@ -40,7 +40,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplication;
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromWorker;
-import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatResponse;
+import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromWorkerResponse;
 import org.apache.celeborn.common.protocol.message.ControlMessages.OneWayMessageResponse$;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -53,7 +53,8 @@ public class RssHARetryClientSuiteJ {
   private final int masterPort = 9097;
   private final CelebornConf conf = new CelebornConf(false);
   private final OneWayMessageResponse$ response = OneWayMessageResponse$.MODULE$;
-  private final HeartbeatResponse mockResponse = Mockito.mock(HeartbeatResponse.class);
+  private final HeartbeatFromWorkerResponse mockResponse =
+      Mockito.mock(HeartbeatFromWorkerResponse.class);
 
   private RpcEnv rpcEnv = null;
   private RpcEndpointRef endpointRef = null;
@@ -154,9 +155,9 @@ public class RssHARetryClientSuiteJ {
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
-    HeartbeatResponse response = null;
+    HeartbeatFromWorkerResponse response = null;
     try {
-      response = client.askSync(message, HeartbeatResponse.class);
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
     } catch (Throwable t) {
       LOG.error("It should be no exceptions when sending one-way message.", t);
       fail("It should be no exceptions when sending one-way message.");
@@ -176,9 +177,9 @@ public class RssHARetryClientSuiteJ {
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
-    HeartbeatResponse response = null;
+    HeartbeatFromWorkerResponse response = null;
     try {
-      response = client.askSync(message, HeartbeatResponse.class);
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
     } catch (Throwable t) {
       t.printStackTrace();
       LOG.error("It should be no exceptions when sending one-way message.", t);
@@ -197,9 +198,9 @@ public class RssHARetryClientSuiteJ {
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
-    HeartbeatResponse response = null;
+    HeartbeatFromWorkerResponse response = null;
     try {
-      response = client.askSync(message, HeartbeatResponse.class);
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
     } catch (Throwable t) {
       LOG.error("It should be no exceptions when sending one-way message.", t);
       fail("It should be no exceptions when sending one-way message.");
@@ -256,9 +257,9 @@ public class RssHARetryClientSuiteJ {
     RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
-    HeartbeatResponse response = null;
+    HeartbeatFromWorkerResponse response = null;
     try {
-      response = client.askSync(message, HeartbeatResponse.class);
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
     } catch (Throwable t) {
       LOG.error("It should be no exceptions when sending one-way message.", t);
       fail("It should be no exceptions when sending one-way message.");

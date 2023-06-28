@@ -114,7 +114,7 @@ object ControlMessages extends Logging {
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
-  case class HeartbeatResponse(
+  case class HeartbeatFromWorkerResponse(
       expiredShuffleKeys: util.HashSet[String],
       registered: Boolean) extends MasterMessage
 
@@ -461,8 +461,8 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER, payload)
 
-    case HeartbeatResponse(expiredShuffleKeys, registered) =>
-      val payload = PbHeartbeatResponse.newBuilder()
+    case HeartbeatFromWorkerResponse(expiredShuffleKeys, registered) =>
+      val payload = PbHeartbeatFromWorkerResponse.newBuilder()
         .addAllExpiredShuffleKeys(expiredShuffleKeys)
         .setRegistered(registered)
         .build().toByteArray
@@ -816,12 +816,13 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE =>
-        val pbHeartbeatResponse = PbHeartbeatResponse.parseFrom(message.getPayload)
+        val PbHeartbeatFromWorkerResponse =
+          PbHeartbeatFromWorkerResponse.parseFrom(message.getPayload)
         val expiredShuffleKeys = new util.HashSet[String]()
-        if (pbHeartbeatResponse.getExpiredShuffleKeysCount > 0) {
-          expiredShuffleKeys.addAll(pbHeartbeatResponse.getExpiredShuffleKeysList)
+        if (PbHeartbeatFromWorkerResponse.getExpiredShuffleKeysCount > 0) {
+          expiredShuffleKeys.addAll(PbHeartbeatFromWorkerResponse.getExpiredShuffleKeysList)
         }
-        HeartbeatResponse(expiredShuffleKeys, pbHeartbeatResponse.getRegistered)
+        HeartbeatFromWorkerResponse(expiredShuffleKeys, PbHeartbeatFromWorkerResponse.getRegistered)
 
       case REGISTER_SHUFFLE =>
         PbRegisterShuffle.parseFrom(message.getPayload)
