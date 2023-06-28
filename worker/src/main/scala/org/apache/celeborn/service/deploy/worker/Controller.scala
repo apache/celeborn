@@ -124,9 +124,6 @@ private[deploy] class Controller(
     case GetWorkerInfos =>
       handleGetWorkerInfos(context)
 
-    case ThreadDump =>
-      handleThreadDump(context)
-
     case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
@@ -670,10 +667,5 @@ private[deploy] class Controller(
     val list = new jArrayList[WorkerInfo]()
     list.add(workerInfo)
     context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, list.asScala.toList: _*))
-  }
-
-  private def handleThreadDump(context: RpcCallContext): Unit = {
-    val threadDump = Utils.getThreadDump()
-    context.reply(ThreadDumpResponse(threadDump))
   }
 }
