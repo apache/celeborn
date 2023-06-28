@@ -385,11 +385,6 @@ message PbDestroyWorkerSlotsResponse {
   repeated string failedSlaves = 3;
 }
 
-message PbSlaveLostResponse {
-  int32 status = 1;
-  PbPartitionLocation slaveLocation = 2;
-}
-
 message PbGetWorkerInfosResponse {
   int32 status = 1;
   repeated PbWorkerInfo workerInfos = 2;
