@@ -424,10 +424,6 @@ object ControlMessages extends Logging {
 
   case class GetWorkerInfosResponse(status: StatusCode, workerInfos: WorkerInfo*) extends Message
 
-  case object ThreadDump extends Message
-
-  case class ThreadDumpResponse(threadDump: String) extends Message
-
   // TODO change message type to GeneratedMessageV3
   def toTransportMessage(message: Any): TransportMessage = message match {
     case _: PbCheckForWorkerTimeoutOrBuilder =>
@@ -796,14 +792,6 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.GET_WORKER_INFO_RESPONSE, payload)
 
-    case ThreadDump =>
-      new TransportMessage(MessageType.THREAD_DUMP, null)
-
-    case ThreadDumpResponse(threadDump) =>
-      val payload = PbThreadDumpResponse.newBuilder()
-        .setThreadDump(threadDump).build().toByteArray
-      new TransportMessage(MessageType.THREAD_DUMP_RESPONSE, payload)
-
     case pb: PbPartitionSplit =>
       new TransportMessage(MessageType.PARTITION_SPLIT, pb.toByteArray)
 
@@ -1099,13 +1087,6 @@ object ControlMessages extends Logging {
           Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
           pbGetWorkerInfoResponse.getWorkerInfosList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList: _*)
-
-      case THREAD_DUMP =>
-        ThreadDump
-
-      case THREAD_DUMP_RESPONSE =>
-        val pbThreadDumpResponse = PbThreadDumpResponse.parseFrom(message.getPayload)
-        ThreadDumpResponse(pbThreadDumpResponse.getThreadDump)
 
       case REMOVE_EXPIRED_SHUFFLE =>
         RemoveExpiredShuffle
