@@ -232,7 +232,8 @@ private[celeborn] class Master(
           totalWritten,
           fileCount,
           needCheckedWorkerList,
-          requestId) =>
+          requestId,
+          shouldResponse) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
@@ -242,7 +243,8 @@ private[celeborn] class Master(
           totalWritten,
           fileCount,
           needCheckedWorkerList,
-          requestId))
+          requestId,
+          shouldResponse))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -667,7 +669,8 @@ private[celeborn] class Master(
       totalWritten: Long,
       fileCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
-      requestId: String): Unit = {
+      requestId: String,
+      shouldResponse: Boolean): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
@@ -676,11 +679,15 @@ private[celeborn] class Master(
       requestId)
     // unknown workers will retain in needCheckedWorkerList
     needCheckedWorkerList.removeAll(workersSnapShot)
-    context.reply(HeartbeatFromApplicationResponse(
-      StatusCode.SUCCESS,
-      new util.ArrayList(statusSystem.excludedWorkers),
-      needCheckedWorkerList,
-      shutdownWorkerSnapshot))
+    if (shouldResponse) {
+      context.reply(HeartbeatFromApplicationResponse(
+        StatusCode.SUCCESS,
+        new util.ArrayList(statusSystem.excludedWorkers),
+        needCheckedWorkerList,
+        shutdownWorkerSnapshot))
+    } else {
+      context.reply(OneWayMessageResponse)
+    }
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
