@@ -54,15 +54,13 @@ class RssHashCheckDiskSuite extends SparkTestBase {
   test("celeborn spark integration test - hash-checkDiskFull") {
     val sparkConf = new SparkConf().setAppName("rss-demo")
       .setMaster("local[2]")
-      .set(s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}", "10s")
+      .set(s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}", "20s")
 
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)
     val groupByResult = groupBy(sparkSession)
     val repartitionResult = repartition(sparkSession)
     val sqlResult = runsql(sparkSession)
-
-    Thread.sleep(3000L)
     sparkSession.stop()
 
     val rssSparkSession = SparkSession.builder()
@@ -92,7 +90,7 @@ class RssHashCheckDiskSuite extends SparkTestBase {
       // after shuffle key expired, storageManager.workingDirWriters will be empty
       workers.foreach { worker =>
         worker.storageManager.workingDirWriters.values().asScala.foreach { t =>
-          assert(t.size() == 0)
+          assert(t.size() === 0)
         }
       }
     }
@@ -100,7 +98,7 @@ class RssHashCheckDiskSuite extends SparkTestBase {
     // after shuffle key expired, diskInfo.actualUsableSpace will equal capacity=1000
     workers.foreach { worker =>
       worker.storageManager.disksSnapshot().foreach { diskInfo =>
-        assert(diskInfo.actualUsableSpace == 1000)
+        assert(diskInfo.actualUsableSpace === 1000)
       }
     }
   }
