@@ -125,7 +125,7 @@ object ControlMessages extends Logging {
         numPartitions: Int): PbRegisterShuffle =
       PbRegisterShuffle.newBuilder()
         .setShuffleId(shuffleId)
-        .setNumMapppers(numMappers)
+        .setNumMappers(numMappers)
         .setNumPartitions(numPartitions)
         .build()
   }
@@ -420,11 +420,6 @@ object ControlMessages extends Logging {
    *              common
    *  ==========================================
    */
-  case class SlaveLostResponse(status: StatusCode, slaveLocation: PartitionLocation) extends Message
-
-  case object ThreadDump extends Message
-
-  case class ThreadDumpResponse(threadDump: String) extends Message
 
   // TODO change message type to GeneratedMessageV3
   def toTransportMessage(message: Any): TransportMessage = message match {
@@ -629,11 +624,15 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
 
-    case HeartbeatFromApplicationResponse(statusCode, blacklist, unknownWorkers, shuttingWorkers) =>
+    case HeartbeatFromApplicationResponse(
+          statusCode,
+          excludedWorkers,
+          unknownWorkers,
+          shuttingWorkers) =>
       val payload = PbHeartbeatFromApplicationResponse.newBuilder()
         .setStatus(statusCode.getValue)
-        .addAllBlacklist(
-          blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .addAllExcludedWorkers(
+          excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .addAllUnknownWorkers(
           unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .addAllShuttingWorkers(
@@ -643,7 +642,7 @@ object ControlMessages extends Logging {
 
     case GetBlacklist(localExcludedWorkers) =>
       val payload = PbGetBlacklist.newBuilder()
-        .addAllLocalBlackList(localExcludedWorkers.asScala.map { workerInfo =>
+        .addAllLocalExcludedWorkers(localExcludedWorkers.asScala.map { workerInfo =>
           PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
         }.toList.asJava)
         .build().toByteArray
@@ -652,7 +651,7 @@ object ControlMessages extends Logging {
     case GetBlacklistResponse(statusCode, excludedWorkers, unknownWorkers) =>
       val builder = PbGetBlacklistResponse.newBuilder()
         .setStatus(statusCode.getValue)
-      builder.addAllBlacklist(
+      builder.addAllExcludedWorkers(
         excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
       builder.addAllUnknownWorkers(
         unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
@@ -780,21 +779,6 @@ object ControlMessages extends Logging {
       builder.addAllFailedSlaves(failedSlaves)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.DESTROY_RESPONSE, payload)
-
-    case SlaveLostResponse(status, slaveLocation) =>
-      val payload = PbSlaveLostResponse.newBuilder()
-        .setStatus(status.getValue)
-        .setSlaveLocation(PbSerDeUtils.toPbPartitionLocation(slaveLocation))
-        .build().toByteArray
-      new TransportMessage(MessageType.SLAVE_LOST_RESPONSE, payload)
-
-    case ThreadDump =>
-      new TransportMessage(MessageType.THREAD_DUMP, null)
-
-    case ThreadDumpResponse(threadDump) =>
-      val payload = PbThreadDumpResponse.newBuilder()
-        .setThreadDump(threadDump).build().toByteArray
-      new TransportMessage(MessageType.THREAD_DUMP_RESPONSE, payload)
 
     case pb: PbPartitionSplit =>
       new TransportMessage(MessageType.PARTITION_SPLIT, pb.toByteArray)
@@ -965,7 +949,7 @@ object ControlMessages extends Logging {
           PbHeartbeatFromApplicationResponse.parseFrom(message.getPayload)
         HeartbeatFromApplicationResponse(
           Utils.toStatusCode(pbHeartbeatFromApplicationResponse.getStatus),
-          pbHeartbeatFromApplicationResponse.getBlacklistList.asScala
+          pbHeartbeatFromApplicationResponse.getExcludedWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
@@ -974,14 +958,15 @@ object ControlMessages extends Logging {
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
-        GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
-          .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
+        GetBlacklist(
+          new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalExcludedWorkersList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
         GetBlacklistResponse(
           Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
-          pbGetBlacklistResponse.getBlacklistList.asScala
+          pbGetBlacklistResponse.getExcludedWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbGetBlacklistResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
@@ -1081,19 +1066,6 @@ object ControlMessages extends Logging {
           Utils.toStatusCode(pbDestroyResponse.getStatus),
           pbDestroyResponse.getFailedMastersList,
           pbDestroyResponse.getFailedSlavesList)
-
-      case SLAVE_LOST_RESPONSE =>
-        val pbSlaveLostResponse = PbSlaveLostResponse.parseFrom(message.getPayload)
-        SlaveLostResponse(
-          Utils.toStatusCode(pbSlaveLostResponse.getStatus),
-          PbSerDeUtils.fromPbPartitionLocation(pbSlaveLostResponse.getSlaveLocation))
-
-      case THREAD_DUMP =>
-        ThreadDump
-
-      case THREAD_DUMP_RESPONSE =>
-        val pbThreadDumpResponse = PbThreadDumpResponse.parseFrom(message.getPayload)
-        ThreadDumpResponse(pbThreadDumpResponse.getThreadDump)
 
       case REMOVE_EXPIRED_SHUFFLE =>
         RemoveExpiredShuffle

@@ -121,9 +121,6 @@ private[deploy] class Controller(
       logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
         s"$commitFilesTimeMs ms.")
 
-    case ThreadDump =>
-      handleThreadDump(context)
-
     case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
@@ -661,10 +658,5 @@ private[deploy] class Controller(
           failedMasters,
           failedSlaves))
     }
-  }
-
-  private def handleThreadDump(context: RpcCallContext): Unit = {
-    val threadDump = Utils.getThreadDump()
-    context.reply(ThreadDumpResponse(threadDump))
   }
 }
