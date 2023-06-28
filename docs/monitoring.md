@@ -92,7 +92,7 @@ These metrics are exposed by Celeborn master.
   - namespace=master 
     - WorkerCount
     - LostWorkers
-    - BlacklistedWorkerCount
+    - ExcludedWorkerCount
     - RegisteredShuffleCount
     - IsActiveMaster
     - PartitionSize
@@ -282,19 +282,19 @@ The configuration of `<master-prometheus-host>`, `<master-prometheus-port>`, `<w
 
 API path listed as below:
 
-| Path                       | Service         | Meaning                                                                                                                                                                              |
-|----------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus        | master, worker  | List service metrics data in prometheus format.                                                                                                                                      |
-| /conf                      | master, worker  | List the conf setting of the service.                                                                                                                                                |
-| /workerInfo                | master, worker  | List worker information of the service. For the master, it will list all registered workers 's information.                                                                          |
-| /lostWorkers               | master          | List all lost workers of the master.                                                                                                                                                 |
-| /blacklistedWorkers        | master          | List all  blacklisted workers of the master.                                                                                                                                         |
-| /threadDump                | master, worker  | List the current thread dump of the service.                                                                                                                                         |
-| /hostnames                 | master          | List all running application's LifecycleManager's hostnames of the cluster.                                                                                                          |
-| /applications              | master          | List all running application's ids of the cluster.                                                                                                                                   |
-| /shuffles                  | master, worker  | List all running shuffle keys of the service. For master, will return all running shuffle's key of the cluster, for worker, only return keys of shuffles running in that worker.     |
-| /listTopDiskUsedApps       | master, worker  | List the top disk usage application ids. For master, will return the top disk usage application ids for the cluster, for worker, only return application ids running in that worker. |
-| /listPartitionLocationInfo | worker          | List all living PartitionLocation information in that worker.                                                                                                                        |
-| /unavailablePeers          | worker          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.                                                                                   |
-| /isShutdown                | worker          | Show if the worker is during the process of shutdown.                                                                                                                                |
-| /isRegistered              | worker          | Show if the worker is registered to the master success.                                                                                                                              |
+| Path                       | Service         | Meaning                                                                                                                                                                               |
+|----------------------------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| /metrics/prometheus        | master, worker  | List service metrics data in prometheus format.                                                                                                                                       |
+| /conf                      | master, worker  | List the conf setting of the service.                                                                                                                                                 |
+| /workerInfo                | master, worker  | List worker information of the service. For the master, it will list all registered workers 's information.                                                                           |
+| /lostWorkers               | master          | List all lost workers of the master.                                                                                                                                                  |
+| /excludedWorkers           | master          | List all excluded workers of the master.                                                                                                                                              |
+| /threadDump                | master, worker  | List the current thread dump of the service.                                                                                                                                          |
+| /hostnames                 | master          | List all running application's LifecycleManager's hostnames of the cluster.                                                                                                           |
+| /applications              | master          | List all running application's ids of the cluster.                                                                                                                                    |
+| /shuffles                  | master, worker  | List all running shuffle keys of the service. For master, will return all running shuffle's key of the cluster, for worker, only return keys of shuffles running in that worker.      |
+| /listTopDiskUsedApps       | master, worker  | List the top disk usage application ids. For master, will return the top disk usage application ids for the cluster, for worker, only return application ids running in that worker.  |
+| /listPartitionLocationInfo | worker          | List all living PartitionLocation information in that worker.                                                                                                                         |
+| /unavailablePeers          | worker          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.                                                                                    |
+| /isShutdown                | worker          | Show if the worker is during the process of shutdown.                                                                                                                                 |
+| /isRegistered              | worker          | Show if the worker is registered to the master success.                                                                                                                               |

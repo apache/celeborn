@@ -194,15 +194,17 @@ public class ShuffleClientImpl extends ShuffleClient {
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
-  private boolean checkPushBlacklisted(
+  private boolean isPushTargetWorkerExcluded(
       PartitionLocation location, RpcResponseCallback wrappedCallback) {
-    // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
+    // If pushExcludeWorkerOnFailureEnabled = false, pushExcludedWorkers should be empty.
     if (pushExcludedWorkers.contains(location.hostAndPushPort())) {
-      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
+      wrappedCallback.onFailure(
+          new CelebornIOException(StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED));
       return true;
     } else if (location.hasPeer()
         && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
-      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
+      wrappedCallback.onFailure(
+          new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED));
       return true;
     } else {
       return false;
@@ -270,7 +272,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           batchId,
           newLoc);
       try {
-        if (!checkPushBlacklisted(newLoc, wrappedCallback)) {
+        if (!isPushTargetWorkerExcluded(newLoc, wrappedCallback)) {
           if (!testRetryRevive || remainReviveTimes < 1) {
             TransportClient client =
                 dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
@@ -621,7 +623,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   void excludeWorkerByCause(StatusCode cause, PartitionLocation oldLocation) {
-    // Add ShuffleClient side blacklist
     if (pushExcludeWorkerOnFailureEnabled && oldLocation != null) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
         pushExcludedWorkers.add(oldLocation.hostAndPushPort());
@@ -1034,7 +1035,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       // do push data
       try {
-        if (!checkPushBlacklisted(loc, wrappedCallback)) {
+        if (!isPushTargetWorkerExcluded(loc, wrappedCallback)) {
           if (!testRetryRevive) {
             TransportClient client =
                 dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
@@ -1411,7 +1412,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // do push merged data
     try {
-      if (!checkPushBlacklisted(batches.get(0).loc, wrappedCallback)) {
+      if (!isPushTargetWorkerExcluded(batches.get(0).loc, wrappedCallback)) {
         if (!testRetryRevive || remainReviveTimes < 1) {
           TransportClient client = dataClientFactory.createClient(host, port);
           client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
@@ -1668,10 +1669,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       cause = StatusCode.PUSH_DATA_TIMEOUT_SLAVE;
     } else if (message.startsWith(StatusCode.REPLICATE_DATA_FAILED.name())) {
       cause = StatusCode.REPLICATE_DATA_FAILED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_MASTER_BLACKLISTED.name())) {
-      cause = StatusCode.PUSH_DATA_MASTER_BLACKLISTED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED.name())) {
-      cause = StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED.name())) {
+      cause = StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED.name())) {
+      cause = StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED;
     } else if (connectFail(message)) {
       // Throw when push to master worker connection causeException.
       cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;

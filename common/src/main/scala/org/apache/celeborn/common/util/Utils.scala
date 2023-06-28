@@ -858,9 +858,9 @@ object Utils extends Logging {
       case 26 =>
         StatusCode.NO_AVAILABLE_WORKING_DIR
       case 27 =>
-        StatusCode.WORKER_IN_BLACKLIST
+        StatusCode.WORKER_EXCLUDED
       case 28 =>
-        StatusCode.UNKNOWN_WORKER
+        StatusCode.WORKER_UNKNOWN
       case 30 =>
         StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED
       case 31 =>
@@ -878,9 +878,9 @@ object Utils extends Logging {
       case 43 =>
         StatusCode.PUSH_DATA_TIMEOUT_SLAVE
       case 44 =>
-        StatusCode.PUSH_DATA_MASTER_BLACKLISTED
+        StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED
       case 45 =>
-        StatusCode.PUSH_DATA_SLAVE_BLACKLISTED
+        StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED
       case 46 =>
         StatusCode.FETCH_DATA_TIMEOUT
       case 47 =>

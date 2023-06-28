@@ -627,7 +627,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The count of workers in blacklist. ",
+          "description": "The count of workers in excluded list. ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -704,11 +704,11 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_BlacklistedWorkerCount_Value",
+              "expr": "metrics_ExcludedWorkerCount_Value",
               "refId": "A"
             }
           ],
-          "title": "metrics_BlacklistedWorkerCount_Value",
+          "title": "metrics_ExcludedWorkerCount_Value",
           "type": "timeseries"
         },
         {

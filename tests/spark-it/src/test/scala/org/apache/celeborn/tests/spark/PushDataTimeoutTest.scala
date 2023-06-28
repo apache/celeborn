@@ -41,7 +41,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       CelebornConf.TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT.key -> "true",
       CelebornConf.TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT.key -> "true")
     // required at least 4 workers, the reason behind this requirement is that when replication is
-    // enabled, there is a possibility that two workers might be added to the blacklist due to
+    // enabled, there is a possibility that two workers might be added to the excluded list due to
     // master/slave timeout issues, then there are not enough workers to do replication if available
     // workers number = 1
     setUpMiniCluster(masterConfs = null, workerConfs = workerConf, workerNum = 4)
@@ -120,7 +120,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     }
   }
 
-  test("celeborn spark integration test - pushdata timeout will add to blacklist") {
+  test("celeborn spark integration test - pushdata timeout will add to pushExcludedWorkers") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
       .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED.key}", "true")
@@ -138,15 +138,15 @@ class PushDataTimeoutTest extends AnyFunSuite
 
     assert(PushDataHandler.pushMasterMergeDataTimeoutTested.get())
     assert(PushDataHandler.pushSlaveMergeDataTimeoutTested.get())
-    val blacklist = SparkContextHelper.env
+    val excludedWorkers = SparkContextHelper.env
       .shuffleManager
       .asInstanceOf[RssShuffleManager]
       .getLifecycleManager
       .workerStatusTracker
-      .blacklist
+      .excludedWorkers
 
-    assert(blacklist.size() > 0)
-    blacklist.asScala.foreach { case (_, (code, _)) =>
+    assert(excludedWorkers.size() > 0)
+    excludedWorkers.asScala.foreach { case (_, (code, _)) =>
       assert(code == StatusCode.PUSH_DATA_TIMEOUT_MASTER ||
         code == StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
     }

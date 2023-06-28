@@ -511,7 +511,7 @@ public class DefaultMetaSystemSuiteJ {
         1,
         getNewReqeustId());
 
-    Assert.assertEquals(statusSystem.blacklist.size(), 1);
+    Assert.assertEquals(statusSystem.excludedWorkers.size(), 1);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
@@ -525,7 +525,7 @@ public class DefaultMetaSystemSuiteJ {
         1,
         getNewReqeustId());
 
-    Assert.assertEquals(statusSystem.blacklist.size(), 2);
+    Assert.assertEquals(statusSystem.excludedWorkers.size(), 2);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
@@ -539,7 +539,7 @@ public class DefaultMetaSystemSuiteJ {
         1,
         getNewReqeustId());
 
-    Assert.assertEquals(statusSystem.blacklist.size(), 2);
+    Assert.assertEquals(statusSystem.excludedWorkers.size(), 2);
   }
 
   @Test
@@ -596,7 +596,7 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     assert 1 == statusSystem.shutdownWorkers.size();
-    assert 0 == statusSystem.blacklist.size();
+    assert 0 == statusSystem.excludedWorkers.size();
   }
 
   @Test

@@ -327,7 +327,7 @@ object ControlMessages extends Logging {
 
   case class HeartbeatFromApplicationResponse(
       statusCode: StatusCode,
-      blacklist: util.List[WorkerInfo],
+      excludedWorkers: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo],
       shuttingWorkers: util.List[WorkerInfo]) extends Message
 

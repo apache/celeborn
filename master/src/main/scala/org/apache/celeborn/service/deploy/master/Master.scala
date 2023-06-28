@@ -144,13 +144,10 @@ private[celeborn] class Master(
   masterSource.addGauge(
     MasterSource.RegisteredShuffleCount,
     _ => statusSystem.registeredShuffle.size())
-  // blacklist worker count
-  masterSource.addGauge(MasterSource.BlacklistedWorkerCount, _ => statusSystem.blacklist.size())
-  // worker count
+  masterSource.addGauge(MasterSource.ExcludedWorkerCount, _ => statusSystem.excludedWorkers.size())
   masterSource.addGauge(MasterSource.WorkerCount, _ => statusSystem.workers.size())
   masterSource.addGauge(MasterSource.LostWorkerCount, _ => statusSystem.lostWorkers.size())
   masterSource.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
-  // is master active under HA mode
   masterSource.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
 
   metricsSystem.registerSource(resourceConsumptionSource)
@@ -631,7 +628,7 @@ private[celeborn] class Master(
     context.reply(
       GetBlacklistResponse(
         StatusCode.SUCCESS,
-        new util.ArrayList(statusSystem.blacklist),
+        new util.ArrayList(statusSystem.excludedWorkers),
         msg.localBlacklist))
   }
 
@@ -644,7 +641,7 @@ private[celeborn] class Master(
       failedWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
     logInfo(s"Receive ReportNodeFailure $failedWorkers, current blacklist" +
-      s"${statusSystem.blacklist}")
+      s"${statusSystem.excludedWorkers}")
     statusSystem.handleReportWorkerUnavailable(failedWorkers, requestId)
     context.reply(OneWayMessageResponse)
   }
@@ -676,7 +673,7 @@ private[celeborn] class Master(
     needCheckedWorkerList.removeAll(workersSnapShot)
     context.reply(HeartbeatFromApplicationResponse(
       StatusCode.SUCCESS,
-      new util.ArrayList(statusSystem.blacklist),
+      new util.ArrayList(statusSystem.excludedWorkers),
       needCheckedWorkerList,
       shutdownWorkerSnapshot))
   }
@@ -735,7 +732,7 @@ private[celeborn] class Master(
   private def workersAvailable(
       tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.blacklist.contains(w) && !statusSystem.shutdownWorkers.contains(
+      !statusSystem.excludedWorkers.contains(w) && !statusSystem.shutdownWorkers.contains(
         w) && !tmpBlacklist.contains(w)
     }.asJava
   }
@@ -770,7 +767,7 @@ private[celeborn] class Master(
   override def getBlacklistedWorkers: String = {
     val sb = new StringBuilder
     sb.append("==================== Blacklisted Workers in Master =====================\n")
-    statusSystem.blacklist.asScala.foreach { worker =>
+    statusSystem.excludedWorkers.asScala.foreach { worker =>
       sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
