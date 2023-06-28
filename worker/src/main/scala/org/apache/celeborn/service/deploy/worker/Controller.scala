@@ -353,15 +353,14 @@ private[deploy] class Controller(
 
     shuffleCommitInfos.computeIfAbsent(
       shuffleKey,
-      (k: String) => {
-        return JavaUtils.newConcurrentHashMap[Long, CommitInfo]()
+      k => {
+        JavaUtils.newConcurrentHashMap[Long, CommitInfo]()
       })
     val epochCommitMap = shuffleCommitInfos.get(shuffleKey)
     epochCommitMap.computeIfAbsent(
       epoch,
-      (k: String) => {
-        return new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED)
-      })
+      (k: Long) => {new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED)}
+    )
     val commitInfo = epochCommitMap.get(epoch)
 
     def waitForCommitFinish(): Unit = {
@@ -403,7 +402,7 @@ private[deploy] class Controller(
     shuffleMapperAttempts.computeIfAbsent(
       shuffleKey,
       (k: String) => {
-        return new AtomicIntegerArray(mapAttempts)
+        new AtomicIntegerArray(mapAttempts)
       })
     val attempts = shuffleMapperAttempts.get(shuffleKey)
     if (mapAttempts.exists(_ != -1)) {

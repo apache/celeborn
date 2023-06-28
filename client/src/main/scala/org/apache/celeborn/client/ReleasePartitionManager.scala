@@ -112,7 +112,7 @@ class ReleasePartitionManager(
 
   def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
     if (batchHandleReleasePartitionEnabled) {
-      shuffleReleasePartitionRequests.computeIfAbsent(shuffleId, new util.HashSet[Int])
+      shuffleReleasePartitionRequests.computeIfAbsent(shuffleId, (key: Int) => new util.HashSet[Int])
       val unReleasedPartitionIdRequestSet = shuffleReleasePartitionRequests.get(shuffleId)
       unReleasedPartitionIdRequestSet.synchronized {
         unReleasedPartitionIdRequestSet.add(partitionId)
