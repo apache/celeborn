@@ -15,23 +15,35 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.utils
+package org.apache.celeborn.common.protocol;
 
-import org.apache.hadoop.conf.Configuration
+import org.apache.celeborn.common.protocol.message.StatusCode;
 
-import org.apache.celeborn.common.CelebornConf
+public class ReviveRequest {
+  public int shuffleId;
+  public int mapId;
+  public int attemptId;
+  public int partitionId;
+  public int epoch;
+  public PartitionLocation loc;
+  public StatusCode cause;
+  public volatile int reviveStatus;
 
-object CelebornHadoopUtils {
-  private[celeborn] def newConfiguration(conf: CelebornConf): Configuration = {
-    val hadoopConf = new Configuration()
-    appendSparkHadoopConfigs(conf, hadoopConf)
-    hadoopConf
-  }
-
-  private def appendSparkHadoopConfigs(conf: CelebornConf, hadoopConf: Configuration): Unit = {
-    // Copy any "celeborn.hadoop.foo=bar" celeborn properties into conf as "foo=bar"
-    for ((key, value) <- conf.getAll if key.startsWith("celeborn.hadoop.")) {
-      hadoopConf.set(key.substring("celeborn.hadoop.".length), value)
-    }
+  public ReviveRequest(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      int epoch,
+      PartitionLocation loc,
+      StatusCode cause) {
+    this.shuffleId = shuffleId;
+    this.mapId = mapId;
+    this.attemptId = attemptId;
+    this.partitionId = partitionId;
+    this.epoch = epoch;
+    this.loc = loc;
+    this.cause = cause;
+    reviveStatus = StatusCode.REVIVE_INITIALIZED.getValue();
   }
 }

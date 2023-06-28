@@ -498,6 +498,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def masterSlotAssignPolicy: SlotsAssignPolicy =
     SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
+
+  def hasHDFSStorage: Boolean = get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name())
+
   def masterSlotAssignLoadAwareDiskGroupNum: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def masterSlotAssignLoadAwareDiskGroupGradient: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
@@ -632,7 +635,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
   def workerHeartbeatTimeout: Long = get(WORKER_HEARTBEAT_TIMEOUT)
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
-  def workerCommitThreads: Int = get(WORKER_COMMIT_THREADS)
+  def workerCommitThreads: Int =
+    if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
@@ -691,8 +695,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
-  def clientBlacklistSlaveEnabled: Boolean = get(CLIENT_BLACKLIST_SLAVE_ENABLED)
-  def clientPushBlacklistEnabled: Boolean = get(CLIENT_PUSH_BLACKLIST_ENABLED)
+  def clientExcludeSlaveOnFailureEnabled: Boolean = get(CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -744,8 +747,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushBufferInitialSize: Int = get(CLIENT_PUSH_BUFFER_INITIAL_SIZE).toInt
   def clientPushBufferMaxSize: Int = get(CLIENT_PUSH_BUFFER_MAX_SIZE).toInt
   def clientPushQueueCapacity: Int = get(CLIENT_PUSH_QUEUE_CAPACITY)
+  def clientPushExcludeWorkerOnFailureEnabled: Boolean =
+    get(CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientPushMaxReqsInFlight: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT)
   def clientPushMaxReviveTimes: Int = get(CLIENT_PUSH_MAX_REVIVE_TIMES)
+  def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
+  def clientPushReviveBatchSize: Int = get(CLIENT_PUSH_REVIVE_BATCHSIZE)
   def clientPushSortMemoryThreshold: Long = get(CLIENT_PUSH_SORT_MEMORY_THRESHOLD)
   def clientPushSortPipelineEnabled: Boolean = get(CLIENT_PUSH_SORT_PIPELINE_ENABLED)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
@@ -846,10 +853,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         (dir, maxCapacity, flushThread, diskType)
       }
     }.getOrElse {
-      val prefix = workerStorageBaseDirPrefix
-      val number = workerStorageBaseDirNumber
-      (1 to number).map { i =>
-        (s"$prefix$i", defaultMaxCapacity, workerHddFlusherThreads, HDD)
+      if (!hasHDFSStorage) {
+        val prefix = workerStorageBaseDirPrefix
+        val number = workerStorageBaseDirNumber
+        (1 to number).map { i =>
+          (s"$prefix$i", defaultMaxCapacity, workerHddFlusherThreads, HDD)
+        }
+      } else {
+        Seq.empty
       }
     }
   }
@@ -898,6 +909,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Flusher                        //
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
+  def workerHdfsFlusterBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
   def workerWriterCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def workerHddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def workerSsdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
@@ -1260,7 +1272,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.rpc.askTimeout")
       .categories("network")
       .version("0.2.0")
-      .doc("Timeout for RPC ask operations.")
+      .doc("Timeout for RPC ask operations. " +
+        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
@@ -1765,10 +1778,13 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.assign.policy")
       .categories("master")
       .version("0.3.0")
-      .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware.")
+      .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware. " +
+        "Loadaware policy will be ignored when `HDFS` is enabled in `celeborn.storage.activeTypes`")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set(SlotsAssignPolicy.ROUNDROBIN.name, SlotsAssignPolicy.LOADAWARE.name))
+      .checkValues(Set(
+        SlotsAssignPolicy.ROUNDROBIN.name,
+        SlotsAssignPolicy.LOADAWARE.name))
       .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =
@@ -2051,7 +2067,8 @@ object CelebornConf extends Logging {
   val WORKER_REPLICATE_FAST_FAIL_DURATION: ConfigEntry[Long] =
     buildConf("celeborn.worker.replicate.fastFail.duration")
       .categories("worker")
-      .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed.")
+      .doc("If a replicate request not replied during the duration, worker will mark the replicate data request as failed." +
+        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
@@ -2080,7 +2097,8 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.commit.threads")
       .categories("worker")
       .version("0.3.0")
-      .doc("Thread number of worker to commit shuffle data files asynchronously.")
+      .doc("Thread number of worker to commit shuffle data files asynchronously. " +
+        "It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .intConf
       .createWithDefault(32)
 
@@ -2088,7 +2106,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.commitFiles.timeout")
       .withAlternative("celeborn.worker.shuffle.commit.timeout")
       .categories("worker")
-      .doc("Timeout for a Celeborn worker to commit files of a shuffle.")
+      .doc("Timeout for a Celeborn worker to commit files of a shuffle. " +
+        "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .version("0.3.0")
       .fallbackConf(RPC_ASK_TIMEOUT)
 
@@ -2105,7 +2124,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.sortPartition.threads")
       .withAlternative("celeborn.worker.partitionSorter.threads")
       .categories("worker")
-      .doc("PartitionSorter's thread counts.")
+      .doc("PartitionSorter's thread counts. " +
+        "It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .version("0.3.0")
       .intConf
       .createOptional
@@ -2126,6 +2146,14 @@ object CelebornConf extends Logging {
       .doc("Size of buffer used by a single flusher.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("256k")
+
+  val WORKER_HDFS_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flusher.hdfs.buffer.size")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Size of buffer used by a HDFS flusher.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("4m")
 
   val WORKER_WRITER_CLOSE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.writer.close.timeout")
@@ -2165,7 +2193,7 @@ object CelebornConf extends Logging {
       .doc("Flusher's thread count used for write data to HDFS.")
       .version("0.2.0")
       .intConf
-      .createWithDefault(4)
+      .createWithDefault(8)
 
   val WORKER_FLUSHER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.shutdownTimeout")
@@ -2547,11 +2575,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 
-  val CLIENT_BLACKLIST_SLAVE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.blacklistSlave.enabled")
+  val CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.excludeSlaveOnFailure.enabled")
       .categories("client")
       .version("0.3.0")
-      .doc("When true, Celeborn will add partition's peer worker into blacklist " +
+      .doc("When true, Celeborn will exclude partition's peer worker on failure " +
         "when push data to slave failed.")
       .booleanConf
       .createWithDefault(true)
@@ -2592,7 +2620,8 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.push.replicate.enabled")
       .categories("client")
       .doc("When true, Celeborn worker will replicate shuffle data to another Celeborn worker " +
-        "asynchronously to ensure the pushed shuffle data won't be lost after the node failure.")
+        "asynchronously to ensure the pushed shuffle data won't be lost after the node failure. " +
+        "It's recommended to set `false` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
@@ -2648,10 +2677,27 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
-  val CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.blacklist.enabled")
+  val CLIENT_PUSH_REVIVE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.revive.interval")
       .categories("client")
-      .doc("Whether to enable shuffle client-side push blacklist of workers.")
+      .version("0.3.0")
+      .doc("Interval for client to trigger Revive to LifecycleManager. The number of partitions in one Revive " +
+        "request is `celeborn.client.push.revive.batchSize`.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("100ms")
+
+  val CLIENT_PUSH_REVIVE_BATCHSIZE: ConfigEntry[Int] =
+    buildConf("celeborn.client.push.revive.batchSize")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Max number of partitions in one Revive request.")
+      .intConf
+      .createWithDefault(2048)
+
+  val CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.excludeWorkerOnFailure.enabled")
+      .categories("client")
+      .doc("Whether to enable shuffle client-side push exclude workers on failures.")
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
@@ -2829,7 +2875,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.fetch.excludedWorker.expireTimeout")
       .categories("client")
       .doc("ShuffleClient is a static object, it will be used in the whole lifecycle of Executor," +
-        "We give a expire time for blacklisted worker to avoid a transient worker issues.")
+        "We give a expire time for excluded workers to avoid a transient worker issues.")
       .version("0.3.0")
       .fallbackConf(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
 
@@ -3556,5 +3602,14 @@ object CelebornConf extends Logging {
       .doc("Whether to support floating buffer for result partitions.")
       .booleanConf
       .createWithDefault(true)
+
+  val ACTIVE_STORAGE_TYPES: ConfigEntry[String] =
+    buildConf("celeborn.storage.activeTypes")
+      .categories("master", "worker")
+      .version("0.3.0")
+      .doc("Enabled storage levels. Available options: HDD,SSD,HDFS. ")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .createWithDefault("HDD,SSD")
 
 }

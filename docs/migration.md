@@ -38,3 +38,7 @@ license: |
    `sbin/start-worker.sh rss://<master-host>:<master-port>`, should migrate to `sbin/start-worker.sh celeborn://<master-host>:<master-port>`.
 
  - It works fine using `0.2.1 as client side` and `0.3.0 as server side`, but `client 0.3.0` is not compatible with `server 0.2.x` 
+
+ - Since 0.3.0, Celeborn supports overriding Hadoop configuration(`core-site.xml`, `hdfs-site.xml`, etc.) from Celeborn configuration with the additional prefix `celeborn.hadoop.`. 
+   On Spark client side, user should set Hadoop configuration like `spark.celeborn.hadoop.foo=bar`, note that `spark.hadoop.foo=bar` does not take effect;
+   on Flink client and Celeborn Master/Worker side, user should set like `celeborn.hadoop.foo=bar`.

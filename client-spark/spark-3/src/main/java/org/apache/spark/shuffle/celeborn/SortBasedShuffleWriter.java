@@ -74,7 +74,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final boolean pipelined;
   private final SortBasedPusher[] pushers = new SortBasedPusher[2];
   private SortBasedPusher currentPusher;
-  // TODO it isn't be updated after initialization
   private long peakMemoryUsedBytes = 0;
 
   private final OpenByteArrayOutputStream serBuffer;
@@ -187,6 +186,33 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         client,
         metrics,
         executorService);
+  }
+
+  private void updatePeakMemoryUsed() {
+    // sorter can be null if this writer is closed
+    if (pipelined) {
+      for (SortBasedPusher pusher : pushers) {
+        if (pusher != null) {
+          long mem = pusher.getPeakMemoryUsedBytes();
+          if (mem > peakMemoryUsedBytes) {
+            peakMemoryUsedBytes = mem;
+          }
+        }
+      }
+    } else {
+      if (currentPusher != null) {
+        long mem = currentPusher.getPeakMemoryUsedBytes();
+        if (mem > peakMemoryUsedBytes) {
+          peakMemoryUsedBytes = mem;
+        }
+      }
+    }
+  }
+
+  /** Return the peak memory used so far, in bytes. */
+  public long getPeakMemoryUsedBytes() {
+    updatePeakMemoryUsed();
+    return peakMemoryUsedBytes;
   }
 
   @Override
@@ -377,7 +403,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @Override
   public Option<MapStatus> stop(boolean success) {
     try {
-      taskContext.taskMetrics().incPeakExecutionMemory(peakMemoryUsedBytes);
+      taskContext.taskMetrics().incPeakExecutionMemory(getPeakMemoryUsedBytes());
 
       if (stopping) {
         return Option.empty();

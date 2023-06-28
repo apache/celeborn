@@ -38,7 +38,7 @@ import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 
 public class SlotsAllocatorSuiteJ {
-  private List<WorkerInfo> prepareWorkers() {
+  private List<WorkerInfo> prepareWorkers(boolean hasDisks) {
     long assumedPartitionSize = 64 * 1024 * 1024;
 
     Random random = new Random();
@@ -67,9 +67,11 @@ public class SlotsAllocatorSuiteJ {
     diskInfo1.maxSlots_$eq(diskInfo1.actualUsableSpace() / assumedPartitionSize);
     diskInfo2.maxSlots_$eq(diskInfo2.actualUsableSpace() / assumedPartitionSize);
     diskInfo3.maxSlots_$eq(diskInfo3.actualUsableSpace() / assumedPartitionSize);
-    disks1.put("/mnt/disk1", diskInfo1);
-    disks1.put("/mnt/disk2", diskInfo2);
-    disks1.put("/mnt/disk3", diskInfo3);
+    if (hasDisks) {
+      disks1.put("/mnt/disk1", diskInfo1);
+      disks1.put("/mnt/disk2", diskInfo2);
+      disks1.put("/mnt/disk3", diskInfo3);
+    }
 
     Map<String, DiskInfo> disks2 = new HashMap<>();
     DiskInfo diskInfo4 =
@@ -96,9 +98,11 @@ public class SlotsAllocatorSuiteJ {
     diskInfo4.maxSlots_$eq(diskInfo4.actualUsableSpace() / assumedPartitionSize);
     diskInfo5.maxSlots_$eq(diskInfo5.actualUsableSpace() / assumedPartitionSize);
     diskInfo6.maxSlots_$eq(diskInfo6.actualUsableSpace() / assumedPartitionSize);
-    disks2.put("/mnt/disk1", diskInfo4);
-    disks2.put("/mnt/disk2", diskInfo5);
-    disks2.put("/mnt/disk3", diskInfo6);
+    if (hasDisks) {
+      disks2.put("/mnt/disk1", diskInfo4);
+      disks2.put("/mnt/disk2", diskInfo5);
+      disks2.put("/mnt/disk3", diskInfo6);
+    }
 
     Map<String, DiskInfo> disks3 = new HashMap<>();
     DiskInfo diskInfo7 =
@@ -125,9 +129,11 @@ public class SlotsAllocatorSuiteJ {
     diskInfo7.maxSlots_$eq(diskInfo7.actualUsableSpace() / assumedPartitionSize);
     diskInfo8.maxSlots_$eq(diskInfo8.actualUsableSpace() / assumedPartitionSize);
     diskInfo9.maxSlots_$eq(diskInfo9.actualUsableSpace() / assumedPartitionSize);
-    disks3.put("/mnt/disk1", diskInfo7);
-    disks3.put("/mnt/disk2", diskInfo8);
-    disks3.put("/mnt/disk3", diskInfo9);
+    if (hasDisks) {
+      disks3.put("/mnt/disk2", diskInfo8);
+      disks3.put("/mnt/disk1", diskInfo7);
+      disks3.put("/mnt/disk3", diskInfo9);
+    }
 
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
     workers.add(new WorkerInfo("host1", 9, 10, 110, 113, disks1, null));
@@ -138,7 +144,7 @@ public class SlotsAllocatorSuiteJ {
 
   @Test
   public void testAllocateSlotsForEmptyPartitionId() {
-    final List<WorkerInfo> workers = prepareWorkers();
+    final List<WorkerInfo> workers = prepareWorkers(true);
     final List<Integer> partitionIds = Collections.emptyList();
     final boolean shouldReplicate = true;
 
@@ -147,7 +153,7 @@ public class SlotsAllocatorSuiteJ {
 
   @Test
   public void testAllocateSlotsForSinglePartitionId() {
-    final List<WorkerInfo> workers = prepareWorkers();
+    final List<WorkerInfo> workers = prepareWorkers(true);
     final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = true;
 
@@ -156,7 +162,7 @@ public class SlotsAllocatorSuiteJ {
 
   @Test
   public void testAllocateSlotsForSinglePartitionIdWithoutReplicate() {
-    final List<WorkerInfo> workers = prepareWorkers();
+    final List<WorkerInfo> workers = prepareWorkers(true);
     final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = false;
 
@@ -165,7 +171,7 @@ public class SlotsAllocatorSuiteJ {
 
   @Test
   public void testAllocateSlotsForTwoPartitionIdsWithoutReplicate() {
-    final List<WorkerInfo> workers = prepareWorkers();
+    final List<WorkerInfo> workers = prepareWorkers(true);
     final List<Integer> partitionIds = Arrays.asList(0, 1);
     final boolean shouldReplicate = false;
 
@@ -174,7 +180,7 @@ public class SlotsAllocatorSuiteJ {
 
   @Test
   public void testAllocateSlotsForThreePartitionIdsWithoutReplicate() {
-    final List<WorkerInfo> workers = prepareWorkers();
+    final List<WorkerInfo> workers = prepareWorkers(true);
     final List<Integer> partitionIds = Arrays.asList(0, 1, 2);
     final boolean shouldReplicate = false;
 
@@ -183,7 +189,7 @@ public class SlotsAllocatorSuiteJ {
 
   @Test
   public void testAllocateSlotsForThreeReduceIdsWithReplicate() {
-    final List<WorkerInfo> workers = prepareWorkers();
+    final List<WorkerInfo> workers = prepareWorkers(true);
     final List<Integer> partitionIds = Arrays.asList(0, 1, 2);
     final boolean shouldReplicate = true;
 
@@ -192,7 +198,7 @@ public class SlotsAllocatorSuiteJ {
 
   @Test
   public void testAllocate3000ReduceIdsWithReplicate() {
-    final List<WorkerInfo> workers = prepareWorkers();
+    final List<WorkerInfo> workers = prepareWorkers(true);
     final List<Integer> partitionIds = new ArrayList<>();
     for (int i = 0; i < 3000; i++) {
       partitionIds.add(i);
@@ -204,7 +210,7 @@ public class SlotsAllocatorSuiteJ {
 
   @Test
   public void testAllocate3000ReduceIdsWithoutReplicate() {
-    final List<WorkerInfo> workers = prepareWorkers();
+    final List<WorkerInfo> workers = prepareWorkers(true);
     final List<Integer> partitionIds = new ArrayList<>();
     for (int i = 0; i < 3000; i++) {
       partitionIds.add(i);
@@ -273,5 +279,49 @@ public class SlotsAllocatorSuiteJ {
       assert slots.isEmpty()
           : "Expect to fail to offer slots, but return " + slots.size() + " slots.";
     }
+  }
+
+  private void checkSlotsOnHDFS(
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate,
+      boolean expectSuccess) {
+    String shuffleKey = "appId-1";
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.active.storage.levels", "HDFS");
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, shouldReplicate, false);
+
+    int allocatedPartitionCount = 0;
+
+    for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
+        workerToPartitions : slots.entrySet()) {
+      WorkerInfo workerInfo = workerToPartitions.getKey();
+      List<PartitionLocation> masterLocs = workerToPartitions.getValue()._1;
+      List<PartitionLocation> slaveLocs = workerToPartitions.getValue()._2();
+      allocatedPartitionCount += masterLocs.size();
+      allocatedPartitionCount += slaveLocs.size();
+    }
+    if (expectSuccess) {
+      Assert.assertEquals(slots.isEmpty(), false);
+    } else {
+      Assert.assertEquals(slots.isEmpty(), true);
+    }
+    if (shouldReplicate) {
+      Assert.assertEquals(allocatedPartitionCount, partitionIds.size() * 2);
+    } else {
+      Assert.assertEquals(allocatedPartitionCount, partitionIds.size());
+    }
+  }
+
+  @Test
+  public void testHDFSOnly() {
+    final List<WorkerInfo> workers = prepareWorkers(false);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true);
   }
 }

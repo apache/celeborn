@@ -85,26 +85,26 @@ class WorkerStatusTracker(
         case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
         case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
-            if oldPartition.hasPeer && conf.clientBlacklistSlaveEnabled =>
+            if oldPartition.hasPeer && conf.clientExcludeSlaveOnFailureEnabled =>
           blacklistWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
-            if oldPartition.hasPeer && conf.clientBlacklistSlaveEnabled =>
+            if oldPartition.hasPeer && conf.clientExcludeSlaveOnFailureEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-            if oldPartition.hasPeer && conf.clientBlacklistSlaveEnabled =>
+            if oldPartition.hasPeer && conf.clientExcludeSlaveOnFailureEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
         case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
           blacklistWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
         case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
-            if oldPartition.hasPeer && conf.clientBlacklistSlaveEnabled =>
+            if oldPartition.hasPeer && conf.clientExcludeSlaveOnFailureEnabled =>
           blacklistWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
@@ -153,7 +153,7 @@ class WorkerStatusTracker(
 
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
-      logDebug(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
+      logInfo(s"Received Blacklist from Master, blacklist: ${res.blacklist} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
       val current = System.currentTimeMillis()
 
@@ -200,7 +200,8 @@ class WorkerStatusTracker(
         }
       }
 
-      logDebug(s"Current blacklist $blacklist")
+      logInfo(s"Current blacklist $blacklist, Current shuttingDown ${shuttingWorkers.asScala.map(
+        _.readableAddress()).mkString("\n")}")
     }
   }
 }

@@ -28,7 +28,7 @@ import org.apache.hadoop.util.ReflectionUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.service.deploy.master.utils.CelebornHadoopUtils
+import org.apache.celeborn.common.util.CelebornHadoopUtils
 
 class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
 

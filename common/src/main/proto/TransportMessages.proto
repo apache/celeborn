@@ -205,20 +205,29 @@ message PbRequestSlotsResponse {
   map<string, PbWorkerResource> workerResource = 2;
 }
 
+message PbRevivePartitionInfo {
+  int32 partitionId = 1;
+  int32 epoch = 2;
+  PbPartitionLocation partition = 3;
+  int32 status = 4;
+}
+
 message PbRevive {
   int32 shuffleId = 1;
-  int32 mapId = 2;
-  int32 attemptId = 3;
-  int32 partitionId = 4;
-  int32 epoch = 5;
-  PbPartitionLocation oldPartition = 6;
-  int32 status = 7;
+  repeated int32 mapId = 2;
+  repeated PbRevivePartitionInfo partitionInfo = 3;
+}
+
+message PbChangeLocationPartitionInfo {
+  int32 partitionId = 1;
+  int32 status = 2;
+  PbPartitionLocation partition = 3;
+  bool oldAvailable = 4;
 }
 
 message PbChangeLocationResponse {
-  int32 status = 1;
-  PbPartitionLocation location = 2;
-  bool available = 3;
+  repeated int32 endedMapId = 1;
+  repeated PbChangeLocationPartitionInfo partitionInfo = 2;
 }
 
 message PbPartitionSplit {
