@@ -84,7 +84,7 @@ class WorkerStatusTracker(
         case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
           excludeWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
         case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
-            if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled=>
+            if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
           excludeWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
           excludeWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
