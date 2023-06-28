@@ -295,18 +295,18 @@ message PbHeartbeatFromApplication {
 
 message PbHeartbeatFromApplicationResponse {
   int32 status = 1;
-  repeated PbWorkerInfo blacklist = 2;
+  repeated PbWorkerInfo excludedWorkers = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
   repeated PbWorkerInfo shuttingWorkers = 4;
 }
 
 message PbGetBlacklist {
-  repeated PbWorkerInfo localBlackList = 1;
+  repeated PbWorkerInfo localExcludedWorkers = 1;
 }
 
 message PbGetBlacklistResponse {
   int32 status = 1;
-  repeated PbWorkerInfo blacklist = 2;
+  repeated PbWorkerInfo excludedWorkers = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
 }
 
@@ -474,7 +474,7 @@ message PbSnapshotMetaInfo {
   int64 estimatedPartitionSize = 1;
   repeated string registeredShuffle = 2;
   repeated string hostnameSet = 3;
-  repeated PbWorkerInfo blacklist = 4;
+  repeated PbWorkerInfo excludedWorkers = 4;
   repeated PbWorkerInfo workerLostEvents = 5;
   map<string, int64> appHeartbeatTime = 6;
   repeated PbWorkerInfo workers = 7;

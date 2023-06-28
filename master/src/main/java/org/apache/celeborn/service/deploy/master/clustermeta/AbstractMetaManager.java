@@ -270,7 +270,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       registeredShuffle.addAll(snapshotMetaInfo.getRegisteredShuffleList());
       hostnameSet.addAll(snapshotMetaInfo.getHostnameSetList());
       excludedWorkers.addAll(
-          snapshotMetaInfo.getBlacklistList().stream()
+          snapshotMetaInfo.getExcludedWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet()));
       workerLostEvents.addAll(
