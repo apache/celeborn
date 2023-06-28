@@ -660,7 +660,6 @@
               <arg>-feature</arg>
               <arg>-explaintypes</arg>
               <arg>-Xfatal-warnings</arg>
-              <arg>-Xexperimental</arg>
             </args>
           </configuration>
           <executions>

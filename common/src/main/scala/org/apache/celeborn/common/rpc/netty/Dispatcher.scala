@@ -67,9 +67,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
       if (stopped) {
         throw new IllegalStateException("RpcEnv has been stopped")
       }
-      if (endpoints.computeIfAbsent(
-          name,
-          _ => new EndpointData(name, endpoint, endpointRef)) != null) {
+      if (endpoints.putIfAbsent(name, new EndpointData(name, endpoint, endpointRef)) != null) {
         throw new IllegalArgumentException(s"There is already an RpcEndpoint called $name")
       }
       val data = endpoints.get(name)
