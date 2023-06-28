@@ -33,22 +33,22 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
     val partitionLocation12 = mockPartition(1, 2)
     val partitionLocation11 = mockPartition(1, 1)
 
-    val masterLocations = new util.ArrayList[PartitionLocation]()
-    masterLocations.add(partitionLocation00)
-    masterLocations.add(partitionLocation01)
-    masterLocations.add(partitionLocation02)
-    masterLocations.add(partitionLocation11)
-    masterLocations.add(partitionLocation12)
+    val primaryLocations = new util.ArrayList[PartitionLocation]()
+    primaryLocations.add(partitionLocation00)
+    primaryLocations.add(partitionLocation01)
+    primaryLocations.add(partitionLocation02)
+    primaryLocations.add(partitionLocation11)
+    primaryLocations.add(partitionLocation12)
 
-    val slaveLocations = new util.ArrayList[PartitionLocation]()
-    val partitionLocationSlave00 = mockPartition(0, 0)
-    val partitionLocationSlave10 = mockPartition(1, 0)
-    slaveLocations.add(partitionLocationSlave00)
-    slaveLocations.add(partitionLocationSlave10)
+    val replicaLocations = new util.ArrayList[PartitionLocation]()
+    val partitionLocationReplica00 = mockPartition(0, 0)
+    val partitionLocationReplica10 = mockPartition(1, 0)
+    replicaLocations.add(partitionLocationReplica00)
+    replicaLocations.add(partitionLocationReplica10)
 
     val shufflePartitionLocationInfo = new ShufflePartitionLocationInfo
-    shufflePartitionLocationInfo.addPrimaryPartitions(masterLocations)
-    shufflePartitionLocationInfo.addReplicaPartitions(slaveLocations)
+    shufflePartitionLocationInfo.addPrimaryPartitions(primaryLocations)
+    shufflePartitionLocationInfo.addReplicaPartitions(replicaLocations)
 
     // test add
     assertEquals(shufflePartitionLocationInfo.getPrimaryPartitions().size(), 5)
