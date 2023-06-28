@@ -100,8 +100,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId-mapId-attemptId
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
-  private final boolean shuffleClientPushBlacklistEnabled;
-  private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
+  private final boolean pushExcludeWorkerOnFailureEnabled;
+  private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
 
@@ -163,7 +163,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     maxReviveTimes = conf.clientPushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
-    shuffleClientPushBlacklistEnabled = conf.clientPushBlacklistEnabled();
+    pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -197,10 +197,11 @@ public class ShuffleClientImpl extends ShuffleClient {
   private boolean checkPushBlacklisted(
       PartitionLocation location, RpcResponseCallback wrappedCallback) {
     // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
-    if (blacklist.contains(location.hostAndPushPort())) {
+    if (pushExcludedWorkers.contains(location.hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
       return true;
-    } else if (location.hasPeer() && blacklist.contains(location.getPeer().hostAndPushPort())) {
+    } else if (location.hasPeer()
+        && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
       wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
       return true;
     } else {
@@ -526,7 +527,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
             PartitionLocation partitionLoc =
                 PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));
-            blacklist.remove(partitionLoc.hostAndPushPort());
+            pushExcludedWorkers.remove(partitionLoc.hostAndPushPort());
 
             result.put(partitionLoc.getId(), partitionLoc);
           }
@@ -621,19 +622,19 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   void excludeWorkerByCause(StatusCode cause, PartitionLocation oldLocation) {
     // Add ShuffleClient side blacklist
-    if (shuffleClientPushBlacklistEnabled && oldLocation != null) {
+    if (pushExcludeWorkerOnFailureEnabled && oldLocation != null) {
       if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
       } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
       }
     }
   }
@@ -704,14 +705,14 @@ public class ShuffleClientImpl extends ShuffleClient {
         int partitionId = partitionInfo.getPartitionId();
         int statusCode = partitionInfo.getStatus();
         if (partitionInfo.getOldAvailable()) {
-          blacklist.remove(oldLocMap.get(partitionId).hostAndPushPort());
+          pushExcludedWorkers.remove(oldLocMap.get(partitionId).hostAndPushPort());
         }
 
         if (StatusCode.SUCCESS.getValue() == statusCode) {
           PartitionLocation loc =
               PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition());
           partitionLocationMap.put(partitionId, loc);
-          blacklist.remove(loc.hostAndPushPort());
+          pushExcludedWorkers.remove(loc.hostAndPushPort());
         } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
           stageEnded(shuffleId);
           return results;
@@ -1618,7 +1619,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != driverRssMetaService) {
       driverRssMetaService = null;
     }
-    blacklist.clear();
+    pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
     logger.warn("Shuffle client has been shutdown!");
   }

@@ -695,8 +695,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
-  def clientBlacklistSlaveEnabled: Boolean = get(CLIENT_BLACKLIST_SLAVE_ENABLED)
-  def clientPushBlacklistEnabled: Boolean = get(CLIENT_PUSH_BLACKLIST_ENABLED)
+  def clientExcludeSlaveOnFailureEnabled: Boolean = get(CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -748,6 +747,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushBufferInitialSize: Int = get(CLIENT_PUSH_BUFFER_INITIAL_SIZE).toInt
   def clientPushBufferMaxSize: Int = get(CLIENT_PUSH_BUFFER_MAX_SIZE).toInt
   def clientPushQueueCapacity: Int = get(CLIENT_PUSH_QUEUE_CAPACITY)
+  def clientPushExcludeWorkerOnFailureEnabled: Boolean =
+    get(CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientPushMaxReqsInFlight: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT)
   def clientPushMaxReviveTimes: Int = get(CLIENT_PUSH_MAX_REVIVE_TIMES)
   def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
@@ -2574,11 +2575,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 
-  val CLIENT_BLACKLIST_SLAVE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.blacklistSlave.enabled")
+  val CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.excludeSlaveOnFailure.enabled")
       .categories("client")
       .version("0.3.0")
-      .doc("When true, Celeborn will add partition's peer worker into blacklist " +
+      .doc("When true, Celeborn will exclude partition's peer worker on failure " +
         "when push data to slave failed.")
       .booleanConf
       .createWithDefault(true)
@@ -2693,10 +2694,10 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(2048)
 
-  val CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.blacklist.enabled")
+  val CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.excludeWorkerOnFailure.enabled")
       .categories("client")
-      .doc("Whether to enable shuffle client-side push blacklist of workers.")
+      .doc("Whether to enable shuffle client-side push exclude workers on failures.")
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
@@ -2874,7 +2875,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.fetch.excludedWorker.expireTimeout")
       .categories("client")
       .doc("ShuffleClient is a static object, it will be used in the whole lifecycle of Executor," +
-        "We give a expire time for blacklisted worker to avoid a transient worker issues.")
+        "We give a expire time for excluded workers to avoid a transient worker issues.")
       .version("0.3.0")
       .fallbackConf(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
 
