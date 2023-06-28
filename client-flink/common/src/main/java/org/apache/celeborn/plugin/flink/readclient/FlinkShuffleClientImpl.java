@@ -19,7 +19,7 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -49,7 +49,9 @@ import org.apache.celeborn.common.network.protocol.RegionFinish;
 import org.apache.celeborn.common.network.protocol.RegionStart;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbChangeLocationPartitionInfo;
 import org.apache.celeborn.common.protocol.PbChangeLocationResponse;
+import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
@@ -71,6 +73,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   private long driverTimestamp;
 
   public static FlinkShuffleClientImpl get(
+      String appUniqueId,
       String driverHost,
       int port,
       long driverTimestamp,
@@ -81,12 +84,14 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       synchronized (FlinkShuffleClientImpl.class) {
         if (null == _instance) {
           _instance =
-              new FlinkShuffleClientImpl(driverHost, port, driverTimestamp, conf, userIdentifier);
+              new FlinkShuffleClientImpl(
+                  appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
           initialized = true;
         } else if (!initialized || _instance.driverTimestamp < driverTimestamp) {
           _instance.shutdown();
           _instance =
-              new FlinkShuffleClientImpl(driverHost, port, driverTimestamp, conf, userIdentifier);
+              new FlinkShuffleClientImpl(
+                  appUniqueId, driverHost, port, driverTimestamp, conf, userIdentifier);
           initialized = true;
         }
       }
@@ -114,12 +119,13 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public FlinkShuffleClientImpl(
+      String appUniqueId,
       String driverHost,
       int port,
       long driverTimestamp,
       CelebornConf conf,
       UserIdentifier userIdentifier) {
-    super(conf, userIdentifier);
+    super(appUniqueId, conf, userIdentifier);
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
@@ -133,14 +139,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public RssBufferStream readBufferedPartition(
-      String applicationId,
-      int shuffleId,
-      int partitionId,
-      int subPartitionIndexStart,
-      int subPartitionIndexEnd)
+      int shuffleId, int partitionId, int subPartitionIndexStart, int subPartitionIndexEnd)
       throws IOException {
-    String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
-    ReduceFileGroups fileGroups = loadFileGroup(applicationId, shuffleKey, shuffleId, partitionId);
+    String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+    ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
@@ -157,29 +159,26 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   @Override
-  protected ReduceFileGroups updateFileGroup(
-      String applicationId, String shuffleKey, int shuffleId, int partitionId) throws IOException {
+  protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId) throws IOException {
     ReduceFileGroups reduceFileGroups =
         reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> new ReduceFileGroups());
     if (reduceFileGroups.partitionIds != null
         && reduceFileGroups.partitionIds.contains(partitionId)) {
       logger.debug(
-          "use cached file groups for partition: {}",
-          Utils.makeReducerKey(applicationId, shuffleId, partitionId));
+          "use cached file groups for partition: {}", Utils.makeReducerKey(shuffleId, partitionId));
     } else {
       synchronized (reduceFileGroups) {
         if (reduceFileGroups.partitionIds != null
             && reduceFileGroups.partitionIds.contains(partitionId)) {
           logger.debug(
               "use cached file groups for partition: {}",
-              Utils.makeReducerKey(applicationId, shuffleId, partitionId));
+              Utils.makeReducerKey(shuffleId, partitionId));
         } else {
           // refresh file groups
-          ReduceFileGroups newGroups = loadFileGroupInternal(applicationId, shuffleKey, shuffleId);
+          ReduceFileGroups newGroups = loadFileGroupInternal(shuffleId);
           if (newGroups == null || !newGroups.partitionIds.contains(partitionId)) {
             throw new IOException(
-                "shuffle data lost for partition: "
-                    + Utils.makeReducerKey(applicationId, shuffleId, partitionId));
+                "shuffle data lost for partition: " + Utils.makeReducerKey(shuffleId, partitionId));
           }
           reduceFileGroups.update(newGroups);
         }
@@ -193,7 +192,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public int pushDataToLocation(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -204,7 +202,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       throws IOException {
     // mapKey
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
 
     PushState pushState = getPushState(mapKey);
 
@@ -221,7 +218,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     logger.debug(
         "Do push data byteBuf size {} for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
         totalLength,
-        applicationId,
+        appUniqueId,
         shuffleId,
         mapId,
         attemptId,
@@ -235,6 +232,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
     // build PushData request
     NettyManagedBuffer buffer = new NettyManagedBuffer(data);
+    final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
     PushData pushData = new PushData(MASTER_MODE, shuffleKey, location.getUniqueId(), buffer);
 
     // build callback
@@ -303,7 +301,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public void pushDataHandShake(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -320,13 +317,13 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         location,
         pushState,
         () -> {
-          String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+          String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
           logger.info(
               "PushDataHandShake shuffleKey {} attemptId {} locationId {}",
               shuffleKey,
               attemptId,
               location.getUniqueId());
-          logger.debug("PushDataHandShake location {}", location.toString());
+          logger.debug("PushDataHandShake location {}", location);
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           PushDataHandShake handShake =
               new PushDataHandShake(
@@ -342,7 +339,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   public Optional<PartitionLocation> regionStart(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -359,7 +355,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         location,
         pushState,
         () -> {
-          String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+          String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
           logger.info(
               "RegionStart for shuffle {} regionId {} attemptId {} locationId {}.",
               shuffleId,
@@ -381,23 +377,30 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           if (regionStartResponse.hasRemaining()
               && regionStartResponse.get() == StatusCode.HARD_SPLIT.getValue()) {
             // if split then revive
+            Set<Integer> mapIds = new HashSet<>();
+            mapIds.add(mapId);
+            List<ReviveRequest> requests = new ArrayList<>();
+            ReviveRequest req =
+                new ReviveRequest(
+                    shuffleId,
+                    mapId,
+                    attemptId,
+                    location.getId(),
+                    location.getEpoch(),
+                    location,
+                    StatusCode.HARD_SPLIT);
+            requests.add(req);
             PbChangeLocationResponse response =
                 driverRssMetaService.askSync(
-                    ControlMessages.Revive$.MODULE$.apply(
-                        applicationId,
-                        shuffleId,
-                        mapId,
-                        attemptId,
-                        location.getId(),
-                        location.getEpoch(),
-                        location,
-                        StatusCode.HARD_SPLIT),
+                    ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
                     conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
             // per partitionKey only serve single PartitionLocation in Client Cache.
-            StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+            PbChangeLocationPartitionInfo partitionInfo = response.getPartitionInfo(0);
+            StatusCode respStatus = Utils.toStatusCode(partitionInfo.getStatus());
             if (StatusCode.SUCCESS.equals(respStatus)) {
-              return Optional.of(PbSerDeUtils.fromPbPartitionLocation(response.getLocation()));
+              return Optional.of(
+                  PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition()));
             } else {
               // throw exception
               logger.error(
@@ -414,8 +417,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         });
   }
 
-  public void regionFinish(
-      String applicationId, int shuffleId, int mapId, int attemptId, PartitionLocation location)
+  public void regionFinish(int shuffleId, int mapId, int attemptId, PartitionLocation location)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
@@ -426,14 +428,14 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         location,
         pushState,
         () -> {
-          final String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
+          final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
           logger.info(
               "RegionFinish for shuffle {} map {} attemptId {} locationId {}.",
               shuffleId,
               mapId,
               attemptId,
               location.getUniqueId());
-          logger.debug("RegionFinish for location {}.", location.toString());
+          logger.debug("RegionFinish for location {}.", location);
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           RegionFinish regionFinish =
               new RegionFinish(MASTER_MODE, shuffleKey, location.getUniqueId(), attemptId);
@@ -524,9 +526,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   @Override
-  public void cleanup(String applicationId, int shuffleId, int mapId, int attemptId) {
+  public void cleanup(int shuffleId, int mapId, int attemptId) {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    super.cleanup(applicationId, shuffleId, mapId, attemptId);
+    super.cleanup(shuffleId, mapId, attemptId);
     if (currentClient != null) {
       currentClient.remove(mapKey);
     }

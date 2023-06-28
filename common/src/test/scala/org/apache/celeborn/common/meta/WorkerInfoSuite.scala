@@ -296,9 +296,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
     println(worker3)
     println(worker4)
 
-    assertEquals(exp1, worker1.toString.replaceAll("HeartBeatElapsedSeconds:.*\n", ""))
-    assertEquals(exp2, worker2.toString.replaceAll("HeartBeatElapsedSeconds:.*\n", ""))
-    assertEquals(exp3, worker3.toString.replaceAll("HeartBeatElapsedSeconds:.*\n", ""))
-    assertEquals(exp4, worker4.toString.replaceAll("HeartBeatElapsedSeconds:.*\n", ""))
+    assertEquals(exp1, worker1.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+    assertEquals(exp2, worker2.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+    assertEquals(exp3, worker3.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+    assertEquals(exp4, worker4.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
   }
 }

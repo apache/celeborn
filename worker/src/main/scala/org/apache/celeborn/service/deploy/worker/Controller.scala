@@ -60,6 +60,7 @@ private[deploy] class Controller(
   var asyncReplyPool: ScheduledExecutorService = _
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
+  val defaultPushdataTimeout = conf.pushDataTimeoutMs
 
   val testRetryCommitFiles = conf.testRetryCommitFiles
 
@@ -150,7 +151,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (storageManager.healthyWorkingDirs().size <= 0 && storageManager.hdfsDir.isEmpty) {
+    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
@@ -242,7 +243,9 @@ private[deploy] class Controller(
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterLocs)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slaveLocs)
     shufflePartitionType.put(shuffleKey, partitionType)
-    shufflePushDataTimeout.put(shuffleKey, pushDataTimeout)
+    shufflePushDataTimeout.put(
+      shuffleKey,
+      if (pushDataTimeout <= 0) defaultPushdataTimeout else pushDataTimeout)
     workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(requestMasterLocs, requestSlaveLocs))
 
     logInfo(s"Reserved ${masterLocs.size()} master location" +

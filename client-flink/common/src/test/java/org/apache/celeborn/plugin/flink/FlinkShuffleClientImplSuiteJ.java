@@ -54,7 +54,8 @@ public class FlinkShuffleClientImplSuiteJ {
   public void setup() throws IOException, InterruptedException {
     conf = new CelebornConf();
     shuffleClient =
-        new FlinkShuffleClientImpl("localhost", 1232, System.currentTimeMillis(), conf, null) {
+        new FlinkShuffleClientImpl(
+            "APP", "localhost", 1232, System.currentTimeMillis(), conf, null) {
           @Override
           public void setupMetaServiceRef(String host, int port) {}
         };
@@ -86,7 +87,7 @@ public class FlinkShuffleClientImplSuiteJ {
             });
 
     int pushDataLen =
-        shuffleClient.pushDataToLocation("1", 2, 3, 4, 5, byteBuf, masterLocation, () -> {});
+        shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, masterLocation, () -> {});
     Assert.assertEquals(BufferSize, pushDataLen);
   }
 
@@ -103,7 +104,7 @@ public class FlinkShuffleClientImplSuiteJ {
               return mockedFuture;
             });
     int pushDataLen =
-        shuffleClient.pushDataToLocation("1", 2, 3, 4, 5, byteBuf, masterLocation, () -> {});
+        shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, masterLocation, () -> {});
   }
 
   @Test
@@ -117,12 +118,12 @@ public class FlinkShuffleClientImplSuiteJ {
               return mockedFuture;
             });
     // first push just  set pushdata.exception
-    shuffleClient.pushDataToLocation("1", 2, 3, 4, 5, byteBuf, masterLocation, () -> {});
+    shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, masterLocation, () -> {});
 
     boolean isFailed = false;
     // second push will throw exception
     try {
-      shuffleClient.pushDataToLocation("1", 2, 3, 4, 5, byteBuf, masterLocation, () -> {});
+      shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, masterLocation, () -> {});
     } catch (IOException e) {
       isFailed = true;
     } finally {

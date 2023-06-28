@@ -34,11 +34,10 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
   parse(args.toList)
 
   // 2nd parse from environment variables
-  _host = _host.orElse(sys.env.get("CELEBORN_MASTER_HOST"))
-  _port = _port.orElse(sys.env.get("CELEBORN_MASTER_PORT").map(_.toInt))
+  _host = _host.orElse(sys.env.get("CELEBORN_LOCAL_HOSTNAME"))
 
   // 3rd read from configuration file
-  _propertiesFile = Some(Utils.loadDefaultRssProperties(conf, _propertiesFile.orNull))
+  _propertiesFile = Some(Utils.loadDefaultCelebornProperties(conf, _propertiesFile.orNull))
   if (conf.haEnabled) {
     val clusterInfo = MasterClusterInfo.loadHAConfig(conf)
     val localNode = clusterInfo.localNode

@@ -103,6 +103,7 @@ public class RssShuffleManager implements ShuffleManager {
           lifecycleManager = new LifecycleManager(appId, celebornConf);
           rssShuffleClient =
               ShuffleClient.get(
+                  appUniqueId,
                   lifecycleManager.getRssMetaServiceHost(),
                   lifecycleManager.getRssMetaServicePort(),
                   celebornConf,
@@ -149,7 +150,7 @@ public class RssShuffleManager implements ShuffleManager {
     if (rssShuffleClient == null) {
       return false;
     }
-    return rssShuffleClient.unregisterShuffle(appUniqueId, shuffleId, isDriver());
+    return rssShuffleClient.unregisterShuffle(shuffleId, isDriver());
   }
 
   @Override
@@ -179,7 +180,11 @@ public class RssShuffleManager implements ShuffleManager {
         RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
             ShuffleClient.get(
-                h.rssMetaServiceHost(), h.rssMetaServicePort(), celebornConf, h.userIdentifier());
+                appUniqueId,
+                h.rssMetaServiceHost(),
+                h.rssMetaServicePort(),
+                celebornConf,
+                h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
@@ -222,5 +227,10 @@ public class RssShuffleManager implements ShuffleManager {
     ExecutorService pusherThread = asyncPushers[pusherIdx.get() % asyncPushers.length];
     pusherIdx.incrementAndGet();
     return pusherThread;
+  }
+
+  // for testing
+  public LifecycleManager getLifecycleManager() {
+    return this.lifecycleManager;
   }
 }

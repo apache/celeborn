@@ -77,7 +77,10 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
     delegation =
         new RemoteShuffleResultPartitionDelegation(
-            networkBufferSize, outputGate, numBuffersOut, numBytesOut, numSubpartitions);
+            networkBufferSize,
+            outputGate,
+            (bufferWithChannel, isBroadcast) -> updateStatistics(bufferWithChannel, isBroadcast),
+            numSubpartitions);
   }
 
   @Override
@@ -206,5 +209,17 @@ public class RemoteShuffleResultPartition extends ResultPartition {
   @VisibleForTesting
   public RemoteShuffleResultPartitionDelegation getDelegation() {
     return delegation;
+  }
+
+  public void updateStatistics(
+      SortBuffer.BufferWithChannel bufferWithChannel, boolean isBroadcast) {
+    numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
+    long readableBytes = bufferWithChannel.getBuffer().readableBytes() - BufferUtils.HEADER_LENGTH;
+    if (isBroadcast) {
+      resultPartitionBytes.incAll(readableBytes);
+    } else {
+      resultPartitionBytes.inc(bufferWithChannel.getChannelIndex(), readableBytes);
+    }
+    numBytesOut.inc(isBroadcast ? readableBytes * numSubpartitions : readableBytes);
   }
 }

@@ -144,11 +144,11 @@ class CelebornConfSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     val replacedHost = conf.masterHost
     assert(!replacedHost.contains("<localhost>"))
-    assert(replacedHost === Utils.localHostName)
+    assert(replacedHost === Utils.localHostName(conf))
     val replacedHosts = conf.masterEndpoints
     replacedHosts.foreach { replacedHost =>
       assert(!replacedHost.contains("<localhost>"))
-      assert(replacedHost contains Utils.localHostName)
+      assert(replacedHost contains Utils.localHostName(conf))
     }
   }
 
@@ -185,5 +185,26 @@ class CelebornConfSuite extends CelebornFunSuite {
       .set(CelebornConf.TEST_ALTERNATIVE.alternatives.head._1, "rss")
 
     assert(conf.testAlternative == "rss")
+  }
+
+  test("Test empty working dir") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.storage.activeTypes", "HDFS")
+    assert(conf.workerBaseDirs.isEmpty)
+
+    conf.set("celeborn.storage.activeTypes", "SDD,HDD,HDFS")
+    assert(conf.workerBaseDirs.isEmpty)
+
+    conf.set("celeborn.storage.activeTypes", "SDD,HDD")
+    assert(!conf.workerBaseDirs.isEmpty)
+  }
+
+  test("Test commit file threads") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.storage.activeTypes", "HDFS")
+    assert(conf.workerCommitThreads === 128)
+
+    conf.set("celeborn.storage.activeTypes", "SDD,HDD")
+    assert(conf.workerCommitThreads === 32)
   }
 }

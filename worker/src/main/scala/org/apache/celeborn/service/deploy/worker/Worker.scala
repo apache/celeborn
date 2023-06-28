@@ -269,7 +269,7 @@ private[celeborn] class Worker(
     WorkerSource.ReadBufferAllocatedCount,
     _ => memoryManager.getAllocatedReadBuffers)
 
-  private def heartBeatToMaster(): Unit = {
+  private def heartbeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
     val estimatedAppDiskUsage = new JHashMap[String, JLong]()
     activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
@@ -322,7 +322,7 @@ private[celeborn] class Worker(
     sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          heartBeatToMaster()
+          heartbeatToMaster()
         }
       },
       HEARTBEAT_MILLIS,
@@ -589,9 +589,7 @@ private[deploy] object Worker extends Logging {
     // starting the Worker, we should set it in the parameters and automatically calculate what the
     // address of the Master should be used in the end.
     workerArgs.master.foreach { master =>
-      conf.set(
-        MASTER_ENDPOINTS.key,
-        RpcAddress.fromRssURL(master).toString.replace("rss://", ""))
+      conf.set(MASTER_ENDPOINTS.key, RpcAddress.fromCelebornURL(master).hostPort)
     }
 
     val worker = new Worker(conf, workerArgs)

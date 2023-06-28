@@ -61,7 +61,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
   private final ShuffleWriteMetricsReporter writeMetrics;
-  private final String appId;
   private final int shuffleId;
   private final int mapId;
   private final TaskContext taskContext;
@@ -75,7 +74,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final boolean pipelined;
   private final SortBasedPusher[] pushers = new SortBasedPusher[2];
   private SortBasedPusher currentPusher;
-  // TODO it isn't be updated after initialization
   private long peakMemoryUsedBytes = 0;
 
   private final OpenByteArrayOutputStream serBuffer;
@@ -107,7 +105,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
-    this.appId = appId;
     this.shuffleId = dep.shuffleId();
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();
@@ -189,6 +186,33 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         client,
         metrics,
         executorService);
+  }
+
+  private void updatePeakMemoryUsed() {
+    // sorter can be null if this writer is closed
+    if (pipelined) {
+      for (SortBasedPusher pusher : pushers) {
+        if (pusher != null) {
+          long mem = pusher.getPeakMemoryUsedBytes();
+          if (mem > peakMemoryUsedBytes) {
+            peakMemoryUsedBytes = mem;
+          }
+        }
+      }
+    } else {
+      if (currentPusher != null) {
+        long mem = currentPusher.getPeakMemoryUsedBytes();
+        if (mem > peakMemoryUsedBytes) {
+          peakMemoryUsedBytes = mem;
+        }
+      }
+    }
+  }
+
+  /** Return the peak memory used so far, in bytes. */
+  public long getPeakMemoryUsedBytes() {
+    updatePeakMemoryUsed();
+    return peakMemoryUsedBytes;
   }
 
   @Override
@@ -327,7 +351,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
     int bytesWritten =
         rssShuffleClient.pushData(
-            appId,
             shuffleId,
             mapId,
             taskContext.attemptNumber(),
@@ -360,13 +383,13 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       currentPusher.close();
     }
 
-    rssShuffleClient.pushMergedData(appId, shuffleId, mapId, taskContext.attemptNumber());
+    rssShuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
 
     updateMapStatus();
 
     long waitStartTime = System.nanoTime();
-    rssShuffleClient.mapperEnd(appId, shuffleId, mapId, taskContext.attemptNumber(), numMappers);
+    rssShuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
   }
 
@@ -380,7 +403,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @Override
   public Option<MapStatus> stop(boolean success) {
     try {
-      taskContext.taskMetrics().incPeakExecutionMemory(peakMemoryUsedBytes);
+      taskContext.taskMetrics().incPeakExecutionMemory(getPeakMemoryUsedBytes());
 
       if (stopping) {
         return Option.empty();
@@ -400,7 +423,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         }
       }
     } finally {
-      rssShuffleClient.cleanup(appId, shuffleId, mapId, taskContext.attemptNumber());
+      rssShuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
     }
   }
 

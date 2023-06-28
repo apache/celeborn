@@ -63,7 +63,6 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public int pushData(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -83,7 +82,6 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public int mergeData(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -99,44 +97,32 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId) {}
+  public void pushMergedData(int shuffleId, int mapId, int attemptId) {}
 
   @Override
-  public void mapperEnd(
-      String applicationId, int shuffleId, int mapId, int attemptId, int numMappers) {}
+  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers) {}
 
   @Override
   public void mapPartitionMapperEnd(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int numMappers,
-      int partitionId)
+      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId)
       throws IOException {}
 
   @Override
-  public void cleanup(String applicationId, int shuffleId, int mapId, int attemptId) {}
+  public void cleanup(int shuffleId, int mapId, int attemptId) {}
 
   @Override
   public RssInputStream readPartition(
-      String applicationId,
-      int shuffleId,
-      int partitionId,
-      int attemptNumber,
-      int startMapIndex,
-      int endMapIndex) {
+      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex) {
     return null;
   }
 
   @Override
-  public RssInputStream readPartition(
-      String applicationId, int shuffleId, int partitionId, int attemptNumber) {
+  public RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber) {
     return null;
   }
 
   @Override
-  public boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver) {
+  public boolean unregisterShuffle(int shuffleId, boolean isDriver) {
     return false;
   }
 
@@ -151,13 +137,13 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) {
+      int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) {
     return null;
   }
 
   @Override
   public ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
-      String applicationId, int shuffleId, int numMappers, int numPartitions) {
+      int shuffleId, int numMappers, int numPartitions) {
     return reducePartitionMap.get(shuffleId);
   }
 

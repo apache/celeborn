@@ -31,8 +31,10 @@ class MasterArgumentsSuite extends AnyFunSuite with Logging {
     val conf1 = new CelebornConf()
 
     val arguments1 = new MasterArguments(args1, conf1)
-    assert(arguments1.host.equals(Utils.localHostName))
-    assert(arguments1.port == 9097)
+    assert(arguments1.host === sys.env.getOrElse(
+      "CELEBORN_LOCAL_HOSTNAME",
+      Utils.localHostName(conf1)))
+    assert(arguments1.port === 9097)
 
     // should use celeborn conf
     val conf2 = new CelebornConf()
@@ -40,14 +42,14 @@ class MasterArgumentsSuite extends AnyFunSuite with Logging {
     conf2.set(MASTER_PORT, 19097)
 
     val arguments2 = new MasterArguments(args1, conf2)
-    assert(arguments2.host.equals("test-host-1"))
-    assert(arguments2.port == 19097)
+    assert(arguments2.host === sys.env.getOrElse("CELEBORN_LOCAL_HOSTNAME", "test-host-1"))
+    assert(arguments2.port === 19097)
 
     // should use cli args
     val args2 = Array("-h", "test-host-2", "-p", "29097")
 
     val arguments3 = new MasterArguments(args2, conf2)
-    assert(arguments3.host.equals("test-host-2"))
-    assert(arguments3.port == 29097)
+    assert(arguments3.host === "test-host-2")
+    assert(arguments3.port === 29097)
   }
 }

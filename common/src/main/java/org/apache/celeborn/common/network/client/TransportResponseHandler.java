@@ -143,6 +143,12 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           if (info.channelFuture != null) {
             info.channelFuture.cancel(true);
           }
+          logger.info(
+              "Fail expire fetch request {},{},{},{}",
+              entry.getKey().streamId,
+              entry.getKey().chunkIndex,
+              entry.getKey().offset,
+              entry.getKey().len);
           info.callback.onFailure(
               entry.getKey().chunkIndex, new CelebornIOException(StatusCode.FETCH_DATA_TIMEOUT));
           info.channelFuture = null;

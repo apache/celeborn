@@ -30,6 +30,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
+import org.apache.celeborn.common.util.CelebornHadoopUtils$;
 import org.apache.celeborn.common.write.PushState;
 
 /**
@@ -52,7 +53,11 @@ public abstract class ShuffleClient {
   protected ShuffleClient() {}
 
   public static ShuffleClient get(
-      String driverHost, int port, CelebornConf conf, UserIdentifier userIdentifier) {
+      String appUniqueId,
+      String driverHost,
+      int port,
+      CelebornConf conf,
+      UserIdentifier userIdentifier) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -61,12 +66,12 @@ public abstract class ShuffleClient {
           // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with MetaService, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
-          _instance = new ShuffleClientImpl(conf, userIdentifier);
+          _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupMetaServiceRef(driverHost, port);
           initialized = true;
         }
@@ -79,7 +84,7 @@ public abstract class ShuffleClient {
     if (null == hdfsFs) {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {
-          Configuration hdfsConfiguration = new Configuration();
+          Configuration hdfsConfiguration = CelebornHadoopUtils$.MODULE$.newConfiguration(conf);
           // enable fs cache to avoid too many fs instances
           hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
           hdfsConfiguration.set("fs.viewfs.impl.disable.cache", "false");
@@ -104,7 +109,6 @@ public abstract class ShuffleClient {
 
   // Write data to a specific reduce partition
   public abstract int pushData(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -120,7 +124,6 @@ public abstract class ShuffleClient {
       throws IOException;
 
   public abstract int mergeData(
-      String applicationId,
       int shuffleId,
       int mapId,
       int attemptId,
@@ -132,51 +135,37 @@ public abstract class ShuffleClient {
       int numPartitions)
       throws IOException;
 
-  public abstract void pushMergedData(String applicationId, int shuffleId, int mapId, int attemptId)
-      throws IOException;
+  public abstract void pushMergedData(int shuffleId, int mapId, int attemptId) throws IOException;
 
   // Report partition locations written by the completed map task of ReducePartition Shuffle Type
-  public abstract void mapperEnd(
-      String applicationId, int shuffleId, int mapId, int attemptId, int numMappers)
+  public abstract void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
       throws IOException;
 
   // Report partition locations written by the completed map task of MapPartition Shuffle Type
   public abstract void mapPartitionMapperEnd(
-      String applicationId,
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      int numMappers,
-      int partitionId)
-      throws IOException;
+      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId) throws IOException;
 
   // Cleanup states of the map task
-  public abstract void cleanup(String applicationId, int shuffleId, int mapId, int attemptId);
+  public abstract void cleanup(int shuffleId, int mapId, int attemptId);
 
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
   public abstract RssInputStream readPartition(
-      String applicationId,
-      int shuffleId,
-      int partitionId,
-      int attemptNumber,
-      int startMapIndex,
-      int endMapIndex)
+      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException;
 
-  public abstract RssInputStream readPartition(
-      String applicationId, int shuffleId, int partitionId, int attemptNumber) throws IOException;
+  public abstract RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
+      throws IOException;
 
-  public abstract boolean unregisterShuffle(String applicationId, int shuffleId, boolean isDriver);
+  public abstract boolean unregisterShuffle(int shuffleId, boolean isDriver);
 
   public abstract void shutdown();
 
   public abstract PartitionLocation registerMapPartitionTask(
-      String appId, int shuffleId, int numMappers, int mapId, int attemptId, int partitionId)
-      throws IOException;
+      int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException;
 
   public abstract ConcurrentHashMap<Integer, PartitionLocation> getPartitionLocation(
-      String applicationId, int shuffleId, int numMappers, int numPartitions);
+      int shuffleId, int numMappers, int numPartitions);
 
   public abstract PushState getPushState(String mapKey);
 }

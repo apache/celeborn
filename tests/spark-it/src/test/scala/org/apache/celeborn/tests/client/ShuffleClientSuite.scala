@@ -47,13 +47,13 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
     val shuffleClient: ShuffleClientImpl = {
-      val client = new ShuffleClientImpl(celebornConf, userIdentifier)
+      val client = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
       client.setupMetaServiceRef(lifecycleManager.self)
       client
     }
 
     assertThrows[IOException] {
-      shuffleClient.registerMapPartitionTask(APP, 1, 1, 0, 0, 1)
+      shuffleClient.registerMapPartitionTask(1, 1, 0, 0, 1)
     }
 
     lifecycleManager.stop()

@@ -30,9 +30,10 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
   with BeforeAndAfterAll with BeforeAndAfterEach {
 
   test("celeborn flink hearbeat test - client <- worker") {
-    val (_, clientConf) = getTestHeartbeatFromWorker2ClientConf()
+    val (_, clientConf) = getTestHeartbeatFromWorker2ClientConf
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
+        "",
         "",
         0,
         System.currentTimeMillis(),
@@ -44,9 +45,10 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
   }
 
   test("celeborn flink hearbeat test - client <- worker no heartbeat") {
-    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithNoHeartbeatConf()
+    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithNoHeartbeatConf
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
+        "",
         "",
         0,
         System.currentTimeMillis(),
@@ -58,9 +60,10 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
   }
 
   test("celeborn flink hearbeat test - client <- worker timeout") {
-    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf()
+    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
+        "",
         "",
         0,
         System.currentTimeMillis(),

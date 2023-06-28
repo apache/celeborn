@@ -152,8 +152,12 @@ public class RemoteShuffleInputGateDelegation {
     RemoteShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
 
     try {
+      String appUniqueId =
+          ((RemoteShuffleDescriptor) (gateDescriptor.getShuffleDescriptors()[0]))
+              .getCelebornAppId();
       this.shuffleClient =
           FlinkShuffleClientImpl.get(
+              appUniqueId,
               shuffleResource.getRssMetaServiceHost(),
               shuffleResource.getRssMetaServicePort(),
               shuffleResource.getRssMetaServiceTimestamp(),
@@ -191,13 +195,11 @@ public class RemoteShuffleInputGateDelegation {
           remoteDescriptor.getShuffleResource().getMapPartitionShuffleDescriptor();
 
       LOG.debug("create shuffle reader for descriptor {}", shuffleDescriptor);
-      String applicationId = remoteDescriptor.getCelebornAppId();
 
       RemoteBufferStreamReader reader =
           new RemoteBufferStreamReader(
               shuffleClient,
               shuffleDescriptor,
-              applicationId,
               startSubIndex,
               endSubIndex,
               transferBufferPool,
@@ -440,7 +442,9 @@ public class RemoteShuffleInputGateDelegation {
       numUnconsumedSubpartitions--;
       // not the real end.
       if (numSubPartitionsNotConsumed[channelInfo.getInputChannelIdx()] != 0) {
-        return Optional.empty();
+        LOG.debug(
+            "numSubPartitionsNotConsumed: {}",
+            numSubPartitionsNotConsumed[channelInfo.getInputChannelIdx()]);
       } else {
         // the real end.
         bufferReaders.get(channelIndexToReaderIndex[channelInfo.getInputChannelIdx()]).close();

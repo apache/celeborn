@@ -44,6 +44,9 @@ public class SortBasedPusher extends MemoryConsumer {
 
   private static final Logger logger = LoggerFactory.getLogger(SortBasedPusher.class);
 
+  /** Peak memory used by this sorter so far, in bytes. * */
+  private long peakMemoryUsedBytes;
+
   private ShuffleInMemorySorter inMemSorter;
   private final LinkedList<MemoryBlock> allocatedPages = new LinkedList<>();
   private MemoryBlock currentPage = null;
@@ -117,7 +120,6 @@ public class SortBasedPusher extends MemoryConsumer {
     try {
       dataPusher =
           new DataPusher(
-              appId,
               shuffleId,
               mapId,
               attemptNumber,
@@ -136,7 +138,8 @@ public class SortBasedPusher extends MemoryConsumer {
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
-    inMemSorter = new ShuffleInMemorySorter(this, initialSize);
+    this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);
+    this.peakMemoryUsedBytes = getMemoryUsage();
     this.sharedPushLock = sharedPushLock;
     this.executorService = executorService;
   }
@@ -162,7 +165,6 @@ public class SortBasedPusher extends MemoryConsumer {
           } else {
             int bytesWritten =
                 rssShuffleClient.mergeData(
-                    appId,
                     shuffleId,
                     mapId,
                     attemptNumber,
@@ -397,7 +399,29 @@ public class SortBasedPusher extends MemoryConsumer {
     return 0;
   }
 
+  private long getMemoryUsage() {
+    long totalPageSize = 0;
+    for (MemoryBlock page : allocatedPages) {
+      totalPageSize += page.size();
+    }
+    return ((inMemSorter == null) ? 0 : inMemSorter.getMemoryUsage()) + totalPageSize;
+  }
+
+  private void updatePeakMemoryUsed() {
+    long mem = getMemoryUsage();
+    if (mem > peakMemoryUsedBytes) {
+      peakMemoryUsedBytes = mem;
+    }
+  }
+
+  /** Return the peak memory used so far, in bytes. */
+  long getPeakMemoryUsedBytes() {
+    updatePeakMemoryUsed();
+    return peakMemoryUsedBytes;
+  }
+
   private long freeMemory() {
+    updatePeakMemoryUsed();
     long memoryFreed = 0;
     for (MemoryBlock block : allocatedPages) {
       memoryFreed += block.size();

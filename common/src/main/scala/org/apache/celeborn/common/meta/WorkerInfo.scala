@@ -159,10 +159,6 @@ class WorkerInfo(
     s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
   }
 
-  def toInfoId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$networkLocation"
-  }
-
   def slotAvailable(): Boolean = this.synchronized {
     diskInfos.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
   }
@@ -224,7 +220,7 @@ class WorkerInfo(
     userResourceConsumption
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     val (diskInfosString, slots) =
       if (diskInfos == null || diskInfos.isEmpty) {
         ("empty", 0)
@@ -250,7 +246,7 @@ class WorkerInfo(
        |ReplicatePort: $replicatePort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
-       |HeartBeatElapsedSeconds: ${(System.currentTimeMillis() - lastHeartbeat) / 1000}
+       |HeartbeatElapsedSeconds: ${(System.currentTimeMillis() - lastHeartbeat) / 1000}
        |Disks: $diskInfosString
        |UserResourceConsumption: $userResourceConsumptionString
        |WorkerRef: $endpoint
@@ -278,19 +274,5 @@ object WorkerInfo {
   def fromUniqueId(id: String): WorkerInfo = {
     val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = id.split(":")
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
-  }
-
-  def fromInfoId(id: String): WorkerInfo = {
-    val infoArr = id.split(":")
-    if (infoArr.length == 6) {
-      val Array(host, rpcPort, pushPort, fetchPort, replicatePort, networkLocation) = id.split(":")
-      val workerInfo =
-        new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
-      workerInfo.networkLocation = networkLocation
-      workerInfo
-    } else {
-      val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = id.split(":")
-      new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
-    }
   }
 }

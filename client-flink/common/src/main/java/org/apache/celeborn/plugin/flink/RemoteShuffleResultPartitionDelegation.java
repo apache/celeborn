@@ -20,11 +20,11 @@ package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -58,25 +58,22 @@ public class RemoteShuffleResultPartitionDelegation {
   /** Whether notifyEndOfData has been called or not. */
   private boolean endOfDataNotified;
 
-  private Counter numBuffersOut;
-  private Counter numBytesOut;
   private int numSubpartitions;
   private BufferPool bufferPool;
   private BufferCompressor bufferCompressor;
   private Function<Buffer, Boolean> canBeCompressed;
   private Runnable checkProducerState;
+  private BiConsumer<SortBuffer.BufferWithChannel, Boolean> statisticsConsumer;
 
   public RemoteShuffleResultPartitionDelegation(
       int networkBufferSize,
       RemoteShuffleOutputGate outputGate,
-      Counter numBuffersOut,
-      Counter numBytesOut,
+      BiConsumer<SortBuffer.BufferWithChannel, Boolean> statisticsConsumer,
       int numSubpartitions) {
     this.networkBufferSize = networkBufferSize;
     this.outputGate = outputGate;
-    this.numBuffersOut = numBuffersOut;
-    this.numBytesOut = numBytesOut;
     this.numSubpartitions = numSubpartitions;
+    this.statisticsConsumer = statisticsConsumer;
   }
 
   public void setup(
@@ -185,7 +182,7 @@ public class RemoteShuffleResultPartitionDelegation {
 
           Buffer buffer = bufferWithChannel.getBuffer();
           int subpartitionIndex = bufferWithChannel.getChannelIndex();
-          updateStatistics(bufferWithChannel.getBuffer());
+          statisticsConsumer.accept(bufferWithChannel, isBroadcast);
           writeCompressedBufferIfPossible(buffer, subpartitionIndex);
         }
         outputGate.regionFinish();
@@ -220,11 +217,6 @@ public class RemoteShuffleResultPartitionDelegation {
     outputGate.write(buffer, targetSubpartition);
   }
 
-  public void updateStatistics(Buffer buffer) {
-    numBuffersOut.inc();
-    numBytesOut.inc(buffer.readableBytes() - BufferUtils.HEADER_LENGTH);
-  }
-
   /** Spills the large record into {@link RemoteShuffleOutputGate}. */
   public void writeLargeRecord(
       ByteBuffer record, int targetSubpartition, Buffer.DataType dataType, boolean isBroadcast)
@@ -242,7 +234,9 @@ public class RemoteShuffleResultPartitionDelegation {
               dataType,
               toCopy + BufferUtils.HEADER_LENGTH);
 
-      updateStatistics(buffer);
+      SortBuffer.BufferWithChannel bufferWithChannel =
+          new SortBuffer.BufferWithChannel(buffer, targetSubpartition);
+      statisticsConsumer.accept(bufferWithChannel, isBroadcast);
       writeCompressedBufferIfPossible(buffer, targetSubpartition);
     }
     outputGate.regionFinish();

@@ -42,12 +42,12 @@ trait ReadWriteTestBase extends AnyFunSuite
       "celeborn.master.port" -> masterPort.toString)
     val workerConf = Map(
       "celeborn.master.endpoints" -> s"localhost:$masterPort")
-    logInfo("test initialized , setup rss mini cluster")
+    logInfo("test initialized , setup Celeborn mini cluster")
     setUpMiniCluster(masterConf, workerConf)
   }
 
   override def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
+    logInfo("all test complete , stop Celeborn mini cluster")
     shutdownMiniCluster()
   }
 
@@ -61,7 +61,7 @@ trait ReadWriteTestBase extends AnyFunSuite
       .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
       .set("celeborn.data.io.numConnectionsPerPeer", "1")
     val lifecycleManager = new LifecycleManager(APP, clientConf)
-    val shuffleClient = new ShuffleClientImpl(clientConf, UserIdentifier("mock", "mock"))
+    val shuffleClient = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
     shuffleClient.setupMetaServiceRef(lifecycleManager.self)
 
     val STR1 = RandomStringUtils.random(1024)
@@ -69,31 +69,31 @@ trait ReadWriteTestBase extends AnyFunSuite
     val OFFSET1 = 0
     val LENGTH1 = DATA1.length
 
-    val dataSize1 = shuffleClient.pushData(APP, 1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 1, 1)
+    val dataSize1 = shuffleClient.pushData(1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 1, 1)
     logInfo(s"push data data size $dataSize1")
 
     val STR2 = RandomStringUtils.random(32 * 1024)
     val DATA2 = STR2.getBytes(StandardCharsets.UTF_8)
     val OFFSET2 = 0
     val LENGTH2 = DATA2.length
-    val dataSize2 = shuffleClient.pushData(APP, 1, 0, 0, 0, DATA2, OFFSET2, LENGTH2, 1, 1)
+    val dataSize2 = shuffleClient.pushData(1, 0, 0, 0, DATA2, OFFSET2, LENGTH2, 1, 1)
     logInfo("push data data size " + dataSize2)
 
     val STR3 = RandomStringUtils.random(32 * 1024)
     val DATA3 = STR3.getBytes(StandardCharsets.UTF_8)
     val LENGTH3 = DATA3.length
-    shuffleClient.mergeData(APP, 1, 0, 0, 0, DATA3, 0, LENGTH3, 1, 1)
+    shuffleClient.mergeData(1, 0, 0, 0, DATA3, 0, LENGTH3, 1, 1)
 
     val STR4 = RandomStringUtils.random(16 * 1024)
     val DATA4 = STR4.getBytes(StandardCharsets.UTF_8)
     val LENGTH4 = DATA4.length
-    shuffleClient.mergeData(APP, 1, 0, 0, 0, DATA4, 0, LENGTH4, 1, 1)
-    shuffleClient.pushMergedData(APP, 1, 0, 0)
+    shuffleClient.mergeData(1, 0, 0, 0, DATA4, 0, LENGTH4, 1, 1)
+    shuffleClient.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 
-    shuffleClient.mapperEnd(APP, 1, 0, 0, 1)
+    shuffleClient.mapperEnd(1, 0, 0, 1)
 
-    val inputStream = shuffleClient.readPartition(APP, 1, 0, 0)
+    val inputStream = shuffleClient.readPartition(1, 0, 0)
     val outputStream = new ByteArrayOutputStream()
 
     var b = inputStream.read()

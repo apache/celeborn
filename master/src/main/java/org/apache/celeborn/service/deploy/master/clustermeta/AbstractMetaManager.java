@@ -190,7 +190,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         new WorkerInfo(
             host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
     AtomicLong availableSlots = new AtomicLong();
-    LOG.debug("update worker {}:{} heart beat {}", host, rpcPort, disks);
+    LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
     synchronized (workers) {
       Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
       workerInfo.ifPresent(
@@ -202,7 +202,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           });
     }
     appDiskUsageMetric.update(estimatedAppDiskUsage);
-    if (!blacklist.contains(worker) && disks.isEmpty()) {
+    // If using HDFSONLY mode, workers with empty disks should not be put into blacklist.
+    if (!blacklist.contains(worker) && (disks.isEmpty() && !conf.hasHDFSStorage())) {
       LOG.debug("Worker: {} num total slots is 0, add to blacklist", worker);
       blacklist.add(worker);
     } else if (availableSlots.get() > 0) {
