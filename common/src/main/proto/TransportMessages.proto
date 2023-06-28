@@ -45,7 +45,7 @@ enum MessageType {
   CHECK_QUOTA_RESPONSE = 24;
   REPORT_WORKER_FAILURE = 25;
   REGISTER_WORKER_RESPONSE = 26;
-  REREGISTER_WORKER_RESPONSE = 27;
+  // TODO: REREGISTER_WORKER_RESPONSE = 27;
   RESERVE_SLOTS = 28;
   RESERVE_SLOTS_RESPONSE = 29;
   COMMIT_FILES = 30;
@@ -327,10 +327,6 @@ message PbReportWorkerUnavailable {
 message PbRegisterWorkerResponse {
   bool success = 1;
   string message = 2;
-}
-
-message PbReregisterWorkerResponse {
-  bool success = 1;
 }
 
 message PbReserveSlots {

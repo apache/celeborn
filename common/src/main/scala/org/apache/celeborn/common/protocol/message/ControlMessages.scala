@@ -360,8 +360,6 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  case class ReregisterWorkerResponse(success: Boolean) extends WorkerMessage
-
   case class ReserveSlots(
       applicationId: String,
       shuffleId: Int,
@@ -690,12 +688,6 @@ object ControlMessages extends Logging {
     case pb: PbRegisterWorkerResponse =>
       new TransportMessage(MessageType.REGISTER_WORKER_RESPONSE, pb.toByteArray)
 
-    case ReregisterWorkerResponse(success) =>
-      val payload = PbReregisterWorkerResponse.newBuilder()
-        .setSuccess(success)
-        .build().toByteArray
-      new TransportMessage(MessageType.REREGISTER_WORKER_RESPONSE, payload)
-
     case ReserveSlots(
           applicationId,
           shuffleId,
@@ -1023,10 +1015,6 @@ object ControlMessages extends Logging {
 
       case REGISTER_WORKER_RESPONSE =>
         PbRegisterWorkerResponse.parseFrom(message.getPayload)
-
-      case REREGISTER_WORKER_RESPONSE =>
-        val pbReregisterWorkerResponse = PbReregisterWorkerResponse.parseFrom(message.getPayload)
-        ReregisterWorkerResponse(pbReregisterWorkerResponse.getSuccess)
 
       case RESERVE_SLOTS =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
