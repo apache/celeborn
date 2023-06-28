@@ -642,12 +642,11 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
-    case GetBlacklist(localBlacklist) =>
+    case GetBlacklist(localExcludedWorkers) =>
       val payload = PbGetBlacklist.newBuilder()
-        .addAllLocalBlackList(localBlacklist.asScala.map { workerInfo =>
+        .addAllLocalBlackList(localExcludedWorkers.asScala.map { workerInfo =>
           PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
-        }
-          .toList.asJava)
+        }.toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.GET_BLACKLIST, payload)
 
