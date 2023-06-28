@@ -420,8 +420,6 @@ object ControlMessages extends Logging {
    *              common
    *  ==========================================
    */
-  case class SlaveLostResponse(status: StatusCode, slaveLocation: PartitionLocation) extends Message
-
   case object GetWorkerInfos extends Message
 
   case class GetWorkerInfosResponse(status: StatusCode, workerInfos: WorkerInfo*) extends Message
@@ -785,13 +783,6 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.DESTROY_RESPONSE, payload)
 
-    case SlaveLostResponse(status, slaveLocation) =>
-      val payload = PbSlaveLostResponse.newBuilder()
-        .setStatus(status.getValue)
-        .setSlaveLocation(PbSerDeUtils.toPbPartitionLocation(slaveLocation))
-        .build().toByteArray
-      new TransportMessage(MessageType.SLAVE_LOST_RESPONSE, payload)
-
     case GetWorkerInfos =>
       new TransportMessage(MessageType.GET_WORKER_INFO, null)
 
@@ -1098,12 +1089,6 @@ object ControlMessages extends Logging {
           Utils.toStatusCode(pbDestroyResponse.getStatus),
           pbDestroyResponse.getFailedMastersList,
           pbDestroyResponse.getFailedSlavesList)
-
-      case SLAVE_LOST_RESPONSE =>
-        val pbSlaveLostResponse = PbSlaveLostResponse.parseFrom(message.getPayload)
-        SlaveLostResponse(
-          Utils.toStatusCode(pbSlaveLostResponse.getStatus),
-          PbSerDeUtils.fromPbPartitionLocation(pbSlaveLostResponse.getSlaveLocation))
 
       case GET_WORKER_INFO =>
         GetWorkerInfos
