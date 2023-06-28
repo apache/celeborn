@@ -125,7 +125,7 @@ object ControlMessages extends Logging {
         numPartitions: Int): PbRegisterShuffle =
       PbRegisterShuffle.newBuilder()
         .setShuffleId(shuffleId)
-        .setNumMapppers(numMappers)
+        .setNumMappers(numMappers)
         .setNumPartitions(numPartitions)
         .build()
   }

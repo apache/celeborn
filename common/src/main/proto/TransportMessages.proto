@@ -155,7 +155,7 @@ message PbHeartbeatResponse {
 
 message PbRegisterShuffle {
   int32 shuffleId = 1;
-  int32 numMapppers = 2;
+  int32 numMappers = 2;
   int32 numPartitions = 3;
 }
 
