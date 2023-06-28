@@ -100,9 +100,9 @@ public class ShuffleResourceTracker implements WorkerStatusListener {
                       shuffleAllocateInfo.get(unknownWorker);
                   if (shufflePartitionLocationInfo != null) {
                     // TODO if we support partition replica for map partition we need refactor this
-                    //  Currently we only untrack master partitions for map partition
+                    //  Currently we only untrack primary partitions for map partition
                     shufflePartitionLocationInfo
-                        .removeAndGetAllMasterPartitionIds()
+                        .removeAndGetAllPrimaryPartitionIds()
                         .forEach(
                             id -> {
                               ResultPartitionID resultPartitionId =
