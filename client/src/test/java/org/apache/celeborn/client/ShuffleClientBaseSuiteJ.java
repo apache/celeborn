@@ -56,7 +56,7 @@ public abstract class ShuffleClientBaseSuiteJ {
   protected static final int SLAVE_PUSH_PORT = 4322;
   protected static final int SLAVE_FETCH_PORT = 4323;
   protected static final int SLAVE_REPLICATE_PORT = 4324;
-  protected static final PartitionLocation masterLocation =
+  protected static final PartitionLocation primaryLocation =
       new PartitionLocation(
           0,
           1,
@@ -65,8 +65,8 @@ public abstract class ShuffleClientBaseSuiteJ {
           MASTER_PUSH_PORT,
           MASTER_FETCH_PORT,
           MASTER_REPLICATE_PORT,
-          PartitionLocation.Mode.MASTER);
-  protected static final PartitionLocation slaveLocation =
+          PartitionLocation.Mode.PRIMARY);
+  protected static final PartitionLocation replicaLocation =
       new PartitionLocation(
           0,
           1,
@@ -75,7 +75,7 @@ public abstract class ShuffleClientBaseSuiteJ {
           SLAVE_PUSH_PORT,
           SLAVE_FETCH_PORT,
           SLAVE_REPLICATE_PORT,
-          PartitionLocation.Mode.SLAVE);
+          PartitionLocation.Mode.REPLICA);
 
   protected final int BATCH_HEADER_SIZE = 4 * 4;
   protected ChannelFuture mockedFuture = mock(ChannelFuture.class);
@@ -87,7 +87,7 @@ public abstract class ShuffleClientBaseSuiteJ {
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1K");
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
-    masterLocation.setPeer(slaveLocation);
+    primaryLocation.setPeer(replicaLocation);
 
     when(endpointRef.askSync(
             ControlMessages.RegisterShuffle$.MODULE$.apply(TEST_SHUFFLE_ID, 1, 1),
@@ -95,11 +95,11 @@ public abstract class ShuffleClientBaseSuiteJ {
         .thenAnswer(
             t ->
                 ControlMessages.RegisterShuffleResponse$.MODULE$.apply(
-                    StatusCode.SUCCESS, new PartitionLocation[] {masterLocation}));
+                    StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}));
 
     shuffleClient.setupMetaServiceRef(endpointRef);
     when(clientFactory.createClient(
-            masterLocation.getHost(), masterLocation.getPushPort(), TEST_REDUCRE_ID))
+            primaryLocation.getHost(), primaryLocation.getPushPort(), TEST_REDUCRE_ID))
         .thenAnswer(t -> client);
 
     shuffleClient.dataClientFactory = clientFactory;

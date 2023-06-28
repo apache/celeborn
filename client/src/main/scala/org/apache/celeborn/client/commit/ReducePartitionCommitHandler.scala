@@ -168,18 +168,18 @@ class ReducePartitionCommitHandler(
     // check data lost
     val dataLost = checkDataLost(
       shuffleId,
-      shuffleCommittedInfo.failedMasterPartitionIds,
-      shuffleCommittedInfo.failedSlavePartitionIds)
+      shuffleCommittedInfo.failedPrimaryPartitionIds,
+      shuffleCommittedInfo.failedReplicaPartitionIds)
 
     // collect result
     if (!dataLost) {
       collectResult(
         shuffleId,
         shuffleCommittedInfo,
-        getPartitionUniqueIds(shuffleCommittedInfo.committedMasterIds),
-        getPartitionUniqueIds(shuffleCommittedInfo.committedSlaveIds),
-        parallelCommitResult.masterPartitionLocationMap,
-        parallelCommitResult.slavePartitionLocationMap)
+        getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds),
+        getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds),
+        parallelCommitResult.primaryPartitionLocationMap,
+        parallelCommitResult.replicaPartitionLocationMap)
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)

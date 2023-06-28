@@ -25,8 +25,8 @@ import org.apache.celeborn.common.meta.WorkerInfo;
 
 public class PartitionLocation implements Serializable {
   public enum Mode {
-    MASTER(0),
-    SLAVE(1);
+    PRIMARY(0),
+    REPLICA(1);
 
     private final byte mode;
 
@@ -42,9 +42,9 @@ public class PartitionLocation implements Serializable {
 
   public static PartitionLocation.Mode getMode(byte mode) {
     if (mode == 0) {
-      return Mode.MASTER;
+      return Mode.PRIMARY;
     } else {
-      return Mode.SLAVE;
+      return Mode.REPLICA;
     }
   }
 

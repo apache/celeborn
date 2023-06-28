@@ -440,7 +440,7 @@ public class SlotsAllocator {
         workerInfo.pushPort(),
         workerInfo.fetchPort(),
         workerInfo.replicatePort(),
-        isMaster ? PartitionLocation.Mode.MASTER : PartitionLocation.Mode.SLAVE,
+        isMaster ? PartitionLocation.Mode.PRIMARY : PartitionLocation.Mode.REPLICA,
         peer,
         storageInfo,
         new RoaringBitmap());

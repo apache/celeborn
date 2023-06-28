@@ -695,7 +695,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
-  def clientExcludeSlaveOnFailureEnabled: Boolean = get(CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED)
+  def clientExcludeReplicaOnFailureEnabled: Boolean = get(CLIENT_EXCLUDE_REPLICA_ON_FAILURE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -985,8 +985,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_CLIENT_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_CLIENT_RETRY_COMMIT_FILE)
-  def testPushMasterDataTimeout: Boolean = get(TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT)
-  def testPushSlaveDataTimeout: Boolean = get(TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT)
+  def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
+  def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def clientFlinkMemoryPerResultPartitionMin: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION_MIN)
@@ -2575,12 +2575,12 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 
-  val CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.excludeSlaveOnFailure.enabled")
+  val CLIENT_EXCLUDE_REPLICA_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.excludeReplicaOnFailure.enabled")
       .categories("client")
       .version("0.3.0")
       .doc("When true, Celeborn will exclude partition's peer worker on failure " +
-        "when push data to slave failed.")
+        "when push data to replica failed.")
       .booleanConf
       .createWithDefault(true)
 
@@ -2742,22 +2742,22 @@ object CelebornConf extends Logging {
       .checkValue(_ > 0, "celeborn.client.push.data.timeout must be positive!")
       .createWithDefaultString("120s")
 
-  val TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.pushMasterDataTimeout")
+  val TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.worker.pushPrimaryDataTimeout")
       .withAlternative("celeborn.test.pushMasterDataTimeout")
       .internal
       .categories("test", "worker")
       .version("0.3.0")
-      .doc("Whether to test push master data timeout")
+      .doc("Whether to test push primary data timeout")
       .booleanConf
       .createWithDefault(false)
 
-  val TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.pushSlaveDataTimeout")
+  val TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.worker.pushReplicaDataTimeout")
       .internal
       .categories("test", "worker")
       .version("0.3.0")
-      .doc("Whether to test push slave data timeout")
+      .doc("Whether to test push replica data timeout")
       .booleanConf
       .createWithDefault(false)
 

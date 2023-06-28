@@ -40,8 +40,8 @@ class WorkerSuite extends AnyFunSuite {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
     val worker = new Worker(conf, workerArgs)
 
-    val pl1 = new PartitionLocation(0, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.MASTER)
-    val pl2 = new PartitionLocation(1, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.SLAVE)
+    val pl1 = new PartitionLocation(0, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY)
+    val pl2 = new PartitionLocation(1, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.REPLICA)
 
     worker.storageManager.createWriter(
       "1",

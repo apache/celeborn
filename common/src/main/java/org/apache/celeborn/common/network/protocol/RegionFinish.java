@@ -22,7 +22,7 @@ import io.netty.buffer.ByteBuf;
 
 public final class RegionFinish extends RequestMessage {
 
-  // 0 for master, 1 for slave, see PartitionLocation.Mode
+  // 0 for primary, 1 for replica, see PartitionLocation.Mode
   public final byte mode;
 
   public final String shuffleKey;

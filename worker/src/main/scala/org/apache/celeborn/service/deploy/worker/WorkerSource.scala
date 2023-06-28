@@ -41,15 +41,15 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addTimer(CommitFilesTime)
   addTimer(ReserveSlotsTime)
   addTimer(FlushDataTime)
-  addTimer(MasterPushDataTime)
-  addTimer(SlavePushDataTime)
+  addTimer(PrimaryPushDataTime)
+  addTimer(ReplicaPushDataTime)
 
-  addTimer(MasterPushDataHandshakeTime)
-  addTimer(SlavePushDataHandshakeTime)
-  addTimer(MasterRegionStartTime)
-  addTimer(SlaveRegionStartTime)
-  addTimer(MasterRegionFinishTime)
-  addTimer(SlaveRegionFinishTime)
+  addTimer(PrimaryPushDataHandshakeTime)
+  addTimer(ReplicaPushDataHandshakeTime)
+  addTimer(PrimaryRegionStartTime)
+  addTimer(ReplicaRegionStartTime)
+  addTimer(PrimaryRegionFinishTime)
+  addTimer(ReplicaRegionFinishTime)
 
   addTimer(FetchChunkTime)
   addTimer(OpenStreamTime)
@@ -72,8 +72,8 @@ object WorkerSource {
   val FetchChunkTime = "FetchChunkTime"
 
   // push data
-  val MasterPushDataTime = "MasterPushDataTime"
-  val SlavePushDataTime = "SlavePushDataTime"
+  val PrimaryPushDataTime = "PrimaryPushDataTime"
+  val ReplicaPushDataTime = "ReplicaPushDataTime"
   val WriteDataFailCount = "WriteDataFailCount"
   val ReplicateDataFailCount = "ReplicateDataFailCount"
   val ReplicateDataWriteFailCount = "ReplicateDataWriteFailCount"
@@ -83,12 +83,12 @@ object WorkerSource {
   val PushDataHandshakeFailCount = "PushDataHandshakeFailCount"
   val RegionStartFailCount = "RegionStartFailCount"
   val RegionFinishFailCount = "RegionFinishFailCount"
-  val MasterPushDataHandshakeTime = "MasterPushDataHandshakeTime"
-  val SlavePushDataHandshakeTime = "SlavePushDataHandshakeTime"
-  val MasterRegionStartTime = "MasterRegionStartTime"
-  val SlaveRegionStartTime = "SlaveRegionStartTime"
-  val MasterRegionFinishTime = "MasterRegionFinishTime"
-  val SlaveRegionFinishTime = "SlaveRegionFinishTime"
+  val PrimaryPushDataHandshakeTime = "PrimaryPushDataHandshakeTime"
+  val ReplicaPushDataHandshakeTime = "ReplicaPushDataHandshakeTime"
+  val PrimaryRegionStartTime = "PrimaryRegionStartTime"
+  val ReplicaRegionStartTime = "ReplicaRegionStartTime"
+  val PrimaryRegionFinishTime = "PrimaryRegionFinishTime"
+  val ReplicaRegionFinishTime = "ReplicaRegionFinishTime"
 
   // flush
   val TakeBufferTime = "TakeBufferTime"

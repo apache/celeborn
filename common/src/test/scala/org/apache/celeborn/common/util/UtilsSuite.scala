@@ -162,7 +162,7 @@ class UtilsSuite extends CelebornFunSuite {
         1000,
         1001,
         100,
-        PartitionLocation.Mode.MASTER))
+        PartitionLocation.Mode.PRIMARY))
     }
     partitionSet
   }

@@ -279,7 +279,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           location,
           e);
       callback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
+          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
     }
     return totalLength;
   }

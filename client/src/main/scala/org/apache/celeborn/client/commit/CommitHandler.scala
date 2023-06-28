@@ -39,8 +39,8 @@ import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils,
 import org.apache.celeborn.common.util.FunctionConverter._
 
 case class CommitResult(
-    masterPartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
-    slavePartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
+    primaryPartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
+    replicaPartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
     commitFilesFailedWorkers: ShuffleFailedWorkers)
 
 abstract class CommitHandler(
@@ -185,12 +185,12 @@ abstract class CommitHandler(
       allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
       partitionIdOpt: Option[Int] = None): CommitResult = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
-    val masterPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
-    val slavePartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
+    val primaryPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
+    val replicaPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
     val commitFilesFailedWorkers = new ShuffleFailedWorkers()
 
     if (CollectionUtils.isEmpty(allocatedWorkers)) {
-      return CommitResult(masterPartMap, slavePartMap, commitFilesFailedWorkers)
+      return CommitResult(primaryPartMap, replicaPartMap, commitFilesFailedWorkers)
     }
 
     val commitFileStartTime = System.nanoTime()
@@ -200,28 +200,28 @@ abstract class CommitHandler(
       workerPartitionLocations.to,
       "CommitFiles",
       parallelism) { case (worker, partitionLocationInfo) =>
-      val masterParts =
-        partitionLocationInfo.getMasterPartitions(partitionIdOpt)
-      val slaveParts = partitionLocationInfo.getSlavePartitions(partitionIdOpt)
-      masterParts.asScala.foreach { p =>
+      val primaryParts =
+        partitionLocationInfo.getPrimaryPartitions(partitionIdOpt)
+      val replicaParts = partitionLocationInfo.getReplicaPartitions(partitionIdOpt)
+      primaryParts.asScala.foreach { p =>
         val partition = new PartitionLocation(p)
         partition.setFetchPort(worker.fetchPort)
         partition.setPeer(null)
-        masterPartMap.put(partition.getUniqueId, partition)
+        primaryPartMap.put(partition.getUniqueId, partition)
       }
-      slaveParts.asScala.foreach { p =>
+      replicaParts.asScala.foreach { p =>
         val partition = new PartitionLocation(p)
         partition.setFetchPort(worker.fetchPort)
         partition.setPeer(null)
-        slavePartMap.put(partition.getUniqueId, partition)
+        replicaPartMap.put(partition.getUniqueId, partition)
       }
 
-      val (masterIds, slaveIds) = shuffleCommittedInfo.synchronized {
+      val (primaryIds, replicaIds) = shuffleCommittedInfo.synchronized {
         (
-          masterParts.asScala
+          primaryParts.asScala
             .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
             .map(_.getUniqueId).toList.asJava,
-          slaveParts.asScala
+          replicaParts.asScala
             .filterNot(shuffleCommittedInfo.handledPartitionLocations.contains)
             .map(_.getUniqueId).toList.asJava)
       }
@@ -231,8 +231,8 @@ abstract class CommitHandler(
         shuffleId,
         shuffleCommittedInfo,
         worker,
-        masterIds,
-        slaveIds,
+        primaryIds,
+        replicaIds,
         commitFilesFailedWorkers)
 
     }
@@ -241,7 +241,7 @@ abstract class CommitHandler(
       s"commit files complete. File count ${shuffleCommittedInfo.currentShuffleFileCount.sum()} " +
       s"using ${(System.nanoTime() - commitFileStartTime) / 1000000} ms")
 
-    CommitResult(masterPartMap, slavePartMap, commitFilesFailedWorkers)
+    CommitResult(primaryPartMap, replicaPartMap, commitFilesFailedWorkers)
   }
 
   def commitFiles(
@@ -249,11 +249,11 @@ abstract class CommitHandler(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo,
       worker: WorkerInfo,
-      masterIds: util.List[String],
-      slaveIds: util.List[String],
+      primaryIds: util.List[String],
+      replicaIds: util.List[String],
       commitFilesFailedWorkers: ShuffleFailedWorkers): Unit = {
 
-    if (CollectionUtils.isEmpty(masterIds) && CollectionUtils.isEmpty(slaveIds)) {
+    if (CollectionUtils.isEmpty(primaryIds) && CollectionUtils.isEmpty(replicaIds)) {
       return
     }
 
@@ -262,8 +262,8 @@ abstract class CommitHandler(
         val commitFiles = CommitFiles(
           applicationId,
           shuffleId,
-          masterIds,
-          slaveIds,
+          primaryIds,
+          replicaIds,
           getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
         val res =
@@ -273,8 +273,8 @@ abstract class CommitHandler(
               StatusCode.WORKER_EXCLUDED,
               List.empty.asJava,
               List.empty.asJava,
-              masterIds,
-              slaveIds)
+              primaryIds,
+              replicaIds)
           } else {
             requestCommitFilesWithRetry(worker.endpoint, commitFiles)
           }
@@ -296,8 +296,8 @@ abstract class CommitHandler(
         val commitFiles1 = CommitFiles(
           applicationId,
           shuffleId,
-          masterIds.subList(0, masterIds.size() / 2),
-          slaveIds.subList(0, slaveIds.size() / 2),
+          primaryIds.subList(0, primaryIds.size() / 2),
+          replicaIds.subList(0, replicaIds.size() / 2),
           getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
         val res1 = requestCommitFilesWithRetry(worker.endpoint, commitFiles1)
@@ -305,23 +305,23 @@ abstract class CommitHandler(
         val commitFiles = CommitFiles(
           applicationId,
           shuffleId,
-          masterIds.subList(masterIds.size() / 2, masterIds.size()),
-          slaveIds.subList(slaveIds.size() / 2, slaveIds.size()),
+          primaryIds.subList(primaryIds.size() / 2, primaryIds.size()),
+          replicaIds.subList(replicaIds.size() / 2, replicaIds.size()),
           getMapperAttempts(shuffleId),
           commitEpoch.incrementAndGet())
         val res2 = requestCommitFilesWithRetry(worker.endpoint, commitFiles)
 
-        res1.committedMasterStorageInfos.putAll(res2.committedMasterStorageInfos)
-        res1.committedSlaveStorageInfos.putAll(res2.committedSlaveStorageInfos)
+        res1.committedPrimaryStorageInfos.putAll(res2.committedPrimaryStorageInfos)
+        res1.committedReplicaStorageInfos.putAll(res2.committedReplicaStorageInfos)
         res1.committedMapIdBitMap.putAll(res2.committedMapIdBitMap)
         CommitFilesResponse(
           status = if (res1.status == StatusCode.SUCCESS) res2.status else res1.status,
-          (res1.committedMasterIds.asScala ++ res2.committedMasterIds.asScala).toList.asJava,
-          (res1.committedSlaveIds.asScala ++ res1.committedSlaveIds.asScala).toList.asJava,
-          (res1.failedMasterIds.asScala ++ res1.failedMasterIds.asScala).toList.asJava,
-          (res1.failedSlaveIds.asScala ++ res2.failedSlaveIds.asScala).toList.asJava,
-          res1.committedMasterStorageInfos,
-          res1.committedSlaveStorageInfos,
+          (res1.committedPrimaryIds.asScala ++ res2.committedPrimaryIds.asScala).toList.asJava,
+          (res1.committedReplicaIds.asScala ++ res1.committedReplicaIds.asScala).toList.asJava,
+          (res1.failedPrimaryIds.asScala ++ res1.failedPrimaryIds.asScala).toList.asJava,
+          (res1.failedReplicaIds.asScala ++ res2.failedReplicaIds.asScala).toList.asJava,
+          res1.committedPrimaryStorageInfos,
+          res1.committedReplicaStorageInfos,
           res1.committedMapIdBitMap,
           res1.totalWritten + res2.totalWritten,
           res1.fileCount + res2.fileCount)
@@ -329,31 +329,31 @@ abstract class CommitHandler(
 
     shuffleCommittedInfo.synchronized {
       // record committed partitionIds
-      res.committedMasterIds.asScala.foreach({
-        case commitMasterId =>
-          val partitionUniqueIdList = shuffleCommittedInfo.committedMasterIds.computeIfAbsent(
-            Utils.splitPartitionLocationUniqueId(commitMasterId)._1,
+      res.committedPrimaryIds.asScala.foreach({
+        case commitPrimaryId =>
+          val partitionUniqueIdList = shuffleCommittedInfo.committedPrimaryIds.computeIfAbsent(
+            Utils.splitPartitionLocationUniqueId(commitPrimaryId)._1,
             (k: Int) => new util.ArrayList[String]())
-          partitionUniqueIdList.add(commitMasterId)
+          partitionUniqueIdList.add(commitPrimaryId)
       })
 
-      res.committedSlaveIds.asScala.foreach({
-        case commitSlaveId =>
-          val partitionUniqueIdList = shuffleCommittedInfo.committedSlaveIds.computeIfAbsent(
-            Utils.splitPartitionLocationUniqueId(commitSlaveId)._1,
+      res.committedReplicaIds.asScala.foreach({
+        case commitReplicaId =>
+          val partitionUniqueIdList = shuffleCommittedInfo.committedReplicaIds.computeIfAbsent(
+            Utils.splitPartitionLocationUniqueId(commitReplicaId)._1,
             (k: Int) => new util.ArrayList[String]())
-          partitionUniqueIdList.add(commitSlaveId)
+          partitionUniqueIdList.add(commitReplicaId)
       })
 
       // record committed partitions storage hint and disk hint
-      shuffleCommittedInfo.committedMasterStorageInfos.putAll(res.committedMasterStorageInfos)
-      shuffleCommittedInfo.committedSlaveStorageInfos.putAll(res.committedSlaveStorageInfos)
+      shuffleCommittedInfo.committedPrimaryStorageInfos.putAll(res.committedPrimaryStorageInfos)
+      shuffleCommittedInfo.committedReplicaStorageInfos.putAll(res.committedReplicaStorageInfos)
 
       // record failed partitions
-      shuffleCommittedInfo.failedMasterPartitionIds.putAll(
-        res.failedMasterIds.asScala.map((_, worker)).toMap.asJava)
-      shuffleCommittedInfo.failedSlavePartitionIds.putAll(
-        res.failedSlaveIds.asScala.map((_, worker)).toMap.asJava)
+      shuffleCommittedInfo.failedPrimaryPartitionIds.putAll(
+        res.failedPrimaryIds.asScala.map((_, worker)).toMap.asJava)
+      shuffleCommittedInfo.failedReplicaPartitionIds.putAll(
+        res.failedReplicaIds.asScala.map((_, worker)).toMap.asJava)
 
       shuffleCommittedInfo.committedMapIdBitmap.putAll(res.committedMapIdBitMap)
 
@@ -366,31 +366,31 @@ abstract class CommitHandler(
   def collectResult(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo,
-      masterPartitionUniqueIds: util.Iterator[String],
-      slavePartitionUniqueIds: util.Iterator[String],
-      masterPartMap: ConcurrentHashMap[String, PartitionLocation],
-      slavePartMap: ConcurrentHashMap[String, PartitionLocation]): Unit = {
+      primaryPartitionUniqueIds: util.Iterator[String],
+      replicaPartitionUniqueIds: util.Iterator[String],
+      primaryPartMap: ConcurrentHashMap[String, PartitionLocation],
+      replicaPartMap: ConcurrentHashMap[String, PartitionLocation]): Unit = {
     val committedPartitions = new util.HashMap[String, PartitionLocation]
-    masterPartitionUniqueIds.asScala.foreach { id =>
-      val partitionLocation = masterPartMap.get(id)
+    primaryPartitionUniqueIds.asScala.foreach { id =>
+      val partitionLocation = primaryPartMap.get(id)
       partitionLocation.setStorageInfo(
-        shuffleCommittedInfo.committedMasterStorageInfos.get(id))
+        shuffleCommittedInfo.committedPrimaryStorageInfos.get(id))
       partitionLocation.setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
       committedPartitions.put(id, partitionLocation)
     }
 
-    slavePartitionUniqueIds.asScala.foreach { id =>
-      val slavePartition = slavePartMap.get(id)
-      slavePartition.setStorageInfo(shuffleCommittedInfo.committedSlaveStorageInfos.get(id))
-      val masterPartition = committedPartitions.get(id)
-      if (masterPartition ne null) {
-        masterPartition.setPeer(slavePartition)
-        slavePartition.setPeer(masterPartition)
+    replicaPartitionUniqueIds.asScala.foreach { id =>
+      val replicaPartition = replicaPartMap.get(id)
+      replicaPartition.setStorageInfo(shuffleCommittedInfo.committedReplicaStorageInfos.get(id))
+      val primaryPartition = committedPartitions.get(id)
+      if (primaryPartition ne null) {
+        primaryPartition.setPeer(replicaPartition)
+        replicaPartition.setPeer(primaryPartition)
       } else {
-        logInfo(s"Shuffle $shuffleId partition $id: master lost, " +
-          s"use slave $slavePartition.")
-        slavePartition.setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
-        committedPartitions.put(id, slavePartition)
+        logInfo(s"Shuffle $shuffleId partition $id: primary lost, " +
+          s"use replica $replicaPartition.")
+        replicaPartition.setMapIdBitMap(shuffleCommittedInfo.committedMapIdBitmap.get(id))
+        committedPartitions.put(id, replicaPartition)
       }
     }
 
@@ -429,18 +429,18 @@ abstract class CommitHandler(
       StatusCode.REQUEST_FAILED,
       List.empty.asJava,
       List.empty.asJava,
-      message.masterIds,
-      message.slaveIds)
+      message.primaryIds,
+      message.replicaIds)
   }
 
   def checkDataLost(
       shuffleId: Int,
-      failedMasters: util.Map[String, WorkerInfo],
-      failedSlaves: util.Map[String, WorkerInfo]): Boolean = {
+      failedPrimaries: util.Map[String, WorkerInfo],
+      failedReplicas: util.Map[String, WorkerInfo]): Boolean = {
     val shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId)
-    if (!pushReplicateEnabled && failedMasters.size() != 0) {
+    if (!pushReplicateEnabled && failedPrimaries.size() != 0) {
       val msg =
-        failedMasters.asScala.map {
+        failedPrimaries.asScala.map {
           case (partitionUniqueId, workerInfo) =>
             s"Lost partition $partitionUniqueId in worker [${workerInfo.readableAddress()}]"
         }.mkString("\n")
@@ -451,19 +451,19 @@ abstract class CommitHandler(
            |""".stripMargin)
       true
     } else {
-      val failedBothPartitionIdsToWorker = failedMasters.asScala.flatMap {
+      val failedBothPartitionIdsToWorker = failedPrimaries.asScala.flatMap {
         case (partitionUniqueId, worker) =>
-          if (failedSlaves.asScala.contains(partitionUniqueId)) {
-            Some(partitionUniqueId -> (worker, failedSlaves.get(partitionUniqueId)))
+          if (failedReplicas.asScala.contains(partitionUniqueId)) {
+            Some(partitionUniqueId -> (worker, failedReplicas.get(partitionUniqueId)))
           } else {
             None
           }
       }
       if (failedBothPartitionIdsToWorker.nonEmpty) {
         val msg = failedBothPartitionIdsToWorker.map {
-          case (partitionUniqueId, (masterWorker, slaveWorker)) =>
+          case (partitionUniqueId, (primaryWorker, replicaWorker)) =>
             s"Lost partition $partitionUniqueId " +
-              s"in master worker [${masterWorker.readableAddress()}] and slave worker [$slaveWorker]"
+              s"in primary worker [${primaryWorker.readableAddress()}] and replica worker [$replicaWorker]"
         }.mkString("\n")
         logError(
           s"""

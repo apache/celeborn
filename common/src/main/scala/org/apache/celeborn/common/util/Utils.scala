@@ -703,7 +703,7 @@ object Utils extends Logging {
   def getSlotsPerDisk(
       slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
     val workerSlotsDistribution = new util.HashMap[WorkerInfo, util.Map[String, Integer]]()
-    slots.asScala.foreach { case (workerInfo, (masterPartitionLoc, slavePartitionLoc)) =>
+    slots.asScala.foreach { case (workerInfo, (primaryPartitionLoc, replicaPartitionLoc)) =>
       val diskSlotsMap = new util.HashMap[String, Integer]()
 
       def countSlotsByDisk(location: util.List[PartitionLocation]): Unit = {
@@ -717,8 +717,8 @@ object Utils extends Logging {
         })
       }
 
-      countSlotsByDisk(masterPartitionLoc)
-      countSlotsByDisk(slavePartitionLoc)
+      countSlotsByDisk(primaryPartitionLoc)
+      countSlotsByDisk(replicaPartitionLoc)
       workerSlotsDistribution.put(workerInfo, diskSlotsMap)
     }
     workerSlotsDistribution
@@ -822,7 +822,7 @@ object Utils extends Logging {
       case 8 =>
         StatusCode.PARTITION_NOT_FOUND
       case 9 =>
-        StatusCode.SLAVE_PARTITION_NOT_FOUND
+        StatusCode.REPLICA_PARTITION_NOT_FOUND
       case 10 =>
         StatusCode.DELETE_FILES_FAILED
       case 11 =>
@@ -840,9 +840,9 @@ object Utils extends Logging {
       case 17 =>
         StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE
       case 18 =>
-        StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
+        StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
       case 19 =>
-        StatusCode.PUSH_DATA_WRITE_FAIL_MASTER
+        StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
       case 20 =>
         StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND
       case 21 =>
@@ -862,25 +862,25 @@ object Utils extends Logging {
       case 28 =>
         StatusCode.WORKER_UNKNOWN
       case 30 =>
-        StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED
+        StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED
       case 31 =>
-        StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED
+        StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED
       case 38 =>
-        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER
+        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY
       case 39 =>
-        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
+        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA
       case 40 =>
-        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER
+        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY
       case 41 =>
-        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
+        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
       case 42 =>
-        StatusCode.PUSH_DATA_TIMEOUT_MASTER
+        StatusCode.PUSH_DATA_TIMEOUT_PRIMARY
       case 43 =>
-        StatusCode.PUSH_DATA_TIMEOUT_SLAVE
+        StatusCode.PUSH_DATA_TIMEOUT_REPLICA
       case 44 =>
-        StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED
+        StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED
       case 45 =>
-        StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED
+        StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED
       case 46 =>
         StatusCode.FETCH_DATA_TIMEOUT
       case 47 =>

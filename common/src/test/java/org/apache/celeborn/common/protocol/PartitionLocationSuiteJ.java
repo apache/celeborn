@@ -29,7 +29,7 @@ public class PartitionLocationSuiteJ {
   private final int pushPort = 1;
   private final int fetchPort = 2;
   private final int replicatePort = 4;
-  private final PartitionLocation.Mode mode = PartitionLocation.Mode.MASTER;
+  private final PartitionLocation.Mode mode = PartitionLocation.Mode.PRIMARY;
   private final PartitionLocation peer =
       new PartitionLocation(
           partitionId,
@@ -39,20 +39,20 @@ public class PartitionLocationSuiteJ {
           pushPort,
           fetchPort,
           replicatePort,
-          PartitionLocation.Mode.SLAVE);
+          PartitionLocation.Mode.REPLICA);
 
   @Test
   public void testGetCorrectMode() {
-    byte masterMode = 0;
-    byte slaveMode = 1;
+    byte primaryMode = 0;
+    byte replicaMode = 1;
 
-    assert PartitionLocation.getMode(masterMode) == PartitionLocation.Mode.MASTER;
-    assert PartitionLocation.getMode(slaveMode) == PartitionLocation.Mode.SLAVE;
+    assert PartitionLocation.getMode(primaryMode) == PartitionLocation.Mode.PRIMARY;
+    assert PartitionLocation.getMode(replicaMode) == PartitionLocation.Mode.REPLICA;
 
     for (int i = 2; i < 255; ++i) {
       byte otherMode = (byte) i;
-      // Should we return slave mode when the parameter passed in is neither 0 or 1?
-      assert PartitionLocation.getMode(otherMode) == PartitionLocation.Mode.SLAVE;
+      // Should we return replica mode when the parameter passed in is neither 0 or 1?
+      assert PartitionLocation.getMode(otherMode) == PartitionLocation.Mode.REPLICA;
     }
   }
 
@@ -133,7 +133,7 @@ public class PartitionLocationSuiteJ {
             pushPort,
             fetchPort,
             replicatePort,
-            PartitionLocation.Mode.SLAVE,
+            PartitionLocation.Mode.REPLICA,
             peer);
     PartitionLocation location3 =
         new PartitionLocation(

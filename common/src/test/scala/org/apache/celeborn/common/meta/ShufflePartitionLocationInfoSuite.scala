@@ -47,36 +47,36 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
     slaveLocations.add(partitionLocationSlave10)
 
     val shufflePartitionLocationInfo = new ShufflePartitionLocationInfo
-    shufflePartitionLocationInfo.addMasterPartitions(masterLocations)
-    shufflePartitionLocationInfo.addSlavePartitions(slaveLocations)
+    shufflePartitionLocationInfo.addPrimaryPartitions(masterLocations)
+    shufflePartitionLocationInfo.addReplicaPartitions(slaveLocations)
 
     // test add
-    assertEquals(shufflePartitionLocationInfo.getMasterPartitions().size(), 5)
-    assertEquals(shufflePartitionLocationInfo.getMasterPartitions(Some(0)).size(), 3)
-    assertEquals(shufflePartitionLocationInfo.getMasterPartitions(Some(1)).size(), 2)
+    assertEquals(shufflePartitionLocationInfo.getPrimaryPartitions().size(), 5)
+    assertEquals(shufflePartitionLocationInfo.getPrimaryPartitions(Some(0)).size(), 3)
+    assertEquals(shufflePartitionLocationInfo.getPrimaryPartitions(Some(1)).size(), 2)
 
-    assertEquals(shufflePartitionLocationInfo.getSlavePartitions().size(), 2)
-    assertEquals(shufflePartitionLocationInfo.getSlavePartitions(Some(0)).size(), 1)
-    assertEquals(shufflePartitionLocationInfo.getSlavePartitions(Some(1)).size(), 1)
+    assertEquals(shufflePartitionLocationInfo.getReplicaPartitions().size(), 2)
+    assertEquals(shufflePartitionLocationInfo.getReplicaPartitions(Some(0)).size(), 1)
+    assertEquals(shufflePartitionLocationInfo.getReplicaPartitions(Some(1)).size(), 1)
 
     // test get min epoch
-    val locations = shufflePartitionLocationInfo.getAllMasterLocationsWithMinEpoch()
+    val locations = shufflePartitionLocationInfo.getAllPrimaryLocationsWithMinEpoch()
     assertTrue(locations.contains(partitionLocation00) && locations.contains(partitionLocation11))
 
     // test remove
-    assertEquals(shufflePartitionLocationInfo.removeMasterPartitions(0).size(), 3)
-    assertEquals(shufflePartitionLocationInfo.getMasterPartitions().size(), 2)
-    assertEquals(shufflePartitionLocationInfo.getMasterPartitions(Some(1)).size(), 2)
+    assertEquals(shufflePartitionLocationInfo.removePrimaryPartitions(0).size(), 3)
+    assertEquals(shufflePartitionLocationInfo.getPrimaryPartitions().size(), 2)
+    assertEquals(shufflePartitionLocationInfo.getPrimaryPartitions(Some(1)).size(), 2)
 
-    assertEquals(shufflePartitionLocationInfo.removeSlavePartitions(0).size(), 1)
-    assertEquals(shufflePartitionLocationInfo.getSlavePartitions().size(), 1)
-    assertEquals(shufflePartitionLocationInfo.getSlavePartitions(Some(1)).size(), 1)
+    assertEquals(shufflePartitionLocationInfo.removeReplicaPartitions(0).size(), 1)
+    assertEquals(shufflePartitionLocationInfo.getReplicaPartitions().size(), 1)
+    assertEquals(shufflePartitionLocationInfo.getReplicaPartitions(Some(1)).size(), 1)
 
     // test remove all
     assertEquals(
-      shufflePartitionLocationInfo.removeAndGetAllMasterPartitionIds(),
+      shufflePartitionLocationInfo.removeAndGetAllPrimaryPartitionIds(),
       new util.HashSet[Integer] { add(1) })
-    assertEquals(shufflePartitionLocationInfo.getMasterPartitions().size(), 0)
+    assertEquals(shufflePartitionLocationInfo.getPrimaryPartitions().size(), 0)
   }
 
   private def mockPartition(partitionId: Int, epoch: Int): PartitionLocation = {
@@ -88,7 +88,7 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
       -1,
       -1,
       -1,
-      PartitionLocation.Mode.MASTER)
+      PartitionLocation.Mode.PRIMARY)
   }
 
 }

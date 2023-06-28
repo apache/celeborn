@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.RpcNameConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages.OneWayMessageResponse$;
-import org.apache.celeborn.common.protocol.message.MasterRequestMessage;
+import org.apache.celeborn.common.protocol.message.PrimaryRequestMessage;
 import org.apache.celeborn.common.protocol.message.Message;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -131,8 +131,8 @@ public class RssHARetryClient {
     Throwable throwable = null;
     int numTries = 0;
     boolean shouldRetry = true;
-    if (message instanceof MasterRequestMessage) {
-      ((MasterRequestMessage) message)
+    if (message instanceof PrimaryRequestMessage) {
+      ((PrimaryRequestMessage) message)
           .requestId_(encodeRequestId(UUID.randomUUID().toString(), nextCallId()));
     }
 
