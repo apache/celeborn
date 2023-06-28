@@ -41,7 +41,7 @@ import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileIn
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
@@ -59,7 +59,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 
-    if (workingDirInfos.size <= 0) {
+    if (workingDirInfos.size <= 0 && !conf.hasHDFSStorage) {
       throw new IOException("Empty working directory configuration!")
     }
 
@@ -120,17 +120,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
-  if (!hdfsDir.isEmpty) {
+  if (!hdfsDir.isEmpty && conf.hasHDFSStorage) {
     logInfo(s"Initialize HDFS support with path ${hdfsDir}")
   }
   val hdfsPermission = new FsPermission("755")
   val hdfsWriters = JavaUtils.newConcurrentHashMap[String, FileWriter]()
   val (hdfsFlusher, _totalHdfsFlusherThread) =
-    if (!hdfsDir.isEmpty) {
+    if (!hdfsDir.isEmpty && conf.hasHDFSStorage) {
       val path = new Path(hdfsDir)
       val scheme = path.toUri.getScheme
-      val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme);
-      val hdfsConfiguration = new Configuration
+      val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
+      val hdfsConfiguration = CelebornHadoopUtils.newConfiguration(conf)
       hdfsConfiguration.set("dfs.replication", "2")
       hdfsConfiguration.set(disableCacheName, "false")
       logInfo("Celeborn will ignore cluster settings " +
@@ -265,7 +265,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): FileWriter = {
-    if (healthyWorkingDirs().size <= 0 && hdfsDir.isEmpty) {
+    if (healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage) {
       throw new IOException("No available working dirs!")
     }
 
@@ -663,6 +663,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             }
           }
         })
+      }
+    })
+    hdfsWriters.forEach(new BiConsumer[String, FileWriter] {
+      override def accept(t: String, u: FileWriter): Unit = {
+        u.flushOnMemoryPressure();
       }
     })
   }

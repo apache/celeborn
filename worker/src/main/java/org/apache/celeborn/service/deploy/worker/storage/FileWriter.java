@@ -98,14 +98,15 @@ public abstract class FileWriter implements DeviceObserver {
     this.flushWorkerIndex = flusher.getWorkerIndex();
     this.writerCloseTimeoutMs = conf.workerWriterCloseTimeoutMs();
     this.splitThreshold = splitThreshold;
-    this.flusherBufferSize = conf.workerFlusherBufferSize();
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
     this.partitionType = partitionType;
     this.rangeReadFilter = rangeReadFilter;
     if (!fileInfo.isHdfs()) {
+      this.flusherBufferSize = conf.workerFlusherBufferSize();
       channel = FileChannelUtils.createWritableFileChannel(fileInfo.getFilePath());
     } else {
+      this.flusherBufferSize = conf.workerHdfsFlusterBufferSize();
       // We open the stream and close immediately because HDFS output stream will
       // create a DataStreamer that is a thread.
       // If we reuse HDFS output stream, we will exhaust the memory soon.

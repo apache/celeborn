@@ -113,8 +113,24 @@ celeborn.master.port 9097
 
 celeborn.metrics.enabled true
 celeborn.worker.flusher.buffer.size 256k
+
+# If Celeborn workers have local disks and HDFS. Following configs should be added.
+# If Celeborn workers have local disks, use following config.
 # Disk type is HDD by defaut.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
+
+# If Celeborn workers don't have local disks. You can use HDFS.
+# Do not set `celeborn.worker.storage.dirs` and use following configs.
+celeborn.storage.activeTypes HDFS
+celeborn.worker.sortPartition.threads 64
+celeborn.worker.commitFiles.timeout 240s
+celeborn.worker.commitFiles.threads 128
+celeborn.master.slot.assign.policy roundrobin
+celeborn.rpc.askTimeout 240s
+celeborn.worker.flusher.hdfs.buffer.size 4m
+celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.worker.replicate.fastFail.duration 240s
+
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```   
@@ -142,8 +158,26 @@ celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
 celeborn.worker.flusher.buffer.size 256k
+
+# If Celeborn workers have local disks and HDFS. Following configs should be added.
+# Celeborn will use local disks until local disk become unavailable to gain the best performance.
+# Increase Celeborn's off-heap memory if Celeborn write to HDFS.
+# If Celeborn workers have local disks, use following config.
 # Disk type is HDD by defaut.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
+
+# If Celeborn workers don't have local disks. You can use HDFS.
+# Do not set `celeborn.worker.storage.dirs` and use following configs.
+celeborn.storage.activeTypes HDFS
+celeborn.worker.sortPartition.threads 64
+celeborn.worker.commitFiles.timeout 240s
+celeborn.worker.commitFiles.threads 128
+celeborn.master.slot.assign.policy roundrobin
+celeborn.rpc.askTimeout 240s
+celeborn.worker.flusher.hdfs.buffer.size 4m
+celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.worker.replicate.fastFail.duration 240s
+
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```
@@ -214,11 +248,15 @@ spark.celeborn.client.spark.shuffle.writer hash
 
 # We recommend setting spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
 # If you have only one worker, this setting must be false 
+# If your Celeborn is using HDFS, it's recommended to set this setting to false
 spark.celeborn.client.push.replicate.enabled true
 
 # Support for Spark AQE only tested under Spark 3
 # we recommend setting localShuffleReader to false to get better performance of Celeborn
 spark.sql.adaptive.localShuffleReader.enabled false
+
+# If Celeborn is using HDFS
+spark.celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
 
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
