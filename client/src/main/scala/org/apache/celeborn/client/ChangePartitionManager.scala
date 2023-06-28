@@ -203,7 +203,7 @@ class ChangePartitionManager(
     }.mkString("[", ",", "]")
     logWarning(s"Batch handle change partition for $changes")
 
-    // Blacklist all failed workers
+    // Exclude all failed workers
     if (changePartitions.exists(_.causes.isDefined)) {
       changePartitions.filter(_.causes.isDefined).foreach { changePartition =>
         lifecycleManager.workerStatusTracker.excludeWorkerFromPartition(

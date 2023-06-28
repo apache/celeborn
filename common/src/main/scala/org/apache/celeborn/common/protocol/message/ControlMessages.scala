@@ -331,11 +331,11 @@ object ControlMessages extends Logging {
       unknownWorkers: util.List[WorkerInfo],
       shuttingWorkers: util.List[WorkerInfo]) extends Message
 
-  case class GetBlacklist(localBlacklist: util.List[WorkerInfo]) extends MasterMessage
+  case class GetBlacklist(localExcludedWorkers: util.List[WorkerInfo]) extends MasterMessage
 
   case class GetBlacklistResponse(
       statusCode: StatusCode,
-      blacklist: util.List[WorkerInfo],
+      excludedWorkers: util.List[WorkerInfo],
       unknownWorkers: util.List[WorkerInfo]) extends Message
 
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
@@ -651,11 +651,11 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.GET_BLACKLIST, payload)
 
-    case GetBlacklistResponse(statusCode, blacklist, unknownWorkers) =>
+    case GetBlacklistResponse(statusCode, excludedWorkers, unknownWorkers) =>
       val builder = PbGetBlacklistResponse.newBuilder()
         .setStatus(statusCode.getValue)
       builder.addAllBlacklist(
-        blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
       builder.addAllUnknownWorkers(
         unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
 
