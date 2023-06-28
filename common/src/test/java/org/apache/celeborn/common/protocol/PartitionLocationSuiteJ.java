@@ -203,7 +203,7 @@ public class PartitionLocationSuiteJ {
         "PartitionLocation[\n"
             + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
-            + "  mode:MASTER\n"
+            + "  mode:PRIMARY\n"
             + "  peer:(empty)\n"
             + "  storage hint:StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{}]";
@@ -211,7 +211,7 @@ public class PartitionLocationSuiteJ {
         "PartitionLocation[\n"
             + "  id-epoch:0-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
-            + "  mode:MASTER\n"
+            + "  mode:PRIMARY\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
             + "  storage hint:StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{}]";
@@ -219,7 +219,7 @@ public class PartitionLocationSuiteJ {
         "PartitionLocation[\n"
             + "  id-epoch:1000-0\n"
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
-            + "  mode:MASTER\n"
+            + "  mode:PRIMARY\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
             + "  storage hint:StorageInfo{type=MEMORY, mountPoint='/mnt/disk/0', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{1,2,3}]";
