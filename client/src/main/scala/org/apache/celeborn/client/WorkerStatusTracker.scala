@@ -84,26 +84,26 @@ class WorkerStatusTracker(
         case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
           excludeWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
         case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
-            if oldPartition.hasPeer && conf.clientExcludeSlaveOnFailureEnabled =>
+            if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled=>
           excludeWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
           excludeWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
         case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
-            if oldPartition.hasPeer && conf.clientExcludeSlaveOnFailureEnabled =>
+            if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
           excludeWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
           excludeWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
         case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-            if oldPartition.hasPeer && conf.clientExcludeSlaveOnFailureEnabled =>
+            if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
           excludeWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
         case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
           excludeWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
         case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
-            if oldPartition.hasPeer && conf.clientExcludeSlaveOnFailureEnabled =>
+            if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
           excludeWorker(
             oldPartition.getPeer,
             StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
