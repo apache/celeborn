@@ -43,3 +43,7 @@ license: |
  - Since 0.3.0, Celeborn supports overriding Hadoop configuration(`core-site.xml`, `hdfs-site.xml`, etc.) from Celeborn configuration with the additional prefix `celeborn.hadoop.`. 
    On Spark client side, user should set Hadoop configuration like `spark.celeborn.hadoop.foo=bar`, note that `spark.hadoop.foo=bar` does not take effect;
    on Flink client and Celeborn Master/Worker side, user should set like `celeborn.hadoop.foo=bar`.
+
+ - Since 0.3.0, Celeborn master metrics `BlacklistedWorkerCount` is renamed as `ExcludedWorkerCount`.
+
+ - Since 0.3.0, Celeborn master http request url `/blacklistedWorkers` is renamed as `/excludedWorkers`.
