@@ -225,7 +225,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val partitionId = pb.getPartitionId
       logDebug(s"Received Register map partition task request, " +
         s"$shuffleId, $numMappers, $mapId, $attemptId, $partitionId.")
-      shufflePartitionType.computeIfAbsent(shuffleId, (key: Int) => PartitionType.MAP)
+      shufflePartitionType.putIfAbsent(shuffleId, PartitionType.MAP)
       offerAndReserveSlots(
         RegisterCallContext(context, partitionId),
         shuffleId,

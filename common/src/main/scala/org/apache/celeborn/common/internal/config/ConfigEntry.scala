@@ -285,7 +285,7 @@ object ConfigEntry {
   private val knownConfigs = JavaUtils.newConcurrentHashMap[String, ConfigEntry[_]]()
 
   def registerEntry(entry: ConfigEntry[_]): Unit = {
-    val existing = knownConfigs.computeIfAbsent(entry.key, (k: String) => entry)
+    val existing = knownConfigs.putIfAbsent(entry.key, entry)
     require(existing == null, s"Config entry ${entry.key} already registered!")
   }
 

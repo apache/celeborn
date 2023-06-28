@@ -111,11 +111,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         metricRegistry.timer(metricNameWithLabel, timerSupplier)
       namedTimers.computeIfAbsent(
         metricNameWithLabel,
-        (k: String) => {
+        _ =>
           (
             NamedTimer(name, timer, labels ++ staticLabels),
-            JavaUtils.newConcurrentHashMap[String, Long]())
-        })
+            JavaUtils.newConcurrentHashMap[String, Long]()))
     }
   }
 
