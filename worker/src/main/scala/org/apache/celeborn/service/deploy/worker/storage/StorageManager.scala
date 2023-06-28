@@ -531,7 +531,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (hadoopFs != null) {
       val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
       if (hadoopFs.exists(hdfsWorkPath)) {
-        val iter = hadoopFs.listFiles(hdfsWorkPath, false)
+        val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext) {
           val fileStatus = iter.next()
           if (!appIds.contains(fileStatus.getPath.getName)) {
