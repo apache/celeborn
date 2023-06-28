@@ -359,8 +359,7 @@ private[deploy] class Controller(
     val epochCommitMap = shuffleCommitInfos.get(shuffleKey)
     epochCommitMap.computeIfAbsent(
       epoch,
-      (k: Long) => {new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED)}
-    )
+      (k: Long) => { new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED) })
     val commitInfo = epochCommitMap.get(epoch)
 
     def waitForCommitFinish(): Unit = {

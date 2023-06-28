@@ -599,7 +599,9 @@ private[celeborn] class NettyRpcHandler(
       // The remote RpcEnv listens to some port, we should also fire a RemoteProcessConnected for
       // the listening address
       val remoteEnvAddress = requestMessage.senderAddress
-      if (remoteAddresses.computeIfAbsent(clientAddr, (k: RpcAddress) => remoteEnvAddress) == null) {
+      if (remoteAddresses.computeIfAbsent(
+          clientAddr,
+          (k: RpcAddress) => remoteEnvAddress) == null) {
         dispatcher.postToAll(RemoteProcessConnected(remoteEnvAddress))
       }
       requestMessage
