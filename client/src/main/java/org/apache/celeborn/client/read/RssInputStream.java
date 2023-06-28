@@ -130,7 +130,7 @@ public abstract class RssInputStream extends InputStream {
     private final boolean rangeReadFilter;
 
     private boolean pushReplicateEnabled;
-    private boolean fetchBlacklistEnabled;
+    private boolean fetchExcludeWorkerOnFailureEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private final ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
@@ -155,7 +155,7 @@ public abstract class RssInputStream extends InputStream {
       this.endMapIndex = endMapIndex;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.pushReplicateEnabled = conf.clientPushReplicateEnabled();
-      this.fetchBlacklistEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
+      this.fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
@@ -241,7 +241,7 @@ public abstract class RssInputStream extends InputStream {
     }
 
     private void excludeFailedLocation(PartitionLocation location, Exception e) {
-      if (pushReplicateEnabled && fetchBlacklistEnabled && isCriticalCause(e)) {
+      if (pushReplicateEnabled && fetchExcludeWorkerOnFailureEnabled && isCriticalCause(e)) {
         fetchExcludedWorkers.put(location.hostAndFetchPort(), System.currentTimeMillis());
       }
     }
