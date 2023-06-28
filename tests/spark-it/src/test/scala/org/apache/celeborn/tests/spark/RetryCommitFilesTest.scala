@@ -34,7 +34,7 @@ class RetryCommitFilesTest extends AnyFunSuite
     logInfo("test initialized , setup Celeborn mini cluster")
     val workerConf = Map(
       "celeborn.test.retryCommitFiles" -> s"true")
-    setUpMiniCluster(masterConfs = null, workerConfs = workerConf)
+    setUpMiniCluster(masterConf = null, workerConf = workerConf)
   }
 
   override def beforeEach(): Unit = {
