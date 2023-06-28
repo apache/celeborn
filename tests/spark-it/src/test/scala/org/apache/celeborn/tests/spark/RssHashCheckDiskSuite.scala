@@ -22,7 +22,6 @@ import scala.collection.JavaConverters._
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.scalatest.concurrent.Eventually._
-import org.scalatest.concurrent.Futures._
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.celeborn.client.ShuffleClient
@@ -87,18 +86,15 @@ class RssHashCheckDiskSuite extends SparkTestBase {
 
     logInfo("after shuffle key expired")
     eventually(timeout(60.seconds), interval(2.seconds)) {
-      // after shuffle key expired, storageManager.workingDirWriters will be empty
       workers.foreach { worker =>
+        // after shuffle key expired, storageManager.workingDirWriters will be empty
         worker.storageManager.workingDirWriters.values().asScala.foreach { t =>
           assert(t.size() === 0)
         }
-      }
-    }
-
-    // after shuffle key expired, diskInfo.actualUsableSpace will equal capacity=1000
-    workers.foreach { worker =>
-      worker.storageManager.disksSnapshot().foreach { diskInfo =>
-        assert(diskInfo.actualUsableSpace === 1000)
+        // after shuffle key expired, diskInfo.actualUsableSpace will equal capacity=1000
+        worker.storageManager.disksSnapshot().foreach { diskInfo =>
+          assert(diskInfo.actualUsableSpace === 1000)
+        }
       }
     }
   }
