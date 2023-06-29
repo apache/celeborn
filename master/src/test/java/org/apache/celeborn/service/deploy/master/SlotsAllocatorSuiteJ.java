@@ -297,10 +297,10 @@ public class SlotsAllocatorSuiteJ {
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         workerToPartitions : slots.entrySet()) {
       WorkerInfo workerInfo = workerToPartitions.getKey();
-      List<PartitionLocation> masterLocs = workerToPartitions.getValue()._1;
-      List<PartitionLocation> slaveLocs = workerToPartitions.getValue()._2();
-      allocatedPartitionCount += masterLocs.size();
-      allocatedPartitionCount += slaveLocs.size();
+      List<PartitionLocation> primaryLocs = workerToPartitions.getValue()._1;
+      List<PartitionLocation> replicaLocs = workerToPartitions.getValue()._2();
+      allocatedPartitionCount += primaryLocs.size();
+      allocatedPartitionCount += replicaLocs.size();
     }
     if (expectSuccess) {
       Assert.assertEquals(slots.isEmpty(), false);
