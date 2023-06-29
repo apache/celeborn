@@ -58,9 +58,6 @@ reports/
 scalastyle-on-compile.generated.xml
 scalastyle-output.xml
 scalastyle.txt
-emr-*.tgz
-emr-*-bin*
-celeborn-*.tgz
 apache-celeborn-*.tgz
 celeborn-*-bin*
 apache-celeborn-*-bin*
