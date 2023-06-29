@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.haclient;
+package org.apache.celeborn.common.client;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -46,8 +46,8 @@ import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 
-public class RssHARetryClientSuiteJ {
-  private static final Logger LOG = LoggerFactory.getLogger(RssHARetryClientSuiteJ.class);
+public class MasterClientSuiteJ {
+  private static final Logger LOG = LoggerFactory.getLogger(MasterClientSuiteJ.class);
 
   private final String masterHost = "localhost";
   private final int masterPort = 9097;
@@ -79,7 +79,7 @@ public class RssHARetryClientSuiteJ {
         });
     prepareForRpcEnvWithoutHA();
 
-    RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -106,7 +106,7 @@ public class RssHARetryClientSuiteJ {
         });
     prepareForRpcEnvWithoutHA();
 
-    RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -132,7 +132,7 @@ public class RssHARetryClientSuiteJ {
           return Future$.MODULE$.successful(response);
         });
 
-    RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -152,7 +152,7 @@ public class RssHARetryClientSuiteJ {
     prepareForEndpointRefWithoutRetry(() -> Future$.MODULE$.successful(mockResponse));
     prepareForRpcEnvWithoutHA();
 
-    RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -174,7 +174,7 @@ public class RssHARetryClientSuiteJ {
     prepareForEndpointRefWithRetry(numTries, () -> Future$.MODULE$.successful(mockResponse));
     prepareForRpcEnvWithoutHA();
 
-    RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -195,7 +195,7 @@ public class RssHARetryClientSuiteJ {
 
     prepareForRpcEnvWithHA(() -> Future$.MODULE$.successful(mockResponse));
 
-    RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -254,7 +254,7 @@ public class RssHARetryClientSuiteJ {
         .when(rpcEnv)
         .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
 
-    RssHARetryClient client = new RssHARetryClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;

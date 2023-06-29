@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.haclient;
+package org.apache.celeborn.common.client;
 
 import java.io.IOException;
 
