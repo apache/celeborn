@@ -21,19 +21,19 @@ public class RemoteShuffleResource implements ShuffleResource {
 
   private static final long serialVersionUID = 6497939083185255973L;
 
-  private final String rssMetaServiceHost;
-  private final int rssMetaServicePort;
-  private final long rssMetaServiceTimestamp;
+  private final String metaServiceHost;
+  private final int metaServicePort;
+  private final long metaServiceTimestamp;
   private ShuffleResourceDescriptor shuffleResourceDescriptor;
 
   public RemoteShuffleResource(
-      String rssMetaServiceHost,
-      int rssMetaServicePort,
-      long rssMetaServiceTimestamp,
+      String metaServiceHost,
+      int metaServicePort,
+      long metaServiceTimestamp,
       ShuffleResourceDescriptor remoteShuffleDescriptor) {
-    this.rssMetaServiceHost = rssMetaServiceHost;
-    this.rssMetaServicePort = rssMetaServicePort;
-    this.rssMetaServiceTimestamp = rssMetaServiceTimestamp;
+    this.metaServiceHost = metaServiceHost;
+    this.metaServicePort = metaServicePort;
+    this.metaServiceTimestamp = metaServiceTimestamp;
     this.shuffleResourceDescriptor = remoteShuffleDescriptor;
   }
 
@@ -42,24 +42,24 @@ public class RemoteShuffleResource implements ShuffleResource {
     return shuffleResourceDescriptor;
   }
 
-  public String getRssMetaServiceHost() {
-    return rssMetaServiceHost;
+  public String getMetaServiceHost() {
+    return metaServiceHost;
   }
 
-  public int getRssMetaServicePort() {
-    return rssMetaServicePort;
+  public int getMetaServicePort() {
+    return metaServicePort;
   }
 
-  public long getRssMetaServiceTimestamp() {
-    return rssMetaServiceTimestamp;
+  public long getMetaServiceTimestamp() {
+    return metaServiceTimestamp;
   }
 
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("RemoteShuffleResource{");
-    sb.append("rssMetaServiceHost='").append(rssMetaServiceHost).append('\'');
-    sb.append(", rssMetaServicePort=").append(rssMetaServicePort);
-    sb.append(", rssMetaServiceTimestamp=").append(rssMetaServiceTimestamp);
+    sb.append("metaServiceHost='").append(metaServiceHost).append('\'');
+    sb.append(", metaServicePort=").append(metaServicePort);
+    sb.append(", metaServiceTimestamp=").append(metaServiceTimestamp);
     sb.append(", shuffleResourceDescriptor=").append(shuffleResourceDescriptor);
     sb.append('}');
     return sb.toString();

@@ -37,7 +37,7 @@ class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
     assert(quotaManager.isInstanceOf[DefaultQuotaManager])
   }
 
-  test("test rss quota conf") {
+  test("test celeborn quota conf") {
     assertEquals(
       quotaManager.getQuota(UserIdentifier("AAA", "Tom")),
       Quota(Utils.byteStringAsBytes("100m"), 200, -1, -1))

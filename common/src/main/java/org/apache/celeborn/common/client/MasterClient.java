@@ -165,7 +165,7 @@ public class MasterClient {
   }
 
   private boolean shouldRetry(@Nullable RpcEndpointRef oldRef, Throwable e) {
-    // It will always throw rss exception , so we need to get the cause
+    // It will always throw celeborn exception , so we need to get the cause
     // 'RssException: Exception thrown in awaitResult'
     if (e.getCause() instanceof MasterNotLeaderException) {
       MasterNotLeaderException exception = (MasterNotLeaderException) e.getCause();

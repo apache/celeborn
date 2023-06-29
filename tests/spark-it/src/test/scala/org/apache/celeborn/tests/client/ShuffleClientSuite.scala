@@ -60,7 +60,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
   }
 
   override def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
+    logInfo("all test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
   }
 }

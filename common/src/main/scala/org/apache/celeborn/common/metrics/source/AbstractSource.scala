@@ -27,7 +27,7 @@ import com.codahale.metrics._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.{MetricLabels, ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
+import org.apache.celeborn.common.metrics.{CelebornHistogram, CelebornTimer, MetricLabels, ResettableSlidingWindowReservoir}
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 case class NamedCounter(name: String, counter: Counter, labels: Map[String, String])
@@ -363,12 +363,12 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     gauges().foreach(g => recordGauge(g))
     histograms().foreach(h => {
       recordHistogram(h)
-      h.asInstanceOf[RssHistogram].reservoir
+      h.asInstanceOf[CelebornHistogram].reservoir
         .asInstanceOf[ResettableSlidingWindowReservoir].reset()
     })
     timers().foreach(t => {
       recordTimer(t)
-      t.timer.asInstanceOf[RssTimer].reservoir
+      t.timer.asInstanceOf[CelebornTimer].reservoir
         .asInstanceOf[ResettableSlidingWindowReservoir].reset()
     })
     val sb = new mutable.StringBuilder
@@ -414,7 +414,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 class TimerSupplier(val slidingWindowSize: Int)
   extends MetricRegistry.MetricSupplier[Timer] {
   override def newMetric(): Timer = {
-    new RssTimer(new ResettableSlidingWindowReservoir(slidingWindowSize))
+    new CelebornTimer(new ResettableSlidingWindowReservoir(slidingWindowSize))
   }
 }
 

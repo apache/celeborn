@@ -158,9 +158,9 @@ public class RemoteShuffleInputGateDelegation {
       this.shuffleClient =
           FlinkShuffleClientImpl.get(
               appUniqueId,
-              shuffleResource.getRssMetaServiceHost(),
-              shuffleResource.getRssMetaServicePort(),
-              shuffleResource.getRssMetaServiceTimestamp(),
+              shuffleResource.getMetaServiceHost(),
+              shuffleResource.getMetaServicePort(),
+              shuffleResource.getMetaServiceTimestamp(),
               celebornConf,
               new UserIdentifier("default", "default"));
     } catch (DriverChangedException e) {

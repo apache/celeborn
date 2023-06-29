@@ -25,7 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -150,12 +150,12 @@ public abstract class ShuffleClient {
 
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
-  public abstract RssInputStream readPartition(
+  public abstract CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException;
 
-  public abstract RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
-      throws IOException;
+  public abstract CelebornInputStream readPartition(
+      int shuffleId, int partitionId, int attemptNumber) throws IOException;
 
   public abstract boolean unregisterShuffle(int shuffleId, boolean isDriver);
 

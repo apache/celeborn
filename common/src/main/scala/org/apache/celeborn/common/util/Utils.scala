@@ -653,7 +653,7 @@ object Utils extends Logging {
    * Create a directory inside the given parent directory. The directory is guaranteed to be
    * newly created, and is not marked for automatic deletion.
    */
-  def createDirectory(root: String, namePrefix: String = "rss"): File = {
+  def createDirectory(root: String, namePrefix: String = "celeborn"): File = {
     var attempts = 0
     val maxAttempts = 10
     var dir: File = null

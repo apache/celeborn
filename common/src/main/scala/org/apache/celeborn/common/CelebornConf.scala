@@ -1930,7 +1930,7 @@ object CelebornConf extends Logging {
       .doc("Worker's working dir path name.")
       .version("0.3.0")
       .stringConf
-      .createWithDefault("rss-worker/shuffle_data")
+      .createWithDefault("celeborn-worker/shuffle_data")
 
   val WORKER_STORAGE_BASE_DIR_PREFIX: ConfigEntry[String] =
     buildConf("celeborn.worker.storage.baseDir.prefix")

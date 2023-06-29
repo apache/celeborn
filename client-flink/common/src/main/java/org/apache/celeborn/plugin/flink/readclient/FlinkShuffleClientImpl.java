@@ -138,7 +138,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     this.driverTimestamp = driverTimestamp;
   }
 
-  public RssBufferStream readBufferedPartition(
+  public CelebornBufferStream readBufferedPartition(
       int shuffleId, int partitionId, int subPartitionIndexStart, int subPartitionIndexEnd)
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
@@ -148,7 +148,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
-      return RssBufferStream.create(
+      return CelebornBufferStream.create(
           this,
           conf,
           flinkTransportClientFactory,

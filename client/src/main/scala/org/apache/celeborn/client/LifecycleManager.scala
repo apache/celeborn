@@ -108,7 +108,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
 
-  // init driver rss meta rpc service
+  // init driver celeborn meta rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.RSS_METASERVICE_SYS,
     lifecycleHost,
@@ -132,9 +132,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
-  // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
-  // a reference to `rssHARetryClient`, there may be cases where `rssHARetryClient` is null when
-  // `rssHARetryClient` is called. Therefore, it's necessary to uniformly execute the initialization
+  // `masterClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
+  // a reference to `masterClient`, there may be cases where `masterClient` is null when
+  // `masterClient` is called. Therefore, it's necessary to uniformly execute the initialization
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
     // noinspection ConvertExpressionToSAM

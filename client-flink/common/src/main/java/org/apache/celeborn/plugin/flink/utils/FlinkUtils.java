@@ -58,14 +58,14 @@ public class FlinkUtils {
     return tmpCelebornConf;
   }
 
-  public static String toCelebornAppId(long rssMetaServiceTimestamp, JobID jobID) {
+  public static String toCelebornAppId(long metaServiceTimestamp, JobID jobID) {
     // Workaround for FLINK-19358, use first none ZERO_JOB_ID as celeborn shared appId for all
     // other flink jobs
     if (!ZERO_JOB_ID.equals(jobID)) {
-      return rssMetaServiceTimestamp + "-" + jobID.toString();
+      return metaServiceTimestamp + "-" + jobID.toString();
     }
 
-    return rssMetaServiceTimestamp + "-" + JobID.generate();
+    return metaServiceTimestamp + "-" + JobID.generate();
   }
 
   public static String toShuffleId(JobID jobID, IntermediateDataSetID dataSetID) {

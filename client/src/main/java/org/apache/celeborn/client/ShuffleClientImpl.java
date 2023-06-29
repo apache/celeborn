@@ -35,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
-import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -1516,7 +1516,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
+  public CelebornInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
       throws IOException {
     return readPartition(shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE);
   }
@@ -1582,7 +1582,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(
+  public CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException {
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
@@ -1590,10 +1590,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
-      return RssInputStream.empty();
+      return CelebornInputStream.empty();
     } else {
       String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-      return RssInputStream.create(
+      return CelebornInputStream.create(
           conf,
           dataClientFactory,
           shuffleKey,

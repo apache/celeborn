@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -111,13 +111,13 @@ public class DummyShuffleClient extends ShuffleClient {
   public void cleanup(int shuffleId, int mapId, int attemptId) {}
 
   @Override
-  public RssInputStream readPartition(
+  public CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex) {
     return null;
   }
 
   @Override
-  public RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber) {
+  public CelebornInputStream readPartition(int shuffleId, int partitionId, int attemptNumber) {
     return null;
   }
 

@@ -76,14 +76,14 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   private val committedPartitionInfo = new CommittedPartitionInfo
   private val batchHandleCommitPartitionEnabled = conf.batchHandleCommitPartitionEnabled
   private val batchHandleCommitPartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "rss-lifecycle-manager-commit-partition-executor",
+    "celeborn-lifecycle-manager-commit-partition-executor",
     conf.batchHandleCommitPartitionNumThreads)
   private val batchHandleCommitPartitionRequestInterval =
     conf.batchHandleCommitPartitionRequestInterval
   private val batchHandleCommitPartitionSchedulerThread: Option[ScheduledExecutorService] =
     if (batchHandleCommitPartitionEnabled) {
       Some(ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "rss-lifecycle-manager-commit-partition-scheduler"))
+        "celeborn-lifecycle-manager-commit-partition-scheduler"))
     } else {
       None
     }
