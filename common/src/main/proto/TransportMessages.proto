@@ -39,8 +39,8 @@ enum MessageType {
   APPLICATION_LOST = 18;
   APPLICATION_LOST_RESPONSE = 19;
   HEARTBEAT_FROM_APPLICATION = 20;
-  GET_BLACKLIST = 21;
-  GET_BLACKLIST_RESPONSE = 22;
+  // GET_BLACKLIST = 21;
+  // GET_BLACKLIST_RESPONSE = 22;
   CHECK_QUOTA = 23;
   CHECK_QUOTA_RESPONSE = 24;
   REPORT_WORKER_FAILURE = 25;
@@ -298,16 +298,6 @@ message PbHeartbeatFromApplicationResponse {
   repeated PbWorkerInfo excludedWorkers = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
   repeated PbWorkerInfo shuttingWorkers = 4;
-}
-
-message PbGetBlacklist {
-  repeated PbWorkerInfo localExcludedWorkers = 1;
-}
-
-message PbGetBlacklistResponse {
-  int32 status = 1;
-  repeated PbWorkerInfo excludedWorkers = 2;
-  repeated PbWorkerInfo unknownWorkers = 3;
 }
 
 message PbCheckQuota {
