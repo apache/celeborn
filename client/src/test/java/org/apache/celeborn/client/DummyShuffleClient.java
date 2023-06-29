@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.client;
 
-import static org.apache.celeborn.common.protocol.PartitionLocation.Mode.MASTER;
+import static org.apache.celeborn.common.protocol.PartitionLocation.Mode.PRIMARY;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -158,7 +158,7 @@ public class DummyShuffleClient extends ShuffleClient {
     List<PartitionLocation> partitionLocationList = new ArrayList<>();
     for (int i = 0; i < workerNum; i++) {
       partitionLocationList.add(
-          new PartitionLocation(0, 0, host, 1000 + i, 2000 + i, 3000 + i, 4000 + i, MASTER));
+          new PartitionLocation(0, 0, host, 1000 + i, 2000 + i, 3000 + i, 4000 + i, PRIMARY));
     }
     for (int i = 0; i < numPartitions; i++) {
       map.put(i, partitionLocationList.get(i % workerNum));

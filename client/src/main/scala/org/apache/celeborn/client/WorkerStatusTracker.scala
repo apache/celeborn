@@ -81,32 +81,32 @@ class WorkerStatusTracker(
 
     if (oldPartition != null) {
       cause match {
-        case StatusCode.PUSH_DATA_WRITE_FAIL_MASTER =>
-          excludeWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_MASTER)
-        case StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
+        case StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY =>
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY)
+        case StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
             if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
-          excludeWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
-        case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER =>
-          excludeWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER)
-        case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
-            if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
-          excludeWorker(
-            oldPartition.getPeer,
-            StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE)
-        case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER =>
-          excludeWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER)
-        case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
+          excludeWorker(oldPartition.getPeer, StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA)
+        case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY =>
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY)
+        case StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA
             if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
           excludeWorker(
             oldPartition.getPeer,
-            StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE)
-        case StatusCode.PUSH_DATA_TIMEOUT_MASTER =>
-          excludeWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_MASTER)
-        case StatusCode.PUSH_DATA_TIMEOUT_SLAVE
+            StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA)
+        case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY =>
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY)
+        case StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
             if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
           excludeWorker(
             oldPartition.getPeer,
-            StatusCode.PUSH_DATA_TIMEOUT_SLAVE)
+            StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA)
+        case StatusCode.PUSH_DATA_TIMEOUT_PRIMARY =>
+          excludeWorker(oldPartition, StatusCode.PUSH_DATA_TIMEOUT_PRIMARY)
+        case StatusCode.PUSH_DATA_TIMEOUT_REPLICA
+            if oldPartition.hasPeer && conf.clientExcludeReplicaOnFailureEnabled =>
+          excludeWorker(
+            oldPartition.getPeer,
+            StatusCode.PUSH_DATA_TIMEOUT_REPLICA)
         case _ =>
       }
     }
@@ -152,7 +152,7 @@ class WorkerStatusTracker(
 
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
-      logInfo(s"Received Worker status from Master, excluded workers: ${res.excludedWorkers} " +
+      logInfo(s"Received Worker status from Primary, excluded workers: ${res.excludedWorkers} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
       val current = System.currentTimeMillis()
 
@@ -162,12 +162,12 @@ class WorkerStatusTracker(
             case StatusCode.WORKER_UNKNOWN |
                 StatusCode.NO_AVAILABLE_WORKING_DIR |
                 StatusCode.RESERVE_SLOTS_FAILED |
-                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER |
-                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE |
-                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER |
-                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE |
-                StatusCode.PUSH_DATA_TIMEOUT_MASTER |
-                StatusCode.PUSH_DATA_TIMEOUT_SLAVE
+                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY |
+                StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA |
+                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA |
+                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA |
+                StatusCode.PUSH_DATA_TIMEOUT_PRIMARY |
+                StatusCode.PUSH_DATA_TIMEOUT_REPLICA
                 if current - registerTime < excludedWorkerExpireTimeout => // reserve
             case _ =>
               if (!res.excludedWorkers.contains(workerInfo) &&

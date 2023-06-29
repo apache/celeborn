@@ -215,9 +215,9 @@ object PbSerDeUtils {
   }
 
   def fromPbPartitionLocation(pbLoc: PbPartitionLocation): PartitionLocation = {
-    var mode = Mode.MASTER
-    if (pbLoc.getMode.equals(PbPartitionLocation.Mode.Slave)) {
-      mode = Mode.SLAVE
+    var mode = Mode.PRIMARY
+    if (pbLoc.getMode.equals(PbPartitionLocation.Mode.Replica)) {
+      mode = Mode.REPLICA
     }
     val partitionLocation = new PartitionLocation(
       pbLoc.getId,
@@ -233,8 +233,8 @@ object PbSerDeUtils {
       Utils.byteStringToRoaringBitmap(pbLoc.getMapIdBitmap))
     if (pbLoc.hasPeer) {
       val peerPb = pbLoc.getPeer
-      var peerMode = Mode.MASTER
-      if (peerPb.getMode eq PbPartitionLocation.Mode.Slave) peerMode = Mode.SLAVE
+      var peerMode = Mode.PRIMARY
+      if (peerPb.getMode eq PbPartitionLocation.Mode.Replica) peerMode = Mode.REPLICA
       val peerLocation = new PartitionLocation(
         peerPb.getId,
         peerPb.getEpoch,
@@ -254,10 +254,10 @@ object PbSerDeUtils {
 
   def toPbPartitionLocation(location: PartitionLocation): PbPartitionLocation = {
     val builder = PbPartitionLocation.newBuilder
-    if (location.getMode eq Mode.MASTER) {
-      builder.setMode(PbPartitionLocation.Mode.Master)
+    if (location.getMode eq Mode.PRIMARY) {
+      builder.setMode(PbPartitionLocation.Mode.Primary)
     } else {
-      builder.setMode(PbPartitionLocation.Mode.Slave)
+      builder.setMode(PbPartitionLocation.Mode.Replica)
     }
     builder
       .setHost(location.getHost)
@@ -271,10 +271,10 @@ object PbSerDeUtils {
       .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
     if (location.hasPeer) {
       val peerBuilder = PbPartitionLocation.newBuilder
-      if (location.getPeer.getMode eq Mode.MASTER) {
-        peerBuilder.setMode(PbPartitionLocation.Mode.Master)
+      if (location.getPeer.getMode eq Mode.PRIMARY) {
+        peerBuilder.setMode(PbPartitionLocation.Mode.Primary)
       } else {
-        peerBuilder.setMode(PbPartitionLocation.Mode.Slave)
+        peerBuilder.setMode(PbPartitionLocation.Mode.Replica)
       }
       peerBuilder
         .setHost(location.getPeer.getHost)
@@ -299,22 +299,24 @@ object PbSerDeUtils {
       val workerInfo =
         new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
       workerInfo.networkLocation = networkLocation
-      val masterPartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
-        .getMasterPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
-      val slavePartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
-        .getSlavePartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
-      slots.put(workerInfo, (masterPartitionLocation, slavePartitionLocation))
+      val primaryPartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
+        .getPrimaryPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
+      val replicaPartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
+        .getReplicaPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
+      slots.put(workerInfo, (primaryPartitionLocation, replicaPartitionLocation))
     }
     slots
   }
 
   def toPbWorkerResource(workerResource: WorkerResource): util.Map[String, PbWorkerResource] = {
-    workerResource.asScala.map { case (workerInfo, (masterLocations, slaveLocations)) =>
-      val masterPartitions = masterLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
-      val slavePartitions = slaveLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
+    workerResource.asScala.map { case (workerInfo, (primaryLocations, replicaLocations)) =>
+      val primaryPartitions =
+        primaryLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
+      val replicaPartitions =
+        replicaLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
       val pbWorkerResource = PbWorkerResource.newBuilder()
-        .addAllMasterPartitions(masterPartitions)
-        .addAllSlavePartitions(slavePartitions)
+        .addAllPrimaryPartitions(primaryPartitions)
+        .addAllReplicaPartitions(replicaPartitions)
         .setNetworkLocation(workerInfo.networkLocation)
         .build()
       workerInfo.toUniqueId() -> pbWorkerResource

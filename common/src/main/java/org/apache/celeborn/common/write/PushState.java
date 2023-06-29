@@ -42,7 +42,7 @@ public class PushState {
     inFlightRequestTracker.cleanup();
   }
 
-  // key: ${master addr}, ${slave addr} value: list of data batch
+  // key: ${primary addr}, ${replica addr} value: list of data batch
   public final ConcurrentHashMap<Pair<String, String>, DataBatches> batchesMap =
       JavaUtils.newConcurrentHashMap();
 

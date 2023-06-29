@@ -120,9 +120,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           // When module name equals to DATA_MODULE, mean shuffle client push data, else means
           // do data replication.
           if (TransportModuleConstants.DATA_MODULE.equals(conf.getModuleName())) {
-            info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_MASTER));
+            info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_PRIMARY));
           } else if (TransportModuleConstants.PUSH_MODULE.equals(conf.getModuleName())) {
-            info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_SLAVE));
+            info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_REPLICA));
           }
           info.channelFuture = null;
           info.callback = null;
