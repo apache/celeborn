@@ -105,7 +105,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   // Threads
   private val forwardMessageThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("primary-forward-message-thread")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
 
   // init driver rss meta rpc service
