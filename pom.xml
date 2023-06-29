@@ -64,7 +64,7 @@
     <maven.version>3.8.8</maven.version>
 
     <flink.version>1.14.6</flink.version>
-    <hadoop.version>3.2.1</hadoop.version>
+    <hadoop.version>3.2.4</hadoop.version>
     <spark.version>3.3.2</spark.version>
 
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
