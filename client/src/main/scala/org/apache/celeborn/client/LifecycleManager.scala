@@ -30,7 +30,7 @@ import com.google.common.annotations.VisibleForTesting
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.client.MasterClientWithRetry
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -118,7 +118,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
-  private val masterClient = new MasterClientWithRetry(rpcEnv, conf)
+  private val masterClient = new MasterClient(rpcEnv, conf)
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
   private val heartbeater =
@@ -1023,7 +1023,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
         val unregisterShuffleResponse = requestMasterUnregisterShuffle(
-          UnregisterShuffle(appUniqueId, shuffleId, MasterClientWithRetry.genRequestId()))
+          UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
         // if unregister shuffle not success, wait next turn
         if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
           unregisterShuffleTime.remove(shuffleId)

@@ -29,7 +29,7 @@ import org.junit.*;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.client.MasterClientWithRetry;
+import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
@@ -195,8 +195,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
 
   private String getNewReqeustId() {
-    return MasterClientWithRetry.encodeRequestId(
-        UUID.randomUUID().toString(), callerId.incrementAndGet());
+    return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
   }
 
   public HAMasterMetaManager pickLeaderStatusSystem() {

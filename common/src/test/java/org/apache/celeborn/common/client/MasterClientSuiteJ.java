@@ -46,8 +46,8 @@ import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 
-public class MasterClientWithRetrySuiteJ {
-  private static final Logger LOG = LoggerFactory.getLogger(MasterClientWithRetrySuiteJ.class);
+public class MasterClientSuiteJ {
+  private static final Logger LOG = LoggerFactory.getLogger(MasterClientSuiteJ.class);
 
   private final String masterHost = "localhost";
   private final int masterPort = 9097;
@@ -79,7 +79,7 @@ public class MasterClientWithRetrySuiteJ {
         });
     prepareForRpcEnvWithoutHA();
 
-    MasterClientWithRetry client = new MasterClientWithRetry(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -106,7 +106,7 @@ public class MasterClientWithRetrySuiteJ {
         });
     prepareForRpcEnvWithoutHA();
 
-    MasterClientWithRetry client = new MasterClientWithRetry(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -132,7 +132,7 @@ public class MasterClientWithRetrySuiteJ {
           return Future$.MODULE$.successful(response);
         });
 
-    MasterClientWithRetry client = new MasterClientWithRetry(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -152,7 +152,7 @@ public class MasterClientWithRetrySuiteJ {
     prepareForEndpointRefWithoutRetry(() -> Future$.MODULE$.successful(mockResponse));
     prepareForRpcEnvWithoutHA();
 
-    MasterClientWithRetry client = new MasterClientWithRetry(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -174,7 +174,7 @@ public class MasterClientWithRetrySuiteJ {
     prepareForEndpointRefWithRetry(numTries, () -> Future$.MODULE$.successful(mockResponse));
     prepareForRpcEnvWithoutHA();
 
-    MasterClientWithRetry client = new MasterClientWithRetry(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -195,7 +195,7 @@ public class MasterClientWithRetrySuiteJ {
 
     prepareForRpcEnvWithHA(() -> Future$.MODULE$.successful(mockResponse));
 
-    MasterClientWithRetry client = new MasterClientWithRetry(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -254,7 +254,7 @@ public class MasterClientWithRetrySuiteJ {
         .when(rpcEnv)
         .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
 
-    MasterClientWithRetry client = new MasterClientWithRetry(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;

@@ -48,8 +48,8 @@ import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.RpcTimeout;
 import org.apache.celeborn.common.util.ThreadUtils;
 
-public class MasterClientWithRetry {
-  private static final Logger LOG = LoggerFactory.getLogger(MasterClientWithRetry.class);
+public class MasterClient {
+  private static final Logger LOG = LoggerFactory.getLogger(MasterClient.class);
 
   private final RpcEnv rpcEnv;
   private final String[] masterEndpoints;
@@ -60,7 +60,7 @@ public class MasterClientWithRetry {
   private final AtomicReference<RpcEndpointRef> rpcEndpointRef;
   private final ExecutorService oneWayMessageSender;
 
-  public MasterClientWithRetry(RpcEnv rpcEnv, CelebornConf conf) {
+  public MasterClient(RpcEnv rpcEnv, CelebornConf conf) {
     this.rpcEnv = rpcEnv;
     this.masterEndpoints = conf.masterEndpoints();
     this.maxRetries = Math.max(masterEndpoints.length, conf.masterClientMaxRetries());

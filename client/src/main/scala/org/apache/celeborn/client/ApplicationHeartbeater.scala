@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration.DurationInt
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.client.MasterClientWithRetry
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -32,7 +32,7 @@ import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 class ApplicationHeartbeater(
     appId: String,
     conf: CelebornConf,
-    masterClient: MasterClientWithRetry,
+    masterClient: MasterClient,
     shuffleMetrics: () => (Long, Long),
     workerStatusTracker: WorkerStatusTracker) extends Logging {
 

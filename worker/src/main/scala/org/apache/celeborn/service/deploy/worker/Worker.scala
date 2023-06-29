@@ -30,7 +30,7 @@ import io.netty.util.HashedWheelTimer
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
-import org.apache.celeborn.common.client.MasterClientWithRetry
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -219,7 +219,7 @@ private[celeborn] class Worker(
   val shuffleCommitInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
-  private val masterClient = new MasterClientWithRetry(rpcEnv, conf)
+  private val masterClient = new MasterClient(rpcEnv, conf)
 
   // (workerInfo -> last connect timeout timestamp)
   val unavailablePeers = JavaUtils.newConcurrentHashMap[WorkerInfo, Long]()
@@ -422,7 +422,7 @@ private[celeborn] class Worker(
               workerInfo.diskInfos.asScala.toMap,
               workerInfo.updateThenGetUserResourceConsumption(
                 storageManager.userResourceConsumptionSnapshot().asJava).asScala.toMap,
-              MasterClientWithRetry.genRequestId()),
+              MasterClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {
           case throwable: Throwable =>
@@ -543,7 +543,7 @@ private[celeborn] class Worker(
                 pushPort,
                 fetchPort,
                 replicatePort,
-                MasterClientWithRetry.genRequestId()),
+                MasterClient.genRequestId()),
               classOf[PbWorkerLostResponse])
           }
         } catch {
