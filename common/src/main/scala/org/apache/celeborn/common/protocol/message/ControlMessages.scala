@@ -36,9 +36,9 @@ import org.apache.celeborn.common.util.{PbSerDeUtils, Utils}
 
 sealed trait Message extends Serializable
 
-sealed trait PrimaryMessage extends Message
+sealed trait MasterMessage extends Message
 
-sealed abstract class PrimaryRequestMessage extends PrimaryMessage {
+sealed abstract class MasterRequestMessage extends MasterMessage {
   var requestId: String
 
   def requestId_(id: String): Unit = {
@@ -59,7 +59,7 @@ object ControlMessages extends Logging {
 
   /**
    * ==========================================
-   * handled by primary
+   * handled by master
    * ==========================================
    */
   val pbCheckForWorkerTimeout: PbCheckForWorkerTimeout =
@@ -70,7 +70,7 @@ object ControlMessages extends Logging {
   case object RemoveExpiredShuffle extends Message
 
   /**
-   * The response message for one-way message. Due to the Primary HA, we must know whether a Primary
+   * The response message for one-way message. Due to the Master HA, we must know whether a Master
    * is the leader, and the one-way message does not care about the response, so there is no
    * corresponding response message. So add a response message to get the response.
    */
@@ -112,11 +112,11 @@ object ControlMessages extends Logging {
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
-      override var requestId: String = ZERO_UUID) extends PrimaryRequestMessage
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class HeartbeatResponse(
       expiredShuffleKeys: util.HashSet[String],
-      registered: Boolean) extends PrimaryMessage
+      registered: Boolean) extends MasterMessage
 
   object RegisterShuffle {
     def apply(
@@ -166,7 +166,7 @@ object ControlMessages extends Logging {
       shouldRackAware: Boolean,
       userIdentifier: UserIdentifier,
       override var requestId: String = ZERO_UUID)
-    extends PrimaryRequestMessage
+    extends MasterRequestMessage
 
   case class ReleaseSlots(
       applicationId: String,
@@ -174,15 +174,15 @@ object ControlMessages extends Logging {
       workerIds: util.List[String],
       slots: util.List[util.Map[String, Integer]],
       override var requestId: String = ZERO_UUID)
-    extends PrimaryRequestMessage
+    extends MasterRequestMessage
 
   case class ReleaseSlotsResponse(status: StatusCode)
-    extends PrimaryMessage
+    extends MasterMessage
 
   case class RequestSlotsResponse(
       status: StatusCode,
       workerResource: WorkerResource)
-    extends PrimaryMessage
+    extends MasterMessage
 
   object Revive {
     def apply(
@@ -249,11 +249,11 @@ object ControlMessages extends Logging {
       attemptId: Int,
       numMappers: Int,
       partitionId: Int)
-    extends PrimaryMessage
+    extends MasterMessage
 
-  case class MapperEndResponse(status: StatusCode) extends PrimaryMessage
+  case class MapperEndResponse(status: StatusCode) extends MasterMessage
 
-  case class GetReducerFileGroup(shuffleId: Int) extends PrimaryMessage
+  case class GetReducerFileGroup(shuffleId: Int) extends MasterMessage
 
   // util.Set[String] -> util.Set[Path.toString]
   // Path can't be serialized
@@ -262,7 +262,7 @@ object ControlMessages extends Logging {
       fileGroup: util.Map[Integer, util.Set[PartitionLocation]],
       attempts: Array[Int],
       partitionIds: util.Set[Integer] = new util.HashSet[Integer]())
-    extends PrimaryMessage
+    extends MasterMessage
 
   object WorkerLost {
     def apply(
@@ -288,10 +288,10 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  case class StageEnd(shuffleId: Int) extends PrimaryMessage
+  case class StageEnd(shuffleId: Int) extends MasterMessage
 
   case class StageEndResponse(status: StatusCode)
-    extends PrimaryMessage
+    extends MasterMessage
 
   object UnregisterShuffle {
     def apply(
@@ -314,9 +314,9 @@ object ControlMessages extends Logging {
 
   case class ApplicationLost(
       appId: String,
-      override var requestId: String = ZERO_UUID) extends PrimaryRequestMessage
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
-  case class ApplicationLostResponse(status: StatusCode) extends PrimaryMessage
+  case class ApplicationLostResponse(status: StatusCode) extends MasterMessage
 
   case class HeartbeatFromApplication(
       appId: String,
@@ -324,7 +324,7 @@ object ControlMessages extends Logging {
       fileCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID,
-      shouldResponse: Boolean = false) extends PrimaryRequestMessage
+      shouldResponse: Boolean = false) extends MasterRequestMessage
 
   case class HeartbeatFromApplicationResponse(
       statusCode: StatusCode,
@@ -332,7 +332,7 @@ object ControlMessages extends Logging {
       unknownWorkers: util.List[WorkerInfo],
       shuttingWorkers: util.List[WorkerInfo]) extends Message
 
-  case class GetBlacklist(localExcludedWorkers: util.List[WorkerInfo]) extends PrimaryMessage
+  case class GetBlacklist(localExcludedWorkers: util.List[WorkerInfo]) extends MasterMessage
 
   case class GetBlacklistResponse(
       statusCode: StatusCode,
@@ -345,7 +345,7 @@ object ControlMessages extends Logging {
 
   case class ReportWorkerUnavailable(
       unavailable: util.List[WorkerInfo],
-      override var requestId: String = ZERO_UUID) extends PrimaryRequestMessage
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   /**
    * ==========================================

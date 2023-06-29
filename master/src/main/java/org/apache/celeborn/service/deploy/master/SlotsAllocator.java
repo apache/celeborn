@@ -431,7 +431,7 @@ public class SlotsAllocator {
       WorkerInfo workerInfo,
       PartitionLocation peer,
       StorageInfo storageInfo,
-      boolean isMaster) {
+      boolean isPrimary) {
     return new PartitionLocation(
         partitionIndex,
         0,
@@ -440,7 +440,7 @@ public class SlotsAllocator {
         workerInfo.pushPort(),
         workerInfo.fetchPort(),
         workerInfo.replicatePort(),
-        isMaster ? PartitionLocation.Mode.PRIMARY : PartitionLocation.Mode.REPLICA,
+        isPrimary ? PartitionLocation.Mode.PRIMARY : PartitionLocation.Mode.REPLICA,
         peer,
         storageInfo,
         new RoaringBitmap());
