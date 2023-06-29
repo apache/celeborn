@@ -30,7 +30,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
+import org.apache.celeborn.common.client.MasterClientWithRetry;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -105,7 +105,7 @@ public class DefaultMetaSystemSuiteJ {
   public void tearDown() throws Exception {}
 
   private String getNewReqeustId() {
-    return RssHARetryClient.encodeRequestId(
+    return MasterClientWithRetry.encodeRequestId(
         UUID.randomUUID().toString(), callerId.incrementAndGet());
   }
 
