@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.common.util.Utils.runCommand
 
 class DiskInfo(
@@ -134,9 +134,9 @@ class DiskInfo(
       s" committed shuffles ${emptyShuffles.size}" +
       s" shuffleAllocations: $nonEmptyShuffles," +
       s" mountPoint: $mountPoint," +
-      s" usableSpace: $actualUsableSpace," +
-      s" avgFlushTime: $avgFlushTime," +
-      s" avgFetchTime: $avgFetchTime," +
+      s" usableSpace: ${Utils.bytesToString(actualUsableSpace)}," +
+      s" avgFlushTime: ${Utils.msDurationToString(avgFlushTime)}," +
+      s" avgFetchTime: ${Utils.msDurationToString(avgFetchTime)}," +
       s" activeSlots: $activeSlots)" +
       s" status: $status" +
       s" dirs ${dirs.mkString("\t")}"
