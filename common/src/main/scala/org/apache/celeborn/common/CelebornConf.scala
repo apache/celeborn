@@ -695,7 +695,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
-  def clientExcludeReplicaOnFailureEnabled: Boolean = get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
+  def clientExcludeReplicaOnFailureEnabled: Boolean =
+    get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
