@@ -203,7 +203,7 @@ public class MemoryManager {
         () ->
             logger.info(
                 "Direct memory usage: {}/{}, disk buffer size: {}, sort memory size: {}, read buffer size: {}",
-                Utils.bytesToString(PlatformDependent.usedDirectMemory()),
+                Utils.bytesToString(getNettyUsedDirectMemory()),
                 Utils.bytesToString(maxDirectorMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
                 Utils.bytesToString(sortMemoryCounter.get()),
@@ -330,11 +330,13 @@ public class MemoryManager {
   }
 
   public long getNettyUsedDirectMemory() {
-    return PlatformDependent.usedDirectMemory();
+    long usedDirectMemory = PlatformDependent.usedDirectMemory();
+    assert usedDirectMemory != -1;
+    return usedDirectMemory;
   }
 
   public long getMemoryUsage() {
-    return PlatformDependent.usedDirectMemory() + sortMemoryCounter.get();
+    return getNettyUsedDirectMemory() + sortMemoryCounter.get();
   }
 
   public AtomicLong getSortMemoryCounter() {
