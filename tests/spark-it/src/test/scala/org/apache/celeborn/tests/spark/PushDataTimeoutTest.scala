@@ -42,8 +42,8 @@ class PushDataTimeoutTest extends AnyFunSuite
       CelebornConf.TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT.key -> "true")
     // required at least 4 workers, the reason behind this requirement is that when replication is
     // enabled, there is a possibility that two workers might be added to the excluded list due to
-    // master/slave timeout issues, then there are not enough workers to do replication if available
-    // workers number = 1
+    // primary/replica timeout issues, then there are not enough workers to do replication if
+    // available workers number = 1
     setUpMiniCluster(masterConf = null, workerConf = workerConf, workerNum = 4)
   }
 
