@@ -65,7 +65,7 @@
 
     <flink.version>1.14.6</flink.version>
     <hadoop.version>3.2.1</hadoop.version>
-    <spark.version>3.3.1</spark.version>
+    <spark.version>3.3.2</spark.version>
 
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
@@ -943,7 +943,7 @@
         <lz4-java.version>1.7.1</lz4-java.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.2.2</spark.version>
+        <spark.version>3.2.4</spark.version>
         <zstd-jni.version>1.5.0-4</zstd-jni.version>
       </properties>
     </profile>
@@ -958,11 +958,11 @@
       </modules>
       <properties>
         <jackson.version>2.13.4</jackson.version>
-        <jackson.databind.version>2.13.4.1</jackson.databind.version>
+        <jackson.databind.version>2.13.4.2</jackson.databind.version>
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.3.1</spark.version>
+        <spark.version>3.3.2</spark.version>
         <zstd-jni.version>1.5.2-1</zstd-jni.version>
       </properties>
     </profile>
@@ -981,7 +981,7 @@
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.17</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.4.0</spark.version>
+        <spark.version>3.4.1</spark.version>
         <zstd-jni.version>1.5.2-5</zstd-jni.version>
       </properties>
     </profile>
