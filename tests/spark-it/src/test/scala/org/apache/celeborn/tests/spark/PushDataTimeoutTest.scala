@@ -65,7 +65,7 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
-        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_REPLICA_ON_FAILURE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED.key}", "false")
         // make sure PushDataHandler.handlePushData be triggered
         .set(s"spark.${CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key}", "5")
 
@@ -97,7 +97,7 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
-        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_REPLICA_ON_FAILURE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED.key}", "false")
 
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val sqlResult = runsql(sparkSession)
@@ -123,7 +123,7 @@ class PushDataTimeoutTest extends AnyFunSuite
   test("celeborn spark integration test - pushdata timeout will add to pushExcludedWorkers") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
-      .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_REPLICA_ON_FAILURE_ENABLED.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED.key}", "true")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
     val rssSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
