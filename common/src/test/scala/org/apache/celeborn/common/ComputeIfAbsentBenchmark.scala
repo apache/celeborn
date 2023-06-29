@@ -32,7 +32,7 @@ import org.apache.celeborn.benchmark.{Benchmark, BenchmarkBase}
  * {{{
  *   1. build/sbt "sql/test:runMain <this class>"
  *   2. generate result:
- *      CELEBORN_GENERATE_BENCHMARK_FILES=1 build/sbt "sql/test:runMain <this class>"
+ *      CELEBORN_GENERATE_BENCHMARK_FILES=1 build/sbt "common/test:runMain <this class>"
  *      Results will be written to "benchmarks/ComputeIfAbsentBenchmark-results.txt".
  * }}}
  */
