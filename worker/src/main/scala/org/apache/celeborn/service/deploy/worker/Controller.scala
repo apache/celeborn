@@ -121,14 +121,8 @@ private[deploy] class Controller(
       logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
         s"$commitFilesTimeMs ms.")
 
-    case GetWorkerInfos =>
-      handleGetWorkerInfos(context)
-
-    case ThreadDump =>
-      handleThreadDump(context)
-
-    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations) =>
-      handleDestroy(context, shuffleKey, primaryLocations, replicaLocations)
+    case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
+      handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 
   private def handleReserveSlots(
@@ -670,16 +664,5 @@ private[deploy] class Controller(
           failedPrimaries,
           failedReplicas))
     }
-  }
-
-  private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
-    val list = new jArrayList[WorkerInfo]()
-    list.add(workerInfo)
-    context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, list.asScala.toList: _*))
-  }
-
-  private def handleThreadDump(context: RpcCallContext): Unit = {
-    val threadDump = Utils.getThreadDump()
-    context.reply(ThreadDumpResponse(threadDump))
   }
 }

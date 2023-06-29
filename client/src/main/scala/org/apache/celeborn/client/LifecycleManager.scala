@@ -207,7 +207,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case pb: PbRegisterShuffle =>
       val shuffleId = pb.getShuffleId
-      val numMappers = pb.getNumMapppers
+      val numMappers = pb.getNumMappers
       val numPartitions = pb.getNumPartitions
       logDebug(s"Received RegisterShuffle request, " +
         s"$shuffleId, $numMappers, $numPartitions.")

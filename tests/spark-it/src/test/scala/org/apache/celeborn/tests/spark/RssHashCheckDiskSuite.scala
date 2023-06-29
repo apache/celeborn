@@ -21,25 +21,25 @@ import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.concurrent.Eventually._
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.worker.Worker
 
-class RssHashCheckDiskSuite extends AnyFunSuite
-  with SparkTestBase
-  with BeforeAndAfterEach {
-  var workers: collection.Set[Worker] = null
+class RssHashCheckDiskSuite extends SparkTestBase {
+
+  var workers: collection.Set[Worker] = _
   override def beforeAll(): Unit = {
-    logInfo("RssHashCheckDiskSuite test initialized , setup rss mini cluster")
-    val masterConfs = Map(CelebornConf.APPLICATION_HEARTBEAT_TIMEOUT.key -> "10s")
-    val workerConfs = Map(
+    logInfo("RssHashCheckDiskSuite test initialized , setup Celeborn mini cluster")
+    val masterConf = Map(
+      CelebornConf.APPLICATION_HEARTBEAT_TIMEOUT.key -> "10s")
+    val workerConf = Map(
       CelebornConf.WORKER_STORAGE_DIRS.key -> "/tmp:capacity=1000",
       CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "10s")
-    workers = setUpMiniCluster(masterConfs, workerConfs)._2
+    workers = setUpMiniCluster(masterConf, workerConf)._2
   }
 
   override def beforeEach(): Unit = {
@@ -51,54 +51,51 @@ class RssHashCheckDiskSuite extends AnyFunSuite
   }
 
   test("celeborn spark integration test - hash-checkDiskFull") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]").set(
-      s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}",
-      "5s")
+    val sparkConf = new SparkConf().setAppName("rss-demo")
+      .setMaster("local[2]")
+      .set(s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}", "20s")
+
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)
-    val groupbyResult = groupBy(sparkSession)
+    val groupByResult = groupBy(sparkSession)
     val repartitionResult = repartition(sparkSession)
     val sqlResult = runsql(sparkSession)
-
-    Thread.sleep(3000L)
     sparkSession.stop()
 
     val rssSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
     val rssCombineResult = combine(rssSparkSession)
-    val rssGroupbyResult = groupBy(rssSparkSession)
+    val rssGroupByResult = groupBy(rssSparkSession)
     val rssRepartitionResult = repartition(rssSparkSession)
     val rssSqlResult = runsql(rssSparkSession)
 
     assert(combineResult.equals(rssCombineResult))
-    assert(groupbyResult.equals(rssGroupbyResult))
+    assert(groupByResult.equals(rssGroupByResult))
     assert(repartitionResult.equals(rssRepartitionResult))
     assert(combineResult.equals(rssCombineResult))
     assert(sqlResult.equals(rssSqlResult))
 
     // shuffle key not expired, diskInfo.actualUsableSpace < 0, no space
-    workers.map(worker => {
-      worker.storageManager.disksSnapshot().map(diskInfo => {
+    workers.foreach { worker =>
+      worker.storageManager.disksSnapshot().foreach { diskInfo =>
         assert(diskInfo.actualUsableSpace < 0)
-      })
-    })
-
+      }
+    }
     rssSparkSession.stop()
-    // wait shuffle key expired
-    Thread.sleep(30 * 1000L)
+
     logInfo("after shuffle key expired")
-    // after shuffle key expired, storageManager.workingDirWriters will be empty
-    workers.map(worker => {
-      worker.storageManager.workingDirWriters.values().asScala.map(t => assert(t.size() == 0))
-    })
-
-    // after shuffle key expired, diskInfo.actualUsableSpace will equal capacity=1000
-    workers.map(worker => {
-      worker.storageManager.disksSnapshot().map(diskInfo => {
-        assert(diskInfo.actualUsableSpace == 1000)
-      })
-    })
-
+    eventually(timeout(60.seconds), interval(2.seconds)) {
+      workers.foreach { worker =>
+        // after shuffle key expired, storageManager.workingDirWriters will be empty
+        worker.storageManager.workingDirWriters.values().asScala.foreach { t =>
+          assert(t.size() === 0)
+        }
+        // after shuffle key expired, diskInfo.actualUsableSpace will equal capacity=1000
+        worker.storageManager.disksSnapshot().foreach { diskInfo =>
+          assert(diskInfo.actualUsableSpace === 1000)
+        }
+      }
+    }
   }
 }

@@ -21,7 +21,7 @@ import scala.util.Random
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf._
@@ -30,7 +30,7 @@ import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 trait SparkTestBase extends AnyFunSuite
-  with Logging with MiniClusterFeature with BeforeAndAfterAll {
+  with Logging with MiniClusterFeature with BeforeAndAfterAll with BeforeAndAfterEach {
   private val sampleSeq = (1 to 78)
     .map(Random.alphanumeric)
     .toList

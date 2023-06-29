@@ -32,7 +32,7 @@ class RetryReviveTest extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    setUpMiniCluster(masterConfs = null)
+    setUpMiniCluster(masterConf = null)
   }
 
   override def beforeEach(): Unit = {

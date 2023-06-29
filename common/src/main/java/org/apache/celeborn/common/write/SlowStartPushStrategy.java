@@ -29,6 +29,24 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.util.JavaUtils;
 
+/**
+ * Similar to the TCP congestion control algorithm, this strategy adjusts `currentMaxReqsInFlight`,
+ * equivalent to the congestion window size in TCP, to limit max in-flight push data requests to
+ * each worker host. Use separate `CongestControlContext` for each worker to track the congestion
+ * control state. Note that here we define one RTT period: one batch(`currentMaxReqsInFlight`) of
+ * push data requests.
+ *
+ * <p>"slow start" mechanism is applied to increase `currentMaxReqsInFlight` while first request to
+ * the worker comes or the value is under slow start threshold (`reqsInFlightBlockThreshold`).
+ * `currentMaxReqsInFlight` can be increased by 1 with each request succeed, effectively be doubled
+ * each RTT.
+ *
+ * <p>If slow start threshold (`reqsInFlightBlockThreshold`) is reached, it will change to
+ * congestion avoidance algorithm. During congestion avoidance, `currentMaxReqsInFlight` will be
+ * increased by 1 every RTT period, which may more than `celeborn.client.push.maxReqsInFlight`.
+ *
+ * <p>If congestion happens, `currentMaxReqsInFlight` will be halved.
+ */
 public class SlowStartPushStrategy extends PushStrategy {
 
   protected static class CongestControlContext {
@@ -102,17 +120,6 @@ public class SlowStartPushStrategy extends PushStrategy {
         hostAndPushPort, host -> new CongestControlContext(maxInFlight));
   }
 
-  /**
-   * If `pushDataSlowStart` is enabled, will increase `currentMaxReqsInFlight` gradually to meet the
-   * max push speed.
-   *
-   * <p>1. slow start period: every RTT period, `currentMaxReqsInFlight` is doubled.
-   *
-   * <p>2. congestion avoidance: every RTT period, `currentMaxReqsInFlight` plus 1.
-   *
-   * <p>Note that here we define one RTT period: one batch(currentMaxReqsInFlight) of push data
-   * requests.
-   */
   @Override
   public void onSuccess(String hostAndPushPort) {
     CongestControlContext congestControlContext =
@@ -129,7 +136,7 @@ public class SlowStartPushStrategy extends PushStrategy {
 
   protected long getSleepTime(CongestControlContext context) {
     int currentMaxReqs = context.getCurrentMaxReqsInFlight();
-    if (currentMaxReqs >= conf.clientPushMaxReqsInFlight()) {
+    if (currentMaxReqs >= maxInFlight) {
       return 0;
     }
 
@@ -152,7 +159,8 @@ public class SlowStartPushStrategy extends PushStrategy {
     long sleepInterval = getSleepTime(congestControlContext);
     if (sleepInterval > 0L) {
       try {
-        logger.debug("Will sleep {} ms to control the push speed.", sleepInterval);
+        logger.debug(
+            "Will sleep {} ms to control the push speed to {}.", sleepInterval, hostAndPushPort);
         Thread.sleep(sleepInterval);
       } catch (InterruptedException e) {
         pushState.exception.set(new CelebornIOException(e));

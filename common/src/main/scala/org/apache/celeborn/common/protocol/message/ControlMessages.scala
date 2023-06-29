@@ -125,7 +125,7 @@ object ControlMessages extends Logging {
         numPartitions: Int): PbRegisterShuffle =
       PbRegisterShuffle.newBuilder()
         .setShuffleId(shuffleId)
-        .setNumMapppers(numMappers)
+        .setNumMappers(numMappers)
         .setNumPartitions(numPartitions)
         .build()
   }
@@ -360,8 +360,6 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  case class ReregisterWorkerResponse(success: Boolean) extends WorkerMessage
-
   case class ReserveSlots(
       applicationId: String,
       shuffleId: Int,
@@ -420,16 +418,6 @@ object ControlMessages extends Logging {
    *              common
    *  ==========================================
    */
-  case class ReplicaLostResponse(status: StatusCode, replicaLocation: PartitionLocation)
-    extends Message
-
-  case object GetWorkerInfos extends Message
-
-  case class GetWorkerInfosResponse(status: StatusCode, workerInfos: WorkerInfo*) extends Message
-
-  case object ThreadDump extends Message
-
-  case class ThreadDumpResponse(threadDump: String) extends Message
 
   // TODO change message type to GeneratedMessageV3
   def toTransportMessage(message: Any): TransportMessage = message match {
@@ -634,11 +622,15 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
 
-    case HeartbeatFromApplicationResponse(statusCode, blacklist, unknownWorkers, shuttingWorkers) =>
+    case HeartbeatFromApplicationResponse(
+          statusCode,
+          excludedWorkers,
+          unknownWorkers,
+          shuttingWorkers) =>
       val payload = PbHeartbeatFromApplicationResponse.newBuilder()
         .setStatus(statusCode.getValue)
-        .addAllBlacklist(
-          blacklist.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
+        .addAllExcludedWorkers(
+          excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .addAllUnknownWorkers(
           unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .addAllShuttingWorkers(
@@ -648,7 +640,7 @@ object ControlMessages extends Logging {
 
     case GetBlacklist(localExcludedWorkers) =>
       val payload = PbGetBlacklist.newBuilder()
-        .addAllLocalBlackList(localExcludedWorkers.asScala.map { workerInfo =>
+        .addAllLocalExcludedWorkers(localExcludedWorkers.asScala.map { workerInfo =>
           PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
         }.toList.asJava)
         .build().toByteArray
@@ -657,7 +649,7 @@ object ControlMessages extends Logging {
     case GetBlacklistResponse(statusCode, excludedWorkers, unknownWorkers) =>
       val builder = PbGetBlacklistResponse.newBuilder()
         .setStatus(statusCode.getValue)
-      builder.addAllBlacklist(
+      builder.addAllExcludedWorkers(
         excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
       builder.addAllUnknownWorkers(
         unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
@@ -690,12 +682,6 @@ object ControlMessages extends Logging {
 
     case pb: PbRegisterWorkerResponse =>
       new TransportMessage(MessageType.REGISTER_WORKER_RESPONSE, pb.toByteArray)
-
-    case ReregisterWorkerResponse(success) =>
-      val payload = PbReregisterWorkerResponse.newBuilder()
-        .setSuccess(success)
-        .build().toByteArray
-      new TransportMessage(MessageType.REREGISTER_WORKER_RESPONSE, payload)
 
     case ReserveSlots(
           applicationId,
@@ -785,34 +771,6 @@ object ControlMessages extends Logging {
       builder.addAllFailedReplicas(failedReplicas)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.DESTROY_RESPONSE, payload)
-
-    case ReplicaLostResponse(status, replicaLocation) =>
-      val payload = PbReplicaLostResponse.newBuilder()
-        .setStatus(status.getValue)
-        .setReplicaLocation(PbSerDeUtils.toPbPartitionLocation(replicaLocation))
-        .build().toByteArray
-      new TransportMessage(MessageType.REPLICA_LOST_RESPONSE, payload)
-
-    case GetWorkerInfos =>
-      new TransportMessage(MessageType.GET_WORKER_INFO, null)
-
-    case GetWorkerInfosResponse(status, workerInfos @ _*) =>
-      val payload = PbGetWorkerInfosResponse.newBuilder()
-        .setStatus(status.getValue)
-        .addAllWorkerInfos(workerInfos.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, false)
-        }
-          .toList.asJava)
-        .build().toByteArray
-      new TransportMessage(MessageType.GET_WORKER_INFO_RESPONSE, payload)
-
-    case ThreadDump =>
-      new TransportMessage(MessageType.THREAD_DUMP, null)
-
-    case ThreadDumpResponse(threadDump) =>
-      val payload = PbThreadDumpResponse.newBuilder()
-        .setThreadDump(threadDump).build().toByteArray
-      new TransportMessage(MessageType.THREAD_DUMP_RESPONSE, payload)
 
     case pb: PbPartitionSplit =>
       new TransportMessage(MessageType.PARTITION_SPLIT, pb.toByteArray)
@@ -983,7 +941,7 @@ object ControlMessages extends Logging {
           PbHeartbeatFromApplicationResponse.parseFrom(message.getPayload)
         HeartbeatFromApplicationResponse(
           Utils.toStatusCode(pbHeartbeatFromApplicationResponse.getStatus),
-          pbHeartbeatFromApplicationResponse.getBlacklistList.asScala
+          pbHeartbeatFromApplicationResponse.getExcludedWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
@@ -992,14 +950,15 @@ object ControlMessages extends Logging {
 
       case GET_BLACKLIST =>
         val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
-        GetBlacklist(new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalBlackListList.asScala
-          .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
+        GetBlacklist(
+          new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalExcludedWorkersList.asScala
+            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
 
       case GET_BLACKLIST_RESPONSE =>
         val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
         GetBlacklistResponse(
           Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
-          pbGetBlacklistResponse.getBlacklistList.asScala
+          pbGetBlacklistResponse.getExcludedWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbGetBlacklistResponse.getUnknownWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
@@ -1024,10 +983,6 @@ object ControlMessages extends Logging {
 
       case REGISTER_WORKER_RESPONSE =>
         PbRegisterWorkerResponse.parseFrom(message.getPayload)
-
-      case REREGISTER_WORKER_RESPONSE =>
-        val pbReregisterWorkerResponse = PbReregisterWorkerResponse.parseFrom(message.getPayload)
-        ReregisterWorkerResponse(pbReregisterWorkerResponse.getSuccess)
 
       case RESERVE_SLOTS =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
@@ -1099,29 +1054,6 @@ object ControlMessages extends Logging {
           Utils.toStatusCode(pbDestroyResponse.getStatus),
           pbDestroyResponse.getFailedPrimariesList,
           pbDestroyResponse.getFailedReplicasList)
-
-      case REPLICA_LOST_RESPONSE =>
-        val pbReplicaLostResponse = PbReplicaLostResponse.parseFrom(message.getPayload)
-        ReplicaLostResponse(
-          Utils.toStatusCode(pbReplicaLostResponse.getStatus),
-          PbSerDeUtils.fromPbPartitionLocation(pbReplicaLostResponse.getReplicaLocation))
-
-      case GET_WORKER_INFO =>
-        GetWorkerInfos
-
-      case GET_WORKER_INFO_RESPONSE =>
-        val pbGetWorkerInfoResponse = PbGetWorkerInfosResponse.parseFrom(message.getPayload)
-        GetWorkerInfosResponse(
-          Utils.toStatusCode(pbGetWorkerInfoResponse.getStatus),
-          pbGetWorkerInfoResponse.getWorkerInfosList.asScala
-            .map(PbSerDeUtils.fromPbWorkerInfo).toList: _*)
-
-      case THREAD_DUMP =>
-        ThreadDump
-
-      case THREAD_DUMP_RESPONSE =>
-        val pbThreadDumpResponse = PbThreadDumpResponse.parseFrom(message.getPayload)
-        ThreadDumpResponse(pbThreadDumpResponse.getThreadDump)
 
       case REMOVE_EXPIRED_SHUFFLE =>
         RemoveExpiredShuffle
