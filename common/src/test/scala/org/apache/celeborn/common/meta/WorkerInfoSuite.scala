@@ -283,9 +283,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
          |SlotsUsed: 60
          |LastHeartbeat: 0
          |Disks: $placeholder
-         |  DiskInfo0: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2147483647, avgFlushTime: 3, avgFetchTime: 3, activeSlots: 30) status: HEALTHY dirs $placeholder
-         |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2147483647, avgFlushTime: 1, avgFetchTime: 1, activeSlots: 10) status: HEALTHY dirs $placeholder
-         |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2147483647, avgFlushTime: 2, avgFetchTime: 2, activeSlots: 20) status: HEALTHY dirs $placeholder
+         |  DiskInfo0: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2048.0 MiB, avgFlushTime: 3 ms, avgFetchTime: 3 ms, activeSlots: 30) status: HEALTHY dirs $placeholder
+         |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2048.0 MiB, avgFlushTime: 1 ms, avgFetchTime: 1 ms, activeSlots: 10) status: HEALTHY dirs $placeholder
+         |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2048.0 MiB, avgFlushTime: 2 ms, avgFetchTime: 2 ms, activeSlots: 20) status: HEALTHY dirs $placeholder
          |UserResourceConsumption: $placeholder
          |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1)
          |WorkerRef: null

@@ -30,7 +30,7 @@ import com.google.common.annotations.VisibleForTesting
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.haclient.RssHARetryClient
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -118,14 +118,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
-  private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
+  private val masterClient = new MasterClient(rpcEnv, conf)
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
   private val heartbeater =
     new ApplicationHeartbeater(
       appUniqueId,
       conf,
-      rssHARetryClient,
+      masterClient,
       () => commitManager.commitMetrics(),
       workerStatusTracker)
   private val changePartitionManager = new ChangePartitionManager(conf, this)
@@ -168,7 +168,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     releasePartitionManager.stop()
     heartbeater.stop()
 
-    rssHARetryClient.close()
+    masterClient.close()
     if (rpcEnv != null) {
       rpcEnv.shutdown()
       rpcEnv.awaitTermination()
@@ -1025,7 +1025,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
         val unregisterShuffleResponse = requestPrimaryUnregisterShuffle(
-          UnregisterShuffle(appUniqueId, shuffleId, RssHARetryClient.genRequestId()))
+          UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
         // if unregister shuffle not success, wait next turn
         if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
           unregisterShuffleTime.remove(shuffleId)
@@ -1057,7 +1057,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private def requestPrimaryRequestSlots(message: RequestSlots): RequestSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
-      rssHARetryClient.askSync[RequestSlotsResponse](message, classOf[RequestSlotsResponse])
+      masterClient.askSync[RequestSlotsResponse](message, classOf[RequestSlotsResponse])
     } catch {
       case e: Exception =>
         logError(s"AskSync RegisterShuffle for $shuffleKey failed.", e)
@@ -1097,7 +1097,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private def requestPrimaryReleaseSlots(message: ReleaseSlots): ReleaseSlotsResponse = {
     try {
-      rssHARetryClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse])
+      masterClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse])
     } catch {
       case e: Exception =>
         logError(s"AskSync ReleaseSlots for ${message.shuffleId} failed.", e)
@@ -1108,7 +1108,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private def requestPrimaryUnregisterShuffle(message: PbUnregisterShuffle)
       : PbUnregisterShuffleResponse = {
     try {
-      rssHARetryClient.askSync[PbUnregisterShuffleResponse](
+      masterClient.askSync[PbUnregisterShuffleResponse](
         message,
         classOf[PbUnregisterShuffleResponse])
     } catch {
@@ -1120,7 +1120,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   def checkQuota(): CheckQuotaResponse = {
     try {
-      rssHARetryClient.askSync[CheckQuotaResponse](
+      masterClient.askSync[CheckQuotaResponse](
         CheckQuota(userIdentifier),
         classOf[CheckQuotaResponse])
     } catch {

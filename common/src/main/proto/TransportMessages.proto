@@ -148,7 +148,7 @@ message PbHeartbeatFromWorker {
   map<string, int64> estimatedAppDiskUsage = 10;
 }
 
-message PbHeartbeatResponse {
+message PbHeartbeatFromWorkerResponse {
   repeated string expiredShuffleKeys = 1;
   bool registered = 2;
 }

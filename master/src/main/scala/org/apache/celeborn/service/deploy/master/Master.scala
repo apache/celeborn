@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.haclient.RssHARetryClient
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
@@ -369,7 +369,7 @@ private[celeborn] class Master(
           worker.pushPort,
           worker.fetchPort,
           worker.replicatePort,
-          RssHARetryClient.genRequestId()))
+          MasterClient.genRequestId()))
       }
       ind += 1
     }
@@ -384,7 +384,7 @@ private[celeborn] class Master(
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
       if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
-        val requestId = RssHARetryClient.genRequestId()
+        val requestId = MasterClient.genRequestId()
         var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
         var retry = 1
         while (res.status != StatusCode.SUCCESS && retry <= 3) {
@@ -437,7 +437,7 @@ private[celeborn] class Master(
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
+    context.reply(HeartbeatFromWorkerResponse(expiredShuffleKeys, registered))
   }
 
   private def handleWorkerLost(

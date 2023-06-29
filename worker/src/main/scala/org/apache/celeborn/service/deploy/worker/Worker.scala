@@ -30,8 +30,8 @@ import io.netty.util.HashedWheelTimer
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
-import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
@@ -219,7 +219,7 @@ private[celeborn] class Worker(
   val shuffleCommitInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
-  private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
+  private val masterClient = new MasterClient(rpcEnv, conf)
 
   // (workerInfo -> last connect timeout timestamp)
   val unavailablePeers = JavaUtils.newConcurrentHashMap[WorkerInfo, Long]()
@@ -285,7 +285,7 @@ private[celeborn] class Worker(
     val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
       storageManager.userResourceConsumptionSnapshot().asJava)
 
-    val response = rssHARetryClient.askSync[HeartbeatResponse](
+    val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
         rpcPort,
@@ -296,7 +296,7 @@ private[celeborn] class Worker(
         resourceConsumption,
         activeShuffleKeys,
         estimatedAppDiskUsage),
-      classOf[HeartbeatResponse])
+      classOf[HeartbeatFromWorkerResponse])
     response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
     if (!response.registered) {
@@ -392,7 +392,7 @@ private[celeborn] class Worker(
       }
       memoryManager.close();
 
-      rssHARetryClient.close()
+      masterClient.close()
       replicateServer.close()
       fetchServer.close()
 
@@ -410,7 +410,7 @@ private[celeborn] class Worker(
     while (registerTimeout > 0) {
       val resp =
         try {
-          rssHARetryClient.askSync[PbRegisterWorkerResponse](
+          masterClient.askSync[PbRegisterWorkerResponse](
             RegisterWorker(
               host,
               rpcPort,
@@ -422,7 +422,7 @@ private[celeborn] class Worker(
               workerInfo.diskInfos.asScala.toMap,
               workerInfo.updateThenGetUserResourceConsumption(
                 storageManager.userResourceConsumptionSnapshot().asJava).asScala.toMap,
-              RssHARetryClient.genRequestId()),
+              MasterClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {
           case throwable: Throwable =>
@@ -532,18 +532,18 @@ private[celeborn] class Worker(
         // make master remove this worker from excluded list.
         try {
           if (gracefulShutdown) {
-            rssHARetryClient.askSync(
+            masterClient.askSync(
               ReportWorkerUnavailable(List(workerInfo).asJava),
               OneWayMessageResponse.getClass)
           } else {
-            rssHARetryClient.askSync[PbWorkerLostResponse](
+            masterClient.askSync[PbWorkerLostResponse](
               WorkerLost(
                 host,
                 rpcPort,
                 pushPort,
                 fetchPort,
                 replicatePort,
-                RssHARetryClient.genRequestId()),
+                MasterClient.genRequestId()),
               classOf[PbWorkerLostResponse])
           }
         } catch {
