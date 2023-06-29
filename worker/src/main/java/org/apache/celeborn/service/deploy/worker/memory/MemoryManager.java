@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.memory;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -65,7 +64,6 @@ public class MemoryManager {
 
   private AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
-  private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
   private final LongAdder pausePushDataCounter = new LongAdder();
@@ -154,8 +152,6 @@ public class MemoryManager {
     readBufferTarget = (long) (readBufferThreshold * readBufferTargetRatio);
     memoryShuffleStorageThreshold = (long) (maxDirectorMemory * shuffleStorageRatio);
 
-    initDirectMemoryIndicator();
-
     checkService.scheduleWithFixedDelay(
         () -> {
           try {
@@ -207,7 +203,7 @@ public class MemoryManager {
         () ->
             logger.info(
                 "Direct memory usage: {}/{}, disk buffer size: {}, sort memory size: {}, read buffer size: {}",
-                Utils.bytesToString(nettyMemoryCounter.get()),
+                Utils.bytesToString(getNettyUsedDirectMemory()),
                 Utils.bytesToString(maxDirectorMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
                 Utils.bytesToString(sortMemoryCounter.get()),
@@ -266,23 +262,6 @@ public class MemoryManager {
         Utils.bytesToString(readBufferThreshold),
         Utils.bytesToString(readBufferTarget),
         Utils.bytesToString(memoryShuffleStorageThreshold));
-  }
-
-  private void initDirectMemoryIndicator() {
-    try {
-      Field field = null;
-      Field[] result = PlatformDependent.class.getDeclaredFields();
-      for (Field tf : result) {
-        if ("DIRECT_MEMORY_COUNTER".equals(tf.getName())) {
-          field = tf;
-        }
-      }
-      field.setAccessible(true);
-      nettyMemoryCounter = ((AtomicLong) field.get(PlatformDependent.class));
-    } catch (Exception e) {
-      logger.error("Fatal error, get netty_direct_memory failed, worker should stop", e);
-      System.exit(-1);
-    }
   }
 
   public MemoryManagerStat currentMemoryAction() {
@@ -350,12 +329,14 @@ public class MemoryManager {
     diskBufferCounter.addAndGet(size * -1);
   }
 
-  public AtomicLong getNettyMemoryCounter() {
-    return nettyMemoryCounter;
+  public long getNettyUsedDirectMemory() {
+    long usedDirectMemory = PlatformDependent.usedDirectMemory();
+    assert usedDirectMemory != -1;
+    return usedDirectMemory;
   }
 
   public long getMemoryUsage() {
-    return nettyMemoryCounter.get() + sortMemoryCounter.get();
+    return getNettyUsedDirectMemory() + sortMemoryCounter.get();
   }
 
   public AtomicLong getSortMemoryCounter() {
