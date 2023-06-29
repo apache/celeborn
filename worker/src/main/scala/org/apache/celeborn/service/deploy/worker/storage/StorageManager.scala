@@ -707,7 +707,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       diskInfo.updateFlushTime()
       diskInfo.updateFetchTime()
     }
-    logInfo(s"Updated diskInfos: ${disksSnapshot()}")
+    logInfo(s"Updated diskInfos:\n${disksSnapshot().mkString("\n")}")
   }
 
   def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {
