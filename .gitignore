@@ -59,7 +59,6 @@ scalastyle-on-compile.generated.xml
 scalastyle-output.xml
 scalastyle.txt
 apache-celeborn-*.tgz
-celeborn-*-bin*
 apache-celeborn-*-bin*
 src_managed/
 target/
