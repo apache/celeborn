@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.haclient.RssHARetryClient
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
@@ -144,13 +144,10 @@ private[celeborn] class Master(
   masterSource.addGauge(
     MasterSource.RegisteredShuffleCount,
     _ => statusSystem.registeredShuffle.size())
-  // blacklist worker count
-  masterSource.addGauge(MasterSource.BlacklistedWorkerCount, _ => statusSystem.blacklist.size())
-  // worker count
+  masterSource.addGauge(MasterSource.ExcludedWorkerCount, _ => statusSystem.excludedWorkers.size())
   masterSource.addGauge(MasterSource.WorkerCount, _ => statusSystem.workers.size())
   masterSource.addGauge(MasterSource.LostWorkerCount, _ => statusSystem.lostWorkers.size())
   masterSource.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
-  // is master active under HA mode
   masterSource.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
 
   metricsSystem.registerSource(resourceConsumptionSource)
@@ -230,7 +227,13 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartbeatFromApplication(appId, totalWritten, fileCount, localBlacklist, requestId) =>
+    case HeartbeatFromApplication(
+          appId,
+          totalWritten,
+          fileCount,
+          needCheckedWorkerList,
+          requestId,
+          shouldResponse) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
@@ -239,8 +242,9 @@ private[celeborn] class Master(
           appId,
           totalWritten,
           fileCount,
-          localBlacklist,
-          requestId))
+          needCheckedWorkerList,
+          requestId,
+          shouldResponse))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -325,9 +329,6 @@ private[celeborn] class Master(
           estimatedAppDiskUsage,
           requestId))
 
-    case GetWorkerInfos =>
-      executeWithLeaderChecker(context, handleGetWorkerInfos(context))
-
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
       executeWithLeaderChecker(
         context,
@@ -368,7 +369,7 @@ private[celeborn] class Master(
           worker.pushPort,
           worker.fetchPort,
           worker.replicatePort,
-          RssHARetryClient.genRequestId()))
+          MasterClient.genRequestId()))
       }
       ind += 1
     }
@@ -383,7 +384,7 @@ private[celeborn] class Master(
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
       if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
-        val requestId = RssHARetryClient.genRequestId()
+        val requestId = MasterClient.genRequestId()
         var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
         var retry = 1
         while (res.status != StatusCode.SUCCESS && retry <= 3) {
@@ -436,7 +437,7 @@ private[celeborn] class Master(
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
+    context.reply(HeartbeatFromWorkerResponse(expiredShuffleKeys, registered))
   }
 
   private def handleWorkerLost(
@@ -627,24 +628,20 @@ private[celeborn] class Master(
   }
 
   def handleGetBlacklist(context: RpcCallContext, msg: GetBlacklist): Unit = {
-    msg.localBlacklist.removeAll(workersSnapShot)
+    msg.localExcludedWorkers.removeAll(workersSnapShot)
     context.reply(
       GetBlacklistResponse(
         StatusCode.SUCCESS,
-        new util.ArrayList(statusSystem.blacklist),
-        msg.localBlacklist))
-  }
-
-  private def handleGetWorkerInfos(context: RpcCallContext): Unit = {
-    context.reply(GetWorkerInfosResponse(StatusCode.SUCCESS, workersSnapShot.asScala: _*))
+        new util.ArrayList(statusSystem.excludedWorkers),
+        msg.localExcludedWorkers))
   }
 
   private def handleReportNodeUnavailable(
       context: RpcCallContext,
       failedWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
-    logInfo(s"Receive ReportNodeFailure $failedWorkers, current blacklist" +
-      s"${statusSystem.blacklist}")
+    logInfo(s"Receive ReportNodeFailure $failedWorkers, current excluded workers" +
+      s"${statusSystem.excludedWorkers}")
     statusSystem.handleReportWorkerUnavailable(failedWorkers, requestId)
     context.reply(OneWayMessageResponse)
   }
@@ -665,7 +662,8 @@ private[celeborn] class Master(
       totalWritten: Long,
       fileCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
-      requestId: String): Unit = {
+      requestId: String,
+      shouldResponse: Boolean): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
@@ -674,11 +672,15 @@ private[celeborn] class Master(
       requestId)
     // unknown workers will retain in needCheckedWorkerList
     needCheckedWorkerList.removeAll(workersSnapShot)
-    context.reply(HeartbeatFromApplicationResponse(
-      StatusCode.SUCCESS,
-      new util.ArrayList(statusSystem.blacklist),
-      needCheckedWorkerList,
-      shutdownWorkerSnapshot))
+    if (shouldResponse) {
+      context.reply(HeartbeatFromApplicationResponse(
+        StatusCode.SUCCESS,
+        new util.ArrayList(statusSystem.excludedWorkers),
+        needCheckedWorkerList,
+        shutdownWorkerSnapshot))
+    } else {
+      context.reply(OneWayMessageResponse)
+    }
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
@@ -733,10 +735,10 @@ private[celeborn] class Master(
   }
 
   private def workersAvailable(
-      tmpBlacklist: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
+      tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.blacklist.contains(w) && !statusSystem.shutdownWorkers.contains(
-        w) && !tmpBlacklist.contains(w)
+      !statusSystem.excludedWorkers.contains(w) && !statusSystem.shutdownWorkers.contains(
+        w) && !tmpExcludedWorkerList.contains(w)
     }.asJava
   }
 
@@ -767,10 +769,10 @@ private[celeborn] class Master(
     sb.toString()
   }
 
-  override def getBlacklistedWorkers: String = {
+  override def getExcludedWorkers: String = {
     val sb = new StringBuilder
-    sb.append("==================== Blacklisted Workers in Master =====================\n")
-    statusSystem.blacklist.asScala.foreach { worker =>
+    sb.append("===================== Excluded Workers in Master ======================\n")
+    statusSystem.excludedWorkers.asScala.foreach { worker =>
       sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()

@@ -195,66 +195,67 @@ public class SlotsAllocator {
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
       boolean shouldReplicate,
       boolean shouldRackAware) {
-    // workerInfo -> (diskIndexForMaster, diskIndexForSlave)
-    Map<WorkerInfo, Integer> workerDiskIndexForMaster = new HashMap<>();
-    Map<WorkerInfo, Integer> workerDiskIndexForSlave = new HashMap<>();
+    // workerInfo -> (diskIndexForPrimary, diskIndexForReplica)
+    Map<WorkerInfo, Integer> workerDiskIndexForPrimary = new HashMap<>();
+    Map<WorkerInfo, Integer> workerDiskIndexForReplica = new HashMap<>();
     List<Integer> partitionIdList = new ArrayList<>(partitionIds);
-    int masterIndex = rand.nextInt(workers.size());
+    int primaryIndex = rand.nextInt(workers.size());
     Iterator<Integer> iter = partitionIdList.iterator();
     outer:
     while (iter.hasNext()) {
-      int nextMasterInd = masterIndex;
+      int nextPrimayInd = primaryIndex;
 
       int partitionId = iter.next();
       StorageInfo storageInfo = new StorageInfo();
       if (restrictions != null) {
-        while (!haveUsableSlots(restrictions, workers, nextMasterInd)) {
-          nextMasterInd = (nextMasterInd + 1) % workers.size();
-          if (nextMasterInd == masterIndex) {
+        while (!haveUsableSlots(restrictions, workers, nextPrimayInd)) {
+          nextPrimayInd = (nextPrimayInd + 1) % workers.size();
+          if (nextPrimayInd == primaryIndex) {
             break outer;
           }
         }
         storageInfo =
-            getStorageInfo(workers, nextMasterInd, restrictions, workerDiskIndexForMaster);
+            getStorageInfo(workers, nextPrimayInd, restrictions, workerDiskIndexForPrimary);
       }
-      PartitionLocation masterPartition =
-          createLocation(partitionId, workers.get(nextMasterInd), null, storageInfo, true);
+      PartitionLocation primaryPartition =
+          createLocation(partitionId, workers.get(nextPrimayInd), null, storageInfo, true);
 
       if (shouldReplicate) {
-        int nextSlaveInd = (nextMasterInd + 1) % workers.size();
+        int nextReplicaInd = (nextPrimayInd + 1) % workers.size();
         if (restrictions != null) {
-          while (!haveUsableSlots(restrictions, workers, nextSlaveInd)
-              || !satisfyRackAware(shouldRackAware, workers, nextMasterInd, nextSlaveInd)) {
-            nextSlaveInd = (nextSlaveInd + 1) % workers.size();
-            if (nextSlaveInd == nextMasterInd) {
+          while (!haveUsableSlots(restrictions, workers, nextReplicaInd)
+              || !satisfyRackAware(shouldRackAware, workers, nextPrimayInd, nextReplicaInd)) {
+            nextReplicaInd = (nextReplicaInd + 1) % workers.size();
+            if (nextReplicaInd == nextPrimayInd) {
               break outer;
             }
           }
           storageInfo =
-              getStorageInfo(workers, nextSlaveInd, restrictions, workerDiskIndexForSlave);
+              getStorageInfo(workers, nextReplicaInd, restrictions, workerDiskIndexForReplica);
         } else if (shouldRackAware) {
-          while (!satisfyRackAware(true, workers, nextMasterInd, nextSlaveInd)) {
-            nextSlaveInd = (nextSlaveInd + 1) % workers.size();
-            if (nextSlaveInd == nextMasterInd) {
+          while (!satisfyRackAware(true, workers, nextPrimayInd, nextReplicaInd)) {
+            nextReplicaInd = (nextReplicaInd + 1) % workers.size();
+            if (nextReplicaInd == nextPrimayInd) {
               break outer;
             }
           }
         }
-        PartitionLocation slavePartition =
+        PartitionLocation replicaPartition =
             createLocation(
-                partitionId, workers.get(nextSlaveInd), masterPartition, storageInfo, false);
-        masterPartition.setPeer(slavePartition);
+                partitionId, workers.get(nextReplicaInd), primaryPartition, storageInfo, false);
+        primaryPartition.setPeer(replicaPartition);
         Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
             slots.computeIfAbsent(
-                workers.get(nextSlaveInd), v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
-        locations._2.add(slavePartition);
+                workers.get(nextReplicaInd),
+                v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+        locations._2.add(replicaPartition);
       }
 
       Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
           slots.computeIfAbsent(
-              workers.get(nextMasterInd), v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
-      locations._1.add(masterPartition);
-      masterIndex = (nextMasterInd + 1) % workers.size();
+              workers.get(nextPrimayInd), v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+      locations._1.add(primaryPartition);
+      primaryIndex = (nextPrimayInd + 1) % workers.size();
       iter.remove();
     }
     return partitionIdList;
@@ -266,11 +267,11 @@ public class SlotsAllocator {
   }
 
   private static boolean satisfyRackAware(
-      boolean shouldRackAware, List<WorkerInfo> workers, int masterIndex, int nextSlaveInd) {
+      boolean shouldRackAware, List<WorkerInfo> workers, int primaryIndex, int nextReplicaInd) {
     return !shouldRackAware
         || !Objects.equals(
-            workers.get(masterIndex).networkLocation(),
-            workers.get(nextSlaveInd).networkLocation());
+            workers.get(primaryIndex).networkLocation(),
+            workers.get(nextReplicaInd).networkLocation());
   }
 
   private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {
@@ -431,7 +432,7 @@ public class SlotsAllocator {
       WorkerInfo workerInfo,
       PartitionLocation peer,
       StorageInfo storageInfo,
-      boolean isMaster) {
+      boolean isPrimary) {
     return new PartitionLocation(
         partitionIndex,
         0,
@@ -440,7 +441,7 @@ public class SlotsAllocator {
         workerInfo.pushPort(),
         workerInfo.fetchPort(),
         workerInfo.replicatePort(),
-        isMaster ? PartitionLocation.Mode.MASTER : PartitionLocation.Mode.SLAVE,
+        isPrimary ? PartitionLocation.Mode.PRIMARY : PartitionLocation.Mode.REPLICA,
         peer,
         storageInfo,
         new RoaringBitmap());

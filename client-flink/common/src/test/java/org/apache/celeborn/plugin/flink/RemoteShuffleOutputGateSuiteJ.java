@@ -52,7 +52,8 @@ public class RemoteShuffleOutputGateSuiteJ {
   public void TestSimpleWriteData() throws IOException, InterruptedException {
 
     PartitionLocation partitionLocation =
-        new PartitionLocation(1, 0, "localhost", 123, 245, 789, 238, PartitionLocation.Mode.MASTER);
+        new PartitionLocation(
+            1, 0, "localhost", 123, 245, 789, 238, PartitionLocation.Mode.PRIMARY);
     when(shuffleClient.registerMapPartitionTask(anyInt(), anyInt(), anyInt(), anyInt(), anyInt()))
         .thenAnswer(t -> partitionLocation);
     doNothing()

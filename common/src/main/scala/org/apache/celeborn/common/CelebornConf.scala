@@ -695,8 +695,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
-  def clientBlacklistSlaveEnabled: Boolean = get(CLIENT_BLACKLIST_SLAVE_ENABLED)
-  def clientPushBlacklistEnabled: Boolean = get(CLIENT_PUSH_BLACKLIST_ENABLED)
+  def clientExcludeReplicaOnFailureEnabled: Boolean =
+    get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -748,6 +748,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushBufferInitialSize: Int = get(CLIENT_PUSH_BUFFER_INITIAL_SIZE).toInt
   def clientPushBufferMaxSize: Int = get(CLIENT_PUSH_BUFFER_MAX_SIZE).toInt
   def clientPushQueueCapacity: Int = get(CLIENT_PUSH_QUEUE_CAPACITY)
+  def clientPushExcludeWorkerOnFailureEnabled: Boolean =
+    get(CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientPushMaxReqsInFlight: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT)
   def clientPushMaxReviveTimes: Int = get(CLIENT_PUSH_MAX_REVIVE_TIMES)
   def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
@@ -984,8 +986,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_CLIENT_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_CLIENT_RETRY_COMMIT_FILE)
-  def testPushMasterDataTimeout: Boolean = get(TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT)
-  def testPushSlaveDataTimeout: Boolean = get(TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT)
+  def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
+  def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def clientFlinkMemoryPerResultPartitionMin: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION_MIN)
@@ -2574,12 +2576,12 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 
-  val CLIENT_BLACKLIST_SLAVE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.blacklistSlave.enabled")
+  val CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.excludePeerWorkerOnFailure.enabled")
       .categories("client")
       .version("0.3.0")
-      .doc("When true, Celeborn will add partition's peer worker into blacklist " +
-        "when push data to slave failed.")
+      .doc("When true, Celeborn will exclude partition's peer worker on failure " +
+        "when push data to replica failed.")
       .booleanConf
       .createWithDefault(true)
 
@@ -2664,7 +2666,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Amount of Netty in-flight requests per worker. The maximum memory is " +
         "`celeborn.client.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
-        "compression ratio(1 in worst case), default: 64Kib * 32 = 2Mib")
+        "compression ratio(1 in worst case), default: 64KiB * 4 = 256KiB")
       .intConf
       .createWithDefault(4)
 
@@ -2693,10 +2695,10 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(2048)
 
-  val CLIENT_PUSH_BLACKLIST_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.push.blacklist.enabled")
+  val CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.excludeWorkerOnFailure.enabled")
       .categories("client")
-      .doc("Whether to enable shuffle client-side push blacklist of workers.")
+      .doc("Whether to enable shuffle client-side push exclude workers on failures.")
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
@@ -2705,8 +2707,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.push.limit.strategy")
       .categories("client")
       .doc("The strategy used to control the push speed. " +
-        "Valid strategies are SIMPLE and SLOWSTART. the SLOWSTART strategy is usually cooperate with " +
-        "congest control mechanism in the worker side.")
+        "Valid strategies are SIMPLE and SLOWSTART. The SLOWSTART strategy usually works with " +
+        "congestion control mechanism on the worker side.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
@@ -2741,22 +2743,22 @@ object CelebornConf extends Logging {
       .checkValue(_ > 0, "celeborn.client.push.data.timeout must be positive!")
       .createWithDefaultString("120s")
 
-  val TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.pushMasterDataTimeout")
+  val TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.worker.pushPrimaryDataTimeout")
       .withAlternative("celeborn.test.pushMasterDataTimeout")
       .internal
       .categories("test", "worker")
       .version("0.3.0")
-      .doc("Whether to test push master data timeout")
+      .doc("Whether to test push primary data timeout")
       .booleanConf
       .createWithDefault(false)
 
-  val TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.pushSlaveDataTimeout")
+  val TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.worker.pushReplicaDataTimeout")
       .internal
       .categories("test", "worker")
       .version("0.3.0")
-      .doc("Whether to test push slave data timeout")
+      .doc("Whether to test push replica data timeout")
       .booleanConf
       .createWithDefault(false)
 
@@ -2874,7 +2876,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.fetch.excludedWorker.expireTimeout")
       .categories("client")
       .doc("ShuffleClient is a static object, it will be used in the whole lifecycle of Executor," +
-        "We give a expire time for blacklisted worker to avoid a transient worker issues.")
+        "We give a expire time for excluded workers to avoid a transient worker issues.")
       .version("0.3.0")
       .fallbackConf(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
 

@@ -45,18 +45,18 @@ enum MessageType {
   CHECK_QUOTA_RESPONSE = 24;
   REPORT_WORKER_FAILURE = 25;
   REGISTER_WORKER_RESPONSE = 26;
-  REREGISTER_WORKER_RESPONSE = 27;
+  // REREGISTER_WORKER_RESPONSE = 27;
   RESERVE_SLOTS = 28;
   RESERVE_SLOTS_RESPONSE = 29;
   COMMIT_FILES = 30;
   COMMIT_FILES_RESPONSE = 31;
   DESTROY = 32;
   DESTROY_RESPONSE = 33;
-  SLAVE_LOST_RESPONSE = 34;
-  GET_WORKER_INFO = 35;
-  GET_WORKER_INFO_RESPONSE = 36;
-  THREAD_DUMP = 37;
-  THREAD_DUMP_RESPONSE = 38;
+  // SLAVE_LOST_RESPONSE = 34;
+  // GET_WORKER_INFO = 35;
+  // GET_WORKER_INFO_RESPONSE = 36;
+  // THREAD_DUMP = 37;
+  // THREAD_DUMP_RESPONSE = 38;
   REMOVE_EXPIRED_SHUFFLE = 39;
   ONE_WAY_MESSAGE_RESPONSE = 40;
   CHECK_FOR_WORKER_TIMEOUT = 41;
@@ -79,8 +79,8 @@ message PbStorageInfo {
 
 message PbPartitionLocation {
   enum Mode {
-    Master = 0;
-    Slave = 1;
+    Primary = 0;
+    Replica = 1;
   }
   Mode mode = 1;
   int32 id = 2;
@@ -96,8 +96,8 @@ message PbPartitionLocation {
 }
 
 message PbWorkerResource {
-  repeated PbPartitionLocation masterPartitions = 1;
-  repeated PbPartitionLocation slavePartitions = 2;
+  repeated PbPartitionLocation primaryPartitions = 1;
+  repeated PbPartitionLocation replicaPartitions = 2;
   string networkLocation = 3;
 }
 
@@ -148,14 +148,14 @@ message PbHeartbeatFromWorker {
   map<string, int64> estimatedAppDiskUsage = 10;
 }
 
-message PbHeartbeatResponse {
+message PbHeartbeatFromWorkerResponse {
   repeated string expiredShuffleKeys = 1;
   bool registered = 2;
 }
 
 message PbRegisterShuffle {
   int32 shuffleId = 1;
-  int32 numMapppers = 2;
+  int32 numMappers = 2;
   int32 numPartitions = 3;
 }
 
@@ -290,22 +290,23 @@ message PbHeartbeatFromApplication {
   int64 fileCount = 3 ;
   string requestId = 4;
   repeated PbWorkerInfo needCheckedWorkerList = 5;
+  bool shouldResponse = 6;
 }
 
 message PbHeartbeatFromApplicationResponse {
   int32 status = 1;
-  repeated PbWorkerInfo blacklist = 2;
+  repeated PbWorkerInfo excludedWorkers = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
   repeated PbWorkerInfo shuttingWorkers = 4;
 }
 
 message PbGetBlacklist {
-  repeated PbWorkerInfo localBlackList = 1;
+  repeated PbWorkerInfo localExcludedWorkers = 1;
 }
 
 message PbGetBlacklistResponse {
   int32 status = 1;
-  repeated PbWorkerInfo blacklist = 2;
+  repeated PbWorkerInfo excludedWorkers = 2;
   repeated PbWorkerInfo unknownWorkers = 3;
 }
 
@@ -328,15 +329,11 @@ message PbRegisterWorkerResponse {
   string message = 2;
 }
 
-message PbReregisterWorkerResponse {
-  bool success = 1;
-}
-
 message PbReserveSlots {
   string applicationId = 1;
   int32 shuffleId = 2;
-  repeated PbPartitionLocation masterLocations = 3;
-  repeated PbPartitionLocation slaveLocations = 4;
+  repeated PbPartitionLocation primaryLocations = 3;
+  repeated PbPartitionLocation replicaLocations = 4;
   int64 splitThreshold = 5;
   int32 splitMode = 6;
   int32 partitionType = 7;
@@ -353,20 +350,20 @@ message PbReserveSlotsResponse {
 message PbCommitFiles {
   string applicationId = 1;
   int32 shuffleId = 2;
-  repeated string masterIds = 3;
-  repeated string slaveIds = 4;
+  repeated string primaryIds = 3;
+  repeated string replicaIds = 4;
   repeated int32 mapAttempts = 5;
   int64 epoch = 6;
 }
 
 message PbCommitFilesResponse {
   int32 status = 1;
-  repeated string committedMasterIds = 2;
-  repeated string committedSlaveIds = 3;
-  repeated string failedMasterIds = 4;
-  repeated string failedSlaveIds = 5;
-  map<string, PbStorageInfo> committedMasterStorageInfos = 6;
-  map<string, PbStorageInfo> committedSlaveStorageInfos = 7;
+  repeated string committedPrimaryIds = 2;
+  repeated string committedReplicaIds = 3;
+  repeated string failedPrimaryIds = 4;
+  repeated string failedReplicaIds = 5;
+  map<string, PbStorageInfo> committedPrimaryStorageInfos = 6;
+  map<string, PbStorageInfo> committedReplicaStorageInfos = 7;
   map<string, bytes> mapIdBitmap = 10;
   int64 totalWritten = 8;
   int32 fileCount = 9;
@@ -374,28 +371,14 @@ message PbCommitFilesResponse {
 
 message PbDestroyWorkerSlots {
   string shuffleKey = 1;
-  repeated string masterLocations = 2;
-  repeated string slaveLocation = 3;
+  repeated string primaryLocations = 2;
+  repeated string replicaLocation = 3;
 }
 
 message PbDestroyWorkerSlotsResponse {
   int32 status = 1;
-  repeated string failedMasters = 2;
-  repeated string failedSlaves = 3;
-}
-
-message PbSlaveLostResponse {
-  int32 status = 1;
-  PbPartitionLocation slaveLocation = 2;
-}
-
-message PbGetWorkerInfosResponse {
-  int32 status = 1;
-  repeated PbWorkerInfo workerInfos = 2;
-}
-
-message PbThreadDumpResponse {
-  string threadDump = 1;
+  repeated string failedPrimaries = 2;
+  repeated string failedReplicas = 3;
 }
 
 message PbCheckForWorkerTimeout {
@@ -473,7 +456,7 @@ message PbSnapshotMetaInfo {
   int64 estimatedPartitionSize = 1;
   repeated string registeredShuffle = 2;
   repeated string hostnameSet = 3;
-  repeated PbWorkerInfo blacklist = 4;
+  repeated PbWorkerInfo excludedWorkers = 4;
   repeated PbWorkerInfo workerLostEvents = 5;
   map<string, int64> appHeartbeatTime = 6;
   repeated PbWorkerInfo workers = 7;

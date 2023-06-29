@@ -95,25 +95,23 @@ trait MiniClusterFeature extends Logging {
   }
 
   def setUpMiniCluster(
-      masterConfs: Map[String, String] = null,
-      workerConfs: Map[String, String] = null,
+      masterConf: Map[String, String] = null,
+      workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
-    val master = createMaster(masterConfs)
+    val master = createMaster(masterConf)
     val masterThread = runnerWrap(master.rpcEnv.awaitTermination())
     masterThread.start()
     masterInfo = (master, masterThread)
     Thread.sleep(5000L)
-    for (_ <- 1 to workerNum) {
-      val worker = createWorker(workerConfs)
+    (1 to workerNum).foreach { _ =>
+      val worker = createWorker(workerConf)
       val workerThread = runnerWrap(worker.initialize())
       workerThread.start()
       workerInfos.put(worker, workerThread)
     }
     Thread.sleep(5000L)
 
-    workerInfos.foreach {
-      case (worker, _) => assert(worker.registered.get())
-    }
+    workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
     (master, workerInfos.keySet)
   }
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.haclient;
+package org.apache.celeborn.common.client;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -48,8 +48,8 @@ import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.RpcTimeout;
 import org.apache.celeborn.common.util.ThreadUtils;
 
-public class RssHARetryClient {
-  private static final Logger LOG = LoggerFactory.getLogger(RssHARetryClient.class);
+public class MasterClient {
+  private static final Logger LOG = LoggerFactory.getLogger(MasterClient.class);
 
   private final RpcEnv rpcEnv;
   private final String[] masterEndpoints;
@@ -60,7 +60,7 @@ public class RssHARetryClient {
   private final AtomicReference<RpcEndpointRef> rpcEndpointRef;
   private final ExecutorService oneWayMessageSender;
 
-  public RssHARetryClient(RpcEnv rpcEnv, CelebornConf conf) {
+  public MasterClient(RpcEnv rpcEnv, CelebornConf conf) {
     this.rpcEnv = rpcEnv;
     this.masterEndpoints = conf.masterEndpoints();
     this.maxRetries = Math.max(masterEndpoints.length, conf.masterClientMaxRetries());

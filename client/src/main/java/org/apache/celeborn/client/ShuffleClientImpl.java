@@ -37,8 +37,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.RssInputStream;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
@@ -63,7 +63,7 @@ import org.apache.celeborn.common.write.PushState;
 public class ShuffleClientImpl extends ShuffleClient {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
-  protected static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
+  protected static final byte PRIMARY_MODE = PartitionLocation.Mode.PRIMARY.mode();
 
   private static final Random RND = new Random();
 
@@ -100,8 +100,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId-mapId-attemptId
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
-  private final boolean shuffleClientPushBlacklistEnabled;
-  private final Set<String> blacklist = ConcurrentHashMap.newKeySet();
+  private final boolean pushExcludeWorkerOnFailureEnabled;
+  private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
 
@@ -163,7 +163,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     maxReviveTimes = conf.clientPushMaxReviveTimes();
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
-    shuffleClientPushBlacklistEnabled = conf.clientPushBlacklistEnabled();
+    pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -194,14 +194,17 @@ public class ShuffleClientImpl extends ShuffleClient {
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
-  private boolean checkPushBlacklisted(
+  private boolean isPushTargetWorkerExcluded(
       PartitionLocation location, RpcResponseCallback wrappedCallback) {
-    // If shuffleClientBlacklistEnabled = false, blacklist should be empty.
-    if (blacklist.contains(location.hostAndPushPort())) {
-      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_MASTER_BLACKLISTED));
+    // If pushExcludeWorkerOnFailureEnabled = false, pushExcludedWorkers should be empty.
+    if (pushExcludedWorkers.contains(location.hostAndPushPort())) {
+      wrappedCallback.onFailure(
+          new CelebornIOException(StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED));
       return true;
-    } else if (location.hasPeer() && blacklist.contains(location.getPeer().hostAndPushPort())) {
-      wrappedCallback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED));
+    } else if (location.hasPeer()
+        && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
+      wrappedCallback.onFailure(
+          new CelebornIOException(StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED));
       return true;
     } else {
       return false;
@@ -269,14 +272,14 @@ public class ShuffleClientImpl extends ShuffleClient {
           batchId,
           newLoc);
       try {
-        if (!checkPushBlacklisted(newLoc, wrappedCallback)) {
+        if (!isPushTargetWorkerExcluded(newLoc, wrappedCallback)) {
           if (!testRetryRevive || remainReviveTimes < 1) {
             TransportClient client =
                 dataClientFactory.createClient(newLoc.getHost(), newLoc.getPushPort(), partitionId);
             NettyManagedBuffer newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
             String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
             PushData newPushData =
-                new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
+                new PushData(PRIMARY_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
             client.pushData(newPushData, pushDataTimeout, wrappedCallback);
           } else {
             throw new RuntimeException(
@@ -296,7 +299,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             newLoc,
             e);
         wrappedCallback.onFailure(
-            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
+            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
       }
     }
   }
@@ -526,8 +529,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
             PartitionLocation partitionLoc =
                 PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));
-            blacklist.remove(partitionLoc.hostAndPushPort());
-
+            pushExcludedWorkers.remove(partitionLoc.hostAndPushPort());
+            if (partitionLoc.hasPeer()) {
+              pushExcludedWorkers.remove(partitionLoc.getPeer().hostAndPushPort());
+            }
             result.put(partitionLoc.getId(), partitionLoc);
           }
           return result;
@@ -574,7 +579,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (reachLimit) {
       throw new CelebornIOException(
-          "Waiting timeout for task " + mapKey, pushState.exception.get());
+          String.format(
+              "Waiting timeout for task %s while limiting max in-flight requests to %s",
+              mapKey, hostAndPushPort),
+          pushState.exception.get());
     }
   }
 
@@ -583,7 +591,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (reachLimit) {
       throw new CelebornIOException(
-          "Waiting timeout for task " + mapKey, pushState.exception.get());
+          String.format(
+              "Waiting timeout for task %s while limiting zero in-flight requests", mapKey),
+          pushState.exception.get());
     }
   }
 
@@ -620,20 +630,19 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   void excludeWorkerByCause(StatusCode cause, PartitionLocation oldLocation) {
-    // Add ShuffleClient side blacklist
-    if (shuffleClientPushBlacklistEnabled && oldLocation != null) {
-      if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_MASTER) {
-        blacklist.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_SLAVE) {
-        blacklist.add(oldLocation.getPeer().hostAndPushPort());
+    if (pushExcludeWorkerOnFailureEnabled && oldLocation != null) {
+      if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY) {
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY) {
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_PRIMARY) {
+        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA) {
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA) {
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
+      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_REPLICA) {
+        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
       }
     }
   }
@@ -704,14 +713,19 @@ public class ShuffleClientImpl extends ShuffleClient {
         int partitionId = partitionInfo.getPartitionId();
         int statusCode = partitionInfo.getStatus();
         if (partitionInfo.getOldAvailable()) {
-          blacklist.remove(oldLocMap.get(partitionId).hostAndPushPort());
+          PartitionLocation oldLoc = oldLocMap.get(partitionId);
+          // Currently, revive only check if main location available, here won't remove peer loc.
+          pushExcludedWorkers.remove(oldLoc.hostAndPushPort());
         }
 
         if (StatusCode.SUCCESS.getValue() == statusCode) {
           PartitionLocation loc =
               PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition());
           partitionLocationMap.put(partitionId, loc);
-          blacklist.remove(loc.hostAndPushPort());
+          pushExcludedWorkers.remove(loc.hostAndPushPort());
+          if (loc.hasPeer()) {
+            pushExcludedWorkers.remove(loc.getPeer().hostAndPushPort());
+          }
         } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
           stageEnded(shuffleId);
           return results;
@@ -844,7 +858,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // build PushData request
       NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
       final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-      PushData pushData = new PushData(MASTER_MODE, shuffleKey, loc.getUniqueId(), buffer);
+      PushData pushData = new PushData(PRIMARY_MODE, shuffleKey, loc.getUniqueId(), buffer);
 
       // build callback
       RpcResponseCallback callback =
@@ -852,8 +866,6 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onSuccess(ByteBuffer response) {
               pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
-              // TODO Need to adjust maxReqsInFlight if server response is congested, see
-              // CELEBORN-62
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
                 stageEndShuffleSet.add(shuffleId);
               }
@@ -932,9 +944,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                               reviveRequest,
                               remainReviveTimes,
                               dueTime));
-                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
+                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
                   logger.debug(
-                      "Push data to {} master congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
+                      "Push data to {} primary congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
                       loc.hostAndPushPort(),
                       shuffleId,
                       mapId,
@@ -943,9 +955,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                       nextBatchId);
                   pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
-                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
+                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue()) {
                   logger.debug(
-                      "Push data to {} slave congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
+                      "Push data to {} replica congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
                       loc.hostAndPushPort(),
                       shuffleId,
                       mapId,
@@ -1033,7 +1045,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       // do push data
       try {
-        if (!checkPushBlacklisted(loc, wrappedCallback)) {
+        if (!isPushTargetWorkerExcluded(loc, wrappedCallback)) {
           if (!testRetryRevive) {
             TransportClient client =
                 dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
@@ -1056,7 +1068,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             loc,
             e);
         wrappedCallback.onFailure(
-            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
+            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
       }
     } else {
       // add batch data
@@ -1222,7 +1234,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     NettyManagedBuffer buffer = new NettyManagedBuffer(byteBuf);
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
     PushMergedData mergedData =
-        new PushMergedData(MASTER_MODE, shuffleKey, partitionUniqueIds, offsets, buffer);
+        new PushMergedData(PRIMARY_MODE, shuffleKey, partitionUniqueIds, offsets, buffer);
 
     RpcResponseCallback callback =
         new RpcResponseCallback() {
@@ -1238,7 +1250,6 @@ public class ShuffleClientImpl extends ShuffleClient {
                 groupedBatchId,
                 Arrays.toString(batchIds));
             pushState.removeBatch(groupedBatchId, hostPort);
-            // TODO Need to adjust maxReqsInFlight if server response is congested, see CELEBORN-62
             if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
               stageEndShuffleSet.add(shuffleId);
             }
@@ -1311,9 +1322,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                                 + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
                                     .duration()
                                     .toMillis()));
-              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
+              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
                 logger.debug(
-                    "Push merged data to {} master congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                    "Push merged data to {} primary congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     addressPair,
                     shuffleId,
                     mapId,
@@ -1323,9 +1334,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                     Arrays.toString(batchIds));
                 pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
-              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
+              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue()) {
                 logger.debug(
-                    "Push merged data to {} slave congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                    "Push merged data to {} replica congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     addressPair,
                     shuffleId,
                     mapId,
@@ -1410,7 +1421,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // do push merged data
     try {
-      if (!checkPushBlacklisted(batches.get(0).loc, wrappedCallback)) {
+      if (!isPushTargetWorkerExcluded(batches.get(0).loc, wrappedCallback)) {
         if (!testRetryRevive || remainReviveTimes < 1) {
           TransportClient client = dataClientFactory.createClient(host, port);
           client.pushMergedData(mergedData, pushDataTimeout, wrappedCallback);
@@ -1433,7 +1444,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           addressPair,
           e);
       wrappedCallback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
+          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
     }
   }
 
@@ -1485,8 +1496,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (isDriver) {
       try {
         driverRssMetaService.send(
-            UnregisterShuffle$.MODULE$.apply(
-                appUniqueId, shuffleId, RssHARetryClient.genRequestId()));
+            UnregisterShuffle$.MODULE$.apply(appUniqueId, shuffleId, MasterClient.genRequestId()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
         // otherwise it will mislead users.
@@ -1618,7 +1628,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != driverRssMetaService) {
       driverRssMetaService = null;
     }
-    blacklist.clear();
+    pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
     logger.warn("Shuffle client has been shutdown!");
   }
@@ -1649,31 +1659,31 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (message == null) {
       logger.error("Push data throw unexpected exception: {}", message);
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
-      cause = StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_MASTER.name())) {
-      cause = StatusCode.PUSH_DATA_WRITE_FAIL_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.name())) {
-      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.name())) {
-      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER.name())) {
-      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.name())) {
-      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_MASTER.name())) {
-      cause = StatusCode.PUSH_DATA_TIMEOUT_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
-      cause = StatusCode.PUSH_DATA_TIMEOUT_SLAVE;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY.name())) {
+      cause = StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY.name())) {
+      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY.name())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_PRIMARY.name())) {
+      cause = StatusCode.PUSH_DATA_TIMEOUT_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_TIMEOUT_REPLICA;
     } else if (message.startsWith(StatusCode.REPLICATE_DATA_FAILED.name())) {
       cause = StatusCode.REPLICATE_DATA_FAILED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_MASTER_BLACKLISTED.name())) {
-      cause = StatusCode.PUSH_DATA_MASTER_BLACKLISTED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_SLAVE_BLACKLISTED.name())) {
-      cause = StatusCode.PUSH_DATA_SLAVE_BLACKLISTED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED.name())) {
+      cause = StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED.name())) {
+      cause = StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED;
     } else if (connectFail(message)) {
-      // Throw when push to master worker connection causeException.
-      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
+      // Throw when push to primary worker connection causeException.
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
     } else {
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     }

@@ -61,12 +61,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final ArrayList<WorkerInfo> workers = new ArrayList<>();
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
-  // blacklist
-  public final Set<WorkerInfo> blacklist = ConcurrentHashMap.newKeySet();
-  // shutdown workers
+  public final Set<WorkerInfo> excludedWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> shutdownWorkers = ConcurrentHashMap.newKeySet();
-
-  // workerLost events
   public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
 
   protected RpcEnv rpcEnv;
@@ -159,8 +155,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workers.remove(worker);
       lostWorkers.put(worker, System.currentTimeMillis());
     }
-    // delete from blacklist
-    blacklist.remove(worker);
+    excludedWorkers.remove(worker);
     workerLostEvents.remove(worker);
   }
 
@@ -172,8 +167,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workers.remove(worker);
       lostWorkers.put(worker, System.currentTimeMillis());
     }
-    // delete from blacklist
-    blacklist.remove(worker);
+    excludedWorkers.remove(worker);
   }
 
   public void updateWorkerHeartbeatMeta(
@@ -202,13 +196,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           });
     }
     appDiskUsageMetric.update(estimatedAppDiskUsage);
-    // If using HDFSONLY mode, workers with empty disks should not be put into blacklist.
-    if (!blacklist.contains(worker) && (disks.isEmpty() && !conf.hasHDFSStorage())) {
-      LOG.debug("Worker: {} num total slots is 0, add to blacklist", worker);
-      blacklist.add(worker);
+    // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
+    if (!excludedWorkers.contains(worker) && (disks.isEmpty() && !conf.hasHDFSStorage())) {
+      LOG.debug("Worker: {} num total slots is 0, add to excluded list", worker);
+      excludedWorkers.add(worker);
     } else if (availableSlots.get() > 0) {
       // only unblack if numSlots larger than 0
-      blacklist.remove(worker);
+      excludedWorkers.remove(worker);
     }
   }
 
@@ -247,7 +241,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 estimatedPartitionSize,
                 registeredShuffle,
                 hostnameSet,
-                blacklist,
+                excludedWorkers,
                 workerLostEvents,
                 appHeartbeatTime,
                 workers,
@@ -275,8 +269,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
       registeredShuffle.addAll(snapshotMetaInfo.getRegisteredShuffleList());
       hostnameSet.addAll(snapshotMetaInfo.getHostnameSetList());
-      blacklist.addAll(
-          snapshotMetaInfo.getBlacklistList().stream()
+      excludedWorkers.addAll(
+          snapshotMetaInfo.getExcludedWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet()));
       workerLostEvents.addAll(
@@ -335,10 +329,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     LOG.info("Successfully restore meta info from snapshot {}", file.getAbsolutePath());
     LOG.info(
-        "Worker size: {}, Registered shuffle size: {}, Worker blacklist size: {}.",
+        "Worker size: {}, Registered shuffle size: {}. Worker excluded list size: {}.",
         workers.size(),
         registeredShuffle.size(),
-        blacklist.size());
+        excludedWorkers.size());
     workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
   }
@@ -367,7 +361,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
     workers.stream()
-        .filter(worker -> !blacklist.contains(worker))
+        .filter(worker -> !excludedWorkers.contains(worker))
         .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
   }
 }

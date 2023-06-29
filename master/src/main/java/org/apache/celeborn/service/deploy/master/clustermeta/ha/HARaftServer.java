@@ -51,8 +51,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -198,7 +198,7 @@ public class HARaftServer {
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
       throws CelebornRuntimeException {
     String requestId = request.getRequestId();
-    Tuple2<String, Long> decoded = RssHARetryClient.decodeRequestId(requestId);
+    Tuple2<String, Long> decoded = MasterClient.decodeRequestId(requestId);
     if (decoded == null) {
       throw new CelebornRuntimeException(
           "RequestId:" + requestId + " invalid, should be: uuid#callId.");

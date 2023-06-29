@@ -19,7 +19,10 @@ license: |
 
 # Migration Guide
 
-## Upgrading from 0.2.1 to 0.3.0
+## Upgrading from 0.2 to 0.3
+
+ - Celeborn 0.2 Client is compatible with 0.3 Master/Server, it allows to upgrade Master/Worker first then Client.
+   Note that: It's strongly recommended to use the same version of Client and Celeborn Master/Worker in production.
 
  - From 0.3.0 on the default value for `celeborn.client.push.replicate.enabled` is changed from `true` to `false`, users
    who want replication on should explicitly enable replication. For example, to enable replication for Spark
@@ -37,25 +40,24 @@ license: |
  - Since 0.3.0, the Celeborn Master URL schema is changed from `rss://` to `celeborn://`, for users who start Worker by
    `sbin/start-worker.sh rss://<master-host>:<master-port>`, should migrate to `sbin/start-worker.sh celeborn://<master-host>:<master-port>`.
 
- - When using 0.2.1 as client side and 0.3.0 as server side, you may see the following Exception in LifecycleManger's
-   log. You can safely ignore the log, it's caused by the behavior change when Master receives heartbeat from Application.
-
-    ??? warning "logs"
-        ```
-        23/06/20 18:12:30 WARN TransportChannelHandler: Exception in connection from /192.168.1.16:9097
-        java.io.InvalidObjectException: enum constant HEARTBEAT_FROM_APPLICATION_RESPONSE does not exist in class org.apache.celeborn.common.protocol.MessageType
-            at java.io.ObjectInputStream.readEnum(ObjectInputStream.java:2157)
-            at java.io.ObjectInputStream.readObject0(ObjectInputStream.java:1662)
-            at java.io.ObjectInputStream.defaultReadFields(ObjectInputStream.java:2430)
-            at java.io.ObjectInputStream.readSerialData(ObjectInputStream.java:2354)
-            at java.io.ObjectInputStream.readOrdinaryObject(ObjectInputStream.java:2212)
-            at java.io.ObjectInputStream.readObject0(ObjectInputStream.java:1668)
-            at java.io.ObjectInputStream.readObject(ObjectInputStream.java:502)
-            at java.io.ObjectInputStream.readObject(ObjectInputStream.java:460)
-            at org.apache.celeborn.common.serializer.JavaDeserializationStream.readObject(JavaSerializer.scala:76)
-            at org.apache.celeborn.common.serializer.JavaSerializerInstance.deserialize(JavaSerializer.scala:110)
-        ```
-
  - Since 0.3.0, Celeborn supports overriding Hadoop configuration(`core-site.xml`, `hdfs-site.xml`, etc.) from Celeborn configuration with the additional prefix `celeborn.hadoop.`. 
    On Spark client side, user should set Hadoop configuration like `spark.celeborn.hadoop.foo=bar`, note that `spark.hadoop.foo=bar` does not take effect;
    on Flink client and Celeborn Master/Worker side, user should set like `celeborn.hadoop.foo=bar`.
+
+ - Since 0.3.0, Celeborn master metrics `BlacklistedWorkerCount` is renamed as `ExcludedWorkerCount`.
+
+ - Since 0.3.0, Celeborn master http request url `/blacklistedWorkers` is renamed as `/excludedWorkers`.
+
+ - Since 0.3.0, introduces a terminology update for Celeborn worker data replication, replacing the previous `master/slave` terminology with `primary/replica`. In alignment with this change, corresponding metrics keywords have been adjusted.
+   The following table presents a comprehensive overview of the changes:
+
+     | Key Before v0.3.0             | Key After v0.3.0               |
+     |-------------------------------|--------------------------------|
+     | `MasterPushDataTime`          | `PrimaryPushDataTime`          |
+     | `MasterPushDataHandshakeTime` | `PrimaryPushDataHandshakeTime` |
+     | `MasterRegionStartTime`       | `PrimaryRegionStartTime`       |
+     | `MasterRegionFinishTime`      | `PrimaryRegionFinishTime`      |
+     | `SlavePushDataTime`           | `ReplicaPushDataTime`          |
+     | `SlavePushDataHandshakeTime`  | `ReplicaPushDataHandshakeTime` |
+     | `SlaveRegionStartTime`        | `ReplicaRegionStartTime`       |
+     | `SlaveRegionFinishTime`       | `ReplicaRegionFinishTime`      |

@@ -627,7 +627,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The count of workers in blacklist. ",
+          "description": "The count of workers in excluded list. ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -704,11 +704,11 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_BlacklistedWorkerCount_Value",
+              "expr": "metrics_ExcludedWorkerCount_Value",
               "refId": "A"
             }
           ],
-          "title": "metrics_BlacklistedWorkerCount_Value",
+          "title": "metrics_ExcludedWorkerCount_Value",
           "type": "timeseries"
         },
         {
@@ -1353,11 +1353,11 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_MasterPushDataTime_Mean",
+              "expr": "metrics_PrimaryPushDataTime_Mean",
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterPushDataTime_Mean",
+          "title": "metrics_PrimaryPushDataTime_Mean",
           "type": "timeseries"
         },
         {
@@ -1442,11 +1442,11 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_MasterPushDataTime_Max",
+              "expr": "metrics_PrimaryPushDataTime_Max",
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterPushDataTime_Max",
+          "title": "metrics_PrimaryPushDataTime_Max",
           "type": "timeseries"
         },
         {
@@ -1531,11 +1531,11 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_SlavePushDataTime_Mean",
+              "expr": "metrics_ReplicaPushDataTime_Mean",
               "refId": "A"
             }
           ],
-          "title": "metrics_SlavePushDataTime_Mean",
+          "title": "metrics_ReplicaPushDataTime_Mean",
           "type": "timeseries"
         },
         {
@@ -1620,11 +1620,11 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_SlavePushDataTime_Max",
+              "expr": "metrics_ReplicaPushDataTime_Max",
               "refId": "A"
             }
           ],
-          "title": "metrics_SlavePushDataTime_Max",
+          "title": "metrics_ReplicaPushDataTime_Max",
           "type": "timeseries"
         },
         {
@@ -5040,12 +5040,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_MasterPushDataHandshakeTime_Mean",
+              "expr": "metrics_PrimaryPushDataHandshakeTime_Mean",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterPushDataHandshakeTime_Mean",
+          "title": "metrics_PrimaryPushDataHandshakeTime_Mean",
           "type": "timeseries"
         },
         {
@@ -5131,12 +5131,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_MasterPushDataHandshakeTime_Max",
+              "expr": "metrics_PrimaryPushDataHandshakeTime_Max",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterPushDataHandshakeTime_Max",
+          "title": "metrics_PrimaryPushDataHandshakeTime_Max",
           "type": "timeseries"
         },
         {
@@ -5222,12 +5222,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_SlavePushDataHandshakeTime_Mean",
+              "expr": "metrics_ReplicaPushDataHandshakeTime_Mean",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_SlavePushDataHandshakeTime_Mean",
+          "title": "metrics_ReplicaPushDataHandshakeTime_Mean",
           "type": "timeseries"
         },
         {
@@ -5313,12 +5313,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_SlavePushDataHandshakeTime_Max",
+              "expr": "metrics_ReplicaPushDataHandshakeTime_Max",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_SlavePushDataHandshakeTime_Max",
+          "title": "metrics_ReplicaPushDataHandshakeTime_Max",
           "type": "timeseries"
         },
         {
@@ -5404,12 +5404,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_MasterRegionStartTime_Mean",
+              "expr": "metrics_PrimaryRegionStartTime_Mean",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterRegionStartTime_Mean",
+          "title": "metrics_PrimaryRegionStartTime_Mean",
           "type": "timeseries"
         },
         {
@@ -5495,12 +5495,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_MasterRegionStartTime_Max",
+              "expr": "metrics_PrimaryRegionStartTime_Max",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterRegionStartTime_Max",
+          "title": "metrics_PrimaryRegionStartTime_Max",
           "type": "timeseries"
         },
         {
@@ -5586,12 +5586,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_SlaveRegionStartTime_Mean",
+              "expr": "metrics_ReplicaRegionStartTime_Mean",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_SlaveRegionStartTime_Mean",
+          "title": "metrics_ReplicaRegionStartTime_Mean",
           "type": "timeseries"
         },
         {
@@ -5677,12 +5677,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_SlaveRegionStartTime_Max",
+              "expr": "metrics_ReplicaRegionStartTime_Max",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_SlaveRegionStartTime_Max",
+          "title": "metrics_ReplicaRegionStartTime_Max",
           "type": "timeseries"
         },
         {
@@ -5768,12 +5768,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_MasterRegionFinishTime_Mean",
+              "expr": "metrics_PrimaryRegionFinishTime_Mean",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterRegionFinishTime_Mean",
+          "title": "metrics_PrimaryRegionFinishTime_Mean",
           "type": "timeseries"
         },
         {
@@ -5859,12 +5859,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_MasterRegionFinishTime_Max",
+              "expr": "metrics_PrimaryRegionFinishTime_Max",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_MasterRegionFinishTime_Max",
+          "title": "metrics_PrimaryRegionFinishTime_Max",
           "type": "timeseries"
         },
         {
@@ -5950,12 +5950,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_SlaveRegionFinishTime_Mean",
+              "expr": "metrics_ReplicaRegionFinishTime_Mean",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_SlaveRegionFinishTime_Mean",
+          "title": "metrics_ReplicaRegionFinishTime_Mean",
           "type": "timeseries"
         },
         {
@@ -6041,12 +6041,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_SlaveRegionFinishTime_Max",
+              "expr": "metrics_ReplicaRegionFinishTime_Max",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_SlaveRegionFinishTime_Max",
+          "title": "metrics_ReplicaRegionFinishTime_Max",
           "type": "timeseries"
         },
         {
