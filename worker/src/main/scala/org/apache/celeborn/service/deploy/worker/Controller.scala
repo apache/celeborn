@@ -121,8 +121,8 @@ private[deploy] class Controller(
       logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
         s"$commitFilesTimeMs ms.")
 
-    case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
-      handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
+    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations) =>
+      handleDestroy(context, shuffleKey, primaryLocations, replicaLocations)
   }
 
   private def handleReserveSlots(
