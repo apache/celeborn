@@ -134,9 +134,9 @@ These metrics are exposed by Celeborn worker.
       - The time for a worker to process openStream RPC and return StreamHandle.
     - FetchChunkTime
       - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
-    - MasterPushDataTime
+    - PrimaryPushDataTime
       - The time for a worker to handle a pushData RPC sent from a celeborn client.
-    - SlavePushDataTime
+    - ReplicaPushDataTime
       - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
     - WriteDataFailCount
     - ReplicateDataFailCount
@@ -147,12 +147,12 @@ These metrics are exposed by Celeborn worker.
     - PushDataHandshakeFailCount
     - RegionStartFailCount
     - RegionFinishFailCount
-    - MasterPushDataHandshakeTime
-    - SlavePushDataHandshakeTime
-    - MasterRegionStartTime
-    - SlaveRegionStartTime
-    - MasterRegionFinishTime
-    - SlaveRegionFinishTime
+    - PrimaryPushDataHandshakeTime
+    - ReplicaPushDataHandshakeTime
+    - PrimaryRegionStartTime
+    - ReplicaRegionStartTime
+    - PrimaryRegionFinishTime
+    - ReplicaRegionFinishTime
     - TakeBufferTime
       - The time for a worker to take out a buffer from a disk flusher.
     - RegisteredShuffleCount

@@ -58,8 +58,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   private var workerPartitionSplitEnabled: Boolean = _
   private var workerReplicateRandomConnectionEnabled: Boolean = _
 
-  private var testPushMasterDataTimeout: Boolean = _
-  private var testPushSlaveDataTimeout: Boolean = _
+  private var testPushPrimaryDataTimeout: Boolean = _
+  private var testPushReplicaDataTimeout: Boolean = _
 
   def init(worker: Worker): Unit = {
     workerSource = worker.workerSource
@@ -79,8 +79,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     workerPartitionSplitEnabled = worker.conf.workerPartitionSplitEnabled
     workerReplicateRandomConnectionEnabled = worker.conf.workerReplicateRandomConnectionEnabled
 
-    testPushMasterDataTimeout = worker.conf.testPushMasterDataTimeout
-    testPushSlaveDataTimeout = worker.conf.testPushSlaveDataTimeout
+    testPushPrimaryDataTimeout = worker.conf.testPushPrimaryDataTimeout
+    testPushReplicaDataTimeout = worker.conf.testPushReplicaDataTimeout
 
     logInfo(s"diskReserveSize $diskReserveSize")
   }
@@ -131,12 +131,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val isMaster = mode == PartitionLocation.Mode.MASTER
 
     // For test
-    if (isMaster && testPushMasterDataTimeout &&
+    if (isMaster && testPushPrimaryDataTimeout &&
       !PushDataHandler.pushMasterDataTimeoutTested.getAndSet(true)) {
       return
     }
 
-    if (!isMaster && testPushSlaveDataTimeout &&
+    if (!isMaster && testPushReplicaDataTimeout &&
       !PushDataHandler.pushSlaveDataTimeoutTested.getAndSet(true)) {
       return
     }
@@ -146,13 +146,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (isMaster) {
         new RpcResponseCallbackWithTimer(
           workerSource,
-          WorkerSource.MasterPushDataTime,
+          WorkerSource.PrimaryPushDataTime,
           key,
           callback)
       } else {
         new RpcResponseCallbackWithTimer(
           workerSource,
-          WorkerSource.SlavePushDataTime,
+          WorkerSource.ReplicaPushDataTime,
           key,
           callback)
       }
@@ -394,24 +394,24 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (isMaster) {
         new RpcResponseCallbackWithTimer(
           workerSource,
-          WorkerSource.MasterPushDataTime,
+          WorkerSource.PrimaryPushDataTime,
           key,
           callback)
       } else {
         new RpcResponseCallbackWithTimer(
           workerSource,
-          WorkerSource.SlavePushDataTime,
+          WorkerSource.ReplicaPushDataTime,
           key,
           callback)
       }
 
     // For test
-    if (isMaster && testPushMasterDataTimeout &&
+    if (isMaster && testPushPrimaryDataTimeout &&
       !PushDataHandler.pushMasterMergeDataTimeoutTested.getAndSet(true)) {
       return
     }
 
-    if (!isMaster && testPushSlaveDataTimeout &&
+    if (!isMaster && testPushReplicaDataTimeout &&
       !PushDataHandler.pushSlaveMergeDataTimeoutTested.getAndSet(true)) {
       return
     }
@@ -726,9 +726,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     val key = s"${pushData.requestId}"
     if (isMaster) {
-      workerSource.startTimer(WorkerSource.MasterPushDataTime, key)
+      workerSource.startTimer(WorkerSource.PrimaryPushDataTime, key)
     } else {
-      workerSource.startTimer(WorkerSource.SlavePushDataTime, key)
+      workerSource.startTimer(WorkerSource.ReplicaPushDataTime, key)
     }
 
     // find FileWriter responsible for the data
@@ -746,7 +746,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         pushData.requestId,
         null,
         location,
-        if (isMaster) WorkerSource.MasterPushDataTime else WorkerSource.SlavePushDataTime,
+        if (isMaster) WorkerSource.PrimaryPushDataTime else WorkerSource.ReplicaPushDataTime,
         callback)
 
     if (locationIsNull(
@@ -845,11 +845,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val (workerSourceMaster, workerSourceSlave) =
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
-          (WorkerSource.MasterPushDataHandshakeTime, WorkerSource.SlavePushDataHandshakeTime)
+          (WorkerSource.PrimaryPushDataHandshakeTime, WorkerSource.ReplicaPushDataHandshakeTime)
         case Type.REGION_START =>
-          (WorkerSource.MasterRegionStartTime, WorkerSource.SlaveRegionStartTime)
+          (WorkerSource.PrimaryRegionStartTime, WorkerSource.ReplicaRegionStartTime)
         case Type.REGION_FINISH =>
-          (WorkerSource.MasterRegionFinishTime, WorkerSource.SlaveRegionFinishTime)
+          (WorkerSource.PrimaryRegionFinishTime, WorkerSource.ReplicaRegionFinishTime)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
 
