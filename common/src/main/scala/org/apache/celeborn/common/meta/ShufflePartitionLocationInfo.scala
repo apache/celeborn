@@ -27,54 +27,54 @@ import org.apache.celeborn.common.protocol.PartitionLocation
 class ShufflePartitionLocationInfo {
   type PartitionInfo = ConcurrentHashMap[Int, util.Set[PartitionLocation]]
 
-  private val masterPartitionLocations = new PartitionInfo
-  private val slavePartitionLocations = new PartitionInfo
+  private val primaryPartitionLocations = new PartitionInfo
+  private val replicaPartitionLocations = new PartitionInfo
   implicit val partitionOrdering: Ordering[PartitionLocation] = Ordering.by(_.getEpoch)
 
-  def addMasterPartitions(masterLocations: util.List[PartitionLocation]) = {
-    addPartitions(masterPartitionLocations, masterLocations)
+  def addPrimaryPartitions(primaryLocations: util.List[PartitionLocation]) = {
+    addPartitions(primaryPartitionLocations, primaryLocations)
   }
 
-  def addSlavePartitions(slaveLocations: util.List[PartitionLocation]) = {
-    addPartitions(slavePartitionLocations, slaveLocations)
+  def addReplicaPartitions(replicaLocations: util.List[PartitionLocation]) = {
+    addPartitions(replicaPartitionLocations, replicaLocations)
   }
 
-  def getMasterPartitions(partitionIdOpt: Option[Int] = None): util.Set[PartitionLocation] = {
-    getPartitions(masterPartitionLocations, partitionIdOpt)
+  def getPrimaryPartitions(partitionIdOpt: Option[Int] = None): util.Set[PartitionLocation] = {
+    getPartitions(primaryPartitionLocations, partitionIdOpt)
   }
 
-  def getSlavePartitions(partitionIdOpt: Option[Int] = None): util.Set[PartitionLocation] = {
-    getPartitions(slavePartitionLocations, partitionIdOpt)
+  def getReplicaPartitions(partitionIdOpt: Option[Int] = None): util.Set[PartitionLocation] = {
+    getPartitions(replicaPartitionLocations, partitionIdOpt)
   }
 
   def isEmpty(): Boolean = {
-    masterPartitionLocations.isEmpty && slavePartitionLocations.isEmpty
+    primaryPartitionLocations.isEmpty && replicaPartitionLocations.isEmpty
   }
 
   def containsPartition(partitionId: Int): Boolean = {
-    masterPartitionLocations.containsKey(partitionId) ||
-    slavePartitionLocations.containsKey(partitionId)
+    primaryPartitionLocations.containsKey(partitionId) ||
+    replicaPartitionLocations.containsKey(partitionId)
   }
 
-  def removeAllMasterPartitions(): Unit = {
-    masterPartitionLocations.clear()
+  def removeAllPrimaryPartitions(): Unit = {
+    primaryPartitionLocations.clear()
   }
 
-  def removeAllSlavePartitions(): Unit = {
-    slavePartitionLocations.clear()
+  def removeAllReplicaPartitions(): Unit = {
+    replicaPartitionLocations.clear()
   }
 
-  def removeMasterPartitions(partitionId: Int): util.Set[PartitionLocation] = {
-    removePartitions(masterPartitionLocations, partitionId)
+  def removePrimaryPartitions(partitionId: Int): util.Set[PartitionLocation] = {
+    removePartitions(primaryPartitionLocations, partitionId)
   }
 
-  def removeSlavePartitions(partitionId: Int): util.Set[PartitionLocation] = {
-    removePartitions(slavePartitionLocations, partitionId)
+  def removeReplicaPartitions(partitionId: Int): util.Set[PartitionLocation] = {
+    removePartitions(replicaPartitionLocations, partitionId)
   }
 
-  def removeAndGetAllMasterPartitionIds(): util.Set[Integer] = {
-    masterPartitionLocations.entrySet().asScala
-      .filter(e => masterPartitionLocations.remove(e.getKey, e.getValue))
+  def removeAndGetAllPrimaryPartitionIds(): util.Set[Integer] = {
+    primaryPartitionLocations.entrySet().asScala
+      .filter(e => primaryPartitionLocations.remove(e.getKey, e.getValue))
       .map(e => e.getKey).toSet.asJava.asInstanceOf[util.Set[Integer]]
   }
 
@@ -89,8 +89,8 @@ class ShufflePartitionLocationInfo {
     }
   }
 
-  def getAllMasterLocationsWithMinEpoch(): util.Set[PartitionLocation] = {
-    masterPartitionLocations.values().asScala.map { partitionLocations =>
+  def getAllPrimaryLocationsWithMinEpoch(): util.Set[PartitionLocation] = {
+    primaryPartitionLocations.values().asScala.map { partitionLocations =>
       partitionLocations.asScala.min
     }.toSet.asJava
   }

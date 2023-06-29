@@ -127,22 +127,22 @@ class MapPartitionCommitHandler(
     waitInflightRequestComplete(shuffleCommittedInfo, partitionId)
 
     // check partition data lost
-    val failedMasterPartitionUniqueIds =
-      getPartitionIds(shuffleCommittedInfo.failedMasterPartitionIds, partitionId)
-    val failedSlavePartitionUniqueIds =
-      getPartitionIds(shuffleCommittedInfo.failedSlavePartitionIds, partitionId)
+    val failedPrimaryPartitionUniqueIds =
+      getPartitionIds(shuffleCommittedInfo.failedPrimaryPartitionIds, partitionId)
+    val failedReplicaPartitionUniqueIds =
+      getPartitionIds(shuffleCommittedInfo.failedReplicaPartitionIds, partitionId)
     val dataLost =
-      checkDataLost(shuffleId, failedMasterPartitionUniqueIds, failedSlavePartitionUniqueIds)
+      checkDataLost(shuffleId, failedPrimaryPartitionUniqueIds, failedReplicaPartitionUniqueIds)
 
     // collect partition result
     if (!dataLost) {
       collectResult(
         shuffleId,
         shuffleCommittedInfo,
-        getPartitionUniqueIds(shuffleCommittedInfo.committedMasterIds, partitionId),
-        getPartitionUniqueIds(shuffleCommittedInfo.committedSlaveIds, partitionId),
-        parallelCommitResult.masterPartitionLocationMap,
-        parallelCommitResult.slavePartitionLocationMap)
+        getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds, partitionId),
+        getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds, partitionId),
+        parallelCommitResult.primaryPartitionLocationMap,
+        parallelCommitResult.replicaPartitionLocationMap)
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)

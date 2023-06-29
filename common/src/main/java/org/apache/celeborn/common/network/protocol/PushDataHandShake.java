@@ -21,7 +21,7 @@ import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
 public final class PushDataHandShake extends RequestMessage {
-  // 0 for master, 1 for slave, see PartitionLocation.Mode
+  // 0 for primary, 1 for replica, see PartitionLocation.Mode
   public final byte mode;
   public final String shuffleKey;
   public final String partitionUniqueId;

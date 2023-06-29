@@ -26,7 +26,7 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 public final class PushData extends RequestMessage {
   public long requestId;
 
-  // 0 for master, 1 for slave, see PartitionLocation.Mode
+  // 0 for primary, 1 for replica, see PartitionLocation.Mode
   public final byte mode;
 
   public final String shuffleKey;

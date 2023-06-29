@@ -68,7 +68,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // check all allocated slots
     var partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
     var count =
-      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
+      partitionLocationInfos.map(r => r.getPrimaryPartitions().size()).sum
     Assert.assertEquals(count, numMappers)
 
     // another mapId
@@ -89,7 +89,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // check all allocated all slots
     partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
     logInfo(partitionLocationInfos.toString())
-    count = partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
+    count = partitionLocationInfos.map(r => r.getPrimaryPartitions().size()).sum
     Assert.assertEquals(count, numMappers + 1)
   }
 
@@ -108,7 +108,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
     timeOutOrMeetCondition(new Callable[java.lang.Boolean] {
       override def call(): lang.Boolean = {
-        partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum == numMappers
+        partitionLocationInfos.map(r => r.getPrimaryPartitions().size()).sum == numMappers
       }
     })
   }
@@ -128,7 +128,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       4)
 
     Assert.assertEquals(
-      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum,
+      partitionLocationInfos.map(r => r.getPrimaryPartitions().size()).sum,
       numMappers)
   }
 

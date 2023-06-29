@@ -129,22 +129,22 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val shuffleKey = pushData.shuffleKey
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
-    val isMaster = mode == PartitionLocation.Mode.MASTER
+    val isPrimary = mode == PartitionLocation.Mode.PRIMARY
 
     // For test
-    if (isMaster && testPushPrimaryDataTimeout &&
-      !PushDataHandler.pushMasterDataTimeoutTested.getAndSet(true)) {
+    if (isPrimary && testPushPrimaryDataTimeout &&
+      !PushDataHandler.pushPrimaryDataTimeoutTested.getAndSet(true)) {
       return
     }
 
-    if (!isMaster && testPushReplicaDataTimeout &&
-      !PushDataHandler.pushSlaveDataTimeoutTested.getAndSet(true)) {
+    if (!isPrimary && testPushReplicaDataTimeout &&
+      !PushDataHandler.pushReplicaDataTimeoutTested.getAndSet(true)) {
       return
     }
 
     val key = s"${pushData.requestId}"
     val callbackWithTimer =
-      if (isMaster) {
+      if (isPrimary) {
         new RpcResponseCallbackWithTimer(
           workerSource,
           WorkerSource.PrimaryPushDataTime,
@@ -160,14 +160,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     // find FileWriter responsible for the data
     val location =
-      if (isMaster) {
-        partitionLocationInfo.getMasterLocation(shuffleKey, pushData.partitionUniqueId)
+      if (isPrimary) {
+        partitionLocationInfo.getPrimaryLocation(shuffleKey, pushData.partitionUniqueId)
       } else {
-        partitionLocationInfo.getSlaveLocation(shuffleKey, pushData.partitionUniqueId)
+        partitionLocationInfo.getReplicaLocation(shuffleKey, pushData.partitionUniqueId)
       }
 
     // Fetch real batchId from body will add more cost and no meaning for replicate.
-    val doReplicate = location != null && location.hasPeer && isMaster
+    val doReplicate = location != null && location.hasPeer && isPrimary
     val softSplit = new AtomicBoolean(false)
 
     if (location == null) {
@@ -219,10 +219,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val exception = fileWriter.getException
     if (exception != null) {
       val cause =
-        if (isMaster) {
-          StatusCode.PUSH_DATA_WRITE_FAIL_MASTER
+        if (isPrimary) {
+          StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
         } else {
-          StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
+          StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
         }
       logError(
         s"While handling PushData, throw $cause, fileWriter $fileWriter has exception.",
@@ -232,11 +232,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
-    if (checkDiskFullAndSplit(fileWriter, isMaster, softSplit, callbackWithTimer)) return
+    if (checkDiskFullAndSplit(fileWriter, isPrimary, softSplit, callbackWithTimer)) return
 
     fileWriter.incrementPendingWrites()
 
-    // for master, send data to slave
+    // for primary, send data to replica
     if (doReplicate) {
       pushData.body().retain()
       replicateThreadPool.submit(new Runnable {
@@ -254,7 +254,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             logError(
               s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
+              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
             return
           }
 
@@ -278,11 +278,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                   case Some(congestionController) =>
                     if (congestionController.isUserCongested(
                         fileWriter.getFileInfo.getUserIdentifier)) {
-                      // Check whether master congest the data though the replicas doesn't congest
+                      // Check whether primary congest the data though the replicas doesn't congest
                       // it(the response is empty)
                       callbackWithTimer.onSuccess(
                         ByteBuffer.wrap(
-                          Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+                          Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
                     } else {
                       callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
                     }
@@ -294,26 +294,26 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
             override def onFailure(e: Throwable): Unit = {
               logError(s"PushData replication failed for partitionLocation: $location", e)
-              // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
-              // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
-              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
+              // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
+              // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
+              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
                 workerSource.incCounter(WorkerSource.ReplicateDataWriteFailCount)
                 callbackWithTimer.onFailure(e)
-              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
                 workerSource.incCounter(WorkerSource.ReplicateDataTimeoutCount)
                 callbackWithTimer.onFailure(e)
               } else {
                 workerSource.incCounter(WorkerSource.ReplicateDataConnectionExceptionCount)
                 callbackWithTimer.onFailure(
-                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE))
+                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
               }
             }
           }
           try {
             val client = getClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushData = new PushData(
-              PartitionLocation.Mode.SLAVE.mode(),
+              PartitionLocation.Mode.REPLICA.mode(),
               shuffleKey,
               pushData.partitionUniqueId,
               pushData.body)
@@ -327,13 +327,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 s"PushData replication failed during connecting peer for partitionLocation: $location",
                 e)
               callbackWithTimer.onFailure(
-                new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
+                new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
           }
         }
       })
     } else {
       // The codes here could be executed if
-      // 1. the client doesn't enable push data to the replica, the master worker could hit here
+      // 1. the client doesn't enable push data to the replica, the primary worker could hit here
       // 2. the client enables push data to the replica, and the replica worker could hit here
       // TODO Currently if the worker is in soft split status, given the guess that the client
       // will fast stop pushing data to the worker, we won't return congest status. But
@@ -345,14 +345,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         Option(CongestionController.instance()) match {
           case Some(congestionController) =>
             if (congestionController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
-              if (isMaster) {
+              if (isPrimary) {
                 callbackWithTimer.onSuccess(
                   ByteBuffer.wrap(
-                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
               } else {
                 callbackWithTimer.onSuccess(
                   ByteBuffer.wrap(
-                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
               }
             } else {
               callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -388,11 +388,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val mode = PartitionLocation.getMode(pushMergedData.mode)
     val batchOffsets = pushMergedData.batchOffsets
     val body = pushMergedData.body.asInstanceOf[NettyManagedBuffer].getBuf
-    val isMaster = mode == PartitionLocation.Mode.MASTER
+    val isPrimary = mode == PartitionLocation.Mode.PRIMARY
 
     val key = s"${pushMergedData.requestId}"
     val callbackWithTimer =
-      if (isMaster) {
+      if (isPrimary) {
         new RpcResponseCallbackWithTimer(
           workerSource,
           WorkerSource.PrimaryPushDataTime,
@@ -407,27 +407,27 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     // For test
-    if (isMaster && testPushPrimaryDataTimeout &&
-      !PushDataHandler.pushMasterMergeDataTimeoutTested.getAndSet(true)) {
+    if (isPrimary && testPushPrimaryDataTimeout &&
+      !PushDataHandler.pushPrimaryMergeDataTimeoutTested.getAndSet(true)) {
       return
     }
 
-    if (!isMaster && testPushReplicaDataTimeout &&
-      !PushDataHandler.pushSlaveMergeDataTimeoutTested.getAndSet(true)) {
+    if (!isPrimary && testPushReplicaDataTimeout &&
+      !PushDataHandler.pushReplicaMergeDataTimeoutTested.getAndSet(true)) {
       return
     }
 
     val partitionIdToLocations = pushMergedData.partitionUniqueIds.map { id =>
-      if (isMaster) {
-        id -> partitionLocationInfo.getMasterLocation(shuffleKey, id)
+      if (isPrimary) {
+        id -> partitionLocationInfo.getPrimaryLocation(shuffleKey, id)
       } else {
-        id -> partitionLocationInfo.getSlaveLocation(shuffleKey, id)
+        id -> partitionLocationInfo.getReplicaLocation(shuffleKey, id)
       }
     }
 
     // Fetch real batchId from body will add more cost and no meaning for replicate.
     val doReplicate =
-      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.hasPeer && isMaster
+      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.hasPeer && isPrimary
 
     // find FileWriters responsible for the data
     partitionIdToLocations.foreach { case (id, loc) =>
@@ -483,10 +483,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     if (fileWriterWithException.nonEmpty) {
       val exception = fileWriterWithException.get.getException
       val cause =
-        if (isMaster) {
-          StatusCode.PUSH_DATA_WRITE_FAIL_MASTER
+        if (isPrimary) {
+          StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
         } else {
-          StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
+          StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
         }
       logError(
         s"While handling PushMergedData, throw $cause, fileWriter $fileWriterWithException has exception.",
@@ -497,7 +497,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
     fileWriters.foreach(_.incrementPendingWrites())
 
-    // for master, send data to slave
+    // for primary, send data to replica
     if (doReplicate) {
       pushMergedData.body().retain()
       replicateThreadPool.submit(new Runnable {
@@ -516,14 +516,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             logError(
               s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
             callbackWithTimer.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
+              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
             return
           }
 
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
-              // Only master data enable replication will push data to slave
+              // Only primary data enable replication will push data to replica
               if (response.remaining() > 0) {
                 val resp = ByteBuffer.allocate(response.remaining())
                 resp.put(response)
@@ -534,11 +534,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                   case Some(congestionController) if fileWriters.nonEmpty =>
                     if (congestionController.isUserCongested(
                         fileWriters.head.getFileInfo.getUserIdentifier)) {
-                      // Check whether master congest the data though the replicas doesn't congest
+                      // Check whether primary congest the data though the replicas doesn't congest
                       // it(the response is empty)
                       callbackWithTimer.onSuccess(
                         ByteBuffer.wrap(
-                          Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+                          Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
                     } else {
                       callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
                     }
@@ -550,19 +550,19 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
             override def onFailure(e: Throwable): Unit = {
               logError(s"PushMergedData replicate failed for partitionLocation: $location", e)
-              // 1. Throw PUSH_DATA_FAIL_SLAVE by slave peer worker
-              // 2. Throw PUSH_DATA_TIMEOUT_SLAVE by TransportResponseHandler
-              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
-              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
+              // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
+              // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
+              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
                 workerSource.incCounter(WorkerSource.ReplicateDataWriteFailCount)
                 callbackWithTimer.onFailure(e)
-              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
                 workerSource.incCounter(WorkerSource.ReplicateDataTimeoutCount)
                 callbackWithTimer.onFailure(e)
               } else {
                 workerSource.incCounter(WorkerSource.ReplicateDataConnectionExceptionCount)
                 callbackWithTimer.onFailure(
-                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE))
+                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
               }
             }
           }
@@ -570,7 +570,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           try {
             val client = getClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushMergedData = new PushMergedData(
-              PartitionLocation.Mode.SLAVE.mode(),
+              PartitionLocation.Mode.REPLICA.mode(),
               shuffleKey,
               pushMergedData.partitionUniqueIds,
               batchOffsets,
@@ -588,25 +588,26 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 s"PushMergedData replication failed during connecting peer for partitionLocation: $location",
                 e)
               callbackWithTimer.onFailure(
-                new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE))
+                new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
           }
         }
       })
     } else {
       // The codes here could be executed if
-      // 1. the client doesn't enable push data to the replica, the master worker could hit here
+      // 1. the client doesn't enable push data to the replica, the primary worker could hit here
       // 2. the client enables push data to the replica, and the replica worker could hit here
       Option(CongestionController.instance()) match {
         case Some(congestionController) if fileWriters.nonEmpty =>
           if (congestionController.isUserCongested(
               fileWriters.head.getFileInfo.getUserIdentifier)) {
-            if (isMaster) {
+            if (isPrimary) {
               callbackWithTimer.onSuccess(
                 ByteBuffer.wrap(
-                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue)))
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
             } else {
               callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(Array[Byte](StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue)))
+                ByteBuffer.wrap(
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
             }
           } else {
             callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
@@ -723,10 +724,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val shuffleKey = pushData.shuffleKey
     val mode = PartitionLocation.getMode(pushData.mode)
     val body = pushData.body.asInstanceOf[NettyManagedBuffer].getBuf
-    val isMaster = mode == PartitionLocation.Mode.MASTER
+    val isPrimary = mode == PartitionLocation.Mode.PRIMARY
 
     val key = s"${pushData.requestId}"
-    if (isMaster) {
+    if (isPrimary) {
       workerSource.startTimer(WorkerSource.PrimaryPushDataTime, key)
     } else {
       workerSource.startTimer(WorkerSource.ReplicaPushDataTime, key)
@@ -734,20 +735,20 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     // find FileWriter responsible for the data
     val location =
-      if (isMaster) {
-        partitionLocationInfo.getMasterLocation(shuffleKey, pushData.partitionUniqueId)
+      if (isPrimary) {
+        partitionLocationInfo.getPrimaryLocation(shuffleKey, pushData.partitionUniqueId)
       } else {
-        partitionLocationInfo.getSlaveLocation(shuffleKey, pushData.partitionUniqueId)
+        partitionLocationInfo.getReplicaLocation(shuffleKey, pushData.partitionUniqueId)
       }
 
     val wrappedCallback =
       new WrappedRpcResponseCallback(
         pushData.`type`(),
-        isMaster,
+        isPrimary,
         pushData.requestId,
         null,
         location,
-        if (isMaster) WorkerSource.PrimaryPushDataTime else WorkerSource.ReplicaPushDataTime,
+        if (isPrimary) WorkerSource.PrimaryPushDataTime else WorkerSource.ReplicaPushDataTime,
         callback)
 
     if (locationIsNull(
@@ -768,7 +769,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     }
 
     val fileWriter =
-      getFileWriterAndCheck(pushData.`type`(), location, isMaster, callback) match {
+      getFileWriterAndCheck(pushData.`type`(), location, isPrimary, callback) match {
         case (true, _) => return
         case (false, f: FileWriter) => f
       }
@@ -777,8 +778,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     fileWriter.incrementPendingWrites()
 
-    // for master, send data to slave
-    if (location.hasPeer && isMaster) {
+    // for primary, send data to replica
+    if (location.hasPeer && isPrimary) {
       // to do
       wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     } else {
@@ -838,12 +839,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       requestId: Long,
       checkSplit: Boolean,
       callback: RpcResponseCallback): Unit = {
-    val isMaster = PartitionLocation.getMode(mode) == PartitionLocation.Mode.MASTER
+    val isPrimary = PartitionLocation.getMode(mode) == PartitionLocation.Mode.PRIMARY
     val messageType = message.`type`()
     log.debug(
       s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, " +
         s"partitionUniqueId:$partitionUniqueId")
-    val (workerSourceMaster, workerSourceSlave) =
+    val (workerSourcePrimary, workerSourceReplica) =
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
           (WorkerSource.PrimaryPushDataHandshakeTime, WorkerSource.ReplicaPushDataHandshakeTime)
@@ -855,20 +856,22 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     val location =
-      if (isMaster) {
-        partitionLocationInfo.getMasterLocation(shuffleKey, partitionUniqueId)
+      if (isPrimary) {
+        partitionLocationInfo.getPrimaryLocation(shuffleKey, partitionUniqueId)
       } else {
-        partitionLocationInfo.getSlaveLocation(shuffleKey, partitionUniqueId)
+        partitionLocationInfo.getReplicaLocation(shuffleKey, partitionUniqueId)
       }
-    workerSource.startTimer(if (isMaster) workerSourceMaster else workerSourceSlave, s"$requestId")
+    workerSource.startTimer(
+      if (isPrimary) workerSourcePrimary else workerSourceReplica,
+      s"$requestId")
     val wrappedCallback =
       new WrappedRpcResponseCallback(
         messageType,
-        isMaster,
+        isPrimary,
         requestId,
         null,
         location,
-        if (isMaster) workerSourceMaster else workerSourceSlave,
+        if (isPrimary) workerSourcePrimary else workerSourceReplica,
         callback)
 
     if (locationIsNull(
@@ -881,12 +884,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         wrappedCallback)) return
 
     val fileWriter =
-      getFileWriterAndCheck(messageType, location, isMaster, callback) match {
+      getFileWriterAndCheck(messageType, location, isPrimary, callback) match {
         case (true, _) => return
         case (false, f: FileWriter) => f
       }
 
-    if (checkSplit && checkDiskFullAndSplit(fileWriter, isMaster, null, callback)) return
+    if (checkSplit && checkDiskFullAndSplit(fileWriter, isPrimary, null, callback)) return
 
     try {
       messageType match {
@@ -902,8 +905,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionFinish()
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
-      // for master, send data to slave
-      if (location.hasPeer && isMaster) {
+      // for primary , send data to replica
+      if (location.hasPeer && isPrimary) {
         // TODO replica
         wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
       } else {
@@ -917,7 +920,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   class WrappedRpcResponseCallback(
       messageType: Message.Type,
-      isMaster: Boolean,
+      isPrimary: Boolean,
       requestId: Long,
       softSplit: AtomicBoolean,
       location: PartitionLocation,
@@ -926,7 +929,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     extends RpcResponseCallback {
     override def onSuccess(response: ByteBuffer): Unit = {
       workerSource.stopTimer(workerSourceTime, s"$requestId")
-      if (isMaster) {
+      if (isPrimary) {
         if (response.remaining() > 0) {
           val resp = ByteBuffer.allocate(response.remaining())
           resp.put(response)
@@ -950,14 +953,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         case Type.PUSH_DATA_HAND_SHAKE =>
           workerSource.incCounter(WorkerSource.PushDataHandshakeFailCount)
           callback.onFailure(new CelebornIOException(
-            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE,
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_REPLICA,
             e))
         case Type.REGION_START =>
           workerSource.incCounter(WorkerSource.RegionStartFailCount)
-          callback.onFailure(new CelebornIOException(StatusCode.REGION_START_FAIL_SLAVE, e))
+          callback.onFailure(new CelebornIOException(StatusCode.REGION_START_FAIL_REPLICA, e))
         case Type.REGION_FINISH =>
           workerSource.incCounter(WorkerSource.RegionFinishFailCount)
-          callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_SLAVE, e))
+          callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_REPLICA, e))
         case _ =>
           workerSource.incCounter(WorkerSource.ReplicateDataFailCount)
           if (e.isInstanceOf[CelebornIOException]) {
@@ -993,43 +996,43 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   private def checkFileWriterException(
       messageType: Message.Type,
-      isMaster: Boolean,
+      isPrimary: Boolean,
       fileWriter: FileWriter,
       callback: RpcResponseCallback): Unit = {
     logWarning(
       s"[handle$messageType] fileWriter $fileWriter has Exception ${fileWriter.getException}")
 
-    val (messageMaster, messageSlave) =
+    val (messagePrimary, messageReplica) =
       messageType match {
         case Type.PUSH_DATA =>
           (
-            StatusCode.PUSH_DATA_WRITE_FAIL_MASTER,
-            StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE)
+            StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY,
+            StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA)
         case Type.PUSH_DATA_HAND_SHAKE => (
-            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_MASTER,
-            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_SLAVE)
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_PRIMARY,
+            StatusCode.PUSH_DATA_HANDSHAKE_FAIL_REPLICA)
         case Type.REGION_START => (
-            StatusCode.REGION_START_FAIL_MASTER,
-            StatusCode.REGION_START_FAIL_SLAVE)
+            StatusCode.REGION_START_FAIL_PRIMARY,
+            StatusCode.REGION_START_FAIL_REPLICA)
         case Type.REGION_FINISH => (
-            StatusCode.REGION_FINISH_FAIL_MASTER,
-            StatusCode.REGION_FINISH_FAIL_SLAVE)
+            StatusCode.REGION_FINISH_FAIL_PRIMARY,
+            StatusCode.REGION_FINISH_FAIL_REPLICA)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
     callback.onFailure(new CelebornIOException(
-      if (isMaster) messageMaster else messageSlave,
+      if (isPrimary) messagePrimary else messageReplica,
       fileWriter.getException))
   }
 
   private def getFileWriterAndCheck(
       messageType: Message.Type,
       location: PartitionLocation,
-      isMaster: Boolean,
+      isPrimary: Boolean,
       callback: RpcResponseCallback): (Boolean, FileWriter) = {
     val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
     val exception = fileWriter.getException
     if (exception != null) {
-      checkFileWriterException(messageType, isMaster, fileWriter, callback)
+      checkFileWriterException(messageType, isPrimary, fileWriter, callback)
       return (true, fileWriter)
     }
     (false, fileWriter)
@@ -1047,12 +1050,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   private def checkDiskFullAndSplit(
       fileWriter: FileWriter,
-      isMaster: Boolean,
+      isPrimary: Boolean,
       softSplit: AtomicBoolean,
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
-        (isMaster && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
+        (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
         softSplit.set(true)
       } else {
@@ -1074,8 +1077,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
 object PushDataHandler {
   // for testing
-  @volatile private[celeborn] var pushMasterDataTimeoutTested = new AtomicBoolean(false)
-  @volatile private[celeborn] var pushSlaveDataTimeoutTested = new AtomicBoolean(false)
-  @volatile private[celeborn] var pushMasterMergeDataTimeoutTested = new AtomicBoolean(false)
-  @volatile private[celeborn] var pushSlaveMergeDataTimeoutTested = new AtomicBoolean(false)
+  @volatile private[celeborn] var pushPrimaryDataTimeoutTested = new AtomicBoolean(false)
+  @volatile private[celeborn] var pushReplicaDataTimeoutTested = new AtomicBoolean(false)
+  @volatile private[celeborn] var pushPrimaryMergeDataTimeoutTested = new AtomicBoolean(false)
+  @volatile private[celeborn] var pushReplicaMergeDataTimeoutTested = new AtomicBoolean(false)
 }
