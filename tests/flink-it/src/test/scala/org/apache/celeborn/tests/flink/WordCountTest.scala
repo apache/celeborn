@@ -21,8 +21,8 @@ import java.io.File
 
 import scala.collection.JavaConverters._
 
-import org.apache.flink.api.common.{ExecutionMode, InputDependencyConstraint, RuntimeExecutionMode}
-import org.apache.flink.configuration.{ConfigConstants, Configuration, ExecutionOptions, RestOptions}
+import org.apache.flink.api.common.{ExecutionMode, RuntimeExecutionMode}
+import org.apache.flink.configuration.{Configuration, ExecutionOptions, RestOptions}
 import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
