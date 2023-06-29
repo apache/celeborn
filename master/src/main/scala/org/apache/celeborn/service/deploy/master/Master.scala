@@ -437,7 +437,7 @@ private[celeborn] class Master(
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
+    context.reply(HeartbeatFromWorkerResponse(expiredShuffleKeys, registered))
   }
 
   private def handleWorkerLost(
