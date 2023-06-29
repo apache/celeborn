@@ -285,7 +285,7 @@ private[celeborn] class Worker(
     val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
       storageManager.userResourceConsumptionSnapshot().asJava)
 
-    val response = rssHARetryClient.askSync[HeartbeatResponse](
+    val response = rssHARetryClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
         rpcPort,
@@ -296,7 +296,7 @@ private[celeborn] class Worker(
         resourceConsumption,
         activeShuffleKeys,
         estimatedAppDiskUsage),
-      classOf[HeartbeatResponse])
+      classOf[HeartbeatFromWorkerResponse])
     response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
     if (!response.registered) {
