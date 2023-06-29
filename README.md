@@ -7,7 +7,7 @@ management service for intermediate data including shuffle data, spilled data, r
 
 ## Internals
 ### Architecture
-![Celeborn architecture](assets/img/rss.jpg)
+![Celeborn architecture](assets/img/celeborn.jpg)
 Celeborn has three primary components: Master, Worker, and Client.
 Master manages all resources and syncs shared states based on Raft.
 Worker processes read-write requests and merges data for each reducer.
@@ -33,7 +33,7 @@ LifecycleManager maintains metadata of each shuffle and runs within the Spark dr
 11. Reducers read shuffle data.
 
 ### Load Balance
-![Load Balance](assets/img/rss_load_balance.jpg)
+![Load Balance](assets/img/celeborn_load_balance.jpg)
 
 We introduce slots to achieve load balance. We will equally distribute partitions on every Celeborn worker by tracking slot usage.
 The Slot is a logical concept in Celeborn Worker that represents how many partitions can be allocated to each Celeborn Worker.
@@ -153,7 +153,7 @@ celeborn.master.ha.node.2.ratis.port 9872
 celeborn.master.ha.node.3.host clb-3
 celeborn.master.ha.node.3.port 9097
 celeborn.master.ha.node.3.ratis.port 9872
-celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
+celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/celeborn_ratis/
 
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
