@@ -62,8 +62,34 @@ class WorkerPartitionLocationInfo extends Logging {
     getLocation(shuffleKey, uniqueId, primaryPartitionLocations)
   }
 
+  def getPrimaryLocations(
+      shuffleKey: String,
+      uniqueIds: Array[String]): Array[(String, PartitionLocation)] = {
+    val locations = new Array[(String, PartitionLocation)](uniqueIds.length)
+    var i = 0
+    while (i < uniqueIds.length) {
+      val uniqueId = uniqueIds(i)
+      locations(i) = uniqueId -> getPrimaryLocation(shuffleKey, uniqueId)
+      i += 1
+    }
+    locations
+  }
+
   def getReplicaLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
     getLocation(shuffleKey, uniqueId, replicaPartitionLocations)
+  }
+
+  def getReplicaLocations(
+      shuffleKey: String,
+      uniqueIds: Array[String]): Array[(String, PartitionLocation)] = {
+    val locations = new Array[(String, PartitionLocation)](uniqueIds.length)
+    var i = 0
+    while (i < uniqueIds.length) {
+      val uniqueId = uniqueIds(i)
+      locations(i) = uniqueId -> getReplicaLocation(shuffleKey, uniqueId)
+      i += 1
+    }
+    locations
   }
 
   def removeShuffle(shuffleKey: String): Unit = {
