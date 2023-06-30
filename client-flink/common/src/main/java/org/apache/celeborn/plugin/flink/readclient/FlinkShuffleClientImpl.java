@@ -134,7 +134,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
     this.flinkTransportClientFactory =
         new FlinkTransportClientFactory(context, conf.clientFetchMaxRetriesForEachReplica());
-    this.setupMetaServiceRef(driverHost, port);
+    this.setupLifecycleManagerRef(driverHost, port);
     this.driverTimestamp = driverTimestamp;
   }
 
@@ -392,7 +392,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                     StatusCode.HARD_SPLIT);
             requests.add(req);
             PbChangeLocationResponse response =
-                driverMetaService.askSync(
+                lifecycleManagerRef.askSync(
                     ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
                     conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));

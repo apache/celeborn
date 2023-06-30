@@ -57,7 +57,7 @@ public class FlinkShuffleClientImplSuiteJ {
         new FlinkShuffleClientImpl(
             "APP", "localhost", 1232, System.currentTimeMillis(), conf, null) {
           @Override
-          public void setupMetaServiceRef(String host, int port) {}
+          public void setupLifecycleManagerRef(String host, int port) {}
         };
     when(clientFactory.createClient(primaryLocation.getHost(), primaryLocation.getPushPort(), 1))
         .thenAnswer(t -> client);

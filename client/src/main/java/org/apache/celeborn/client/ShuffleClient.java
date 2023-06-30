@@ -63,16 +63,16 @@ public abstract class ShuffleClient {
         if (null == _instance) {
           // During the execution of Spark tasks, each task may be interrupted due to speculative
           // tasks. If the Task is interrupted while obtaining the ShuffleClient and the
-          // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
+          // ShuffleClient is building a singleton, it may cause the LifecycleManagerEndpoint to not be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
-          // when communicating with MetaService, it will cause a NullPointerException.
+          // when communicating with LifecycleManager, it will cause a NullPointerException.
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverHost, port);
+          _instance.setupLifecycleManagerRef(driverHost, port);
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverHost, port);
+          _instance.setupLifecycleManagerRef(driverHost, port);
           initialized = true;
         }
       }
@@ -103,9 +103,9 @@ public abstract class ShuffleClient {
     return hdfsFs;
   }
 
-  public abstract void setupMetaServiceRef(String host, int port);
+  public abstract void setupLifecycleManagerRef(String host, int port);
 
-  public abstract void setupMetaServiceRef(RpcEndpointRef endpointRef);
+  public abstract void setupLifecycleManagerRef(RpcEndpointRef endpointRef);
 
   // Write data to a specific reduce partition
   public abstract int pushData(

@@ -21,19 +21,19 @@ public class RemoteShuffleResource implements ShuffleResource {
 
   private static final long serialVersionUID = 6497939083185255973L;
 
-  private final String metaServiceHost;
-  private final int metaServicePort;
-  private final long metaServiceTimestamp;
+  private final String lifecycleManagerHost;
+  private final int lifecycleManagerPort;
+  private final long lifecycleManagerTimestamp;
   private ShuffleResourceDescriptor shuffleResourceDescriptor;
 
   public RemoteShuffleResource(
-      String metaServiceHost,
-      int metaServicePort,
-      long metaServiceTimestamp,
+      String lifecycleManagerHost,
+      int lifecycleManagerPort,
+      long lifecycleManagerTimestamp,
       ShuffleResourceDescriptor remoteShuffleDescriptor) {
-    this.metaServiceHost = metaServiceHost;
-    this.metaServicePort = metaServicePort;
-    this.metaServiceTimestamp = metaServiceTimestamp;
+    this.lifecycleManagerHost = lifecycleManagerHost;
+    this.lifecycleManagerPort = lifecycleManagerPort;
+    this.lifecycleManagerTimestamp = lifecycleManagerTimestamp;
     this.shuffleResourceDescriptor = remoteShuffleDescriptor;
   }
 
@@ -42,24 +42,24 @@ public class RemoteShuffleResource implements ShuffleResource {
     return shuffleResourceDescriptor;
   }
 
-  public String getMetaServiceHost() {
-    return metaServiceHost;
+  public String getLifecycleManagerHost() {
+    return lifecycleManagerHost;
   }
 
-  public int getMetaServicePort() {
-    return metaServicePort;
+  public int getLifecycleManagerPort() {
+    return lifecycleManagerPort;
   }
 
-  public long getMetaServiceTimestamp() {
-    return metaServiceTimestamp;
+  public long getLifecycleManagerTimestamp() {
+    return lifecycleManagerTimestamp;
   }
 
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("RemoteShuffleResource{");
-    sb.append("metaServiceHost='").append(metaServiceHost).append('\'');
-    sb.append(", metaServicePort=").append(metaServicePort);
-    sb.append(", metaServiceTimestamp=").append(metaServiceTimestamp);
+    sb.append("lifecycleManagerHost='").append(lifecycleManagerHost).append('\'');
+    sb.append(", lifecycleManagerPort=").append(lifecycleManagerPort);
+    sb.append(", lifecycleManagerTimestamp=").append(lifecycleManagerTimestamp);
     sb.append(", shuffleResourceDescriptor=").append(shuffleResourceDescriptor);
     sb.append('}');
     return sb.toString();

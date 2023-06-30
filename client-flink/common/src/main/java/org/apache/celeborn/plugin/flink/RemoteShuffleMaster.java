@@ -51,13 +51,13 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
           ThreadUtils.createFactoryWithDefaultExceptionHandler(
               "remote-shuffle-master-executor", LOG));
   private final ResultPartitionAdapter resultPartitionDelegation;
-  private final long metaServiceTimestamp;
+  private final long lifecycleManagerTimestamp;
 
   public RemoteShuffleMaster(
       ShuffleMasterContext shuffleMasterContext, ResultPartitionAdapter resultPartitionDelegation) {
     this.shuffleMasterContext = shuffleMasterContext;
     this.resultPartitionDelegation = resultPartitionDelegation;
-    this.metaServiceTimestamp = System.currentTimeMillis();
+    this.lifecycleManagerTimestamp = System.currentTimeMillis();
   }
 
   @Override
@@ -66,7 +66,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     if (lifecycleManager == null) {
       synchronized (RemoteShuffleMaster.class) {
         if (lifecycleManager == null) {
-          celebornAppId = FlinkUtils.toCelebornAppId(metaServiceTimestamp, jobID);
+          celebornAppId = FlinkUtils.toCelebornAppId(lifecycleManagerTimestamp, jobID);
           LOG.info("CelebornAppId: {}", celebornAppId);
           CelebornConf celebornConf =
               FlinkUtils.toCelebornConf(shuffleMasterContext.getConfiguration());
@@ -136,9 +136,9 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
               RemoteShuffleResource remoteShuffleResource =
                   new RemoteShuffleResource(
-                      lifecycleManager.getMetaServiceHost(),
-                      lifecycleManager.getMetaServicePort(),
-                      metaServiceTimestamp,
+                      lifecycleManager.getHost(),
+                      lifecycleManager.getPort(),
+                      lifecycleManagerTimestamp,
                       shuffleResourceDescriptor);
 
               shuffleResourceTracker.addPartitionResource(

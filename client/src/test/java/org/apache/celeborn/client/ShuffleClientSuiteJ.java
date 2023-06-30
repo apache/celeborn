@@ -183,7 +183,7 @@ public class ShuffleClientSuiteJ {
                 RegisterShuffleResponse$.MODULE$.apply(
                     StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}));
 
-    shuffleClient.setupMetaServiceRef(endpointRef);
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
 
     ChannelFuture mockedFuture =
         new ChannelFuture() {

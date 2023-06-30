@@ -80,7 +80,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final RpcEnv rpcEnv;
 
-  protected RpcEndpointRef driverMetaService;
+  protected RpcEndpointRef lifecycleManagerRef;
 
   protected TransportClientFactory dataClientFactory;
 
@@ -467,7 +467,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         numMappers,
         numPartitions,
         () ->
-            driverMetaService.askSync(
+            lifecycleManagerRef.askSync(
                 RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions),
                 conf.clientRpcRegisterShuffleRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
@@ -489,7 +489,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             numMappers,
             numMappers,
             () ->
-                driverMetaService.askSync(
+                lifecycleManagerRef.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
                         shuffleId, numMappers, mapId, attemptId, partitionId),
                     conf.clientRpcRegisterShuffleRpcAskTimeout(),
@@ -698,7 +698,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     try {
       PbChangeLocationResponse response =
-          driverMetaService.askSync(
+          lifecycleManagerRef.askSync(
               Revive$.MODULE$.apply(shuffleId, mapIds, requests),
               conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
@@ -1109,7 +1109,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         reducePartitionMap.get(shuffleId);
 
     ShuffleClientHelper.sendShuffleSplitAsync(
-        driverMetaService,
+        lifecycleManagerRef,
         conf,
         PartitionSplit$.MODULE$.apply(shuffleId, partitionId, loc.getEpoch(), loc),
         partitionSplitPool,
@@ -1470,7 +1470,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       limitZeroInFlight(mapKey, pushState);
 
       MapperEndResponse response =
-          driverMetaService.askSync(
+          lifecycleManagerRef.askSync(
               new MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId),
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
@@ -1495,7 +1495,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   public boolean unregisterShuffle(int shuffleId, boolean isDriver) {
     if (isDriver) {
       try {
-        driverMetaService.send(
+        lifecycleManagerRef.send(
             UnregisterShuffle$.MODULE$.apply(appUniqueId, shuffleId, MasterClient.genRequestId()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
@@ -1525,7 +1525,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     {
       long getReducerFileGroupStartTime = System.nanoTime();
       try {
-        if (driverMetaService == null) {
+        if (lifecycleManagerRef == null) {
           logger.warn("Driver endpoint is null!");
           return null;
         }
@@ -1533,7 +1533,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId);
 
         GetReducerFileGroupResponse response =
-            driverMetaService.askSync(
+            lifecycleManagerRef.askSync(
                 getReducerFileGroup,
                 conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
@@ -1625,8 +1625,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != partitionSplitPool) {
       partitionSplitPool.shutdown();
     }
-    if (null != driverMetaService) {
-      driverMetaService = null;
+    if (null != lifecycleManagerRef) {
+      lifecycleManagerRef = null;
     }
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
@@ -1634,14 +1634,14 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void setupMetaServiceRef(String host, int port) {
-    driverMetaService =
-        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.METASERVICE_EP);
+  public void setupLifecycleManagerRef(String host, int port) {
+    lifecycleManagerRef =
+        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP);
   }
 
   @Override
-  public void setupMetaServiceRef(RpcEndpointRef endpointRef) {
-    driverMetaService = endpointRef;
+  public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
+    lifecycleManagerRef = endpointRef;
   }
 
   boolean mapperEnded(int shuffleId, int mapId) {

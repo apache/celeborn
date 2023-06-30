@@ -24,8 +24,8 @@ import org.apache.celeborn.common.identity.UserIdentifier
 
 class CelebornShuffleHandle[K, V, C](
     val appUniqueId: String,
-    val metaServiceHost: String,
-    val metaServicePort: Int,
+    val lifecycleManagerHost: String,
+    val lifecycleManagerPort: Int,
     val userIdentifier: UserIdentifier,
     shuffleId: Int,
     numMappers: Int,

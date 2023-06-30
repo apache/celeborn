@@ -97,7 +97,7 @@ public abstract class ShuffleClientBaseSuiteJ {
                 ControlMessages.RegisterShuffleResponse$.MODULE$.apply(
                     StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}));
 
-    shuffleClient.setupMetaServiceRef(endpointRef);
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
     when(clientFactory.createClient(
             primaryLocation.getHost(), primaryLocation.getPushPort(), TEST_REDUCRE_ID))
         .thenAnswer(t -> client);

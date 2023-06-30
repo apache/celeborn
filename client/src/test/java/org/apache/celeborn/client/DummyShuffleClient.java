@@ -56,10 +56,10 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public void setupMetaServiceRef(String host, int port) {}
+  public void setupLifecycleManagerRef(String host, int port) {}
 
   @Override
-  public void setupMetaServiceRef(RpcEndpointRef endpointRef) {}
+  public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {}
 
   @Override
   public int pushData(

@@ -108,13 +108,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
 
-  // init driver celeborn meta rpc service
+  // init driver celeborn LifecycleManager rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
-    RpcNameConstants.METASERVICE_SYS,
+    RpcNameConstants.LIFECYCLE_MANAGER_SYS,
     lifecycleHost,
     conf.shuffleManagerPort,
     conf)
-  rpcEnv.setupEndpoint(RpcNameConstants.METASERVICE_EP, this)
+  rpcEnv.setupEndpoint(RpcNameConstants.LIFECYCLE_MANAGER_EP, this)
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
@@ -179,11 +179,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     userIdentifier
   }
 
-  def getMetaServiceHost: String = {
+  def getHost: String = {
     lifecycleHost
   }
 
-  def getMetaServicePort: Int = {
+  def getPort: Int = {
     rpcEnv.address.port
   }
 

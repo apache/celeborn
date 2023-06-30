@@ -43,8 +43,8 @@ class CelebornShuffleReader[K, C](
   private val dep = handle.dependency
   private val shuffleClient = ShuffleClient.get(
     handle.appUniqueId,
-    handle.metaServiceHost,
-    handle.metaServicePort,
+    handle.lifecycleManagerHost,
+    handle.lifecycleManagerPort,
     conf,
     handle.userIdentifier)
 
