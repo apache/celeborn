@@ -41,7 +41,7 @@ class ShuffleFallbackSuite extends AnyFunSuite
   }
 
   private def enableRss(conf: SparkConf) = {
-    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
+    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
   }
 

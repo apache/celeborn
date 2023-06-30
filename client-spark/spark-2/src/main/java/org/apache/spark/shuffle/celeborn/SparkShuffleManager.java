@@ -22,6 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import scala.Int;
+
 import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.shuffle.*;
@@ -35,9 +37,9 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.common.util.ThreadUtils;
 
-public class CelebornShuffleManager implements ShuffleManager {
+public class SparkShuffleManager implements ShuffleManager {
 
-  private static final Logger logger = LoggerFactory.getLogger(CelebornShuffleManager.class);
+  private static final Logger logger = LoggerFactory.getLogger(SparkShuffleManager.class);
 
   private static final String sortShuffleManagerName =
       "org.apache.spark.shuffle.sort.SortShuffleManager";
@@ -58,7 +60,7 @@ public class CelebornShuffleManager implements ShuffleManager {
   private final ExecutorService[] asyncPushers;
   private AtomicInteger pusherIdx = new AtomicInteger(0);
 
-  public CelebornShuffleManager(SparkConf conf) {
+  public SparkShuffleManager(SparkConf conf) {
     this.conf = conf;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
@@ -90,7 +92,7 @@ public class CelebornShuffleManager implements ShuffleManager {
     return _sortShuffleManager;
   }
 
-  private void initializeLifecycleManager() {
+  private void initializeLifecycleManager(String appId) {
     // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
     // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
     // considered in this place, because if there is one RDD that depends on multiple RDDs
@@ -98,7 +100,7 @@ public class CelebornShuffleManager implements ShuffleManager {
     if (isDriver() && lifecycleManager == null) {
       synchronized (this) {
         if (lifecycleManager == null) {
-          lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
+          lifecycleManager = new LifecycleManager(appId, celebornConf);
           rssShuffleClient =
               ShuffleClient.get(
                   appUniqueId,
@@ -113,18 +115,18 @@ public class CelebornShuffleManager implements ShuffleManager {
 
   @Override
   public <K, V, C> ShuffleHandle registerShuffle(
-      int shuffleId, ShuffleDependency<K, V, C> dependency) {
+      int shuffleId, int numMaps, ShuffleDependency<K, V, C> dependency) {
     // Note: generate app unique id at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
     appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
-    initializeLifecycleManager();
+    initializeLifecycleManager(appUniqueId);
 
     if (fallbackPolicyRunner.applyAllFallbackPolicy(
         lifecycleManager, dependency.partitioner().numPartitions())) {
       logger.warn("Fallback to SortShuffleManager!");
       sortShuffleIds.add(shuffleId);
-      return sortShuffleManager().registerShuffle(shuffleId, dependency);
+      return sortShuffleManager().registerShuffle(shuffleId, numMaps, dependency);
     } else {
       return new RssShuffleHandle<>(
           appUniqueId,
@@ -132,7 +134,7 @@ public class CelebornShuffleManager implements ShuffleManager {
           lifecycleManager.getRssMetaServicePort(),
           lifecycleManager.getUserIdentifier(),
           shuffleId,
-          dependency.rdd().getNumPartitions(),
+          numMaps,
           dependency);
     }
   }
@@ -160,29 +162,25 @@ public class CelebornShuffleManager implements ShuffleManager {
   public void stop() {
     if (rssShuffleClient != null) {
       rssShuffleClient.shutdown();
-      ShuffleClient.reset();
-      rssShuffleClient = null;
     }
     if (lifecycleManager != null) {
       lifecycleManager.stop();
-      lifecycleManager = null;
     }
     if (sortShuffleManager() != null) {
       sortShuffleManager().stop();
-      _sortShuffleManager = null;
     }
   }
 
   @Override
   public <K, V> ShuffleWriter<K, V> getWriter(
-      ShuffleHandle handle, long mapId, TaskContext context, ShuffleWriteMetricsReporter metrics) {
+      ShuffleHandle handle, int mapId, TaskContext context) {
     try {
       if (handle instanceof RssShuffleHandle) {
         @SuppressWarnings("unchecked")
         RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
             ShuffleClient.get(
-                h.appUniqueId(),
+                appUniqueId,
                 h.rssMetaServiceHost(),
                 h.rssMetaServicePort(),
                 celebornConf,
@@ -193,116 +191,36 @@ public class CelebornShuffleManager implements ShuffleManager {
           return new SortBasedShuffleWriter<>(
               h.dependency(),
               h.appUniqueId(),
-              h.numMappers(),
+              h.numMaps(),
               context,
               celebornConf,
               client,
-              metrics,
               pushThread);
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
-              h, context, celebornConf, client, metrics, SendBufferPool.get(cores));
+              h, mapId, context, celebornConf, client, SendBufferPool.get(cores));
         } else {
           throw new UnsupportedOperationException(
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
         }
       } else {
         sortShuffleIds.add(handle.shuffleId());
-        return sortShuffleManager().getWriter(handle, mapId, context, metrics);
+        return sortShuffleManager().getWriter(handle, mapId, context);
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
-  // Added in SPARK-32055, for Spark 3.1 and above
   public <K, C> ShuffleReader<K, C> getReader(
-      ShuffleHandle handle,
-      int startMapIndex,
-      int endMapIndex,
-      int startPartition,
-      int endPartition,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
+      ShuffleHandle handle, int startPartition, int endPartition, TaskContext context) {
     if (handle instanceof RssShuffleHandle) {
       @SuppressWarnings("unchecked")
       RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
       return new RssShuffleReader<>(
-          h,
-          startPartition,
-          endPartition,
-          startMapIndex,
-          endMapIndex,
-          context,
-          celebornConf,
-          metrics);
+          h, startPartition, endPartition, 0, Int.MaxValue(), context, celebornConf);
     }
-    return SparkUtils.getReader(
-        sortShuffleManager(),
-        handle,
-        startMapIndex,
-        endMapIndex,
-        startPartition,
-        endPartition,
-        context,
-        metrics);
-  }
-
-  // Marked as final in SPARK-32055, reserved for Spark 3.0
-  public <K, C> ShuffleReader<K, C> getReader(
-      ShuffleHandle handle,
-      int startPartition,
-      int endPartition,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
-    if (handle instanceof RssShuffleHandle) {
-      @SuppressWarnings("unchecked")
-      RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
-      return new RssShuffleReader<>(
-          h, startPartition, endPartition, 0, Integer.MAX_VALUE, context, celebornConf, metrics);
-    }
-    return SparkUtils.getReader(
-        sortShuffleManager(),
-        handle,
-        0,
-        Integer.MAX_VALUE,
-        startPartition,
-        endPartition,
-        context,
-        metrics);
-  }
-
-  // Renamed to getReader in SPARK-32055, reserved for Spark 3.0
-  public <K, C> ShuffleReader<K, C> getReaderForRange(
-      ShuffleHandle handle,
-      int startMapIndex,
-      int endMapIndex,
-      int startPartition,
-      int endPartition,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
-    if (handle instanceof RssShuffleHandle) {
-      @SuppressWarnings("unchecked")
-      RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
-      return new RssShuffleReader<>(
-          h,
-          startPartition,
-          endPartition,
-          startMapIndex,
-          endMapIndex,
-          context,
-          celebornConf,
-          metrics);
-    }
-    return SparkUtils.getReader(
-        sortShuffleManager(),
-        handle,
-        startMapIndex,
-        endMapIndex,
-        startPartition,
-        endPartition,
-        context,
-        metrics);
+    return _sortShuffleManager.getReader(handle, startPartition, endPartition, context);
   }
 
   private ExecutorService getPusherThread() {

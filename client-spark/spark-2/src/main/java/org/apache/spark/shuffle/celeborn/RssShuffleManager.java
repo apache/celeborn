@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.celeborn;
 
 import org.apache.spark.SparkConf;
 
-public class RssShuffleManager extends CelebornShuffleManager {
+public class RssShuffleManager extends SparkShuffleManager {
 
   public RssShuffleManager(SparkConf conf) {
     super(conf);

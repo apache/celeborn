@@ -26,13 +26,13 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 
 @RunWith(classOf[JUnit4])
-class CelebornShuffleManagerSuite extends Logging {
+class SparkShuffleManagerSuite extends Logging {
   @junit.Test
   def testFallBack(): Unit = {
     val conf = new SparkConf().setIfMissing("spark.master", "local")
       .setIfMissing(
         "spark.shuffle.manager",
-        "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
+        "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", "localhost:9097")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
       .set("spark.shuffle.service.enabled", "false")
@@ -52,7 +52,7 @@ class CelebornShuffleManagerSuite extends Logging {
     val conf = new SparkConf().setIfMissing("spark.master", "local")
       .setIfMissing(
         "spark.shuffle.manager",
-        "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
+        "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", "localhost:9097")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
       .set("spark.shuffle.service.enabled", "false")

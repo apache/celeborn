@@ -50,7 +50,7 @@ trait SparkTestBase extends AnyFunSuite
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set(
       "spark.shuffle.manager",
-      "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
+      "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
     sparkConf.set("spark.shuffle.useOldFetchProtocol", "true")
     sparkConf.set("spark.sql.adaptive.enabled", "false")
     sparkConf.set("spark.shuffle.service.enabled", "false")
