@@ -15,10 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.protocol;
+package org.apache.celeborn.service.deploy.cluster
 
-public enum CompressionCodec {
-  LZ4,
-  ZSTD,
-  NONE;
+import org.apache.celeborn.common.protocol.CompressionCodec
+
+class ClusterReadWriteTestWithNONE extends ReadWriteTestBase {
+
+  test(s"test MiniCluster With NONE") {
+    testReadWriteByCode(CompressionCodec.NONE)
+  }
+
 }
