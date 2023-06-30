@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.File
 import java.util
-import java.util.{Set => jSet}
+import java.util.{Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
@@ -40,7 +40,7 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
   deviceInfo.diskInfos.foreach { case diskInfo =>
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
-  val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
+  val observers: JSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
   val sysBlockDir = conf.workerDiskMonitorSysBlockDir
   val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")

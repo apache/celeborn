@@ -238,6 +238,7 @@ private[celeborn] class Worker(
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-forward-message-scheduler")
   private var sendHeartbeatTask: ScheduledFuture[_] = _
   private var checkFastFailTask: ScheduledFuture[_] = _
+
   val replicateThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
@@ -345,9 +346,7 @@ private[celeborn] class Worker(
     // start heartbeat
     sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(
       new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          heartbeatToMaster()
-        }
+        override def run(): Unit = Utils.tryLogNonFatalError { heartbeatToMaster() }
       },
       heartbeatInterval,
       heartbeatInterval,
