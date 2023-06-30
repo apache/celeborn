@@ -131,7 +131,7 @@ public class FileWriterSuiteJ {
     MemoryManager.initialize(conf);
   }
 
-  public static void setupChunkServer(FileInfo info) throws Exception {
+  public static void setupChunkServer(FileInfo info) {
     FetchHandler handler =
         new FetchHandler(transConf) {
           @Override

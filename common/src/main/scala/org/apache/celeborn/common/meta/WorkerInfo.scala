@@ -120,7 +120,7 @@ class WorkerInfo(
     unknownDiskSlots.remove(shuffleKey)
   }
 
-  def getShuffleKeySet(): util.HashSet[String] = this.synchronized {
+  def getShuffleKeySet: util.HashSet[String] = this.synchronized {
     val shuffleKeySet = new util.HashSet[String]()
     diskInfos.values().asScala.foreach { diskInfo =>
       shuffleKeySet.addAll(diskInfo.getShuffleKeySet())

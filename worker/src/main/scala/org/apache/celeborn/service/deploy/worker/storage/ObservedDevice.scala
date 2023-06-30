@@ -83,9 +83,9 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
       val nonCriticalErrorSetFunc = new util.function.Function[DiskStatus, util.Set[Long]] {
         override def apply(t: DiskStatus): util.Set[Long] = {
           val set = ConcurrentHashMap.newKeySet[Long]()
-          workerSource.addGauge(
-            s"Device_${deviceInfo.name}_${diskStatus.toMetric}_Count",
-            _ => set.size())
+          workerSource.addGauge(s"Device_${deviceInfo.name}_${diskStatus.toMetric}_Count") { () =>
+            set.size()
+          }
           set
         }
       }

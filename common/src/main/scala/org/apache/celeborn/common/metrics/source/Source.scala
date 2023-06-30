@@ -26,6 +26,6 @@ trait Source {
   def startTimer(metricsName: String, key: String): Unit
   def stopTimer(metricsName: String, key: String): Unit
   def incCounter(metricsName: String, incV: Long): Unit
-  def getMetrics(): String
+  def getMetrics: String
   def destroy(): Unit
 }

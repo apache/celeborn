@@ -41,8 +41,7 @@ public class FileManagedBuffers {
         offsets[i] = chunkOffsets.get(i);
       }
     } else {
-      offsets = new long[1];
-      offsets[0] = 0;
+      offsets = new long[] {0};
     }
     this.conf = conf;
   }

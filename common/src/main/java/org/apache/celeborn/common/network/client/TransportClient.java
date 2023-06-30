@@ -241,7 +241,7 @@ public class TransportClient implements Closeable {
     try {
       return result.get(timeoutMs, TimeUnit.MILLISECONDS);
     } catch (Exception e) {
-      throw new IOException("Exception in sendRpcSync to:" + this.getSocketAddress(), e);
+      throw new IOException("Exception in sendRpcSync to: " + this.getSocketAddress(), e);
     }
   }
 

@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.util
 
+import java.util.function.Consumer
+
 import scala.language.implicitConversions
 
 /**
@@ -24,11 +26,16 @@ import scala.language.implicitConversions
  */
 object FunctionConverter {
 
-  implicit def scalaFunctionToJava[From, To](function: (From) => To)
+  implicit def scalaFunctionToJava[From, To](function: From => To)
       : java.util.function.Function[From, To] = {
     new java.util.function.Function[From, To] {
       override def apply(input: From): To = function(input)
     }
   }
 
+  implicit def scalaConsumerToJava[T](consumer: T => AnyVal): java.util.function.Consumer[T] = {
+    new Consumer[T] {
+      override def accept(t: T): Unit = consumer(t)
+    }
+  }
 }
