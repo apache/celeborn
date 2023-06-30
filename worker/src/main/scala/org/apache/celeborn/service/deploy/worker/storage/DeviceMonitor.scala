@@ -74,11 +74,11 @@ class LocalDeviceMonitor(
       logWarning(s"Device monitor may not work properly on $deviceName " +
         s"because device $deviceName not exists.")
     }
-    deviceInfos.asScala.foreach(entry => {
+    deviceInfos.asScala.foreach { entry =>
       val observedDevice = new ObservedDevice(entry._2, conf, workerSource)
       observedDevice.addObserver(observer)
       observedDevices.put(entry._2, observedDevice)
-    })
+    }
     diskInfos
       .asScala
       .values
@@ -129,14 +129,13 @@ class LocalDeviceMonitor(
                 device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
               } else {
                 if (checkIoHang && device.ioHang()) {
-                  logError(s"Encounter device io hang error!" +
+                  logError(s"Encounter device io hang error! " +
                     s"${device.deviceInfo.name}, notify observers")
                   device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
                 } else {
                   device.diskInfos.values().asScala.foreach { diskInfo =>
                     if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
-                      logError(
-                        s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
+                      logError(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                       device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
                     } else if (checkReadWrite &&
                       DeviceMonitor.readWriteError(conf, diskInfo.dirs.head)) {
