@@ -136,8 +136,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
               RemoteShuffleResource remoteShuffleResource =
                   new RemoteShuffleResource(
-                      lifecycleManager.getRssMetaServiceHost(),
-                      lifecycleManager.getRssMetaServicePort(),
+                      lifecycleManager.getMetaServiceHost(),
+                      lifecycleManager.getMetaServicePort(),
                       metaServiceTimestamp,
                       shuffleResourceDescriptor);
 

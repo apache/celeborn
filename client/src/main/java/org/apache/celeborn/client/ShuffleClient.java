@@ -94,7 +94,7 @@ public abstract class ShuffleClient {
           try {
             hdfsFs = FileSystem.get(hdfsConfiguration);
           } catch (IOException e) {
-            System.err.println("Rss initialize hdfs failed.");
+            System.err.println("Celeborn initialize hdfs failed.");
             e.printStackTrace(System.err);
           }
         }

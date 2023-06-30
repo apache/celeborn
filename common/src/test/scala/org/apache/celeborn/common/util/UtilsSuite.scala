@@ -60,7 +60,7 @@ class UtilsSuite extends CelebornFunSuite {
     assert("16.0 GiB" == Utils.bytesToString(17179869184L))
   }
 
-  test("extractHostPortFromRssUrl") {
+  test("extractHostPortFromCelebornUrl") {
     val target = ("abc", 123)
     val result = Utils.extractHostPortFromCelebornUrl("celeborn://abc:123")
     assert(target.equals(result))

@@ -102,8 +102,8 @@ public class RssShuffleManager implements ShuffleManager {
           shuffleClient =
               ShuffleClient.get(
                   appUniqueId,
-                  lifecycleManager.getRssMetaServiceHost(),
-                  lifecycleManager.getRssMetaServicePort(),
+                  lifecycleManager.getMetaServiceHost(),
+                  lifecycleManager.getMetaServicePort(),
                   celebornConf,
                   lifecycleManager.getUserIdentifier());
         }
@@ -128,8 +128,8 @@ public class RssShuffleManager implements ShuffleManager {
     } else {
       return new CelebornShuffleHandle<>(
           appUniqueId,
-          lifecycleManager.getRssMetaServiceHost(),
-          lifecycleManager.getRssMetaServicePort(),
+          lifecycleManager.getMetaServiceHost(),
+          lifecycleManager.getMetaServicePort(),
           lifecycleManager.getUserIdentifier(),
           shuffleId,
           dependency.rdd().getNumPartitions(),

@@ -27,7 +27,7 @@ import org.apache.spark.unsafe.Platform
 trait CelebornCompressibleColumnBuilder[T <: AtomicType]
   extends CelebornColumnBuilder with Logging {
 
-  this: CelebornNativeColumnBuilder[T] with WithRssCompressionSchemes =>
+  this: CelebornNativeColumnBuilder[T] with WithCelebornCompressionSchemes =>
 
   var compressionEncoder: Encoder[T] = CelebornPassThrough$.encoder(columnType)
 

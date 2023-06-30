@@ -134,7 +134,7 @@ public class RemoteBufferStreamReader extends CreditListener {
 
   public void dataReceived(ReadData readData) {
     logger.debug(
-        "Rss buffer stream reader get stream id {} received readable bytes {}.",
+        "Remote buffer stream reader get stream id {} received readable bytes {}.",
         readData.getStreamId(),
         readData.getFlinkBuffer().readableBytes());
     dataListener.accept(readData.getFlinkBuffer());

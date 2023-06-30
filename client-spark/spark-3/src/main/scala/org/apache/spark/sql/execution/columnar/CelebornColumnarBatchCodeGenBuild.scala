@@ -39,16 +39,16 @@ class CelebornColumnarBatchCodeGenBuild {
       s"""
          |
          |public java.lang.Object generate(Object[] references) {
-         |  return new SpecificRssColumnarBatchBuilder(references);
+         |  return new SpecificCelebornColumnarBatchBuilder(references);
          |}
          |
-         |class SpecificRssColumnarBatchBuilder extends ${classOf[CelebornBatchBuilder].getName} {
+         |class SpecificCelebornColumnarBatchBuilder extends ${classOf[CelebornBatchBuilder].getName} {
          |
          |  private Object[] references;
          |  int rowCnt = 0;
          |  ${codes._1}
          |
-         |  public SpecificRssColumnarBatchBuilder(Object[] references) {
+         |  public SpecificCelebornColumnarBatchBuilder(Object[] references) {
          |    this.references = references;
          |  }
          |

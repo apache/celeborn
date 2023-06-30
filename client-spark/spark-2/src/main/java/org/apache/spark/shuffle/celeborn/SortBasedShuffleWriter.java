@@ -410,6 +410,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   public long[] getPartitionLengths() {
     throw new UnsupportedOperationException(
-        "RSS is not compatible with Spark push mode, please set spark.shuffle.push.enabled to false");
+        "Celeborn is not compatible with Spark push mode, please set spark.shuffle.push.enabled to false");
   }
 }

@@ -214,7 +214,7 @@ class TypedConfigBuilder[T](
 }
 
 /**
- * Basic builder for RSS configurations. Provides methods for creating type-specific builders.
+ * Basic builder for Celeborn configurations. Provides methods for creating type-specific builders.
  *
  * @see TypedConfigBuilder
  */

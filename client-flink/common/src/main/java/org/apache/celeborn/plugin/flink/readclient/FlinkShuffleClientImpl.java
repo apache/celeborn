@@ -392,7 +392,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                     StatusCode.HARD_SPLIT);
             requests.add(req);
             PbChangeLocationResponse response =
-                driverRssMetaService.askSync(
+                driverMetaService.askSync(
                     ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
                     conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));

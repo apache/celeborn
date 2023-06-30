@@ -179,11 +179,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     userIdentifier
   }
 
-  def getRssMetaServiceHost: String = {
+  def getMetaServiceHost: String = {
     lifecycleHost
   }
 
-  def getRssMetaServicePort: Int = {
+  def getMetaServicePort: Int = {
     rpcEnv.address.port
   }
 
@@ -788,7 +788,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * Collect all allocated partition locations on reserving slot failed workers
    * and remove failed worker's partition locations from total slots.
    * For each reduce id, we only need to maintain one of the pair locations
-   * even if enabling replicate. If RSS wants to release the failed partition location,
+   * even if enabling replicate. If Celeborn wants to release the failed partition location,
    * the corresponding peers will be handled in [[releasePeerPartitionLocation]]
    *
    * @param reserveFailedWorkers reserve slot failed WorkerInfo list of slots

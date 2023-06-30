@@ -567,7 +567,7 @@ object Utils extends Logging {
 
     } catch {
       case e: IOException =>
-        throw new CelebornException(s"Failed when loading RSS properties from $filename", e)
+        throw new CelebornException(s"Failed when loading Celeborn properties from $filename", e)
     } finally {
       inReader.close()
     }

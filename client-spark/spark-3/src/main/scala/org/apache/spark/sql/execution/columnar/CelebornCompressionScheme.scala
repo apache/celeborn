@@ -57,11 +57,11 @@ trait CelebornCompressionScheme {
       columnType: NativeCelebornColumnType[T]): Decoder[T]
 }
 
-trait WithRssCompressionSchemes {
+trait WithCelebornCompressionSchemes {
   def schemes: Seq[CelebornCompressionScheme]
 }
 
-trait AllRssCompressionSchemes extends WithRssCompressionSchemes {
+trait AllCelebornCompressionSchemes extends WithCelebornCompressionSchemes {
   override val schemes: Seq[CelebornCompressionScheme] = CelebornCompressionScheme.all
 }
 

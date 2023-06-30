@@ -103,7 +103,7 @@ abstract class CelebornNativeColumnBuilder[T <: AtomicType](
     override val columnType: NativeCelebornColumnType[T])
   extends CelebornBasicColumnBuilder[T#InternalType](columnStats, columnType)
   with CelebornNullableColumnBuilder
-  with AllRssCompressionSchemes
+  with AllCelebornCompressionSchemes
   with CelebornCompressibleColumnBuilder[T]
 
 class CelebornBooleanColumnBuilder
