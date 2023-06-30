@@ -36,6 +36,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
@@ -109,8 +110,8 @@ public abstract class RssInputStream extends InputStream {
     private final Map<Integer, Set<Integer>> batchesRead = new HashMap<>();
 
     private byte[] compressedBuf;
-    private byte[] decompressedBuf;
-    private final Decompressor decompressor;
+    private byte[] rawDataBuf;
+    private Decompressor decompressor;
 
     private ByteBuf currentChunk;
     private PartitionReader currentReader;
@@ -131,6 +132,7 @@ public abstract class RssInputStream extends InputStream {
 
     private boolean pushReplicateEnabled;
     private boolean fetchExcludeWorkerOnFailureEnabled;
+    private boolean shuffleCompressionEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private final ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
@@ -156,15 +158,20 @@ public abstract class RssInputStream extends InputStream {
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.pushReplicateEnabled = conf.clientPushReplicateEnabled();
       this.fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
+      this.shuffleCompressionEnabled =
+          !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
-      int headerLen = Decompressor.getCompressionHeaderLength(conf);
-      int blockSize = conf.clientPushBufferMaxSize() + headerLen;
-      compressedBuf = new byte[blockSize];
-      decompressedBuf = new byte[blockSize];
+      int blockSize = conf.clientPushBufferMaxSize();
+      if (shuffleCompressionEnabled) {
+        int headerLen = Decompressor.getCompressionHeaderLength(conf);
+        blockSize = conf.clientPushBufferMaxSize() + headerLen;
+        compressedBuf = new byte[blockSize];
 
-      decompressor = Decompressor.getDecompressor(conf);
+        decompressor = Decompressor.getDecompressor(conf);
+      }
+      rawDataBuf = new byte[blockSize];
 
       if (conf.clientPushReplicateEnabled()) {
         fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica() * 2;
@@ -414,7 +421,7 @@ public abstract class RssInputStream extends InputStream {
     @Override
     public int read() throws IOException {
       if (position < limit) {
-        int b = decompressedBuf[position];
+        int b = rawDataBuf[position];
         position++;
         return b & 0xFF;
       }
@@ -426,7 +433,7 @@ public abstract class RssInputStream extends InputStream {
       if (position >= limit) {
         return read();
       } else {
-        int b = decompressedBuf[position];
+        int b = rawDataBuf[position];
         position++;
         return b & 0xFF;
       }
@@ -451,7 +458,7 @@ public abstract class RssInputStream extends InputStream {
         }
 
         int bytesToRead = Math.min(limit - position, len - readBytes);
-        System.arraycopy(decompressedBuf, position, b, off + readBytes, bytesToRead);
+        System.arraycopy(rawDataBuf, position, b, off + readBytes, bytesToRead);
         position += bytesToRead;
         readBytes += bytesToRead;
       }
@@ -512,11 +519,20 @@ public abstract class RssInputStream extends InputStream {
         int attemptId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 4);
         int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
         int size = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 12);
-        if (size > compressedBuf.length) {
-          compressedBuf = new byte[size];
-        }
 
-        currentChunk.readBytes(compressedBuf, 0, size);
+        if (shuffleCompressionEnabled) {
+          if (size > compressedBuf.length) {
+            compressedBuf = new byte[size];
+          }
+
+          currentChunk.readBytes(compressedBuf, 0, size);
+        } else {
+          if (size > rawDataBuf.length) {
+            rawDataBuf = new byte[size];
+          }
+
+          currentChunk.readBytes(rawDataBuf, 0, size);
+        }
 
         // de-duplicate
         if (attemptId == attempts[mapId]) {
@@ -530,12 +546,16 @@ public abstract class RssInputStream extends InputStream {
             if (callback != null) {
               callback.incBytesRead(BATCH_HEADER_SIZE + size);
             }
-            // decompress data
-            int originalLength = decompressor.getOriginalLen(compressedBuf);
-            if (decompressedBuf.length < originalLength) {
-              decompressedBuf = new byte[originalLength];
+            if (shuffleCompressionEnabled) {
+              // decompress data
+              int originalLength = decompressor.getOriginalLen(compressedBuf);
+              if (rawDataBuf.length < originalLength) {
+                rawDataBuf = new byte[originalLength];
+              }
+              limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+            } else {
+              limit = size;
             }
-            limit = decompressor.decompress(compressedBuf, decompressedBuf, 0);
             position = 0;
             hasData = true;
             break;
