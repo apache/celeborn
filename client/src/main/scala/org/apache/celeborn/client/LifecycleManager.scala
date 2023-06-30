@@ -110,11 +110,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   // init driver celeborn meta rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
-    RpcNameConstants.RSS_METASERVICE_SYS,
+    RpcNameConstants.METASERVICE_SYS,
     lifecycleHost,
     conf.shuffleManagerPort,
     conf)
-  rpcEnv.setupEndpoint(RpcNameConstants.RSS_METASERVICE_EP, this)
+  rpcEnv.setupEndpoint(RpcNameConstants.METASERVICE_EP, this)
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 

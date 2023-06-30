@@ -1636,7 +1636,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public void setupMetaServiceRef(String host, int port) {
     driverRssMetaService =
-        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.RSS_METASERVICE_EP);
+        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.METASERVICE_EP);
   }
 
   @Override
