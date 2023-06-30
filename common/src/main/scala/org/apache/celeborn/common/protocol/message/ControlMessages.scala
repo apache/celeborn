@@ -781,7 +781,13 @@ object ControlMessages extends Logging {
 
   // TODO change return type to GeneratedMessageV3
   def fromTransportMessage(message: TransportMessage): Any = {
-    message.getType.getNumber match {
+    // This can be removed when Transport Message removes type field support later.
+    val messageTypeValue = message.getMessageTypeValue match {
+      case UNKNOWN_MESSAGE_VALUE => message.getType.getNumber
+      case _ => message.getMessageTypeValue
+    }
+
+    messageTypeValue match {
       case UNKNOWN_MESSAGE_VALUE =>
         val msg = s"received unknown message $message"
         logError(msg)
@@ -816,7 +822,8 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE_VALUE =>
-        val pbHeartbeatResponse = PbHeartbeatResponse.parseFrom(message.getPayload)
+        val pbHeartbeatFromWorkerResponse =
+          PbHeartbeatFromWorkerResponse.parseFrom(message.getPayload)
         val expiredShuffleKeys = new util.HashSet[String]()
         if (pbHeartbeatFromWorkerResponse.getExpiredShuffleKeysCount > 0) {
           expiredShuffleKeys.addAll(pbHeartbeatFromWorkerResponse.getExpiredShuffleKeysList)
