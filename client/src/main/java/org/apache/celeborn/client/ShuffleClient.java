@@ -63,7 +63,8 @@ public abstract class ShuffleClient {
         if (null == _instance) {
           // During the execution of Spark tasks, each task may be interrupted due to speculative
           // tasks. If the Task is interrupted while obtaining the ShuffleClient and the
-          // ShuffleClient is building a singleton, it may cause the LifecycleManagerEndpoint to not be
+          // ShuffleClient is building a singleton, it may cause the LifecycleManagerEndpoint to not
+          // be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with LifecycleManager, it will cause a NullPointerException.
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);

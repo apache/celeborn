@@ -111,7 +111,8 @@ public class RemoteShuffleOutputGate {
         shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getPartitionId();
     this.lifecycleManagerHost = shuffleDesc.getShuffleResource().getLifecycleManagerHost();
     this.lifecycleManagerPort = shuffleDesc.getShuffleResource().getLifecycleManagerPort();
-    this.lifecycleManagerTimestamp = shuffleDesc.getShuffleResource().getLifecycleManagerTimestamp();
+    this.lifecycleManagerTimestamp =
+        shuffleDesc.getShuffleResource().getLifecycleManagerTimestamp();
     this.flinkShuffleClient = getShuffleClient();
   }
 
