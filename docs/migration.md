@@ -61,3 +61,6 @@ license: |
      | `SlavePushDataHandshakeTime`  | `ReplicaPushDataHandshakeTime` |
      | `SlaveRegionStartTime`        | `ReplicaRegionStartTime`       |
      | `SlaveRegionFinishTime`       | `ReplicaRegionFinishTime`      |
+
+ - Since 0.3.0, Celeborn's spark shuffle manager change from `org.apache.spark.shuffle.celeborn.RssShuffleManager` to `org.apache.spark.shuffle.celeborn.CelebornShuffleManager`. User can set spark property `spark.shuffle.manager` to `org.apache.spark.shuffle.celeborn.CelebornShuffleManager` to use Celeborn remote shuffle service.
+   In 0.3.0, Celeborn still support `org.apache.spark.shuffle.celeborn.RssShuffleManager`, it will be removed in 0.4.0.
