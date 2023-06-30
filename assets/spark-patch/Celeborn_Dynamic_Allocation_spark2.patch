@@ -40,7 +40,7 @@ diff --git a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scal
 -      throw new SparkException("Dynamic allocation of executors requires the external " +
 -        "shuffle service. You may enable this through spark.shuffle.service.enabled.")
 +    if (!conf.get(config.SHUFFLE_SERVICE_ENABLED) &&
-+      !Utils.isRssEnabled(conf) && !testing) {
++      !Utils.isCelebornEnabled(conf) && !testing) {
 +      throw new SparkException("Dynamic allocation of executors requires the external or remote " +
 +        "shuffle service. You may enable this through spark.shuffle.service.enabled or " +
 +        "set spark.shuffle.manager=org.apache.spark.shuffle.celeborn.RssShuffleManager.")
@@ -60,7 +60,7 @@ diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b
      // we know to unregister shuffle output.  (Note that "worker" specifically refers to the process
      // from a Standalone cluster, where the shuffle service lives in the Worker.)
 -    val fileLost = workerLost || !env.blockManager.externalShuffleServiceEnabled
-+    val fileLost = !Utils.isRssEnabled(sc.getConf) && (workerLost || !env.blockManager.externalShuffleServiceEnabled)
++    val fileLost = !Utils.isCelebornEnabled(sc.getConf) && (workerLost || !env.blockManager.externalShuffleServiceEnabled)
      removeExecutorAndUnregisterOutputs(
        execId = execId,
        fileLost = fileLost,
@@ -80,7 +80,7 @@ diff --git a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
 -        && !isZombie) {
 +    if (tasks(0).isInstanceOf[ShuffleMapTask]
 +      && !env.blockManager.externalShuffleServiceEnabled
-+      && !Utils.isRssEnabled(conf)
++      && !Utils.isCelebornEnabled(conf)
 +      && !isZombie) {
        for ((tid, info) <- taskInfos if info.executorId == execId) {
          val index = taskInfos(tid).index
@@ -98,7 +98,7 @@ diff --git a/core/src/main/scala/org/apache/spark/util/Utils.scala b/core/src/ma
      resultProps
    }
 +
-+  def isRssEnabled(conf: SparkConf): Boolean =
++  def isCelebornEnabled(conf: SparkConf): Boolean =
 +    conf.get("spark.shuffle.manager", "sort").contains("celeborn")
 +
  }

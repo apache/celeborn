@@ -28,7 +28,7 @@ diff --git a/core/src/main/scala/org/apache/spark/ExecutorAllocationManager.scal
            conf.get(config.STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED)) {
          logInfo("Shuffle data decommission is enabled without a shuffle service.")
 -      } else if (!testing) {
-+      } else if (!testing && !Utils.isRssEnabled(conf)) {
++      } else if (!testing && !Utils.isCelebornEnabled(conf)) {
          throw new SparkException("Dynamic allocation of executors requires the external " +
            "shuffle service. You may enable this through spark.shuffle.service.enabled.")
        }
@@ -45,7 +45,7 @@ diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b
      // we know to unregister shuffle output.  (Note that "worker" specifically refers to the process
      // from a Standalone cluster, where the shuffle service lives in the Worker.)
 -    val fileLost = workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled
-+    val fileLost = !Utils.isRssEnabled(sc.getConf) && (workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled)
++    val fileLost = !Utils.isCelebornEnabled(sc.getConf) && (workerHost.isDefined || !env.blockManager.externalShuffleServiceEnabled)
      removeExecutorAndUnregisterOutputs(
        execId = execId,
        fileLost = fileLost,
@@ -61,7 +61,7 @@ diff --git a/core/src/main/scala/org/apache/spark/util/Utils.scala b/core/src/ma
      files.toSeq
    }
 
-+  def isRssEnabled(conf: SparkConf): Boolean =
++  def isCelebornEnabled(conf: SparkConf): Boolean =
 +    conf.get("spark.shuffle.manager", "sort").contains("celeborn")
 +
    /**
@@ -80,7 +80,7 @@ diff --git a/core/src/main/scala/org/apache/spark/scheduler/TaskSetManager.scala
      val maybeShuffleMapOutputLoss = isShuffleMapTasks &&
        (reason.isInstanceOf[ExecutorDecommission] || !env.blockManager.externalShuffleServiceEnabled)
 -    if (maybeShuffleMapOutputLoss && !isZombie) {
-+    if (maybeShuffleMapOutputLoss && !isZombie && !Utils.isRssEnabled(conf)) {
++    if (maybeShuffleMapOutputLoss && !isZombie && !Utils.isCelebornEnabled(conf)) {
        for ((tid, info) <- taskInfos if info.executorId == execId) {
          val index = info.index
          lazy val isShuffleMapOutputAvailable = reason match {
