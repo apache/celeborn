@@ -48,7 +48,9 @@ trait SparkTestBase extends AnyFunSuite
 
   def updateSparkConf(sparkConf: SparkConf, mode: ShuffleMode): SparkConf = {
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
+    sparkConf.set(
+      "spark.shuffle.manager",
+      "org.apache.spark.shuffle.celeborn.CelebornShuffleManager")
     sparkConf.set("spark.shuffle.useOldFetchProtocol", "true")
     sparkConf.set("spark.sql.adaptive.enabled", "false")
     sparkConf.set("spark.shuffle.service.enabled", "false")
