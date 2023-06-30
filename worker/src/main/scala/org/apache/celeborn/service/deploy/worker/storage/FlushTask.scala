@@ -34,10 +34,13 @@ private[worker] class LocalFlushTask(
     notifier: FlushNotifier) extends FlushTask(buffer, notifier) {
   override def flush(): Unit = {
     val buffers = buffer.nioBuffers()
-    for (buffer <- buffers) {
+    var i = 0
+    while (i < buffers.length) {
+      val buffer = buffers(i)
       while (buffer.hasRemaining) {
         fileChannel.write(buffer)
       }
+      i += 1
     }
   }
 }

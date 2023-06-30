@@ -417,20 +417,21 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
-    val partitionIdToLocations = pushMergedData.partitionUniqueIds.map { id =>
+    val partitionIdToLocations =
       if (isPrimary) {
-        id -> partitionLocationInfo.getPrimaryLocation(shuffleKey, id)
+        partitionLocationInfo.getPrimaryLocations(shuffleKey, pushMergedData.partitionUniqueIds)
       } else {
-        id -> partitionLocationInfo.getReplicaLocation(shuffleKey, id)
+        partitionLocationInfo.getReplicaLocations(shuffleKey, pushMergedData.partitionUniqueIds)
       }
-    }
 
     // Fetch real batchId from body will add more cost and no meaning for replicate.
     val doReplicate =
       partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.hasPeer && isPrimary
 
     // find FileWriters responsible for the data
-    partitionIdToLocations.foreach { case (id, loc) =>
+    var index = 0
+    while (index < partitionIdToLocations.length) {
+      val (id, loc) = partitionIdToLocations(index)
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
         // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
@@ -468,6 +469,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
         return
       }
+      index += 1
     }
 
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
@@ -477,11 +479,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
-    val fileWriters =
-      partitionIdToLocations.map(_._2).map(_.asInstanceOf[WorkingPartition].getFileWriter)
-    val fileWriterWithException = fileWriters.find(_.getException != null)
-    if (fileWriterWithException.nonEmpty) {
-      val exception = fileWriterWithException.get.getException
+    val (fileWriters, exceptionFileWriterIndexOpt) = getFileWriters(partitionIdToLocations)
+    if (exceptionFileWriterIndexOpt.isDefined) {
+      val fileWriterWithException = fileWriters(exceptionFileWriterIndexOpt.get)
       val cause =
         if (isPrimary) {
           StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
@@ -490,7 +490,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         }
       logError(
         s"While handling PushMergedData, throw $cause, fileWriter $fileWriterWithException has exception.",
-        exception)
+        fileWriterWithException.getException)
       workerSource.incCounter(WorkerSource.WriteDataFailCount)
       callbackWithTimer.onFailure(new CelebornIOException(cause))
       return
@@ -617,7 +617,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
     }
 
-    var index = 0
+    index = 0
     var fileWriter: FileWriter = null
     var alreadyClosed = false
     while (index < fileWriters.length) {
@@ -654,6 +654,28 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
       index += 1
     }
+  }
+
+  /**
+   * returns an array of FileWriters from partition locations along with an optional index for any FileWriter that
+   * encountered an exception.
+   */
+  private def getFileWriters(
+      partitionIdToLocations: Array[(String, PartitionLocation)])
+      : (Array[FileWriter], Option[Int]) = {
+    val fileWriters = new Array[FileWriter](partitionIdToLocations.length)
+    var i = 0
+    var exceptionFileWriterIndex: Option[Int] = None
+    while (i < partitionIdToLocations.length) {
+      val workingPartition = partitionIdToLocations(i)._2.asInstanceOf[WorkingPartition]
+      val fileWriter = workingPartition.getFileWriter
+      if (fileWriter.getException != null) {
+        exceptionFileWriterIndex = Some(i)
+      }
+      fileWriters(i) = fileWriter
+      i += 1
+    }
+    (fileWriters, exceptionFileWriterIndex)
   }
 
   private def getMapAttempt(body: ByteBuf): (Int, Int) = {
