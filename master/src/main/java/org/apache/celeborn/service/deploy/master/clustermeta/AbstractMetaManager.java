@@ -357,7 +357,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       estimatedPartitionSize = initialEstimatedPartitionSize;
     }
     LOG.warn(
-        "Rss cluster estimated partition size changed from {} to {}",
+        "Celeborn cluster estimated partition size changed from {} to {}",
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
     workers.stream()
