@@ -39,14 +39,14 @@ import org.apache.celeborn.common.protocol.PartitionType
 import org.apache.celeborn.common.util.ExceptionUtils
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
-class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
-  var celebornConf: CelebornConf = conf.getCelebornConf
+class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
+  extends BaseMessageHandler with Logging {
   var chunkStreamManager = new ChunkStreamManager()
   val creditStreamManager = new CreditStreamManager(
-    celebornConf.partitionReadBuffersMin,
-    celebornConf.partitionReadBuffersMax,
-    celebornConf.creditStreamThreadsPerMountpoint,
-    celebornConf.readBuffersToTriggerReadMin)
+    conf.partitionReadBuffersMin,
+    conf.partitionReadBuffersMax,
+    conf.creditStreamThreadsPerMountpoint,
+    conf.readBuffersToTriggerReadMin)
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
@@ -135,7 +135,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               request.requestId,
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           } else {
-            val buffers = new FileManagedBuffers(fileInfo, conf)
+            val buffers = new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
             val streamId = chunkStreamManager.registerStream(
               shuffleKey,
@@ -215,10 +215,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       s" to fetch block ${req.streamChunkSlice}")
 
     val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred
-    if (chunksBeingTransferred > celebornConf.shuffleIoMaxChunksBeingTransferred) {
+    if (chunksBeingTransferred > conf.shuffleIoMaxChunksBeingTransferred) {
       val message = "Worker is too busy. The number of chunks being transferred " +
         s"$chunksBeingTransferred exceeds celeborn.shuffle.maxChunksBeingTransferred " +
-        s"${celebornConf.shuffleIoMaxChunksBeingTransferred}."
+        s"${conf.shuffleIoMaxChunksBeingTransferred}."
       logError(message)
       client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice, message))
     } else {

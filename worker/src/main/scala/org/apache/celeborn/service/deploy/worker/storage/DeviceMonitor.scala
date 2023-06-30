@@ -129,7 +129,7 @@ class LocalDeviceMonitor(
                 device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
               } else {
                 if (checkIoHang && device.ioHang()) {
-                  logError(s"Encounter device io hang error! " +
+                  logError(s"Encounter device io hang error!" +
                     s"${device.deviceInfo.name}, notify observers")
                   device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
                 } else {

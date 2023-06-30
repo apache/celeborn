@@ -171,7 +171,7 @@ private[celeborn] class Worker(
     val numThreads = conf.workerFetchIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
-    fetchHandler = new FetchHandler(transportConf)
+    fetchHandler = new FetchHandler(conf, transportConf)
     val transportContext: TransportContext =
       new TransportContext(
         transportConf,

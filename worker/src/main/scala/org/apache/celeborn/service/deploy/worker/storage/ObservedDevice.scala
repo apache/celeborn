@@ -38,7 +38,7 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
 
   val diskInfos: ConcurrentHashMap[String, DiskInfo] =
     deviceInfo.diskInfos.foldLeft(JavaUtils.newConcurrentHashMap[String, DiskInfo]) {
-      case (acc, diskInfo) => diskInfos.put(diskInfo.mountPoint, diskInfo); acc
+      case (acc, diskInfo) => acc.put(diskInfo.mountPoint, diskInfo); acc
     }
 
   val observers: JSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
