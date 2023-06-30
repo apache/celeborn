@@ -154,7 +154,7 @@ Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 ### Spark Configuration
 To use Celeborn, following spark configurations should be added.
 ```properties
-spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.CelebornShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
 

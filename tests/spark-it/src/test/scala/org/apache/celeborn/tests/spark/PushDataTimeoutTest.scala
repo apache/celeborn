@@ -20,7 +20,7 @@ package org.apache.celeborn.tests.spark
 import scala.collection.JavaConverters._
 
 import org.apache.spark.{SparkConf, SparkContextHelper}
-import org.apache.spark.shuffle.celeborn.RssShuffleManager
+import org.apache.spark.shuffle.celeborn.CelebornShuffleManager
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
@@ -140,7 +140,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     assert(PushDataHandler.pushReplicaMergeDataTimeoutTested.get())
     val excludedWorkers = SparkContextHelper.env
       .shuffleManager
-      .asInstanceOf[RssShuffleManager]
+      .asInstanceOf[CelebornShuffleManager]
       .getLifecycleManager
       .workerStatusTracker
       .excludedWorkers

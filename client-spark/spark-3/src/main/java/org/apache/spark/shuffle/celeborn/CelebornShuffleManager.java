@@ -15,22 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.protocol;
+package org.apache.spark.shuffle.celeborn;
 
-public class RpcNameConstants {
-  // For Master
-  public static String MASTER_SYS = "MasterSys";
+import org.apache.spark.SparkConf;
 
-  // Master Endpoint Name
-  public static String MASTER_EP = "MasterEndpoint";
+public class CelebornShuffleManager extends RssShuffleManager {
 
-  // For Worker
-  public static String WORKER_SYS = "WorkerSys";
-
-  // Worker Endpoint Name
-  public static String WORKER_EP = "WorkerEndpoint";
-
-  // For Driver(CelebornShuffleManager)
-  public static String RSS_METASERVICE_EP = "RssMetaServiceEndpoint";
-  public static String RSS_METASERVICE_SYS = "RssMetaSys";
+  public CelebornShuffleManager(SparkConf conf) {
+    super(conf);
+  }
 }
