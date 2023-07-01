@@ -23,16 +23,22 @@ import org.apache.celeborn.common.protocol.MessageType;
 
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
-  private final MessageType type;
+  @Deprecated private final MessageType type;
+  private final int messageTypeValue;
   private final byte[] payload;
 
   public TransportMessage(MessageType type, byte[] payload) {
     this.type = type;
+    this.messageTypeValue = type.getNumber();
     this.payload = payload;
   }
 
   public MessageType getType() {
     return type;
+  }
+
+  public int getMessageTypeValue() {
+    return messageTypeValue;
   }
 
   public byte[] getPayload() {
