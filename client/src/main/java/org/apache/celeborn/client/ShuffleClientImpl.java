@@ -836,26 +836,22 @@ public class ShuffleClientImpl extends ShuffleClient {
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
 
-    int totalSize = length;
-    byte[] shuffleDataBuf = new byte[length];
-
     if (shuffleCompressionEnabled) {
       // compress data
       final Compressor compressor = compressorThreadLocal.get();
       compressor.compress(data, offset, length);
 
-      totalSize = compressor.getCompressedTotalSize();
-      shuffleDataBuf = compressor.getCompressedBuffer();
-    } else {
-      System.arraycopy(data, offset, shuffleDataBuf, 0, length);
+      data = compressor.getCompressedBuffer();
+      offset = 0;
+      length = compressor.getCompressedTotalSize();
     }
 
-    final byte[] body = new byte[BATCH_HEADER_SIZE + totalSize];
+    final byte[] body = new byte[BATCH_HEADER_SIZE + length];
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, mapId);
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, attemptId);
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 8, nextBatchId);
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, totalSize);
-    System.arraycopy(shuffleDataBuf, 0, body, BATCH_HEADER_SIZE, totalSize);
+    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, length);
+    System.arraycopy(data, offset, body, BATCH_HEADER_SIZE, length);
 
     if (doPush) {
       // check limit
