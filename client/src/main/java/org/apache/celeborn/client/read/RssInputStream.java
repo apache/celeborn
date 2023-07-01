@@ -166,7 +166,7 @@ public abstract class RssInputStream extends InputStream {
       int blockSize = conf.clientPushBufferMaxSize();
       if (shuffleCompressionEnabled) {
         int headerLen = Decompressor.getCompressionHeaderLength(conf);
-        blockSize = conf.clientPushBufferMaxSize() + headerLen;
+        blockSize += headerLen;
         compressedBuf = new byte[blockSize];
 
         decompressor = Decompressor.getDecompressor(conf);
