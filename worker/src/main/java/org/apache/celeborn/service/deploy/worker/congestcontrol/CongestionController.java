@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -230,7 +231,11 @@ public class CongestionController {
   private void removeInactiveUsers() {
     try {
       long currentTimeMillis = System.currentTimeMillis();
-      for (Map.Entry<UserIdentifier, UserBufferInfo> next : userBufferStatuses.entrySet()) {
+
+      Iterator<Map.Entry<UserIdentifier, UserBufferInfo>> iterator =
+              userBufferStatuses.entrySet().iterator();
+      while (iterator.hasNext()) {
+        Map.Entry<UserIdentifier, UserBufferInfo> next = iterator.next();
         UserIdentifier userIdentifier = next.getKey();
         UserBufferInfo userBufferInfo = next.getValue();
         if (currentTimeMillis - userBufferInfo.getTimestamp() >= userInactiveTimeMills) {
