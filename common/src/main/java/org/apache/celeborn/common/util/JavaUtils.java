@@ -427,18 +427,18 @@ public class JavaUtils {
 
   public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap() {
     if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
-      return new ConcurrentHashMap();
+      return new ConcurrentHashMap<>();
     } else {
-      return new ConcurrentHashMapForJDK8();
+      return new ConcurrentHashMapForJDK8<>();
     }
   }
 
   public static <K, V> ConcurrentHashMap<K, V> newConcurrentHashMap(
       Map<? extends K, ? extends V> m) {
     if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
-      return new ConcurrentHashMap(m);
+      return new ConcurrentHashMap<>(m);
     } else {
-      return new ConcurrentHashMapForJDK8(m);
+      return new ConcurrentHashMapForJDK8<>(m);
     }
   }
 
