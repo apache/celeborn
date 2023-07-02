@@ -233,7 +233,7 @@ public class CongestionController {
       long currentTimeMillis = System.currentTimeMillis();
 
       Iterator<Map.Entry<UserIdentifier, UserBufferInfo>> iterator =
-              userBufferStatuses.entrySet().iterator();
+          userBufferStatuses.entrySet().iterator();
       while (iterator.hasNext()) {
         Map.Entry<UserIdentifier, UserBufferInfo> next = iterator.next();
         UserIdentifier userIdentifier = next.getKey();

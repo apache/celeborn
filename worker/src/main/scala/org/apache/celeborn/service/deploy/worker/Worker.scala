@@ -194,10 +194,10 @@ private[celeborn] class Worker(
   storageManager.updateDiskInfos()
 
   // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
-  val diskInfos: ConcurrentHashMap[String, DiskInfo] =
-    storageManager.disksSnapshot().foldLeft(JavaUtils.newConcurrentHashMap[String, DiskInfo]) {
-      (acc, diskInfo) => acc.put(diskInfo.mountPoint, diskInfo); acc
-    }
+  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
+  storageManager.disksSnapshot().foreach { diskInfo =>
+    diskInfos.put(diskInfo.mountPoint, diskInfo)
+  }
 
   // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
   val userResourceConsumption: ConcurrentHashMap[UserIdentifier, ResourceConsumption] =

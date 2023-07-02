@@ -36,10 +36,8 @@ import org.apache.celeborn.common.util.JavaUtils
 class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSource: AbstractSource)
   extends Logging {
 
-  val diskInfos: ConcurrentHashMap[String, DiskInfo] =
-    deviceInfo.diskInfos.foldLeft(JavaUtils.newConcurrentHashMap[String, DiskInfo]) {
-      case (acc, diskInfo) => acc.put(diskInfo.mountPoint, diskInfo); acc
-    }
+  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
+  deviceInfo.diskInfos.foreach { diskInfo => diskInfos.put(diskInfo.mountPoint, diskInfo) }
 
   val observers: JSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
 
@@ -48,7 +46,7 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
   val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
   val nonCriticalErrors: ConcurrentHashMap[DiskStatus, JSet[Long]] =
-    JavaUtils.newConcurrentHashMap[DiskStatus, util.Set[Long]]()
+    JavaUtils.newConcurrentHashMap[DiskStatus, JSet[Long]]()
   val notifyErrorThreshold: Int = conf.workerDiskMonitorNotifyErrorThreshold
   val notifyErrorExpireTimeout: Long = conf.workerDiskMonitorNotifyErrorExpireTimeout
 
