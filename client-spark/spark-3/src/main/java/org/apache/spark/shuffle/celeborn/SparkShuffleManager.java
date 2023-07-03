@@ -128,8 +128,8 @@ public class SparkShuffleManager implements ShuffleManager {
     } else {
       return new CelebornShuffleHandle<>(
           appUniqueId,
-          lifecycleManager.getRssMetaServiceHost(),
-          lifecycleManager.getRssMetaServicePort(),
+          lifecycleManager.getHost(),
+          lifecycleManager.getPort(),
           lifecycleManager.getUserIdentifier(),
           shuffleId,
           dependency.rdd().getNumPartitions(),
