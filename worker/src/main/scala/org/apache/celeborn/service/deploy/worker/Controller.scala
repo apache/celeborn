@@ -482,7 +482,6 @@ private[deploy] class Controller(
               s"${committedPrimaryIds.size()} committed primary partitions, " +
               s"${emptyFilePrimaryIds.size()} empty primary partitions, " +
               s"${failedPrimaryIds.size()} failed primary partitions, " +
-              // TODO: (remove comment) this should be a bug before
               s"${committedReplicaIds.size()} committed replica partitions, " +
               s"${emptyFileReplicaIds.size()} empty replica partitions, " +
               s"${failedReplicaIds.size()} failed replica partitions.")
@@ -503,7 +502,6 @@ private[deploy] class Controller(
               s"${committedPrimaryIds.size()} committed primary partitions, " +
               s"${emptyFilePrimaryIds.size()} empty primary partitions, " +
               s"${failedPrimaryIds.size()} failed primary partitions, " +
-              // TODO: (remove comment) this should be a bug before
               s"${committedReplicaIds.size()} committed replica partitions, " +
               s"${emptyFileReplicaIds.size()} empty replica partitions, " +
               s"${failedReplicaIds.size()} failed replica partitions.")
