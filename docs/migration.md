@@ -24,6 +24,10 @@ license: |
  - Celeborn 0.2 Client is compatible with 0.3 Master/Server, it allows to upgrade Master/Worker first then Client.
    Note that: It's strongly recommended to use the same version of Client and Celeborn Master/Worker in production.
 
+ - Since 0.3.0, the support of deprecated configurations `rss.*` is removed.
+   All configurations listed in 0.2.1 docs still take affects, but some of those are deprecated too, please read
+   the bootstrap logs and follow the suggestion to migrate to the new configuration.
+
  - From 0.3.0 on the default value for `celeborn.client.push.replicate.enabled` is changed from `true` to `false`, users
    who want replication on should explicitly enable replication. For example, to enable replication for Spark
    users should add the spark config when submitting job: `spark.celeborn.client.push.replicate.enabled=true`
