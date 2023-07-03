@@ -170,6 +170,7 @@ public class DfsPartitionReader implements PartitionReader {
           });
       fetchThread.start();
       logger.debug("Start dfs read on location {}", location);
+      ShuffleClient.incrementTotalReadCounter();
     }
   }
 

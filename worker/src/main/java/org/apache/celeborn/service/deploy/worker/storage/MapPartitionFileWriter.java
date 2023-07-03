@@ -34,6 +34,7 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
+import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.Utils;
 
 /*
@@ -130,11 +131,13 @@ public final class MapPartitionFileWriter extends FileWriter {
           flushIndex();
         },
         () -> {
-          if (StorageManager.hadoopFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
-            StorageManager.hadoopFs().delete(fileInfo.getHdfsPath(), false);
-            deleted = true;
-          } else {
-            StorageManager.hadoopFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
+          if (fileInfo.isHdfs()) {
+            if (StorageManager.hadoopFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
+              StorageManager.hadoopFs().delete(fileInfo.getHdfsPath(), false);
+              deleted = true;
+            } else {
+              StorageManager.hadoopFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
+            }
           }
         },
         () -> {

@@ -28,6 +28,7 @@ import io.netty.util.ReferenceCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -125,6 +126,7 @@ public class WorkerPartitionReader implements PartitionReader {
     this.fetchChunkRetryCnt = fetchChunkRetryCnt;
     this.fetchChunkMaxRetry = fetchChunkMaxRetry;
     testFetch = conf.testFetchFailure();
+    ShuffleClient.incrementTotalReadCounter();
   }
 
   public boolean hasNext() {

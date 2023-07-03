@@ -17,11 +17,13 @@
 
 package org.apache.celeborn.service.deploy.worker
 
-import java.{lang, util}
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
+import java.util
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
+
+import scala.collection.JavaConverters.asScalaBufferConverter
 
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
@@ -100,13 +102,14 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
         try {
           val pbMsg = TransportMessage.fromByteBuffer(r.body().nioByteBuffer())
           val pbOpenStream = pbMsg.getParsedPayload[PbOpenStream]
-          val (shuffleKey, fileName, startIndex, endIndex, initialCredit) =
+          val (shuffleKey, fileName, startIndex, endIndex, initialCredit, readLocalShuffle) =
             (
               pbOpenStream.getShuffleKey,
               pbOpenStream.getFileName,
               pbOpenStream.getStartIndex,
               pbOpenStream.getEndIndex,
-              pbOpenStream.getInitialCredit)
+              pbOpenStream.getInitialCredit,
+              pbOpenStream.getReadLocalShuffle)
           streamShuffleKey = shuffleKey
           streamFileName = fileName
           workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
@@ -118,7 +121,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
             endIndex,
             initialCredit,
             r,
-            false)
+            false,
+            readLocalShuffle)
         } catch {
           case _: Exception =>
             // process legacy OpenStream RPCs
@@ -182,7 +186,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       endIndex: Int,
       initialCredit: Int,
       request: RpcRequest,
-      isLegacy: Boolean): Unit = {
+      isLegacy: Boolean,
+      readLocalShuffle: Boolean = false): Unit = {
     try {
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       fileInfo.getPartitionType match {
@@ -198,6 +203,16 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           logDebug(s"Received chunk fetch request $shuffleKey $fileName $startIndex " +
             s"$endIndex get file info $fileInfo from client channel " +
             s"${NettyUtils.getRemoteAddress(client.getChannel)}")
+          if (readLocalShuffle) {
+            replyStreamHandler(
+              client,
+              request.requestId,
+              0,
+              fileInfo.numChunks(),
+              isLegacy,
+              fileInfo.getChunkOffsets,
+              fileInfo.getFilePath)
+          }
           if (fileInfo.isHdfs) {
             replyStreamHandler(client, request.requestId, 0, 0, isLegacy)
           } else {
@@ -245,18 +260,28 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       requestId: Long,
       streamId: Long,
       numChunks: Int,
-      isLegacy: Boolean): Unit = {
+      isLegacy: Boolean,
+      offsets: util.List[java.lang.Long] = null,
+      filepath: String = ""): Unit = {
     if (isLegacy) {
       client.getChannel.writeAndFlush(new RpcResponse(
         requestId,
         new NioManagedBuffer(new StreamHandle(streamId, numChunks).toByteBuffer)))
     } else {
+      val pbStreamHandlerBuilder = PbStreamHandler.newBuilder.setStreamId(streamId).setNumChunks(
+        numChunks)
+      if (offsets != null) {
+        pbStreamHandlerBuilder.addAllChunkOffsets(offsets)
+      }
+      if (filepath.nonEmpty) {
+        pbStreamHandlerBuilder.setFullPath(filepath)
+      }
+      val pbStreamHandler = pbStreamHandlerBuilder.build()
       client.getChannel.writeAndFlush(new RpcResponse(
         requestId,
         new NioManagedBuffer(new TransportMessage(
           MessageType.STREAM_HANDLER,
-          PbStreamHandler.newBuilder.setStreamId(streamId).setNumChunks(
-            numChunks).build.toByteArray).toByteBuffer)))
+          pbStreamHandler.toByteArray).toByteBuffer)))
     }
   }
 
