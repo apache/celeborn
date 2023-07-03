@@ -92,7 +92,7 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-      workerSource.sample(WorkerSource.RESERVES_LOTS_TIME, shuffleKey) {
+      workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
           s"primary partitions: ${primaryLocations.asScala.map(_.getUniqueId).mkString(",")}; " +
           s"replica partitions: ${replicaLocations.asScala.map(_.getUniqueId).mkString(",")}.")

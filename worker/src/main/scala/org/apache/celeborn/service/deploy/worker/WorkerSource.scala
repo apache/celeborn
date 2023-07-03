@@ -39,7 +39,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   // add Timers
   addTimer(COMMIT_FILES_TIME)
-  addTimer(RESERVES_LOTS_TIME)
+  addTimer(RESERVE_SLOTS_TIME)
   addTimer(FLUSH_DATA_TIME)
   addTimer(PRIMARY_PUSH_DATA_TIME)
   addTimer(REPLICA_PUSH_DATA_TIME)
@@ -62,7 +62,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
 object WorkerSource {
   val COMMIT_FILES_TIME = "CommitFilesTime"
-  val RESERVES_LOTS_TIME = "ReserveSlotsTime"
+  val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
   val FLUSH_DATA_TIME = "FlushDataTime"
   val OPEN_STREAM_TIME = "OpenStreamTime"
   val FETCH_CHUNK_TIME = "FetchChunkTime"
