@@ -254,7 +254,7 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.SortedFiles, _ => partitionsSorter.getSortedCount)
   workerSource.addGauge(WorkerSource.SortedFileSize, _ => partitionsSorter.getSortedSize)
   workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryManager.getDiskBufferCounter.get())
-  workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryManager.getNettyMemoryCounter.get())
+  workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryManager.getNettyUsedDirectMemory())
   workerSource.addGauge(WorkerSource.PausePushDataCount, _ => memoryManager.getPausePushDataCounter)
   workerSource.addGauge(
     WorkerSource.PausePushDataAndReplicateCount,

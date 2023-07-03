@@ -101,6 +101,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
   private final boolean pushExcludeWorkerOnFailureEnabled;
+  private final boolean shuffleCompressionEnabled;
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -164,6 +165,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
+    shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -834,19 +836,22 @@ public class ShuffleClientImpl extends ShuffleClient {
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
 
-    // compress data
-    final Compressor compressor = compressorThreadLocal.get();
-    compressor.compress(data, offset, length);
+    if (shuffleCompressionEnabled) {
+      // compress data
+      final Compressor compressor = compressorThreadLocal.get();
+      compressor.compress(data, offset, length);
 
-    final int compressedTotalSize = compressor.getCompressedTotalSize();
+      data = compressor.getCompressedBuffer();
+      offset = 0;
+      length = compressor.getCompressedTotalSize();
+    }
 
-    final byte[] body = new byte[BATCH_HEADER_SIZE + compressedTotalSize];
+    final byte[] body = new byte[BATCH_HEADER_SIZE + length];
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, mapId);
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, attemptId);
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 8, nextBatchId);
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, compressedTotalSize);
-    System.arraycopy(
-        compressor.getCompressedBuffer(), 0, body, BATCH_HEADER_SIZE, compressedTotalSize);
+    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, length);
+    System.arraycopy(data, offset, body, BATCH_HEADER_SIZE, length);
 
     if (doPush) {
       // check limit

@@ -2939,11 +2939,14 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.compression.codec")
       .withAlternative("remote-shuffle.job.compression.codec")
       .categories("client")
-      .doc("The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`.")
+      .doc("The codec used to compress shuffle data. By default, Celeborn provides three codecs: `lz4`, `zstd`, `none`.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set(CompressionCodec.LZ4.name, CompressionCodec.ZSTD.name))
+      .checkValues(Set(
+        CompressionCodec.LZ4.name,
+        CompressionCodec.ZSTD.name,
+        CompressionCodec.NONE.name))
       .createWithDefault(CompressionCodec.LZ4.name)
 
   val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =

@@ -15,22 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.protocol;
+package org.apache.celeborn.service.deploy.cluster
 
-public class RpcNameConstants {
-  // For Master
-  public static String MASTER_SYS = "MasterSys";
+import org.apache.celeborn.common.protocol.CompressionCodec
 
-  // Master Endpoint Name
-  public static String MASTER_EP = "MasterEndpoint";
+class ClusterReadWriteTestWithNONE extends ReadWriteTestBase {
 
-  // For Worker
-  public static String WORKER_SYS = "WorkerSys";
+  test(s"test MiniCluster With NONE") {
+    testReadWriteByCode(CompressionCodec.NONE)
+  }
 
-  // Worker Endpoint Name
-  public static String WORKER_EP = "WorkerEndpoint";
-
-  // For Driver(SparkShuffleManager)
-  public static String LIFECYCLE_MANAGER_EP = "LifecycleManagerEndpoint";
-  public static String LIFECYCLE_MANAGER_SYS = "LifecycleManagerSys";
 }

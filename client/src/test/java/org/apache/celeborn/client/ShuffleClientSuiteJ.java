@@ -105,11 +105,14 @@ public class ShuffleClientSuiteJ {
               1,
               1);
 
-      Compressor compressor = Compressor.getCompressor(conf);
-      compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
-      final int compressedTotalSize = compressor.getCompressedTotalSize();
-
-      assert (pushDataLen == compressedTotalSize + BATCH_HEADER_SIZE);
+      if (codec.equals(CompressionCodec.NONE)) {
+        assert (pushDataLen == TEST_BUF1.length + BATCH_HEADER_SIZE);
+      } else {
+        Compressor compressor = Compressor.getCompressor(conf);
+        compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
+        final int compressedTotalSize = compressor.getCompressedTotalSize();
+        assert (pushDataLen == compressedTotalSize + BATCH_HEADER_SIZE);
+      }
     }
   }
 
@@ -130,22 +133,14 @@ public class ShuffleClientSuiteJ {
               1,
               1);
 
-      Compressor compressor = Compressor.getCompressor(conf);
-      compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
-      final int compressedTotalSize = compressor.getCompressedTotalSize();
-
-      shuffleClient.mergeData(
-          TEST_SHUFFLE_ID,
-          TEST_ATTEMPT_ID,
-          TEST_ATTEMPT_ID,
-          TEST_REDUCRE_ID,
-          TEST_BUF1,
-          0,
-          TEST_BUF1.length,
-          1,
-          1);
-
-      assert (mergeSize == compressedTotalSize + BATCH_HEADER_SIZE);
+      if (codec.equals(CompressionCodec.NONE)) {
+        assert (mergeSize == TEST_BUF1.length + BATCH_HEADER_SIZE);
+      } else {
+        Compressor compressor = Compressor.getCompressor(conf);
+        compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
+        final int compressedTotalSize = compressor.getCompressedTotalSize();
+        assert (mergeSize == compressedTotalSize + BATCH_HEADER_SIZE);
+      }
 
       byte[] buf1k = RandomStringUtils.random(4000).getBytes(StandardCharsets.UTF_8);
       int largeMergeSize =
@@ -160,11 +155,14 @@ public class ShuffleClientSuiteJ {
               1,
               1);
 
-      compressor = Compressor.getCompressor(conf);
-      compressor.compress(buf1k, 0, buf1k.length);
-      int compressedTotalSize1 = compressor.getCompressedTotalSize();
-
-      assert (largeMergeSize == compressedTotalSize1 + BATCH_HEADER_SIZE);
+      if (codec.equals(CompressionCodec.NONE)) {
+        assert (largeMergeSize == buf1k.length + BATCH_HEADER_SIZE);
+      } else {
+        Compressor compressor = Compressor.getCompressor(conf);
+        compressor.compress(buf1k, 0, buf1k.length);
+        final int compressedTotalSize = compressor.getCompressedTotalSize();
+        assert (largeMergeSize == compressedTotalSize + BATCH_HEADER_SIZE);
+      }
     }
   }
 

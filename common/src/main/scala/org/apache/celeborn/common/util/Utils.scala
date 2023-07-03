@@ -17,25 +17,24 @@
 
 package org.apache.celeborn.common.util
 
-import java.io.{File, FileInputStream, InputStreamReader, IOException}
+import java.io.{File, FileInputStream, InputStream, InputStreamReader, IOException}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
-import java.text.SimpleDateFormat
 import java.util
 import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.io.Source
 import scala.reflect.ClassTag
 import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
-import com.google.common.net.InetAddresses
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
@@ -647,6 +646,73 @@ object Utils extends Logging {
     val cmds = Array("/bin/sh", "-c", cmd)
     val process = Runtime.getRuntime.exec(cmds)
     readProcessStdout(process)
+  }
+
+  /**
+   * Execute a command and return the process running the command.
+   */
+  def executeCommand(
+      command: Seq[String],
+      workingDir: File = new File("."),
+      extraEnvironment: Map[String, String] = Map.empty,
+      redirectStderr: Boolean = true): Process = {
+    val builder = new ProcessBuilder(command: _*).directory(workingDir)
+    val environment = builder.environment()
+    for ((key, value) <- extraEnvironment) {
+      environment.put(key, value)
+    }
+    val process = builder.start()
+    if (redirectStderr) {
+      val threadName = "redirect stderr for command " + command.head
+
+      def log(s: String): Unit = logInfo(s)
+
+      processStreamByLine(threadName, process.getErrorStream, log)
+    }
+    process
+  }
+
+  /**
+   * Execute a command and get its output, throwing an exception if it yields a code other than 0.
+   */
+  def executeAndGetOutput(
+      command: Seq[String],
+      workingDir: File = new File("."),
+      extraEnvironment: Map[String, String] = Map.empty,
+      redirectStderr: Boolean = true): String = {
+    val process = executeCommand(command, workingDir, extraEnvironment, redirectStderr)
+    val output = new StringBuilder
+    val threadName = "read stdout for " + command.head
+
+    def appendToOutput(s: String): Unit = output.append(s).append("\n")
+
+    val stdoutThread = processStreamByLine(threadName, process.getInputStream, appendToOutput)
+    val exitCode = process.waitFor()
+    stdoutThread.join() // Wait for it to finish reading output
+    if (exitCode != 0) {
+      logError(s"Process $command exited with code $exitCode: $output")
+      throw new CelebornException(s"Process $command exited with code $exitCode")
+    }
+    output.toString
+  }
+
+  /**
+   * Return and start a daemon thread that processes the content of the input stream line by line.
+   */
+  def processStreamByLine(
+      threadName: String,
+      inputStream: InputStream,
+      processLine: String => Unit): Thread = {
+    val t = new Thread(threadName) {
+      override def run(): Unit = {
+        for (line <- Source.fromInputStream(inputStream).getLines()) {
+          processLine(line)
+        }
+      }
+    }
+    t.setDaemon(true)
+    t.start()
+    t
   }
 
   /**

@@ -233,7 +233,10 @@ Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 #### Spark Configuration
 To use Celeborn,the following spark configurations should be added.
 ```properties
-spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
+# Shuffle manager class name changed in 0.3.0:
+#   before 0.3.0: org.apache.spark.shuffle.celeborn.RssShuffleManager
+#    since 0.3.0: org.apache.spark.shuffle.celeborn.SparkShuffleManager
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
 
@@ -295,9 +298,9 @@ See more detail in [CONFIGURATIONS](docs/configuration.md)
 
 ### Support Spark Dynamic Allocation
 We provide a patch to enable users to use Spark with both Dynamic Resource Allocation(DRA) and Celeborn.
-For Spark2.x check [Spark2 Patch](assets/spark-patch/RSS_DRA_spark2.patch).  
-For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_DRA_spark3.patch).
-For Spark3.4 check [Spark3 Patch](assets/spark-patch/RSS_DRA_spark3_4.patch).
+For Spark2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).  
+For Spark3.x check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3.patch).
+For Spark3.4 check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_4.patch).
 
 ### Metrics
 Celeborn has various metrics. [METRICS](METRICS.md)

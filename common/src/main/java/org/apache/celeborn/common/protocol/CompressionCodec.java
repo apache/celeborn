@@ -19,5 +19,6 @@ package org.apache.celeborn.common.protocol;
 
 public enum CompressionCodec {
   LZ4,
-  ZSTD;
+  ZSTD,
+  NONE;
 }
