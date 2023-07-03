@@ -29,7 +29,7 @@ trait CelebornCompressibleColumnBuilder[T <: AtomicType]
 
   this: CelebornNativeColumnBuilder[T] with WithCelebornCompressionSchemes =>
 
-  var compressionEncoder: Encoder[T] = CelebornPassThrough$.encoder(columnType)
+  var compressionEncoder: Encoder[T] = CelebornPassThrough.encoder(columnType)
 
   def init(encoder: Encoder[T]): Unit = {
     compressionEncoder = encoder
@@ -65,7 +65,7 @@ trait CelebornCompressibleColumnBuilder[T <: AtomicType]
     val nonNullBuffer = buildNonNulls()
     val encoder: Encoder[T] = {
       if (isWorthCompressing(compressionEncoder)) compressionEncoder
-      else CelebornPassThrough$.encoder(columnType)
+      else CelebornPassThrough.encoder(columnType)
     }
 
     // Header = null count + null positions
@@ -92,7 +92,7 @@ trait CelebornCompressibleColumnBuilder[T <: AtomicType]
   override def getTotalSize: Long = {
     val encoder: Encoder[T] = {
       if (isWorthCompressing(compressionEncoder)) compressionEncoder
-      else CelebornPassThrough$.encoder(columnType)
+      else CelebornPassThrough.encoder(columnType)
     }
     if (encoder.compressedSize == 0) {
       4 + 4 + columnStats.sizeInBytes

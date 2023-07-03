@@ -50,12 +50,12 @@ class CelebornColumnarBatchBuilder(
     if (nativeColumnType == null) {
       null
     } else {
-      if (encodingEnabled && CelebornDictionaryEncoding$.supports(nativeColumnType)) {
-        CelebornDictionaryEncoding$.MAX_DICT_SIZE =
+      if (encodingEnabled && CelebornDictionaryEncoding.supports(nativeColumnType)) {
+        CelebornDictionaryEncoding.MAX_DICT_SIZE =
           Math.min(Short.MaxValue, batchSize * maxDictFactor).toShort
-        CelebornDictionaryEncoding$.encoder(nativeColumnType)
+        CelebornDictionaryEncoding.encoder(nativeColumnType)
       } else {
-        CelebornPassThrough$.encoder(nativeColumnType)
+        CelebornPassThrough.encoder(nativeColumnType)
       }
     }
   }.toArray
@@ -69,7 +69,7 @@ class CelebornColumnarBatchBuilder(
     columnBuilders = schema.map { attribute =>
       i += 1
       encodersArr(i) match {
-        case encoder: CelebornDictionaryEncoding$.CelebornEncoder[_] if !encoder.overflow =>
+        case encoder: CelebornDictionaryEncoding.CelebornEncoder[_] if !encoder.overflow =>
           encoder.cleanBatch
         case _ =>
       }

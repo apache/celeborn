@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-case object CelebornPassThrough$ extends CelebornCompressionScheme {
+case object CelebornPassThrough extends CelebornCompressionScheme {
   override val typeId = 0
 
   override def supports(columnType: CelebornColumnType[_]): Boolean = true
@@ -50,7 +50,7 @@ case object CelebornPassThrough$ extends CelebornCompressionScheme {
 
     override def compress(from: ByteBuffer, to: ByteBuffer): ByteBuffer = {
       // Writes compression type ID and copies raw contents
-      to.putInt(CelebornPassThrough$.typeId).put(from).rewind()
+      to.putInt(CelebornPassThrough.typeId).put(from).rewind()
       to
     }
   }
@@ -243,7 +243,7 @@ case object CelebornPassThrough$ extends CelebornCompressionScheme {
   }
 }
 
-case object CelebornDictionaryEncoding$ extends CelebornCompressionScheme {
+case object CelebornDictionaryEncoding extends CelebornCompressionScheme {
   override val typeId = 1
 
   // 32K unique values allowed
@@ -314,7 +314,7 @@ case object CelebornDictionaryEncoding$ extends CelebornCompressionScheme {
     }
 
     override def compress(from: ByteBuffer, to: ByteBuffer): ByteBuffer = {
-      to.putInt(CelebornDictionaryEncoding$.typeId)
+      to.putInt(CelebornDictionaryEncoding.typeId)
         .putInt(dictionary.size)
 
       var i = 0

@@ -67,7 +67,7 @@ trait AllCelebornCompressionSchemes extends WithCelebornCompressionSchemes {
 
 object CelebornCompressionScheme {
   val all: Seq[CelebornCompressionScheme] =
-    Seq(CelebornPassThrough$, CelebornDictionaryEncoding$)
+    Seq(CelebornPassThrough, CelebornDictionaryEncoding)
 
   private val typeIdToScheme = all.map(scheme => scheme.typeId -> scheme).toMap
 
