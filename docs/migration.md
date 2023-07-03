@@ -25,7 +25,7 @@ license: |
    Note that: It's strongly recommended to use the same version of Client and Celeborn Master/Worker in production.
 
  - Since 0.3.0, the support of deprecated configurations `rss.*` is removed.
-   All configurations listed in 0.2.1 docs still take affects, but some of those are deprecated too, please read
+   All configurations listed in 0.2.1 docs still take effect, but some of those are deprecated too, please read
    the bootstrap logs and follow the suggestion to migrate to the new configuration.
 
  - From 0.3.0 on the default value for `celeborn.client.push.replicate.enabled` is changed from `true` to `false`, users
