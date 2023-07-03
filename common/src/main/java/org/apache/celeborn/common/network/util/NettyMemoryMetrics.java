@@ -91,12 +91,12 @@ public class NettyMemoryMetrics {
       logger.debug("setup netty metrics");
       source.addGauge(
           MetricRegistry.name(metricPrefix, "usedHeapMemory"),
-          pooledAllocatorMetric::usedHeapMemory,
-          labels);
+          labels,
+          pooledAllocatorMetric::usedHeapMemory);
       source.addGauge(
           MetricRegistry.name(metricPrefix, "usedDirectMemory"),
-          pooledAllocatorMetric::usedDirectMemory,
-          labels);
+          labels,
+          pooledAllocatorMetric::usedDirectMemory);
       if (verboseMetricsEnabled) {
         int directArenaIndex = 0;
         for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
@@ -133,26 +133,26 @@ public class NettyMemoryMetrics {
       if (returnType.equals(int.class)) {
         source.addGauge(
             metricName,
+            labels,
             () -> {
               try {
                 return (Integer) m.invoke(arenaMetric);
               } catch (Exception e) {
                 return -1; // Swallow the exceptions.
               }
-            },
-            labels);
+            });
 
       } else if (returnType.equals(long.class)) {
         source.addGauge(
             metricName,
+            labels,
             () -> {
               try {
                 return (Long) m.invoke(arenaMetric);
               } catch (Exception e) {
                 return -1L; // Swallow the exceptions.
               }
-            },
-            labels);
+            });
       }
     }
   }

@@ -38,10 +38,8 @@ class PrometheusServlet(
     new PrometheusHttpRequestHandler(servletPath, this)
   }
 
-  def getMetricsSnapshot(): String = {
-    val sb = new StringBuilder()
-    sources.foreach(source => sb.append(source.getMetrics()))
-    sb.toString()
+  def getMetricsSnapshot: String = {
+    sources.map(_.getMetrics).mkString
   }
 
   override def start(): Unit = {}
@@ -57,10 +55,10 @@ class PrometheusHttpRequestHandler(
     prometheusServlet: PrometheusServlet) extends Logging {
 
   def handleRequest(uri: String): String = {
-    uri match {
-      case `path` =>
-        prometheusServlet.getMetricsSnapshot()
-      case _ => s"Unknown uri ${uri}!"
+    if (uri == path) {
+      prometheusServlet.getMetricsSnapshot
+    } else {
+      s"Unknown path $uri!"
     }
   }
 }
