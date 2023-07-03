@@ -89,7 +89,7 @@ class CelebornBasicColumnBuilder[JvmType](
 }
 
 class CelebornNullColumnBuilder
-  extends CelebornBasicColumnBuilder[Any](new CelebornObjectColumnStats(NullType), Celeborn_NULL$)
+  extends CelebornBasicColumnBuilder[Any](new CelebornObjectColumnStats(NullType), CELEBORN_NULL)
   with CelebornNullableColumnBuilder
 
 abstract class CelebornComplexColumnBuilder[JvmType](
@@ -107,159 +107,159 @@ abstract class CelebornNativeColumnBuilder[T <: AtomicType](
   with CelebornCompressibleColumnBuilder[T]
 
 class CelebornBooleanColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornBooleanColumnStats, Celeborn_BOOLEAN$)
+  extends CelebornNativeColumnBuilder(new CelebornBooleanColumnStats, CELEBORN_BOOLEAN)
 
 class CelebornByteColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornByteColumnStats, Celeborn_BYTE$)
+  extends CelebornNativeColumnBuilder(new CelebornByteColumnStats, CELEBORN_BYTE)
 
 class CelebornShortColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornShortColumnStats, Celeborn_SHORT$)
+  extends CelebornNativeColumnBuilder(new CelebornShortColumnStats, CELEBORN_SHORT)
 
 class CelebornIntColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornIntColumnStats, Celeborn_INT$)
+  extends CelebornNativeColumnBuilder(new CelebornIntColumnStats, CELEBORN_INT)
 
 class CelebornLongColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornLongColumnStats, Celeborn_LONG$)
+  extends CelebornNativeColumnBuilder(new CelebornLongColumnStats, CELEBORN_LONG)
 
 class CelebornFloatColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornFloatColumnStats, Celeborn_FLOAT$)
+  extends CelebornNativeColumnBuilder(new CelebornFloatColumnStats, CELEBORN_FLOAT)
 
 class CelebornDoubleColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornDoubleColumnStats, Celeborn_DOUBLE$)
+  extends CelebornNativeColumnBuilder(new CelebornDoubleColumnStats, CELEBORN_DOUBLE)
 
 class CelebornStringColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornStringColumnStats, Celeborn_STRING$)
+  extends CelebornNativeColumnBuilder(new CelebornStringColumnStats, CELEBORN_STRING)
 
 class CelebornCompactMiniDecimalColumnBuilder(dataType: DecimalType)
   extends CelebornNativeColumnBuilder(
     new CelebornDecimalColumnStats(dataType),
-    Celeborn_COMPACT_MINI_DECIMAL(dataType))
+    CELEBORN_COMPACT_MINI_DECIMAL(dataType))
 
 class CelebornCompactDecimalColumnBuilder(dataType: DecimalType)
   extends CelebornNativeColumnBuilder(
     new CelebornDecimalColumnStats(dataType),
-    Celeborn_COMPACT_DECIMAL(dataType))
+    CELEBORN_COMPACT_DECIMAL(dataType))
 
 class CelebornDecimalColumnBuilder(dataType: DecimalType)
   extends CelebornComplexColumnBuilder(
     new CelebornDecimalColumnStats(dataType),
-    Celeborn_LARGE_DECIMAL(dataType))
+    CELEBORN_LARGE_DECIMAL(dataType))
 
 class CelebornBooleanCodeGenColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornBooleanColumnStats, Celeborn_BOOLEAN$) {
+  extends CelebornNativeColumnBuilder(new CelebornBooleanColumnStats, CELEBORN_BOOLEAN) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_BOOLEAN$.actualSize(row, ordinal))
-      Celeborn_BOOLEAN$.append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_BOOLEAN.actualSize(row, ordinal))
+      CELEBORN_BOOLEAN.append(row, ordinal, buffer)
     }
     pos += 1
   }
 }
 
 class CelebornByteCodeGenColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornByteColumnStats, Celeborn_BYTE$) {
+  extends CelebornNativeColumnBuilder(new CelebornByteColumnStats, CELEBORN_BYTE) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_BYTE$.actualSize(row, ordinal))
-      Celeborn_BYTE$.append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_BYTE.actualSize(row, ordinal))
+      CELEBORN_BYTE.append(row, ordinal, buffer)
     }
     pos += 1
   }
 }
 
 class CelebornShortCodeGenColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornShortColumnStats, Celeborn_SHORT$) {
+  extends CelebornNativeColumnBuilder(new CelebornShortColumnStats, CELEBORN_SHORT) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_SHORT$.actualSize(row, ordinal))
-      Celeborn_SHORT$.append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_SHORT.actualSize(row, ordinal))
+      CELEBORN_SHORT.append(row, ordinal, buffer)
     }
     pos += 1
   }
 }
 
 class CelebornIntCodeGenColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornIntColumnStats, Celeborn_INT$) {
+  extends CelebornNativeColumnBuilder(new CelebornIntColumnStats, CELEBORN_INT) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_INT$.actualSize(row, ordinal))
-      Celeborn_INT$.append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_INT.actualSize(row, ordinal))
+      CELEBORN_INT.append(row, ordinal, buffer)
     }
     pos += 1
   }
 }
 
 class CelebornLongCodeGenColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornLongColumnStats, Celeborn_LONG$) {
+  extends CelebornNativeColumnBuilder(new CelebornLongColumnStats, CELEBORN_LONG) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_LONG$.actualSize(row, ordinal))
-      Celeborn_LONG$.append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_LONG.actualSize(row, ordinal))
+      CELEBORN_LONG.append(row, ordinal, buffer)
     }
     pos += 1
   }
 }
 
 class CelebornFloatCodeGenColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornFloatColumnStats, Celeborn_FLOAT$) {
+  extends CelebornNativeColumnBuilder(new CelebornFloatColumnStats, CELEBORN_FLOAT) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_FLOAT$.actualSize(row, ordinal))
-      Celeborn_FLOAT$.append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_FLOAT.actualSize(row, ordinal))
+      CELEBORN_FLOAT.append(row, ordinal, buffer)
     }
     pos += 1
   }
 }
 
 class CelebornDoubleCodeGenColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornDoubleColumnStats, Celeborn_DOUBLE$) {
+  extends CelebornNativeColumnBuilder(new CelebornDoubleColumnStats, CELEBORN_DOUBLE) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_DOUBLE$.actualSize(row, ordinal))
-      Celeborn_DOUBLE$.append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_DOUBLE.actualSize(row, ordinal))
+      CELEBORN_DOUBLE.append(row, ordinal, buffer)
     }
     pos += 1
   }
 }
 
 class CelebornStringCodeGenColumnBuilder
-  extends CelebornNativeColumnBuilder(new CelebornStringColumnStats, Celeborn_STRING$) {
+  extends CelebornNativeColumnBuilder(new CelebornStringColumnStats, CELEBORN_STRING) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_STRING$.actualSize(row, ordinal))
-      Celeborn_STRING$.append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_STRING.actualSize(row, ordinal))
+      CELEBORN_STRING.append(row, ordinal, buffer)
     }
     pos += 1
   }
@@ -268,15 +268,15 @@ class CelebornStringCodeGenColumnBuilder
 class CelebornCompactDecimalCodeGenColumnBuilder(dataType: DecimalType)
   extends CelebornNativeColumnBuilder(
     new CelebornDecimalColumnStats(dataType),
-    Celeborn_COMPACT_DECIMAL(dataType)) {
+    CELEBORN_COMPACT_DECIMAL(dataType)) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_COMPACT_DECIMAL(dataType).actualSize(row, ordinal))
-      Celeborn_COMPACT_DECIMAL(dataType).append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_COMPACT_DECIMAL(dataType).actualSize(row, ordinal))
+      CELEBORN_COMPACT_DECIMAL(dataType).append(row, ordinal, buffer)
     }
     pos += 1
   }
@@ -285,7 +285,7 @@ class CelebornCompactDecimalCodeGenColumnBuilder(dataType: DecimalType)
 class CelebornCompactMiniDecimalCodeGenColumnBuilder(dataType: DecimalType)
   extends CelebornNativeColumnBuilder(
     new CelebornDecimalColumnStats(dataType),
-    Celeborn_COMPACT_MINI_DECIMAL(dataType)) {
+    CELEBORN_COMPACT_MINI_DECIMAL(dataType)) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
@@ -293,8 +293,8 @@ class CelebornCompactMiniDecimalCodeGenColumnBuilder(dataType: DecimalType)
       nullCount += 1
     } else {
       buffer =
-        ensureFreeSpace(buffer, Celeborn_COMPACT_MINI_DECIMAL(dataType).actualSize(row, ordinal))
-      Celeborn_COMPACT_MINI_DECIMAL(dataType).append(row, ordinal, buffer)
+        ensureFreeSpace(buffer, CELEBORN_COMPACT_MINI_DECIMAL(dataType).actualSize(row, ordinal))
+      CELEBORN_COMPACT_MINI_DECIMAL(dataType).append(row, ordinal, buffer)
     }
     pos += 1
   }
@@ -303,15 +303,15 @@ class CelebornCompactMiniDecimalCodeGenColumnBuilder(dataType: DecimalType)
 class CelebornDecimalCodeGenColumnBuilder(dataType: DecimalType)
   extends CelebornComplexColumnBuilder(
     new CelebornDecimalColumnStats(dataType),
-    Celeborn_LARGE_DECIMAL(dataType)) {
+    CELEBORN_LARGE_DECIMAL(dataType)) {
   override def appendFrom(row: InternalRow, ordinal: Int): Unit = {
     if (row.isNullAt(ordinal)) {
       nulls = CelebornColumnBuilder.ensureFreeSpace(nulls, 4)
       nulls.putInt(pos)
       nullCount += 1
     } else {
-      buffer = ensureFreeSpace(buffer, Celeborn_LARGE_DECIMAL(dataType).actualSize(row, ordinal))
-      Celeborn_LARGE_DECIMAL(dataType).append(row, ordinal, buffer)
+      buffer = ensureFreeSpace(buffer, CELEBORN_LARGE_DECIMAL(dataType).actualSize(row, ordinal))
+      CELEBORN_LARGE_DECIMAL(dataType).append(row, ordinal, buffer)
     }
     pos += 1
   }

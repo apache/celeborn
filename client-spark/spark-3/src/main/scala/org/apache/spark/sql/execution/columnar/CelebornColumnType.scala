@@ -177,7 +177,7 @@ sealed abstract private[columnar] class CelebornColumnType[JvmType] {
   override def toString: String = getClass.getSimpleName.stripSuffix("$")
 }
 
-private[columnar] object Celeborn_NULL$ extends CelebornColumnType[Any] {
+private[columnar] object CELEBORN_NULL extends CelebornColumnType[Any] {
 
   override def dataType: DataType = NullType
   override def defaultSize: Int = 0
@@ -198,7 +198,7 @@ abstract private[columnar] class NativeCelebornColumnType[T <: AtomicType](
   def scalaTag: TypeTag[dataType.InternalType] = dataType.tag
 }
 
-private[columnar] object Celeborn_INT$ extends NativeCelebornColumnType(IntegerType, 4) {
+private[columnar] object CELEBORN_INT extends NativeCelebornColumnType(IntegerType, 4) {
   override def append(v: Int, buffer: ByteBuffer): Unit = {
     buffer.putInt(v)
   }
@@ -230,7 +230,7 @@ private[columnar] object Celeborn_INT$ extends NativeCelebornColumnType(IntegerT
   }
 }
 
-private[columnar] object Celeborn_LONG$ extends NativeCelebornColumnType(LongType, 8) {
+private[columnar] object CELEBORN_LONG extends NativeCelebornColumnType(LongType, 8) {
   override def append(v: Long, buffer: ByteBuffer): Unit = {
     buffer.putLong(v)
   }
@@ -262,7 +262,7 @@ private[columnar] object Celeborn_LONG$ extends NativeCelebornColumnType(LongTyp
   }
 }
 
-private[columnar] object Celeborn_FLOAT$ extends NativeCelebornColumnType(FloatType, 4) {
+private[columnar] object CELEBORN_FLOAT extends NativeCelebornColumnType(FloatType, 4) {
   override def append(v: Float, buffer: ByteBuffer): Unit = {
     buffer.putFloat(v)
   }
@@ -294,7 +294,7 @@ private[columnar] object Celeborn_FLOAT$ extends NativeCelebornColumnType(FloatT
   }
 }
 
-private[columnar] object Celeborn_DOUBLE$ extends NativeCelebornColumnType(DoubleType, 8) {
+private[columnar] object CELEBORN_DOUBLE extends NativeCelebornColumnType(DoubleType, 8) {
   override def append(v: Double, buffer: ByteBuffer): Unit = {
     buffer.putDouble(v)
   }
@@ -326,7 +326,7 @@ private[columnar] object Celeborn_DOUBLE$ extends NativeCelebornColumnType(Doubl
   }
 }
 
-private[columnar] object Celeborn_BOOLEAN$ extends NativeCelebornColumnType(BooleanType, 1) {
+private[columnar] object CELEBORN_BOOLEAN extends NativeCelebornColumnType(BooleanType, 1) {
   override def append(v: Boolean, buffer: ByteBuffer): Unit = {
     buffer.put(if (v) 1: Byte else 0: Byte)
   }
@@ -356,7 +356,7 @@ private[columnar] object Celeborn_BOOLEAN$ extends NativeCelebornColumnType(Bool
   }
 }
 
-private[columnar] object Celeborn_BYTE$ extends NativeCelebornColumnType(ByteType, 1) {
+private[columnar] object CELEBORN_BYTE extends NativeCelebornColumnType(ByteType, 1) {
   override def append(v: Byte, buffer: ByteBuffer): Unit = {
     buffer.put(v)
   }
@@ -388,7 +388,7 @@ private[columnar] object Celeborn_BYTE$ extends NativeCelebornColumnType(ByteTyp
   }
 }
 
-private[columnar] object Celeborn_SHORT$ extends NativeCelebornColumnType(ShortType, 2) {
+private[columnar] object CELEBORN_SHORT extends NativeCelebornColumnType(ShortType, 2) {
   override def append(v: Short, buffer: ByteBuffer): Unit = {
     buffer.putShort(v)
   }
@@ -452,7 +452,7 @@ private[columnar] trait DirectCopyCelebornColumnType[JvmType] extends CelebornCo
   }
 }
 
-private[columnar] object Celeborn_STRING$
+private[columnar] object CELEBORN_STRING
   extends NativeCelebornColumnType(StringType, 8) with DirectCopyCelebornColumnType[UTF8String] {
 
   override def actualSize(row: InternalRow, ordinal: Int): Int = {
@@ -494,7 +494,7 @@ private[columnar] object Celeborn_STRING$
   override def clone(v: UTF8String): UTF8String = v.clone()
 }
 
-private[columnar] case class Celeborn_COMPACT_DECIMAL(precision: Int, scale: Int)
+private[columnar] case class CELEBORN_COMPACT_DECIMAL(precision: Int, scale: Int)
   extends NativeCelebornColumnType(DecimalType(precision, scale), 8) {
 
   override def extract(buffer: ByteBuffer): Decimal = {
@@ -540,7 +540,7 @@ private[columnar] case class Celeborn_COMPACT_DECIMAL(precision: Int, scale: Int
   }
 }
 
-private[columnar] case class Celeborn_COMPACT_MINI_DECIMAL(precision: Int, scale: Int)
+private[columnar] case class CELEBORN_COMPACT_MINI_DECIMAL(precision: Int, scale: Int)
   extends NativeCelebornColumnType(DecimalType(precision, scale), 4) {
 
   override def extract(buffer: ByteBuffer): Decimal = {
@@ -586,15 +586,15 @@ private[columnar] case class Celeborn_COMPACT_MINI_DECIMAL(precision: Int, scale
   }
 }
 
-private[columnar] object Celeborn_COMPACT_DECIMAL {
-  def apply(dt: DecimalType): Celeborn_COMPACT_DECIMAL = {
-    Celeborn_COMPACT_DECIMAL(dt.precision, dt.scale)
+private[columnar] object CELEBORN_COMPACT_DECIMAL {
+  def apply(dt: DecimalType): CELEBORN_COMPACT_DECIMAL = {
+    CELEBORN_COMPACT_DECIMAL(dt.precision, dt.scale)
   }
 }
 
-private[columnar] object Celeborn_COMPACT_MINI_DECIMAL {
-  def apply(dt: DecimalType): Celeborn_COMPACT_MINI_DECIMAL = {
-    Celeborn_COMPACT_MINI_DECIMAL(dt.precision, dt.scale)
+private[columnar] object CELEBORN_COMPACT_MINI_DECIMAL {
+  def apply(dt: DecimalType): CELEBORN_COMPACT_MINI_DECIMAL = {
+    CELEBORN_COMPACT_MINI_DECIMAL(dt.precision, dt.scale)
   }
 }
 
@@ -617,7 +617,7 @@ sealed abstract private[columnar] class ByteArrayCelebornColumnType[JvmType](val
   }
 }
 
-private[columnar] object Celeborn_BINARY$ extends ByteArrayCelebornColumnType[Array[Byte]](16) {
+private[columnar] object CELEBORN_BINARY extends ByteArrayCelebornColumnType[Array[Byte]](16) {
 
   def dataType: DataType = BinaryType
 
@@ -637,7 +637,7 @@ private[columnar] object Celeborn_BINARY$ extends ByteArrayCelebornColumnType[Ar
   def deserialize(bytes: Array[Byte]): Array[Byte] = bytes
 }
 
-private[columnar] case class Celeborn_LARGE_DECIMAL(precision: Int, scale: Int)
+private[columnar] case class CELEBORN_LARGE_DECIMAL(precision: Int, scale: Int)
   extends ByteArrayCelebornColumnType[Decimal](12) {
 
   override val dataType: DataType = DecimalType(precision, scale)
@@ -664,30 +664,30 @@ private[columnar] case class Celeborn_LARGE_DECIMAL(precision: Int, scale: Int)
   }
 }
 
-private[columnar] object Celeborn_LARGE_DECIMAL {
-  def apply(dt: DecimalType): Celeborn_LARGE_DECIMAL = {
-    Celeborn_LARGE_DECIMAL(dt.precision, dt.scale)
+private[columnar] object CELEBORN_LARGE_DECIMAL {
+  def apply(dt: DecimalType): CELEBORN_LARGE_DECIMAL = {
+    CELEBORN_LARGE_DECIMAL(dt.precision, dt.scale)
   }
 }
 
 private[columnar] object CelebornColumnType {
   def apply(dataType: DataType): CelebornColumnType[_] = {
     dataType match {
-      case NullType => Celeborn_NULL$
-      case BooleanType => Celeborn_BOOLEAN$
-      case ByteType => Celeborn_BYTE$
-      case ShortType => Celeborn_SHORT$
-      case IntegerType => Celeborn_INT$
-      case LongType => Celeborn_LONG$
-      case FloatType => Celeborn_FLOAT$
-      case DoubleType => Celeborn_DOUBLE$
-      case StringType => Celeborn_STRING$
-      case BinaryType => Celeborn_BINARY$
+      case NullType => CELEBORN_NULL
+      case BooleanType => CELEBORN_BOOLEAN
+      case ByteType => CELEBORN_BYTE
+      case ShortType => CELEBORN_SHORT
+      case IntegerType => CELEBORN_INT
+      case LongType => CELEBORN_LONG
+      case FloatType => CELEBORN_FLOAT
+      case DoubleType => CELEBORN_DOUBLE
+      case StringType => CELEBORN_STRING
+      case BinaryType => CELEBORN_BINARY
       case dt: DecimalType if dt.precision <= Decimal.MAX_INT_DIGITS =>
-        Celeborn_COMPACT_MINI_DECIMAL(dt)
+        CELEBORN_COMPACT_MINI_DECIMAL(dt)
       case dt: DecimalType if dt.precision <= Decimal.MAX_LONG_DIGITS =>
-        Celeborn_COMPACT_DECIMAL(dt)
-      case dt: DecimalType => Celeborn_LARGE_DECIMAL(dt)
+        CELEBORN_COMPACT_DECIMAL(dt)
+      case dt: DecimalType => CELEBORN_LARGE_DECIMAL(dt)
       case other => throw new Exception(s"Unsupported type: ${other.catalogString}")
     }
   }

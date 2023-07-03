@@ -31,17 +31,17 @@ class CelebornColumnarBatchBuilder(
   var rowCnt = 0
 
   val typeConversion: PartialFunction[DataType, NativeCelebornColumnType[_ <: AtomicType]] = {
-    case IntegerType => Celeborn_INT$
-    case LongType => Celeborn_LONG$
-    case StringType => Celeborn_STRING$
-    case BooleanType => Celeborn_BOOLEAN$
-    case ShortType => Celeborn_SHORT$
-    case ByteType => Celeborn_BYTE$
-    case FloatType => Celeborn_FLOAT$
-    case DoubleType => Celeborn_DOUBLE$
+    case IntegerType => CELEBORN_INT
+    case LongType => CELEBORN_LONG
+    case StringType => CELEBORN_STRING
+    case BooleanType => CELEBORN_BOOLEAN
+    case ShortType => CELEBORN_SHORT
+    case ByteType => CELEBORN_BYTE
+    case FloatType => CELEBORN_FLOAT
+    case DoubleType => CELEBORN_DOUBLE
     case dt: DecimalType if dt.precision <= Decimal.MAX_INT_DIGITS =>
-      Celeborn_COMPACT_MINI_DECIMAL(dt)
-    case dt: DecimalType if dt.precision <= Decimal.MAX_LONG_DIGITS => Celeborn_COMPACT_DECIMAL(dt)
+      CELEBORN_COMPACT_MINI_DECIMAL(dt)
+    case dt: DecimalType if dt.precision <= Decimal.MAX_LONG_DIGITS => CELEBORN_COMPACT_DECIMAL(dt)
     case _ => null
   }
 

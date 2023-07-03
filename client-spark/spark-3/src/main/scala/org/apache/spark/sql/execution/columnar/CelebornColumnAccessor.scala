@@ -65,7 +65,7 @@ abstract class CelebornBasicColumnAccessor[JvmType](
 }
 
 class CelebornNullColumnAccessor(buffer: ByteBuffer)
-  extends CelebornBasicColumnAccessor[Any](buffer, Celeborn_NULL$)
+  extends CelebornBasicColumnAccessor[Any](buffer, CELEBORN_NULL)
   with CelebornNullableColumnAccessor
 
 abstract class CelebornNativeColumnAccessor[T <: AtomicType](
@@ -76,34 +76,34 @@ abstract class CelebornNativeColumnAccessor[T <: AtomicType](
   with CelebornCompressibleColumnAccessor[T]
 
 class CelebornBooleanColumnAccessor(buffer: ByteBuffer)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_BOOLEAN$)
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_BOOLEAN)
 
 class CelebornByteColumnAccessor(buffer: ByteBuffer)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_BYTE$)
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_BYTE)
 
 class CelebornShortColumnAccessor(buffer: ByteBuffer)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_SHORT$)
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_SHORT)
 
 class CelebornIntColumnAccessor(buffer: ByteBuffer)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_INT$)
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_INT)
 
 class CelebornLongColumnAccessor(buffer: ByteBuffer)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_LONG$)
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_LONG)
 
 class CelebornFloatColumnAccessor(buffer: ByteBuffer)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_FLOAT$)
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_FLOAT)
 
 class CelebornDoubleColumnAccessor(buffer: ByteBuffer)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_DOUBLE$)
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_DOUBLE)
 
 class CelebornStringColumnAccessor(buffer: ByteBuffer)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_STRING$)
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_STRING)
 
 class CelebornCompactDecimalColumnAccessor(buffer: ByteBuffer, dataType: DecimalType)
-  extends CelebornNativeColumnAccessor(buffer, Celeborn_COMPACT_DECIMAL(dataType))
+  extends CelebornNativeColumnAccessor(buffer, CELEBORN_COMPACT_DECIMAL(dataType))
 
 class CelebornDecimalColumnAccessor(buffer: ByteBuffer, dataType: DecimalType)
-  extends CelebornBasicColumnAccessor[Decimal](buffer, Celeborn_LARGE_DECIMAL(dataType))
+  extends CelebornBasicColumnAccessor[Decimal](buffer, CELEBORN_LARGE_DECIMAL(dataType))
   with CelebornNullableColumnAccessor
 
 private[sql] object CelebornColumnAccessor {

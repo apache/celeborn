@@ -70,7 +70,7 @@ final private[columnar] class CelebornBooleanColumnStats extends CelebornColumnS
   def gatherValueStats(value: Boolean): Unit = {
     if (value > upper) upper = value
     if (value < lower) lower = value
-    sizeInBytes += Celeborn_BOOLEAN$.defaultSize
+    sizeInBytes += CELEBORN_BOOLEAN.defaultSize
     count += 1
   }
 
@@ -94,7 +94,7 @@ final private[columnar] class CelebornByteColumnStats extends CelebornColumnStat
   def gatherValueStats(value: Byte): Unit = {
     if (value > upper) upper = value
     if (value < lower) lower = value
-    sizeInBytes += Celeborn_BYTE$.defaultSize
+    sizeInBytes += CELEBORN_BYTE.defaultSize
     count += 1
   }
 
@@ -118,7 +118,7 @@ final private[columnar] class CelebornShortColumnStats extends CelebornColumnSta
   def gatherValueStats(value: Short): Unit = {
     if (value > upper) upper = value
     if (value < lower) lower = value
-    sizeInBytes += Celeborn_SHORT$.defaultSize
+    sizeInBytes += CELEBORN_SHORT.defaultSize
     count += 1
   }
 
@@ -142,7 +142,7 @@ final private[columnar] class CelebornIntColumnStats extends CelebornColumnStats
   def gatherValueStats(value: Int): Unit = {
     if (value > upper) upper = value
     if (value < lower) lower = value
-    sizeInBytes += Celeborn_INT$.defaultSize
+    sizeInBytes += CELEBORN_INT.defaultSize
     count += 1
   }
 
@@ -166,7 +166,7 @@ final private[columnar] class CelebornLongColumnStats extends CelebornColumnStat
   def gatherValueStats(value: Long): Unit = {
     if (value > upper) upper = value
     if (value < lower) lower = value
-    sizeInBytes += Celeborn_LONG$.defaultSize
+    sizeInBytes += CELEBORN_LONG.defaultSize
     count += 1
   }
 
@@ -190,7 +190,7 @@ final private[columnar] class CelebornFloatColumnStats extends CelebornColumnSta
   def gatherValueStats(value: Float): Unit = {
     if (value > upper) upper = value
     if (value < lower) lower = value
-    sizeInBytes += Celeborn_FLOAT$.defaultSize
+    sizeInBytes += CELEBORN_FLOAT.defaultSize
     count += 1
   }
 
@@ -214,7 +214,7 @@ final private[columnar] class CelebornDoubleColumnStats extends CelebornColumnSt
   def gatherValueStats(value: Double): Unit = {
     if (value > upper) upper = value
     if (value < lower) lower = value
-    sizeInBytes += Celeborn_DOUBLE$.defaultSize
+    sizeInBytes += CELEBORN_DOUBLE.defaultSize
     count += 1
   }
 
@@ -229,7 +229,7 @@ final private[columnar] class CelebornStringColumnStats extends CelebornColumnSt
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
       val value = row.getUTF8String(ordinal)
-      val size = Celeborn_STRING$.actualSize(row, ordinal)
+      val size = CELEBORN_STRING.actualSize(row, ordinal)
       gatherValueStats(value, size)
     } else {
       gatherNullStats
@@ -250,7 +250,7 @@ final private[columnar] class CelebornStringColumnStats extends CelebornColumnSt
 final private[columnar] class CelebornBinaryColumnStats extends CelebornColumnStats {
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
-      val size = Celeborn_BINARY$.actualSize(row, ordinal)
+      val size = CELEBORN_BINARY.actualSize(row, ordinal)
       sizeInBytes += size
       count += 1
     } else {

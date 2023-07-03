@@ -260,7 +260,7 @@ case object CelebornDictionaryEncoding$ extends CelebornCompressionScheme {
   }
 
   override def supports(columnType: CelebornColumnType[_]): Boolean = columnType match {
-    case Celeborn_INT$ | Celeborn_LONG$ | Celeborn_STRING$ => true
+    case CELEBORN_INT | CELEBORN_LONG | CELEBORN_STRING => true
     case _ => false
   }
 
