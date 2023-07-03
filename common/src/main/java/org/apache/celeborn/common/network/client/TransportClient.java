@@ -255,6 +255,10 @@ public class TransportClient implements Closeable {
     channel.writeAndFlush(new OneWayMessage(new NioManagedBuffer(message)));
   }
 
+  public void send(RequestMessageV2 message) {
+    channel.writeAndFlush(message);
+  }
+
   /**
    * Removes any state associated with the given RPC.
    *

@@ -91,7 +91,8 @@ public abstract class Message implements Encodable {
     BACKLOG_ANNOUNCEMENT(19),
     TRANSPORTABLE_ERROR(20),
     BUFFER_STREAM_END(21),
-    HEARTBEAT(22);
+    HEARTBEAT(22),
+    REQUEST_MESSAGE_V2(23);
     private final byte id;
 
     Type(int id) {
@@ -163,6 +164,8 @@ public abstract class Message implements Encodable {
           return BUFFER_STREAM_END;
         case 22:
           return HEARTBEAT;
+        case 23:
+          return REQUEST_MESSAGE_V2;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:
@@ -235,6 +238,9 @@ public abstract class Message implements Encodable {
 
       case HEARTBEAT:
         return new Heartbeat();
+
+      case REQUEST_MESSAGE_V2:
+        return RequestMessageV2.decode(in);
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);

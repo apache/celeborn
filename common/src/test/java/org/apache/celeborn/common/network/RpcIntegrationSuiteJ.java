@@ -20,6 +20,7 @@ package org.apache.celeborn.common.network;
 import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.Semaphore;
@@ -42,6 +43,8 @@ import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.RequestMessageType;
 import org.apache.celeborn.common.util.JavaUtils;
 
 public class RpcIntegrationSuiteJ {
@@ -60,6 +63,12 @@ public class RpcIntegrationSuiteJ {
         new BaseMessageHandler() {
           @Override
           public void receive(TransportClient client, RequestMessage message) {
+            if (message instanceof RequestMessageV2) {
+              RequestMessageV2 messageV2 = ((RequestMessageV2) message);
+              assert messageV2.getPayloadType() == RequestMessageType.OPEN_STREAM_VALUE;
+              PbOpenStream openStream = messageV2.getPayLoadMessage();
+              assert openStream.getFileName().equals("RequestMessageV2");
+            }
             if (message instanceof RpcRequest) {
               String msg;
               RpcRequest r = (RpcRequest) message;
@@ -245,6 +254,26 @@ public class RpcIntegrationSuiteJ {
 
       assertEquals(1, oneWayMsgs.size());
       assertEquals(message, oneWayMsgs.get(0));
+    } finally {
+      client.close();
+    }
+  }
+
+  @Test
+  public void testRequestMessageV2() throws IOException, InterruptedException {
+    PbOpenStream openStream = PbOpenStream.newBuilder().setFileName("RequestMessageV2").build();
+    RequestMessageV2 messageV2 =
+        new RequestMessageV2(RequestMessageType.OPEN_STREAM_VALUE, openStream.toByteArray());
+    TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
+    try {
+      client.send(messageV2);
+
+      // Make sure the message arrives.
+      long deadline = System.nanoTime() + TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS);
+      while (System.nanoTime() < deadline && oneWayMsgs.size() == 0) {
+        TimeUnit.MILLISECONDS.sleep(10);
+      }
+
     } finally {
       client.close();
     }
