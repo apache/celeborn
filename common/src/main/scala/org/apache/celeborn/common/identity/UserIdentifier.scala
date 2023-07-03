@@ -17,6 +17,10 @@
 
 package org.apache.celeborn.common.identity
 
+import java.util.{Map => JMap}
+
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 
@@ -29,6 +33,8 @@ case class UserIdentifier(tenantId: String, name: String) {
   def toMap: Map[String, String] = {
     Map("tenantId" -> tenantId, "name" -> name)
   }
+
+  def toJMap: JMap[String, String] = toMap.asJava
 
   override def toString: String = {
     s"`$tenantId`.`$name`"

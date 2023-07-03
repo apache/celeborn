@@ -26,102 +26,98 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   import WorkerSource._
   // add counters
-  addCounter(WriteDataFailCount)
-  addCounter(ReplicateDataFailCount)
-  addCounter(ReplicateDataWriteFailCount)
-  addCounter(ReplicateDataCreateConnectionFailCount)
-  addCounter(ReplicateDataConnectionExceptionCount)
-  addCounter(ReplicateDataTimeoutCount)
+  addCounter(WRITE_DATA_FAIL_COUNT)
+  addCounter(REPLICATE_DATA_FAIL_COUNT)
+  addCounter(REPLICATE_DATA_WRITE_FAIL_COUNT)
+  addCounter(REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+  addCounter(REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+  addCounter(REPLICATE_DATA_TIMEOUT_COUNT)
 
-  addCounter(PushDataHandshakeFailCount)
-  addCounter(RegionStartFailCount)
-  addCounter(RegionFinishFailCount)
+  addCounter(PUSH_DATA_HANDSHAKE_FAIL_COUNT)
+  addCounter(REGION_START_FAIL_COUNT)
+  addCounter(REGION_FINISH_FAIL_COUNT)
 
   // add Timers
-  addTimer(CommitFilesTime)
-  addTimer(ReserveSlotsTime)
-  addTimer(FlushDataTime)
-  addTimer(PrimaryPushDataTime)
-  addTimer(ReplicaPushDataTime)
+  addTimer(COMMIT_FILES_TIME)
+  addTimer(RESERVE_SLOTS_TIME)
+  addTimer(FLUSH_DATA_TIME)
+  addTimer(PRIMARY_PUSH_DATA_TIME)
+  addTimer(REPLICA_PUSH_DATA_TIME)
 
-  addTimer(PrimaryPushDataHandshakeTime)
-  addTimer(ReplicaPushDataHandshakeTime)
-  addTimer(PrimaryRegionStartTime)
-  addTimer(ReplicaRegionStartTime)
-  addTimer(PrimaryRegionFinishTime)
-  addTimer(ReplicaRegionFinishTime)
+  addTimer(PRIMARY_PUSH_DATA_HANDSHAKE_TIME)
+  addTimer(REPLICA_PUSH_DATA_HANDSHAKE_TIME)
+  addTimer(PRIMARY_REGION_START_TIME)
+  addTimer(REPLICA_REGION_START_TIME)
+  addTimer(PRIMARY_REGION_FINISH_TIME)
+  addTimer(REPLICA_REGION_FINISH_TIME)
 
-  addTimer(FetchChunkTime)
-  addTimer(OpenStreamTime)
-  addTimer(TakeBufferTime)
-  addTimer(SortTime)
+  addTimer(FETCH_CHUNK_TIME)
+  addTimer(OPEN_STREAM_TIME)
+  addTimer(TAKE_BUFFER_TIME)
+  addTimer(SORT_TIME)
 
   // start cleaner thread
   startCleaner()
 }
 
 object WorkerSource {
-  val CommitFilesTime = "CommitFilesTime"
-
-  val ReserveSlotsTime = "ReserveSlotsTime"
-
-  val FlushDataTime = "FlushDataTime"
-
-  val OpenStreamTime = "OpenStreamTime"
-
-  val FetchChunkTime = "FetchChunkTime"
+  val COMMIT_FILES_TIME = "CommitFilesTime"
+  val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
+  val FLUSH_DATA_TIME = "FlushDataTime"
+  val OPEN_STREAM_TIME = "OpenStreamTime"
+  val FETCH_CHUNK_TIME = "FetchChunkTime"
 
   // push data
-  val PrimaryPushDataTime = "PrimaryPushDataTime"
-  val ReplicaPushDataTime = "ReplicaPushDataTime"
-  val WriteDataFailCount = "WriteDataFailCount"
-  val ReplicateDataFailCount = "ReplicateDataFailCount"
-  val ReplicateDataWriteFailCount = "ReplicateDataWriteFailCount"
-  val ReplicateDataCreateConnectionFailCount = "ReplicateDataCreateConnectionFailCount"
-  val ReplicateDataConnectionExceptionCount = "ReplicateDataConnectionExceptionCount"
-  val ReplicateDataTimeoutCount = "ReplicateDataTimeoutCount"
-  val PushDataHandshakeFailCount = "PushDataHandshakeFailCount"
-  val RegionStartFailCount = "RegionStartFailCount"
-  val RegionFinishFailCount = "RegionFinishFailCount"
-  val PrimaryPushDataHandshakeTime = "PrimaryPushDataHandshakeTime"
-  val ReplicaPushDataHandshakeTime = "ReplicaPushDataHandshakeTime"
-  val PrimaryRegionStartTime = "PrimaryRegionStartTime"
-  val ReplicaRegionStartTime = "ReplicaRegionStartTime"
-  val PrimaryRegionFinishTime = "PrimaryRegionFinishTime"
-  val ReplicaRegionFinishTime = "ReplicaRegionFinishTime"
+  val PRIMARY_PUSH_DATA_TIME = "PrimaryPushDataTime"
+  val REPLICA_PUSH_DATA_TIME = "ReplicaPushDataTime"
+  val WRITE_DATA_FAIL_COUNT = "WriteDataFailCount"
+  val REPLICATE_DATA_FAIL_COUNT = "ReplicateDataFailCount"
+  val REPLICATE_DATA_WRITE_FAIL_COUNT = "ReplicateDataWriteFailCount"
+  val REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT = "ReplicateDataCreateConnectionFailCount"
+  val REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT = "ReplicateDataConnectionExceptionCount"
+  val REPLICATE_DATA_TIMEOUT_COUNT = "ReplicateDataTimeoutCount"
+  val PUSH_DATA_HANDSHAKE_FAIL_COUNT = "PushDataHandshakeFailCount"
+  val REGION_START_FAIL_COUNT = "RegionStartFailCount"
+  val REGION_FINISH_FAIL_COUNT = "RegionFinishFailCount"
+  val PRIMARY_PUSH_DATA_HANDSHAKE_TIME = "PrimaryPushDataHandshakeTime"
+  val REPLICA_PUSH_DATA_HANDSHAKE_TIME = "ReplicaPushDataHandshakeTime"
+  val PRIMARY_REGION_START_TIME = "PrimaryRegionStartTime"
+  val REPLICA_REGION_START_TIME = "ReplicaRegionStartTime"
+  val PRIMARY_REGION_FINISH_TIME = "PrimaryRegionFinishTime"
+  val REPLICA_REGION_FINISH_TIME = "ReplicaRegionFinishTime"
 
   // flush
-  val TakeBufferTime = "TakeBufferTime"
+  val TAKE_BUFFER_TIME = "TakeBufferTime"
 
-  val RegisteredShuffleCount = "RegisteredShuffleCount"
+  val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
 
   // slots
-  val SlotsAllocated = "SlotsAllocated"
+  val SLOTS_ALLOCATED = "SlotsAllocated"
 
   // memory
-  val NettyMemory = "NettyMemory"
-  val SortTime = "SortTime"
-  val SortMemory = "SortMemory"
-  val SortingFiles = "SortingFiles"
-  val SortedFiles = "SortedFiles"
-  val SortedFileSize = "SortedFileSize"
-  val DiskBuffer = "DiskBuffer"
-  val PausePushDataCount = "PausePushData"
-  val PausePushDataAndReplicateCount = "PausePushDataAndReplicate"
-  val BufferStreamReadBuffer = "BufferStreamReadBuffer"
-  val ReadBufferDispatcherRequestsLength = "ReadBufferDispatcherRequestsLength"
-  val ReadBufferAllocatedCount = "ReadBufferAllocatedCount"
-  val CreditStreamCount = "CreditStreamCount"
-  val ActiveMapPartitionCount = "ActiveMapPartitionCount"
+  val NETTY_MEMORY = "NettyMemory"
+  val SORT_TIME = "SortTime"
+  val SORT_MEMORY = "SortMemory"
+  val SORTING_FILES = "SortingFiles"
+  val SORTED_FILES = "SortedFiles"
+  val SORTED_FILE_SIZE = "SortedFileSize"
+  val DISK_BUFFER = "DiskBuffer"
+  val PAUSE_PUSH_DATA_COUNT = "PausePushData"
+  val PAUSE_PUSH_DATA_AND_REPLICATE_COUNT = "PausePushDataAndReplicate"
+  val BUFFER_STREAM_READ_BUFFER = "BufferStreamReadBuffer"
+  val READ_BUFFER_DISPATCHER_REQUESTS_LENGTH = "ReadBufferDispatcherRequestsLength"
+  val READ_BUFFER_ALLOCATED_COUNT = "ReadBufferAllocatedCount"
+  val CREDIT_STREAM_COUNT = "CreditStreamCount"
+  val ACTIVE_MAP_PARTITION_COUNT = "ActiveMapPartitionCount"
 
   // local device
-  val DeviceOSFreeCapacity = "DeviceOSFreeBytes"
-  val DeviceOSTotalCapacity = "DeviceOSTotalBytes"
-  val DeviceCelebornFreeCapacity = "DeviceCelebornFreeBytes"
-  val DeviceCelebornTotalCapacity = "DeviceCelebornTotalBytes"
+  val DEVICE_OS_FREE_CAPACITY = "DeviceOSFreeBytes"
+  val DEVICE_OS_TOTAL_CAPACITY = "DeviceOSTotalBytes"
+  val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
+  val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
 
   // Congestion control
-  val PotentialConsumeSpeed = "PotentialConsumeSpeed"
-  val UserProduceSpeed = "UserProduceSpeed"
-  val WorkerConsumeSpeed = "WorkerConsumeSpeed"
+  val POTENTIAL_CONSUME_SPEED = "PotentialConsumeSpeed"
+  val USER_PRODUCE_SPEED = "UserProduceSpeed"
+  val WORKER_CONSUME_SPEED = "WorkerConsumeSpeed"
 }
