@@ -255,7 +255,7 @@ public class TransportClient implements Closeable {
     channel.writeAndFlush(new OneWayMessage(new NioManagedBuffer(message)));
   }
 
-  public void send(DataRequestMessage message) {
+  public void send(DataMessage message) {
     channel.writeAndFlush(message);
   }
 

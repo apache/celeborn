@@ -240,7 +240,7 @@ public abstract class Message implements Encodable {
         return new Heartbeat();
 
       case DATA_REQUEST_MESSAGE:
-        return DataRequestMessage.decode(in);
+        return DataMessage.decode(in);
 
       default:
         throw new IllegalArgumentException("Unexpected message type: " + msgType);
