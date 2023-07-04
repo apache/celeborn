@@ -54,7 +54,7 @@ public class DataMessage extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.DATA_MESSAGE_V2;
+    return Type.DATA_MESSAGE;
   }
 
   public int getPayloadType() {
