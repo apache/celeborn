@@ -63,8 +63,8 @@ public class RpcIntegrationSuiteJ {
         new BaseMessageHandler() {
           @Override
           public void receive(TransportClient client, RequestMessage message) {
-            if (message instanceof RequestMessageV2) {
-              RequestMessageV2 messageV2 = ((RequestMessageV2) message);
+            if (message instanceof DataMessage) {
+              DataMessage messageV2 = ((DataMessage) message);
               assert messageV2.getPayloadType() == DataMessageType.OPEN_STREAM_VALUE;
               PbOpenStream openStream = messageV2.getPayLoadMessage();
               assert openStream.getFileName().equals("RequestMessageV2");
@@ -262,8 +262,8 @@ public class RpcIntegrationSuiteJ {
   @Test
   public void testRequestMessageV2() throws IOException, InterruptedException {
     PbOpenStream openStream = PbOpenStream.newBuilder().setFileName("RequestMessageV2").build();
-    RequestMessageV2 messageV2 =
-        new RequestMessageV2(DataMessageType.OPEN_STREAM_VALUE, openStream.toByteArray());
+    DataMessage messageV2 =
+        new DataMessage(DataMessageType.OPEN_STREAM_VALUE, openStream.toByteArray());
     TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
     try {
       client.send(messageV2);

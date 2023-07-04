@@ -24,16 +24,17 @@ import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.protocol.DataMessageType;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 
-public class RequestMessageV2 extends RequestMessage {
+// rpc messages sent from data channel.
+public class DataMessage extends RequestMessage {
   private int payloadType;
   private byte[] payload;
 
-  public RequestMessageV2(int payloadType, byte[] payload) {
+  public DataMessage(int payloadType, byte[] payload) {
     this.payloadType = payloadType;
     this.payload = payload;
   }
 
-  public RequestMessageV2(ManagedBuffer body, int payloadType, byte[] payload) {
+  public DataMessage(ManagedBuffer body, int payloadType, byte[] payload) {
     super(body);
     this.payloadType = payloadType;
     this.payload = payload;
@@ -53,7 +54,7 @@ public class RequestMessageV2 extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.REQUEST_MESSAGE_V2;
+    return Type.DATA_MESSAGE_V2;
   }
 
   public int getPayloadType() {
@@ -77,11 +78,11 @@ public class RequestMessageV2 extends RequestMessage {
     }
   }
 
-  public static RequestMessageV2 decode(ByteBuf in) {
+  public static DataMessage decode(ByteBuf in) {
     int type = in.readInt();
     int bufferLen = in.readInt();
     byte[] tmpBuf = new byte[bufferLen];
     in.readBytes(tmpBuf);
-    return new RequestMessageV2(type, tmpBuf);
+    return new DataMessage(type, tmpBuf);
   }
 }
