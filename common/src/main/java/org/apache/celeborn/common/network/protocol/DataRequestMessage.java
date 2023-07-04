@@ -21,20 +21,20 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
-import org.apache.celeborn.common.protocol.DataMessageType;
+import org.apache.celeborn.common.protocol.DataRequestMessageType;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 
 // rpc messages sent from data channel.
-public class DataMessage extends RequestMessage {
+public class DataRequestMessage extends RequestMessage {
   private int payloadType;
   private byte[] payload;
 
-  public DataMessage(int payloadType, byte[] payload) {
+  public DataRequestMessage(int payloadType, byte[] payload) {
     this.payloadType = payloadType;
     this.payload = payload;
   }
 
-  public DataMessage(ManagedBuffer body, int payloadType, byte[] payload) {
+  public DataRequestMessage(ManagedBuffer body, int payloadType, byte[] payload) {
     super(body);
     this.payloadType = payloadType;
     this.payload = payload;
@@ -54,7 +54,7 @@ public class DataMessage extends RequestMessage {
 
   @Override
   public Type type() {
-    return Type.DATA_MESSAGE;
+    return Type.DATA_REQUEST_MESSAGE;
   }
 
   public int getPayloadType() {
@@ -65,9 +65,9 @@ public class DataMessage extends RequestMessage {
     return payload;
   }
 
-  public <T> T getPayLoadMessage() {
+  public <T> T getPayloadMessage() {
     switch (this.payloadType) {
-      case DataMessageType.OPEN_STREAM_VALUE:
+      case DataRequestMessageType.OPEN_STREAM_VALUE:
         try {
           return (T) PbOpenStream.parseFrom(payload);
         } catch (InvalidProtocolBufferException e) {
@@ -78,11 +78,11 @@ public class DataMessage extends RequestMessage {
     }
   }
 
-  public static DataMessage decode(ByteBuf in) {
+  public static DataRequestMessage decode(ByteBuf in) {
     int type = in.readInt();
     int bufferLen = in.readInt();
     byte[] tmpBuf = new byte[bufferLen];
     in.readBytes(tmpBuf);
-    return new DataMessage(type, tmpBuf);
+    return new DataRequestMessage(type, tmpBuf);
   }
 }
