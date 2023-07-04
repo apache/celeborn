@@ -19,10 +19,10 @@ option java_multiple_files = true;
 
 enum DataMessageType {
   UNKNOWN = 0;
-  OPEN_STREAM=1;
+  OPEN_STREAM = 1;
 }
 
-message PbOpenStream{
+message PbOpenStream {
   string shuffleKey = 1;
   string fileName = 2;
   int32 startIndex = 3;
