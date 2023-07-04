@@ -76,7 +76,7 @@ fi
 set +o posix
 CMD=()
 CMD+=("$JAVA")
-CMD=(${CMD[@]} "$CELEBORN_JAVA_OPTS")
+CMD=(${CMD[@]} "-XX:+IgnoreUnrecognizedVMOptions" "$CELEBORN_JAVA_OPTS")
 CMD+=("-cp")
 CMD+=("$CELEBORN_CLASSPATH")
 CMD=(${CMD[@]} "$@")
