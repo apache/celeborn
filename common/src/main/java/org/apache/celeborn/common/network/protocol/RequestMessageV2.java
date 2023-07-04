@@ -21,8 +21,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
+import org.apache.celeborn.common.protocol.DataMessageType;
 import org.apache.celeborn.common.protocol.PbOpenStream;
-import org.apache.celeborn.common.protocol.RequestMessageType;
 
 public class RequestMessageV2 extends RequestMessage {
   private int payloadType;
@@ -66,7 +66,7 @@ public class RequestMessageV2 extends RequestMessage {
 
   public <T> T getPayLoadMessage() {
     switch (this.payloadType) {
-      case RequestMessageType.OPEN_STREAM_VALUE:
+      case DataMessageType.OPEN_STREAM_VALUE:
         try {
           return (T) PbOpenStream.parseFrom(payload);
         } catch (InvalidProtocolBufferException e) {

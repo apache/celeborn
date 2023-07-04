@@ -43,8 +43,8 @@ import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.DataMessageType;
 import org.apache.celeborn.common.protocol.PbOpenStream;
-import org.apache.celeborn.common.protocol.RequestMessageType;
 import org.apache.celeborn.common.util.JavaUtils;
 
 public class RpcIntegrationSuiteJ {
@@ -65,7 +65,7 @@ public class RpcIntegrationSuiteJ {
           public void receive(TransportClient client, RequestMessage message) {
             if (message instanceof RequestMessageV2) {
               RequestMessageV2 messageV2 = ((RequestMessageV2) message);
-              assert messageV2.getPayloadType() == RequestMessageType.OPEN_STREAM_VALUE;
+              assert messageV2.getPayloadType() == DataMessageType.OPEN_STREAM_VALUE;
               PbOpenStream openStream = messageV2.getPayLoadMessage();
               assert openStream.getFileName().equals("RequestMessageV2");
             }
@@ -263,7 +263,7 @@ public class RpcIntegrationSuiteJ {
   public void testRequestMessageV2() throws IOException, InterruptedException {
     PbOpenStream openStream = PbOpenStream.newBuilder().setFileName("RequestMessageV2").build();
     RequestMessageV2 messageV2 =
-        new RequestMessageV2(RequestMessageType.OPEN_STREAM_VALUE, openStream.toByteArray());
+        new RequestMessageV2(DataMessageType.OPEN_STREAM_VALUE, openStream.toByteArray());
     TransportClient client = clientFactory.createClient(getLocalHost(), server.getPort());
     try {
       client.send(messageV2);
