@@ -61,7 +61,7 @@ class PushDataTimeoutTest extends AnyFunSuite
 
   Seq(false, true).foreach { enabled =>
     test(s"celeborn spark integration test - pushdata timeout w/ replicate = $enabled") {
-      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+      val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
@@ -74,14 +74,14 @@ class PushDataTimeoutTest extends AnyFunSuite
 
       sparkSession.stop()
 
-      val rssSparkSession = SparkSession.builder()
+      val celebornSparkSession = SparkSession.builder()
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .getOrCreate()
-      val rssSqlResult = runsql(rssSparkSession)
+      val celebornSqlResult = runsql(celebornSparkSession)
 
-      assert(sqlResult.equals(rssSqlResult))
+      assert(sqlResult.equals(celebornSqlResult))
 
-      rssSparkSession.stop()
+      celebornSparkSession.stop()
       ShuffleClient.reset()
 
       assert(PushDataHandler.pushPrimaryDataTimeoutTested.get())
@@ -93,7 +93,7 @@ class PushDataTimeoutTest extends AnyFunSuite
 
   Seq(false, true).foreach { enabled =>
     test(s"celeborn spark integration test - pushMergeData timeout w/ replicate = $enabled") {
-      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+      val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
@@ -104,14 +104,14 @@ class PushDataTimeoutTest extends AnyFunSuite
 
       sparkSession.stop()
 
-      val rssSparkSession = SparkSession.builder()
+      val celebornSparkSession = SparkSession.builder()
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .getOrCreate()
-      val rssSqlResult = runsql(rssSparkSession)
+      val celebornSqlResult = runsql(celebornSparkSession)
 
-      assert(sqlResult.equals(rssSqlResult))
+      assert(sqlResult.equals(celebornSqlResult))
 
-      rssSparkSession.stop()
+      celebornSparkSession.stop()
       ShuffleClient.reset()
       assert(PushDataHandler.pushPrimaryMergeDataTimeoutTested.get())
       if (enabled) {
@@ -121,15 +121,15 @@ class PushDataTimeoutTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - pushdata timeout will add to pushExcludedWorkers") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+    val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
       .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED.key}", "true")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
-    val rssSparkSession = SparkSession.builder()
+    val celebornSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
     try {
-      combine(rssSparkSession)
+      combine(celebornSparkSession)
     } catch {
       case e: Exception =>
         e.printStackTrace()
@@ -150,7 +150,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       assert(code == StatusCode.PUSH_DATA_TIMEOUT_PRIMARY ||
         code == StatusCode.PUSH_DATA_TIMEOUT_REPLICA)
     }
-    rssSparkSession.stop()
+    celebornSparkSession.stop()
     ShuffleClient.reset()
   }
 }

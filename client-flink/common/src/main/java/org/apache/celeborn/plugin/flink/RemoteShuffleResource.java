@@ -21,19 +21,19 @@ public class RemoteShuffleResource implements ShuffleResource {
 
   private static final long serialVersionUID = 6497939083185255973L;
 
-  private final String rssMetaServiceHost;
-  private final int rssMetaServicePort;
-  private final long rssMetaServiceTimestamp;
+  private final String lifecycleManagerHost;
+  private final int lifecycleManagerPort;
+  private final long lifecycleManagerTimestamp;
   private ShuffleResourceDescriptor shuffleResourceDescriptor;
 
   public RemoteShuffleResource(
-      String rssMetaServiceHost,
-      int rssMetaServicePort,
-      long rssMetaServiceTimestamp,
+      String lifecycleManagerHost,
+      int lifecycleManagerPort,
+      long lifecycleManagerTimestamp,
       ShuffleResourceDescriptor remoteShuffleDescriptor) {
-    this.rssMetaServiceHost = rssMetaServiceHost;
-    this.rssMetaServicePort = rssMetaServicePort;
-    this.rssMetaServiceTimestamp = rssMetaServiceTimestamp;
+    this.lifecycleManagerHost = lifecycleManagerHost;
+    this.lifecycleManagerPort = lifecycleManagerPort;
+    this.lifecycleManagerTimestamp = lifecycleManagerTimestamp;
     this.shuffleResourceDescriptor = remoteShuffleDescriptor;
   }
 
@@ -42,24 +42,24 @@ public class RemoteShuffleResource implements ShuffleResource {
     return shuffleResourceDescriptor;
   }
 
-  public String getRssMetaServiceHost() {
-    return rssMetaServiceHost;
+  public String getLifecycleManagerHost() {
+    return lifecycleManagerHost;
   }
 
-  public int getRssMetaServicePort() {
-    return rssMetaServicePort;
+  public int getLifecycleManagerPort() {
+    return lifecycleManagerPort;
   }
 
-  public long getRssMetaServiceTimestamp() {
-    return rssMetaServiceTimestamp;
+  public long getLifecycleManagerTimestamp() {
+    return lifecycleManagerTimestamp;
   }
 
   @Override
   public String toString() {
     final StringBuilder sb = new StringBuilder("RemoteShuffleResource{");
-    sb.append("rssMetaServiceHost='").append(rssMetaServiceHost).append('\'');
-    sb.append(", rssMetaServicePort=").append(rssMetaServicePort);
-    sb.append(", rssMetaServiceTimestamp=").append(rssMetaServiceTimestamp);
+    sb.append("lifecycleManagerHost='").append(lifecycleManagerHost).append('\'');
+    sb.append(", lifecycleManagerPort=").append(lifecycleManagerPort);
+    sb.append(", lifecycleManagerTimestamp=").append(lifecycleManagerTimestamp);
     sb.append(", shuffleResourceDescriptor=").append(shuffleResourceDescriptor);
     sb.append('}');
     return sb.toString();

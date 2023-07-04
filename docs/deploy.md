@@ -79,7 +79,7 @@ celeborn.master.ha.node.2.ratis.port 9872
 celeborn.master.ha.node.3.host clb-3
 celeborn.master.ha.node.3.port 9097
 celeborn.master.ha.node.3.ratis.port 9872
-celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
+celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/celeborn_ratis/
 
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.

@@ -75,9 +75,9 @@ public class RemoteShuffleOutputGate {
   private int mapId;
   private int attemptId;
   private int partitionId;
-  private String rssMetaServiceHost;
-  private int rssMetaServicePort;
-  private long rssMetaServiceTimestamp;
+  private String lifecycleManagerHost;
+  private int lifecycleManagerPort;
+  private long lifecycleManagerTimestamp;
   private UserIdentifier userIdentifier;
   private boolean isFirstHandShake = true;
 
@@ -109,9 +109,10 @@ public class RemoteShuffleOutputGate {
         shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getAttemptId();
     this.partitionId =
         shuffleDesc.getShuffleResource().getMapPartitionShuffleDescriptor().getPartitionId();
-    this.rssMetaServiceHost = shuffleDesc.getShuffleResource().getRssMetaServiceHost();
-    this.rssMetaServicePort = shuffleDesc.getShuffleResource().getRssMetaServicePort();
-    this.rssMetaServiceTimestamp = shuffleDesc.getShuffleResource().getRssMetaServiceTimestamp();
+    this.lifecycleManagerHost = shuffleDesc.getShuffleResource().getLifecycleManagerHost();
+    this.lifecycleManagerPort = shuffleDesc.getShuffleResource().getLifecycleManagerPort();
+    this.lifecycleManagerTimestamp =
+        shuffleDesc.getShuffleResource().getLifecycleManagerTimestamp();
     this.flinkShuffleClient = getShuffleClient();
   }
 
@@ -212,9 +213,9 @@ public class RemoteShuffleOutputGate {
     try {
       return FlinkShuffleClientImpl.get(
           applicationId,
-          rssMetaServiceHost,
-          rssMetaServicePort,
-          rssMetaServiceTimestamp,
+          lifecycleManagerHost,
+          lifecycleManagerPort,
+          lifecycleManagerTimestamp,
           celebornConf,
           userIdentifier);
     } catch (DriverChangedException e) {

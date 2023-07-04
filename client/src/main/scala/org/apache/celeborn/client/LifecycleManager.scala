@@ -108,13 +108,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
 
-  // init driver rss meta rpc service
+  // init driver celeborn LifecycleManager rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
-    RpcNameConstants.RSS_METASERVICE_SYS,
+    RpcNameConstants.LIFECYCLE_MANAGER_SYS,
     lifecycleHost,
     conf.shuffleManagerPort,
     conf)
-  rpcEnv.setupEndpoint(RpcNameConstants.RSS_METASERVICE_EP, this)
+  rpcEnv.setupEndpoint(RpcNameConstants.LIFECYCLE_MANAGER_EP, this)
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
@@ -132,9 +132,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val releasePartitionManager = new ReleasePartitionManager(conf, this)
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
-  // `rssHARetryClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
-  // a reference to `rssHARetryClient`, there may be cases where `rssHARetryClient` is null when
-  // `rssHARetryClient` is called. Therefore, it's necessary to uniformly execute the initialization
+  // `masterClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
+  // a reference to `masterClient`, there may be cases where `masterClient` is null when
+  // `masterClient` is called. Therefore, it's necessary to uniformly execute the initialization
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
     // noinspection ConvertExpressionToSAM
@@ -179,11 +179,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     userIdentifier
   }
 
-  def getRssMetaServiceHost: String = {
+  def getHost: String = {
     lifecycleHost
   }
 
-  def getRssMetaServicePort: Int = {
+  def getPort: Int = {
     rpcEnv.address.port
   }
 
@@ -788,7 +788,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * Collect all allocated partition locations on reserving slot failed workers
    * and remove failed worker's partition locations from total slots.
    * For each reduce id, we only need to maintain one of the pair locations
-   * even if enabling replicate. If RSS wants to release the failed partition location,
+   * even if enabling replicate. If Celeborn wants to release the failed partition location,
    * the corresponding peers will be handled in [[releasePeerPartitionLocation]]
    *
    * @param reserveFailedWorkers reserve slot failed WorkerInfo list of slots

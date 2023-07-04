@@ -30,8 +30,8 @@ import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
+import org.apache.celeborn.plugin.flink.readclient.CelebornBufferStream;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
-import org.apache.celeborn.plugin.flink.readclient.RssBufferStream;
 
 public class RemoteBufferStreamReader extends CreditListener {
   private static Logger logger = LoggerFactory.getLogger(RemoteBufferStreamReader.class);
@@ -45,7 +45,7 @@ public class RemoteBufferStreamReader extends CreditListener {
   private boolean isOpened;
   private Consumer<ByteBuf> dataListener;
   private Consumer<Throwable> failureListener;
-  private RssBufferStream bufferStream;
+  private CelebornBufferStream bufferStream;
   private volatile boolean closed = false;
   private Consumer<RequestMessage> messageConsumer;
 
@@ -134,7 +134,7 @@ public class RemoteBufferStreamReader extends CreditListener {
 
   public void dataReceived(ReadData readData) {
     logger.debug(
-        "Rss buffer stream reader get stream id {} received readable bytes {}.",
+        "Remote buffer stream reader get stream id {} received readable bytes {}.",
         readData.getStreamId(),
         readData.getFlinkBuffer().readableBytes());
     dataListener.accept(readData.getFlinkBuffer());

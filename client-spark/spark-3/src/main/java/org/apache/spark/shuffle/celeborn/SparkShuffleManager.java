@@ -49,11 +49,11 @@ public class SparkShuffleManager implements ShuffleManager {
   private String appUniqueId;
 
   private LifecycleManager lifecycleManager;
-  private ShuffleClient rssShuffleClient;
+  private ShuffleClient shuffleClient;
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
       ConcurrentHashMap.newKeySet();
-  private final RssShuffleFallbackPolicyRunner fallbackPolicyRunner;
+  private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
 
   private final ExecutorService[] asyncPushers;
   private AtomicInteger pusherIdx = new AtomicInteger(0);
@@ -62,7 +62,7 @@ public class SparkShuffleManager implements ShuffleManager {
     this.conf = conf;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
-    this.fallbackPolicyRunner = new RssShuffleFallbackPolicyRunner(celebornConf);
+    this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
     if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
         && celebornConf.clientPushSortPipelineEnabled()) {
       asyncPushers = new ExecutorService[cores];
@@ -99,11 +99,11 @@ public class SparkShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
-          rssShuffleClient =
+          shuffleClient =
               ShuffleClient.get(
                   appUniqueId,
-                  lifecycleManager.getRssMetaServiceHost(),
-                  lifecycleManager.getRssMetaServicePort(),
+                  lifecycleManager.getHost(),
+                  lifecycleManager.getPort(),
                   celebornConf,
                   lifecycleManager.getUserIdentifier());
         }
@@ -126,10 +126,10 @@ public class SparkShuffleManager implements ShuffleManager {
       sortShuffleIds.add(shuffleId);
       return sortShuffleManager().registerShuffle(shuffleId, dependency);
     } else {
-      return new RssShuffleHandle<>(
+      return new CelebornShuffleHandle<>(
           appUniqueId,
-          lifecycleManager.getRssMetaServiceHost(),
-          lifecycleManager.getRssMetaServicePort(),
+          lifecycleManager.getHost(),
+          lifecycleManager.getPort(),
           lifecycleManager.getUserIdentifier(),
           shuffleId,
           dependency.rdd().getNumPartitions(),
@@ -145,10 +145,10 @@ public class SparkShuffleManager implements ShuffleManager {
     if (appUniqueId == null) {
       return true;
     }
-    if (rssShuffleClient == null) {
+    if (shuffleClient == null) {
       return false;
     }
-    return rssShuffleClient.unregisterShuffle(shuffleId, isDriver());
+    return shuffleClient.unregisterShuffle(shuffleId, isDriver());
   }
 
   @Override
@@ -158,10 +158,10 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public void stop() {
-    if (rssShuffleClient != null) {
-      rssShuffleClient.shutdown();
+    if (shuffleClient != null) {
+      shuffleClient.shutdown();
       ShuffleClient.reset();
-      rssShuffleClient = null;
+      shuffleClient = null;
     }
     if (lifecycleManager != null) {
       lifecycleManager.stop();
@@ -177,14 +177,14 @@ public class SparkShuffleManager implements ShuffleManager {
   public <K, V> ShuffleWriter<K, V> getWriter(
       ShuffleHandle handle, long mapId, TaskContext context, ShuffleWriteMetricsReporter metrics) {
     try {
-      if (handle instanceof RssShuffleHandle) {
+      if (handle instanceof CelebornShuffleHandle) {
         @SuppressWarnings("unchecked")
-        RssShuffleHandle<K, V, ?> h = ((RssShuffleHandle<K, V, ?>) handle);
+        CelebornShuffleHandle<K, V, ?> h = ((CelebornShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
             ShuffleClient.get(
                 h.appUniqueId(),
-                h.rssMetaServiceHost(),
-                h.rssMetaServicePort(),
+                h.lifecycleManagerHost(),
+                h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
@@ -224,10 +224,10 @@ public class SparkShuffleManager implements ShuffleManager {
       int endPartition,
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
-    if (handle instanceof RssShuffleHandle) {
+    if (handle instanceof CelebornShuffleHandle) {
       @SuppressWarnings("unchecked")
-      RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
-      return new RssShuffleReader<>(
+      CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
+      return new CelebornShuffleReader<>(
           h,
           startPartition,
           endPartition,
@@ -255,10 +255,10 @@ public class SparkShuffleManager implements ShuffleManager {
       int endPartition,
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
-    if (handle instanceof RssShuffleHandle) {
+    if (handle instanceof CelebornShuffleHandle) {
       @SuppressWarnings("unchecked")
-      RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
-      return new RssShuffleReader<>(
+      CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
+      return new CelebornShuffleReader<>(
           h, startPartition, endPartition, 0, Integer.MAX_VALUE, context, celebornConf, metrics);
     }
     return SparkUtils.getReader(
@@ -281,10 +281,10 @@ public class SparkShuffleManager implements ShuffleManager {
       int endPartition,
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
-    if (handle instanceof RssShuffleHandle) {
+    if (handle instanceof CelebornShuffleHandle) {
       @SuppressWarnings("unchecked")
-      RssShuffleHandle<K, ?, C> h = (RssShuffleHandle<K, ?, C>) handle;
-      return new RssShuffleReader<>(
+      CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
+      return new CelebornShuffleReader<>(
           h,
           startPartition,
           endPartition,

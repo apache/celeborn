@@ -184,7 +184,7 @@ private[celeborn] class Master(
   }
 
   override def onStop(): Unit = {
-    logInfo("Stopping RSS Master.")
+    logInfo("Stopping Celeborn Master.")
     if (checkForWorkerTimeOutTask != null) {
       checkForWorkerTimeOutTask.cancel(true)
     }
@@ -192,7 +192,7 @@ private[celeborn] class Master(
       checkForApplicationTimeOutTask.cancel(true)
     }
     forwardMessageThread.shutdownNow()
-    logInfo("RSS Master is stopped.")
+    logInfo("Celeborn Master is stopped.")
   }
 
   override def onDisconnected(address: RpcAddress): Unit = {

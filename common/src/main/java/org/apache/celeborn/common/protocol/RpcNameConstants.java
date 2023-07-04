@@ -31,6 +31,6 @@ public class RpcNameConstants {
   public static String WORKER_EP = "WorkerEndpoint";
 
   // For Driver(SparkShuffleManager)
-  public static String RSS_METASERVICE_EP = "RssMetaServiceEndpoint";
-  public static String RSS_METASERVICE_SYS = "RssMetaSys";
+  public static String LIFECYCLE_MANAGER_EP = "LifecycleManagerEndpoint";
+  public static String LIFECYCLE_MANAGER_SYS = "LifecycleManagerSys";
 }

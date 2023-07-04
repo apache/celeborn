@@ -31,7 +31,7 @@ trait HeartbeatFeature extends MiniClusterFeature {
       workerConf: Map[String, String],
       dataClientFactory: TransportClientFactory,
       assertFunc: (TransportClient, TransportClient) => Unit): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
+    logInfo("test initialized , setup celeborn mini cluster")
     val masterConf = Map(
       CelebornConf.MASTER_HOST.key -> "localhost",
       CelebornConf.MASTER_PORT.key -> "9097")

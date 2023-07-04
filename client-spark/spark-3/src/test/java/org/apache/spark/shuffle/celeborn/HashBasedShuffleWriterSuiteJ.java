@@ -30,7 +30,7 @@ public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
 
   @Override
   protected ShuffleWriter<Integer, String> createShuffleWriter(
-      RssShuffleHandle handle,
+      CelebornShuffleHandle handle,
       TaskContext context,
       CelebornConf conf,
       ShuffleClient client,

@@ -182,9 +182,9 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("CELEBORN-601: Consolidate configsWithAlternatives with `ConfigBuilder.withAlternative`") {
     val conf = new CelebornConf()
-      .set(CelebornConf.TEST_ALTERNATIVE.alternatives.head._1, "rss")
+      .set(CelebornConf.TEST_ALTERNATIVE.alternatives.head._1, "celeborn")
 
-    assert(conf.testAlternative == "rss")
+    assert(conf.testAlternative == "celeborn")
   }
 
   test("Test empty working dir") {
