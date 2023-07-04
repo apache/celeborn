@@ -25,6 +25,8 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
+import org.apache.hadoop.fs.{FileSystem, Path}
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -141,6 +143,7 @@ private[celeborn] class Master(
   // init and register master metrics
   val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
+  private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffle.size
   }
@@ -653,9 +656,31 @@ private[celeborn] class Master(
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
+        // only leader can clean hdfs dirs
+        if (conf.hasHDFSStorage && !conf.hdfsDir.isEmpty) {
+          cleanExpiredAppDirsOnHDFS()
+        }
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
+  }
+
+  private def cleanExpiredAppDirsOnHDFS(): Unit = {
+    val activeAppIds = statusSystem.getActiveAppIds
+    if (hadoopFs == null) {
+      hadoopFs = Utils.getHadoopFS(conf)
+    }
+    val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
+    if (hadoopFs.exists(hdfsWorkPath)) {
+      val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
+      while (iter.hasNext) {
+        val fileStatus = iter.next()
+        if (!activeAppIds.contains(fileStatus.getPath.getName)) {
+          logDebug(s"Clean hdfs dir ${fileStatus.getPath.toString}")
+          hadoopFs.delete(fileStatus.getPath, true)
+        }
+      }
+    }
   }
 
   private def handleHeartbeatFromApplication(

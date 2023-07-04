@@ -38,6 +38,8 @@ import scala.util.control.{ControlThrowable, NonFatal}
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -1072,4 +1074,20 @@ object Utils extends Logging {
     }
     labelPart(0).trim -> labelPart(1).trim
   }
+
+  def getHadoopFS(conf: CelebornConf): FileSystem = {
+    val path = new Path(conf.hdfsDir)
+    val scheme = path.toUri.getScheme
+    val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
+    val hdfsConfiguration = new Configuration()
+    hdfsConfiguration.set("dfs.replication", "2")
+    hdfsConfiguration.set(disableCacheName, "false")
+    for (elem <- CelebornHadoopUtils.newConfiguration(conf).iterator().asScala) {
+      hdfsConfiguration.set(elem.getKey, elem.getValue)
+    }
+    logInfo("Celeborn will ignore cluster settings " +
+      disableCacheName + " and set it to false")
+    path.getFileSystem(hdfsConfiguration)
+  }
+
 }

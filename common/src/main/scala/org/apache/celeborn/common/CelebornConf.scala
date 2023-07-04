@@ -1955,9 +1955,9 @@ object CelebornConf extends Logging {
       .createWithDefault(16)
 
   val HDFS_DIR: OptionalConfigEntry[String] =
-    buildConf("celeborn.worker.storage.hdfs.dir")
-      .withAlternative("celeborn.storage.hdfs.dir")
-      .categories("worker")
+    buildConf("celeborn.storage.hdfs.dir")
+      .withAlternative("celeborn.worker.storage.hdfs.dir")
+      .categories("worker", "master", "client")
       .version("0.2.0")
       .doc("HDFS dir configuration for Celeborn to access HDFS.")
       .stringConf

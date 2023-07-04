@@ -128,7 +128,7 @@ celeborn.worker.commitFiles.threads 128
 celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
-celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -175,7 +175,7 @@ celeborn.worker.commitFiles.threads 128
 celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
-celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -259,7 +259,7 @@ spark.celeborn.client.push.replicate.enabled true
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # If Celeborn is using HDFS
-spark.celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true

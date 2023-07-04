@@ -138,6 +138,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     partitionTotalFileCount.add(fileCount);
   }
 
+  public Set<String> getActiveAppIds() {
+    return registeredShuffle.stream()
+        .map(key -> Utils.splitShuffleKey(key)._1)
+        .collect(Collectors.toSet());
+  }
+
   public void updateAppLostMeta(String appId) {
     registeredShuffle.stream()
         .filter(shuffle -> shuffle.startsWith(appId))

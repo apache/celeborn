@@ -120,22 +120,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
-  if (!hdfsDir.isEmpty && conf.hasHDFSStorage) {
-    logInfo(s"Initialize HDFS support with path ${hdfsDir}")
-  }
   val hdfsPermission = new FsPermission("755")
   val hdfsWriters = JavaUtils.newConcurrentHashMap[String, FileWriter]()
   val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (!hdfsDir.isEmpty && conf.hasHDFSStorage) {
-      val path = new Path(hdfsDir)
-      val scheme = path.toUri.getScheme
-      val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
-      val hdfsConfiguration = CelebornHadoopUtils.newConfiguration(conf)
-      hdfsConfiguration.set("dfs.replication", "2")
-      hdfsConfiguration.set(disableCacheName, "false")
-      logInfo("Celeborn will ignore cluster settings " +
-        disableCacheName + " and set it to false")
-      StorageManager.hadoopFs = path.getFileSystem(hdfsConfiguration)
+      logInfo(s"Initialize HDFS support with path ${hdfsDir}")
+      StorageManager.hadoopFs = Utils.getHadoopFS(conf)
       (
         Some(new HdfsFlusher(
           workerSource,
@@ -525,19 +515,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         // workingDir not exist when initializing worker on new disk
         case _ => // do nothing
-      }
-    }
-
-    if (hadoopFs != null) {
-      val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
-      if (hadoopFs.exists(hdfsWorkPath)) {
-        val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
-        while (iter.hasNext) {
-          val fileStatus = iter.next()
-          if (!appIds.contains(fileStatus.getPath.getName)) {
-            hadoopFs.delete(fileStatus.getPath, true)
-          }
-        }
       }
     }
   }
