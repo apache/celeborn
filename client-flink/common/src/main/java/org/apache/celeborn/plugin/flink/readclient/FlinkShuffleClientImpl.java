@@ -134,11 +134,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
     this.flinkTransportClientFactory =
         new FlinkTransportClientFactory(context, conf.clientFetchMaxRetriesForEachReplica());
-    this.setupMetaServiceRef(driverHost, port);
+    this.setupLifecycleManagerRef(driverHost, port);
     this.driverTimestamp = driverTimestamp;
   }
 
-  public RssBufferStream readBufferedPartition(
+  public CelebornBufferStream readBufferedPartition(
       int shuffleId, int partitionId, int subPartitionIndexStart, int subPartitionIndexEnd)
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
@@ -148,7 +148,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
-      return RssBufferStream.create(
+      return CelebornBufferStream.create(
           this,
           conf,
           flinkTransportClientFactory,
@@ -392,7 +392,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                     StatusCode.HARD_SPLIT);
             requests.add(req);
             PbChangeLocationResponse response =
-                driverRssMetaService.askSync(
+                lifecycleManagerRef.askSync(
                     ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
                     conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));

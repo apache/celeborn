@@ -566,7 +566,7 @@ object Utils extends Logging {
 
     } catch {
       case e: IOException =>
-        throw new CelebornException(s"Failed when loading RSS properties from $filename", e)
+        throw new CelebornException(s"Failed when loading Celeborn properties from $filename", e)
     } finally {
       inReader.close()
     }
@@ -719,7 +719,7 @@ object Utils extends Logging {
    * Create a directory inside the given parent directory. The directory is guaranteed to be
    * newly created, and is not marked for automatic deletion.
    */
-  def createDirectory(root: String, namePrefix: String = "rss"): File = {
+  def createDirectory(root: String, namePrefix: String = "celeborn"): File = {
     var attempts = 0
     val maxAttempts = 10
     var dir: File = null

@@ -35,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
-import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -80,7 +80,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final RpcEnv rpcEnv;
 
-  protected RpcEndpointRef driverRssMetaService;
+  protected RpcEndpointRef lifecycleManagerRef;
 
   protected TransportClientFactory dataClientFactory;
 
@@ -469,7 +469,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         numMappers,
         numPartitions,
         () ->
-            driverRssMetaService.askSync(
+            lifecycleManagerRef.askSync(
                 RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions),
                 conf.clientRpcRegisterShuffleRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
@@ -491,7 +491,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             numMappers,
             numMappers,
             () ->
-                driverRssMetaService.askSync(
+                lifecycleManagerRef.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
                         shuffleId, numMappers, mapId, attemptId, partitionId),
                     conf.clientRpcRegisterShuffleRpcAskTimeout(),
@@ -700,7 +700,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     try {
       PbChangeLocationResponse response =
-          driverRssMetaService.askSync(
+          lifecycleManagerRef.askSync(
               Revive$.MODULE$.apply(shuffleId, mapIds, requests),
               conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
@@ -1114,7 +1114,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         reducePartitionMap.get(shuffleId);
 
     ShuffleClientHelper.sendShuffleSplitAsync(
-        driverRssMetaService,
+        lifecycleManagerRef,
         conf,
         PartitionSplit$.MODULE$.apply(shuffleId, partitionId, loc.getEpoch(), loc),
         partitionSplitPool,
@@ -1475,7 +1475,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       limitZeroInFlight(mapKey, pushState);
 
       MapperEndResponse response =
-          driverRssMetaService.askSync(
+          lifecycleManagerRef.askSync(
               new MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId),
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
@@ -1500,7 +1500,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   public boolean unregisterShuffle(int shuffleId, boolean isDriver) {
     if (isDriver) {
       try {
-        driverRssMetaService.send(
+        lifecycleManagerRef.send(
             UnregisterShuffle$.MODULE$.apply(appUniqueId, shuffleId, MasterClient.genRequestId()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
@@ -1521,7 +1521,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
+  public CelebornInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
       throws IOException {
     return readPartition(shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE);
   }
@@ -1530,7 +1530,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     {
       long getReducerFileGroupStartTime = System.nanoTime();
       try {
-        if (driverRssMetaService == null) {
+        if (lifecycleManagerRef == null) {
           logger.warn("Driver endpoint is null!");
           return null;
         }
@@ -1538,7 +1538,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId);
 
         GetReducerFileGroupResponse response =
-            driverRssMetaService.askSync(
+            lifecycleManagerRef.askSync(
                 getReducerFileGroup,
                 conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
@@ -1587,7 +1587,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(
+  public CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException {
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
@@ -1595,10 +1595,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
-      return RssInputStream.empty();
+      return CelebornInputStream.empty();
     } else {
       String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-      return RssInputStream.create(
+      return CelebornInputStream.create(
           conf,
           dataClientFactory,
           shuffleKey,
@@ -1630,8 +1630,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != partitionSplitPool) {
       partitionSplitPool.shutdown();
     }
-    if (null != driverRssMetaService) {
-      driverRssMetaService = null;
+    if (null != lifecycleManagerRef) {
+      lifecycleManagerRef = null;
     }
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
@@ -1639,14 +1639,14 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void setupMetaServiceRef(String host, int port) {
-    driverRssMetaService =
-        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.RSS_METASERVICE_EP);
+  public void setupLifecycleManagerRef(String host, int port) {
+    lifecycleManagerRef =
+        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP);
   }
 
   @Override
-  public void setupMetaServiceRef(RpcEndpointRef endpointRef) {
-    driverRssMetaService = endpointRef;
+  public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
+    lifecycleManagerRef = endpointRef;
   }
 
   boolean mapperEnded(int shuffleId, int mapId) {

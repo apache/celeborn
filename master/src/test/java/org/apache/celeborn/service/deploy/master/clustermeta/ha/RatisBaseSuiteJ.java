@@ -34,7 +34,7 @@ public class RatisBaseSuiteJ {
     CelebornConf conf = new CelebornConf();
     HAMasterMetaManager metaSystem = new HAMasterMetaManager(null, conf);
     MetaHandler handler = new MetaHandler(metaSystem);
-    File tmpDir1 = File.createTempFile("rss-ratis-tmp", "for-test-only");
+    File tmpDir1 = File.createTempFile("celeborn-ratis-tmp", "for-test-only");
     tmpDir1.delete();
     tmpDir1.mkdirs();
     conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir1.getAbsolutePath());

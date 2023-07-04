@@ -49,7 +49,7 @@ private class MetricsConfig(conf: CelebornConf) extends Logging {
 
     loadPropertiesFromFile(conf.metricsConf)
     val prefix = s"${CelebornConf.METRICS_CONF.key}."
-    // Also look for the properties in provided rss configuration
+    // Also look for the properties in provided celeborn configuration
     conf.getAll.foreach {
       case (k, v) if k.startsWith(prefix) =>
         properties.setProperty(k.substring(prefix.length()), v)

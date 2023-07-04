@@ -29,7 +29,7 @@ import org.apache.celeborn.common.CelebornConf;
 public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
   @Override
   protected ShuffleWriter<Integer, String> createShuffleWriter(
-      RssShuffleHandle handle,
+      CelebornShuffleHandle handle,
       TaskContext context,
       CelebornConf conf,
       ShuffleClient client,

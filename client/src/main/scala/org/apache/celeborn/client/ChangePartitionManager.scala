@@ -53,14 +53,14 @@ class ChangePartitionManager(
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "rss-lifecycle-manager-change-partition-executor",
+    "celeborn-lifecycle-manager-change-partition-executor",
     conf.batchHandleChangePartitionNumThreads)
   private val batchHandleChangePartitionRequestInterval =
     conf.batchHandleChangePartitionRequestInterval
   private val batchHandleChangePartitionSchedulerThread: Option[ScheduledExecutorService] =
     if (batchHandleChangePartitionEnabled) {
       Some(ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "rss-lifecycle-manager-change-partition-scheduler"))
+        "celeborn-lifecycle-manager-change-partition-scheduler"))
     } else {
       None
     }

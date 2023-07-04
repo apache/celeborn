@@ -63,13 +63,13 @@ trait SparkTestBase extends AnyFunSuite
 
   def combine(sparkSession: SparkSession): collection.Map[Char, (Int, Int)] = {
     val inputRdd = sparkSession.sparkContext.parallelize(sampleSeq, 4)
-    val resultWithOutRss = inputRdd
+    val resultWithOutCeleborn = inputRdd
       .combineByKey(
         (k: Int) => (k, 1),
         (acc: (Int, Int), v: Int) => (acc._1 + v, acc._2 + 1),
         (acc1: (Int, Int), acc2: (Int, Int)) => (acc1._1 + acc2._1, acc1._2 + acc2._2))
       .collectAsMap()
-    resultWithOutRss
+    resultWithOutCeleborn
   }
 
   def repartition(sparkSession: SparkSession): collection.Map[Char, Int] = {

@@ -40,9 +40,9 @@ import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
-import org.apache.spark.sql.execution.columnar.RssBatchBuilder;
-import org.apache.spark.sql.execution.columnar.RssColumnarBatchBuilder;
-import org.apache.spark.sql.execution.columnar.RssColumnarBatchCodeGenBuild;
+import org.apache.spark.sql.execution.columnar.CelebornBatchBuilder;
+import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchBuilder;
+import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchCodeGenBuild;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.BlockManagerId;
@@ -70,7 +70,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int shuffleId;
   private final int mapId;
   private final TaskContext taskContext;
-  private final ShuffleClient rssShuffleClient;
+  private final ShuffleClient shuffleClient;
   private final int numMappers;
   private final int numPartitions;
 
@@ -87,7 +87,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final LongAdder[] mapStatusLengths;
   private final long[] tmpRecords;
 
-  private RssBatchBuilder[] rssBatchBuilders;
+  private CelebornBatchBuilder[] celebornBatchBuilders;
   private final SendBufferPool sendBufferPool;
 
   /**
@@ -120,7 +120,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public HashBasedShuffleWriter(
-      RssShuffleHandle<K, V, C> handle,
+      CelebornShuffleHandle<K, V, C> handle,
       TaskContext taskContext,
       CelebornConf conf,
       ShuffleClient client,
@@ -136,7 +136,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.taskContext = taskContext;
     this.numMappers = handle.numMappers();
     this.numPartitions = dep.partitioner().numPartitions();
-    this.rssShuffleClient = client;
+    this.shuffleClient = client;
     this.conf = conf;
 
     unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
@@ -166,7 +166,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               numMappers,
               numPartitions,
               conf,
-              rssShuffleClient,
+              shuffleClient,
               writeMetrics::incBytesWritten,
               mapStatusLengths);
     } catch (InterruptedException e) {
@@ -179,8 +179,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       columnarShuffleDictionaryEnabled = conf.columnarShuffleDictionaryEnabled();
       columnarShuffleDictionaryMaxFactor = conf.columnarShuffleDictionaryMaxFactor();
       this.schema = SparkUtils.getSchema(dep);
-      this.rssBatchBuilders = new RssBatchBuilder[numPartitions];
-      this.isColumnarShuffle = RssBatchBuilder.supportsColumnarType(schema);
+      this.celebornBatchBuilders = new CelebornBatchBuilder[numPartitions];
+      this.isColumnarShuffle = CelebornBatchBuilder.supportsColumnarType(schema);
     }
   }
 
@@ -229,32 +229,32 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int partitionId = record._1();
       final UnsafeRow row = record._2();
 
-      if (rssBatchBuilders[partitionId] == null) {
-        RssBatchBuilder columnBuilders;
+      if (celebornBatchBuilders[partitionId] == null) {
+        CelebornBatchBuilder columnBuilders;
         if (columnarShuffleCodeGenEnabled && !columnarShuffleDictionaryEnabled) {
           columnBuilders =
-              new RssColumnarBatchCodeGenBuild().create(schema, columnarShuffleBatchSize);
+              new CelebornColumnarBatchCodeGenBuild().create(schema, columnarShuffleBatchSize);
         } else {
           columnBuilders =
-              new RssColumnarBatchBuilder(
+              new CelebornColumnarBatchBuilder(
                   schema,
                   columnarShuffleBatchSize,
                   columnarShuffleDictionaryMaxFactor,
                   columnarShuffleDictionaryEnabled);
         }
         columnBuilders.newBuilders();
-        rssBatchBuilders[partitionId] = columnBuilders;
+        celebornBatchBuilders[partitionId] = columnBuilders;
       }
 
       long insertAndPushStartTime = System.nanoTime();
-      rssBatchBuilders[partitionId].writeRow(row);
-      if (rssBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize) {
-        byte[] arr = rssBatchBuilders[partitionId].buildColumnBytes();
+      celebornBatchBuilders[partitionId].writeRow(row);
+      if (celebornBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize) {
+        byte[] arr = celebornBatchBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {
           dataSize.add(arr.length);
         }
-        rssBatchBuilders[partitionId].newBuilders();
+        celebornBatchBuilders[partitionId].newBuilders();
       }
       shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
@@ -353,7 +353,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", numBytes);
     int bytesWritten =
-        rssShuffleClient.pushData(
+        shuffleClient.pushData(
             shuffleId,
             mapId,
             taskContext.attemptNumber(),
@@ -398,14 +398,14 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void closeColumnarWrite() throws IOException {
     SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
     for (int i = 0; i < numPartitions; i++) {
-      final RssBatchBuilder buidlers = rssBatchBuilders[i];
+      final CelebornBatchBuilder buidlers = celebornBatchBuilders[i];
       if (buidlers != null && buidlers.getRowCnt() > 0) {
         byte[] buffers = buidlers.buildColumnBytes();
         if (dataSize != null) {
           dataSize.add(buffers.length);
         }
         int bytesWritten =
-            rssShuffleClient.mergeData(
+            shuffleClient.mergeData(
                 shuffleId,
                 mapId,
                 taskContext.attemptNumber(),
@@ -416,7 +416,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 numMappers,
                 numPartitions);
         // free buffer
-        rssBatchBuilders[i] = null;
+        celebornBatchBuilders[i] = null;
         mapStatusLengths[i].add(bytesWritten);
         writeMetrics.incBytesWritten(bytesWritten);
       }
@@ -431,7 +431,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int size = sendOffsets[i];
       if (size > 0) {
         int bytesWritten =
-            rssShuffleClient.mergeData(
+            shuffleClient.mergeData(
                 shuffleId,
                 mapId,
                 taskContext.attemptNumber(),
@@ -456,19 +456,19 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     // here we wait for all the in-flight batches to return which sent by dataPusher thread
     long pushMergedDataTime = System.nanoTime();
     dataPusher.waitOnTermination();
-    rssShuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
+    shuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
     if (isColumnarShuffle) {
       closeColumnarWrite();
     } else {
       closeRowWrite();
     }
-    rssShuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
+    shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
 
     updateMapStatus();
 
     long waitStartTime = System.nanoTime();
-    rssShuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
+    shuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
     BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
@@ -505,12 +505,12 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         }
       }
     } finally {
-      rssShuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
+      shuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
     }
   }
 
   public long[] getPartitionLengths() {
     throw new UnsupportedOperationException(
-        "RSS is not compatible with Spark push mode, please set spark.shuffle.push.enabled to false");
+        "Celeborn is not compatible with Spark push mode, please set spark.shuffle.push.enabled to false");
   }
 }
