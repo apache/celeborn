@@ -20,6 +20,7 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +30,6 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
-import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 
 /**
@@ -85,7 +85,7 @@ public abstract class ShuffleClient {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {
           try {
-            hdfsFs = Utils.getHadoopFS(conf);
+            hdfsFs = CelebornHadoopUtils.getHadoopFS(conf);
           } catch (Exception e) {
             System.err.println("Celeborn initialize hdfs failed.");
             e.printStackTrace(System.err);

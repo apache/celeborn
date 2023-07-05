@@ -21,12 +21,9 @@ import java.io.IOException
 import java.net.BindException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
-
 import scala.collection.JavaConverters._
 import scala.util.Random
-
 import org.apache.hadoop.fs.{FileSystem, Path}
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -39,7 +36,7 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -668,7 +665,7 @@ private[celeborn] class Master(
   private def cleanExpiredAppDirsOnHDFS(): Unit = {
     val activeAppIds = statusSystem.getActiveAppIds
     if (hadoopFs == null) {
-      hadoopFs = Utils.getHadoopFS(conf)
+      hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
     }
     val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
     if (hadoopFs.exists(hdfsWorkPath)) {

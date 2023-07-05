@@ -28,7 +28,6 @@ import java.util.function.{BiConsumer, IntUnaryOperator}
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.iq80.leveldb.DB
@@ -125,7 +124,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (!hdfsDir.isEmpty && conf.hasHDFSStorage) {
       logInfo(s"Initialize HDFS support with path ${hdfsDir}")
-      StorageManager.hadoopFs = Utils.getHadoopFS(conf)
+      StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       (
         Some(new HdfsFlusher(
           workerSource,
