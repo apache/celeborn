@@ -694,14 +694,14 @@ private[celeborn] class Master(
     if (hadoopFs.exists(hdfsWorkPath)) {
       if (!dir.isEmpty) {
         // delete specific app dir on application lost
-        hadoopFs.delete(new Path(hdfsWorkPath, dir), true)
+        Utils.tryLogNonFatalError(hadoopFs.delete(new Path(hdfsWorkPath, dir), true))
       } else {
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext) {
           val startTime = System.currentTimeMillis()
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            hadoopFs.delete(fileStatus.getPath, true)
+            Utils.tryLogNonFatalError(hadoopFs.delete(new Path(hdfsWorkPath, dir), true))
             logInfo(
               s"Clean HDFS dir ${fileStatus.getPath} costs " +
                 Utils.msDurationToString(System.currentTimeMillis() - startTime))

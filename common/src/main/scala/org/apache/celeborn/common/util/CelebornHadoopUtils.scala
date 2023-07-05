@@ -37,10 +37,10 @@ object CelebornHadoopUtils extends Logging {
       hadoopConf.set(disableCacheName, "false")
       if (logFlag.compareAndSet(false, true)) {
         logInfo(
-          s"""Celeborn overrides some HDFS settings defined in Hadoop configuration files,
-            including '$disableCacheName=false' and 'dfs.replication=2'.
-            It can be overridden again in Celeborn configuration with the additional
-            prefix 'celeborn.hadoop.', e.g. 'celeborn.hadoop.dfs.replication=3'""")
+          "Celeborn overrides some HDFS settings defined in Hadoop configuration files, " +
+            s"including '$disableCacheName=false' and 'dfs.replication=2'. " +
+            "It can be overridden again in Celeborn configuration with the additional " +
+            "prefix 'celeborn.hadoop.', e.g. 'celeborn.hadoop.dfs.replication=3'")
       }
     }
     appendSparkHadoopConfigs(conf, hadoopConf)
