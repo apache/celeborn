@@ -18,12 +18,23 @@
 package org.apache.celeborn.common.util
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
 
-object CelebornHadoopUtils {
+object CelebornHadoopUtils extends Logging {
   private[celeborn] def newConfiguration(conf: CelebornConf): Configuration = {
     val hadoopConf = new Configuration()
+    if (!conf.hdfsDir.isEmpty) {
+      val path = new Path(conf.hdfsDir)
+      val scheme = path.toUri.getScheme
+      val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
+      hadoopConf.set("dfs.replication", "2")
+      hadoopConf.set(disableCacheName, "false")
+      logInfo(s"Celeborn will ignore cluster settings $disableCacheName and " +
+        "set it to false")
+    }
     appendSparkHadoopConfigs(conf, hadoopConf)
     hadoopConf
   }

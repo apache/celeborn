@@ -1956,7 +1956,6 @@ object CelebornConf extends Logging {
 
   val HDFS_DIR: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.hdfs.dir")
-      .withAlternative("celeborn.worker.storage.hdfs.dir")
       .categories("worker", "master", "client")
       .version("0.2.0")
       .doc("HDFS base directory for Celeborn to store shuffle data.")

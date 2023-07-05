@@ -1076,18 +1076,7 @@ object Utils extends Logging {
   }
 
   def getHadoopFS(conf: CelebornConf): FileSystem = {
-    val path = new Path(conf.hdfsDir)
-    val scheme = path.toUri.getScheme
-    val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
-    val hdfsConfiguration = new Configuration()
-    hdfsConfiguration.set("dfs.replication", "2")
-    hdfsConfiguration.set(disableCacheName, "false")
-    for (elem <- CelebornHadoopUtils.newConfiguration(conf).iterator().asScala) {
-      hdfsConfiguration.set(elem.getKey, elem.getValue)
-    }
-    logInfo("Celeborn will ignore cluster settings $disableCacheName and "
-      "set it to false")
-    path.getFileSystem(hdfsConfiguration)
+    new Path(conf.hdfsDir).getFileSystem(CelebornHadoopUtils.newConfiguration(conf))
   }
 
 }
