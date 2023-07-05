@@ -697,7 +697,7 @@ private[celeborn] class Master(
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext) {
           val fileStatus = iter.next()
-          if (!statusSystem.appHeartbeatTime.contains(fileStatus.getPath.getName)) {
+          if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
             logDebug(s"Clean HDFS dir ${fileStatus.getPath.toString}")
             hadoopFs.delete(fileStatus.getPath, true)
           }

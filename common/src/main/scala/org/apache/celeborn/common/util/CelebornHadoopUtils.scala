@@ -52,6 +52,6 @@ object CelebornHadoopUtils extends Logging {
   }
 
   def getHadoopFS(conf: CelebornConf): FileSystem = {
-    new Path(conf.hdfsDir).getFileSystem(CelebornHadoopUtils.newConfiguration(conf))
+    new Path(conf.hdfsDir).getFileSystem(newConfiguration(conf))
   }
 }
