@@ -1085,8 +1085,8 @@ object Utils extends Logging {
     for (elem <- CelebornHadoopUtils.newConfiguration(conf).iterator().asScala) {
       hdfsConfiguration.set(elem.getKey, elem.getValue)
     }
-    logInfo("Celeborn will ignore cluster settings " +
-      disableCacheName + " and set it to false")
+    logInfo("Celeborn will ignore cluster settings $disableCacheName and "
+      "set it to false")
     path.getFileSystem(hdfsConfiguration)
   }
 

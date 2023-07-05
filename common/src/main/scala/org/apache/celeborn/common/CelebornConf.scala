@@ -1959,7 +1959,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.worker.storage.hdfs.dir")
       .categories("worker", "master", "client")
       .version("0.2.0")
-      .doc("HDFS dir configuration for Celeborn to access HDFS.")
+      .doc("HDFS base directory for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
 
