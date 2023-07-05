@@ -20,7 +20,6 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +29,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
-import org.apache.celeborn.common.util.CelebornHadoopUtils$;
+import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.write.PushState;
 
 /**
@@ -85,18 +84,10 @@ public abstract class ShuffleClient {
     if (null == hdfsFs) {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {
-          Configuration hdfsConfiguration = CelebornHadoopUtils$.MODULE$.newConfiguration(conf);
-          // enable fs cache to avoid too many fs instances
-          hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
-          hdfsConfiguration.set("fs.viewfs.impl.disable.cache", "false");
-          logger.info(
-              "Celeborn client will ignore cluster"
-                  + " settings about fs.hdfs/viewfs.impl.disable.cache and set it to false");
           try {
-            hdfsFs = FileSystem.get(hdfsConfiguration);
-          } catch (IOException e) {
-            System.err.println("Celeborn initialize hdfs failed.");
-            e.printStackTrace(System.err);
+            hdfsFs = CelebornHadoopUtils.getHadoopFS(conf);
+          } catch (Exception e) {
+            logger.error("Celeborn initialize HDFS failed.", e);
           }
         }
       }
