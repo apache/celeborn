@@ -703,7 +703,7 @@ private[celeborn] class Master(
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
             hadoopFs.delete(fileStatus.getPath, true)
             logInfo(
-              s"Clean HDFS dir ${fileStatus.getPath.toString} costs " +
+              s"Clean HDFS dir ${fileStatus.getPath} costs " +
                 Utils.msDurationToString(System.currentTimeMillis() - startTime))
           }
         }
