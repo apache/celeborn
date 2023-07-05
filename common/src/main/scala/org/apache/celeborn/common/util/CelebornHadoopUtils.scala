@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.util
 
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.hadoop.conf.Configuration
@@ -56,5 +57,18 @@ object CelebornHadoopUtils extends Logging {
 
   def getHadoopFS(conf: CelebornConf): FileSystem = {
     new Path(conf.hdfsDir).getFileSystem(newConfiguration(conf))
+  }
+
+  def deleteHDFSPathOrLogError(hadoopFs: FileSystem, path: Path, recursive: Boolean): Unit = {
+    try {
+      val startTime = System.currentTimeMillis()
+      hadoopFs.delete(path, recursive)
+      logInfo(
+        s"Delete HDFS ${path}(recursive=$recursive) costs " +
+          Utils.msDurationToString(System.currentTimeMillis() - startTime))
+    } catch {
+      case e: IOException =>
+        logError(s"Failed to delete HDFS ${path}(recursive=$recursive) due to: ", e)
+    }
   }
 }

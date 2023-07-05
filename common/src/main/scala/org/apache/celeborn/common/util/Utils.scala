@@ -212,15 +212,6 @@ object Utils extends Logging {
     }
   }
 
-  def tryLogDeleteHDFSPathError(block: => Unit, path: Path): Unit = {
-    try {
-      block
-    } catch {
-      case e: IOException =>
-        logError(s"Delete HDFS File ${path} failed", e)
-    }
-  }
-
   def tryOrExit(block: => Unit): Unit = {
     try {
       block

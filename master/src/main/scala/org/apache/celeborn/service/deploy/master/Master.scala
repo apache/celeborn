@@ -695,19 +695,14 @@ private[celeborn] class Master(
       if (!expiredDir.isEmpty) {
         val dirToDelete = new Path(hdfsWorkPath, expiredDir)
         // delete specific app dir on application lost
-        Utils.tryLogDeleteHDFSPathError(hadoopFs.delete(dirToDelete, true), dirToDelete)
+        CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, dirToDelete, true)
       } else {
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext && isMasterActive == 1) {
           val startTime = System.currentTimeMillis()
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            Utils.tryLogDeleteHDFSPathError(
-              hadoopFs.delete(fileStatus.getPath, true),
-              fileStatus.getPath)
-            logInfo(
-              s"Clean HDFS dir ${fileStatus.getPath} costs " +
-                Utils.msDurationToString(System.currentTimeMillis() - startTime))
+            CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, fileStatus.getPath, true)
           }
         }
       }
