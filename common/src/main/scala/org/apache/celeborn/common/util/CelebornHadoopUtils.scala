@@ -18,7 +18,7 @@
 package org.apache.celeborn.common.util
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -44,5 +44,9 @@ object CelebornHadoopUtils extends Logging {
     for ((key, value) <- conf.getAll if key.startsWith("celeborn.hadoop.")) {
       hadoopConf.set(key.substring("celeborn.hadoop.".length), value)
     }
+  }
+
+  def getHadoopFS(conf: CelebornConf): FileSystem = {
+    new Path(conf.hdfsDir).getFileSystem(CelebornHadoopUtils.newConfiguration(conf))
   }
 }

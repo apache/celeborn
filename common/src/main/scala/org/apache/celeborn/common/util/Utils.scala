@@ -38,8 +38,6 @@ import scala.util.control.{ControlThrowable, NonFatal}
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, Path}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -1073,10 +1071,6 @@ object Utils extends Logging {
       throw new IllegalArgumentException(s"Illegal metric extra labels: $label")
     }
     labelPart(0).trim -> labelPart(1).trim
-  }
-
-  def getHadoopFS(conf: CelebornConf): FileSystem = {
-    new Path(conf.hdfsDir).getFileSystem(CelebornHadoopUtils.newConfiguration(conf))
   }
 
 }
