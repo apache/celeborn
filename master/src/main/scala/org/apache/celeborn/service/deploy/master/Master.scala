@@ -699,7 +699,6 @@ private[celeborn] class Master(
       } else {
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext && isMasterActive == 1) {
-          val startTime = System.currentTimeMillis()
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
             CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, fileStatus.getPath, true)
