@@ -100,6 +100,7 @@ private[celeborn] class Master(
   private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
   private val hdfsRemnantDirsTimeoutMS = conf.hdfsRemnantDirsTimeoutMS
+  private val hasHDFSStorage = conf.hasHDFSStorage
 
   private val quotaManager = QuotaManager.instantiate(conf)
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
@@ -188,7 +189,7 @@ private[celeborn] class Master(
       appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
 
-    if (conf.hasHDFSStorage) {
+    if (hasHDFSStorage) {
       checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
@@ -568,7 +569,7 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
-          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !conf.hasHDFSStorage) {
+          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !hasHDFSStorage) {
             SlotsAllocator.offerSlotsLoadAware(
               availableWorkers,
               requestSlots.partitionIdList,
@@ -677,7 +678,7 @@ private[celeborn] class Master(
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
-        if (conf.hasHDFSStorage) {
+        if (hasHDFSStorage) {
           cleanExpiredAppDirsOnHDFS(appId)
         }
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
@@ -695,18 +696,17 @@ private[celeborn] class Master(
         // delete specific app dir on application lost
         hadoopFs.delete(new Path(hdfsWorkPath, dir), true)
       } else {
-        val startTime = System.currentTimeMillis()
-        val cleanDirs = new mutable.ListBuffer[String]
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext) {
+          val startTime = System.currentTimeMillis()
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            cleanDirs.append(fileStatus.getPath.toString)
+            logInfo(
+              s"Clean HDFS dir ${fileStatus.getPath.toString} using ${Utils.msDurationToString(
+                System.currentTimeMillis() - startTime)}")
             hadoopFs.delete(fileStatus.getPath, true)
           }
         }
-        logInfo(
-          s"Clean all remnant HDFS dirs using ${System.currentTimeMillis() - startTime} ms, cleaned ${cleanDirs.mkString(",")}")
       }
     }
   }

@@ -51,6 +51,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val workingDirWriters =
     JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, FileWriter]]()
 
+  val hasHDFSStorage = conf.hasHDFSStorage
+
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -58,7 +60,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 
-    if (workingDirInfos.size <= 0 && !conf.hasHDFSStorage) {
+    if (workingDirInfos.size <= 0 && !hasHDFSStorage) {
       throw new IOException("Empty working directory configuration!")
     }
 
@@ -122,7 +124,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val hdfsPermission = new FsPermission("755")
   val hdfsWriters = JavaUtils.newConcurrentHashMap[String, FileWriter]()
   val (hdfsFlusher, _totalHdfsFlusherThread) =
-    if (conf.hasHDFSStorage) {
+    if (hasHDFSStorage) {
       logInfo(s"Initialize HDFS support with path ${hdfsDir}")
       StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       (
@@ -254,7 +256,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): FileWriter = {
-    if (healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage) {
+    if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage) {
       throw new IOException("No available working dirs!")
     }
 

@@ -19,7 +19,6 @@ package org.apache.celeborn.common.protocol.message
 
 import java.util
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
 
