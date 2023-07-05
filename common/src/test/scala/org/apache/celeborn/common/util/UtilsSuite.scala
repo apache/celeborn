@@ -105,7 +105,7 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd == mapperEndTrans)
   }
 
-  test("validate hdfs compatible fs path") {
+  test("validate HDFS compatible fs path") {
     val hdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x"
     val simpleHdfsPath = "hdfs:///xxxx/xx-xx/x-x-x"
     val sortedHdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x.sorted"

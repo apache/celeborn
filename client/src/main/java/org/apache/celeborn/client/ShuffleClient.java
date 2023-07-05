@@ -87,7 +87,7 @@ public abstract class ShuffleClient {
           try {
             hdfsFs = CelebornHadoopUtils.getHadoopFS(conf);
           } catch (Exception e) {
-            System.err.println("Celeborn initialize hdfs failed.");
+            System.err.println("Celeborn initialize HDFS failed.");
             e.printStackTrace(System.err);
           }
         }

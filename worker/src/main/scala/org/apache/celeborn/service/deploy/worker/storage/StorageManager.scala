@@ -473,7 +473,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
           } catch {
-            case e: Exception => logWarning("Clean expired hdfs shuffle failed.", e)
+            case e: Exception => logWarning("Clean expired HDFS shuffle failed.", e)
           }
         }
       }
@@ -570,7 +570,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val hdfsCleaned = hadoopFs match {
         case hdfs: FileSystem =>
           val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
-          // hdfs path not exist when first time initialize
+          // HDFS path not exist when first time initialize
           if (hdfs.exists(hdfsWorkPath)) {
             !hdfs.listFiles(hdfsWorkPath, false).hasNext
           } else {

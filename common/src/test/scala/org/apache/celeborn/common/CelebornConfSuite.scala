@@ -202,6 +202,7 @@ class CelebornConfSuite extends CelebornFunSuite {
   test("Test commit file threads") {
     val conf = new CelebornConf()
     conf.set("celeborn.storage.activeTypes", "HDFS")
+    conf.set("celeborn.storage.hdfs.dir", "hdfds:///xxx")
     assert(conf.workerCommitThreads === 128)
 
     conf.set("celeborn.storage.activeTypes", "SDD,HDD")

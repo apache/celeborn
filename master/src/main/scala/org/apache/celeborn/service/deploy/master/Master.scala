@@ -676,7 +676,9 @@ private[celeborn] class Master(
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
-        cleanExpiredAppDirsOnHDFS(appId)
+        if (conf.hasHDFSStorage) {
+          cleanExpiredAppDirsOnHDFS(appId)
+        }
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
@@ -696,7 +698,7 @@ private[celeborn] class Master(
         while (iter.hasNext) {
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.contains(fileStatus.getPath.getName)) {
-            logDebug(s"Clean hdfs dir ${fileStatus.getPath.toString}")
+            logDebug(s"Clean HDFS dir ${fileStatus.getPath.toString}")
             hadoopFs.delete(fileStatus.getPath, true)
           }
         }
