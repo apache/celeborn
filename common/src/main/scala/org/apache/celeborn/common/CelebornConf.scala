@@ -1216,10 +1216,11 @@ object CelebornConf extends Logging {
   val NETWORK_MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.share")
       .categories("network")
+      .internal
       .version("0.3.0")
       .doc("Whether to share memory allocator.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val NETWORK_MEMORY_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
     buildConf("celeborn.network.memory.allocator.numArenas")
@@ -2995,11 +2996,12 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.enabled")
       .withAlternative("celeborn.shuffle.batchHandleChangePartition.enabled")
       .categories("client")
+      .internal
       .doc("When true, LifecycleManager will handle change partition request in batch. " +
         "Otherwise, LifecycleManager will process the requests one by one")
       .version("0.3.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.threads")
@@ -3023,11 +3025,12 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.batchHandleCommitPartition.enabled")
       .withAlternative("celeborn.shuffle.batchHandleCommitPartition.enabled")
       .categories("client")
+      .internal
       .doc("When true, LifecycleManager will handle commit partition request in batch. " +
         "Otherwise, LifecycleManager won't commit partition before stage end")
       .version("0.3.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_BATCH_HANDLE_COMMIT_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleCommitPartition.threads")
@@ -3050,6 +3053,7 @@ object CelebornConf extends Logging {
   val CLIENT_BATCH_HANDLE_RELEASE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.batchHandleReleasePartition.enabled")
       .categories("client")
+      .internal
       .doc("When true, LifecycleManager will handle release partition request in batch. " +
         "Otherwise, LifecycleManager will process release partition request immediately")
       .version("0.3.0")

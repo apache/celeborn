@@ -41,7 +41,6 @@ license: |
 | celeborn.network.bind.preferIpAddress | true | When `ture`, prefer to use IP address, otherwise FQDN. This configuration only takes effects when the bind hostname is not set explicitly, in such case, Celeborn will find the first non-loopback address to bind. | 0.3.0 | 
 | celeborn.network.connect.timeout | 10s | Default socket connect timeout. | 0.2.0 | 
 | celeborn.network.memory.allocator.numArenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
-| celeborn.network.memory.allocator.share | false | Whether to share memory allocator. | 0.3.0 | 
 | celeborn.network.memory.allocator.verbose.metric | false | Weather to enable verbose metric for pooled allocator. | 0.3.0 | 
 | celeborn.network.timeout | 240s | Default timeout for network operations. | 0.2.0 | 
 | celeborn.port.maxRetries | 1 | When port is occupied, we will retry for max retry times. | 0.2.0 | 
