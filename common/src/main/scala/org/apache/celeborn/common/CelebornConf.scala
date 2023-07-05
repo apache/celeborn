@@ -2677,7 +2677,7 @@ object CelebornConf extends Logging {
         "`celeborn.client.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
         "compression ratio(1 in worst case), default: 64KiB * 4 = 256KiB")
       .intConf
-      .createWithDefault(4)
+      .createWithDefault(16)
 
   val CLIENT_PUSH_MAX_REVIVE_TIMES: ConfigEntry[Int] =
     buildConf("celeborn.client.push.revive.maxRetries")
