@@ -692,7 +692,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientRpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
-  def hdfsRemnantDirsTimeoutMS: Long = get(HDFS_REMNANTDIRS_TIMEOUT)
+  def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
@@ -1510,11 +1510,11 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("300s")
 
-  val HDFS_REMNANTDIRS_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.master.hdfs.remnantDirs.timeout")
+  val HDFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.hdfs.expireDirs.timeout")
       .categories("master")
       .version("0.3.0")
-      .doc("Timeout before HDFS remnant shuffle dirs are deleted.")
+      .doc("The timeout for a expire dirs to be deleted on HDFS.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1h")
 

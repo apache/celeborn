@@ -99,7 +99,7 @@ private[celeborn] class Master(
   // Config constants
   private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
-  private val hdfsRemnantDirsTimeoutMS = conf.hdfsRemnantDirsTimeoutMS
+  private val hdfsExpireDirsTimeoutMS = conf.hdfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
 
   private val quotaManager = QuotaManager.instantiate(conf)
@@ -193,11 +193,11 @@ private[celeborn] class Master(
       checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForHDFSRemnantDirsTimeout)
+            self.send(CheckForHDFSExpireDirsTimeout)
           }
         },
-        hdfsRemnantDirsTimeoutMS,
-        hdfsRemnantDirsTimeoutMS,
+        hdfsExpireDirsTimeoutMS,
+        hdfsExpireDirsTimeoutMS,
         TimeUnit.MILLISECONDS)
     }
 
@@ -238,8 +238,8 @@ private[celeborn] class Master(
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
-    case CheckForHDFSRemnantDirsTimeout =>
-      executeWithLeaderChecker(null, cleanExpiredAppDirsOnHDFS())
+    case CheckForHDFSExpireDirsTimeout =>
+      executeWithLeaderChecker(null, checkAndCleanExpiredAppDirsOnHDFS())
     case pb: PbWorkerLost =>
       val host = pb.getHost
       val rpcPort = pb.getRpcPort
@@ -679,29 +679,31 @@ private[celeborn] class Master(
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
         if (hasHDFSStorage) {
-          cleanExpiredAppDirsOnHDFS(appId)
+          checkAndCleanExpiredAppDirsOnHDFS(appId)
         }
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
   }
 
-  private def cleanExpiredAppDirsOnHDFS(dir: String = ""): Unit = {
+  private def checkAndCleanExpiredAppDirsOnHDFS(dir: String = ""): Unit = {
     if (hadoopFs == null) {
       hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
     }
     val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
     if (hadoopFs.exists(hdfsWorkPath)) {
       if (!dir.isEmpty) {
+        val dirToDelete = new Path(hdfsWorkPath, dir)
         // delete specific app dir on application lost
-        Utils.tryLogNonFatalError(hadoopFs.delete(new Path(hdfsWorkPath, dir), true))
+        Utils.tryLogDeleteHadoopFSError(hadoopFs.delete(dirToDelete, true), dirToDelete)
       } else {
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
-        while (iter.hasNext) {
+        while (iter.hasNext && isMasterActive == 1) {
           val startTime = System.currentTimeMillis()
           val fileStatus = iter.next()
+          val dirToDelete = new Path(hdfsWorkPath, dir)
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            Utils.tryLogNonFatalError(hadoopFs.delete(new Path(hdfsWorkPath, dir), true))
+            Utils.tryLogDeleteHadoopFSError(hadoopFs.delete(dirToDelete, true), dirToDelete)
             logInfo(
               s"Clean HDFS dir ${fileStatus.getPath} costs " +
                 Utils.msDurationToString(System.currentTimeMillis() - startTime))

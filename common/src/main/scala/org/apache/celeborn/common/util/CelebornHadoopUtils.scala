@@ -26,7 +26,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 
 object CelebornHadoopUtils extends Logging {
-  var logFlag = new AtomicBoolean(false)
+  private var logPrinted = new AtomicBoolean(false)
   private[celeborn] def newConfiguration(conf: CelebornConf): Configuration = {
     val hadoopConf = new Configuration()
     if (conf.hdfsDir.nonEmpty) {
@@ -35,7 +35,7 @@ object CelebornHadoopUtils extends Logging {
       val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
       hadoopConf.set("dfs.replication", "2")
       hadoopConf.set(disableCacheName, "false")
-      if (logFlag.compareAndSet(false, true)) {
+      if (logPrinted.compareAndSet(false, true)) {
         logInfo(
           "Celeborn overrides some HDFS settings defined in Hadoop configuration files, " +
             s"including '$disableCacheName=false' and 'dfs.replication=2'. " +
