@@ -193,6 +193,8 @@ celeborn.worker.directMemoryRatioToResume 0.6
 celeborn.worker.partition.initial.readBuffersMin 512
 celeborn.worker.partition.initial.readBuffersMax 1024
 celeborn.worker.readBuffer.allocationWait 10ms
+# Currently, shuffle partitionSplit is not supported, so you should disable split in celeborn worker side or set `celeborn.client.shuffle.partitionSplit.threshold` to a high value in flink client side.
+celeborn.worker.shuffle.partitionSplit.enabled false
 ```
 
 4. Copy Celeborn and configurations to all nodes
