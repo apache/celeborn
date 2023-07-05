@@ -32,8 +32,7 @@ object CelebornHadoopUtils extends Logging {
       val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
       hadoopConf.set("dfs.replication", "2")
       hadoopConf.set(disableCacheName, "false")
-      logInfo(s"Celeborn will ignore cluster settings $disableCacheName and " +
-        "set it to false")
+      logInfo(s"Celeborn overrides some HDFS settings defined in Hadoop configuration files, including overriding '$disableCacheName=false' and 'dfs.replication=2'. It can be overridden again in the Celeborn configuration with the additional prefix 'celeborn.hadoop.'")
     }
     appendSparkHadoopConfigs(conf, hadoopConf)
     hadoopConf

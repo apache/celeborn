@@ -401,6 +401,10 @@ private[celeborn] class Master(
         }
       }
     }
+    // only leader can clean hdfs dirs
+    if (conf.hasHDFSStorage && !conf.hdfsDir.isEmpty) {
+      cleanExpiredAppDirsOnHDFS()
+    }
   }
 
   private def handleHeartbeatFromWorker(
@@ -656,10 +660,6 @@ private[celeborn] class Master(
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
-        // only leader can clean hdfs dirs
-        if (conf.hasHDFSStorage && !conf.hdfsDir.isEmpty) {
-          cleanExpiredAppDirsOnHDFS()
-        }
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
