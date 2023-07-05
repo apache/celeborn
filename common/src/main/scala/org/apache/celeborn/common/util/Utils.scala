@@ -212,7 +212,7 @@ object Utils extends Logging {
     }
   }
 
-  def tryLogDeleteHadoopFSError(block: => Unit, path: Path): Unit = {
+  def tryLogDeleteHDFSPathError(block: => Unit, path: Path): Unit = {
     try {
       block
     } catch {

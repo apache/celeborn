@@ -193,7 +193,7 @@ private[celeborn] class Master(
       checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForHDFSExpireDirsTimeout)
+            self.send(CheckForHDFSExpiredDirsTimeout)
           }
         },
         hdfsExpireDirsTimeoutMS,
@@ -238,7 +238,7 @@ private[celeborn] class Master(
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
-    case CheckForHDFSExpireDirsTimeout =>
+    case CheckForHDFSExpiredDirsTimeout =>
       executeWithLeaderChecker(null, checkAndCleanExpiredAppDirsOnHDFS())
     case pb: PbWorkerLost =>
       val host = pb.getHost
@@ -686,24 +686,25 @@ private[celeborn] class Master(
     })
   }
 
-  private def checkAndCleanExpiredAppDirsOnHDFS(dir: String = ""): Unit = {
+  private def checkAndCleanExpiredAppDirsOnHDFS(expiredDir: String = ""): Unit = {
     if (hadoopFs == null) {
       hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
     }
     val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
     if (hadoopFs.exists(hdfsWorkPath)) {
-      if (!dir.isEmpty) {
-        val dirToDelete = new Path(hdfsWorkPath, dir)
+      if (!expiredDir.isEmpty) {
+        val dirToDelete = new Path(hdfsWorkPath, expiredDir)
         // delete specific app dir on application lost
-        Utils.tryLogDeleteHadoopFSError(hadoopFs.delete(dirToDelete, true), dirToDelete)
+        Utils.tryLogDeleteHDFSPathError(hadoopFs.delete(dirToDelete, true), dirToDelete)
       } else {
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext && isMasterActive == 1) {
           val startTime = System.currentTimeMillis()
           val fileStatus = iter.next()
-          val dirToDelete = new Path(hdfsWorkPath, dir)
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            Utils.tryLogDeleteHadoopFSError(hadoopFs.delete(dirToDelete, true), dirToDelete)
+            Utils.tryLogDeleteHDFSPathError(
+              hadoopFs.delete(fileStatus.getPath, true),
+              fileStatus.getPath)
             logInfo(
               s"Clean HDFS dir ${fileStatus.getPath} costs " +
                 Utils.msDurationToString(System.currentTimeMillis() - startTime))
