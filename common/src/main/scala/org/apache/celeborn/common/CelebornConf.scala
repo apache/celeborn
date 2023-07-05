@@ -499,8 +499,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterSlotAssignPolicy: SlotsAssignPolicy =
     SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
 
-  def hasHDFSStorage: Boolean = get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name())
-
+  def hasHDFSStorage: Boolean =
+    get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name()) && get(HDFS_DIR).isDefined
   def masterSlotAssignLoadAwareDiskGroupNum: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def masterSlotAssignLoadAwareDiskGroupGradient: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
@@ -692,6 +692,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientRpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
+  def hdfsRemnantDirsTimeoutMS: Long = get(HDFS_REMNANET_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
@@ -1508,6 +1509,15 @@ object CelebornConf extends Logging {
       .doc("Application heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("300s")
+
+  val HDFS_REMNANET_DIRS_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.hdfs.remnantDirs.timeout")
+      .withAlternative("celeborn.application.heartbeat.timeout")
+      .categories("master")
+      .version("0.3.0")
+      .doc("Application heartbeat timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1h")
 
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.heartbeat.worker.timeout")

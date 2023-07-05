@@ -122,7 +122,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val hdfsPermission = new FsPermission("755")
   val hdfsWriters = JavaUtils.newConcurrentHashMap[String, FileWriter]()
   val (hdfsFlusher, _totalHdfsFlusherThread) =
-    if (!hdfsDir.isEmpty && conf.hasHDFSStorage) {
+    if (conf.hasHDFSStorage) {
       logInfo(s"Initialize HDFS support with path ${hdfsDir}")
       StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       (

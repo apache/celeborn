@@ -67,6 +67,8 @@ object ControlMessages extends Logging {
 
   case object CheckForApplicationTimeOut extends Message
 
+  case object CheckForHDFSRemanetDirsTimeout extends Message
+
   case object RemoveExpiredShuffle extends Message
 
   /**
@@ -426,6 +428,9 @@ object ControlMessages extends Logging {
 
     case CheckForApplicationTimeOut =>
       new TransportMessage(MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
+
+    case CheckForHDFSRemanetDirsTimeout =>
+      new TransportMessage(MessageType.CHECK_FOR_HDFS_REMNANT_DIRS_TIMEOUT, null)
 
     case RemoveExpiredShuffle =>
       new TransportMessage(MessageType.REMOVE_EXPIRED_SHUFFLE, null)
@@ -1073,6 +1078,9 @@ object ControlMessages extends Logging {
 
       case CHECK_FOR_APPLICATION_TIMEOUT_VALUE =>
         CheckForApplicationTimeOut
+
+      case CHECK_FOR_HDFS_REMNANT_DIRS_TIMEOUT_VALUE =>
+        CheckForHDFSRemanetDirsTimeout
 
       case WORKER_LOST_VALUE =>
         PbWorkerLost.parseFrom(message.getPayload)
