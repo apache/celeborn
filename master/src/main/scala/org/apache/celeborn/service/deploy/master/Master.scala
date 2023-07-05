@@ -23,6 +23,7 @@ import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Random
 
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -191,7 +192,7 @@ private[celeborn] class Master(
       checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
-            self.send(CheckForHDFSRemanetDirsTimeout)
+            self.send(CheckForHDFSRemnantDirsTimeout)
           }
         },
         hdfsRemnantDirsTimeoutMS,
@@ -236,7 +237,7 @@ private[celeborn] class Master(
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
-    case CheckForHDFSRemanetDirsTimeout =>
+    case CheckForHDFSRemnantDirsTimeout =>
       executeWithLeaderChecker(null, cleanExpiredAppDirsOnHDFS())
     case pb: PbWorkerLost =>
       val host = pb.getHost
@@ -694,14 +695,18 @@ private[celeborn] class Master(
         // delete specific app dir on application lost
         hadoopFs.delete(new Path(hdfsWorkPath, dir), true)
       } else {
+        val startTime = System.currentTimeMillis()
+        val cleanDirs = new mutable.ListBuffer[String]
         val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
         while (iter.hasNext) {
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            logDebug(s"Clean HDFS dir ${fileStatus.getPath.toString}")
+            cleanDirs.append(fileStatus.getPath.toString)
             hadoopFs.delete(fileStatus.getPath, true)
           }
         }
+        logInfo(
+          s"Clean all remnant HDFS dirs using ${System.currentTimeMillis() - startTime} ms, cleaned ${cleanDirs.mkString(",")}")
       }
     }
   }

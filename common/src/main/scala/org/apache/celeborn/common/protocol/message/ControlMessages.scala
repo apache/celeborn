@@ -67,7 +67,7 @@ object ControlMessages extends Logging {
 
   case object CheckForApplicationTimeOut extends Message
 
-  case object CheckForHDFSRemanetDirsTimeout extends Message
+  case object CheckForHDFSRemnantDirsTimeout extends Message
 
   case object RemoveExpiredShuffle extends Message
 

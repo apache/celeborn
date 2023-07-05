@@ -190,11 +190,11 @@ class CelebornConfSuite extends CelebornFunSuite {
   test("Test empty working dir") {
     val conf = new CelebornConf()
     conf.set("celeborn.storage.activeTypes", "HDFS")
-    conf.set("celeborn.storage.hdfs.dir", "hdfds:///xxx")
+    conf.set("celeborn.storage.hdfs.dir", "hdfs:///xxx")
     assert(conf.workerBaseDirs.isEmpty)
 
     conf.set("celeborn.storage.activeTypes", "SDD,HDD,HDFS")
-    conf.set("celeborn.storage.hdfs.dir", "hdfds:///xxx")
+    conf.set("celeborn.storage.hdfs.dir", "hdfs:///xxx")
     assert(conf.workerBaseDirs.isEmpty)
 
     conf.set("celeborn.storage.activeTypes", "SDD,HDD")
@@ -204,7 +204,7 @@ class CelebornConfSuite extends CelebornFunSuite {
   test("Test commit file threads") {
     val conf = new CelebornConf()
     conf.set("celeborn.storage.activeTypes", "HDFS")
-    conf.set("celeborn.storage.hdfs.dir", "hdfds:///xxx")
+    conf.set("celeborn.storage.hdfs.dir", "hdfs:///xxx")
     assert(conf.workerCommitThreads === 128)
 
     conf.set("celeborn.storage.activeTypes", "SDD,HDD")
