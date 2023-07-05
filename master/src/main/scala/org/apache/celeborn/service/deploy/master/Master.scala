@@ -702,7 +702,7 @@ private[celeborn] class Master(
           val fileStatus = iter.next()
           if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
             logInfo(
-              s"Clean HDFS dir ${fileStatus.getPath.toString} using ${Utils.msDurationToString(
+              s"Clean HDFS dir ${fileStatus.getPath} costs ${Utils.msDurationToString(
                 System.currentTimeMillis() - startTime)}")
             hadoopFs.delete(fileStatus.getPath, true)
           }
