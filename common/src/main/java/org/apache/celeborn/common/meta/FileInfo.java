@@ -127,8 +127,8 @@ public class FileInfo {
     return filePath;
   }
 
-  public String getSortedPath() {
-    return Utils.getSortedFilePath(filePath);
+  public String getSortedPath(int idx) {
+    return Utils.getSortedFilePath(filePath, idx);
   }
 
   public String getIndexPath() {
@@ -141,10 +141,6 @@ public class FileInfo {
 
   public Path getHdfsIndexPath() {
     return new Path(Utils.getIndexFilePath(filePath));
-  }
-
-  public Path getHdfsSortedPath() {
-    return new Path(Utils.getSortedFilePath(filePath));
   }
 
   public Path getHdfsWriterSuccessPath() {
@@ -165,21 +161,18 @@ public class FileInfo {
         hdfsFs.delete(getHdfsPath(), false);
         hdfsFs.delete(getHdfsWriterSuccessPath(), false);
         hdfsFs.delete(getHdfsIndexPath(), false);
-        hdfsFs.delete(getHdfsSortedPath(), false);
       } catch (Exception e) {
         // ignore delete exceptions because some other workers might be deleting the directory
         logger.debug(
-            "delete hdfs file {},{},{},{} failed {}",
+            "delete hdfs file {},{},{} failed {}",
             getHdfsPath(),
             getHdfsWriterSuccessPath(),
             getHdfsIndexPath(),
-            getHdfsSortedPath(),
             e);
       }
     } else {
       getFile().delete();
       new File(getIndexPath()).delete();
-      new File(getSortedPath()).delete();
     }
   }
 
@@ -231,5 +224,9 @@ public class FileInfo {
 
   public void setMountPoint(String mountPoint) {
     this.mountPoint = mountPoint;
+  }
+
+  public boolean isSortedFile() {
+    return false;
   }
 }

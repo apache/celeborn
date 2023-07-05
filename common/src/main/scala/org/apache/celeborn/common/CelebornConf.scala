@@ -642,6 +642,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
   def partitionSorterReservedMemoryPerPartition: Long =
     get(WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
+  def partitionSorterSortFileSizePerThread: Long =
+    get(WORKER_PARTITION_SORTER_SORT_FILE_SIZE_PER_THREAD)
   def partitionSorterThreads: Int =
     get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
@@ -2139,6 +2141,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1mb")
+
+  val WORKER_PARTITION_SORTER_SORT_FILE_SIZE_PER_THREAD: ConfigEntry[Long] =
+    buildConf("celeborn.worker.sortPartition.sortFileSizePerThread")
+      .categories("worker")
+      .doc("Sort file size per thread when sorting a large shuffle file")
+      .version("0.4.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("256mb")
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")

@@ -25,13 +25,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -49,6 +52,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.SortedFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.*;
@@ -72,6 +76,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Map<String, Map<Integer, List<ShuffleBlockInfo>>>>
       cachedIndexMaps = JavaUtils.newConcurrentHashMap();
+  private final ConcurrentHashMap<String, Map<String, List<Long>>> cacheSortedSizeMaps =
+      JavaUtils.newConcurrentHashMap();
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
 
   private final AtomicInteger sortedFileCount = new AtomicInteger();
@@ -79,6 +85,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
   protected final long reservedMemoryPerPartition;
+  protected final long sortFileSizePerThread;
   private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
@@ -89,11 +96,15 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
 
+  private final ForkJoinPool forkJoinPool =
+      new ForkJoinPool(Runtime.getRuntime().availableProcessors());
+
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
+    this.sortFileSizePerThread = conf.partitionSorterSortFileSizePerThread();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.source = source;
@@ -169,7 +180,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     Set<String> sorting =
         sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
-    String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
     String indexFilePath = Utils.getIndexFilePath(fileInfo.getFilePath());
 
     synchronized (sorting) {
@@ -178,7 +188,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             shuffleKey,
             fileId,
             userIdentifier,
-            sortedFilePath,
+            fileInfo.getFilePath(),
             indexFilePath,
             startMapIndex,
             endMapIndex);
@@ -225,7 +235,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         shuffleKey,
         fileId,
         userIdentifier,
-        sortedFilePath,
+        fileInfo.getFilePath(),
         indexFilePath,
         startMapIndex,
         endMapIndex);
@@ -236,6 +246,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       sortingShuffleFiles.remove(expiredShuffleKey);
       deleteSortedShuffleFiles(expiredShuffleKey);
       cachedIndexMaps.remove(expiredShuffleKey);
+      cacheSortedSizeMaps.remove(expiredShuffleKey);
     }
   }
 
@@ -261,6 +272,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       fileSorterExecutors.shutdownNow();
     }
     cachedIndexMaps.clear();
+    cacheSortedSizeMaps.clear();
     if (sortedFilesDb != null) {
       try {
         updateSortedShuffleFilesInDB();
@@ -330,49 +342,77 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   protected void writeIndex(
-      Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isHdfs)
+      Map<Integer, List<ShuffleBlockInfo>> indexMap,
+      String indexFilePath,
+      String sortedFileSizePath,
+      long[] sortedFileLenSumOver,
+      boolean isHdfs)
       throws IOException {
-    FSDataOutputStream hdfsIndexOutput = null;
-    FileChannel indexFileChannel = null;
-    if (isHdfs) {
-      // If the index file exists, it will be overwritten.
-      // So there is no need to check its existence.
-      hdfsIndexOutput = StorageManager.hadoopFs().create(new Path(indexFilePath));
-    } else {
-      indexFileChannel = FileChannelUtils.createWritableFileChannel(indexFilePath);
-    }
+    Set<Map.Entry<Integer, List<ShuffleBlockInfo>>> entrySet = indexMap.entrySet();
+    List<Map.Entry<Integer, List<ShuffleBlockInfo>>> sortedIndexList = new ArrayList<>(entrySet);
+    sortedIndexList.sort(Map.Entry.comparingByKey());
 
     int indexSize = 0;
-    for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : indexMap.entrySet()) {
+    for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : entrySet) {
       indexSize += 8;
       indexSize += entry.getValue().size() * 16;
     }
 
     ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
-    for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : indexMap.entrySet()) {
+    int sumOverIdx = 0;
+    long baseOffset = 0;
+    for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : sortedIndexList) {
       int mapId = entry.getKey();
       List<ShuffleBlockInfo> list = entry.getValue();
       indexBuf.putInt(mapId);
       indexBuf.putInt(list.size());
-      list.forEach(
-          info -> {
-            indexBuf.putLong(info.offset);
-            indexBuf.putLong(info.length);
-          });
+      for (ShuffleBlockInfo info : list) {
+        indexBuf.putLong(info.offset + baseOffset);
+        indexBuf.putLong(info.length);
+        if (info.offset + info.length + baseOffset == sortedFileLenSumOver[sumOverIdx]) {
+          baseOffset = sortedFileLenSumOver[sumOverIdx++];
+        }
+      }
     }
 
     indexBuf.flip();
     if (isHdfs) {
-      // Direct byte buffer has no array, so can not invoke indexBuf.array() here.
-      byte[] tmpBuf = new byte[indexSize];
-      indexBuf.get(tmpBuf);
-      hdfsIndexOutput.write(tmpBuf);
-      hdfsIndexOutput.close();
-    } else {
-      while (indexBuf.hasRemaining()) {
-        indexFileChannel.write(indexBuf);
+      // If the index file exists, it will be overwritten.
+      // So there is no need to check its existence.
+      try (FSDataOutputStream hdfsIndexOutput =
+          StorageManager.hadoopFs().create(new Path(indexFilePath))) {
+        // Direct byte buffer has no array, so can not invoke indexBuf.array() here.
+        byte[] tmpBuf = new byte[indexSize];
+        indexBuf.get(tmpBuf);
+        hdfsIndexOutput.write(tmpBuf);
       }
-      indexFileChannel.close();
+    } else {
+      try (FileChannel indexFileChannel =
+          FileChannelUtils.createWritableFileChannel(indexFilePath)) {
+        while (indexBuf.hasRemaining()) {
+          indexFileChannel.write(indexBuf);
+        }
+      }
+    }
+
+    ByteBuffer sumOverBuf = ByteBuffer.allocate(sortedFileLenSumOver.length * 8);
+    for (long l : sortedFileLenSumOver) {
+      sumOverBuf.putLong(l);
+    }
+    sumOverBuf.flip();
+    if (isHdfs) {
+      try (FSDataOutputStream fos =
+          StorageManager.hadoopFs().create(new Path(sortedFileSizePath))) {
+        byte[] tmpBuf = new byte[sortedFileLenSumOver.length * 8];
+        sumOverBuf.get(tmpBuf);
+        fos.write(tmpBuf);
+      }
+    } else {
+      try (FileChannel channel = FileChannelUtils.createWritableFileChannel(sortedFileSizePath)) {
+        while (sumOverBuf.hasRemaining()) {
+          channel.write(sumOverBuf);
+        }
+      }
     }
   }
 
@@ -433,41 +473,65 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String shuffleKey,
       String fileId,
       UserIdentifier userIdentifier,
-      String sortedFilePath,
+      String originalFilePath,
       String indexFilePath,
       int startMapIndex,
       int endMapIndex)
       throws IOException {
     Map<Integer, List<ShuffleBlockInfo>> indexMap;
+    List<Long> sortedFileLenSumOver;
     if (cachedIndexMaps.containsKey(shuffleKey)
         && cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
       indexMap = cachedIndexMaps.get(shuffleKey).get(fileId);
+      sortedFileLenSumOver = cacheSortedSizeMaps.get(shuffleKey).get(fileId);
     } else {
       FileChannel indexChannel = null;
+      FileChannel sortedSizeChannel = null;
       FSDataInputStream hdfsIndexStream = null;
+      FSDataInputStream hdfsSortedSizeStream = null;
       boolean isHdfs = Utils.isHdfsPath(indexFilePath);
       int indexSize = 0;
+      int sortedSizeFileSize = 0;
+      String sortedSizeFilePath = Utils.getSortedSizeFilePath(originalFilePath);
       try {
         if (isHdfs) {
           hdfsIndexStream = StorageManager.hadoopFs().open(new Path(indexFilePath));
           indexSize =
               (int) StorageManager.hadoopFs().getFileStatus(new Path(indexFilePath)).getLen();
+          hdfsSortedSizeStream = StorageManager.hadoopFs().open(new Path(sortedSizeFilePath));
+          sortedSizeFileSize =
+              (int) StorageManager.hadoopFs().getFileStatus(new Path(sortedSizeFilePath)).getLen();
         } else {
           indexChannel = FileChannelUtils.openReadableFileChannel(indexFilePath);
           File indexFile = new File(indexFilePath);
           indexSize = (int) indexFile.length();
+
+          sortedSizeChannel = FileChannelUtils.openReadableFileChannel(sortedSizeFilePath);
+          File sortedSizeFile = new File(sortedSizeFilePath);
+          sortedSizeFileSize = (int) sortedSizeFile.length();
         }
         ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
+        ByteBuffer sortedSizeBuf = ByteBuffer.allocate(sortedSizeFileSize);
         if (isHdfs) {
           readStreamFully(hdfsIndexStream, indexBuf, indexFilePath);
+          readStreamFully(hdfsSortedSizeStream, sortedSizeBuf, sortedSizeFilePath);
         } else {
           readChannelFully(indexChannel, indexBuf, indexFilePath);
+          readChannelFully(sortedSizeChannel, sortedSizeBuf, sortedSizeFilePath);
         }
         indexBuf.rewind();
         indexMap = ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
         Map<String, Map<Integer, List<ShuffleBlockInfo>>> cacheMap =
             cachedIndexMaps.computeIfAbsent(shuffleKey, v -> JavaUtils.newConcurrentHashMap());
         cacheMap.put(fileId, indexMap);
+        indexBuf.clear();
+
+        sortedSizeBuf.rewind();
+        sortedFileLenSumOver = ShuffleBlockInfoUtils.parseSortedFileLenSumOver(sortedSizeBuf);
+        Map<String, List<Long>> sortedSizeSumOverMap =
+            cacheSortedSizeMaps.computeIfAbsent(shuffleKey, v -> JavaUtils.newConcurrentHashMap());
+        sortedSizeSumOverMap.put(fileId, sortedFileLenSumOver);
+        sortedSizeBuf.clear();
       } catch (Exception e) {
         logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
         throw new IOException("Read sorted shuffle file index failed.", e);
@@ -476,50 +540,50 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         IOUtils.closeQuietly(hdfsIndexStream, null);
       }
     }
-    return new FileInfo(
-        sortedFilePath,
+
+    return new SortedFileInfo(
+        originalFilePath,
         ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-            startMapIndex, endMapIndex, shuffleChunkSize, indexMap),
-        userIdentifier);
+            startMapIndex, endMapIndex, shuffleChunkSize, indexMap, sortedFileLenSumOver),
+        userIdentifier,
+        sortedFileLenSumOver);
   }
 
   class FileSorter {
     private final String originFilePath;
-    private final String sortedFilePath;
     private final String indexFilePath;
+    private final String sortedSizeFilePath;
     private final long originFileLen;
     private final String fileId;
     private final String shuffleKey;
     private final boolean isHdfs;
 
     private FSDataInputStream hdfsOriginInput = null;
-    private FSDataOutputStream hdfsSortedOutput = null;
     private FileChannel originFileChannel = null;
-    private FileChannel sortedFileChannel = null;
 
     FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
       this.originFilePath = fileInfo.getFilePath();
-      this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
       this.isHdfs = fileInfo.isHdfs();
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
       this.indexFilePath = Utils.getIndexFilePath(originFilePath);
+      this.sortedSizeFilePath = Utils.getSortedSizeFilePath(originFilePath);
       if (!isHdfs) {
-        File sortedFile = new File(this.sortedFilePath);
-        if (sortedFile.exists()) {
-          sortedFile.delete();
-        }
         File indexFile = new File(this.indexFilePath);
         if (indexFile.exists()) {
           indexFile.delete();
         }
-      } else {
-        if (StorageManager.hadoopFs().exists(fileInfo.getHdfsSortedPath())) {
-          StorageManager.hadoopFs().delete(fileInfo.getHdfsSortedPath(), false);
+        File sortedSizeFile = new File(this.sortedSizeFilePath);
+        if (sortedSizeFile.exists()) {
+          sortedSizeFile.delete();
         }
+      } else {
         if (StorageManager.hadoopFs().exists(fileInfo.getHdfsIndexPath())) {
           StorageManager.hadoopFs().delete(fileInfo.getHdfsIndexPath(), false);
+        }
+        if (StorageManager.hadoopFs().exists(new Path(sortedSizeFilePath))) {
+          StorageManager.hadoopFs().delete(new Path(sortedSizeFilePath), false);
         }
       }
     }
@@ -530,7 +594,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       try {
         initializeFiles();
 
-        Map<Integer, List<ShuffleBlockInfo>> originShuffleBlockInfos = new TreeMap<>();
+        Map<Integer, SortShuffleBlockWrapper> originShuffleBlockInfos = new TreeMap<>();
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
         int batchHeaderLen = 16;
@@ -548,39 +612,64 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
           final int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
 
-          List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
-              originShuffleBlockInfos.computeIfAbsent(mapId, v -> new ArrayList<>());
+          SortShuffleBlockWrapper sortShuffleBlockWrapper =
+              originShuffleBlockInfos.computeIfAbsent(mapId, SortShuffleBlockWrapper::new);
           ShuffleBlockInfo blockInfo = new ShuffleBlockInfo();
           blockInfo.offset = blockStartIndex;
           blockInfo.length = compressedSize + 16;
-          singleMapIdShuffleBlockList.add(blockInfo);
+          sortShuffleBlockWrapper.add(blockInfo);
 
           index += batchHeaderLen + compressedSize;
           paddingBuf.clear();
           readBufferBySize(paddingBuf, compressedSize);
         }
 
-        long fileIndex = 0;
-        for (Map.Entry<Integer, List<ShuffleBlockInfo>> originBlockInfoEntry :
-            originShuffleBlockInfos.entrySet()) {
-          int mapId = originBlockInfoEntry.getKey();
-          List<ShuffleBlockInfo> originShuffleBlocks = originBlockInfoEntry.getValue();
-          List<ShuffleBlockInfo> sortedShuffleBlocks = new ArrayList<>();
-          for (ShuffleBlockInfo blockInfo : originShuffleBlocks) {
-            long offset = blockInfo.offset;
-            long length = blockInfo.length;
-            ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
-            sortedBlock.offset = fileIndex;
-            sortedBlock.length = length;
-            sortedShuffleBlocks.add(sortedBlock);
-            fileIndex += transferBlock(offset, length);
+        List<Map<Integer, SortShuffleBlockWrapper>> batchSortList = new ArrayList<>();
+        Map<Integer, SortShuffleBlockWrapper> tmpMap = new TreeMap<>();
+        long len = 0;
+        Iterator<Map.Entry<Integer, SortShuffleBlockWrapper>> iterator =
+            originShuffleBlockInfos.entrySet().iterator();
+        while (iterator.hasNext()) {
+          Map.Entry<Integer, SortShuffleBlockWrapper> entry = iterator.next();
+          int mapId = entry.getKey();
+          SortShuffleBlockWrapper sortShuffleBlockWrapper = entry.getValue();
+          tmpMap.put(mapId, sortShuffleBlockWrapper);
+
+          len += sortShuffleBlockWrapper.totalLength;
+
+          if (len >= sortFileSizePerThread || !iterator.hasNext()) {
+            batchSortList.add(tmpMap);
+            tmpMap = new TreeMap<>();
+            len = 0;
           }
-          sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
+        }
+
+        long[] fileLengthArray = new long[batchSortList.size()];
+        forkJoinPool.invoke(
+            new MergeSortAction(
+                originFileChannel,
+                hdfsOriginInput,
+                originFilePath,
+                batchSortList,
+                sortedBlockInfoMap,
+                fileLengthArray,
+                0,
+                batchSortList.size(),
+                isHdfs));
+
+        long[] sortedFileLenSumOver = new long[fileLengthArray.length];
+        for (int i = 0; i < fileLengthArray.length; i++) {
+          if (i == 0) {
+            sortedFileLenSumOver[i] = fileLengthArray[i];
+          } else {
+            sortedFileLenSumOver[i] = sortedFileLenSumOver[i - 1] + fileLengthArray[i];
+          }
         }
 
         memoryManager.releaseSortMemory(reserveMemory);
 
-        writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
+        writeIndex(
+            sortedBlockInfoMap, indexFilePath, sortedSizeFilePath, sortedFileLenSumOver, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
         deleteOriginFiles();
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
@@ -600,19 +689,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private void initializeFiles() throws IOException {
       if (isHdfs) {
         hdfsOriginInput = StorageManager.hadoopFs().open(new Path(originFilePath));
-        hdfsSortedOutput =
-            StorageManager.hadoopFs().create(new Path(sortedFilePath), true, 256 * 1024);
       } else {
         originFileChannel = FileChannelUtils.openReadableFileChannel(originFilePath);
-        sortedFileChannel = FileChannelUtils.createWritableFileChannel(sortedFilePath);
       }
     }
 
     private void closeFiles() {
       IOUtils.closeQuietly(hdfsOriginInput, null);
-      IOUtils.closeQuietly(hdfsSortedOutput, null);
       IOUtils.closeQuietly(originFileChannel, null);
-      IOUtils.closeQuietly(sortedFileChannel, null);
     }
 
     private void readBufferFully(ByteBuffer buffer) throws IOException {
@@ -620,14 +704,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         readStreamFully(hdfsOriginInput, buffer, originFilePath);
       } else {
         readChannelFully(originFileChannel, buffer, originFilePath);
-      }
-    }
-
-    private long transferBlock(long offset, long length) throws IOException {
-      if (isHdfs) {
-        return transferStreamFully(hdfsOriginInput, hdfsSortedOutput, offset, length);
-      } else {
-        return transferChannelFully(originFileChannel, sortedFileChannel, offset, length);
       }
     }
 
@@ -677,6 +753,150 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         hdfsOriginInput.seek(toRead + hdfsOriginInput.getPos());
       } else {
         readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
+      }
+    }
+  }
+
+  class SortShuffleBlockWrapper {
+    public SortShuffleBlockWrapper(int mapId) {
+      this.mapId = mapId;
+      this.shuffleBlockInfoList = new ArrayList<>();
+    }
+
+    private int mapId;
+    final List<ShuffleBlockInfo> shuffleBlockInfoList;
+    private long totalLength;
+
+    public void add(ShuffleBlockInfo shuffleBlockInfo) {
+      shuffleBlockInfoList.add(shuffleBlockInfo);
+      totalLength += shuffleBlockInfo.length;
+    }
+  }
+
+  class MergeSortAction extends RecursiveAction {
+    private final FileChannel originFileChannel;
+    private final FSDataInputStream hdfsOriginInput;
+    private final String originFilePath;
+    private final List<Map<Integer, SortShuffleBlockWrapper>> batchSortList;
+    private final Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap;
+    // [left, right)
+    private final int left;
+    private final int right;
+    private final long[] fileLengthArray;
+    private final boolean isHdfs;
+
+    public MergeSortAction(
+        FileChannel originFileChannel,
+        FSDataInputStream hdfsOriginInput,
+        String originFilePath,
+        List<Map<Integer, SortShuffleBlockWrapper>> batchSortList,
+        Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap,
+        long[] fileLengthArray,
+        int left,
+        int right,
+        boolean isHdfs) {
+      this.originFileChannel = originFileChannel;
+      this.hdfsOriginInput = hdfsOriginInput;
+      this.originFilePath = originFilePath;
+      this.batchSortList = batchSortList;
+      this.sortedBlockInfoMap = sortedBlockInfoMap;
+      this.left = left;
+      this.right = right;
+      this.fileLengthArray = fileLengthArray;
+      this.isHdfs = isHdfs;
+    }
+
+    @Override
+    protected void compute() {
+      if (left == right - 1) {
+        sequentialMergeSort(left);
+      } else if (left < right - 1) {
+        parallelMergeSort();
+      }
+    }
+
+    private void sequentialMergeSort(int idx) {
+      FileChannel targetChannel = null;
+      FSDataOutputStream targetOutputStream = null;
+      try {
+        long fileIndex = 0;
+        Map<Integer, SortShuffleBlockWrapper> batchSort = batchSortList.get(idx);
+        String targetFilePath = Utils.getSortedFilePath(originFilePath, idx);
+        if (isHdfs) {
+          Path p = new Path(targetFilePath);
+          if (StorageManager.hadoopFs().exists(p)) {
+            StorageManager.hadoopFs().delete(p, false);
+          }
+          targetOutputStream = StorageManager.hadoopFs().create(p, true, 256 * 1024);
+        } else {
+          File f = new File(targetFilePath);
+          if (f.exists()) {
+            f.delete();
+          }
+          targetChannel = FileChannelUtils.createWritableFileChannel(targetFilePath);
+        }
+
+        for (Map.Entry<Integer, SortShuffleBlockWrapper> entry : batchSort.entrySet()) {
+          int mapId = entry.getKey();
+          SortShuffleBlockWrapper sortShuffleBlockWrapper = entry.getValue();
+          List<ShuffleBlockInfo> sortedShuffleBlocks = new ArrayList<>();
+
+          for (ShuffleBlockInfo blockInfo : sortShuffleBlockWrapper.shuffleBlockInfoList) {
+            long offset = blockInfo.offset;
+            long length = blockInfo.length;
+            ShuffleBlockInfo sortedBlock = new ShuffleBlockInfo();
+            sortedBlock.offset = fileIndex;
+            sortedBlock.length = length;
+            sortedShuffleBlocks.add(sortedBlock);
+
+            fileIndex += transferBlock(targetChannel, targetOutputStream, offset, length);
+          }
+          sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
+        }
+        fileLengthArray[idx] = fileIndex;
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      } finally {
+        IOUtils.closeQuietly(targetChannel, null);
+        IOUtils.closeQuietly(targetOutputStream, null);
+      }
+    }
+
+    private void parallelMergeSort() {
+      int mid = (right + left) / 2;
+      MergeSortAction leftAction =
+          new MergeSortAction(
+              originFileChannel,
+              hdfsOriginInput,
+              originFilePath,
+              batchSortList,
+              sortedBlockInfoMap,
+              fileLengthArray,
+              left,
+              mid,
+              isHdfs);
+      MergeSortAction rightAction =
+          new MergeSortAction(
+              originFileChannel,
+              hdfsOriginInput,
+              originFilePath,
+              batchSortList,
+              sortedBlockInfoMap,
+              fileLengthArray,
+              mid,
+              right,
+              isHdfs);
+
+      invokeAll(leftAction, rightAction);
+    }
+
+    private long transferBlock(FileChannel fc, FSDataOutputStream os, long offset, long length)
+        throws IOException {
+      assert (isHdfs && os != null) || (!isHdfs && fc != null);
+      if (isHdfs) {
+        return transferStreamFully(hdfsOriginInput, os, offset, length);
+      } else {
+        return transferChannelFully(originFileChannel, fc, offset, length);
       }
     }
   }

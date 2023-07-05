@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -48,6 +49,7 @@ public class DfsPartitionReader implements PartitionReader {
   PartitionLocation location;
   private final int shuffleChunkSize;
   private final int fetchMaxReqsInFlight;
+  private final Semaphore semaphore;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private volatile boolean closed = false;
@@ -56,6 +58,8 @@ public class DfsPartitionReader implements PartitionReader {
   private int numChunks = 0;
   private int returnedChunks = 0;
   private int currentChunkIndex = 0;
+  private List<Long> sortedFileLenSumOver = null;
+  private boolean isSorted = false;
 
   public DfsPartitionReader(
       CelebornConf conf,
@@ -67,12 +71,14 @@ public class DfsPartitionReader implements PartitionReader {
       throws IOException {
     shuffleChunkSize = (int) conf.shuffleChunkSize();
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
+    semaphore = new Semaphore(fetchMaxReqsInFlight);
     results = new LinkedBlockingQueue<>();
 
     this.location = location;
 
     final List<Long> chunkOffsets = new ArrayList<>();
     if (endMapIndex != Integer.MAX_VALUE) {
+      isSorted = true;
       long fetchTimeoutMs = conf.clientFetchTimeoutMs();
       try {
         TransportClient client =
@@ -88,9 +94,6 @@ public class DfsPartitionReader implements PartitionReader {
                 + location.getStorageInfo().getFilePath(),
             e);
       }
-      hdfsInputStream =
-          ShuffleClient.getHdfsFs(conf)
-              .open(new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
       chunkOffsets.addAll(
           getChunkOffsetsFromSortedIndex(conf, location, startMapIndex, endMapIndex));
     } else {
@@ -108,31 +111,62 @@ public class DfsPartitionReader implements PartitionReader {
       fetchThread =
           new Thread(
               () -> {
+                FSDataInputStream fis;
                 try {
+                  int sumOverIdx = 0;
+                  if (isSorted) {
+                    while (sortedFileLenSumOver.get(sumOverIdx) <= chunkOffsets.get(0)) {
+                      sumOverIdx++;
+                    }
+                    fis =
+                        ShuffleClient.getHdfsFs(conf)
+                            .open(
+                                new Path(
+                                    Utils.getSortedFilePath(
+                                        location.getStorageInfo().getFilePath(), sumOverIdx)));
+                  } else {
+                    fis = hdfsInputStream;
+                  }
+
                   while (!closed && currentChunkIndex < numChunks) {
-                    while (results.size() >= fetchMaxReqsInFlight) {
-                      Thread.sleep(50);
+                    while (true) {
+                      if (semaphore.tryAcquire(50, TimeUnit.MICROSECONDS)) break;
                     }
                     long offset = chunkOffsets.get(currentChunkIndex);
                     long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
                     logger.debug("read {} offset {} length {}", currentChunkIndex, offset, length);
                     byte[] buffer = new byte[(int) length];
+
+                    if (isSorted && offset > sortedFileLenSumOver.get(sumOverIdx)) {
+                      sumOverIdx++;
+                      fis.close();
+                      fis =
+                          ShuffleClient.getHdfsFs(conf)
+                              .open(
+                                  new Path(
+                                      Utils.getSortedFilePath(
+                                          location.getStorageInfo().getFilePath(), sumOverIdx)));
+                    }
+                    long sortedFileOffset = offset;
+                    if (isSorted && sumOverIdx > 0) {
+                      sortedFileOffset = offset - sortedFileLenSumOver.get(sumOverIdx - 1);
+                    }
                     try {
-                      hdfsInputStream.readFully(offset, buffer);
+                      fis.readFully(sortedFileOffset, buffer);
                     } catch (IOException e) {
                       logger.warn(
                           "read hdfs {} failed will retry, error detail {}",
                           location.getStorageInfo().getFilePath(),
                           e);
                       try {
-                        hdfsInputStream.close();
-                        hdfsInputStream =
+                        fis.close();
+                        fis =
                             ShuffleClient.getHdfsFs(conf)
                                 .open(
                                     new Path(
                                         Utils.getSortedFilePath(
-                                            location.getStorageInfo().getFilePath())));
-                        hdfsInputStream.readFully(offset, buffer);
+                                            location.getStorageInfo().getFilePath(), sumOverIdx)));
+                        fis.readFully(sortedFileOffset, buffer);
                       } catch (IOException ex) {
                         logger.warn(
                             "retry read hdfs {} failed, error detail {} ",
@@ -153,12 +187,7 @@ public class DfsPartitionReader implements PartitionReader {
               },
               "Dfs-fetch-thread" + location.getStorageInfo().getFilePath());
       fetchThread.setUncaughtExceptionHandler(
-          new Thread.UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-              logger.error("thread {} failed with exception {}", t, e);
-            }
-          });
+          (t, e) -> logger.error("thread {} failed with exception {}", t, e));
       fetchThread.start();
       logger.debug("Start dfs read on location {}", location);
     }
@@ -188,13 +217,24 @@ public class DfsPartitionReader implements PartitionReader {
     // Index size won't be large, so it's safe to do the conversion.
     byte[] indexBuffer = new byte[(int) indexSize];
     indexInputStream.readFully(0L, indexBuffer);
+
+    String sortedSizePath = Utils.getSortedSizeFilePath(location.getStorageInfo().getFilePath());
+    FSDataInputStream sortedSizeInputStream =
+        ShuffleClient.getHdfsFs(conf).open(new Path(sortedSizePath));
+    long sortedSizeFileSize =
+        ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(sortedSizePath)).getLen();
+    byte[] sortedSizeBuffer = new byte[(int) sortedSizeFileSize];
+    sortedSizeInputStream.readFully(0L, sortedSizeBuffer);
+
+    sortedFileLenSumOver = ShuffleBlockInfoUtils.parseSortedFileLenSumOver(sortedSizeBuffer);
     List<Long> offsets =
         new ArrayList<>(
             ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
                 startMapIndex,
                 endMapIndex,
                 shuffleChunkSize,
-                ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
+                ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer),
+                sortedFileLenSumOver));
     indexInputStream.close();
     return offsets;
   }
@@ -219,6 +259,7 @@ public class DfsPartitionReader implements PartitionReader {
       throw e;
     }
     returnedChunks++;
+    semaphore.release();
     return chunk;
   }
 

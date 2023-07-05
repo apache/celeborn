@@ -34,17 +34,28 @@ public class ShuffleBlockInfoUtils {
       int startMapIndex,
       int endMapIndex,
       long fetchChunkSize,
-      Map<Integer, List<ShuffleBlockInfo>> indexMap) {
+      Map<Integer, List<ShuffleBlockInfo>> indexMap,
+      List<Long> sortedFileLenSumOver) {
     List<Long> sortedChunkOffset = new ArrayList<>();
     ShuffleBlockInfo lastBlock = null;
+    int sumOverIdx = 0;
     for (int i = startMapIndex; i < endMapIndex; i++) {
       List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
       if (blockInfos != null) {
         for (ShuffleBlockInfo info : blockInfos) {
           if (sortedChunkOffset.size() == 0) {
             sortedChunkOffset.add(info.offset);
+            if (sortedFileLenSumOver.size() > 1) {
+              while (sortedFileLenSumOver.get(sumOverIdx + 1) < info.offset) {
+                sumOverIdx++;
+              }
+            }
           }
-          if (info.offset - sortedChunkOffset.get(sortedChunkOffset.size() - 1) > fetchChunkSize) {
+          if (info.offset + info.length == sortedFileLenSumOver.get(sumOverIdx)) {
+            sortedChunkOffset.add(sortedFileLenSumOver.get(sumOverIdx));
+            sumOverIdx++;
+          } else if (info.offset - sortedChunkOffset.get(sortedChunkOffset.size() - 1)
+              > fetchChunkSize) {
             sortedChunkOffset.add(info.offset);
           }
           lastBlock = info;
@@ -83,5 +94,17 @@ public class ShuffleBlockInfoUtils {
       indexMap.put(mapId, blockInfos);
     }
     return indexMap;
+  }
+
+  public static List<Long> parseSortedFileLenSumOver(ByteBuffer buffer) {
+    List<Long> sortedFileLenSumOver = new ArrayList<>();
+    while (buffer.hasRemaining()) {
+      sortedFileLenSumOver.add(buffer.getLong());
+    }
+    return sortedFileLenSumOver;
+  }
+
+  public static List<Long> parseSortedFileLenSumOver(byte[] buffer) {
+    return parseSortedFileLenSumOver(ByteBuffer.wrap(buffer));
   }
 }

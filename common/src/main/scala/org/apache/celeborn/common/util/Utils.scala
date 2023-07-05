@@ -997,6 +997,7 @@ object Utils extends Logging {
   }
 
   val SORTED_SUFFIX = ".sorted"
+  val SORTED_SIZE_SUFFIX = ".sorted.size"
   val INDEX_SUFFIX = ".index"
   val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
   val COMPATIBLE_HDFS_REGEX = "^[a-zA-Z0-9]+://.*"
@@ -1005,8 +1006,12 @@ object Utils extends Logging {
     path.matches(COMPATIBLE_HDFS_REGEX)
   }
 
-  def getSortedFilePath(path: String): String = {
-    path + SORTED_SUFFIX
+  def getSortedFilePath(path: String, idx: Int): String = {
+    s"$path${SORTED_SUFFIX}.$idx"
+  }
+
+  def getSortedSizeFilePath(path: String): String = {
+    path + SORTED_SIZE_SUFFIX
   }
 
   def getIndexFilePath(path: String): String = {

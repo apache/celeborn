@@ -28,7 +28,9 @@ public class FileManagedBuffers {
   private final File file;
   private final long[] offsets;
   private final int numChunks;
-
+  private final boolean isSorted;
+  private List<Long> sortedFileLenSumOver;
+  private File[] sortedFiles;
   private final TransportConf conf;
 
   public FileManagedBuffers(FileInfo fileInfo, TransportConf conf) {
@@ -44,6 +46,12 @@ public class FileManagedBuffers {
       offsets = new long[] {0};
     }
     this.conf = conf;
+    isSorted = fileInfo.isSortedFile();
+    if (isSorted) {
+      SortedFileInfo sortedFileInfo = (SortedFileInfo) fileInfo;
+      this.sortedFileLenSumOver = sortedFileInfo.getSortedFileLenSumOver();
+      this.sortedFiles = sortedFileInfo.getSortedFiles();
+    }
   }
 
   public int numChunks() {
@@ -56,6 +64,19 @@ public class FileManagedBuffers {
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     assert offset < chunkLength;
     long length = Math.min(chunkLength - offset, len);
-    return new FileSegmentManagedBuffer(conf, file, chunkOffset + offset, length);
+    if (isSorted) {
+      int sumOverIdx = 0;
+      while (sortedFileLenSumOver.get(sumOverIdx) <= chunkOffset + offset) {
+        sumOverIdx++;
+      }
+      File sortedFile = sortedFiles[sumOverIdx];
+      long sortedFileOffset = chunkOffset + offset;
+      if (sumOverIdx > 0) {
+        sortedFileOffset -= sortedFileLenSumOver.get(sumOverIdx - 1);
+      }
+      return new FileSegmentManagedBuffer(conf, sortedFile, sortedFileOffset, length);
+    } else {
+      return new FileSegmentManagedBuffer(conf, file, chunkOffset + offset, length);
+    }
   }
 }
