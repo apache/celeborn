@@ -23,7 +23,10 @@ import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Random
+
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
@@ -37,7 +40,7 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -90,11 +93,14 @@ private[celeborn] class Master(
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
+  private var checkForHDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
   private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
+  private val hdfsExpireDirsTimeoutMS = conf.hdfsExpireDirsTimeoutMS
+  private val hasHDFSStorage = conf.hasHDFSStorage
 
   private val quotaManager = QuotaManager.instantiate(conf)
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
@@ -141,6 +147,7 @@ private[celeborn] class Master(
   // init and register master metrics
   val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
+  private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffle.size
   }
@@ -181,6 +188,19 @@ private[celeborn] class Master(
       0,
       appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
+
+    if (hasHDFSStorage) {
+      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+        new Runnable {
+          override def run(): Unit = Utils.tryLogNonFatalError {
+            self.send(CheckForHDFSExpiredDirsTimeout)
+          }
+        },
+        hdfsExpireDirsTimeoutMS,
+        hdfsExpireDirsTimeoutMS,
+        TimeUnit.MILLISECONDS)
+    }
+
   }
 
   override def onStop(): Unit = {
@@ -190,6 +210,9 @@ private[celeborn] class Master(
     }
     if (checkForApplicationTimeOutTask != null) {
       checkForApplicationTimeOutTask.cancel(true)
+    }
+    if (checkForHDFSRemnantDirsTimeOutTask != null) {
+      checkForHDFSRemnantDirsTimeOutTask.cancel(true)
     }
     forwardMessageThread.shutdownNow()
     logInfo("Celeborn Master is stopped.")
@@ -215,6 +238,8 @@ private[celeborn] class Master(
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
+    case CheckForHDFSExpiredDirsTimeout =>
+      executeWithLeaderChecker(null, checkAndCleanExpiredAppDirsOnHDFS())
     case pb: PbWorkerLost =>
       val host = pb.getHost
       val rpcPort = pb.getRpcPort
@@ -544,7 +569,7 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
-          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !conf.hasHDFSStorage) {
+          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !hasHDFSStorage) {
             SlotsAllocator.offerSlotsLoadAware(
               availableWorkers,
               requestSlots.partitionIdList,
@@ -653,9 +678,34 @@ private[celeborn] class Master(
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
+        if (hasHDFSStorage) {
+          checkAndCleanExpiredAppDirsOnHDFS(appId)
+        }
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
+  }
+
+  private def checkAndCleanExpiredAppDirsOnHDFS(expiredDir: String = ""): Unit = {
+    if (hadoopFs == null) {
+      hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
+    }
+    val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
+    if (hadoopFs.exists(hdfsWorkPath)) {
+      if (!expiredDir.isEmpty) {
+        val dirToDelete = new Path(hdfsWorkPath, expiredDir)
+        // delete specific app dir on application lost
+        CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, dirToDelete, true)
+      } else {
+        val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
+        while (iter.hasNext && isMasterActive == 1) {
+          val fileStatus = iter.next()
+          if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
+            CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, fileStatus.getPath, true)
+          }
+        }
+      }
+    }
   }
 
   private def handleHeartbeatFromApplication(

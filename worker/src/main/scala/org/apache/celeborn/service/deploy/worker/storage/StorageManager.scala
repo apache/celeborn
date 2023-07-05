@@ -28,7 +28,6 @@ import java.util.function.{BiConsumer, IntUnaryOperator}
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.iq80.leveldb.DB
@@ -52,6 +51,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val workingDirWriters =
     JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, FileWriter]]()
 
+  val hasHDFSStorage = conf.hasHDFSStorage
+
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -59,7 +60,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 
-    if (workingDirInfos.size <= 0 && !conf.hasHDFSStorage) {
+    if (workingDirInfos.size <= 0 && !hasHDFSStorage) {
       throw new IOException("Empty working directory configuration!")
     }
 
@@ -120,22 +121,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   deviceMonitor.startCheck()
 
   val hdfsDir = conf.hdfsDir
-  if (!hdfsDir.isEmpty && conf.hasHDFSStorage) {
-    logInfo(s"Initialize HDFS support with path ${hdfsDir}")
-  }
   val hdfsPermission = new FsPermission("755")
   val hdfsWriters = JavaUtils.newConcurrentHashMap[String, FileWriter]()
   val (hdfsFlusher, _totalHdfsFlusherThread) =
-    if (!hdfsDir.isEmpty && conf.hasHDFSStorage) {
-      val path = new Path(hdfsDir)
-      val scheme = path.toUri.getScheme
-      val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
-      val hdfsConfiguration = CelebornHadoopUtils.newConfiguration(conf)
-      hdfsConfiguration.set("dfs.replication", "2")
-      hdfsConfiguration.set(disableCacheName, "false")
-      logInfo("Celeborn will ignore cluster settings " +
-        disableCacheName + " and set it to false")
-      StorageManager.hadoopFs = path.getFileSystem(hdfsConfiguration)
+    if (hasHDFSStorage) {
+      logInfo(s"Initialize HDFS support with path ${hdfsDir}")
+      StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       (
         Some(new HdfsFlusher(
           workerSource,
@@ -265,7 +256,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): FileWriter = {
-    if (healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage) {
+    if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage) {
       throw new IOException("No available working dirs!")
     }
 
@@ -484,7 +475,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
           } catch {
-            case e: Exception => logWarning("Clean expired hdfs shuffle failed.", e)
+            case e: Exception => logWarning("Clean expired HDFS shuffle failed.", e)
           }
         }
       }
@@ -525,19 +516,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         // workingDir not exist when initializing worker on new disk
         case _ => // do nothing
-      }
-    }
-
-    if (hadoopFs != null) {
-      val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
-      if (hadoopFs.exists(hdfsWorkPath)) {
-        val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
-        while (iter.hasNext) {
-          val fileStatus = iter.next()
-          if (!appIds.contains(fileStatus.getPath.getName)) {
-            hadoopFs.delete(fileStatus.getPath, true)
-          }
-        }
       }
     }
   }
@@ -594,7 +572,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val hdfsCleaned = hadoopFs match {
         case hdfs: FileSystem =>
           val hdfsWorkPath = new Path(hdfsDir, conf.workerWorkingDir)
-          // hdfs path not exist when first time initialize
+          // HDFS path not exist when first time initialize
           if (hdfs.exists(hdfsWorkPath)) {
             !hdfs.listFiles(hdfsWorkPath, false).hasNext
           } else {
