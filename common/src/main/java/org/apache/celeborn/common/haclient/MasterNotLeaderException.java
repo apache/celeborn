@@ -20,7 +20,6 @@ package org.apache.celeborn.common.haclient;
 import java.io.IOException;
 
 // This class is reserved for compatible with 0.2 client
-// TODO remove it in 0.4.0
 public class MasterNotLeaderException extends IOException {
 
   private final String currentPeer;

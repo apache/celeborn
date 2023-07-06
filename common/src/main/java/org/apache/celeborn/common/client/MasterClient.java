@@ -180,7 +180,6 @@ public class MasterClient {
     } else if (e.getCause()
         instanceof org.apache.celeborn.common.haclient.MasterNotLeaderException) {
       // 0.3 Master returns org.apache.celeborn.common.haclient.MasterNotLeaderException
-      // TODO remove it in 0.4.0
       org.apache.celeborn.common.haclient.MasterNotLeaderException exception =
           (org.apache.celeborn.common.haclient.MasterNotLeaderException) e.getCause();
       String leaderAddr = exception.getSuggestedLeaderAddress();
