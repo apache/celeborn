@@ -381,6 +381,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
+  def rpcDispatcherNumThreads(availableCores: Int): Int =
+    get(RPC_DISPATCHER_THREADS).getOrElse(availableCores)
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
     get(key, NETWORK_IO_MODE.defaultValue.get)
@@ -1279,6 +1281,15 @@ object CelebornConf extends Logging {
         "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val RPC_DISPATCHER_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.rpc.dispatcher.threads")
+      .withAlternative("celeborn.rpc.dispatcher.numThreads")
+      .categories("network")
+      .doc("Threads number of message dispatcher event loop")
+      .version("0.3.0")
+      .intConf
+      .createOptional
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
