@@ -167,7 +167,20 @@ public class MasterClient {
   private boolean shouldRetry(@Nullable RpcEndpointRef oldRef, Throwable e) {
     // It will always throw celeborn exception , so we need to get the cause
     // 'CelebornException: Exception thrown in awaitResult'
-    if (e.getCause() instanceof org.apache.celeborn.common.haclient.MasterNotLeaderException) {
+    if (e.getCause() instanceof MasterNotLeaderException) {
+      // 0.4 and above Master returns org.apache.celeborn.common.client.MasterNotLeaderException
+      MasterNotLeaderException exception = (MasterNotLeaderException) e.getCause();
+      String leaderAddr = exception.getSuggestedLeaderAddress();
+      if (!leaderAddr.equals(MasterNotLeaderException.LEADER_NOT_PRESENTED)) {
+        setRpcEndpointRef(leaderAddr);
+      } else {
+        LOG.warn("Master leader is not present currently, please check masters' status!");
+      }
+      return true;
+    } else if (e.getCause()
+        instanceof org.apache.celeborn.common.haclient.MasterNotLeaderException) {
+      // 0.3 Master returns org.apache.celeborn.common.haclient.MasterNotLeaderException
+      // TODO remove it in 0.4.0
       org.apache.celeborn.common.haclient.MasterNotLeaderException exception =
           (org.apache.celeborn.common.haclient.MasterNotLeaderException) e.getCause();
       String leaderAddr = exception.getSuggestedLeaderAddress();
