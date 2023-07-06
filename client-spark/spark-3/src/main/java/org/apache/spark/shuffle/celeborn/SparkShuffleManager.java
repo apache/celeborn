@@ -26,6 +26,7 @@ import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
+import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +35,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.reflect.DynMethods;
 
 public class SparkShuffleManager implements ShuffleManager {
 
@@ -61,7 +63,7 @@ public class SparkShuffleManager implements ShuffleManager {
   public SparkShuffleManager(SparkConf conf) {
     this.conf = conf;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
-    this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
+    this.cores = executorCores(conf);
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
     if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
         && celebornConf.clientPushSortPipelineEnabled()) {
@@ -309,6 +311,19 @@ public class SparkShuffleManager implements ShuffleManager {
     ExecutorService pusherThread = asyncPushers[pusherIdx.get() % asyncPushers.length];
     pusherIdx.incrementAndGet();
     return pusherThread;
+  }
+
+  private int executorCores(SparkConf conf) {
+    if (Utils.isLocalMaster(conf)) {
+      // SparkContext.numDriverCores is package private.
+      return DynMethods.builder("numDriverCores")
+          .impl("org.apache.spark.SparkContext$", String.class)
+          .build()
+          .bind(SparkContext$.MODULE$)
+          .invoke(conf.get("spark.master"));
+    } else {
+      return conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
+    }
   }
 
   // for testing
