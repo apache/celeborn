@@ -227,7 +227,9 @@ public class MasterClientSuiteJ {
 
     // master leader switch to host2
     Mockito.doReturn(
-            Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097")))
+            Future$.MODULE$.failed(
+                new org.apache.celeborn.common.haclient.MasterNotLeaderException(
+                    "host1:9097", "host2:9097")))
         .when(master1)
         .ask(Mockito.any(), Mockito.any(), Mockito.any());
 
@@ -275,7 +277,9 @@ public class MasterClientSuiteJ {
 
     // master leader switch to host2
     Mockito.doReturn(
-            Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097")))
+            Future$.MODULE$.failed(
+                new org.apache.celeborn.common.haclient.MasterNotLeaderException(
+                    "host1:9097", "host2:9097")))
         .when(ref1)
         .ask(Mockito.any(), Mockito.any(), Mockito.any());
     // Assume host2 down.
