@@ -145,6 +145,27 @@ object Utils extends Logging {
     }
   }
 
+  def nanoDurationToString(ns: Long): String = {
+    val ms = 1000 * 1000
+    val second = 1000 * ms
+    val minute = 60 * second
+    val hour = 60 * minute
+    val locale = Locale.US
+
+    ns match {
+      case t if t < ms =>
+        "%d ns".formatLocal(locale, t)
+      case t if t < second =>
+        "%d ms".formatLocal(locale, t)
+      case t if t < minute =>
+        "%.1f s".formatLocal(locale, t.toFloat / second)
+      case t if t < hour =>
+        "%.1f m".formatLocal(locale, t.toFloat / minute)
+      case t =>
+        "%.2f h".formatLocal(locale, t.toFloat / hour)
+    }
+  }
+
   @throws(classOf[CelebornException])
   def extractHostPortFromCelebornUrl(celebornUrl: String): (String, Int) = {
     try {
