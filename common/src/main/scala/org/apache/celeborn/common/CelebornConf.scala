@@ -2675,9 +2675,10 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Amount of Netty in-flight requests per worker. The maximum memory is " +
         "`celeborn.client.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
-        "compression ratio(1 in worst case), default: 64KiB * 4 = 256KiB")
+        "number of workers * compression ratio(1 in worst case), say we have 50 workers," +
+        "the maximum memory is: 64KiB * 16 * 50 = 50MiB")
       .intConf
-      .createWithDefault(4)
+      .createWithDefault(16)
 
   val CLIENT_PUSH_MAX_REVIVE_TIMES: ConfigEntry[Int] =
     buildConf("celeborn.client.push.revive.maxRetries")
