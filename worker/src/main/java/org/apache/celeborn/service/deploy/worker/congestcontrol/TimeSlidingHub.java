@@ -19,7 +19,6 @@ package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
 import java.util.Iterator;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.tuple.Pair;
