@@ -106,15 +106,15 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       }
 
       _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
-      N nodeToCombine = sumInfo.getKey();
+      N nodeToCombine = sumInfo.getLeft();
       nodeToCombine.combineNode(newNode);
-      sumInfo = Pair.of(nodeToCombine, sumInfo.getValue() + (int) nodesToAdd);
+      sumInfo = Pair.of(nodeToCombine, sumInfo.getRight() + (int) nodesToAdd);
 
       while (_deque.size() > maxQueueSize) {
         Pair<Long, N> removed = _deque.removeFirst();
-        N nodeToSeparate = sumInfo.getKey();
+        N nodeToSeparate = sumInfo.getLeft();
         nodeToSeparate.separateNode(removed.getRight());
-        sumInfo = Pair.of(nodeToSeparate, sumInfo.getValue() - 1);
+        sumInfo = Pair.of(nodeToSeparate, sumInfo.getRight() - 1);
       }
       return;
     }
@@ -126,7 +126,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         Pair<Long, N> curNode = iter.next();
         if (currentTimestamp - curNode.getLeft() >= 0) {
           curNode.getRight().combineNode(newNode);
-          sumInfo.getKey().combineNode(newNode);
+          sumInfo.getLeft().combineNode(newNode);
           return;
         }
       }
@@ -137,13 +137,13 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
     // Belong to last node
     lastNode.getRight().combineNode(newNode);
-    sumInfo.getKey().combineNode(newNode);
+    sumInfo.getLeft().combineNode(newNode);
   }
 
   public void clear() {
     synchronized (_deque) {
       _deque.clear();
-      sumInfo = Pair.of(newEmptyNode(), new AtomicInteger());
+      sumInfo = Pair.of(newEmptyNode(), 0);
     }
   }
 
