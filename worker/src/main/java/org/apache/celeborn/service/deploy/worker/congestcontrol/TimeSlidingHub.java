@@ -54,17 +54,17 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   // 1 second.
   protected final int intervalPerBucketInMills = 1000;
   private final int maxQueueSize;
-  private Pair<N, AtomicInteger> sumInfo;
+  private Pair<N, Integer> sumInfo;
 
   private final LinkedBlockingDeque<Pair<Long, N>> _deque;
 
   public TimeSlidingHub(int timeWindowsInSecs) {
     this._deque = new LinkedBlockingDeque<>();
     this.maxQueueSize = timeWindowsInSecs * 1000 / intervalPerBucketInMills;
-    this.sumInfo = Pair.of(newEmptyNode(), new AtomicInteger());
+    this.sumInfo = Pair.of(newEmptyNode(), 0);
   }
 
-  public Pair<N, AtomicInteger> sumInfo() {
+  public Pair<N, Integer> sumInfo() {
     return sumInfo;
   }
 
@@ -76,7 +76,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   public synchronized void add(long currentTimestamp, N newNode) {
     if (_deque.size() == 0) {
       _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
-      sumInfo = Pair.of((N) newNode.clone(), new AtomicInteger(_deque.size()));
+      sumInfo = Pair.of((N) newNode.clone(), _deque.size());
       return;
     }
 
@@ -94,7 +94,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         // and create a new sliding list
         _deque.clear();
         _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
-        sumInfo = Pair.of((N) newNode.clone(), new AtomicInteger(_deque.size()));
+        sumInfo = Pair.of((N) newNode.clone(), _deque.size());
         return;
       }
 
@@ -106,13 +106,15 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       }
 
       _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
-      sumInfo.getValue().addAndGet(((int) nodesToAdd + 1));
-      sumInfo.getKey().combineNode(newNode);
+      N node = sumInfo.getKey();
+      node.combineNode(newNode);
+      sumInfo = Pair.of(node, sumInfo.getValue() + (int)nodesToAdd + 1);
 
       while (_deque.size() > maxQueueSize) {
         Pair<Long, N> removed = _deque.removeFirst();
-        sumInfo.getKey().separateNode(removed.getRight());
-        sumInfo.getValue().decrementAndGet();
+        N node2 = sumInfo.getKey();
+        node2.separateNode(removed.getRight());
+        sumInfo = Pair.of(node2, sumInfo.getValue().intValue() - 1);
       }
       return;
     }

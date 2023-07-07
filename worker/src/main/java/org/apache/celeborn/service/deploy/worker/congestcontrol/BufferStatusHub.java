@@ -76,10 +76,10 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
   }
 
   public long avgBytesPerSec() {
-    Pair<BufferStatusNode, AtomicInteger> sumInfo = sumInfo();
+    Pair<BufferStatusNode, Integer> sumInfo = sumInfo();
     long currentNumBytes = sumInfo.getKey().numBytes();
     if (currentNumBytes > 0) {
-      return currentNumBytes * 1000 / (long) sumInfo.getValue().get();
+      return currentNumBytes * 1000 / (long) sumInfo.getValue();
     }
     return 0L;
   }
