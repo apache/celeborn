@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.memory;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -32,8 +30,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
-import org.apache.commons.lang3.JavaVersion;
-import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +37,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.reflect.DynMethods;
 import org.apache.celeborn.service.deploy.worker.storage.CreditStreamManager;
 
 public class MemoryManager {
@@ -115,27 +112,13 @@ public class MemoryManager {
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
 
-    String[] provider;
-    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_10)) {
-      provider = new String[] {"jdk.internal.misc.VM", "maxDirectMemory"};
-    } else {
-      provider = new String[] {"sun.misc.VM", "maxDirectMemory"};
-    }
+    maxDirectorMemory =
+        DynMethods.builder("maxDirectMemory")
+            .impl("jdk.internal.misc.VM") // for Java 10 and above
+            .impl("sun.misc.VM") // for Java 9 and previous
+            .buildStatic()
+            .<Long>invoke();
 
-    Method maxMemMethod;
-    String clazz = provider[0];
-    String method = provider[1];
-    try {
-      Class<?> vmClass = Class.forName(clazz);
-      maxMemMethod = vmClass.getDeclaredMethod(method);
-
-      maxDirectorMemory = (long) maxMemMethod.invoke(null);
-    } catch (ClassNotFoundException
-        | NoSuchMethodException
-        | IllegalAccessException
-        | InvocationTargetException ignored) {
-      logger.warn("Error to obtain maxDirectorMemory: ", ignored);
-    }
     Preconditions.checkArgument(maxDirectorMemory > 0);
     Preconditions.checkArgument(pauseReplicateRatio > pausePushDataRatio);
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
