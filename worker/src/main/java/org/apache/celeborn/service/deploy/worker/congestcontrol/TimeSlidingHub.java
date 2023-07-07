@@ -64,7 +64,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
     this.sumInfo = Pair.of(newEmptyNode(), 0);
   }
 
-  public Pair<N, Integer> sumInfo() {
+  public Pair<N, Integer> sum() {
     return sumInfo;
   }
 
@@ -108,7 +108,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
       N node = sumInfo.getKey();
       node.combineNode(newNode);
-      sumInfo = Pair.of(node, sumInfo.getValue() + (int)nodesToAdd + 1);
+      sumInfo = Pair.of(node, sumInfo.getValue() + (int) nodesToAdd + 1);
 
       while (_deque.size() > maxQueueSize) {
         Pair<Long, N> removed = _deque.removeFirst();

@@ -84,34 +84,34 @@ public class TestTimeSlidingHub {
 
     hub.setDummyTimestamp(0L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(1));
-    Assert.assertEquals(1, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(1, hub.sum().getKey().getValue());
 
     hub.setDummyTimestamp(1000L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(2));
-    Assert.assertEquals(3, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(3, hub.sum().getKey().getValue());
 
     hub.setDummyTimestamp(2200L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(3));
-    Assert.assertEquals(6, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(6, hub.sum().getKey().getValue());
 
     hub.setDummyTimestamp(2400L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(4));
-    Assert.assertEquals(10, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(10, hub.sum().getKey().getValue());
 
     // Should remove the value 1
     hub.setDummyTimestamp(3000L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(5));
-    Assert.assertEquals(14, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(14, hub.sum().getKey().getValue());
 
     // Should remove the value 2
     hub.setDummyTimestamp(4000L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(6));
-    Assert.assertEquals(18, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(18, hub.sum().getKey().getValue());
 
     // Should remove the value 3 and 4
     hub.setDummyTimestamp(5000L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(7));
-    Assert.assertEquals(18, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(18, hub.sum().getKey().getValue());
   }
 
   @Test
@@ -120,10 +120,10 @@ public class TestTimeSlidingHub {
 
     hub.setDummyTimestamp(0L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(1));
-    Assert.assertEquals(1, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(1, hub.sum().getKey().getValue());
 
     hub.setDummyTimestamp(10000L);
     hub.add(new DummyTimeSlidingHub.DummyTimeSlidingNode(2));
-    Assert.assertEquals(2, hub.sumInfo().getKey().getValue());
+    Assert.assertEquals(2, hub.sum().getKey().getValue());
   }
 }
