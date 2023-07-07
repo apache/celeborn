@@ -74,8 +74,8 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
   public synchronized void add(long currentTimestamp, N newNode) {
     if (_deque.size() == 0) {
-      sumNode = (N) newNode.clone();
       _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
+      sumNode = (N) newNode.clone();
       return;
     }
 
@@ -104,8 +104,8 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         _deque.add(lastNode);
       }
 
-      sumNode.combineNode(newNode);
       _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
+      sumNode.combineNode(newNode);
 
       while (_deque.size() > maxQueueSize) {
         Pair<Long, N> removed = _deque.removeFirst();
