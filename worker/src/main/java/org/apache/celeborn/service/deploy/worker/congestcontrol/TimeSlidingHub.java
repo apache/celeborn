@@ -91,9 +91,9 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       if (nodesToAdd >= maxQueueSize) {
         // The new node exceed existing sliding list, need to clear all old nodes
         // and create a new sliding list
+        sumNode = (N) newNode.clone();
         _deque.clear();
         _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
-        sumNode = (N) newNode.clone();
         return;
       }
 
