@@ -40,8 +40,8 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   private final Set<Channel> channels = ConcurrentHashMap.newKeySet();
   private final String moduleName;
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
-  private AtomicInteger needTrimChannels = new AtomicInteger(0);
-  private long waitTrimInterval;
+  private final AtomicInteger needTrimChannels = new AtomicInteger(0);
+  private final long waitTrimInterval;
 
   public ChannelsLimiter(String moduleName, CelebornConf conf) {
     this.moduleName = moduleName;
@@ -128,7 +128,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   @Override
   public void onPause(String moduleName) {
     if (this.moduleName.equals(moduleName)) {
-      logger.info(this.moduleName + " channels pause read.");
+      logger.info("{} channels pause read.", this.moduleName);
       pauseAllChannels();
     }
   }
@@ -136,11 +136,11 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   @Override
   public void onResume(String moduleName) {
     if (moduleName.equalsIgnoreCase("all")) {
-      logger.info(this.moduleName + " channels resume read.");
+      logger.info("{} channels resume read.", this.moduleName);
       resumeAllChannels();
     }
     if (this.moduleName.equals(moduleName)) {
-      logger.info(this.moduleName + " channels resume read.");
+      logger.info("{} channels resume read.", this.moduleName);
       resumeAllChannels();
     }
   }
@@ -150,5 +150,5 @@ public class ChannelsLimiter extends ChannelDuplexHandler
     trimCache();
   }
 
-  class TrimCache {}
+  static class TrimCache {}
 }

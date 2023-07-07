@@ -39,7 +39,7 @@ abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
     val threadCount: Int,
     flushTimeMetric: TimeWindow) extends Logging {
-  protected lazy val flusherId = System.identityHashCode(this)
+  protected lazy val flusherId: Int = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
   protected val workers = new Array[Thread](threadCount)
@@ -47,7 +47,6 @@ abstract private[worker] class Flusher(
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
   val stopFlag = new AtomicBoolean(false)
-  val rand = new Random()
 
   init()
 
@@ -61,7 +60,7 @@ abstract private[worker] class Flusher(
         override def run(): Unit = {
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
-            val key = s"Flusher-$this-${rand.nextInt()}"
+            val key = s"Flusher-$this-${Random.nextInt()}"
             workerSource.sample(WorkerSource.FLUSH_DATA_TIME, key) {
               if (!task.notifier.hasException) {
                 try {
@@ -178,9 +177,7 @@ private[worker] class LocalFlusher(
     obj.asInstanceOf[LocalFlusher].mountPoint.equals(mountPoint)
   }
 
-  override def toString(): String = {
-    s"LocalFlusher@$flusherId-$mountPoint"
-  }
+  override def toString: String = s"LocalFlusher@$flusherId-$mountPoint"
 }
 
 final private[worker] class HdfsFlusher(
