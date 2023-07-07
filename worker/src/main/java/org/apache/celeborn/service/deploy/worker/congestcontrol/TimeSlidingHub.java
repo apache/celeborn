@@ -98,7 +98,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       }
 
       // Add new node at the end of the list, and deprecate nodes out of timeInterval
-      for (long i = 1; i < nodesToAdd; i++) {
+      for (int i = 1; i < nodesToAdd; i++) {
         N toAdd = newEmptyNode();
         lastNode = Pair.of(lastNode.getLeft() + intervalPerBucketInMills, toAdd);
         _deque.add(lastNode);
