@@ -151,7 +151,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
     if (dequeSize == 0) {
       return intervalPerBucketInMills;
     } else {
-      return _deque.size() * intervalPerBucketInMills;
+      return dequeSize * intervalPerBucketInMills;
     }
   }
 
