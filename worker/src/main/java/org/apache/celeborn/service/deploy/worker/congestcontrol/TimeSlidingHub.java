@@ -19,13 +19,14 @@ package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
 import java.util.Iterator;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * A time sliding list that group different {@link TimeSlidingNode} with corresponding timestamp by
- * exact interval 1 second. Internally hold a {@link sumNode} to get the sum of the nodes in the
+ * exact interval 1 second. Internally hold a {@link sumInfo} to get the sum of the nodes in the
  * list.
  *
  * <p>This list is thread-safe, but {@link TimeSlidingNode} returned by the method {@link sum}
@@ -51,23 +52,20 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   }
 
   // 1 second.
-  private final int intervalPerBucketInMills = 1000;
+  protected final int intervalPerBucketInMills = 1000;
   private final int maxQueueSize;
-  private N sumNode;
+  private Pair<N, AtomicInteger> sumInfo;
 
   private final LinkedBlockingDeque<Pair<Long, N>> _deque;
 
-  private int lastDequeSize;
-
   public TimeSlidingHub(int timeWindowsInSecs) {
     this._deque = new LinkedBlockingDeque<>();
-    this.lastDequeSize = _deque.size();
     this.maxQueueSize = timeWindowsInSecs * 1000 / intervalPerBucketInMills;
-    this.sumNode = newEmptyNode();
+    this.sumInfo = Pair.of(newEmptyNode(), new AtomicInteger());
   }
 
-  public N sum() {
-    return sumNode;
+  public Pair<N, AtomicInteger> sumInfo() {
+    return sumInfo;
   }
 
   public void add(N newNode) {
@@ -78,8 +76,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   public synchronized void add(long currentTimestamp, N newNode) {
     if (_deque.size() == 0) {
       _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
-      lastDequeSize = _deque.size();
-      sumNode = (N) newNode.clone();
+      sumInfo = Pair.of((N) newNode.clone(), new AtomicInteger(_deque.size()));
       return;
     }
 
@@ -97,8 +94,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         // and create a new sliding list
         _deque.clear();
         _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
-        lastDequeSize = _deque.size();
-        sumNode = (N) newNode.clone();
+        sumInfo = Pair.of((N) newNode.clone(), new AtomicInteger(_deque.size()));
         return;
       }
 
@@ -106,18 +102,18 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       for (long i = 1; i < nodesToAdd; i++) {
         N toAdd = newEmptyNode();
         lastNode = Pair.of(lastNode.getLeft() + intervalPerBucketInMills, toAdd);
+        sumInfo.getValue().incrementAndGet();
         _deque.add(lastNode);
-        lastDequeSize = _deque.size();
       }
 
       _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
-      lastDequeSize = _deque.size();
-      sumNode.combineNode(newNode);
+      sumInfo.getValue().incrementAndGet();
+      sumInfo.getKey().combineNode(newNode);
 
       while (_deque.size() > maxQueueSize) {
         Pair<Long, N> removed = _deque.removeFirst();
-        lastDequeSize = _deque.size();
-        sumNode.separateNode(removed.getRight());
+        sumInfo.getValue().decrementAndGet();
+        sumInfo.getKey().separateNode(removed.getRight());
       }
       return;
     }
@@ -129,7 +125,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         Pair<Long, N> curNode = iter.next();
         if (currentTimestamp - curNode.getLeft() >= 0) {
           curNode.getRight().combineNode(newNode);
-          sumNode.combineNode(newNode);
+          sumInfo.getKey().combineNode(newNode);
           return;
         }
       }
@@ -140,22 +136,17 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
     // Belong to last node
     lastNode.getRight().combineNode(newNode);
-    sumNode.combineNode(newNode);
+    sumInfo.getKey().combineNode(newNode);
   }
 
   public void clear() {
     synchronized (_deque) {
       _deque.clear();
-      lastDequeSize = _deque.size();
-      sumNode = newEmptyNode();
+      sumInfo = Pair.of(newEmptyNode(), new AtomicInteger());
     }
   }
 
   protected abstract N newEmptyNode();
-
-  protected int getCurrentTimeWindowsInMills() {
-    return lastDequeSize * intervalPerBucketInMills;
-  }
 
   @VisibleForTesting
   protected long currentTimeMillis() {
