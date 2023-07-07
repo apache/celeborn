@@ -57,8 +57,11 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
   private final LinkedBlockingDeque<Pair<Long, N>> _deque;
 
+  private int lastDequeSize;
+
   public TimeSlidingHub(int timeWindowsInSecs) {
     this._deque = new LinkedBlockingDeque<>();
+    this.lastDequeSize = _deque.size();
     this.maxQueueSize = timeWindowsInSecs * 1000 / intervalPerBucketInMills;
     this.sumNode = newEmptyNode();
   }
@@ -75,6 +78,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   public synchronized void add(long currentTimestamp, N newNode) {
     if (_deque.size() == 0) {
       _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
+      lastDequeSize = _deque.size();
       sumNode = (N) newNode.clone();
       return;
     }
@@ -93,6 +97,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         // and create a new sliding list
         _deque.clear();
         _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
+        lastDequeSize = _deque.size();
         sumNode = (N) newNode.clone();
         return;
       }
@@ -102,13 +107,16 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         N toAdd = newEmptyNode();
         lastNode = Pair.of(lastNode.getLeft() + intervalPerBucketInMills, toAdd);
         _deque.add(lastNode);
+        lastDequeSize = _deque.size();
       }
 
       _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
+      lastDequeSize = _deque.size();
       sumNode.combineNode(newNode);
 
       while (_deque.size() > maxQueueSize) {
         Pair<Long, N> removed = _deque.removeFirst();
+        lastDequeSize = _deque.size();
         sumNode.separateNode(removed.getRight());
       }
       return;
@@ -138,6 +146,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   public void clear() {
     synchronized (_deque) {
       _deque.clear();
+      lastDequeSize = _deque.size();
       sumNode = newEmptyNode();
     }
   }
@@ -145,7 +154,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   protected abstract N newEmptyNode();
 
   protected int getCurrentTimeWindowsInMills() {
-    return _deque.size() * intervalPerBucketInMills;
+    return lastDequeSize * intervalPerBucketInMills;
   }
 
   @VisibleForTesting
