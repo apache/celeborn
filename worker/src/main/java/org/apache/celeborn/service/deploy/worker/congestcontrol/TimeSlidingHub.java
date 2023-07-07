@@ -145,7 +145,14 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   protected abstract N newEmptyNode();
 
   protected int getCurrentTimeWindowsInMills() {
-    return _deque.size() * intervalPerBucketInMills;
+    // _deque size could be 0 after clear, after clear will add one pair,
+    // to avoid such case, we return _deque size as 1.
+    int dequeSize = _deque.size();
+    if (dequeSize == 0) {
+      return intervalPerBucketInMills;
+    } else {
+      return _deque.size() * intervalPerBucketInMills;
+    }
   }
 
   @VisibleForTesting
