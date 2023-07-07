@@ -87,7 +87,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       // The node doesn't belong to the lastNode, there might be 2 different scenarios
       // 1. All existing nodes are out of date, should be removed
       // 2. some nodes are out of date, should be removed
-      long nodesToAdd = timeDiff / intervalPerBucketInMills;
+      int nodesToAdd = (int) timeDiff / intervalPerBucketInMills;
       if (nodesToAdd >= maxQueueSize) {
         // The new node exceed existing sliding list, need to clear all old nodes
         // and create a new sliding list
@@ -107,7 +107,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
       N nodeToCombine = sumInfo.getLeft();
       nodeToCombine.combineNode(newNode);
-      sumInfo = Pair.of(nodeToCombine, sumInfo.getRight() + (int) nodesToAdd);
+      sumInfo = Pair.of(nodeToCombine, sumInfo.getRight() + nodesToAdd);
 
       while (_deque.size() > maxQueueSize) {
         Pair<Long, N> removed = _deque.removeFirst();
