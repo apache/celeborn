@@ -102,18 +102,17 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
       for (long i = 1; i < nodesToAdd; i++) {
         N toAdd = newEmptyNode();
         lastNode = Pair.of(lastNode.getLeft() + intervalPerBucketInMills, toAdd);
-        sumInfo.getValue().incrementAndGet();
         _deque.add(lastNode);
       }
 
       _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
-      sumInfo.getValue().incrementAndGet();
+      sumInfo.getValue().addAndGet(((int) nodesToAdd + 1));
       sumInfo.getKey().combineNode(newNode);
 
       while (_deque.size() > maxQueueSize) {
         Pair<Long, N> removed = _deque.removeFirst();
-        sumInfo.getValue().decrementAndGet();
         sumInfo.getKey().separateNode(removed.getRight());
+        sumInfo.getValue().decrementAndGet();
       }
       return;
     }
