@@ -52,7 +52,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private MemoryBlock currentPage = null;
   private long pageCursor = -1;
 
-  private final ShuffleClient rssShuffleClient;
+  private final ShuffleClient shuffleClient;
   private DataPusher dataPusher;
   private final int pushBufferMaxSize;
   private final long pushSortMemoryThreshold;
@@ -78,7 +78,7 @@ public class SortBasedPusher extends MemoryConsumer {
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
-      ShuffleClient rssShuffleClient,
+      ShuffleClient shuffleClient,
       String appId,
       int shuffleId,
       int mapId,
@@ -97,7 +97,7 @@ public class SortBasedPusher extends MemoryConsumer {
         (int) Math.min(PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES, memoryManager.pageSizeBytes()),
         memoryManager.getTungstenMemoryMode());
 
-    this.rssShuffleClient = rssShuffleClient;
+    this.shuffleClient = shuffleClient;
 
     this.appId = appId;
     this.shuffleId = shuffleId;
@@ -127,7 +127,7 @@ public class SortBasedPusher extends MemoryConsumer {
               numMappers,
               numPartitions,
               conf,
-              rssShuffleClient,
+              shuffleClient,
               afterPush,
               mapStatusLengths);
     } catch (InterruptedException e) {
@@ -164,7 +164,7 @@ public class SortBasedPusher extends MemoryConsumer {
             currentPartition = partition;
           } else {
             int bytesWritten =
-                rssShuffleClient.mergeData(
+                shuffleClient.mergeData(
                     shuffleId,
                     mapId,
                     attemptNumber,

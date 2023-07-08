@@ -29,8 +29,8 @@ import org.junit.*;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -88,19 +88,19 @@ public class RatisMasterStatusSystemSuiteJ {
     MetaHandler handler3 = new MetaHandler(STATUSSYSTEM3);
 
     CelebornConf conf1 = new CelebornConf();
-    File tmpDir1 = File.createTempFile("rss-ratis1", "for-test-only");
+    File tmpDir1 = File.createTempFile("celeborn-ratis1", "for-test-only");
     tmpDir1.delete();
     tmpDir1.mkdirs();
     conf1.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir1.getAbsolutePath());
 
     CelebornConf conf2 = new CelebornConf();
-    File tmpDir2 = File.createTempFile("rss-ratis2", "for-test-only");
+    File tmpDir2 = File.createTempFile("celeborn-ratis2", "for-test-only");
     tmpDir2.delete();
     tmpDir2.mkdirs();
     conf2.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir2.getAbsolutePath());
 
     CelebornConf conf3 = new CelebornConf();
-    File tmpDir3 = File.createTempFile("rss-ratis3", "for-test-only");
+    File tmpDir3 = File.createTempFile("celeborn-ratis3", "for-test-only");
     tmpDir3.delete();
     tmpDir3.mkdirs();
     conf3.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir3.getAbsolutePath());
@@ -195,8 +195,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
 
   private String getNewReqeustId() {
-    return RssHARetryClient.encodeRequestId(
-        UUID.randomUUID().toString(), callerId.incrementAndGet());
+    return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
   }
 
   public HAMasterMetaManager pickLeaderStatusSystem() {

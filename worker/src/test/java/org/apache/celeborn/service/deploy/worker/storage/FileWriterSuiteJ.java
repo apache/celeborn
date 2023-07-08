@@ -131,9 +131,9 @@ public class FileWriterSuiteJ {
     MemoryManager.initialize(conf);
   }
 
-  public static void setupChunkServer(FileInfo info) throws Exception {
+  public static void setupChunkServer(FileInfo info) {
     FetchHandler handler =
-        new FetchHandler(transConf) {
+        new FetchHandler(transConf.getCelebornConf(), transConf) {
           @Override
           public StorageManager storageManager() {
             return new StorageManager(CONF, source);
@@ -210,9 +210,9 @@ public class FileWriterSuiteJ {
     final Semaphore sem = new Semaphore(0);
 
     final FetchResult res = new FetchResult();
-    res.successChunks = Collections.synchronizedSet(new HashSet<Integer>());
-    res.failedChunks = Collections.synchronizedSet(new HashSet<Integer>());
-    res.buffers = Collections.synchronizedList(new LinkedList<ManagedBuffer>());
+    res.successChunks = Collections.synchronizedSet(new HashSet<>());
+    res.failedChunks = Collections.synchronizedSet(new HashSet<>());
+    res.buffers = Collections.synchronizedList(new LinkedList<>());
 
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {

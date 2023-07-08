@@ -381,6 +381,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
+  def rpcDispatcherNumThreads(availableCores: Int): Int =
+    get(RPC_DISPATCHER_THREADS).getOrElse(availableCores)
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
     get(key, NETWORK_IO_MODE.defaultValue.get)
@@ -499,8 +501,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterSlotAssignPolicy: SlotsAssignPolicy =
     SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
 
-  def hasHDFSStorage: Boolean = get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name())
-
+  def hasHDFSStorage: Boolean =
+    get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name()) && get(HDFS_DIR).isDefined
   def masterSlotAssignLoadAwareDiskGroupNum: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM)
   def masterSlotAssignLoadAwareDiskGroupGradient: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT)
@@ -692,10 +694,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientRpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
+  def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
-  def clientExcludeSlaveOnFailureEnabled: Boolean = get(CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED)
+  def clientExcludeReplicaOnFailureEnabled: Boolean =
+    get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -985,8 +989,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_CLIENT_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_CLIENT_RETRY_COMMIT_FILE)
-  def testPushMasterDataTimeout: Boolean = get(TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT)
-  def testPushSlaveDataTimeout: Boolean = get(TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT)
+  def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
+  def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def clientFlinkMemoryPerResultPartitionMin: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION_MIN)
@@ -1215,10 +1219,11 @@ object CelebornConf extends Logging {
   val NETWORK_MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.share")
       .categories("network")
+      .internal
       .version("0.3.0")
       .doc("Whether to share memory allocator.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val NETWORK_MEMORY_ALLOCATOR_ARENAS: OptionalConfigEntry[Int] =
     buildConf("celeborn.network.memory.allocator.numArenas")
@@ -1276,6 +1281,15 @@ object CelebornConf extends Logging {
         "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val RPC_DISPATCHER_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.rpc.dispatcher.threads")
+      .withAlternative("celeborn.rpc.dispatcher.numThreads")
+      .categories("network")
+      .doc("Threads number of message dispatcher event loop")
+      .version("0.3.0")
+      .intConf
+      .createOptional
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
@@ -1507,6 +1521,14 @@ object CelebornConf extends Logging {
       .doc("Application heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("300s")
+
+  val HDFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.hdfs.expireDirs.timeout")
+      .categories("master")
+      .version("0.3.0")
+      .doc("The timeout for a expire dirs to be deleted on HDFS.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1h")
 
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.heartbeat.worker.timeout")
@@ -1929,7 +1951,7 @@ object CelebornConf extends Logging {
       .doc("Worker's working dir path name.")
       .version("0.3.0")
       .stringConf
-      .createWithDefault("rss-worker/shuffle_data")
+      .createWithDefault("celeborn-worker/shuffle_data")
 
   val WORKER_STORAGE_BASE_DIR_PREFIX: ConfigEntry[String] =
     buildConf("celeborn.worker.storage.baseDir.prefix")
@@ -1954,11 +1976,10 @@ object CelebornConf extends Logging {
       .createWithDefault(16)
 
   val HDFS_DIR: OptionalConfigEntry[String] =
-    buildConf("celeborn.worker.storage.hdfs.dir")
-      .withAlternative("celeborn.storage.hdfs.dir")
-      .categories("worker")
+    buildConf("celeborn.storage.hdfs.dir")
+      .categories("worker", "master", "client")
       .version("0.2.0")
-      .doc("HDFS dir configuration for Celeborn to access HDFS.")
+      .doc("HDFS base directory for Celeborn to store shuffle data.")
       .stringConf
       .createOptional
 
@@ -2575,12 +2596,12 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 
-  val CLIENT_EXCLUDE_SLAVE_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.excludeSlaveOnFailure.enabled")
+  val CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.excludePeerWorkerOnFailure.enabled")
       .categories("client")
       .version("0.3.0")
       .doc("When true, Celeborn will exclude partition's peer worker on failure " +
-        "when push data to slave failed.")
+        "when push data to replica failed.")
       .booleanConf
       .createWithDefault(true)
 
@@ -2665,9 +2686,10 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Amount of Netty in-flight requests per worker. The maximum memory is " +
         "`celeborn.client.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
-        "compression ratio(1 in worst case), default: 64KiB * 4 = 256KiB")
+        "number of workers * compression ratio(1 in worst case), say we have 50 workers," +
+        "the maximum memory is: 64KiB * 16 * 50 = 50MiB")
       .intConf
-      .createWithDefault(4)
+      .createWithDefault(16)
 
   val CLIENT_PUSH_MAX_REVIVE_TIMES: ConfigEntry[Int] =
     buildConf("celeborn.client.push.revive.maxRetries")
@@ -2742,22 +2764,22 @@ object CelebornConf extends Logging {
       .checkValue(_ > 0, "celeborn.client.push.data.timeout must be positive!")
       .createWithDefaultString("120s")
 
-  val TEST_CLIENT_PUSH_MASTER_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.pushMasterDataTimeout")
+  val TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.worker.pushPrimaryDataTimeout")
       .withAlternative("celeborn.test.pushMasterDataTimeout")
       .internal
       .categories("test", "worker")
       .version("0.3.0")
-      .doc("Whether to test push master data timeout")
+      .doc("Whether to test push primary data timeout")
       .booleanConf
       .createWithDefault(false)
 
-  val TEST_WORKER_PUSH_SLAVE_DATA_TIMEOUT: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.pushSlaveDataTimeout")
+  val TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.worker.pushReplicaDataTimeout")
       .internal
       .categories("test", "worker")
       .version("0.3.0")
-      .doc("Whether to test push slave data timeout")
+      .doc("Whether to test push replica data timeout")
       .booleanConf
       .createWithDefault(false)
 
@@ -2938,11 +2960,14 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.shuffle.compression.codec")
       .withAlternative("remote-shuffle.job.compression.codec")
       .categories("client")
-      .doc("The codec used to compress shuffle data. By default, Celeborn provides two codecs: `lz4` and `zstd`.")
+      .doc("The codec used to compress shuffle data. By default, Celeborn provides three codecs: `lz4`, `zstd`, `none`.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set(CompressionCodec.LZ4.name, CompressionCodec.ZSTD.name))
+      .checkValues(Set(
+        CompressionCodec.LZ4.name,
+        CompressionCodec.ZSTD.name,
+        CompressionCodec.NONE.name))
       .createWithDefault(CompressionCodec.LZ4.name)
 
   val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =
@@ -2991,11 +3016,12 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.enabled")
       .withAlternative("celeborn.shuffle.batchHandleChangePartition.enabled")
       .categories("client")
+      .internal
       .doc("When true, LifecycleManager will handle change partition request in batch. " +
         "Otherwise, LifecycleManager will process the requests one by one")
       .version("0.3.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_BATCH_HANDLE_CHANGE_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleChangePartition.threads")
@@ -3019,11 +3045,12 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.batchHandleCommitPartition.enabled")
       .withAlternative("celeborn.shuffle.batchHandleCommitPartition.enabled")
       .categories("client")
+      .internal
       .doc("When true, LifecycleManager will handle commit partition request in batch. " +
         "Otherwise, LifecycleManager won't commit partition before stage end")
       .version("0.3.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_BATCH_HANDLE_COMMIT_PARTITION_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.batchHandleCommitPartition.threads")
@@ -3046,6 +3073,7 @@ object CelebornConf extends Logging {
   val CLIENT_BATCH_HANDLE_RELEASE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.batchHandleReleasePartition.enabled")
       .categories("client")
+      .internal
       .doc("When true, LifecycleManager will handle release partition request in batch. " +
         "Otherwise, LifecycleManager will process release partition request immediately")
       .version("0.3.0")
@@ -3266,15 +3294,6 @@ object CelebornConf extends Logging {
       .longConf
       .createWithDefault(500000)
 
-  val CLIENT_PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.client.spark.push.sort.memory.threshold")
-      .withAlternative("celeborn.push.sortMemory.threshold")
-      .categories("client")
-      .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
-      .version("0.3.0")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("64m")
-
   val CLIENT_PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.sort.pipeline.enabled")
       .withAlternative("celeborn.push.sort.pipeline.enabled")
@@ -3284,6 +3303,18 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.push.sort.memory.threshold")
+      .withAlternative("celeborn.push.sortMemory.threshold")
+      .categories("client")
+      .doc("When SortBasedPusher use memory over the threshold, will trigger push data. If the" +
+        s" pipeline push feature is enabled (`${CLIENT_PUSH_SORT_PIPELINE_ENABLED.key}=true`)," +
+        " the SortBasedPusher will trigger a data push when the memory usage exceeds half of the" +
+        " threshold(by default, 32m).")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64m")
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")

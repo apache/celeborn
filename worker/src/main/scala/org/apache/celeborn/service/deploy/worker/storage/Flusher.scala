@@ -62,7 +62,7 @@ abstract private[worker] class Flusher(
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
             val key = s"Flusher-$this-${rand.nextInt()}"
-            workerSource.sample(WorkerSource.FlushDataTime, key) {
+            workerSource.sample(WorkerSource.FLUSH_DATA_TIME, key) {
               if (!task.notifier.hasException) {
                 try {
                   val flushBeginTime = System.nanoTime()

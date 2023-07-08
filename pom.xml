@@ -64,12 +64,12 @@
     <maven.version>3.8.8</maven.version>
 
     <flink.version>1.14.6</flink.version>
-    <hadoop.version>3.2.1</hadoop.version>
-    <spark.version>3.3.1</spark.version>
+    <hadoop.version>3.2.4</hadoop.version>
+    <spark.version>3.3.2</spark.version>
 
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
-    <commons-lang3.version>3.10</commons-lang3.version>
-    <commons-io.version>2.8.0</commons-io.version>
+    <commons-lang3.version>3.12.0</commons-lang3.version>
+    <commons-io.version>2.13.0</commons-io.version>
     <commons-crypto.version>1.0.0</commons-crypto.version>
     <google.jsr305.version>1.3.9</google.jsr305.version>
     <grpc.version>1.44.0</grpc.version>
@@ -123,11 +123,11 @@
       --add-opens=java.base/java.util=ALL-UNNAMED
       --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
       --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+      --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
       --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
       --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
       --add-opens=java.base/sun.security.action=ALL-UNNAMED
-      --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-      --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED</extraJavaTestArgs>
+      --add-opens=java.base/sun.util.calendar=ALL-UNNAMED</extraJavaTestArgs>
 
     <mavenCentralId>central</mavenCentralId>
     <mavenCentralName>Maven Central</mavenCentralName>
@@ -943,7 +943,7 @@
         <lz4-java.version>1.7.1</lz4-java.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.2.2</spark.version>
+        <spark.version>3.2.4</spark.version>
         <zstd-jni.version>1.5.0-4</zstd-jni.version>
       </properties>
     </profile>
@@ -958,11 +958,11 @@
       </modules>
       <properties>
         <jackson.version>2.13.4</jackson.version>
-        <jackson.databind.version>2.13.4.1</jackson.databind.version>
+        <jackson.databind.version>2.13.4.2</jackson.databind.version>
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.3.1</spark.version>
+        <spark.version>3.3.2</spark.version>
         <zstd-jni.version>1.5.2-1</zstd-jni.version>
       </properties>
     </profile>
@@ -981,7 +981,7 @@
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.17</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.4.0</spark.version>
+        <spark.version>3.4.1</spark.version>
         <zstd-jni.version>1.5.2-5</zstd-jni.version>
       </properties>
     </profile>

@@ -20,17 +20,16 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
-import org.apache.celeborn.common.util.CelebornHadoopUtils$;
+import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.write.PushState;
 
 /**
@@ -63,16 +62,17 @@ public abstract class ShuffleClient {
         if (null == _instance) {
           // During the execution of Spark tasks, each task may be interrupted due to speculative
           // tasks. If the Task is interrupted while obtaining the ShuffleClient and the
-          // ShuffleClient is building a singleton, it may cause the MetaServiceEndpoint to not be
+          // ShuffleClient is building a singleton, it may cause the LifecycleManagerEndpoint to not
+          // be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
-          // when communicating with MetaService, it will cause a NullPointerException.
+          // when communicating with LifecycleManager, it will cause a NullPointerException.
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverHost, port);
+          _instance.setupLifecycleManagerRef(driverHost, port);
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
-          _instance.setupMetaServiceRef(driverHost, port);
+          _instance.setupLifecycleManagerRef(driverHost, port);
           initialized = true;
         }
       }
@@ -84,18 +84,10 @@ public abstract class ShuffleClient {
     if (null == hdfsFs) {
       synchronized (ShuffleClient.class) {
         if (null == hdfsFs) {
-          Configuration hdfsConfiguration = CelebornHadoopUtils$.MODULE$.newConfiguration(conf);
-          // enable fs cache to avoid too many fs instances
-          hdfsConfiguration.set("fs.hdfs.impl.disable.cache", "false");
-          hdfsConfiguration.set("fs.viewfs.impl.disable.cache", "false");
-          logger.info(
-              "Celeborn client will ignore cluster"
-                  + " settings about fs.hdfs/viewfs.impl.disable.cache and set it to false");
           try {
-            hdfsFs = FileSystem.get(hdfsConfiguration);
-          } catch (IOException e) {
-            System.err.println("Rss initialize hdfs failed.");
-            e.printStackTrace(System.err);
+            hdfsFs = CelebornHadoopUtils.getHadoopFS(conf);
+          } catch (Exception e) {
+            logger.error("Celeborn initialize HDFS failed.", e);
           }
         }
       }
@@ -103,9 +95,9 @@ public abstract class ShuffleClient {
     return hdfsFs;
   }
 
-  public abstract void setupMetaServiceRef(String host, int port);
+  public abstract void setupLifecycleManagerRef(String host, int port);
 
-  public abstract void setupMetaServiceRef(RpcEndpointRef endpointRef);
+  public abstract void setupLifecycleManagerRef(RpcEndpointRef endpointRef);
 
   // Write data to a specific reduce partition
   public abstract int pushData(
@@ -150,12 +142,12 @@ public abstract class ShuffleClient {
 
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
-  public abstract RssInputStream readPartition(
+  public abstract CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException;
 
-  public abstract RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
-      throws IOException;
+  public abstract CelebornInputStream readPartition(
+      int shuffleId, int partitionId, int attemptNumber) throws IOException;
 
   public abstract boolean unregisterShuffle(int shuffleId, boolean isDriver);
 

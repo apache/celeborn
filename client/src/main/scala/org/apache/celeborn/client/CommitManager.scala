@@ -43,17 +43,17 @@ import org.apache.celeborn.common.util.ThreadUtils
 
 case class ShuffleCommittedInfo(
     // partition id -> unique partition ids
-    committedMasterIds: ConcurrentHashMap[Int, util.List[String]],
+    committedPrimaryIds: ConcurrentHashMap[Int, util.List[String]],
     // partition id -> unique partition ids
-    committedSlaveIds: ConcurrentHashMap[Int, util.List[String]],
+    committedReplicaIds: ConcurrentHashMap[Int, util.List[String]],
     // unique partition id -> worker info
-    failedMasterPartitionIds: ConcurrentHashMap[String, WorkerInfo],
+    failedPrimaryPartitionIds: ConcurrentHashMap[String, WorkerInfo],
     // unique partition id -> worker info
-    failedSlavePartitionIds: ConcurrentHashMap[String, WorkerInfo],
+    failedReplicaPartitionIds: ConcurrentHashMap[String, WorkerInfo],
     // unique partition id -> storage info
-    committedMasterStorageInfos: ConcurrentHashMap[String, StorageInfo],
+    committedPrimaryStorageInfos: ConcurrentHashMap[String, StorageInfo],
     // unique partition id -> storage info
-    committedSlaveStorageInfos: ConcurrentHashMap[String, StorageInfo],
+    committedReplicaStorageInfos: ConcurrentHashMap[String, StorageInfo],
     // unique partition id -> mapid bitmat
     committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
     // number of partition files
@@ -76,14 +76,14 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   private val committedPartitionInfo = new CommittedPartitionInfo
   private val batchHandleCommitPartitionEnabled = conf.batchHandleCommitPartitionEnabled
   private val batchHandleCommitPartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "rss-lifecycle-manager-commit-partition-executor",
+    "celeborn-lifecycle-manager-commit-partition-executor",
     conf.batchHandleCommitPartitionNumThreads)
   private val batchHandleCommitPartitionRequestInterval =
     conf.batchHandleCommitPartitionRequestInterval
   private val batchHandleCommitPartitionSchedulerThread: Option[ScheduledExecutorService] =
     if (batchHandleCommitPartitionEnabled) {
       Some(ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "rss-lifecycle-manager-commit-partition-scheduler"))
+        "celeborn-lifecycle-manager-commit-partition-scheduler"))
     } else {
       None
     }
@@ -128,15 +128,15 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                                 .find(_._1.equals(worker))
                                 .get
                                 ._1
-                            val masterIds =
+                            val primaryIds =
                               requests
-                                .filter(_.getMode == PartitionLocation.Mode.MASTER)
+                                .filter(_.getMode == PartitionLocation.Mode.PRIMARY)
                                 .map(_.getUniqueId)
                                 .toList
                                 .asJava
-                            val slaveIds =
+                            val replicaIds =
                               requests
-                                .filter(_.getMode == PartitionLocation.Mode.SLAVE)
+                                .filter(_.getMode == PartitionLocation.Mode.REPLICA)
                                 .map(_.getUniqueId)
                                 .toList
                                 .asJava
@@ -146,8 +146,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                               shuffleId,
                               shuffleCommittedInfo,
                               workerInfo,
-                              masterIds,
-                              slaveIds,
+                              primaryIds,
+                              replicaIds,
                               commitFilesFailedWorkers)
                         }
                         lifecycleManager.workerStatusTracker.recordWorkerFailure(
@@ -308,13 +308,13 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
               val partitionLocationInfo = workerToPartitionLocationInfos.get(shuttingWorker)
               if (partitionLocationInfo != null) {
-                partitionLocationInfo.getMasterPartitions().asScala.foreach { partitionLocation =>
+                partitionLocationInfo.getPrimaryPartitions().asScala.foreach { partitionLocation =>
                   shuffleCommittedInfo.synchronized {
                     shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
                   }
                 }
 
-                partitionLocationInfo.getSlavePartitions().asScala.foreach { partitionLocation =>
+                partitionLocationInfo.getReplicaPartitions().asScala.foreach { partitionLocation =>
                   shuffleCommittedInfo.synchronized {
                     shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
                   }

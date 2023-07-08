@@ -68,7 +68,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // check all allocated slots
     var partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
     var count =
-      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
+      partitionLocationInfos.map(r => r.getPrimaryPartitions().size()).sum
     Assert.assertEquals(count, numMappers)
 
     // another mapId
@@ -89,7 +89,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // check all allocated all slots
     partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
     logInfo(partitionLocationInfos.toString())
-    count = partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum
+    count = partitionLocationInfos.map(r => r.getPrimaryPartitions().size()).sum
     Assert.assertEquals(count, numMappers + 1)
   }
 
@@ -108,7 +108,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
     timeOutOrMeetCondition(new Callable[java.lang.Boolean] {
       override def call(): lang.Boolean = {
-        partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum == numMappers
+        partitionLocationInfos.map(r => r.getPrimaryPartitions().size()).sum == numMappers
       }
     })
   }
@@ -128,7 +128,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       4)
 
     Assert.assertEquals(
-      partitionLocationInfos.map(r => r.getMasterPartitions().size()).sum,
+      partitionLocationInfos.map(r => r.getPrimaryPartitions().size()).sum,
       numMappers)
   }
 
@@ -140,11 +140,11 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // reduce file group size (for empty partitions)
     Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
 
-    // reduce normal empty RssInputStream
+    // reduce normal empty CelebornInputStream
     var stream = shuffleClient.readPartition(shuffleId, 1, 1)
     Assert.assertEquals(stream.read(), -1)
 
-    // reduce normal null partition for RssInputStream
+    // reduce normal null partition for CelebornInputStream
     stream = shuffleClient.readPartition(shuffleId, 3, 1)
     Assert.assertEquals(stream.read(), -1)
   }
@@ -152,7 +152,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   private def prepareService(): Unit = {
     lifecycleManager = new LifecycleManager(APP, celebornConf)
     shuffleClient = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
-    shuffleClient.setupMetaServiceRef(lifecycleManager.self)
+    shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
   }
 
   private def registerAndFinishPartition(): Unit = {

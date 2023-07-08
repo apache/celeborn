@@ -25,8 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.DiskInfo;
@@ -318,7 +318,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
               .setCmdType(Type.UpdatePartitionSize)
-              .setRequestId(RssHARetryClient.genRequestId())
+              .setRequestId(MasterClient.genRequestId())
               .build());
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle update partition size failed!", e);

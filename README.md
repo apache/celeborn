@@ -7,7 +7,7 @@ management service for intermediate data including shuffle data, spilled data, r
 
 ## Internals
 ### Architecture
-![Celeborn architecture](assets/img/rss.jpg)
+![Celeborn architecture](assets/img/celeborn.jpg)
 Celeborn has three primary components: Master, Worker, and Client.
 Master manages all resources and syncs shared states based on Raft.
 Worker processes read-write requests and merges data for each reducer.
@@ -33,7 +33,7 @@ LifecycleManager maintains metadata of each shuffle and runs within the Spark dr
 11. Reducers read shuffle data.
 
 ### Load Balance
-![Load Balance](assets/img/rss_load_balance.jpg)
+![Load Balance](assets/img/celeborn_load_balance.jpg)
 
 We introduce slots to achieve load balance. We will equally distribute partitions on every Celeborn worker by tracking slot usage.
 The Slot is a logical concept in Celeborn Worker that represents how many partitions can be allocated to each Celeborn Worker.
@@ -128,7 +128,7 @@ celeborn.worker.commitFiles.threads 128
 celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
-celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -153,7 +153,7 @@ celeborn.master.ha.node.2.ratis.port 9872
 celeborn.master.ha.node.3.host clb-3
 celeborn.master.ha.node.3.port 9097
 celeborn.master.ha.node.3.ratis.port 9872
-celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
+celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/celeborn_ratis/
 
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
@@ -175,7 +175,7 @@ celeborn.worker.commitFiles.threads 128
 celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
-celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -193,6 +193,8 @@ celeborn.worker.directMemoryRatioToResume 0.6
 celeborn.worker.partition.initial.readBuffersMin 512
 celeborn.worker.partition.initial.readBuffersMax 1024
 celeborn.worker.readBuffer.allocationWait 10ms
+# Currently, shuffle partitionSplit is not supported, so you should disable split in celeborn worker side or set `celeborn.client.shuffle.partitionSplit.threshold` to a high value in flink client side.
+celeborn.worker.shuffle.partitionSplit.enabled false
 ```
 
 4. Copy Celeborn and configurations to all nodes
@@ -233,7 +235,10 @@ Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 #### Spark Configuration
 To use Celeborn,the following spark configurations should be added.
 ```properties
-spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
+# Shuffle manager class name changed in 0.3.0:
+#    before 0.3.0: org.apache.spark.shuffle.celeborn.RssShuffleManager
+#    since 0.3.0: org.apache.spark.shuffle.celeborn.SparkShuffleManager
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
 
@@ -256,7 +261,7 @@ spark.celeborn.client.push.replicate.enabled true
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # If Celeborn is using HDFS
-spark.celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
@@ -295,9 +300,9 @@ See more detail in [CONFIGURATIONS](docs/configuration.md)
 
 ### Support Spark Dynamic Allocation
 We provide a patch to enable users to use Spark with both Dynamic Resource Allocation(DRA) and Celeborn.
-For Spark2.x check [Spark2 Patch](assets/spark-patch/RSS_DRA_spark2.patch).  
-For Spark3.x check [Spark3 Patch](assets/spark-patch/RSS_DRA_spark3.patch).
-For Spark3.4 check [Spark3 Patch](assets/spark-patch/RSS_DRA_spark3_4.patch).
+For Spark2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).  
+For Spark3.x check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3.patch).
+For Spark3.4 check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_4.patch).
 
 ### Metrics
 Celeborn has various metrics. [METRICS](METRICS.md)

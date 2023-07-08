@@ -35,10 +35,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
-import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
@@ -63,7 +63,7 @@ import org.apache.celeborn.common.write.PushState;
 public class ShuffleClientImpl extends ShuffleClient {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
 
-  protected static final byte MASTER_MODE = PartitionLocation.Mode.MASTER.mode();
+  protected static final byte PRIMARY_MODE = PartitionLocation.Mode.PRIMARY.mode();
 
   private static final Random RND = new Random();
 
@@ -80,7 +80,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final RpcEnv rpcEnv;
 
-  protected RpcEndpointRef driverRssMetaService;
+  protected RpcEndpointRef lifecycleManagerRef;
 
   protected TransportClientFactory dataClientFactory;
 
@@ -101,6 +101,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<String, PushState> pushStates = JavaUtils.newConcurrentHashMap();
 
   private final boolean pushExcludeWorkerOnFailureEnabled;
+  private final boolean shuffleCompressionEnabled;
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =
       JavaUtils.newConcurrentHashMap();
@@ -164,6 +165,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     testRetryRevive = conf.testRetryRevive();
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     pushExcludeWorkerOnFailureEnabled = conf.clientPushExcludeWorkerOnFailureEnabled();
+    shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -199,12 +201,12 @@ public class ShuffleClientImpl extends ShuffleClient {
     // If pushExcludeWorkerOnFailureEnabled = false, pushExcludedWorkers should be empty.
     if (pushExcludedWorkers.contains(location.hostAndPushPort())) {
       wrappedCallback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED));
+          new CelebornIOException(StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED));
       return true;
     } else if (location.hasPeer()
         && pushExcludedWorkers.contains(location.getPeer().hostAndPushPort())) {
       wrappedCallback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED));
+          new CelebornIOException(StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED));
       return true;
     } else {
       return false;
@@ -279,7 +281,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             NettyManagedBuffer newBuffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
             String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
             PushData newPushData =
-                new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
+                new PushData(PRIMARY_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
             client.pushData(newPushData, pushDataTimeout, wrappedCallback);
           } else {
             throw new RuntimeException(
@@ -299,7 +301,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             newLoc,
             e);
         wrappedCallback.onFailure(
-            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
+            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
       }
     }
   }
@@ -467,7 +469,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         numMappers,
         numPartitions,
         () ->
-            driverRssMetaService.askSync(
+            lifecycleManagerRef.askSync(
                 RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions),
                 conf.clientRpcRegisterShuffleRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
@@ -489,7 +491,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             numMappers,
             numMappers,
             () ->
-                driverRssMetaService.askSync(
+                lifecycleManagerRef.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
                         shuffleId, numMappers, mapId, attemptId, partitionId),
                     conf.clientRpcRegisterShuffleRpcAskTimeout(),
@@ -631,17 +633,17 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   void excludeWorkerByCause(StatusCode cause, PartitionLocation oldLocation) {
     if (pushExcludeWorkerOnFailureEnabled && oldLocation != null) {
-      if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER) {
+      if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY) {
         pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER) {
+      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY) {
         pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_MASTER) {
+      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_PRIMARY) {
         pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE) {
+      } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA) {
         pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE) {
+      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA) {
         pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_SLAVE) {
+      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_REPLICA) {
         pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
       }
     }
@@ -698,7 +700,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     try {
       PbChangeLocationResponse response =
-          driverRssMetaService.askSync(
+          lifecycleManagerRef.askSync(
               Revive$.MODULE$.apply(shuffleId, mapIds, requests),
               conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
@@ -834,19 +836,22 @@ public class ShuffleClientImpl extends ShuffleClient {
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
 
-    // compress data
-    final Compressor compressor = compressorThreadLocal.get();
-    compressor.compress(data, offset, length);
+    if (shuffleCompressionEnabled) {
+      // compress data
+      final Compressor compressor = compressorThreadLocal.get();
+      compressor.compress(data, offset, length);
 
-    final int compressedTotalSize = compressor.getCompressedTotalSize();
+      data = compressor.getCompressedBuffer();
+      offset = 0;
+      length = compressor.getCompressedTotalSize();
+    }
 
-    final byte[] body = new byte[BATCH_HEADER_SIZE + compressedTotalSize];
+    final byte[] body = new byte[BATCH_HEADER_SIZE + length];
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, mapId);
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, attemptId);
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 8, nextBatchId);
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, compressedTotalSize);
-    System.arraycopy(
-        compressor.getCompressedBuffer(), 0, body, BATCH_HEADER_SIZE, compressedTotalSize);
+    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, length);
+    System.arraycopy(data, offset, body, BATCH_HEADER_SIZE, length);
 
     if (doPush) {
       // check limit
@@ -858,7 +863,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       // build PushData request
       NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
       final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-      PushData pushData = new PushData(MASTER_MODE, shuffleKey, loc.getUniqueId(), buffer);
+      PushData pushData = new PushData(PRIMARY_MODE, shuffleKey, loc.getUniqueId(), buffer);
 
       // build callback
       RpcResponseCallback callback =
@@ -944,9 +949,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                               reviveRequest,
                               remainReviveTimes,
                               dueTime));
-                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
+                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
                   logger.debug(
-                      "Push data to {} master congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
+                      "Push data to {} primary congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
                       loc.hostAndPushPort(),
                       shuffleId,
                       mapId,
@@ -955,9 +960,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                       nextBatchId);
                   pushState.onCongestControl(loc.hostAndPushPort());
                   callback.onSuccess(response);
-                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
+                } else if (reason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue()) {
                   logger.debug(
-                      "Push data to {} slave congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
+                      "Push data to {} replica congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
                       loc.hostAndPushPort(),
                       shuffleId,
                       mapId,
@@ -1068,7 +1073,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             loc,
             e);
         wrappedCallback.onFailure(
-            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
+            new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
       }
     } else {
       // add batch data
@@ -1109,7 +1114,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         reducePartitionMap.get(shuffleId);
 
     ShuffleClientHelper.sendShuffleSplitAsync(
-        driverRssMetaService,
+        lifecycleManagerRef,
         conf,
         PartitionSplit$.MODULE$.apply(shuffleId, partitionId, loc.getEpoch(), loc),
         partitionSplitPool,
@@ -1234,7 +1239,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     NettyManagedBuffer buffer = new NettyManagedBuffer(byteBuf);
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
     PushMergedData mergedData =
-        new PushMergedData(MASTER_MODE, shuffleKey, partitionUniqueIds, offsets, buffer);
+        new PushMergedData(PRIMARY_MODE, shuffleKey, partitionUniqueIds, offsets, buffer);
 
     RpcResponseCallback callback =
         new RpcResponseCallback() {
@@ -1322,9 +1327,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                                 + conf.clientRpcRequestPartitionLocationRpcAskTimeout()
                                     .duration()
                                     .toMillis()));
-              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED.getValue()) {
+              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
                 logger.debug(
-                    "Push merged data to {} master congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                    "Push merged data to {} primary congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     addressPair,
                     shuffleId,
                     mapId,
@@ -1334,9 +1339,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                     Arrays.toString(batchIds));
                 pushState.onCongestControl(hostPort);
                 callback.onSuccess(response);
-              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED.getValue()) {
+              } else if (reason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue()) {
                 logger.debug(
-                    "Push merged data to {} slave congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
+                    "Push merged data to {} replica congestion required for shuffle {} map {} attempt {} partition {} groupedBatch {} batch {}.",
                     addressPair,
                     shuffleId,
                     mapId,
@@ -1444,7 +1449,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           addressPair,
           e);
       wrappedCallback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
+          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
     }
   }
 
@@ -1470,7 +1475,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       limitZeroInFlight(mapKey, pushState);
 
       MapperEndResponse response =
-          driverRssMetaService.askSync(
+          lifecycleManagerRef.askSync(
               new MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId),
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
       if (response.status() != StatusCode.SUCCESS) {
@@ -1495,9 +1500,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   public boolean unregisterShuffle(int shuffleId, boolean isDriver) {
     if (isDriver) {
       try {
-        driverRssMetaService.send(
-            UnregisterShuffle$.MODULE$.apply(
-                appUniqueId, shuffleId, RssHARetryClient.genRequestId()));
+        lifecycleManagerRef.send(
+            UnregisterShuffle$.MODULE$.apply(appUniqueId, shuffleId, MasterClient.genRequestId()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
         // otherwise it will mislead users.
@@ -1517,7 +1521,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
+  public CelebornInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
       throws IOException {
     return readPartition(shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE);
   }
@@ -1526,7 +1530,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     {
       long getReducerFileGroupStartTime = System.nanoTime();
       try {
-        if (driverRssMetaService == null) {
+        if (lifecycleManagerRef == null) {
           logger.warn("Driver endpoint is null!");
           return null;
         }
@@ -1534,7 +1538,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId);
 
         GetReducerFileGroupResponse response =
-            driverRssMetaService.askSync(
+            lifecycleManagerRef.askSync(
                 getReducerFileGroup,
                 conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
@@ -1583,7 +1587,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public RssInputStream readPartition(
+  public CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException {
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
@@ -1591,10 +1595,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
-      return RssInputStream.empty();
+      return CelebornInputStream.empty();
     } else {
       String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-      return RssInputStream.create(
+      return CelebornInputStream.create(
           conf,
           dataClientFactory,
           shuffleKey,
@@ -1626,8 +1630,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != partitionSplitPool) {
       partitionSplitPool.shutdown();
     }
-    if (null != driverRssMetaService) {
-      driverRssMetaService = null;
+    if (null != lifecycleManagerRef) {
+      lifecycleManagerRef = null;
     }
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
@@ -1635,14 +1639,14 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void setupMetaServiceRef(String host, int port) {
-    driverRssMetaService =
-        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.RSS_METASERVICE_EP);
+  public void setupLifecycleManagerRef(String host, int port) {
+    lifecycleManagerRef =
+        rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP);
   }
 
   @Override
-  public void setupMetaServiceRef(RpcEndpointRef endpointRef) {
-    driverRssMetaService = endpointRef;
+  public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
+    lifecycleManagerRef = endpointRef;
   }
 
   boolean mapperEnded(int shuffleId, int mapId) {
@@ -1660,31 +1664,31 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (message == null) {
       logger.error("Push data throw unexpected exception: {}", message);
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE.name())) {
-      cause = StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_MASTER.name())) {
-      cause = StatusCode.PUSH_DATA_WRITE_FAIL_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER.name())) {
-      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE.name())) {
-      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER.name())) {
-      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE.name())) {
-      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_MASTER.name())) {
-      cause = StatusCode.PUSH_DATA_TIMEOUT_MASTER;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_SLAVE.name())) {
-      cause = StatusCode.PUSH_DATA_TIMEOUT_SLAVE;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY.name())) {
+      cause = StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY.name())) {
+      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY.name())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_PRIMARY.name())) {
+      cause = StatusCode.PUSH_DATA_TIMEOUT_PRIMARY;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+      cause = StatusCode.PUSH_DATA_TIMEOUT_REPLICA;
     } else if (message.startsWith(StatusCode.REPLICATE_DATA_FAILED.name())) {
       cause = StatusCode.REPLICATE_DATA_FAILED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED.name())) {
-      cause = StatusCode.PUSH_DATA_MASTER_WORKER_EXCLUDED;
-    } else if (message.startsWith(StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED.name())) {
-      cause = StatusCode.PUSH_DATA_SLAVE_WORKER_EXCLUDED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED.name())) {
+      cause = StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED;
+    } else if (message.startsWith(StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED.name())) {
+      cause = StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED;
     } else if (connectFail(message)) {
-      // Throw when push to master worker connection causeException.
-      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER;
+      // Throw when push to primary worker connection causeException.
+      cause = StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
     } else {
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     }

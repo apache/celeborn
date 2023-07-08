@@ -48,7 +48,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
     val shuffleClient: ShuffleClientImpl = {
       val client = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
-      client.setupMetaServiceRef(lifecycleManager.self)
+      client.setupLifecycleManagerRef(lifecycleManager.self)
       client
     }
 
@@ -60,7 +60,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
   }
 
   override def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
+    logInfo("all test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
   }
 }

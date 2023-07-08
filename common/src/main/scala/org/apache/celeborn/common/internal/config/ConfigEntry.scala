@@ -70,7 +70,7 @@ The followings are best practices of naming configs for some common cases:
  * @param doc the documentation for the configuration
  * @param isPublic if this configuration is public to the user. If it's `false`, this
  *                 configuration is only used internally and we should not expose it to users.
- * @param version the RSS version when the configuration was released.
+ * @param version the Celeborn version when the configuration was released.
  * @tparam T the value type
  */
 abstract class ConfigEntry[T](

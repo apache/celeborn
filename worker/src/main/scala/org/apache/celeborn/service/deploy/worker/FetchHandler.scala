@@ -26,6 +26,7 @@ import java.util.function.Consumer
 import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
@@ -38,14 +39,14 @@ import org.apache.celeborn.common.protocol.PartitionType
 import org.apache.celeborn.common.util.ExceptionUtils
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
-class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logging {
-  var celebornConf = conf.getCelebornConf
+class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
+  extends BaseMessageHandler with Logging {
   var chunkStreamManager = new ChunkStreamManager()
   val creditStreamManager = new CreditStreamManager(
-    celebornConf.partitionReadBuffersMin,
-    celebornConf.partitionReadBuffersMax,
-    celebornConf.creditStreamThreadsPerMountpoint,
-    celebornConf.readBuffersToTriggerReadMin)
+    conf.partitionReadBuffersMin,
+    conf.partitionReadBuffersMax,
+    conf.creditStreamThreadsPerMountpoint,
+    conf.readBuffersToTriggerReadMin)
   var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
@@ -54,13 +55,13 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
   def init(worker: Worker): Unit = {
     this.workerSource = worker.workerSource
 
-    workerSource.addGauge(
-      WorkerSource.CreditStreamCount,
-      _ => creditStreamManager.getStreamsCount)
+    workerSource.addGauge(WorkerSource.CREDIT_STREAM_COUNT) { () =>
+      creditStreamManager.getStreamsCount
+    }
 
-    workerSource.addGauge(
-      WorkerSource.ActiveMapPartitionCount,
-      _ => creditStreamManager.getActiveMapPartitionCount)
+    workerSource.addGauge(WorkerSource.ACTIVE_MAP_PARTITION_COUNT) { () =>
+      creditStreamManager.getActiveMapPartitionCount
+    }
 
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
@@ -111,10 +112,10 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
       }
     // metrics start
-    workerSource.startTimer(WorkerSource.OpenStreamTime, shuffleKey)
+    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
-      try fileInfo.getPartitionType() match {
+      try fileInfo.getPartitionType match {
         case PartitionType.REDUCE =>
           val startMapIndex = msg.asInstanceOf[OpenStream].startMapIndex
           val endMapIndex = msg.asInstanceOf[OpenStream].endMapIndex
@@ -134,7 +135,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               request.requestId,
               new NioManagedBuffer(streamHandle.toByteBuffer)))
           } else {
-            val buffers = new FileManagedBuffers(fileInfo, conf)
+            val buffers = new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
             val streamId = chunkStreamManager.registerStream(
               shuffleKey,
@@ -161,8 +162,7 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               val bufferStreamHandle = new StreamHandle(streamId, 0)
               client.getChannel.writeAndFlush(new RpcResponse(
                 request.requestId,
-                new NioManagedBuffer(bufferStreamHandle
-                  .toByteBuffer)))
+                new NioManagedBuffer(bufferStreamHandle.toByteBuffer)))
             }
           }
 
@@ -180,12 +180,12 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
           handleRpcIOException(client, request.requestId, e)
       } finally {
         // metrics end
-        workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
         request.body().release()
       }
     } catch {
       case ioe: IOException =>
-        workerSource.stopTimer(WorkerSource.OpenStreamTime, shuffleKey)
+        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
         handleRpcIOException(client, request.requestId, ioe)
     }
   }
@@ -215,15 +215,14 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
       s" to fetch block ${req.streamChunkSlice}")
 
     val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred
-    if (chunksBeingTransferred > celebornConf.shuffleIoMaxChunksBeingTransferred) {
+    if (chunksBeingTransferred > conf.shuffleIoMaxChunksBeingTransferred) {
       val message = "Worker is too busy. The number of chunks being transferred " +
         s"$chunksBeingTransferred exceeds celeborn.shuffle.maxChunksBeingTransferred " +
-        s"${celebornConf.shuffleIoMaxChunksBeingTransferred}."
+        s"${conf.shuffleIoMaxChunksBeingTransferred}."
       logError(message)
-      client.getChannel.writeAndFlush(
-        new ChunkFetchFailure(req.streamChunkSlice, message))
+      client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice, message))
     } else {
-      workerSource.startTimer(WorkerSource.FetchChunkTime, req.toString)
+      workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
       val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(req.streamChunkSlice.streamId)
       val fetchBeginTime = System.nanoTime()
       try {
@@ -240,19 +239,19 @@ class FetchHandler(val conf: TransportConf) extends BaseMessageHandler with Logg
               if (fetchTimeMetric != null) {
                 fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
               }
-              workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+              workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
             }
           })
       } catch {
         case e: Exception =>
           logError(
-            String.format(s"Error opening block ${req.streamChunkSlice} for request from" +
-              s" ${NettyUtils.getRemoteAddress(client.getChannel)}"),
+            s"Error opening block ${req.streamChunkSlice} for request from " +
+              NettyUtils.getRemoteAddress(client.getChannel),
             e)
           client.getChannel.writeAndFlush(new ChunkFetchFailure(
             req.streamChunkSlice,
             Throwables.getStackTraceAsString(e)))
-          workerSource.stopTimer(WorkerSource.FetchChunkTime, req.toString)
+          workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
       }
     }
   }

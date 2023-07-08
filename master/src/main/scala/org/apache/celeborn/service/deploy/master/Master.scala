@@ -23,10 +23,13 @@ import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Random
 
+import org.apache.hadoop.fs.{FileSystem, Path}
+
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.haclient.RssHARetryClient
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
@@ -37,7 +40,7 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
@@ -90,11 +93,14 @@ private[celeborn] class Master(
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
+  private var checkForHDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
   private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
+  private val hdfsExpireDirsTimeoutMS = conf.hdfsExpireDirsTimeoutMS
+  private val hasHDFSStorage = conf.hasHDFSStorage
 
   private val quotaManager = QuotaManager.instantiate(conf)
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
@@ -141,14 +147,17 @@ private[celeborn] class Master(
   // init and register master metrics
   val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
-  masterSource.addGauge(
-    MasterSource.RegisteredShuffleCount,
-    _ => statusSystem.registeredShuffle.size())
-  masterSource.addGauge(MasterSource.ExcludedWorkerCount, _ => statusSystem.excludedWorkers.size())
-  masterSource.addGauge(MasterSource.WorkerCount, _ => statusSystem.workers.size())
-  masterSource.addGauge(MasterSource.LostWorkerCount, _ => statusSystem.lostWorkers.size())
-  masterSource.addGauge(MasterSource.PartitionSize, _ => statusSystem.estimatedPartitionSize)
-  masterSource.addGauge(MasterSource.IsActiveMaster, _ => isMasterActive)
+  private var hadoopFs: FileSystem = _
+  masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
+    statusSystem.registeredShuffle.size
+  }
+  masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
+    statusSystem.excludedWorkers.size
+  }
+  masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
+  masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
+  masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
+  masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(masterSource)
@@ -179,18 +188,34 @@ private[celeborn] class Master(
       0,
       appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
+
+    if (hasHDFSStorage) {
+      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+        new Runnable {
+          override def run(): Unit = Utils.tryLogNonFatalError {
+            self.send(CheckForHDFSExpiredDirsTimeout)
+          }
+        },
+        hdfsExpireDirsTimeoutMS,
+        hdfsExpireDirsTimeoutMS,
+        TimeUnit.MILLISECONDS)
+    }
+
   }
 
   override def onStop(): Unit = {
-    logInfo("Stopping RSS Master.")
+    logInfo("Stopping Celeborn Master.")
     if (checkForWorkerTimeOutTask != null) {
       checkForWorkerTimeOutTask.cancel(true)
     }
     if (checkForApplicationTimeOutTask != null) {
       checkForApplicationTimeOutTask.cancel(true)
     }
+    if (checkForHDFSRemnantDirsTimeOutTask != null) {
+      checkForHDFSRemnantDirsTimeOutTask.cancel(true)
+    }
     forwardMessageThread.shutdownNow()
-    logInfo("RSS Master is stopped.")
+    logInfo("Celeborn Master is stopped.")
   }
 
   override def onDisconnected(address: RpcAddress): Unit = {
@@ -213,6 +238,8 @@ private[celeborn] class Master(
       executeWithLeaderChecker(null, timeoutDeadWorkers())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
+    case CheckForHDFSExpiredDirsTimeout =>
+      executeWithLeaderChecker(null, checkAndCleanExpiredAppDirsOnHDFS())
     case pb: PbWorkerLost =>
       val host = pb.getHost
       val rpcPort = pb.getRpcPort
@@ -366,7 +393,7 @@ private[celeborn] class Master(
           worker.pushPort,
           worker.fetchPort,
           worker.replicatePort,
-          RssHARetryClient.genRequestId()))
+          MasterClient.genRequestId()))
       }
       ind += 1
     }
@@ -381,7 +408,7 @@ private[celeborn] class Master(
     statusSystem.appHeartbeatTime.keySet().asScala.foreach { key =>
       if (statusSystem.appHeartbeatTime.get(key) < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $key timeout, trigger applicationLost event.")
-        val requestId = RssHARetryClient.genRequestId()
+        val requestId = MasterClient.genRequestId()
         var res = self.askSync[ApplicationLostResponse](ApplicationLost(key, requestId))
         var retry = 1
         while (res.status != StatusCode.SUCCESS && retry <= 3) {
@@ -434,7 +461,7 @@ private[celeborn] class Master(
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatResponse(expiredShuffleKeys, registered))
+    context.reply(HeartbeatFromWorkerResponse(expiredShuffleKeys, registered))
   }
 
   private def handleWorkerLost(
@@ -537,9 +564,9 @@ private[celeborn] class Master(
     val availableWorkers = workersAvailable()
     // offer slots
     val slots =
-      masterSource.sample(MasterSource.OfferSlotsTime, s"offerSlots-${Random.nextInt()}") {
+      masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
-          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !conf.hasHDFSStorage) {
+          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !hasHDFSStorage) {
             SlotsAllocator.offerSlotsLoadAware(
               availableWorkers,
               requestSlots.partitionIdList,
@@ -639,9 +666,34 @@ private[celeborn] class Master(
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
         logInfo(s"Removed application $appId")
+        if (hasHDFSStorage) {
+          checkAndCleanExpiredAppDirsOnHDFS(appId)
+        }
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
+  }
+
+  private def checkAndCleanExpiredAppDirsOnHDFS(expiredDir: String = ""): Unit = {
+    if (hadoopFs == null) {
+      hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
+    }
+    val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
+    if (hadoopFs.exists(hdfsWorkPath)) {
+      if (!expiredDir.isEmpty) {
+        val dirToDelete = new Path(hdfsWorkPath, expiredDir)
+        // delete specific app dir on application lost
+        CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, dirToDelete, true)
+      } else {
+        val iter = hadoopFs.listStatusIterator(hdfsWorkPath)
+        while (iter.hasNext && isMasterActive == 1) {
+          val fileStatus = iter.next()
+          if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
+            CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, fileStatus.getPath, true)
+          }
+        }
+      }
+    }
   }
 
   private def handleHeartbeatFromApplication(
@@ -698,22 +750,18 @@ private[celeborn] class Master(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
 
-    resourceConsumptionSource.addGauge(
-      "diskFileCount",
-      _ => computeUserResourceConsumption(userIdentifier).diskFileCount,
-      userIdentifier.toMap)
-    resourceConsumptionSource.addGauge(
-      "diskBytesWritten",
-      _ => computeUserResourceConsumption(userIdentifier).diskBytesWritten,
-      userIdentifier.toMap)
-    resourceConsumptionSource.addGauge(
-      "hdfsFileCount",
-      _ => computeUserResourceConsumption(userIdentifier).hdfsFileCount,
-      userIdentifier.toMap)
-    resourceConsumptionSource.addGauge(
-      "hdfsBytesWritten",
-      _ => computeUserResourceConsumption(userIdentifier).hdfsBytesWritten,
-      userIdentifier.toMap)
+    resourceConsumptionSource.addGauge("diskFileCount", userIdentifier.toMap) { () =>
+      computeUserResourceConsumption(userIdentifier).diskFileCount
+    }
+    resourceConsumptionSource.addGauge("diskBytesWritten", userIdentifier.toMap) { () =>
+      computeUserResourceConsumption(userIdentifier).diskBytesWritten
+    }
+    resourceConsumptionSource.addGauge("hdfsFileCount", userIdentifier.toMap) { () =>
+      computeUserResourceConsumption(userIdentifier).hdfsFileCount
+    }
+    resourceConsumptionSource.addGauge("hdfsBytesWritten", userIdentifier.toMap) { () =>
+      computeUserResourceConsumption(userIdentifier).hdfsBytesWritten
+    }
 
     val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
     val quota = quotaManager.getQuota(userIdentifier)

@@ -53,14 +53,14 @@ class ChangePartitionManager(
 
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "rss-lifecycle-manager-change-partition-executor",
+    "celeborn-lifecycle-manager-change-partition-executor",
     conf.batchHandleChangePartitionNumThreads)
   private val batchHandleChangePartitionRequestInterval =
     conf.batchHandleChangePartitionRequestInterval
   private val batchHandleChangePartitionSchedulerThread: Option[ScheduledExecutorService] =
     if (batchHandleChangePartitionEnabled) {
       Some(ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "rss-lifecycle-manager-change-partition-scheduler"))
+        "celeborn-lifecycle-manager-change-partition-scheduler"))
     } else {
       None
     }
@@ -280,19 +280,19 @@ class ChangePartitionManager(
       return
     }
 
-    val newMasterLocations =
+    val newPrimaryLocations =
       newlyAllocatedLocations.asScala.flatMap {
-        case (workInfo, (masterLocations, slaveLocations)) =>
+        case (workInfo, (primaryLocations, replicaLocations)) =>
           // Add all re-allocated slots to worker snapshots.
           lifecycleManager.workerSnapshots(shuffleId).asScala
             .get(workInfo)
             .foreach { partitionLocationInfo =>
-              partitionLocationInfo.addMasterPartitions(masterLocations)
-              lifecycleManager.updateLatestPartitionLocations(shuffleId, masterLocations)
-              partitionLocationInfo.addSlavePartitions(slaveLocations)
+              partitionLocationInfo.addPrimaryPartitions(primaryLocations)
+              lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+              partitionLocationInfo.addReplicaPartitions(replicaLocations)
             }
           // partition location can be null when call reserveSlotsWithRetry().
-          val locations = (masterLocations.asScala ++ slaveLocations.asScala.map(_.getPeer))
+          val locations = (primaryLocations.asScala ++ replicaLocations.asScala.map(_.getPeer))
             .distinct.filter(_ != null)
           if (locations.nonEmpty) {
             val changes = locations.map { partition =>
@@ -304,7 +304,7 @@ class ChangePartitionManager(
           }
           locations
       }
-    replySuccess(newMasterLocations.toArray)
+    replySuccess(newPrimaryLocations.toArray)
   }
 
   private def reallocateChangePartitionRequestSlotsFromCandidates(

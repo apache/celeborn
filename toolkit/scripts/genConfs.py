@@ -93,8 +93,8 @@ def set_skew_join_confs(conf):
     conf["spark.sql.autoBroadcastJoinThreshold"] = "-1"
 
 
-def set_rss_confs(conf, replicate=False):
-    conf["spark.shuffle.manager"] = "org.apache.spark.shuffle.celeborn.RssShuffleManager"
+def set_celeborn_confs(conf, replicate=False):
+    conf["spark.shuffle.manager"] = "org.apache.spark.shuffle.celeborn.SparkShuffleManager"
     conf["spark.serializer"] = "org.apache.spark.serializer.KryoSerializer"
     conf["spark.celeborn.master.endpoints"] = "master-1-1:9097"
     conf["spark.shuffle.service.enabled"] = "false"
@@ -112,29 +112,29 @@ def save_ess_conf(dir):
     save_confs(ess, nconf)
 
 
-def save_rss_conf(dir):
-    rss = open(dir + "/spark-rss.conf", "w")
+def save_celeborn_conf(dir):
+    celeborn = open(dir + "/spark-celeborn.conf", "w")
     nconf = thrift_server_conf.copy()
     set_common_spark_confs(nconf)
-    set_rss_confs(nconf, False)
-    save_confs(rss, nconf)
+    set_celeborn_confs(nconf, False)
+    save_confs(celeborn, nconf)
 
 
-def save_rss_dup_conf(dir):
-    rssdup = open(dir + "/spark-rss-dup.conf", "w")
+def save_celeborn_dup_conf(dir):
+    celeborndup = open(dir + "/spark-celeborn-dup.conf", "w")
     nconf = thrift_server_conf.copy()
     set_common_spark_confs(nconf)
-    set_rss_confs(nconf, True)
-    save_confs(rssdup, nconf)
+    set_celeborn_confs(nconf, True)
+    save_confs(celeborndup, nconf)
 
 
 def save_skewjoin_spark_confs(dir):
-    rssdup = open(dir + "/spark-skewjoin.conf", "w")
+    celeborndup = open(dir + "/spark-skewjoin.conf", "w")
     nconf = thrift_server_conf.copy()
     set_common_spark_confs(nconf)
     set_skew_join_confs(nconf)
-    set_rss_confs(nconf, True)
-    save_confs(rssdup, nconf)
+    set_celeborn_confs(nconf, True)
+    save_confs(celeborndup, nconf)
 
 
 def update_spark_confs(target_dir):
@@ -143,8 +143,8 @@ def update_spark_confs(target_dir):
     read_ts_conf()
     read_dconf()
     save_ess_conf(target_dir)
-    save_rss_conf(target_dir)
-    save_rss_dup_conf(target_dir)
+    save_celeborn_conf(target_dir)
+    save_celeborn_dup_conf(target_dir)
     save_skewjoin_spark_confs(target_dir)
 
 
@@ -168,9 +168,9 @@ def update_hibench_confs(hiben_conf_dir):
     read_conf(hibench_spark_conf, hibench_spark_conf_file)
     nconf = thrift_server_conf.copy()
     set_common_spark_confs(nconf)
-    set_rss_confs(nconf, True)
+    set_celeborn_confs(nconf, True)
     new_hibench_spark_conf = merge_two_dicts(nconf, hibench_spark_conf)
-    normal_hibench_spark_conf_file_path = hibench_spark_conf_file + ".rss"
+    normal_hibench_spark_conf_file_path = hibench_spark_conf_file + ".celeborn"
     save_confs(open(normal_hibench_spark_conf_file_path, "w"), new_hibench_spark_conf)
     splits_hibench_spark_conf_file_path = hibench_spark_conf_file + ".split"
     new_hibench_spark_conf["spark.celeborn.client.shuffle.partitionSplit.threshold"] = "16m"

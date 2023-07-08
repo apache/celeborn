@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.metrics.source
 
+import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -27,8 +28,10 @@ import com.codahale.metrics._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.{MetricLabels, ResettableSlidingWindowReservoir, RssHistogram, RssTimer}
+import org.apache.celeborn.common.metrics.{CelebornHistogram, CelebornTimer, MetricLabels, ResettableSlidingWindowReservoir}
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
+// Can Remove this if celeborn don't support scala211 in future
+import org.apache.celeborn.common.util.FunctionConverter._
 
 case class NamedCounter(name: String, counter: Counter, labels: Map[String, String])
   extends MetricLabels
@@ -51,55 +54,50 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val metricsCollectCriticalEnabled: Boolean = conf.metricsCollectCriticalEnabled
 
-  final val metricsCapacity = conf.metricsCapacity
+  val metricsCapacity: Int = conf.metricsCapacity
 
   val innerMetrics: ConcurrentLinkedQueue[String] = new ConcurrentLinkedQueue[String]()
 
   val timerSupplier = new TimerSupplier(metricsSlidingWindowSize)
 
   val metricsCleaner: ScheduledExecutorService =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor(s"worker-metrics-cleaner")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-metrics-cleaner")
 
-  val roleLabel = "role" -> role
-  val staticLabels = conf.metricsExtraLabels + roleLabel
-  val staticLabelsString = MetricLabels.labelString(staticLabels)
+  val roleLabel: (String, String) = "role" -> role
+  val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel
+  val staticLabelsString: String = MetricLabels.labelString(staticLabels)
 
-  protected val namedGauges: java.util.List[NamedGauge[_]] =
-    new java.util.ArrayList[NamedGauge[_]]()
+  protected val namedGauges: JList[NamedGauge[_]] = new JArrayList[NamedGauge[_]]()
 
   def addGauge[T](
       name: String,
-      gauge: Gauge[T],
-      labels: Map[String, String]): Unit = {
+      labels: Map[String, String],
+      gauge: Gauge[T]): Unit = {
     namedGauges.add(NamedGauge(name, gauge, labels ++ staticLabels))
   }
 
   def addGauge[T](
       name: String,
-      gauge: Gauge[T],
-      labels: java.util.Map[String, String]): Unit = {
-    addGauge(name, gauge, labels.asScala.toMap)
+      labels: JMap[String, String],
+      gauge: Gauge[T]): Unit = {
+    addGauge(name, labels.asScala.toMap, gauge)
   }
 
-  def addGauge[T](
-      name: String,
-      f: Unit => T,
-      labels: Map[String, String]): Unit = {
+  def addGauge[T](name: String, labels: Map[String, String] = Map.empty)(f: () => T): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     if (!metricRegistry.getGauges.containsKey(metricNameWithLabel)) {
       val supplier: MetricRegistry.MetricSupplier[Gauge[_]] = new GaugeSupplier[T](f)
       val gauge = metricRegistry.gauge(metricNameWithLabel, supplier)
-      addGauge(name, gauge, labels)
+      addGauge(name, labels, gauge)
     }
   }
 
-  def addGauge[T](name: String, f: Unit => T): Unit = addGauge(name, f, Map.empty[String, String])
-
   def addGauge[T](name: String, gauge: Gauge[T]): Unit = {
-    addGauge(name, gauge, Map.empty[String, String])
+    addGauge(name, Map.empty[String, String], gauge)
   }
 
-  protected val namedTimers =
+  protected val namedTimers
+      : ConcurrentHashMap[String, (NamedTimer, ConcurrentHashMap[String, Long])] =
     JavaUtils.newConcurrentHashMap[String, (NamedTimer, ConcurrentHashMap[String, Long])]()
 
   def addTimer(name: String): Unit = addTimer(name, Map.empty[String, String])
@@ -107,13 +105,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   def addTimer(name: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     if (!metricRegistry.getTimers.containsKey(metricNameWithLabel)) {
-      val timer =
-        metricRegistry.timer(metricNameWithLabel, timerSupplier)
-      namedTimers.putIfAbsent(
+      val timer = metricRegistry.timer(metricNameWithLabel, timerSupplier)
+      namedTimers.computeIfAbsent(
         metricNameWithLabel,
-        (
-          NamedTimer(name, timer, labels ++ staticLabels),
-          JavaUtils.newConcurrentHashMap[String, Long]()))
+        (_: String) => {
+          val namedTimer = NamedTimer(name, timer, labels ++ staticLabels)
+          val values = JavaUtils.newConcurrentHashMap[String, Long]()
+          (namedTimer, values)
+        })
     }
   }
 
@@ -363,12 +362,12 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     gauges().foreach(g => recordGauge(g))
     histograms().foreach(h => {
       recordHistogram(h)
-      h.asInstanceOf[RssHistogram].reservoir
+      h.asInstanceOf[CelebornHistogram].reservoir
         .asInstanceOf[ResettableSlidingWindowReservoir].reset()
     })
     timers().foreach(t => {
       recordTimer(t)
-      t.timer.asInstanceOf[RssTimer].reservoir
+      t.timer.asInstanceOf[CelebornTimer].reservoir
         .asInstanceOf[ResettableSlidingWindowReservoir].reset()
     })
     val sb = new mutable.StringBuilder
@@ -414,14 +413,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 class TimerSupplier(val slidingWindowSize: Int)
   extends MetricRegistry.MetricSupplier[Timer] {
   override def newMetric(): Timer = {
-    new RssTimer(new ResettableSlidingWindowReservoir(slidingWindowSize))
+    new CelebornTimer(new ResettableSlidingWindowReservoir(slidingWindowSize))
   }
 }
 
-class GaugeSupplier[T](f: Unit => T) extends MetricRegistry.MetricSupplier[Gauge[_]] {
-  override def newMetric(): Gauge[T] = {
-    new Gauge[T] {
-      override def getValue: T = f(())
-    }
-  }
+class GaugeSupplier[T](f: () => T) extends MetricRegistry.MetricSupplier[Gauge[_]] {
+  override def newMetric(): Gauge[T] = new Gauge[T] { override def getValue: T = f() }
 }

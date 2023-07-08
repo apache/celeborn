@@ -49,7 +49,7 @@ class MapProvider(conf: JMap[String, String]) extends ConfigProvider {
 }
 
 /**
- * A config provider that only reads RSS config keys.
+ * A config provider that only reads Celeborn config keys.
  */
 class CelebornConfigProvider(conf: JMap[String, String]) extends ConfigProvider {
 

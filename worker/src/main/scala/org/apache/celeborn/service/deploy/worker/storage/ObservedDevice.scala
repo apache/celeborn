@@ -19,41 +19,41 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.File
 import java.util
-import java.util.{Set => jSet}
+import java.util.{Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 import scala.io.Source
 
-import org.slf4j.LoggerFactory
-
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.source.AbstractSource
+// Can Remove this if celeborn don't support scala211 in future
+import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
 
-class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSource: AbstractSource) {
-
-  val logger = LoggerFactory.getLogger(classOf[ObservedDevice])
+class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSource: AbstractSource)
+  extends Logging {
 
   val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
-  deviceInfo.diskInfos.foreach { case diskInfo =>
-    diskInfos.put(diskInfo.mountPoint, diskInfo)
-  }
-  val observers: jSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
+  deviceInfo.diskInfos.foreach { diskInfo => diskInfos.put(diskInfo.mountPoint, diskInfo) }
 
-  val sysBlockDir = conf.workerDiskMonitorSysBlockDir
+  val observers: JSet[DeviceObserver] = ConcurrentHashMap.newKeySet[DeviceObserver]()
+
+  val sysBlockDir: String = conf.workerDiskMonitorSysBlockDir
   val statFile = new File(s"$sysBlockDir/${deviceInfo.name}/stat")
   val inFlightFile = new File(s"$sysBlockDir/${deviceInfo.name}/inflight")
 
-  val nonCriticalErrors = JavaUtils.newConcurrentHashMap[DiskStatus, util.Set[Long]]()
-  val notifyErrorThreshold = conf.workerDiskMonitorNotifyErrorThreshold
-  val notifyErrorExpireTimeout = conf.workerDiskMonitorNotifyErrorExpireTimeout
+  val nonCriticalErrors: ConcurrentHashMap[DiskStatus, JSet[Long]] =
+    JavaUtils.newConcurrentHashMap[DiskStatus, JSet[Long]]()
+  val notifyErrorThreshold: Int = conf.workerDiskMonitorNotifyErrorThreshold
+  val notifyErrorExpireTimeout: Long = conf.workerDiskMonitorNotifyErrorExpireTimeout
 
   var lastReadComplete: Long = -1
   var lastWriteComplete: Long = -1
-  var lastReadInflight: Long = -1
-  var lastWriteInflight: Long = -1
+  var lastReadInFlight: Long = -1
+  var lastWriteInFlight: Long = -1
 
   def addObserver(observer: DeviceObserver): Unit = {
     observers.add(observer)
@@ -65,14 +65,14 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
 
   def notifyObserversOnError(mountPoints: List[String], diskStatus: DiskStatus): Unit =
     this.synchronized {
-      mountPoints.foreach { case mountPoint =>
+      mountPoints.foreach { mountPoint =>
         diskInfos.get(mountPoint).setStatus(diskStatus)
       }
       // observer.notifyDeviceError might remove itself from observers,
       // so we need to use tmpObservers
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
-      tmpObservers.asScala.foreach { ob =>
-        mountPoints.foreach { case mountPoint =>
+      tmpObservers.forEach { ob: DeviceObserver =>
+        mountPoints.foreach { mountPoint =>
           ob.notifyError(mountPoint, diskStatus)
         }
       }
@@ -80,23 +80,21 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
 
   def notifyObserversOnNonCriticalError(mountPoints: List[String], diskStatus: DiskStatus): Unit =
     this.synchronized {
-      val nonCriticalErrorSetFunc = new util.function.Function[DiskStatus, util.Set[Long]] {
-        override def apply(t: DiskStatus): util.Set[Long] = {
+      nonCriticalErrors.computeIfAbsent(
+        diskStatus,
+        (_: DiskStatus) => {
           val set = ConcurrentHashMap.newKeySet[Long]()
-          workerSource.addGauge(
-            s"Device_${deviceInfo.name}_${diskStatus.toMetric}_Count",
-            _ => set.size())
+          workerSource.addGauge(s"Device_${deviceInfo.name}_${diskStatus.toMetric}_Count") { () =>
+            set.size()
+          }
           set
-        }
-      }
-      nonCriticalErrors.computeIfAbsent(diskStatus, nonCriticalErrorSetFunc).add(
-        System.currentTimeMillis())
-      mountPoints.foreach { case mountPoint =>
+        }).add(System.currentTimeMillis())
+      mountPoints.foreach { mountPoint =>
         diskInfos.get(mountPoint).setStatus(diskStatus)
       }
       val tmpObservers = new util.HashSet[DeviceObserver](observers)
-      tmpObservers.asScala.foreach { ob =>
-        mountPoints.foreach { case mountPoint =>
+      tmpObservers.forEach { ob: DeviceObserver =>
+        mountPoints.foreach { mountPoint =>
           ob.notifyNonCriticalError(mountPoint, diskStatus)
         }
       }
@@ -105,17 +103,17 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
   def notifyObserversOnHealthy(mountPoint: String): Unit = this.synchronized {
     diskInfos.get(mountPoint).setStatus(DiskStatus.HEALTHY)
     val tmpObservers = new util.HashSet[DeviceObserver](observers)
-    tmpObservers.asScala.foreach(ob => {
+    tmpObservers.forEach { ob: DeviceObserver =>
       ob.notifyHealthy(mountPoint)
-    })
+    }
   }
 
   def notifyObserversOnHighDiskUsage(mountPoint: String): Unit = this.synchronized {
     diskInfos.get(mountPoint).setStatus(DiskStatus.HIGH_DISK_USAGE)
     val tmpObservers = new util.HashSet[DeviceObserver](observers)
-    tmpObservers.asScala.foreach(ob => {
+    tmpObservers.forEach { ob: DeviceObserver =>
       ob.notifyHighDiskUsage(mountPoint)
-    })
+    }
   }
 
   /**
@@ -141,33 +139,33 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
         if (lastReadComplete == -1) {
           lastReadComplete = readComplete
           lastWriteComplete = writeComplete
-          lastReadInflight = readInflight
-          lastWriteInflight = writeInflight
+          lastReadInFlight = readInflight
+          lastWriteInFlight = writeInflight
           false
         } else {
           val isReadHang = lastReadComplete == readComplete &&
-            readInflight >= lastReadInflight && lastReadInflight > 0
+            readInflight >= lastReadInFlight && lastReadInFlight > 0
           val isWriteHang = lastWriteComplete == writeComplete &&
-            writeInflight >= lastWriteInflight && lastWriteInflight > 0
+            writeInflight >= lastWriteInFlight && lastWriteInFlight > 0
 
           if (isReadHang || isWriteHang) {
-            logger.info(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
+            logInfo(s"Result of DeviceInfo.checkIoHang, DeviceName: ${deviceInfo.name}" +
               s"($readComplete,$writeComplete,$readInflight,$writeInflight)\t" +
-              s"($lastReadComplete,$lastWriteComplete,$lastReadInflight,$lastWriteInflight)\t" +
+              s"($lastReadComplete,$lastWriteComplete,$lastReadInFlight,$lastWriteInFlight)\t" +
               s"Observer cnt: ${observers.size()}")
-            logger.error(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
+            logError(s"IO Hang! ReadHang: $isReadHang, WriteHang: $isWriteHang")
           }
 
           lastReadComplete = readComplete
           lastWriteComplete = writeComplete
-          lastReadInflight = readInflight
-          lastWriteInflight = writeInflight
+          lastReadInFlight = readInflight
+          lastWriteInFlight = writeInflight
 
           isReadHang || isWriteHang
         }
       } catch {
         case e: Exception =>
-          logger.warn(s"Encounter Exception when check IO hang for device ${deviceInfo.name}", e)
+          logWarning(s"Encounter Exception when check IO hang for device ${deviceInfo.name}", e)
           // we should only return true if we have direct evidence that the device is hang
           false
       } finally {

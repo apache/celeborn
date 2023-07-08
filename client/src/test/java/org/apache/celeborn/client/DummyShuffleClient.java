@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.client;
 
-import static org.apache.celeborn.common.protocol.PartitionLocation.Mode.MASTER;
+import static org.apache.celeborn.common.protocol.PartitionLocation.Mode.PRIMARY;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.client.read.RssInputStream;
+import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -56,10 +56,10 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public void setupMetaServiceRef(String host, int port) {}
+  public void setupLifecycleManagerRef(String host, int port) {}
 
   @Override
-  public void setupMetaServiceRef(RpcEndpointRef endpointRef) {}
+  public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {}
 
   @Override
   public int pushData(
@@ -111,13 +111,13 @@ public class DummyShuffleClient extends ShuffleClient {
   public void cleanup(int shuffleId, int mapId, int attemptId) {}
 
   @Override
-  public RssInputStream readPartition(
+  public CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex) {
     return null;
   }
 
   @Override
-  public RssInputStream readPartition(int shuffleId, int partitionId, int attemptNumber) {
+  public CelebornInputStream readPartition(int shuffleId, int partitionId, int attemptNumber) {
     return null;
   }
 
@@ -158,7 +158,7 @@ public class DummyShuffleClient extends ShuffleClient {
     List<PartitionLocation> partitionLocationList = new ArrayList<>();
     for (int i = 0; i < workerNum; i++) {
       partitionLocationList.add(
-          new PartitionLocation(0, 0, host, 1000 + i, 2000 + i, 3000 + i, 4000 + i, MASTER));
+          new PartitionLocation(0, 0, host, 1000 + i, 2000 + i, 3000 + i, 4000 + i, PRIMARY));
     }
     for (int i = 0; i < numPartitions; i++) {
       map.put(i, partitionLocationList.get(i % workerNum));

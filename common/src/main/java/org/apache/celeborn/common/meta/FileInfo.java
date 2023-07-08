@@ -169,7 +169,7 @@ public class FileInfo {
       } catch (Exception e) {
         // ignore delete exceptions because some other workers might be deleting the directory
         logger.debug(
-            "delete hdfs file {},{},{},{} failed {}",
+            "delete HDFS file {},{},{},{} failed {}",
             getHdfsPath(),
             getHdfsWriterSuccessPath(),
             getHdfsIndexPath(),

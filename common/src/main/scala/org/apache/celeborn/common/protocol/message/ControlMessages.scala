@@ -19,7 +19,6 @@ package org.apache.celeborn.common.protocol.message
 
 import java.util
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
 
@@ -66,6 +65,8 @@ object ControlMessages extends Logging {
     PbCheckForWorkerTimeout.newBuilder().build()
 
   case object CheckForApplicationTimeOut extends Message
+
+  case object CheckForHDFSExpiredDirsTimeout extends Message
 
   case object RemoveExpiredShuffle extends Message
 
@@ -114,7 +115,7 @@ object ControlMessages extends Logging {
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
-  case class HeartbeatResponse(
+  case class HeartbeatFromWorkerResponse(
       expiredShuffleKeys: util.HashSet[String],
       registered: Boolean) extends MasterMessage
 
@@ -356,8 +357,8 @@ object ControlMessages extends Logging {
   case class ReserveSlots(
       applicationId: String,
       shuffleId: Int,
-      masterLocations: util.List[PartitionLocation],
-      slaveLocations: util.List[PartitionLocation],
+      primaryLocations: util.List[PartitionLocation],
+      replicaLocations: util.List[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
@@ -373,21 +374,21 @@ object ControlMessages extends Logging {
   case class CommitFiles(
       applicationId: String,
       shuffleId: Int,
-      masterIds: util.List[String],
-      slaveIds: util.List[String],
+      primaryIds: util.List[String],
+      replicaIds: util.List[String],
       mapAttempts: Array[Int],
       epoch: Long)
     extends WorkerMessage
 
   case class CommitFilesResponse(
       status: StatusCode,
-      committedMasterIds: util.List[String],
-      committedSlaveIds: util.List[String],
-      failedMasterIds: util.List[String],
-      failedSlaveIds: util.List[String],
-      committedMasterStorageInfos: util.Map[String, StorageInfo] =
+      committedPrimaryIds: util.List[String],
+      committedReplicaIds: util.List[String],
+      failedPrimaryIds: util.List[String],
+      failedReplicaIds: util.List[String],
+      committedPrimaryStorageInfos: util.Map[String, StorageInfo] =
         Map.empty[String, StorageInfo].asJava,
-      committedSlaveStorageInfos: util.Map[String, StorageInfo] =
+      committedReplicaStorageInfos: util.Map[String, StorageInfo] =
         Map.empty[String, StorageInfo].asJava,
       committedMapIdBitMap: util.Map[String, RoaringBitmap] =
         Map.empty[String, RoaringBitmap].asJava,
@@ -396,14 +397,14 @@ object ControlMessages extends Logging {
 
   case class DestroyWorkerSlots(
       shuffleKey: String,
-      masterLocations: util.List[String],
-      slaveLocations: util.List[String])
+      primaryLocations: util.List[String],
+      replicaLocations: util.List[String])
     extends WorkerMessage
 
   case class DestroyWorkerSlotsResponse(
       status: StatusCode,
-      failedMasters: util.List[String],
-      failedSlaves: util.List[String])
+      failedPrimarys: util.List[String],
+      failedReplicas: util.List[String])
     extends WorkerMessage
 
   /**
@@ -419,6 +420,9 @@ object ControlMessages extends Logging {
 
     case CheckForApplicationTimeOut =>
       new TransportMessage(MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
+
+    case CheckForHDFSExpiredDirsTimeout =>
+      new TransportMessage(MessageType.CHECK_FOR_HDFS_EXPIRED_DIRS_TIMEOUT, null)
 
     case RemoveExpiredShuffle =>
       new TransportMessage(MessageType.REMOVE_EXPIRED_SHUFFLE, null)
@@ -454,8 +458,8 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER, payload)
 
-    case HeartbeatResponse(expiredShuffleKeys, registered) =>
-      val payload = PbHeartbeatResponse.newBuilder()
+    case HeartbeatFromWorkerResponse(expiredShuffleKeys, registered) =>
+      val payload = PbHeartbeatFromWorkerResponse.newBuilder()
         .addAllExpiredShuffleKeys(expiredShuffleKeys)
         .setRegistered(registered)
         .build().toByteArray
@@ -660,8 +664,8 @@ object ControlMessages extends Logging {
     case ReserveSlots(
           applicationId,
           shuffleId,
-          masterLocations,
-          slaveLocations,
+          primaryLocations,
+          replicaLocations,
           splitThreshold,
           splitMode,
           partType,
@@ -671,9 +675,9 @@ object ControlMessages extends Logging {
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
-        .addAllMasterLocations(masterLocations.asScala
+        .addAllPrimaryLocations(primaryLocations.asScala
           .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava)
-        .addAllSlaveLocations(slaveLocations.asScala
+        .addAllReplicaLocations(replicaLocations.asScala
           .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava)
         .setSplitThreshold(splitThreshold)
         .setSplitMode(splitMode.getValue)
@@ -690,12 +694,12 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS_RESPONSE, payload)
 
-    case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts, epoch) =>
+    case CommitFiles(applicationId, shuffleId, primaryIds, replicaIds, mapAttempts, epoch) =>
       val payload = PbCommitFiles.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
-        .addAllMasterIds(masterIds)
-        .addAllSlaveIds(slaveIds)
+        .addAllPrimaryIds(primaryIds)
+        .addAllReplicaIds(replicaIds)
         .addAllMapAttempts(mapAttempts.map(Integer.valueOf).toIterable.asJava)
         .setEpoch(epoch)
         .build().toByteArray
@@ -703,25 +707,25 @@ object ControlMessages extends Logging {
 
     case CommitFilesResponse(
           status,
-          committedMasterIds,
-          committedSlaveIds,
-          failedMasterIds,
-          failedSlaveIds,
-          committedMasterStorageInfos,
-          committedSlaveStorageInfos,
+          committedPrimaryIds,
+          committedReplicaIds,
+          failedPrimaryIds,
+          failedReplicaIds,
+          committedPrimaryStorageInfos,
+          committedReplicaStorageInfos,
           committedMapIdBitMap,
           totalWritten,
           fileCount) =>
       val builder = PbCommitFilesResponse.newBuilder()
         .setStatus(status.getValue)
-      builder.addAllCommittedMasterIds(committedMasterIds)
-      builder.addAllCommittedSlaveIds(committedSlaveIds)
-      builder.addAllFailedMasterIds(failedMasterIds)
-      builder.addAllFailedSlaveIds(failedSlaveIds)
-      committedMasterStorageInfos.asScala.foreach(entry =>
-        builder.putCommittedMasterStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
-      committedSlaveStorageInfos.asScala.foreach(entry =>
-        builder.putCommittedSlaveStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
+      builder.addAllCommittedPrimaryIds(committedPrimaryIds)
+      builder.addAllCommittedReplicaIds(committedReplicaIds)
+      builder.addAllFailedPrimaryIds(failedPrimaryIds)
+      builder.addAllFailedReplicaIds(failedReplicaIds)
+      committedPrimaryStorageInfos.asScala.foreach(entry =>
+        builder.putCommittedPrimaryStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
+      committedReplicaStorageInfos.asScala.foreach(entry =>
+        builder.putCommittedReplicaStorageInfos(entry._1, StorageInfo.toPb(entry._2)))
       committedMapIdBitMap.asScala.foreach(entry => {
         builder.putMapIdBitmap(entry._1, Utils.roaringBitmapToByteString(entry._2))
       })
@@ -730,19 +734,19 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES_RESPONSE, payload)
 
-    case DestroyWorkerSlots(shuffleKey, masterLocations, slaveLocations) =>
+    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations) =>
       val payload = PbDestroyWorkerSlots.newBuilder()
         .setShuffleKey(shuffleKey)
-        .addAllMasterLocations(masterLocations)
-        .addAllSlaveLocation(slaveLocations)
+        .addAllPrimaryLocations(primaryLocations)
+        .addAllReplicaLocation(replicaLocations)
         .build().toByteArray
       new TransportMessage(MessageType.DESTROY, payload)
 
-    case DestroyWorkerSlotsResponse(status, failedMasters, failedSlaves) =>
+    case DestroyWorkerSlotsResponse(status, failedPrimaries, failedReplicas) =>
       val builder = PbDestroyWorkerSlotsResponse.newBuilder()
         .setStatus(status.getValue)
-      builder.addAllFailedMasters(failedMasters)
-      builder.addAllFailedSlaves(failedSlaves)
+      builder.addAllFailedPrimaries(failedPrimaries)
+      builder.addAllFailedReplicas(failedReplicas)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.DESTROY_RESPONSE, payload)
 
@@ -755,16 +759,22 @@ object ControlMessages extends Logging {
 
   // TODO change return type to GeneratedMessageV3
   def fromTransportMessage(message: TransportMessage): Any = {
-    message.getType match {
-      case UNKNOWN_MESSAGE | UNRECOGNIZED =>
+    // This can be removed when Transport Message removes type field support later.
+    val messageTypeValue = message.getMessageTypeValue match {
+      case UNKNOWN_MESSAGE_VALUE => message.getType.getNumber
+      case _ => message.getMessageTypeValue
+    }
+
+    messageTypeValue match {
+      case UNKNOWN_MESSAGE_VALUE =>
         val msg = s"received unknown message $message"
         logError(msg)
         throw new UnsupportedOperationException(msg)
 
-      case REGISTER_WORKER =>
+      case REGISTER_WORKER_VALUE =>
         PbRegisterWorker.parseFrom(message.getPayload)
 
-      case HEARTBEAT_FROM_WORKER =>
+      case HEARTBEAT_FROM_WORKER_VALUE =>
         val pbHeartbeatFromWorker = PbHeartbeatFromWorker.parseFrom(message.getPayload)
         val estimatedAppDiskUsage = new util.HashMap[String, java.lang.Long]()
         val userResourceConsumption = PbSerDeUtils.fromPbUserResourceConsumption(
@@ -789,24 +799,25 @@ object ControlMessages extends Logging {
           estimatedAppDiskUsage,
           pbHeartbeatFromWorker.getRequestId)
 
-      case HEARTBEAT_RESPONSE =>
-        val pbHeartbeatResponse = PbHeartbeatResponse.parseFrom(message.getPayload)
+      case HEARTBEAT_RESPONSE_VALUE =>
+        val pbHeartbeatFromWorkerResponse =
+          PbHeartbeatFromWorkerResponse.parseFrom(message.getPayload)
         val expiredShuffleKeys = new util.HashSet[String]()
-        if (pbHeartbeatResponse.getExpiredShuffleKeysCount > 0) {
-          expiredShuffleKeys.addAll(pbHeartbeatResponse.getExpiredShuffleKeysList)
+        if (pbHeartbeatFromWorkerResponse.getExpiredShuffleKeysCount > 0) {
+          expiredShuffleKeys.addAll(pbHeartbeatFromWorkerResponse.getExpiredShuffleKeysList)
         }
-        HeartbeatResponse(expiredShuffleKeys, pbHeartbeatResponse.getRegistered)
+        HeartbeatFromWorkerResponse(expiredShuffleKeys, pbHeartbeatFromWorkerResponse.getRegistered)
 
-      case REGISTER_SHUFFLE =>
+      case REGISTER_SHUFFLE_VALUE =>
         PbRegisterShuffle.parseFrom(message.getPayload)
 
-      case REGISTER_MAP_PARTITION_TASK =>
+      case REGISTER_MAP_PARTITION_TASK_VALUE =>
         PbRegisterMapPartitionTask.parseFrom(message.getPayload)
 
-      case REGISTER_SHUFFLE_RESPONSE =>
+      case REGISTER_SHUFFLE_RESPONSE_VALUE =>
         PbRegisterShuffleResponse.parseFrom(message.getPayload)
 
-      case REQUEST_SLOTS =>
+      case REQUEST_SLOTS_VALUE =>
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)
         val userIdentifier = PbSerDeUtils.fromPbUserIdentifier(pbRequestSlots.getUserIdentifier)
         RequestSlots(
@@ -819,7 +830,7 @@ object ControlMessages extends Logging {
           userIdentifier,
           pbRequestSlots.getRequestId)
 
-      case RELEASE_SLOTS =>
+      case RELEASE_SLOTS_VALUE =>
         val pbReleaseSlots = PbReleaseSlots.parseFrom(message.getPayload)
         val slotsList = pbReleaseSlots.getSlotsList.asScala.map(pbSlot =>
           new util.HashMap[String, Integer](pbSlot.getSlotMap)).toList.asJava
@@ -830,24 +841,24 @@ object ControlMessages extends Logging {
           new util.ArrayList[util.Map[String, Integer]](slotsList),
           pbReleaseSlots.getRequestId)
 
-      case RELEASE_SLOTS_RESPONSE =>
+      case RELEASE_SLOTS_RESPONSE_VALUE =>
         val pbReleaseSlotsResponse = PbReleaseSlotsResponse.parseFrom(message.getPayload)
         ReleaseSlotsResponse(Utils.toStatusCode(pbReleaseSlotsResponse.getStatus))
 
-      case REQUEST_SLOTS_RESPONSE =>
+      case REQUEST_SLOTS_RESPONSE_VALUE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)
         RequestSlotsResponse(
           Utils.toStatusCode(pbRequestSlotsResponse.getStatus),
           PbSerDeUtils.fromPbWorkerResource(
             pbRequestSlotsResponse.getWorkerResourceMap))
 
-      case REVIVE =>
+      case REVIVE_VALUE =>
         PbRevive.parseFrom(message.getPayload)
 
-      case CHANGE_LOCATION_RESPONSE =>
+      case CHANGE_LOCATION_RESPONSE_VALUE =>
         PbChangeLocationResponse.parseFrom(message.getPayload)
 
-      case MAPPER_END =>
+      case MAPPER_END_VALUE =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
         MapperEnd(
           pbMapperEnd.getShuffleId,
@@ -856,16 +867,16 @@ object ControlMessages extends Logging {
           pbMapperEnd.getNumMappers,
           pbMapperEnd.getPartitionId)
 
-      case MAPPER_END_RESPONSE =>
+      case MAPPER_END_RESPONSE_VALUE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
         MapperEndResponse(Utils.toStatusCode(pbMapperEndResponse.getStatus))
 
-      case GET_REDUCER_FILE_GROUP =>
+      case GET_REDUCER_FILE_GROUP_VALUE =>
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
         GetReducerFileGroup(
           pbGetReducerFileGroup.getShuffleId)
 
-      case GET_REDUCER_FILE_GROUP_RESPONSE =>
+      case GET_REDUCER_FILE_GROUP_RESPONSE_VALUE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
           .parseFrom(message.getPayload)
         val fileGroup = pbGetReducerFileGroupResponse.getFileGroupsMap.asScala.map {
@@ -884,21 +895,21 @@ object ControlMessages extends Logging {
           attempts,
           partitionIds)
 
-      case UNREGISTER_SHUFFLE =>
+      case UNREGISTER_SHUFFLE_VALUE =>
         PbUnregisterShuffle.parseFrom(message.getPayload)
 
-      case UNREGISTER_SHUFFLE_RESPONSE =>
+      case UNREGISTER_SHUFFLE_RESPONSE_VALUE =>
         PbUnregisterShuffleResponse.parseFrom(message.getPayload)
 
-      case APPLICATION_LOST =>
+      case APPLICATION_LOST_VALUE =>
         val pbApplicationLost = PbApplicationLost.parseFrom(message.getPayload)
         ApplicationLost(pbApplicationLost.getAppId, pbApplicationLost.getRequestId)
 
-      case APPLICATION_LOST_RESPONSE =>
+      case APPLICATION_LOST_RESPONSE_VALUE =>
         val pbApplicationLostResponse = PbApplicationLostResponse.parseFrom(message.getPayload)
         ApplicationLostResponse(Utils.toStatusCode(pbApplicationLostResponse.getStatus))
 
-      case HEARTBEAT_FROM_APPLICATION =>
+      case HEARTBEAT_FROM_APPLICATION_VALUE =>
         val pbHeartbeatFromApplication = PbHeartbeatFromApplication.parseFrom(message.getPayload)
         HeartbeatFromApplication(
           pbHeartbeatFromApplication.getAppId,
@@ -910,7 +921,7 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplication.getRequestId,
           pbHeartbeatFromApplication.getShouldResponse)
 
-      case HEARTBEAT_FROM_APPLICATION_RESPONSE =>
+      case HEARTBEAT_FROM_APPLICATION_RESPONSE_VALUE =>
         val pbHeartbeatFromApplicationResponse =
           PbHeartbeatFromApplicationResponse.parseFrom(message.getPayload)
         HeartbeatFromApplicationResponse(
@@ -922,36 +933,36 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplicationResponse.getShuttingWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
 
-      case CHECK_QUOTA =>
+      case CHECK_QUOTA_VALUE =>
         val pbCheckAvailable = PbCheckQuota.parseFrom(message.getPayload)
         CheckQuota(PbSerDeUtils.fromPbUserIdentifier(pbCheckAvailable.getUserIdentifier))
 
-      case CHECK_QUOTA_RESPONSE =>
+      case CHECK_QUOTA_RESPONSE_VALUE =>
         val pbCheckAvailableResponse = PbCheckQuotaResponse
           .parseFrom(message.getPayload)
         CheckQuotaResponse(
           pbCheckAvailableResponse.getAvailable,
           pbCheckAvailableResponse.getReason)
 
-      case REPORT_WORKER_FAILURE =>
+      case REPORT_WORKER_FAILURE_VALUE =>
         val pbReportWorkerUnavailable = PbReportWorkerUnavailable.parseFrom(message.getPayload)
         ReportWorkerUnavailable(
           new util.ArrayList[WorkerInfo](pbReportWorkerUnavailable.getUnavailableList
             .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbReportWorkerUnavailable.getRequestId)
 
-      case REGISTER_WORKER_RESPONSE =>
+      case REGISTER_WORKER_RESPONSE_VALUE =>
         PbRegisterWorkerResponse.parseFrom(message.getPayload)
 
-      case RESERVE_SLOTS =>
+      case RESERVE_SLOTS_VALUE =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
         val userIdentifier = PbSerDeUtils.fromPbUserIdentifier(pbReserveSlots.getUserIdentifier)
         ReserveSlots(
           pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
-          new util.ArrayList[PartitionLocation](pbReserveSlots.getMasterLocationsList.asScala
+          new util.ArrayList[PartitionLocation](pbReserveSlots.getPrimaryLocationsList.asScala
             .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
-          new util.ArrayList[PartitionLocation](pbReserveSlots.getSlaveLocationsList.asScala
+          new util.ArrayList[PartitionLocation](pbReserveSlots.getReplicaLocationsList.asScala
             .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
           pbReserveSlots.getSplitThreshold,
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
@@ -960,86 +971,89 @@ object ControlMessages extends Logging {
           userIdentifier,
           pbReserveSlots.getPushDataTimeout)
 
-      case RESERVE_SLOTS_RESPONSE =>
+      case RESERVE_SLOTS_RESPONSE_VALUE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
         ReserveSlotsResponse(
           Utils.toStatusCode(pbReserveSlotsResponse.getStatus),
           pbReserveSlotsResponse.getReason)
 
-      case COMMIT_FILES =>
+      case COMMIT_FILES_VALUE =>
         val pbCommitFiles = PbCommitFiles.parseFrom(message.getPayload)
         CommitFiles(
           pbCommitFiles.getApplicationId,
           pbCommitFiles.getShuffleId,
-          pbCommitFiles.getMasterIdsList,
-          pbCommitFiles.getSlaveIdsList,
+          pbCommitFiles.getPrimaryIdsList,
+          pbCommitFiles.getReplicaIdsList,
           pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray,
           pbCommitFiles.getEpoch)
 
-      case COMMIT_FILES_RESPONSE =>
+      case COMMIT_FILES_RESPONSE_VALUE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)
-        val committedMasterStorageInfos = new util.HashMap[String, StorageInfo]()
-        val committedSlaveStorageInfos = new util.HashMap[String, StorageInfo]()
+        val committedPrimaryStorageInfos = new util.HashMap[String, StorageInfo]()
+        val committedReplicaStorageInfos = new util.HashMap[String, StorageInfo]()
         val committedBitMap = new util.HashMap[String, RoaringBitmap]()
-        pbCommitFilesResponse.getCommittedMasterStorageInfosMap.asScala.foreach(entry =>
-          committedMasterStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
-        pbCommitFilesResponse.getCommittedSlaveStorageInfosMap.asScala.foreach(entry =>
-          committedSlaveStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
+        pbCommitFilesResponse.getCommittedPrimaryStorageInfosMap.asScala.foreach(entry =>
+          committedPrimaryStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
+        pbCommitFilesResponse.getCommittedReplicaStorageInfosMap.asScala.foreach(entry =>
+          committedReplicaStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
         pbCommitFilesResponse.getMapIdBitmapMap.asScala.foreach { entry =>
           committedBitMap.put(entry._1, Utils.byteStringToRoaringBitmap(entry._2))
         }
         CommitFilesResponse(
           Utils.toStatusCode(pbCommitFilesResponse.getStatus),
-          pbCommitFilesResponse.getCommittedMasterIdsList,
-          pbCommitFilesResponse.getCommittedSlaveIdsList,
-          pbCommitFilesResponse.getFailedMasterIdsList,
-          pbCommitFilesResponse.getFailedSlaveIdsList,
-          committedMasterStorageInfos,
-          committedSlaveStorageInfos,
+          pbCommitFilesResponse.getCommittedPrimaryIdsList,
+          pbCommitFilesResponse.getCommittedReplicaIdsList,
+          pbCommitFilesResponse.getFailedPrimaryIdsList,
+          pbCommitFilesResponse.getFailedReplicaIdsList,
+          committedPrimaryStorageInfos,
+          committedReplicaStorageInfos,
           committedBitMap,
           pbCommitFilesResponse.getTotalWritten,
           pbCommitFilesResponse.getFileCount)
 
-      case DESTROY =>
+      case DESTROY_VALUE =>
         val pbDestroy = PbDestroyWorkerSlots.parseFrom(message.getPayload)
         DestroyWorkerSlots(
           pbDestroy.getShuffleKey,
-          pbDestroy.getMasterLocationsList,
-          pbDestroy.getSlaveLocationList)
+          pbDestroy.getPrimaryLocationsList,
+          pbDestroy.getReplicaLocationList)
 
-      case DESTROY_RESPONSE =>
+      case DESTROY_RESPONSE_VALUE =>
         val pbDestroyResponse = PbDestroyWorkerSlotsResponse.parseFrom(message.getPayload)
         DestroyWorkerSlotsResponse(
           Utils.toStatusCode(pbDestroyResponse.getStatus),
-          pbDestroyResponse.getFailedMastersList,
-          pbDestroyResponse.getFailedSlavesList)
+          pbDestroyResponse.getFailedPrimariesList,
+          pbDestroyResponse.getFailedReplicasList)
 
-      case REMOVE_EXPIRED_SHUFFLE =>
+      case REMOVE_EXPIRED_SHUFFLE_VALUE =>
         RemoveExpiredShuffle
 
-      case ONE_WAY_MESSAGE_RESPONSE =>
+      case ONE_WAY_MESSAGE_RESPONSE_VALUE =>
         OneWayMessageResponse
 
-      case CHECK_FOR_WORKER_TIMEOUT =>
+      case CHECK_FOR_WORKER_TIMEOUT_VALUE =>
         pbCheckForWorkerTimeout
 
-      case CHECK_FOR_APPLICATION_TIMEOUT =>
+      case CHECK_FOR_APPLICATION_TIMEOUT_VALUE =>
         CheckForApplicationTimeOut
 
-      case WORKER_LOST =>
+      case CHECK_FOR_HDFS_EXPIRED_DIRS_TIMEOUT_VALUE =>
+        CheckForHDFSExpiredDirsTimeout
+
+      case WORKER_LOST_VALUE =>
         PbWorkerLost.parseFrom(message.getPayload)
 
-      case WORKER_LOST_RESPONSE =>
+      case WORKER_LOST_RESPONSE_VALUE =>
         PbWorkerLostResponse.parseFrom(message.getPayload)
 
-      case STAGE_END =>
+      case STAGE_END_VALUE =>
         val pbStageEnd = PbStageEnd.parseFrom(message.getPayload)
         StageEnd(pbStageEnd.getShuffleId)
 
-      case PARTITION_SPLIT =>
+      case PARTITION_SPLIT_VALUE =>
         PbPartitionSplit.parseFrom(message.getPayload)
 
-      case STAGE_END_RESPONSE =>
+      case STAGE_END_RESPONSE_VALUE =>
         val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)
         StageEndResponse(Utils.toStatusCode(pbStageEndResponse.getStatus))
     }

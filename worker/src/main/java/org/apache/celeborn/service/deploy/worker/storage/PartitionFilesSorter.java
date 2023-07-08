@@ -193,8 +193,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           throw new IOException(
               "Sort scheduler thread is interrupted means worker is shutting down.", e);
         } catch (IOException e) {
-          logger.error("File sorter access hdfs failed.", e);
-          throw new IOException("File sorter access hdfs failed.", e);
+          logger.error("File sorter access HDFS failed.", e);
+          throw new IOException("File sorter access HDFS failed.", e);
         }
       }
     }
@@ -525,7 +525,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     public void sort() throws InterruptedException {
-      source.startTimer(WorkerSource.SortTime(), fileId);
+      source.startTimer(WorkerSource.SORT_TIME(), fileId);
 
       try {
         initializeFiles();
@@ -594,7 +594,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sorting.remove(fileId);
         }
       }
-      source.stopTimer(WorkerSource.SortTime(), fileId);
+      source.stopTimer(WorkerSource.SORT_TIME(), fileId);
     }
 
     private void initializeFiles() throws IOException {

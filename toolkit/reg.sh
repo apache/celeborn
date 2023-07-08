@@ -41,7 +41,7 @@ HIBEN_CONF_DIR=${HIBEN_DIR}/conf
 CHECK_TPCDS_PYTHON=${REG_SCRIPTS}/check.py
 
 CELEBORN_CONF_DIR=${REG_CONF_DIR}/celeborn
-CELEBORN_CLIENT_INSTALL_DIR=/opt/apps/RSS/rss-current/spark3
+CELEBORN_CLIENT_INSTALL_DIR=/opt/apps/CELEBORN/celeborn-current/spark3
 
 REG_RESULT=${REG_HOME}/result
 
@@ -107,7 +107,7 @@ function runTerasort() {
     killOneWorkerRandomly
   fi
 
-  cp ${HIBEN_CONF_DIR}/spark.conf.rss ${HIBEN_CONF_DIR}/spark.conf
+  cp ${HIBEN_CONF_DIR}/spark.conf.celeborn ${HIBEN_CONF_DIR}/spark.conf
   ${HIBEN_DIR}/bin/workloads/micro/terasort/spark/run.sh
 
   end=$(($(date +%s%N) / 1000000))
@@ -153,11 +153,11 @@ function switchToESS() {
 }
 
 function switchToCeleborn() {
-  cp ${REG_CONF_DIR}/spark-rss.conf ${REG_CONF_DIR}/spark.conf
+  cp ${REG_CONF_DIR}/spark-celeborn.conf ${REG_CONF_DIR}/spark.conf
 }
 
 function switchToCelebornAndDuplicate() {
-  cp ${REG_CONF_DIR}/spark-rss-dup.conf ${REG_CONF_DIR}/spark.conf
+  cp ${REG_CONF_DIR}/spark-celeborn-dup.conf ${REG_CONF_DIR}/spark.conf
 }
 
 function runTPCDSOnESS() {
@@ -316,10 +316,10 @@ function updateCeleborn() {
     echo -e "update ${host} \n"
     ssh ${host} "export CELEBORN_CONF_DIR=/home/hadoop/conf ; /home/hadoop/${CELEBORN_DIST}/sbin/stop-worker.sh"
     ssh ${host} "rm -rf /home/hadoop/${CELEBORN_DIST}"
-    ssh ${host} "rm -rf /mnt/disk1/rss-worker/shuffle_data/*"
-    ssh ${host} "rm -rf /mnt/disk2/rss-worker/shuffle_data/*"
-    ssh ${host} "rm -rf /mnt/disk3/rss-worker/shuffle_data/*"
-    ssh ${host} "rm -rf /mnt/disk4/rss-worker/shuffle_data/*"
+    ssh ${host} "rm -rf /mnt/disk1/celeborn-worker/shuffle_data/*"
+    ssh ${host} "rm -rf /mnt/disk2/celeborn-worker/shuffle_data/*"
+    ssh ${host} "rm -rf /mnt/disk3/celeborn-worker/shuffle_data/*"
+    ssh ${host} "rm -rf /mnt/disk4/celeborn-worker/shuffle_data/*"
     scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/ ${host}:~/ > /dev/null 2>&1
     scp -r ${REG_CELEBORN_DIST}/${CELEBORN_DIST}/spark/* ${host}:${CELEBORN_CLIENT_INSTALL_DIR}/ > /dev/null 2>&1
   done

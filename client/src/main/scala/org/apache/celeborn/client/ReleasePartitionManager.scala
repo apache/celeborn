@@ -38,14 +38,14 @@ class ReleasePartitionManager(
   private val shuffleReleasePartitionRequests = JavaUtils.newConcurrentHashMap[Int, util.Set[Int]]
   private val batchHandleReleasePartitionEnabled = conf.batchHandleReleasePartitionEnabled
   private val batchHandleReleasePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "rss-lifecycle-manager-release-partition-executor",
+    "celeborn-lifecycle-manager-release-partition-executor",
     conf.batchHandleReleasePartitionNumThreads)
   private val batchHandleReleasePartitionRequestInterval =
     conf.batchHandleReleasePartitionRequestInterval
   private val batchHandleReleasePartitionSchedulerThread: Option[ScheduledExecutorService] =
     if (batchHandleReleasePartitionEnabled) {
       Some(ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "rss-lifecycle-manager-release-partition-scheduler"))
+        "celeborn-lifecycle-manager-release-partition-scheduler"))
     } else {
       None
     }
@@ -138,18 +138,18 @@ class ReleasePartitionManager(
       partitionLocationInfo: ShufflePartitionLocationInfo,
       partitionId: Int): Unit = {
     if (partitionLocationInfo.containsPartition(partitionId)) {
-      val masterLocations = partitionLocationInfo.removeMasterPartitions(partitionId)
-      if (masterLocations != null && !masterLocations.isEmpty) {
+      val primaryLocations = partitionLocationInfo.removePrimaryPartitions(partitionId)
+      if (primaryLocations != null && !primaryLocations.isEmpty) {
         workerResource.computeIfAbsent(
           workerInfo,
-          lifecycleManager.newLocationFunc)._1.addAll(masterLocations)
+          lifecycleManager.newLocationFunc)._1.addAll(primaryLocations)
       }
 
-      val slaveLocations = partitionLocationInfo.removeSlavePartitions(partitionId)
-      if (slaveLocations != null && !slaveLocations.isEmpty) {
+      val replicaLocations = partitionLocationInfo.removeReplicaPartitions(partitionId)
+      if (replicaLocations != null && !replicaLocations.isEmpty) {
         workerResource.computeIfAbsent(
           workerInfo,
-          lifecycleManager.newLocationFunc)._2.addAll(slaveLocations)
+          lifecycleManager.newLocationFunc)._2.addAll(replicaLocations)
       }
     }
   }

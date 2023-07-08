@@ -48,34 +48,34 @@ public abstract class ShuffleClientBaseSuiteJ {
   protected static final int TEST_ATTEMPT_ID = 0;
   protected static final int TEST_REDUCRE_ID = 0;
 
-  protected static final int MASTER_RPC_PORT = 1234;
-  protected static final int MASTER_PUSH_PORT = 1235;
-  protected static final int MASTER_FETCH_PORT = 1236;
-  protected static final int MASTER_REPLICATE_PORT = 1237;
-  protected static final int SLAVE_RPC_PORT = 4321;
-  protected static final int SLAVE_PUSH_PORT = 4322;
-  protected static final int SLAVE_FETCH_PORT = 4323;
-  protected static final int SLAVE_REPLICATE_PORT = 4324;
-  protected static final PartitionLocation masterLocation =
+  protected static final int PRIMARY_RPC_PORT = 1234;
+  protected static final int PRIMARY_PUSH_PORT = 1235;
+  protected static final int PRIMARY_FETCH_PORT = 1236;
+  protected static final int PRIMARY_REPLICATE_PORT = 1237;
+  protected static final int REPLICA_RPC_PORT = 4321;
+  protected static final int REPLICA_PUSH_PORT = 4322;
+  protected static final int REPLICA_FETCH_PORT = 4323;
+  protected static final int REPLICA_REPLICATE_PORT = 4324;
+  protected static final PartitionLocation primaryLocation =
       new PartitionLocation(
           0,
           1,
           "localhost",
-          MASTER_RPC_PORT,
-          MASTER_PUSH_PORT,
-          MASTER_FETCH_PORT,
-          MASTER_REPLICATE_PORT,
-          PartitionLocation.Mode.MASTER);
-  protected static final PartitionLocation slaveLocation =
+          PRIMARY_RPC_PORT,
+          PRIMARY_PUSH_PORT,
+          PRIMARY_FETCH_PORT,
+          PRIMARY_REPLICATE_PORT,
+          PartitionLocation.Mode.PRIMARY);
+  protected static final PartitionLocation replicaLocation =
       new PartitionLocation(
           0,
           1,
           "localhost",
-          SLAVE_RPC_PORT,
-          SLAVE_PUSH_PORT,
-          SLAVE_FETCH_PORT,
-          SLAVE_REPLICATE_PORT,
-          PartitionLocation.Mode.SLAVE);
+          REPLICA_RPC_PORT,
+          REPLICA_PUSH_PORT,
+          REPLICA_FETCH_PORT,
+          REPLICA_REPLICATE_PORT,
+          PartitionLocation.Mode.REPLICA);
 
   protected final int BATCH_HEADER_SIZE = 4 * 4;
   protected ChannelFuture mockedFuture = mock(ChannelFuture.class);
@@ -87,7 +87,7 @@ public abstract class ShuffleClientBaseSuiteJ {
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1K");
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
-    masterLocation.setPeer(slaveLocation);
+    primaryLocation.setPeer(replicaLocation);
 
     when(endpointRef.askSync(
             ControlMessages.RegisterShuffle$.MODULE$.apply(TEST_SHUFFLE_ID, 1, 1),
@@ -95,11 +95,11 @@ public abstract class ShuffleClientBaseSuiteJ {
         .thenAnswer(
             t ->
                 ControlMessages.RegisterShuffleResponse$.MODULE$.apply(
-                    StatusCode.SUCCESS, new PartitionLocation[] {masterLocation}));
+                    StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}));
 
-    shuffleClient.setupMetaServiceRef(endpointRef);
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
     when(clientFactory.createClient(
-            masterLocation.getHost(), masterLocation.getPushPort(), TEST_REDUCRE_ID))
+            primaryLocation.getHost(), primaryLocation.getPushPort(), TEST_REDUCRE_ID))
         .thenAnswer(t -> client);
 
     shuffleClient.dataClientFactory = clientFactory;

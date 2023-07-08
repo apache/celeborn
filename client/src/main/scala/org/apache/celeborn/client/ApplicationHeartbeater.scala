@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration.DurationInt
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.haclient.RssHARetryClient
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -32,7 +32,7 @@ import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 class ApplicationHeartbeater(
     appId: String,
     conf: CelebornConf,
-    rssHARetryClient: RssHARetryClient,
+    masterClient: MasterClient,
     shuffleMetrics: () => (Long, Long),
     workerStatusTracker: WorkerStatusTracker) extends Logging {
 
@@ -47,7 +47,7 @@ class ApplicationHeartbeater(
       new Runnable {
         override def run(): Unit = {
           try {
-            require(rssHARetryClient != null, "When sending a heartbeat, client shouldn't be null.")
+            require(masterClient != null, "When sending a heartbeat, client shouldn't be null.")
             val (tmpTotalWritten, tmpTotalFileCount) = shuffleMetrics()
             logInfo("Send app heartbeat with " +
               s"written: ${Utils.bytesToString(tmpTotalWritten)}, file count: $tmpTotalFileCount")
@@ -82,7 +82,7 @@ class ApplicationHeartbeater(
   private def requestHeartbeat(message: HeartbeatFromApplication)
       : HeartbeatFromApplicationResponse = {
     try {
-      rssHARetryClient.askSync[HeartbeatFromApplicationResponse](
+      masterClient.askSync[HeartbeatFromApplicationResponse](
         message,
         classOf[HeartbeatFromApplicationResponse])
     } catch {

@@ -40,15 +40,15 @@ class SkewJoinSuite extends AnyFunSuite
     System.gc()
   }
 
-  private def enableRss(conf: SparkConf) = {
-    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
+  private def enableCeleborn(conf: SparkConf) = {
+    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
       .set(s"spark.${CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key}", "10MB")
   }
 
   CompressionCodec.values.foreach { codec =>
     test(s"celeborn spark integration test - skew join - $codec") {
-      val sparkConf = new SparkConf().setAppName("rss-demo")
+      val sparkConf = new SparkConf().setAppName("celeborn-demo")
         .setMaster("local[2]")
         .set("spark.sql.adaptive.enabled", "true")
         .set("spark.sql.adaptive.skewJoin.enabled", "true")
@@ -61,7 +61,7 @@ class SkewJoinSuite extends AnyFunSuite
         .set(s"spark.${CelebornConf.SHUFFLE_COMPRESSION_CODEC.key}", codec.name)
         .set(s"spark.${CelebornConf.SHUFFLE_RANGE_READ_FILTER_ENABLED.key}", "true")
 
-      enableRss(sparkConf)
+      enableCeleborn(sparkConf)
 
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       if (sparkSession.version.startsWith("3")) {

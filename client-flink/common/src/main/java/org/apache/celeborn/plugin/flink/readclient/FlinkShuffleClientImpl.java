@@ -134,11 +134,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
     this.flinkTransportClientFactory =
         new FlinkTransportClientFactory(context, conf.clientFetchMaxRetriesForEachReplica());
-    this.setupMetaServiceRef(driverHost, port);
+    this.setupLifecycleManagerRef(driverHost, port);
     this.driverTimestamp = driverTimestamp;
   }
 
-  public RssBufferStream readBufferedPartition(
+  public CelebornBufferStream readBufferedPartition(
       int shuffleId, int partitionId, int subPartitionIndexStart, int subPartitionIndexEnd)
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
@@ -148,7 +148,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
-      return RssBufferStream.create(
+      return CelebornBufferStream.create(
           this,
           conf,
           flinkTransportClientFactory,
@@ -234,7 +234,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     // build PushData request
     NettyManagedBuffer buffer = new NettyManagedBuffer(data);
     final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-    PushData pushData = new PushData(MASTER_MODE, shuffleKey, location.getUniqueId(), buffer);
+    PushData pushData = new PushData(PRIMARY_MODE, shuffleKey, location.getUniqueId(), buffer);
 
     // build callback
     RpcResponseCallback callback =
@@ -279,7 +279,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           location,
           e);
       callback.onFailure(
-          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER, e));
+          new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY, e));
     }
     return totalLength;
   }
@@ -328,7 +328,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           PushDataHandShake handShake =
               new PushDataHandShake(
-                  MASTER_MODE,
+                  PRIMARY_MODE,
                   shuffleKey,
                   location.getUniqueId(),
                   attemptId,
@@ -367,7 +367,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           RegionStart regionStart =
               new RegionStart(
-                  MASTER_MODE,
+                  PRIMARY_MODE,
                   shuffleKey,
                   location.getUniqueId(),
                   attemptId,
@@ -392,7 +392,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                     StatusCode.HARD_SPLIT);
             requests.add(req);
             PbChangeLocationResponse response =
-                driverRssMetaService.askSync(
+                lifecycleManagerRef.askSync(
                     ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
                     conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
@@ -439,7 +439,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           logger.debug("RegionFinish for location {}.", location);
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           RegionFinish regionFinish =
-              new RegionFinish(MASTER_MODE, shuffleKey, location.getUniqueId(), attemptId);
+              new RegionFinish(PRIMARY_MODE, shuffleKey, location.getUniqueId(), attemptId);
           client.sendRpcSync(regionFinish.toByteBuffer(), conf.pushDataTimeoutMs());
           return null;
         });

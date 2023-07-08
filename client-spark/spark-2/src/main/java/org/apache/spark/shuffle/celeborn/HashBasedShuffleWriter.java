@@ -67,7 +67,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int shuffleId;
   private final int mapId;
   private final TaskContext taskContext;
-  private final ShuffleClient rssShuffleClient;
+  private final ShuffleClient shuffleClient;
   private final int numMappers;
   private final int numPartitions;
 
@@ -99,7 +99,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public HashBasedShuffleWriter(
-      RssShuffleHandle<K, V, C> handle,
+      CelebornShuffleHandle<K, V, C> handle,
       int mapId,
       TaskContext taskContext,
       CelebornConf conf,
@@ -116,7 +116,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = handle.numMaps();
     this.numPartitions = dep.partitioner().numPartitions();
 
-    this.rssShuffleClient = client;
+    this.shuffleClient = client;
 
     unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
@@ -147,7 +147,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               numMappers,
               numPartitions,
               conf,
-              rssShuffleClient,
+              shuffleClient,
               writeMetrics::incBytesWritten,
               mapStatusLengths);
     } catch (InterruptedException e) {
@@ -273,7 +273,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record for partition {}, size {}.", partitionId, numBytes);
     int bytesWritten =
-        rssShuffleClient.pushData(
+        shuffleClient.pushData(
             shuffleId,
             mapId,
             taskContext.attemptNumber(),
@@ -318,7 +318,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void close() throws IOException, InterruptedException {
     // here we wait for all the in-flight batches to return which sent by dataPusher thread
     dataPusher.waitOnTermination();
-    rssShuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
+    shuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
 
     // merge and push residual data to reduce network traffic
     // NB: since dataPusher thread have no in-flight data at this point,
@@ -327,7 +327,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int size = sendOffsets[i];
       if (size > 0) {
         int bytesWritten =
-            rssShuffleClient.mergeData(
+            shuffleClient.mergeData(
                 shuffleId,
                 mapId,
                 taskContext.attemptNumber(),
@@ -343,7 +343,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         writeMetrics.incBytesWritten(bytesWritten);
       }
     }
-    rssShuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
+    shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
 
     updateMapStatus();
 
@@ -352,7 +352,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     sendOffsets = null;
 
     long waitStartTime = System.nanoTime();
-    rssShuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
+    shuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
     BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();
@@ -389,7 +389,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         }
       }
     } finally {
-      rssShuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
+      shuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
     }
   }
 }
