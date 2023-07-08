@@ -19,6 +19,8 @@ package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
 import java.util.concurrent.atomic.LongAdder;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatusNode> {
 
   public static class BufferStatusNode implements TimeSlidingHub.TimeSlidingNode {
@@ -73,9 +75,10 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
   }
 
   public long avgBytesPerSec() {
-    long currentNumBytes = sum().numBytes();
+    Pair<BufferStatusNode, Integer> sumInfo = sum();
+    long currentNumBytes = sumInfo.getKey().numBytes();
     if (currentNumBytes > 0) {
-      return currentNumBytes * 1000 / (long) getCurrentTimeWindowsInMills();
+      return currentNumBytes * 1000 / (long) sumInfo.getRight() * intervalPerBucketInMills;
     }
     return 0L;
   }
