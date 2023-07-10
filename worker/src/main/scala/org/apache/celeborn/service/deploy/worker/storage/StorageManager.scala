@@ -108,6 +108,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           workerSource,
           deviceMonitor,
           diskInfo.threadCount,
+          conf.workerPushMaxComponents,
           diskInfo.mountPoint,
           diskInfo.storageType,
           diskInfo.flushTimeMetrics)
@@ -130,7 +131,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       (
         Some(new HdfsFlusher(
           workerSource,
-          conf.workerHdfsFlusherThreads)),
+          conf.workerHdfsFlusherThreads,
+          conf.workerPushMaxComponents)),
         conf.workerHdfsFlusherThreads)
     } else {
       (None, 0)
