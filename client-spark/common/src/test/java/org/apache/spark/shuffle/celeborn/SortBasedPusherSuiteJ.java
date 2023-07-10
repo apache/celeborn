@@ -52,14 +52,14 @@ public class SortBasedPusherSuiteJ {
   private static final Logger LOG = LoggerFactory.getLogger(SortBasedPusherSuiteJ.class);
   private final SparkConf sparkConf = new SparkConf(false).set("spark.buffer.pageSize", "2m");
 
-  final CelebornConf conf = new CelebornConf();
+  private final CelebornConf conf = new CelebornConf();
 
   private final UnifiedMemoryManager unifiedMemoryManager =
       UnifiedMemoryManager.apply(sparkConf, 1);
   private final TaskMemoryManager taskMemoryManager =
       new TaskMemoryManager(unifiedMemoryManager, 0);
 
-  final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+  private final File tempFile = new File(tempDir, UUID.randomUUID().toString());
   private static File tempDir = null;
 
   private static int DEFAULT_UAO_SIZE = UnsafeAlignedOffset.getUaoSize();
