@@ -332,9 +332,11 @@ public class ShuffleClientImpl extends ShuffleClient {
       ArrayList<DataBatches.DataBatch> batches,
       StatusCode cause,
       Integer oldGroupedBatchId,
+      String hostPort,
       ReviveRequest[] reviveRequests,
       int remainReviveTimes,
       long reviveResponseDueTime) {
+    pushState.removeBatch(oldGroupedBatchId, hostPort);
     HashMap<Pair<String, String>, DataBatches> newDataBatchesMap = new HashMap<>();
     ArrayList<DataBatches.DataBatch> reviveFailedBatchesMap = new ArrayList<>();
 
@@ -430,9 +432,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           pushState,
           remainReviveTimes);
     }
-    if (reviveFailedBatchesMap.isEmpty()) {
-      pushState.removeBatch(oldGroupedBatchId, batches.get(0).loc.hostAndPushPort());
-    } else {
+    if (!reviveFailedBatchesMap.isEmpty()) {
       ReviveRequest[] requests =
           addAndGetReviveRequests(shuffleId, mapId, attemptId, reviveFailedBatchesMap, cause);
       pushDataRetryPool.submit(
@@ -445,6 +445,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   reviveFailedBatchesMap,
                   cause,
                   oldGroupedBatchId,
+                  hostPort,
                   requests,
                   remainReviveTimes - 1,
                   System.currentTimeMillis()
@@ -886,6 +887,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void onFailure(Throwable e) {
+              pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
               String errorMsg =
                   String.format(
                       "Push data to %s failed for shuffle %d map %d attempt %d partition %d batch %d.",
@@ -988,6 +990,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               StatusCode cause = getPushDataFailCause(e.getMessage());
 
               if (pushState.exception.get() != null) {
+                pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
                 return;
               }
 
@@ -1273,6 +1276,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     groupedBatchId,
                     Arrays.toString(batchIds),
                     remainReviveTimes);
+            pushState.removeBatch(groupedBatchId, hostPort);
             pushState.exception.compareAndSet(null, new CelebornIOException(errorMsg, e));
             if (logger.isDebugEnabled()) {
               for (int i = 0; i < numBatches; i++) {
@@ -1321,6 +1325,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             batches,
                             StatusCode.HARD_SPLIT,
                             groupedBatchId,
+                            hostPort,
                             requests,
                             remainReviveTimes,
                             System.currentTimeMillis()
@@ -1368,6 +1373,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             StatusCode cause = getPushDataFailCause(e.getMessage());
 
             if (pushState.exception.get() != null) {
+              pushState.removeBatch(groupedBatchId, hostPort);
               return;
             }
             if (remainReviveTimes <= 0) {
@@ -1402,6 +1408,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                           batches,
                           cause,
                           groupedBatchId,
+                          hostPort,
                           requests,
                           remainReviveTimes - 1,
                           System.currentTimeMillis()
