@@ -102,23 +102,21 @@ public class SortBasedPusherSuiteJ {
     UnsafeRow row9k = genUnsafeRow(1024 * 9); // 9232 B
     assertEquals(row9k.getSizeInBytes(), 9232);
 
-    // total write size (9232 B + 4 + 4) * 226 = 2088240 B = 2039.3 KiB
+    // if uao = 4, total write size = (9232 B + 4 + 4) * 226 = 2088240 B = 2039.3 KiB
+    // if uao = 8, total write size = (9232 B + 4 + 8) * 226 = 2089144 B = 2040.2 KiB
     for (int i = 0; i < 226; i++) {
       assertTrue(
           pusher.insertRecord(
               row9k.getBaseObject(), row9k.getBaseOffset(), row9k.getSizeInBytes(), 0, true));
     }
-
     // total used memory: sum(pusher.allocatedPages.size()) + pusher.inMemSorter = 2m + 1m = 3m
     assertEquals(pusher.getUsed(), Utils.byteStringAsBytes("3m"));
-
     // there is not enough space to write a new 9k row
     assertTrue(
         !pusher.insertRecord(
             row9k.getBaseObject(), row9k.getBaseOffset(), row9k.getSizeInBytes(), 0, true));
 
     UnsafeRow row5k = genUnsafeRow(1024 * 5);
-
     assertTrue(
         pusher.insertRecord(
             row5k.getBaseObject(), row5k.getBaseOffset(), row5k.getSizeInBytes(), 0, true));
