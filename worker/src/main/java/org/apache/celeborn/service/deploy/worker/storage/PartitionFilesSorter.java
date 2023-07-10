@@ -158,8 +158,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFileCount.get();
   }
 
-  public int getSortedSize() {
-    return (int) sortedFilesSize.get();
+  public long getSortedSize() {
+    return sortedFilesSize.get();
   }
 
   public FileInfo getSortedFileInfo(
