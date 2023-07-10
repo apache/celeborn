@@ -260,7 +260,9 @@ public abstract class FileWriter implements DeviceObserver {
       closed = true;
 
       synchronized (flushLock) {
-        flush(true);
+        if (flushBuffer.readableBytes() > 0) {
+          flush(true);
+        }
       }
 
       tryClose.run();
