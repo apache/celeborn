@@ -34,7 +34,6 @@ import org.apache.spark.sql.catalyst.expressions.UnsafeProjection;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.types.BinaryType$;
 import org.apache.spark.sql.types.DataType;
-import org.apache.spark.unsafe.UnsafeAlignedOffset;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -62,17 +61,13 @@ public class SortBasedPusherSuiteJ {
   private final File tempFile = new File(tempDir, UUID.randomUUID().toString());
   private static File tempDir = null;
 
-  private static int DEFAULT_UAO_SIZE = UnsafeAlignedOffset.getUaoSize();
-
   @BeforeClass
   public static void beforeAll() {
-    UnsafeAlignedOffset.setUaoSize(4);
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn_test");
   }
 
   @AfterClass
   public static void afterAll() {
-    UnsafeAlignedOffset.setUaoSize(DEFAULT_UAO_SIZE);
     try {
       JavaUtils.deleteRecursively(tempDir);
     } catch (IOException e) {
@@ -122,14 +117,14 @@ public class SortBasedPusherSuiteJ {
         !pusher.insertRecord(
             row9k.getBaseObject(), row9k.getBaseOffset(), row9k.getSizeInBytes(), 0, true));
 
-    UnsafeRow row8k = genUnsafeRow(1024 * 8);
+    UnsafeRow row5k = genUnsafeRow(1024 * 5);
 
     assertTrue(
         pusher.insertRecord(
-            row8k.getBaseObject(), row8k.getBaseOffset(), row8k.getSizeInBytes(), 0, true));
+            row5k.getBaseObject(), row5k.getBaseOffset(), row5k.getSizeInBytes(), 0, true));
     assertTrue(
         !pusher.insertRecord(
-            row8k.getBaseObject(), row8k.getBaseOffset(), row8k.getSizeInBytes(), 0, true));
+            row5k.getBaseObject(), row5k.getBaseOffset(), row5k.getSizeInBytes(), 0, true));
 
     pusher.close();
   }
