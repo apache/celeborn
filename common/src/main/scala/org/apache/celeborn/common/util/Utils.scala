@@ -146,7 +146,7 @@ object Utils extends Logging {
   }
 
   def nanoDurationToString(ns: Long): String = {
-    val ms = 1000 * 1000
+    val ms = 1000 * 1000L
     val second = 1000 * ms
     val minute = 60 * second
     val hour = 60 * minute
@@ -156,7 +156,7 @@ object Utils extends Logging {
       case t if t < ms =>
         "%d ns".formatLocal(locale, t)
       case t if t < second =>
-        "%d ms".formatLocal(locale, t)
+        "%.1f ms".formatLocal(locale, t.toFloat / ms)
       case t if t < minute =>
         "%.1f s".formatLocal(locale, t.toFloat / second)
       case t if t < hour =>
