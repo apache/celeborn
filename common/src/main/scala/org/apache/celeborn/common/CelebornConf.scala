@@ -2585,10 +2585,11 @@ object CelebornConf extends Logging {
       .internal
       .categories("worker")
       .version("0.3.0")
-      .doc("Max components in FileWriter's flushBuffer. When this value is too big, i.e. 16, " +
-        "there will be many memory fragments in netty's memory pool, and total direct memory can by several " +
-        "times larger than disk buffer. When set to 1, netty's direct memory is close to disk buffer, but performance" +
-        "might decrease.")
+      .doc("Max components of Netty `CompositeByteBuf` in `FileWriter`'s `flushBuffer`. " +
+           "When this value is too big, i.e. 256, there will be many memory fragments in Netty's memory pool, "
+           "and total direct memory can be significantly larger than the disk buffer. " +
+           "When set to 1, Netty's direct memory is close to disk buffer, but performance " +
+           "might decrease due to frequent memory copy during compaction.")
       .intConf
       .createWithDefault(16)
 
