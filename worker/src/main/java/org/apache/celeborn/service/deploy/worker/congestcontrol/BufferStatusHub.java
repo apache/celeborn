@@ -78,7 +78,7 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
     Pair<BufferStatusNode, Integer> sumInfo = sum();
     long currentNumBytes = sumInfo.getKey().numBytes();
     if (currentNumBytes > 0) {
-      return currentNumBytes * 1000 / (long) sumInfo.getRight() * intervalPerBucketInMills;
+      return currentNumBytes * 1000 / ((long) sumInfo.getRight() * intervalPerBucketInMills);
     }
     return 0L;
   }
