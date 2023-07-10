@@ -647,6 +647,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def partitionSorterThreads: Int =
     get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
+  def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
 
@@ -2578,6 +2579,19 @@ object CelebornConf extends Logging {
       .doc("enable the heartbeat from worker to client when pushing data")
       .booleanConf
       .createWithDefault(false)
+
+  val WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.push.compositeBuffer.maxComponents")
+      .internal
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Max components of Netty `CompositeByteBuf` in `FileWriter`'s `flushBuffer`. " +
+        "When this value is too big, i.e. 256, there will be many memory fragments in Netty's memory pool, " +
+        "and total direct memory can be significantly larger than the disk buffer. " +
+        "When set to 1, Netty's direct memory is close to disk buffer, but performance " +
+        "might decrease due to frequent memory copy during compaction.")
+      .intConf
+      .createWithDefault(16)
 
   val WORKER_FETCH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.fetch.heartbeat.enabled")

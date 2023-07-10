@@ -81,7 +81,13 @@ public class MapPartitionFileWriterSuiteJ {
     dirs.$plus$eq(tempDir);
     localFlusher =
         new LocalFlusher(
-            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", StorageInfo.Type.HDD, null);
+            source,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            1,
+            256,
+            "disk1",
+            StorageInfo.Type.HDD,
+            null);
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
