@@ -3292,7 +3292,7 @@ object CelebornConf extends Logging {
       .doc(
         "Celeborn will only accept shuffle of partition number lower than this configuration value.")
       .longConf
-      .createWithDefault(500000)
+      .createWithDefault(Int.MaxValue)
 
   val CLIENT_PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.sort.pipeline.enabled")
