@@ -870,6 +870,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def partitionSplitMinimumSize: Long = get(WORKER_PARTITION_SPLIT_MIN_SIZE)
+  def partitionSplitMaximumSize: Long = get(WORKER_PARTITION_SPLIT_MAX_SIZE)
 
   def hdfsDir: String = {
     get(HDFS_DIR).map {
@@ -1929,6 +1930,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1m")
+
+  val WORKER_PARTITION_SPLIT_MAX_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.shuffle.partitionSplit.max")
+      .categories("worker")
+      .doc("Specify the maximum partition size for splitting, and ensure that individual partition files are always smaller than this limit.")
+      .version("0.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("2g")
 
   val WORKER_STORAGE_DIRS: OptionalConfigEntry[Seq[String]] =
     buildConf("celeborn.worker.storage.dirs")

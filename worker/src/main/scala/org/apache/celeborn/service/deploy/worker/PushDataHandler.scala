@@ -54,6 +54,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   private var workerInfo: WorkerInfo = _
   private var diskReserveSize: Long = _
   private var partitionSplitMinimumSize: Long = _
+  private var partitionSplitMaximumSize: Long = _
   private var shutdown: AtomicBoolean = _
   private var storageManager: StorageManager = _
   private var workerPartitionSplitEnabled: Boolean = _
@@ -75,6 +76,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.workerDiskReserveSize
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
+    partitionSplitMaximumSize = worker.conf.partitionSplitMaximumSize
     storageManager = worker.storageManager
     shutdown = worker.shutdown
     workerPartitionSplitEnabled = worker.conf.workerPartitionSplitEnabled
@@ -1080,7 +1082,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val diskFull = checkDiskFull(fileWriter)
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
         (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
-      if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT) {
+      if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
+        (fileWriter.getFileInfo.getFileLength < partitionSplitMaximumSize)) {
         softSplit.set(true)
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
