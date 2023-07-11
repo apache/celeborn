@@ -165,8 +165,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFileCount.get();
   }
 
-  public int getSortedSize() {
-    return (int) sortedFilesSize.get();
+  public long getSortedSize() {
+    return sortedFilesSize.get();
   }
 
   public FileInfo getSortedFileInfo(
@@ -203,8 +203,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           throw new IOException(
               "Sort scheduler thread is interrupted means worker is shutting down.", e);
         } catch (IOException e) {
-          logger.error("File sorter access hdfs failed.", e);
-          throw new IOException("File sorter access hdfs failed.", e);
+          logger.error("File sorter access HDFS failed.", e);
+          throw new IOException("File sorter access HDFS failed.", e);
         }
       }
     }

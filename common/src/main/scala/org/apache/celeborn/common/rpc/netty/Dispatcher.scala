@@ -115,11 +115,9 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
       postMessage(
         name,
         message,
-        (e) => {
-          e match {
-            case e: RpcEnvStoppedException => logDebug(s"Message $message dropped. ${e.getMessage}")
-            case e: Throwable => logWarning(s"Message $message dropped. ${e.getMessage}")
-          }
+        {
+          case e: RpcEnvStoppedException => logDebug(s"Message $message dropped. ${e.getMessage}")
+          case e: Throwable => logWarning(s"Message $message dropped. ${e.getMessage}")
         })
     }
   }
@@ -145,7 +143,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
     postMessage(
       message.receiver.name,
       OneWayMessage(message.senderAddress, message.content),
-      (e) => throw e)
+      e => throw e)
   }
 
   /**
@@ -158,7 +156,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
   def postMessage(
       endpointName: String,
       message: InboxMessage,
-      callbackIfStopped: (Exception) => Unit): Unit = {
+      callbackIfStopped: Exception => Unit): Unit = {
     val error = synchronized {
       val data = endpoints.get(endpointName)
       if (stopped) {
@@ -205,7 +203,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
     val availableCores =
       if (numUsableCores > 0) numUsableCores
       else Math.max(16, Runtime.getRuntime.availableProcessors())
-    val numThreads = nettyEnv.conf.getInt("celeborn.rpc.dispatcher.numThreads", availableCores)
+    val numThreads = nettyEnv.conf.rpcDispatcherNumThreads(availableCores)
     val pool = ThreadUtils.newDaemonFixedThreadPool(numThreads, "dispatcher-event-loop")
     logInfo(s"Dispatcher numThreads: $numThreads")
     for (i <- 0 until numThreads) {

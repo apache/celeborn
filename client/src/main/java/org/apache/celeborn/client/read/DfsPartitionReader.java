@@ -90,7 +90,7 @@ public class DfsPartitionReader implements PartitionReader {
         // Parse this message to ensure sort is done.
       } catch (IOException | InterruptedException e) {
         throw new IOException(
-            "read shuffle file from hdfs failed, filePath: "
+            "read shuffle file from HDFS failed, filePath: "
                 + location.getStorageInfo().getFilePath(),
             e);
       }
@@ -155,7 +155,7 @@ public class DfsPartitionReader implements PartitionReader {
                       fis.readFully(sortedFileOffset, buffer);
                     } catch (IOException e) {
                       logger.warn(
-                          "read hdfs {} failed will retry, error detail {}",
+                          "read HDFS {} failed will retry, error detail {}",
                           location.getStorageInfo().getFilePath(),
                           e);
                       try {
@@ -169,7 +169,7 @@ public class DfsPartitionReader implements PartitionReader {
                         fis.readFully(sortedFileOffset, buffer);
                       } catch (IOException ex) {
                         logger.warn(
-                            "retry read hdfs {} failed, error detail {} ",
+                            "retry read HDFS {} failed, error detail {} ",
                             location.getStorageInfo().getFilePath(),
                             e);
                         exception.set(ex);
@@ -279,7 +279,7 @@ public class DfsPartitionReader implements PartitionReader {
     try {
       hdfsInputStream.close();
     } catch (IOException e) {
-      logger.warn("close hdfs input stream failed.", e);
+      logger.warn("close HDFS input stream failed.", e);
     }
     if (results.size() > 0) {
       results.forEach(ReferenceCounted::release);

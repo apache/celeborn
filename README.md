@@ -128,7 +128,7 @@ celeborn.worker.commitFiles.threads 128
 celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
-celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -175,7 +175,7 @@ celeborn.worker.commitFiles.threads 128
 celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
-celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -193,6 +193,8 @@ celeborn.worker.directMemoryRatioToResume 0.6
 celeborn.worker.partition.initial.readBuffersMin 512
 celeborn.worker.partition.initial.readBuffersMax 1024
 celeborn.worker.readBuffer.allocationWait 10ms
+# Currently, shuffle partitionSplit is not supported, so you should disable split in celeborn worker side or set `celeborn.client.shuffle.partitionSplit.threshold` to a high value in flink client side.
+celeborn.worker.shuffle.partitionSplit.enabled false
 ```
 
 4. Copy Celeborn and configurations to all nodes
@@ -259,7 +261,7 @@ spark.celeborn.client.push.replicate.enabled true
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # If Celeborn is using HDFS
-spark.celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true

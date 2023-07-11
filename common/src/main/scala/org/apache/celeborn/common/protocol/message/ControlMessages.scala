@@ -19,7 +19,6 @@ package org.apache.celeborn.common.protocol.message
 
 import java.util
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
 
@@ -66,6 +65,8 @@ object ControlMessages extends Logging {
     PbCheckForWorkerTimeout.newBuilder().build()
 
   case object CheckForApplicationTimeOut extends Message
+
+  case object CheckForHDFSExpiredDirsTimeout extends Message
 
   case object RemoveExpiredShuffle extends Message
 
@@ -332,13 +333,6 @@ object ControlMessages extends Logging {
       unknownWorkers: util.List[WorkerInfo],
       shuttingWorkers: util.List[WorkerInfo]) extends Message
 
-  case class GetBlacklist(localExcludedWorkers: util.List[WorkerInfo]) extends MasterMessage
-
-  case class GetBlacklistResponse(
-      statusCode: StatusCode,
-      excludedWorkers: util.List[WorkerInfo],
-      unknownWorkers: util.List[WorkerInfo]) extends Message
-
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
   case class CheckQuotaResponse(isAvailable: Boolean, reason: String) extends Message
@@ -426,6 +420,9 @@ object ControlMessages extends Logging {
 
     case CheckForApplicationTimeOut =>
       new TransportMessage(MessageType.CHECK_FOR_APPLICATION_TIMEOUT, null)
+
+    case CheckForHDFSExpiredDirsTimeout =>
+      new TransportMessage(MessageType.CHECK_FOR_HDFS_EXPIRED_DIRS_TIMEOUT, null)
 
     case RemoveExpiredShuffle =>
       new TransportMessage(MessageType.REMOVE_EXPIRED_SHUFFLE, null)
@@ -637,25 +634,6 @@ object ControlMessages extends Logging {
           shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
-
-    case GetBlacklist(localExcludedWorkers) =>
-      val payload = PbGetBlacklist.newBuilder()
-        .addAllLocalExcludedWorkers(localExcludedWorkers.asScala.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
-        }.toList.asJava)
-        .build().toByteArray
-      new TransportMessage(MessageType.GET_BLACKLIST, payload)
-
-    case GetBlacklistResponse(statusCode, excludedWorkers, unknownWorkers) =>
-      val builder = PbGetBlacklistResponse.newBuilder()
-        .setStatus(statusCode.getValue)
-      builder.addAllExcludedWorkers(
-        excludedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
-      builder.addAllUnknownWorkers(
-        unknownWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
-
-      val payload = builder.build().toByteArray
-      new TransportMessage(MessageType.GET_BLACKLIST_RESPONSE, payload)
 
     case CheckQuota(userIdentifier) =>
       val builder = PbCheckQuota.newBuilder()
@@ -955,21 +933,6 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplicationResponse.getShuttingWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
 
-      case GET_BLACKLIST_VALUE =>
-        val pbGetBlacklist = PbGetBlacklist.parseFrom(message.getPayload)
-        GetBlacklist(
-          new util.ArrayList[WorkerInfo](pbGetBlacklist.getLocalExcludedWorkersList.asScala
-            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava))
-
-      case GET_BLACKLIST_RESPONSE_VALUE =>
-        val pbGetBlacklistResponse = PbGetBlacklistResponse.parseFrom(message.getPayload)
-        GetBlacklistResponse(
-          Utils.toStatusCode(pbGetBlacklistResponse.getStatus),
-          pbGetBlacklistResponse.getExcludedWorkersList.asScala
-            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
-          pbGetBlacklistResponse.getUnknownWorkersList.asScala
-            .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
-
       case CHECK_QUOTA_VALUE =>
         val pbCheckAvailable = PbCheckQuota.parseFrom(message.getPayload)
         CheckQuota(PbSerDeUtils.fromPbUserIdentifier(pbCheckAvailable.getUserIdentifier))
@@ -1073,6 +1036,9 @@ object ControlMessages extends Logging {
 
       case CHECK_FOR_APPLICATION_TIMEOUT_VALUE =>
         CheckForApplicationTimeOut
+
+      case CHECK_FOR_HDFS_EXPIRED_DIRS_TIMEOUT_VALUE =>
+        CheckForHDFSExpiredDirsTimeout
 
       case WORKER_LOST_VALUE =>
         PbWorkerLost.parseFrom(message.getPayload)

@@ -38,6 +38,7 @@ import scala.util.control.{ControlThrowable, NonFatal}
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
+import org.apache.hadoop.fs.Path
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -135,6 +136,27 @@ object Utils extends Logging {
     ms match {
       case t if t < second =>
         "%d ms".formatLocal(locale, t)
+      case t if t < minute =>
+        "%.1f s".formatLocal(locale, t.toFloat / second)
+      case t if t < hour =>
+        "%.1f m".formatLocal(locale, t.toFloat / minute)
+      case t =>
+        "%.2f h".formatLocal(locale, t.toFloat / hour)
+    }
+  }
+
+  def nanoDurationToString(ns: Long): String = {
+    val ms = 1000 * 1000L
+    val second = 1000 * ms
+    val minute = 60 * second
+    val hour = 60 * minute
+    val locale = Locale.US
+
+    ns match {
+      case t if t < ms =>
+        "%d ns".formatLocal(locale, t)
+      case t if t < second =>
+        "%.1f ms".formatLocal(locale, t.toFloat / ms)
       case t if t < minute =>
         "%.1f s".formatLocal(locale, t.toFloat / second)
       case t if t < hour =>

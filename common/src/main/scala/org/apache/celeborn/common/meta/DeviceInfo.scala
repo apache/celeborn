@@ -34,9 +34,8 @@ import org.apache.celeborn.common.util.Utils.runCommand
 class DiskInfo(
     val mountPoint: String,
     var actualUsableSpace: Long,
-    // avgFlushTime is nano seconds
-    var avgFlushTime: Long,
-    var avgFetchTime: Long,
+    var avgFlushTime: Long, // in nano seconds
+    var avgFetchTime: Long, // in nano seconds
     var activeSlots: Long,
     val dirs: List[File],
     val deviceInfo: DeviceInfo) extends Serializable with Logging {
@@ -135,8 +134,8 @@ class DiskInfo(
       s" shuffleAllocations: $nonEmptyShuffles," +
       s" mountPoint: $mountPoint," +
       s" usableSpace: ${Utils.bytesToString(actualUsableSpace)}," +
-      s" avgFlushTime: ${Utils.msDurationToString(avgFlushTime)}," +
-      s" avgFetchTime: ${Utils.msDurationToString(avgFetchTime)}," +
+      s" avgFlushTime: ${Utils.nanoDurationToString(avgFlushTime)}," +
+      s" avgFetchTime: ${Utils.nanoDurationToString(avgFetchTime)}," +
       s" activeSlots: $activeSlots)" +
       s" status: $status" +
       s" dirs ${dirs.mkString("\t")}"

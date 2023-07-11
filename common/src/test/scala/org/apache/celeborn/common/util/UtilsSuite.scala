@@ -60,6 +60,23 @@ class UtilsSuite extends CelebornFunSuite {
     assert("16.0 GiB" == Utils.bytesToString(17179869184L))
   }
 
+  test("msDurationToString") {
+    assert(Utils.msDurationToString(1) === "1 ms")
+    assert(Utils.msDurationToString(1234) === "1.2 s")
+    assert(Utils.msDurationToString(67890) === "1.1 m")
+    assert(Utils.msDurationToString(3678000) === "1.02 h")
+  }
+
+  test("nanoDurationToString") {
+    assert(Utils.nanoDurationToString(1) === "1 ns")
+    assert(Utils.nanoDurationToString(123456) === "123456 ns")
+    assert(Utils.nanoDurationToString(1234567) === "1.2 ms")
+    assert(Utils.nanoDurationToString(123456789L) === "123.5 ms")
+    assert(Utils.nanoDurationToString(1234567890L) === "1.2 s")
+    assert(Utils.nanoDurationToString(1234567890123L) === "20.6 m")
+    assert(Utils.nanoDurationToString(12345678901234L) === "3.43 h")
+  }
+
   test("extractHostPortFromCelebornUrl") {
     val target = ("abc", 123)
     val result = Utils.extractHostPortFromCelebornUrl("celeborn://abc:123")
@@ -105,7 +122,7 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd == mapperEndTrans)
   }
 
-  test("validate hdfs compatible fs path") {
+  test("validate HDFS compatible fs path") {
     val hdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x"
     val simpleHdfsPath = "hdfs:///xxxx/xx-xx/x-x-x"
     val sortedHdfsPath = "hdfs://xxx:9000/xxxx/xx-xx/x-x-x.sorted"
