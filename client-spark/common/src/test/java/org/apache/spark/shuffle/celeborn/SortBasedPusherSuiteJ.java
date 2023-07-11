@@ -82,7 +82,6 @@ public class SortBasedPusherSuiteJ {
         new SortBasedPusher(
             taskMemoryManager,
             /*shuffleClient=*/ client,
-            /*appId=*/ null,
             /*shuffleId=*/ 0,
             /*mapId=*/ 0,
             /*attemptNumber=*/ 0,
