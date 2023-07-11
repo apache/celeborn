@@ -679,7 +679,7 @@ public class FileWriterSuiteJ {
     assertEquals(fileInfo.getLastChunkOffset(), 4096);
     assertEquals(fileInfo.getChunkOffsets().get(3) - fileInfo.getChunkOffsets().get(2), 2048);
 
-    // case 7.2: write 4097B with 3 chunks with trim
+    // case 7.2: write 4097B with 3 chunks with trim; Without [CELEBORN-626][FOLLOWUP] this case will fail
     file = getTemporaryFile();
     fileInfo = new FileInfo(file, userIdentifier);
     fileWriter =
@@ -695,7 +695,6 @@ public class FileWriterSuiteJ {
     fileWriter.write(generateData(1024));
     for (int i = 0; i < 9; i++) {
       fileWriter.write(generateData(128));
-      // mock trim
       fileWriter.flush(false);
     }
     fileWriter.write(generateData(1920));
