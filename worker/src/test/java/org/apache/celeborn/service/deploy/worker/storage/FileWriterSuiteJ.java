@@ -679,7 +679,8 @@ public class FileWriterSuiteJ {
     assertEquals(fileInfo.getLastChunkOffset(), 4096);
     assertEquals(fileInfo.getChunkOffsets().get(3) - fileInfo.getChunkOffsets().get(2), 2048);
 
-    // case 7.2: write 4097B with 3 chunks with trim; Without [CELEBORN-626][FOLLOWUP] this case will fail
+    // case 7.2: write 4097B with 3 chunks with trim; Without [CELEBORN-626][FOLLOWUP] this case
+    // will fail
     file = getTemporaryFile();
     fileInfo = new FileInfo(file, userIdentifier);
     fileWriter =
