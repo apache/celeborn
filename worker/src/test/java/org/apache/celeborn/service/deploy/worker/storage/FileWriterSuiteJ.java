@@ -500,6 +500,212 @@ public class FileWriterSuiteJ {
     assertEquals(0, compositeByteBuf.numComponents());
   }
 
+  @Test
+  public void testChunkSize() throws IOException {
+    // NOTE: SHUFFLE_CHUNK_SIZE and WORKER_FLUSHER_BUFFER_SIZE are set to 1K/128B
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "1k");
+    conf.set(CelebornConf.WORKER_FLUSHER_BUFFER_SIZE().key(), "128B");
+
+    // case 1: write 8MiB
+    File file = getTemporaryFile();
+    FileInfo fileInfo = new FileInfo(file, userIdentifier);
+    FileWriter fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(8 * 1024 * 1024));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 1);
+    assertEquals(fileInfo.getLastChunkOffset(), 8 * 1024 * 1024);
+    assertEquals(
+        fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 8 * 1024 * 1024);
+
+    // case 2: write 1024B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 8; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 1);
+    assertEquals(fileInfo.getLastChunkOffset(), 1024);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
+    // case 3: write 1023B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(1020));
+    fileWriter.write(generateData(3));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 1);
+    assertEquals(fileInfo.getLastChunkOffset(), 1023);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1023);
+
+    // case 4: write 1025B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 8; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.write(generateData(1));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 2);
+    assertEquals(fileInfo.getLastChunkOffset(), 1025);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
+    // case 5: write 2048B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 16; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 2);
+    assertEquals(fileInfo.getLastChunkOffset(), 2048);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
+    // case 5.1: write 2048B with trim; without PR #1702 this case will fail
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 16; i++) {
+      fileWriter.write(generateData(128));
+    }
+    // mock trim
+    fileWriter.flush(false);
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 2);
+    assertEquals(fileInfo.getLastChunkOffset(), 2048);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
+    // case 6: write 2049B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 16; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.write(generateData(1));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 3);
+    assertEquals(fileInfo.getLastChunkOffset(), 2049);
+    assertEquals(fileInfo.getChunkOffsets().get(2) - fileInfo.getChunkOffsets().get(1), 1024);
+
+    // case 7: write 4097B with 3 chunks
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(1024));
+    for (int i = 0; i < 9; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.write(generateData(1920));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 3);
+    assertEquals(fileInfo.getLastChunkOffset(), 4096);
+    assertEquals(fileInfo.getChunkOffsets().get(3) - fileInfo.getChunkOffsets().get(2), 2048);
+
+    // case 7.2: write 4097B with 3 chunks with trim; without PR #1702 this case will fail
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(1024));
+    for (int i = 0; i < 9; i++) {
+      fileWriter.write(generateData(128));
+      fileWriter.flush(false);
+    }
+    fileWriter.write(generateData(1920));
+    // mock trim
+    fileWriter.flush(false);
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 3);
+    assertEquals(fileInfo.getLastChunkOffset(), 4096);
+    assertEquals(fileInfo.getChunkOffsets().get(3) - fileInfo.getChunkOffsets().get(2), 2048);
+  }
+
   private File getTemporaryFile() throws IOException {
     String filename = UUID.randomUUID().toString();
     File temporaryFile = new File(tempDir, filename);
@@ -518,5 +724,13 @@ public class FileWriterSuiteJ {
       System.arraycopy(hello, 0, data, i, hello.length);
     }
     return data;
+  }
+
+  private ByteBuf generateData(int len) {
+    byte[] data = new byte[len];
+    for (int i = 0; i < len; i++) {
+      data[i] = 'a';
+    }
+    return Unpooled.wrappedBuffer(data);
   }
 }
