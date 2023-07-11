@@ -38,7 +38,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.size == 1)
-    assert(workerBaseDirs.head._3 == 2)
+    assert(workerBaseDirs.head._3 == 16)
     assert(workerBaseDirs.head._2 == defaultMaxUsableSpace)
   }
 
@@ -47,7 +47,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1:disktype=SSD:capacity=10g")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.size == 1)
-    assert(workerBaseDirs.head._3 == 8)
+    assert(workerBaseDirs.head._3 == 16)
     assert(workerBaseDirs.head._2 == 10 * 1024 * 1024 * 1024L)
   }
 
@@ -83,7 +83,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1")
     val workerBaseDirs = conf.workerBaseDirs
-    assert(workerBaseDirs.head._3 == 2)
+    assert(workerBaseDirs.head._3 == 16)
   }
 
   test("storage test6") {
@@ -107,7 +107,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.set(CelebornConf.WORKER_FLUSHER_THREADS.key, "4")
       .set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1:disktype=SSD")
     val workerBaseDirs = conf.workerBaseDirs
-    assert(workerBaseDirs.head._3 == 8)
+    assert(workerBaseDirs.head._3 == 16)
   }
 
   test("storage test9") {

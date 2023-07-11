@@ -2191,7 +2191,7 @@ object CelebornConf extends Logging {
       .doc("Flusher's thread count per disk for unkown-type disks.")
       .version("0.2.0")
       .intConf
-      .createWithDefault(2)
+      .createWithDefault(16)
 
   val WORKER_FLUSHER_HDD_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.hdd.threads")
@@ -2207,7 +2207,7 @@ object CelebornConf extends Logging {
       .doc("Flusher's thread count per disk used for write data to SSD disks.")
       .version("0.2.0")
       .intConf
-      .createWithDefault(8)
+      .createWithDefault(16)
 
   val WORKER_FLUSHER_HDFS_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.hdfs.threads")
