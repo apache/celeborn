@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLongArray}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-import io.netty.buffer.{CompositeByteBuf, Unpooled}
+import io.netty.buffer.{CompositeByteBuf, PooledByteBufAllocator, Unpooled}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
@@ -38,6 +38,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
     val threadCount: Int,
+    val allocator: PooledByteBufAllocator,
     val maxComponents: Int,
     flushTimeMetric: TimeWindow) extends Logging {
   protected lazy val flusherId: Int = System.identityHashCode(this)
@@ -104,7 +105,7 @@ abstract private[worker] class Flusher(
   def takeBuffer(): CompositeByteBuf = {
     var buffer = bufferQueue.poll()
     if (buffer == null) {
-      buffer = Unpooled.compositeBuffer(maxComponents)
+      buffer = new CompositeByteBuf(allocator, true, maxComponents)
     }
     buffer
   }
@@ -148,12 +149,14 @@ private[worker] class LocalFlusher(
     workerSource: AbstractSource,
     val deviceMonitor: DeviceMonitor,
     threadCount: Int,
+    allocator: PooledByteBufAllocator,
     maxComponents: Int,
     val mountPoint: String,
     val diskType: StorageInfo.Type,
     timeWindow: TimeWindow) extends Flusher(
     workerSource,
     threadCount,
+    allocator,
     maxComponents,
     timeWindow)
   with DeviceObserver with Logging {
@@ -186,9 +189,11 @@ private[worker] class LocalFlusher(
 final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
     hdfsFlusherThreads: Int,
+    allocator: PooledByteBufAllocator,
     maxComponents: Int) extends Flusher(
     workerSource,
     hdfsFlusherThreads,
+    allocator,
     maxComponents,
     null) with Logging {
   override def toString: String = s"HdfsFlusher@$flusherId"
