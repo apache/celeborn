@@ -611,6 +611,29 @@ public class FileWriterSuiteJ {
     assertEquals(fileInfo.getLastChunkOffset(), 2048);
     assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
 
+    // case 5.1: write 2048B with trim; Without [CELEBORN-626][FOLLOWUP] this case will fail
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 16; i++) {
+      fileWriter.write(generateData(128));
+    }
+    // mock trim
+    fileWriter.flush(false);
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 2);
+    assertEquals(fileInfo.getLastChunkOffset(), 2048);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
     // case 6: write 2049B
     file = getTemporaryFile();
     fileInfo = new FileInfo(file, userIdentifier);
@@ -651,6 +674,33 @@ public class FileWriterSuiteJ {
       fileWriter.write(generateData(128));
     }
     fileWriter.write(generateData(1920));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 3);
+    assertEquals(fileInfo.getLastChunkOffset(), 4096);
+    assertEquals(fileInfo.getChunkOffsets().get(3) - fileInfo.getChunkOffsets().get(2), 2048);
+
+    // case 7.2: write 4097B with 3 chunks with trim
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(1024));
+    for (int i = 0; i < 9; i++) {
+      fileWriter.write(generateData(128));
+      // mock trim
+      fileWriter.flush(false);
+    }
+    fileWriter.write(generateData(1920));
+    // mock trim
+    fileWriter.flush(false);
     fileWriter.close();
     assertEquals(fileInfo.numChunks(), 3);
     assertEquals(fileInfo.getLastChunkOffset(), 4096);
