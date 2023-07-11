@@ -95,7 +95,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // parameters. By the way, simplify the passed parameters.
   public SortBasedShuffleWriter(
       ShuffleDependency<K, V, C> dep,
-      String appId,
       int numMappers,
       TaskContext taskContext,
       CelebornConf conf,
@@ -133,7 +132,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             new SortBasedPusher(
                 taskContext.taskMemoryManager(),
                 shuffleClient,
-                appId,
                 shuffleId,
                 mapId,
                 taskContext.attemptNumber(),
@@ -153,7 +151,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           new SortBasedPusher(
               taskContext.taskMemoryManager(),
               shuffleClient,
-              appId,
               shuffleId,
               mapId,
               taskContext.attemptNumber(),
@@ -179,7 +176,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException {
     this(
         handle.dependency(),
-        handle.appUniqueId(),
         handle.numMappers(),
         taskContext,
         conf,
