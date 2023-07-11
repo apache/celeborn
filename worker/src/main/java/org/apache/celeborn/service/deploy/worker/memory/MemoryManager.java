@@ -37,6 +37,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.reflect.DynMethods;
 import org.apache.celeborn.service.deploy.worker.storage.CreditStreamManager;
 
 public class MemoryManager {
