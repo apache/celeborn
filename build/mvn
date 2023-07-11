@@ -109,4 +109,4 @@ cd "${_CALLING_DIR}"
 export MAVEN_OPTS=${MAVEN_OPTS:-"$_COMPILE_JVM_OPTS"}
 
 echo "Using \`mvn\` from path: $MVN_BIN" 1>&2
-mvn $MAVEN_CLI_OPTS "$@"
+${MVN_BIN} $MAVEN_CLI_OPTS "$@"
