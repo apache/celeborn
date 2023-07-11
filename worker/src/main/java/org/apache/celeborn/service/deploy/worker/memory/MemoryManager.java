@@ -113,11 +113,11 @@ public class MemoryManager {
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
 
     maxDirectorMemory =
-            DynMethods.builder("maxDirectMemory")
-                .impl("jdk.internal.misc.VM") // for Java 10 and above
-                .impl("sun.misc.VM") // for Java 9 and previous
-                .buildStatic()
-                .<Long>invoke();
+        DynMethods.builder("maxDirectMemory")
+            .impl("jdk.internal.misc.VM") // for Java 10 and above
+            .impl("sun.misc.VM") // for Java 9 and previous
+            .buildStatic()
+            .<Long>invoke();
 
     Preconditions.checkArgument(maxDirectorMemory > 0);
     Preconditions.checkArgument(pauseReplicateRatio > pausePushDataRatio);
