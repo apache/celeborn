@@ -57,7 +57,6 @@ public class SortBasedPusher extends MemoryConsumer {
   private final int pushBufferMaxSize;
   private final long pushSortMemoryThreshold;
   final int uaoSize = UnsafeAlignedOffset.getUaoSize();
-  static final long bytes8K = Utils.byteStringAsBytes("8k");
 
   String appId;
   int shuffleId;
@@ -221,9 +220,16 @@ public class SortBasedPusher extends MemoryConsumer {
   public boolean insertRecord(
       Object recordBase, long recordOffset, int recordSize, int partitionId, boolean copySize)
       throws IOException {
+    int required;
+    // Need 4 or 8 bytes to store the record recordSize.
+    if (copySize) {
+      required = recordSize + 4 + uaoSize;
+    } else {
+      required = recordSize + uaoSize;
+    }
 
     if (getUsed() > pushSortMemoryThreshold
-        && pageCursor + bytes8K > currentPage.getBaseOffset() + currentPage.size()) {
+        && pageCursor + required > currentPage.getBaseOffset() + currentPage.size()) {
       logger.info(
           "Memory used {} exceeds threshold {}, need to trigger push. currentPage size: {}",
           Utils.bytesToString(getUsed()),
@@ -232,13 +238,6 @@ public class SortBasedPusher extends MemoryConsumer {
       return false;
     }
 
-    int required;
-    // Need 4 or 8 bytes to store the record recordSize.
-    if (copySize) {
-      required = recordSize + 4 + uaoSize;
-    } else {
-      required = recordSize + uaoSize;
-    }
     allocateMemoryForRecordIfNecessary(required);
 
     assert (currentPage != null);
