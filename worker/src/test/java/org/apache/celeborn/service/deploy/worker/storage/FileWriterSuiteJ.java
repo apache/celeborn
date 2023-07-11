@@ -66,6 +66,7 @@ import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.server.TransportServer;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -119,6 +120,7 @@ public class FileWriterSuiteJ {
             source,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
+            NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),
             256,
             "disk1",
             StorageInfo.Type.HDD,
@@ -389,6 +391,7 @@ public class FileWriterSuiteJ {
             source,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
+            NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),
             256,
             "disk2",
             StorageInfo.Type.HDD,
