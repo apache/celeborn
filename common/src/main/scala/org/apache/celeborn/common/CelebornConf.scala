@@ -2600,7 +2600,7 @@ object CelebornConf extends Logging {
         "When set to 1, Netty's direct memory is close to disk buffer, but performance " +
         "might decrease due to frequent memory copy during compaction.")
       .intConf
-      .createWithDefault(128)
+      .createWithDefault(64)
 
   val WORKER_FETCH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.fetch.heartbeat.enabled")
