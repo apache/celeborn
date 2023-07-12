@@ -247,8 +247,8 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
-    assert (workerInfo1.usedSlots() == 5);
-    assert (workerInfo2.usedSlots() == 5);
+    assert (workerInfo1.usedSlots() == 0);
+    assert (workerInfo2.usedSlots() == 0);
     assert (workerInfo3.usedSlots() == 0);
   }
 
@@ -319,7 +319,7 @@ public class DefaultMetaSystemSuiteJ {
     statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
 
     Assert.assertEquals(
-        2,
+        0,
         statusSystem.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()

@@ -37,7 +37,6 @@ class WorkerInfo(
     _diskInfos: util.Map[String, DiskInfo],
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
-  var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var networkLocation = "/default-rack"
   var lastHeartbeat: Long = 0
   val diskInfos =
@@ -72,8 +71,8 @@ class WorkerInfo(
   }
 
   def usedSlots(): Long = this.synchronized {
-    diskInfos.asScala.map(_._2.activeSlots).sum +
-      unknownDiskSlots.values().asScala.map(_.intValue()).sum
+    // HDFS or OSS do not treat as a used slot
+    diskInfos.asScala.map(_._2.activeSlots).sum
   }
 
   def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit =
@@ -83,11 +82,6 @@ class WorkerInfo(
       slotsPerDisk.asScala.foreach { case (disk, slots) =>
         if (!diskInfos.containsKey(disk)) {
           logDebug(s"Unknown disk $disk")
-          if (unknownDiskSlots.containsKey(shuffleKey)) {
-            unknownDiskSlots.put(shuffleKey, slots + unknownDiskSlots.get(shuffleKey))
-          } else {
-            unknownDiskSlots.put(shuffleKey, slots)
-          }
         } else {
           diskInfos.get(disk).allocateSlots(shuffleKey, slots)
         }
@@ -107,17 +101,12 @@ class WorkerInfo(
     slots.asScala.foreach { case (disk, slot) =>
       if (diskInfos.containsKey(disk)) {
         diskInfos.get(disk).releaseSlots(shuffleKey, slot)
-      } else {
-        if (unknownDiskSlots.containsKey(shuffleKey)) {
-          unknownDiskSlots.put(shuffleKey, unknownDiskSlots.get(shuffleKey) - slot)
-        }
       }
     }
   }
 
   def releaseSlots(shuffleKey: String): Unit = this.synchronized {
     diskInfos.asScala.foreach(_._2.releaseSlots(shuffleKey))
-    unknownDiskSlots.remove(shuffleKey)
   }
 
   def getShuffleKeySet: util.HashSet[String] = this.synchronized {
@@ -185,17 +174,18 @@ class WorkerInfo(
       val mountPoint: String = newDisk.mountPoint
       val curDisk = diskInfos.get(mountPoint)
       if (curDisk != null) {
-        curDisk.actualUsableSpace_$eq(newDisk.actualUsableSpace)
-        curDisk.activeSlots_$eq(Math.max(curDisk.activeSlots, newDisk.activeSlots))
-        curDisk.avgFlushTime_$eq(newDisk.avgFlushTime)
-        curDisk.avgFetchTime_$eq(newDisk.avgFetchTime)
+        curDisk.actualUsableSpace = newDisk.actualUsableSpace
+        // Update master's diskinfo activeslots to worker's value
+        curDisk.activeSlots = newDisk.activeSlots
+        curDisk.avgFlushTime = newDisk.avgFlushTime
+        curDisk.avgFetchTime = newDisk.avgFetchTime
         if (estimatedPartitionSize.nonEmpty) {
-          curDisk.maxSlots_$eq(curDisk.actualUsableSpace / estimatedPartitionSize.get)
+          curDisk.maxSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
         }
         curDisk.setStatus(newDisk.status)
       } else {
         if (estimatedPartitionSize.nonEmpty) {
-          newDisk.maxSlots_$eq(newDisk.actualUsableSpace / estimatedPartitionSize.get)
+          curDisk.maxSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
         }
         diskInfos.put(mountPoint, newDisk)
       }
