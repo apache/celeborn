@@ -124,7 +124,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   @Override
   public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
     if (evt instanceof TrimCache) {
-      logger.debug("trim thread local cache.");
+      logger.info("trim thread local cache.");
       ((PooledByteBufAllocator) ctx.alloc()).trimCurrentThreadCache();
       needTrimChannels.decrementAndGet();
     }
