@@ -185,7 +185,7 @@ class WorkerInfo(
         curDisk.setStatus(newDisk.status)
       } else {
         if (estimatedPartitionSize.nonEmpty) {
-          curDisk.maxSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
+          newDisk.maxSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
         }
         diskInfos.put(mountPoint, newDisk)
       }
