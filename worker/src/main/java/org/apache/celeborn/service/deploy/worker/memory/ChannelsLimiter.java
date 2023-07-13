@@ -65,6 +65,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
     channels.forEach(
         c -> {
           needTrimChannels.incrementAndGet();
+          logger.info("fire TrimCache event to channel: {}", c);
           c.pipeline().fireUserEventTriggered(new TrimCache());
         });
     long delta = 100L;
@@ -93,6 +94,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
 
   @Override
   public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+    logger.info("adding new channel: {}", ctx.channel());
     channels.add(ctx.channel());
     synchronized (isPaused) {
       if (isPaused.get()) {
@@ -113,13 +115,16 @@ public class ChannelsLimiter extends ChannelDuplexHandler
     if (!ctx.channel().config().isAutoRead()) {
       ctx.channel().config().setAutoRead(true);
     }
+    ((PooledByteBufAllocator) ctx.alloc()).trimCurrentThreadCache();
     channels.remove(ctx.channel());
+    logger.info("removed channel: " + ctx.channel());
     super.handlerRemoved(ctx);
   }
 
   @Override
   public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
     if (evt instanceof TrimCache) {
+      logger.debug("trim thread local cache.");
       ((PooledByteBufAllocator) ctx.alloc()).trimCurrentThreadCache();
       needTrimChannels.decrementAndGet();
     }
