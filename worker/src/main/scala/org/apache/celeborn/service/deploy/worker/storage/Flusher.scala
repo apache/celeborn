@@ -105,7 +105,7 @@ abstract private[worker] class Flusher(
   def takeBuffer(): CompositeByteBuf = {
     var buffer = bufferQueue.poll()
     if (buffer == null) {
-      buffer = new CompositeByteBuf(allocator, true, maxComponents)
+      buffer = allocator.compositeDirectBuffer(maxComponents)
     }
     buffer
   }
