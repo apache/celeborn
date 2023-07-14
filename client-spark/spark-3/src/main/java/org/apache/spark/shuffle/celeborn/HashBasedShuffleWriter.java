@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.Utils;
 
 @Private
 public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -382,7 +383,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void flushSendBuffer(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
     long pushStartTime = System.nanoTime();
-    logger.debug("Flush buffer, size {}.", size);
+    logger.debug("Flush buffer, size {}.", Utils.bytesToString(size));
     dataPusher.addTask(partitionId, buffer, size);
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
   }
