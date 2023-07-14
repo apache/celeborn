@@ -182,7 +182,7 @@ public class SparkShuffleManager implements ShuffleManager {
         CelebornShuffleHandle<K, V, ?> h = ((CelebornShuffleHandle<K, V, ?>) handle);
         ShuffleClient client =
             ShuffleClient.get(
-                appUniqueId,
+                h.appUniqueId(),
                 h.lifecycleManagerHost(),
                 h.lifecycleManagerPort(),
                 celebornConf,
