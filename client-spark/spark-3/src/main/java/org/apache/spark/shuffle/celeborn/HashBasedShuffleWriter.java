@@ -246,7 +246,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         celebornBatchBuilders[partitionId] = columnBuilders;
       }
 
-      long insertAndPushStartTime = System.nanoTime();
       celebornBatchBuilders[partitionId].writeRow(row);
       if (celebornBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize) {
         byte[] arr = celebornBatchBuilders[partitionId].buildColumnBytes();
@@ -277,7 +276,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(rowSize);
       }
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));

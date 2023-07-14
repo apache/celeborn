@@ -254,7 +254,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(serializedRecordSize);
       }
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > pushBufferMaxSize) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
@@ -310,7 +309,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > pushBufferMaxSize) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
