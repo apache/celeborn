@@ -101,6 +101,8 @@ object WorkerSource {
   val SORTING_FILES = "SortingFiles"
   val SORTED_FILES = "SortedFiles"
   val SORTED_FILE_SIZE = "SortedFileSize"
+  val FORK_JOIN_SORTING_SIZE = "ForkJoinSortingSize"
+  val FORK_JOIN_QUEUE_SIZE = "ForkJoinQueueSize"
   val DISK_BUFFER = "DiskBuffer"
   val PAUSE_PUSH_DATA_COUNT = "PausePushData"
   val PAUSE_PUSH_DATA_AND_REPLICATE_COUNT = "PausePushDataAndReplicate"

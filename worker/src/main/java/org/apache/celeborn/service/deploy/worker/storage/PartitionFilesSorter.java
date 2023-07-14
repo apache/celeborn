@@ -98,6 +98,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final ForkJoinPool forkJoinPool =
       new ForkJoinPool(Runtime.getRuntime().availableProcessors());
+  private final AtomicLong forkJoinSortingSize = new AtomicLong();
+  private final AtomicLong forkJoinQueueSize = new AtomicLong();
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
@@ -167,6 +169,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public long getSortedSize() {
     return sortedFilesSize.get();
+  }
+
+  public long getForkJoinSortingSize() {
+    return forkJoinSortingSize.get();
+  }
+
+  public long getForkJoinQueueSize() {
+    return forkJoinQueueSize.get();
   }
 
   public FileInfo getSortedFileInfo(
@@ -256,6 +266,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     if (gracefulShutdown) {
       long start = System.currentTimeMillis();
       try {
+        forkJoinPool.shutdown();
+        forkJoinPool.awaitTermination(partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
+        if (!forkJoinPool.isShutdown()) {
+          forkJoinPool.shutdownNow();
+        }
         fileSorterExecutors.shutdown();
         fileSorterExecutors.awaitTermination(
             partitionSorterShutdownAwaitTime, TimeUnit.MILLISECONDS);
@@ -268,6 +283,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       long end = System.currentTimeMillis();
       logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
     } else {
+      forkJoinPool.shutdownNow();
       fileSorterSchedulerThread.interrupt();
       fileSorterExecutors.shutdownNow();
     }
@@ -645,6 +661,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
 
         long[] fileLengthArray = new long[batchSortList.size()];
+        forkJoinQueueSize.addAndGet(batchSortList.size());
         forkJoinPool.invoke(
             new MergeSortAction(
                 originFileChannel,
@@ -818,6 +835,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private void sequentialMergeSort(int idx) {
       FileChannel targetChannel = null;
       FSDataOutputStream targetOutputStream = null;
+      forkJoinSortingSize.incrementAndGet();
       try {
         long fileIndex = 0;
         Map<Integer, SortShuffleBlockWrapper> batchSort = batchSortList.get(idx);
@@ -857,6 +875,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       } catch (IOException e) {
         throw new RuntimeException(e);
       } finally {
+        forkJoinSortingSize.decrementAndGet();
+        forkJoinQueueSize.decrementAndGet();
         IOUtils.closeQuietly(targetChannel, null);
         IOUtils.closeQuietly(targetOutputStream, null);
       }
