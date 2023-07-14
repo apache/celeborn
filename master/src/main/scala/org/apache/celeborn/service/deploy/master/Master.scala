@@ -634,9 +634,7 @@ private[celeborn] class Master(
       workerIds: util.List[String],
       slots: util.List[util.Map[String, Integer]],
       requestId: String): Unit = {
-    val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)
-    logInfo(s"Release all slots of $shuffleKey")
+    // For compatibility, ignore this message
     context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
   }
 

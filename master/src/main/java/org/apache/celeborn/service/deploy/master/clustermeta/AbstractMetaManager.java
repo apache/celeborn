@@ -93,16 +93,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     if (hostName != null) {
       hostnameSet.add(hostName);
     }
-    if (!workerWithAllocations.isEmpty()) {
-      synchronized (workers) {
-        for (WorkerInfo workerInfo : workers) {
-          String workerUniqueId = workerInfo.toUniqueId();
-          if (workerWithAllocations.containsKey(workerUniqueId)) {
-            workerInfo.allocateSlots(shuffleKey, workerWithAllocations.get(workerUniqueId));
-          }
-        }
-      }
-    }
   }
 
   public void updateReleaseSlotsMeta(String shuffleKey) {
@@ -139,9 +129,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateAppLostMeta(String appId) {
-    registeredShuffle.stream()
-        .filter(shuffle -> shuffle.startsWith(appId))
-        .forEach(this::updateReleaseSlotsMeta);
     registeredShuffle.removeIf(shuffleKey -> shuffleKey.startsWith(appId));
     appHeartbeatTime.remove(appId);
   }
