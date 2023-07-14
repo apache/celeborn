@@ -73,13 +73,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
           ResourceProtos.RequestSlotsRequest.newBuilder()
               .setShuffleKey(shuffleKey)
               .setHostName(hostName);
-      for (String workerUniqueId : workerToAllocatedSlots.keySet()) {
-        builder.putWorkerAllocations(
-            workerUniqueId,
-            ResourceProtos.SlotInfo.newBuilder()
-                .putAllSlot(workerToAllocatedSlots.get(workerUniqueId))
-                .build());
-      }
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
               .setCmdType(Type.RequestSlots)

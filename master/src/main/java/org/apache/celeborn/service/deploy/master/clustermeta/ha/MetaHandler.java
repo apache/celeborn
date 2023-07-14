@@ -98,30 +98,16 @@ public class MetaHandler {
       Map<String, DiskInfo> diskInfos;
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       List<Map<String, Integer>> slots = new ArrayList<>();
-      Map<String, Map<String, Integer>> workerAllocations = new HashMap<>();
       Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
-          request
-              .getRequestSlotsRequest()
-              .getWorkerAllocationsMap()
-              .forEach((k, v) -> workerAllocations.put(k, new HashMap<>(v.getSlotMap())));
           LOG.debug("Handle request slots for {}", shuffleKey);
           metaSystem.updateRequestSlotsMeta(
-              shuffleKey, request.getRequestSlotsRequest().getHostName(), workerAllocations);
+              shuffleKey, request.getRequestSlotsRequest().getHostName(), new HashMap<>());
           break;
 
         case ReleaseSlots:
-          for (ResourceProtos.SlotInfo pbSlotInfo :
-              request.getReleaseSlotsRequest().getSlotsList()) {
-            slots.add(pbSlotInfo.getSlotMap());
-          }
-
-          shuffleKey = request.getReleaseSlotsRequest().getShuffleKey();
-          LOG.debug("Handle release slots for {}", shuffleKey);
-          metaSystem.updateReleaseSlotsMeta(
-              shuffleKey, request.getReleaseSlotsRequest().getWorkerIdsList(), slots);
           break;
 
         case UnRegisterShuffle:
