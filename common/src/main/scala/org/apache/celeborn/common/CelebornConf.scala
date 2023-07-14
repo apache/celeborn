@@ -1447,7 +1447,7 @@ object CelebornConf extends Logging {
         s"it works for worker replicate data to peer worker and should be configured on worker side.")
       .version("0.3.0")
       .intConf
-      .createWithDefault(16)
+      .createWithDefault(4)
 
   val FETCH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.<module>.fetch.timeoutCheck.interval")
@@ -1467,7 +1467,7 @@ object CelebornConf extends Logging {
         s"since it works for shuffle client fetch data and should be configured on client side.")
       .version("0.3.0")
       .intConf
-      .createWithDefault(16)
+      .createWithDefault(4)
 
   val CHANNEL_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.<module>.heartbeat.interval")
