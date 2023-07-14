@@ -382,10 +382,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void flushSendBuffer(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
-    long pushStartTime = System.nanoTime();
+    long start = System.nanoTime();
     logger.debug("Flush buffer, size {}.", Utils.bytesToString(size));
     dataPusher.addTask(partitionId, buffer, size);
-    writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
+    writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
   private void closeColumnarWrite() throws IOException {
