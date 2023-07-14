@@ -296,7 +296,7 @@ taskmanager.memory.task.off-heap.size: 512m
 ### Best Practice
 If you want to set up a production-ready Celeborn cluster, your cluster should have at least 3 masters and at least 4 workers.
 Masters and works can be deployed on the same node but should not deploy multiple masters or workers on the same node.
-See more detail in [CONFIGURATIONS](docs/configuration.md)
+See more detail in [CONFIGURATIONS](docs/configuration)
 
 ### Support Spark Dynamic Allocation
 We provide a patch to enable users to use Spark with both Dynamic Resource Allocation(DRA) and Celeborn.
