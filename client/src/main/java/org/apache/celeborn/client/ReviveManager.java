@@ -32,7 +32,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.util.ThreadUtils;
 
 class ReviveManager {
-  private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
+  private static final Logger logger = LoggerFactory.getLogger(ReviveManager.class);
 
   LinkedBlockingQueue<ReviveRequest> requestQueue = new LinkedBlockingQueue<>();
   private final long interval;
