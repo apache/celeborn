@@ -18,10 +18,10 @@
 package org.apache.celeborn.common.write;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -46,6 +46,8 @@ public class InFlightRequestTracker {
   private final ConcurrentHashMap<String, Set<Integer>> inflightBatchesPerAddress =
       JavaUtils.newConcurrentHashMap();
 
+  private final LongAdder totalInflightBatches = new LongAdder();
+
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.clientPushLimitInFlightTimeoutMs();
     this.delta = conf.clientPushLimitInFlightSleepDeltaMs();
@@ -58,6 +60,7 @@ public class InFlightRequestTracker {
         inflightBatchesPerAddress.computeIfAbsent(
             hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
     batchIdSetPerPair.add(batchId);
+    totalInflightBatches.increment();
   }
 
   public void removeBatch(int batchId, String hostAndPushPort) {
@@ -68,6 +71,7 @@ public class InFlightRequestTracker {
     } else {
       logger.warn("BatchIdSet of {} is null.", hostAndPushPort);
     }
+    totalInflightBatches.decrement();
   }
 
   public void onSuccess(String hostAndPushPort) {
@@ -95,7 +99,8 @@ public class InFlightRequestTracker {
     long times = waitInflightTimeoutMs / delta;
     try {
       while (times > 0) {
-        if (batchIdSet.size() <= currentMaxReqsInFlight) {
+        if (totalInflightBatches.sum() <= currentMaxReqsInFlight
+            && batchIdSet.size() <= currentMaxReqsInFlight) {
           break;
         }
         if (pushState.exception.get() != null) {
@@ -133,13 +138,9 @@ public class InFlightRequestTracker {
     }
     long times = waitInflightTimeoutMs / delta;
 
-    int inFlightSize = 0;
     try {
       while (times > 0) {
-        Optional<Integer> inFlightSizeOptional =
-            inflightBatchesPerAddress.values().stream().map(Set::size).reduce(Integer::sum);
-        inFlightSize = inFlightSizeOptional.orElse(0);
-        if (inFlightSize == 0) {
+        if (totalInflightBatches.sum() == 0) {
           break;
         }
         if (pushState.exception.get() != null) {
@@ -159,7 +160,7 @@ public class InFlightRequestTracker {
               + "for hostAndPushPort {}, "
               + "which exceeds the current limit 0.",
           waitInflightTimeoutMs,
-          inFlightSize,
+          totalInflightBatches.sum(),
           inflightBatchesPerAddress.keySet().stream().collect(Collectors.joining(", ", "[", "]")));
     }
 
