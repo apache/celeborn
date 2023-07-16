@@ -46,13 +46,15 @@ public class InFlightRequestTracker {
   private final ConcurrentHashMap<String, Set<Integer>> inflightBatchesPerAddress =
       JavaUtils.newConcurrentHashMap();
 
-  private final LongAdder totalInflightBatches = new LongAdder();
+  private final int maxInFlightReqsTotal;
+  private final LongAdder totalInflightReqs = new LongAdder();
 
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.clientPushLimitInFlightTimeoutMs();
     this.delta = conf.clientPushLimitInFlightSleepDeltaMs();
     this.pushState = pushState;
     this.pushStrategy = PushStrategy.getStrategy(conf);
+    this.maxInFlightReqsTotal = conf.clientPushMaxReqsInFlightTotal();
   }
 
   public void addBatch(int batchId, String hostAndPushPort) {
@@ -60,7 +62,7 @@ public class InFlightRequestTracker {
         inflightBatchesPerAddress.computeIfAbsent(
             hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
     batchIdSetPerPair.add(batchId);
-    totalInflightBatches.increment();
+    totalInflightReqs.increment();
   }
 
   public void removeBatch(int batchId, String hostAndPushPort) {
@@ -71,7 +73,7 @@ public class InFlightRequestTracker {
     } else {
       logger.warn("BatchIdSet of {} is null.", hostAndPushPort);
     }
-    totalInflightBatches.decrement();
+    totalInflightReqs.decrement();
   }
 
   public void onSuccess(String hostAndPushPort) {
@@ -99,7 +101,7 @@ public class InFlightRequestTracker {
     long times = waitInflightTimeoutMs / delta;
     try {
       while (times > 0) {
-        if (totalInflightBatches.sum() <= currentMaxReqsInFlight
+        if (totalInflightReqs.sum() <= maxInFlightReqsTotal
             && batchIdSet.size() <= currentMaxReqsInFlight) {
           break;
         }
@@ -140,7 +142,7 @@ public class InFlightRequestTracker {
 
     try {
       while (times > 0) {
-        if (totalInflightBatches.sum() == 0) {
+        if (totalInflightReqs.sum() == 0) {
           break;
         }
         if (pushState.exception.get() != null) {
@@ -160,7 +162,7 @@ public class InFlightRequestTracker {
               + "for hostAndPushPort {}, "
               + "which exceeds the current limit 0.",
           waitInflightTimeoutMs,
-          totalInflightBatches.sum(),
+          totalInflightReqs.sum(),
           inflightBatchesPerAddress.keySet().stream().collect(Collectors.joining(", ", "[", "]")));
     }
 

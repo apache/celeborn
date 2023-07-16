@@ -28,7 +28,7 @@ public class SlowStartPushStrategyTest {
 
   @Test
   public void testSleepTime() {
-    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT().key(), "32");
+    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER().key(), "32");
     conf.set(CelebornConf.CLIENT_PUSH_LIMIT_STRATEGY().key(), "slowstart");
     conf.set(CelebornConf.CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME().key(), "3s");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
@@ -84,7 +84,7 @@ public class SlowStartPushStrategyTest {
 
   @Test
   public void testCongestStrategy() {
-    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT().key(), "5");
+    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER().key(), "5");
     conf.set(CelebornConf.CLIENT_PUSH_LIMIT_STRATEGY().key(), "slowstart");
     conf.set(CelebornConf.CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME().key(), "4s");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);
@@ -122,7 +122,7 @@ public class SlowStartPushStrategyTest {
 
   @Test
   public void testMultiHosts() {
-    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT().key(), "3");
+    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER().key(), "3");
     conf.set(CelebornConf.CLIENT_PUSH_LIMIT_STRATEGY().key(), "slowstart");
     conf.set(CelebornConf.CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME().key(), "3s");
     SlowStartPushStrategy strategy = (SlowStartPushStrategy) PushStrategy.getStrategy(conf);

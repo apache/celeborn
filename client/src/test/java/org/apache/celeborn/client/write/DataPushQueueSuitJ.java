@@ -80,7 +80,7 @@ public class DataPushQueueSuitJ {
     Map<Integer, Integer> partitionBatchIdMap = new HashMap<>();
 
     CelebornConf conf = new CelebornConf();
-    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT().key(), "2");
+    conf.set(CelebornConf.CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER().key(), "2");
 
     int shuffleId = 0;
     int mapId = 0;

@@ -28,7 +28,7 @@ public class SimplePushStrategy extends PushStrategy {
 
   public SimplePushStrategy(CelebornConf conf) {
     super(conf);
-    this.maxInFlight = conf.clientPushMaxReqsInFlight();
+    this.maxInFlight = conf.clientPushMaxReqsInFlightPerWorker();
   }
 
   @Override
