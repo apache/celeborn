@@ -244,6 +244,23 @@ object ControlMessages extends Logging {
     }
   }
 
+  object HeartbeatFromClient {
+    def apply(
+        shuffleIds: util.Set[Integer]): PbHeartbeatFromClient = {
+      PbHeartbeatFromClient.newBuilder()
+        .addAllShuffleId(shuffleIds)
+        .build()
+    }
+  }
+
+  object HeartbeatFromClientResponse {
+    def apply(shuflfeIds: util.List[Integer]): PbHeartbeatFromClientResponse = {
+      PbHeartbeatFromClientResponse.newBuilder()
+        .addAllUnkownShuffleId(shuflfeIds)
+        .build()
+    }
+  }
+
   case class MapperEnd(
       shuffleId: Int,
       mapId: Int,
@@ -527,6 +544,12 @@ object ControlMessages extends Logging {
 
     case pb: PbChangeLocationResponse =>
       new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
+
+    case pb: PbHeartbeatFromClient =>
+      new TransportMessage(MessageType.HEARTBEAT_FROM_CLIENT, pb.toByteArray)
+
+    case pb: PbHeartbeatFromClientResponse =>
+      new TransportMessage(MessageType.HEARTBEAT_FROM_CLIENT_RESPONSE, pb.toByteArray)
 
     case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId) =>
       val payload = PbMapperEnd.newBuilder()
@@ -857,6 +880,12 @@ object ControlMessages extends Logging {
 
       case CHANGE_LOCATION_RESPONSE_VALUE =>
         PbChangeLocationResponse.parseFrom(message.getPayload)
+
+      case HEARTBEAT_FROM_CLIENT_VALUE =>
+        PbHeartbeatFromClient.parseFrom(message.getPayload)
+
+      case HEARTBEAT_FROM_CLIENT_RESPONSE_VALUE =>
+        PbHeartbeatFromClientResponse.parseFrom(message.getPayload)
 
       case MAPPER_END_VALUE =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)

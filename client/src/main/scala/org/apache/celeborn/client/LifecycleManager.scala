@@ -300,6 +300,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logDebug(s"Received GetShuffleFileGroup request," +
         s"shuffleId $shuffleId.")
       handleGetReducerFileGroup(context, shuffleId)
+
+    case pb: PbHeartbeatFromClient =>
+      val shuffleIds = new util.ArrayList(pb.getShuffleIdList)
+      shuffleIds.removeIf(id => registeredShuffle.contains(id))
+      context.reply(HeartbeatFromClientResponse(shuffleIds))
   }
 
   private def offerAndReserveSlots(
