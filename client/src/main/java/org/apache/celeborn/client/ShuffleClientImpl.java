@@ -203,7 +203,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                     HeartbeatFromClient$.MODULE$.apply(reducePartitionMap.keySet()),
                     ClassTag$.MODULE$.apply(PbHeartbeatFromClientResponse.class));
             List<Integer> unknownShuffleIds = resp.getUnknownShuffleIdList();
-            for (int i = 0; i < unkownShuffleIds.size(); i++) {
+            for (int i = 0; i < unknownShuffleIds.size(); i++) {
               unregisterShuffle(unknownShuffleIds.get(i), false);
             }
           },
