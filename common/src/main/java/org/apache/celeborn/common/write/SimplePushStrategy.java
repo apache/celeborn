@@ -24,11 +24,11 @@ import org.apache.celeborn.common.CelebornConf;
 /** A Simple strategy that control the push speed by a solid configure, pushMaxReqsInFlight. */
 public class SimplePushStrategy extends PushStrategy {
 
-  private final int maxInFlight;
+  private final int maxInFlightPerWorker;
 
   public SimplePushStrategy(CelebornConf conf) {
     super(conf);
-    this.maxInFlight = conf.clientPushMaxReqsInFlightPerWorker();
+    this.maxInFlightPerWorker = conf.clientPushMaxReqsInFlightPerWorker();
   }
 
   @Override
@@ -53,6 +53,6 @@ public class SimplePushStrategy extends PushStrategy {
 
   @Override
   public int getCurrentMaxReqsInFlight(String hostAndPushPort) {
-    return maxInFlight;
+    return maxInFlightPerWorker;
   }
 }

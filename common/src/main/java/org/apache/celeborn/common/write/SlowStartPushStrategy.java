@@ -101,14 +101,14 @@ public class SlowStartPushStrategy extends PushStrategy {
 
   private static final Logger logger = LoggerFactory.getLogger(SlowStartPushStrategy.class);
 
-  private final int maxInFlight;
+  private final int maxInFlightPerWorker;
   private final long initialSleepMills;
   private final long maxSleepMills;
   private final ConcurrentHashMap<String, CongestControlContext> congestControlInfoPerAddress;
 
   public SlowStartPushStrategy(CelebornConf conf) {
     super(conf);
-    this.maxInFlight = conf.clientPushMaxReqsInFlightPerWorker();
+    this.maxInFlightPerWorker = conf.clientPushMaxReqsInFlightPerWorker();
     this.initialSleepMills = conf.clientPushSlowStartInitialSleepTime();
     this.maxSleepMills = conf.clientPushSlowStartMaxSleepMills();
     this.congestControlInfoPerAddress = JavaUtils.newConcurrentHashMap();
@@ -117,7 +117,7 @@ public class SlowStartPushStrategy extends PushStrategy {
   @VisibleForTesting
   protected CongestControlContext getCongestControlContextByAddress(String hostAndPushPort) {
     return congestControlInfoPerAddress.computeIfAbsent(
-        hostAndPushPort, host -> new CongestControlContext(maxInFlight));
+        hostAndPushPort, host -> new CongestControlContext(maxInFlightPerWorker));
   }
 
   @Override
@@ -136,7 +136,7 @@ public class SlowStartPushStrategy extends PushStrategy {
 
   protected long getSleepTime(CongestControlContext context) {
     int currentMaxReqs = context.getCurrentMaxReqsInFlight();
-    if (currentMaxReqs >= maxInFlight) {
+    if (currentMaxReqs >= maxInFlightPerWorker) {
       return 0;
     }
 
