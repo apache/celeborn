@@ -202,9 +202,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                 lifecycleManagerRef.askSync(
                     HeartbeatFromClient$.MODULE$.apply(reducePartitionMap.keySet()),
                     ClassTag$.MODULE$.apply(PbHeartbeatFromClientResponse.class));
-            List<Integer> unkownShuffleIds = resp.getUnkownShuffleIdList();
+            List<Integer> unknownShuffleIds = resp.getUnknownShuffleIdList();
             for (int i = 0; i < unkownShuffleIds.size(); i++) {
-              unregisterShuffle(unkownShuffleIds.get(i), false);
+              unregisterShuffle(unknownShuffleIds.get(i), false);
             }
           },
           60,

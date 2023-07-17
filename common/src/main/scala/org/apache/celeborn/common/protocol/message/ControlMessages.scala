@@ -256,7 +256,7 @@ object ControlMessages extends Logging {
   object HeartbeatFromClientResponse {
     def apply(shuflfeIds: util.List[Integer]): PbHeartbeatFromClientResponse = {
       PbHeartbeatFromClientResponse.newBuilder()
-        .addAllUnkownShuffleId(shuflfeIds)
+        .addAllUnknownShuffleId(shuflfeIds)
         .build()
     }
   }
