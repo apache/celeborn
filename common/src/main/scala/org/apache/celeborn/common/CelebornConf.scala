@@ -1289,7 +1289,7 @@ object CelebornConf extends Logging {
       .doc("Timeout for RPC ask operations. " +
         "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
+      .createWithDefaultString("60s")
 
   val RPC_DISPATCHER_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.rpc.dispatcher.threads")
@@ -3191,7 +3191,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .checkValue(v => v > 0, "value must be positive")
-      .createWithDefault(3)
+      .createWithDefault(4)
 
   val CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.commitFiles.ignoreExcludedWorker")
