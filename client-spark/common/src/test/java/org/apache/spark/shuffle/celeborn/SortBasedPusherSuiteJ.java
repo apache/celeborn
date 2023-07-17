@@ -93,7 +93,8 @@ public class SortBasedPusherSuiteJ {
             /*mapStatusLengths=*/ null,
             /*pushSortMemoryThreshold=*/ Utils.byteStringAsBytes("1m"),
             /*sharedPushLock=*/ null,
-            /*executorService=*/ null);
+            /*executorService=*/ null,
+            SendBufferPool.get(4));
 
     // default page size == 2 MiB
     assertEquals(unifiedMemoryManager.pageSizeBytes(), Utils.byteStringAsBytes("2m"));

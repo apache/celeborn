@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.annotation.Nullable;
@@ -52,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
+import org.apache.celeborn.client.write.PushTask;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
 
@@ -158,6 +160,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     sendOffsets = new int[numPartitions];
 
     try {
+      LinkedBlockingQueue<PushTask> pushTaskQueue = sendBufferPool.acquirePushTaskQueue();
       dataPusher =
           new DataPusher(
               shuffleId,
@@ -168,6 +171,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               numPartitions,
               conf,
               shuffleClient,
+              pushTaskQueue,
               writeMetrics::incBytesWritten,
               mapStatusLengths);
     } catch (InterruptedException e) {
@@ -447,6 +451,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     // here we wait for all the in-flight batches to return which sent by dataPusher thread
     long pushMergedDataTime = System.nanoTime();
     dataPusher.waitOnTermination();
+    sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
     shuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
     if (isColumnarShuffle) {
       closeColumnarWrite();

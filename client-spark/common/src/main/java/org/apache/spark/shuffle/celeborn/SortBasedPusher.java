@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
+import org.apache.celeborn.client.write.PushTask;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -71,6 +73,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private int[] shuffledPartitions = null;
   private int[] inversedShuffledPartitions = null;
   private final ExecutorService executorService;
+  private final SendBufferPool sendBufferPool;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
@@ -86,7 +89,8 @@ public class SortBasedPusher extends MemoryConsumer {
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
       Object sharedPushLock,
-      ExecutorService executorService) {
+      ExecutorService executorService,
+      SendBufferPool sendBufferPool) {
     super(
         memoryManager,
         (int) Math.min(PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES, memoryManager.pageSizeBytes()),
@@ -109,7 +113,10 @@ public class SortBasedPusher extends MemoryConsumer {
     this.afterPush = afterPush;
     this.mapStatusLengths = mapStatusLengths;
 
+    this.sendBufferPool = sendBufferPool;
+
     try {
+      LinkedBlockingQueue<PushTask> pushTaskQueue = sendBufferPool.acquirePushTaskQueue();
       dataPusher =
           new DataPusher(
               shuffleId,
@@ -120,6 +127,7 @@ public class SortBasedPusher extends MemoryConsumer {
               numPartitions,
               conf,
               shuffleClient,
+              pushTaskQueue,
               afterPush,
               mapStatusLengths);
     } catch (InterruptedException e) {
@@ -437,6 +445,7 @@ public class SortBasedPusher extends MemoryConsumer {
     cleanupResources();
     try {
       dataPusher.waitOnTermination();
+      sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
     }

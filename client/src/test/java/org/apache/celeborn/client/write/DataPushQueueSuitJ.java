@@ -105,6 +105,7 @@ public class DataPushQueueSuitJ {
             numPartitions,
             conf,
             client,
+            null,
             integer -> {},
             mapStatusLengths);
 
