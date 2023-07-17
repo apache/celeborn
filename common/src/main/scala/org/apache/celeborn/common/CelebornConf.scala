@@ -2718,10 +2718,11 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.push.maxReqsInFlight.perWorker")
       .categories("client")
       .version("0.3.0")
-      .doc("Amount of Netty in-flight requests per worker. Default max memory of in flight requests " +
-        " per worker is `celeborn.client.push.maxReqsInFlight.perWorker` * `celeborn.client.push.buffer.max.size` " +
-        "* compression ratio(1 in worst case): 64KiB * 32 = 2MiB. The maximum memory will " +
-        "not exceed `celeborn.client.push.maxReqsInFlight.total`.")
+      .doc(
+        "Amount of Netty in-flight requests per worker. Default max memory of in flight requests " +
+          " per worker is `celeborn.client.push.maxReqsInFlight.perWorker` * `celeborn.client.push.buffer.max.size` " +
+          "* compression ratio(1 in worst case): 64KiB * 32 = 2MiB. The maximum memory will " +
+          "not exceed `celeborn.client.push.maxReqsInFlight.total`.")
       .intConf
       .createWithDefault(32)
 
