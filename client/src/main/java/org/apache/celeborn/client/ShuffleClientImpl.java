@@ -1651,6 +1651,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != lifecycleManagerRef) {
       lifecycleManagerRef = null;
     }
+    if (null != heartbeater) {
+      heartbeater.shutdown();
+    }
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
     logger.warn("Shuffle client has been shutdown!");
