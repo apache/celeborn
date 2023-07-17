@@ -116,7 +116,8 @@ public class SparkShuffleManager implements ShuffleManager {
                   lifecycleManager.getHost(),
                   lifecycleManager.getPort(),
                   celebornConf,
-                  lifecycleManager.getUserIdentifier());
+                  lifecycleManager.getUserIdentifier(),
+                  true);
         }
       }
     }
@@ -197,7 +198,8 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerHost(),
                 h.lifecycleManagerPort(),
                 celebornConf,
-                h.userIdentifier());
+                h.userIdentifier(),
+                false);
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
