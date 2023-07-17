@@ -56,7 +56,8 @@ public abstract class ShuffleClient {
       String driverHost,
       int port,
       CelebornConf conf,
-      UserIdentifier userIdentifier) {
+      UserIdentifier userIdentifier,
+      boolean isDriver) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -66,12 +67,12 @@ public abstract class ShuffleClient {
           // be
           // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
           // when communicating with LifecycleManager, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
+          _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier, isDriver);
           _instance.setupLifecycleManagerRef(driverHost, port);
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
-          _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
+          _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier, isDriver);
           _instance.setupLifecycleManagerRef(driverHost, port);
           initialized = true;
         }

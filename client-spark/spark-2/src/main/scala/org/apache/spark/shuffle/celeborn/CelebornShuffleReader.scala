@@ -44,7 +44,8 @@ class CelebornShuffleReader[K, C](
     handle.lifecycleManagerHost,
     handle.lifecycleManagerPort,
     conf,
-    handle.userIdentifier)
+    handle.userIdentifier,
+    false)
 
   override def read(): Iterator[Product2[K, C]] = {
 

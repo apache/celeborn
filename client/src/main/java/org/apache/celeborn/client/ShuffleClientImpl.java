@@ -20,10 +20,7 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import scala.reflect.ClassTag$;
 
@@ -113,6 +110,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected final String appUniqueId;
 
+  private ScheduledExecutorService heartbeater;
+
   private ThreadLocal<Compressor> compressorThreadLocal =
       new ThreadLocal<Compressor>() {
         @Override
@@ -154,7 +153,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<Integer, ReduceFileGroups> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
 
-  public ShuffleClientImpl(String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
+  public ShuffleClientImpl(
+      String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier, boolean isDriver) {
     super();
     this.appUniqueId = appUniqueId;
     this.conf = conf;
@@ -193,6 +193,25 @@ public class ShuffleClientImpl extends ShuffleClient {
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
     reviveManager = new ReviveManager(this, conf);
 
+    if (!isDriver) {
+      heartbeater =
+          ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+              "celeborn-lifecyclemanager-heartbeater");
+      heartbeater.scheduleAtFixedRate(
+          () -> {
+            PbHeartbeatFromClientResponse resp =
+                lifecycleManagerRef.askSync(
+                    HeartbeatFromClient$.MODULE$.apply(reducePartitionMap.keySet()),
+                    ClassTag$.MODULE$.apply(PbHeartbeatFromClientResponse.class));
+            List<Integer> unknownShuffleIds = resp.getUnknownShuffleIdList();
+            for (int i = 0; i < unknownShuffleIds.size(); i++) {
+              unregisterShuffle(unknownShuffleIds.get(i), false);
+            }
+          },
+          conf.clientHeartbeatToLifecycleManagerInterval(),
+          conf.clientHeartbeatToLifecycleManagerInterval(),
+          TimeUnit.MILLISECONDS);
+    }
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
@@ -1632,6 +1651,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     if (null != lifecycleManagerRef) {
       lifecycleManagerRef = null;
+    }
+    if (null != heartbeater) {
+      heartbeater.shutdown();
     }
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
