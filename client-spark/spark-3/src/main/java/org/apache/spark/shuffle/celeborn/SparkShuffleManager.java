@@ -41,8 +41,11 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private static final Logger logger = LoggerFactory.getLogger(SparkShuffleManager.class);
 
-  private static final String sortShuffleManagerName =
+  private static final String SORT_SHUFFLE_MANAGER_NAME =
       "org.apache.spark.shuffle.sort.SortShuffleManager";
+
+  private static final String LOCAL_SHUFFLE_READER_KEY =
+      "spark.sql.adaptive.localShuffleReader.enabled";
 
   private final SparkConf conf;
   private final CelebornConf celebornConf;
@@ -61,6 +64,12 @@ public class SparkShuffleManager implements ShuffleManager {
   private AtomicInteger pusherIdx = new AtomicInteger(0);
 
   public SparkShuffleManager(SparkConf conf) {
+    if (conf.getBoolean(LOCAL_SHUFFLE_READER_KEY, true)) {
+      logger.warn(
+          "Detected {} (default is true) is enabled, it's highly recommended to disable it when "
+              + "use Celeborn as Remote Shuffle Service to avoid performance degradation.",
+          LOCAL_SHUFFLE_READER_KEY);
+    }
     this.conf = conf;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     this.cores = executorCores(conf);
@@ -85,7 +94,7 @@ public class SparkShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (_sortShuffleManager == null) {
           _sortShuffleManager =
-              SparkUtils.instantiateClass(sortShuffleManagerName, conf, isDriver());
+              SparkUtils.instantiateClass(SORT_SHUFFLE_MANAGER_NAME, conf, isDriver());
         }
       }
     }
