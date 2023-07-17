@@ -19,6 +19,9 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import org.apache.celeborn.client.write.PushTask;
 
 public class SendBufferPool {
   private static volatile SendBufferPool _instance;
@@ -38,11 +41,13 @@ public class SendBufferPool {
 
   // numPartitions -> buffers
   private final LinkedList<byte[][]> buffers;
+  private final LinkedList<LinkedBlockingQueue<PushTask>> pushTaskQueues;
 
   private SendBufferPool(int capacity) {
     assert capacity > 0;
     this.capacity = capacity;
     buffers = new LinkedList<>();
+    pushTaskQueues = new LinkedList<>();
   }
 
   public synchronized byte[][] acquireBuffer(int numPartitions) {
@@ -60,10 +65,24 @@ public class SendBufferPool {
     return new byte[numPartitions][];
   }
 
+  public synchronized LinkedBlockingQueue<PushTask> acquirePushTaskQueue() {
+    if (!pushTaskQueues.isEmpty()) {
+      return pushTaskQueues.removeFirst();
+    }
+    return null;
+  }
+
   public synchronized void returnBuffer(byte[][] buffer) {
     if (buffers.size() == capacity) {
       buffers.removeFirst();
     }
     buffers.addLast(buffer);
+  }
+
+  public synchronized void returnPushTaskQueue(LinkedBlockingQueue<PushTask> pushTaskQueue) {
+    if (pushTaskQueues.size() == capacity) {
+      pushTaskQueues.removeFirst();
+    }
+    pushTaskQueues.addLast(pushTaskQueue);
   }
 }

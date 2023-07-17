@@ -99,7 +99,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       TaskContext taskContext,
       CelebornConf conf,
       ShuffleClient client,
-      ExecutorService executorService)
+      ExecutorService executorService,
+      SendBufferPool sendBufferPool)
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
@@ -143,7 +144,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 mapStatusLengths,
                 conf.clientPushSortMemoryThreshold() / 2,
                 globalPushLock,
-                executorService);
+                executorService,
+                sendBufferPool);
       }
       currentPusher = pushers[0];
     } else {
@@ -162,7 +164,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               mapStatusLengths,
               conf.clientPushSortMemoryThreshold(),
               globalPushLock,
-              null);
+              null,
+              sendBufferPool);
     }
   }
 
