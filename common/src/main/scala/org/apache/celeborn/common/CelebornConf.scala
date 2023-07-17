@@ -2147,7 +2147,8 @@ object CelebornConf extends Logging {
       .doc("Timeout for a Celeborn worker to commit files of a shuffle. " +
         "It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .version("0.3.0")
-      .fallbackConf(RPC_ASK_TIMEOUT)
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.timeout")
@@ -3190,7 +3191,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .checkValue(v => v > 0, "value must be positive")
-      .createWithDefault(2)
+      .createWithDefault(3)
 
   val CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.commitFiles.ignoreExcludedWorker")
