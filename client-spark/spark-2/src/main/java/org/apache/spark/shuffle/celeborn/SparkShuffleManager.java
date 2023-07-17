@@ -191,7 +191,13 @@ public class SparkShuffleManager implements ShuffleManager {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
           return new SortBasedShuffleWriter<>(
-              h.dependency(), h.numMaps(), context, celebornConf, client, pushThread);
+              h.dependency(),
+              h.numMaps(),
+              context,
+              celebornConf,
+              client,
+              pushThread,
+              SendBufferPool.get(cores));
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
               h, mapId, context, celebornConf, client, SendBufferPool.get(cores));
