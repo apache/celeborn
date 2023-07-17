@@ -179,7 +179,6 @@ public class DataPusher {
       Thread.currentThread().interrupt();
       throw e;
     }
-    idleQueue.clear();
     dataPushQueue.clear();
     checkException();
   }
