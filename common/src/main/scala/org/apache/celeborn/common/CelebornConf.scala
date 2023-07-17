@@ -697,10 +697,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
-  def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
-  def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeReplicaOnFailureEnabled: Boolean =
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
+  def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
+  def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
+  def clientHeartbeatToLifecycleManagerInterval: Long =
+    get(CLIENT_HEARTBEAT_TO_LIFECYCLEMANAGER_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -995,6 +997,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
+
+  // //////////////////////////////////////////////////////
+  //                      Flink                          //
+  // //////////////////////////////////////////////////////
   def clientFlinkMemoryPerResultPartitionMin: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION_MIN)
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
   def clientFlinkMemoryPerInputGateMin: Long = get(CLIENT_MEMORY_PER_INPUT_GATE_MIN)
@@ -2648,6 +2654,15 @@ object CelebornConf extends Logging {
         "otherwise use local black list as candidate being checked workers.")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_HEARTBEAT_TO_LIFECYCLEMANAGER_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.heartbeatToLifecycleManager.interval")
+      .categories("client")
+      .version("0.3.0")
+      .doc(
+        "Interval for client in Executor(for Spark) to send heartbeat message to lifecycle manager.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val TEST_CLIENT_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.client.retryCommitFiles")

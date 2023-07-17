@@ -195,7 +195,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (!isDriver) {
       heartbeater =
-          ThreadUtils.newDaemonSingleThreadScheduledExecutor("lifecycleManager-heartbeater");
+          ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+              "celeborn-lifecyclemanager-heartbeater");
       heartbeater.scheduleAtFixedRate(
           () -> {
             PbHeartbeatFromClientResponse resp =
@@ -207,9 +208,9 @@ public class ShuffleClientImpl extends ShuffleClient {
               unregisterShuffle(unknownShuffleIds.get(i), false);
             }
           },
-          60,
-          60,
-          TimeUnit.SECONDS);
+          conf.clientHeartbeatToLifecycleManagerInterval(),
+          conf.clientHeartbeatToLifecycleManagerInterval(),
+          TimeUnit.MILLISECONDS);
     }
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
