@@ -754,7 +754,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushQueueCapacity: Int = get(CLIENT_PUSH_QUEUE_CAPACITY)
   def clientPushExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
-  def clientPushMaxReqsInFlight: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT)
+  def clientPushMaxReqsInFlightPerWorker: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER)
+  def clientPushMaxReqsInFlightTotal: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT_TOTAL)
   def clientPushMaxReviveTimes: Int = get(CLIENT_PUSH_MAX_REVIVE_TIMES)
   def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
   def clientPushReviveBatchSize: Int = get(CLIENT_PUSH_REVIVE_BATCHSIZE)
@@ -2697,22 +2698,33 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.3.0")
       .doc("Push buffer queue size for a task. The maximum memory is " +
-        "`celeborn.push.buffer.max.size` * `celeborn.push.queue.capacity`, " +
+        "`celeborn.client.push.buffer.max.size` * `celeborn.client.push.queue.capacity`, " +
         "default: 64KiB * 512 = 32MiB")
       .intConf
       .createWithDefault(512)
 
-  val CLIENT_PUSH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
-    buildConf("celeborn.client.push.maxReqsInFlight")
+  val CLIENT_PUSH_MAX_REQS_IN_FLIGHT_TOTAL: ConfigEntry[Int] =
+    buildConf("celeborn.client.push.maxReqsInFlight.total")
       .withAlternative("celeborn.push.maxReqsInFlight")
       .categories("client")
       .version("0.3.0")
-      .doc("Amount of Netty in-flight requests per worker. The maximum memory is " +
-        "`celeborn.client.push.maxReqsInFlight` * `celeborn.push.buffer.max.size` * " +
-        "number of workers * compression ratio(1 in worst case), say we have 50 workers," +
-        "the maximum memory is: 64KiB * 16 * 50 = 50MiB")
+      .doc("Amount of total Netty in-flight requests. The maximum memory is " +
+        "`celeborn.client.push.maxReqsInFlight.total` * `celeborn.client.push.buffer.max.size` " +
+        "* compression ratio(1 in worst case): 64KiB * 256 = 32MiB")
       .intConf
-      .createWithDefault(16)
+      .createWithDefault(256)
+
+  val CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER: ConfigEntry[Int] =
+    buildConf("celeborn.client.push.maxReqsInFlight.perWorker")
+      .categories("client")
+      .version("0.3.0")
+      .doc(
+        "Amount of Netty in-flight requests per worker. Default max memory of in flight requests " +
+          " per worker is `celeborn.client.push.maxReqsInFlight.perWorker` * `celeborn.client.push.buffer.max.size` " +
+          "* compression ratio(1 in worst case): 64KiB * 32 = 2MiB. The maximum memory will " +
+          "not exceed `celeborn.client.push.maxReqsInFlight.total`.")
+      .intConf
+      .createWithDefault(32)
 
   val CLIENT_PUSH_MAX_REVIVE_TIMES: ConfigEntry[Int] =
     buildConf("celeborn.client.push.revive.maxRetries")
