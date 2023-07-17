@@ -2710,7 +2710,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Amount of total Netty in-flight requests. The maximum memory is " +
         "`celeborn.client.push.maxReqsInFlight.total` * `celeborn.client.push.buffer.max.size` " +
-        "* compression ratio(1 in worst case): 64KiB * 256 = 32MiB")
+        "* compression ratio(1 in worst case): 64KiB * 256 = 16MiB")
       .intConf
       .createWithDefault(256)
 
