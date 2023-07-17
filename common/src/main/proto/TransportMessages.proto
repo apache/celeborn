@@ -180,7 +180,7 @@ message PbHeartbeatFromClient {
 }
 
 message PbHeartbeatFromClientResponse {
-  repeated int32 unkownShuffleId = 1;
+  repeated int32 unknownShuffleId = 1;
 }
 
 message PbRequestSlots {
