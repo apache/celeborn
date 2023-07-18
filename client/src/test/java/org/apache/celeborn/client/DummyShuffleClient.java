@@ -122,7 +122,7 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public boolean unregisterShuffle(int shuffleId, boolean isDriver) {
+  public boolean unregisterShuffle(int shuffleId) {
     return false;
   }
 

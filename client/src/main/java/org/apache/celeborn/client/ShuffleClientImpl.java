@@ -154,7 +154,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       JavaUtils.newConcurrentHashMap();
 
   public ShuffleClientImpl(
-      String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier, boolean isDriver) {
+      String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
     super();
     this.appUniqueId = appUniqueId;
     this.conf = conf;
@@ -193,25 +193,23 @@ public class ShuffleClientImpl extends ShuffleClient {
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
     reviveManager = new ReviveManager(this, conf);
 
-    if (!isDriver) {
-      heartbeater =
-          ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-              "celeborn-lifecyclemanager-heartbeater");
-      heartbeater.scheduleAtFixedRate(
-          () -> {
-            PbHeartbeatFromClientResponse resp =
-                lifecycleManagerRef.askSync(
-                    HeartbeatFromClient$.MODULE$.apply(reducePartitionMap.keySet()),
-                    ClassTag$.MODULE$.apply(PbHeartbeatFromClientResponse.class));
-            List<Integer> unknownShuffleIds = resp.getUnknownShuffleIdList();
-            for (int i = 0; i < unknownShuffleIds.size(); i++) {
-              unregisterShuffle(unknownShuffleIds.get(i), false);
-            }
-          },
-          conf.clientHeartbeatToLifecycleManagerInterval(),
-          conf.clientHeartbeatToLifecycleManagerInterval(),
-          TimeUnit.MILLISECONDS);
-    }
+    heartbeater =
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+            "celeborn-lifecyclemanager-heartbeater");
+    heartbeater.scheduleAtFixedRate(
+        () -> {
+          PbHeartbeatFromClientResponse resp =
+              lifecycleManagerRef.askSync(
+                  HeartbeatFromClient$.MODULE$.apply(reducePartitionMap.keySet()),
+                  ClassTag$.MODULE$.apply(PbHeartbeatFromClientResponse.class));
+          List<Integer> unknownShuffleIds = resp.getUnknownShuffleIdList();
+          for (int i = 0; i < unknownShuffleIds.size(); i++) {
+            unregisterShuffle(unknownShuffleIds.get(i));
+          }
+        },
+        conf.clientHeartbeatToLifecycleManagerInterval(),
+        conf.clientHeartbeatToLifecycleManagerInterval(),
+        TimeUnit.MILLISECONDS);
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
@@ -1516,18 +1514,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public boolean unregisterShuffle(int shuffleId, boolean isDriver) {
-    if (isDriver) {
-      try {
-        lifecycleManagerRef.send(
-            UnregisterShuffle$.MODULE$.apply(appUniqueId, shuffleId, MasterClient.genRequestId()));
-      } catch (Exception e) {
-        // If some exceptions need to be ignored, they shouldn't be logged as error-level,
-        // otherwise it will mislead users.
-        logger.error("Send UnregisterShuffle failed, ignore.", e);
-      }
-    }
-
+  public boolean unregisterShuffle(int shuffleId) {
     // clear status
     reducePartitionMap.remove(shuffleId);
     reduceFileGroupsMap.remove(shuffleId);

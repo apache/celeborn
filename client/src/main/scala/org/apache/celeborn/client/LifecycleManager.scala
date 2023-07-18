@@ -198,11 +198,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     case StageEnd(shuffleId) =>
       logInfo(s"Received StageEnd request, shuffleId $shuffleId.")
       handleStageEnd(shuffleId)
-    case pb: PbUnregisterShuffle =>
-      val shuffleId = pb.getShuffleId
-      logDebug(s"Received UnregisterShuffle request," +
-        s"shuffleId $shuffleId.")
-      handleUnregisterShuffle(shuffleId)
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -631,7 +626,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     reply(mapperAttemptFinishedSuccess)
   }
 
-  def handleUnregisterShuffle(
+  def unregisterShuffle(
       shuffleId: Int): Unit = {
     if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
       // if StageEnd has not been handled, trigger StageEnd

@@ -54,7 +54,6 @@ public class SparkShuffleManager implements ShuffleManager {
   private String appUniqueId;
 
   private LifecycleManager lifecycleManager;
-  private ShuffleClient shuffleClient;
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
       ConcurrentHashMap.newKeySet();
@@ -110,14 +109,6 @@ public class SparkShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
-          shuffleClient =
-              ShuffleClient.get(
-                  appUniqueId,
-                  lifecycleManager.getHost(),
-                  lifecycleManager.getPort(),
-                  celebornConf,
-                  lifecycleManager.getUserIdentifier(),
-                  true);
         }
       }
     }
@@ -157,10 +148,12 @@ public class SparkShuffleManager implements ShuffleManager {
     if (appUniqueId == null) {
       return true;
     }
-    if (shuffleClient == null) {
+    if (!isDriver()) {
       return false;
+    } else {
+      lifecycleManager.unregisterShuffle(shuffleId);
+      return true;
     }
-    return shuffleClient.unregisterShuffle(shuffleId, isDriver());
   }
 
   @Override
@@ -170,10 +163,8 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public void stop() {
-    if (shuffleClient != null) {
-      shuffleClient.shutdown();
+    if (isDriver()) {
       ShuffleClient.reset();
-      shuffleClient = null;
     }
     if (lifecycleManager != null) {
       lifecycleManager.stop();
@@ -198,8 +189,7 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerHost(),
                 h.lifecycleManagerPort(),
                 celebornConf,
-                h.userIdentifier(),
-                false);
+                h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
