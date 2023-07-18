@@ -438,7 +438,6 @@ private[celeborn] class Worker(
       masterClient.close()
       replicateServer.shutdown(graceful)
       fetchServer.shutdown(graceful)
-      // TODO: `pushServer` never be closed before this PR.
       pushServer.shutdown(graceful)
 
       super.shutdown(graceful)
