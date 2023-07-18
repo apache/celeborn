@@ -177,7 +177,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
-        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn" + module + ".io.threads", 8));
+        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
     TransportContext context =
         new TransportContext(
             dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
