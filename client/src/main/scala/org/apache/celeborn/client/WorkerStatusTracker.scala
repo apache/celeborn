@@ -152,7 +152,7 @@ class WorkerStatusTracker(
 
   def handleHeartbeatResponse(res: HeartbeatFromApplicationResponse): Unit = {
     if (res.statusCode == StatusCode.SUCCESS) {
-      logInfo(s"Received Worker status from Primary, excluded workers: ${res.excludedWorkers} " +
+      logDebug(s"Received Worker status from Primary, excluded workers: ${res.excludedWorkers} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
       val current = System.currentTimeMillis()
 
