@@ -155,6 +155,7 @@ class WorkerStatusTracker(
       logDebug(s"Received Worker status from Primary, excluded workers: ${res.excludedWorkers} " +
         s"unknown workers: ${res.unknownWorkers}, shutdown workers: ${res.shuttingWorkers}")
       val current = System.currentTimeMillis()
+      var statusChanged = false
 
       excludedWorkers.asScala.foreach {
         case (workerInfo: WorkerInfo, (statusCode, registerTime)) =>
@@ -174,20 +175,28 @@ class WorkerStatusTracker(
                 !res.shuttingWorkers.contains(workerInfo) &&
                 !res.unknownWorkers.contains(workerInfo)) {
                 excludedWorkers.remove(workerInfo)
+                statusChanged = true
               }
           }
       }
-
-      if (!res.excludedWorkers.isEmpty) {
-        excludedWorkers.putAll(res.excludedWorkers.asScala.filterNot(excludedWorkers.containsKey)
-          .map(_ -> (StatusCode.WORKER_EXCLUDED -> current)).toMap.asJava)
+      for (worker <- res.excludedWorkers.asScala) {
+        if (!excludedWorkers.containsKey(worker)) {
+          excludedWorkers.put(worker, (StatusCode.WORKER_EXCLUDED, current))
+          statusChanged = true
+        }
       }
-
-      shuttingWorkers.retainAll(res.shuttingWorkers)
-      shuttingWorkers.addAll(res.shuttingWorkers)
+      for (worker <- res.unknownWorkers.asScala) {
+        if (!excludedWorkers.containsKey(worker)) {
+          excludedWorkers.put(worker, (StatusCode.WORKER_UNKNOWN, current))
+          statusChanged = true
+        }
+      }
+      val retainResult = shuttingWorkers.retainAll(res.shuttingWorkers)
+      val addResult = shuttingWorkers.addAll(res.shuttingWorkers)
+      statusChanged = statusChanged || retainResult || addResult
+      // Always trigger commit files for shutting down workers from HeartbeatFromApplicationResponse
+      // See details in CELEBORN-696
       if (!res.unknownWorkers.isEmpty || !res.shuttingWorkers.isEmpty) {
-        excludedWorkers.putAll(res.unknownWorkers.asScala.filterNot(excludedWorkers.containsKey)
-          .map(_ -> (StatusCode.WORKER_UNKNOWN -> current)).toMap.asJava)
         val workerStatus = new WorkersStatus(res.unknownWorkers, res.shuttingWorkers)
         workerStatusListeners.asScala.foreach { listener =>
           try {
@@ -198,10 +207,11 @@ class WorkerStatusTracker(
           }
         }
       }
-
-      logInfo(
-        s"Current excluded workers $excludedWorkers, Current shuttingDown ${shuttingWorkers.asScala.map(
-          _.readableAddress()).mkString("\n")}")
+      if (statusChanged) {
+        logInfo(
+          s"Current excluded workers $excludedWorkers, " +
+            s"Current shutting down workers ${shuttingWorkers.asScala.map(_.readableAddress()).mkString("\n")}")
+      }
     }
   }
 }
