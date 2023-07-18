@@ -25,13 +25,14 @@ import scala.collection.JavaConverters._
 
 import org.junit.Assert
 import org.mockito.MockitoSugar._
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
-import org.scalatest.BeforeAndAfterEach
 
 class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
   private var worker: Worker = _
