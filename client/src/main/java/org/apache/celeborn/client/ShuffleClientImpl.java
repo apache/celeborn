@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
@@ -153,8 +152,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<Integer, ReduceFileGroups> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
 
-  public ShuffleClientImpl(
-      String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
+  public ShuffleClientImpl(String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
     super();
     this.appUniqueId = appUniqueId;
     this.conf = conf;
@@ -194,8 +192,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     reviveManager = new ReviveManager(this, conf);
 
     heartbeater =
-        ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-            "celeborn-lifecyclemanager-heartbeater");
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-lifecyclemanager-heartbeater");
     heartbeater.scheduleAtFixedRate(
         () -> {
           PbHeartbeatFromClientResponse resp =
