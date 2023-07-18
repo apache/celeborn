@@ -130,16 +130,28 @@ public class TransportServer implements Closeable {
 
   @Override
   public void close() {
+    shutdown(true);
+  }
+
+  public void shutdown(boolean graceful) {
     if (channelFuture != null) {
       // close is a local operation and should finish within milliseconds; timeout just to be safe
       channelFuture.channel().close().awaitUninterruptibly(10, TimeUnit.SECONDS);
       channelFuture = null;
     }
     if (bootstrap != null && bootstrap.config().group() != null) {
-      bootstrap.config().group().shutdownGracefully();
+      if (graceful) {
+        bootstrap.config().group().shutdownGracefully();
+      } else {
+        bootstrap.config().group().shutdownGracefully(0, 0, TimeUnit.SECONDS);
+      }
     }
     if (bootstrap != null && bootstrap.config().childGroup() != null) {
-      bootstrap.config().childGroup().shutdownGracefully();
+      if (graceful) {
+        bootstrap.config().childGroup().shutdownGracefully();
+      } else {
+        bootstrap.config().childGroup().shutdownGracefully(0, 0, TimeUnit.SECONDS);
+      }
     }
     bootstrap = null;
   }
