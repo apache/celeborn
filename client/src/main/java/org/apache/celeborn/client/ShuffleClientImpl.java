@@ -191,6 +191,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         ThreadUtils.newDaemonCachedThreadPool(
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
     reviveManager = new ReviveManager(this, conf);
+
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
