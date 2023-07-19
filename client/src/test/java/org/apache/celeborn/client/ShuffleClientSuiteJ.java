@@ -172,7 +172,7 @@ public class ShuffleClientSuiteJ {
     conf.set(CelebornConf.CLIENT_PUSH_RETRY_THREADS().key(), "1");
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1K");
     shuffleClient =
-        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"), false);
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
 
     primaryLocation.setPeer(replicaLocation);
     when(endpointRef.askSync(any(), any(), any()))
