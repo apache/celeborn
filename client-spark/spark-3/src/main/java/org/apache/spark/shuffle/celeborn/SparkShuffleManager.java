@@ -64,6 +64,9 @@ public class SparkShuffleManager implements ShuffleManager {
   private final ExecutorService[] asyncPushers;
   private AtomicInteger pusherIdx = new AtomicInteger(0);
 
+  private long sendBufferPoolCheckInterval;
+  private long sendBufferPoolExpireTimeout;
+
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(LOCAL_SHUFFLE_READER_KEY, true)) {
       logger.warn(
@@ -85,6 +88,8 @@ public class SparkShuffleManager implements ShuffleManager {
     } else {
       asyncPushers = null;
     }
+    this.sendBufferPoolCheckInterval = celebornConf.clientPushSendBufferPoolExpireCheckInterval();
+    this.sendBufferPoolExpireTimeout = celebornConf.clientPushSendBufferPoolExpireTimeout();
   }
 
   private SortShuffleManager sortShuffleManager() {
@@ -198,10 +203,15 @@ public class SparkShuffleManager implements ShuffleManager {
               shuffleClient,
               metrics,
               pushThread,
-              SendBufferPool.get(cores));
+              SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
-              h, context, celebornConf, shuffleClient, metrics, SendBufferPool.get(cores));
+              h,
+              context,
+              celebornConf,
+              shuffleClient,
+              metrics,
+              SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
         } else {
           throw new UnsupportedOperationException(
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
