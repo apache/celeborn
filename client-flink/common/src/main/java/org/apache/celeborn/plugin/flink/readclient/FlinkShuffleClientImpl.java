@@ -125,7 +125,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       long driverTimestamp,
       CelebornConf conf,
       UserIdentifier userIdentifier) {
-    super(appUniqueId, conf, userIdentifier, false);
+    super(appUniqueId, conf, userIdentifier);
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
         Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));

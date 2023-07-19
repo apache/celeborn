@@ -69,8 +69,6 @@ enum MessageType {
   REGISTER_MAP_PARTITION_TASK = 48;
   HEARTBEAT_FROM_APPLICATION_RESPONSE = 49;
   CHECK_FOR_HDFS_EXPIRED_DIRS_TIMEOUT = 50;
-  HEARTBEAT_FROM_CLIENT = 51;
-  HEARTBEAT_FROM_CLIENT_RESPONSE = 52;
 }
 
 message PbStorageInfo {
@@ -173,14 +171,6 @@ message PbRegisterMapPartitionTask {
 message PbRegisterShuffleResponse {
   int32 status = 1;
   repeated PbPartitionLocation partitionLocations = 2;
-}
-
-message PbHeartbeatFromClient {
-  repeated int32 shuffleId = 1;
-}
-
-message PbHeartbeatFromClientResponse {
-  repeated int32 unknownShuffleId = 1;
 }
 
 message PbRequestSlots {
