@@ -54,7 +54,7 @@ case class ShuffleCommittedInfo(
     committedPrimaryStorageInfos: ConcurrentHashMap[String, StorageInfo],
     // unique partition id -> storage info
     committedReplicaStorageInfos: ConcurrentHashMap[String, StorageInfo],
-    // unique partition id -> mapid bitmat
+    // unique partition id -> mapId bitmap
     committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
     // number of partition files
     currentShuffleFileCount: LongAdder,
