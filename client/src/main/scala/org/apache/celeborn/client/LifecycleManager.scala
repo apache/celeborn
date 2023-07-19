@@ -611,8 +611,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     reply(mapperAttemptFinishedSuccess)
   }
 
-  def unregisterShuffle(
-      shuffleId: Int): Unit = {
+  def unregisterShuffle(shuffleId: Int): Unit = {
     if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
       // if StageEnd has not been handled, trigger StageEnd
       if (!commitManager.isStageEnd(shuffleId)) {
