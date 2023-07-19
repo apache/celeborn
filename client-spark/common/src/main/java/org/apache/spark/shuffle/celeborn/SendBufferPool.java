@@ -20,17 +20,20 @@ package org.apache.spark.shuffle.celeborn;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.celeborn.client.write.PushTask;
+import org.apache.celeborn.common.util.ThreadUtils;
 
 public class SendBufferPool {
   private static volatile SendBufferPool _instance;
 
-  public static SendBufferPool get(int capacity) {
+  public static SendBufferPool get(int capacity, long checkInterval, long timeout) {
     if (_instance == null) {
       synchronized (SendBufferPool.class) {
         if (_instance == null) {
-          _instance = new SendBufferPool(capacity);
+          _instance = new SendBufferPool(capacity, checkInterval, timeout);
         }
       }
     }
@@ -41,16 +44,35 @@ public class SendBufferPool {
 
   // numPartitions -> buffers
   private final LinkedList<byte[][]> buffers;
+  private long lastAquireTime;
   private final LinkedList<LinkedBlockingQueue<PushTask>> pushTaskQueues;
 
-  private SendBufferPool(int capacity) {
+  private ScheduledExecutorService cleaner =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-sendbufferpool-cleaner");
+
+  private SendBufferPool(int capacity, long checkInterval, long timeout) {
     assert capacity > 0;
     this.capacity = capacity;
     buffers = new LinkedList<>();
     pushTaskQueues = new LinkedList<>();
+
+    lastAquireTime = System.currentTimeMillis();
+    cleaner.scheduleAtFixedRate(
+        () -> {
+          if (System.currentTimeMillis() - lastAquireTime > timeout) {
+            synchronized (this) {
+              buffers.clear();
+              pushTaskQueues.clear();
+            }
+          }
+        },
+        checkInterval,
+        checkInterval,
+        TimeUnit.MILLISECONDS);
   }
 
   public synchronized byte[][] acquireBuffer(int numPartitions) {
+    lastAquireTime = System.currentTimeMillis();
     Iterator<byte[][]> iterator = buffers.iterator();
     while (iterator.hasNext()) {
       byte[][] candidate = iterator.next();
@@ -66,6 +88,7 @@ public class SendBufferPool {
   }
 
   public synchronized LinkedBlockingQueue<PushTask> acquirePushTaskQueue() {
+    lastAquireTime = System.currentTimeMillis();
     if (!pushTaskQueues.isEmpty()) {
       return pushTaskQueues.removeFirst();
     }

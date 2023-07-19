@@ -198,10 +198,21 @@ public class SparkShuffleManager implements ShuffleManager {
               shuffleClient,
               metrics,
               pushThread,
-              SendBufferPool.get(cores));
+              SendBufferPool.get(
+                  cores,
+                  celebornConf.clientPushSendBufferPoolExpireCheckInterval(),
+                  celebornConf.clientPushSendBufferPoolExpireTimeout()));
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
-              h, context, celebornConf, shuffleClient, metrics, SendBufferPool.get(cores));
+              h,
+              context,
+              celebornConf,
+              shuffleClient,
+              metrics,
+              SendBufferPool.get(
+                  cores,
+                  celebornConf.clientPushSendBufferPoolExpireCheckInterval(),
+                  celebornConf.clientPushSendBufferPoolExpireTimeout()));
         } else {
           throw new UnsupportedOperationException(
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());

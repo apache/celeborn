@@ -783,6 +783,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushSplitPartitionThreads: Int = get(CLIENT_PUSH_SPLIT_PARTITION_THREADS)
   def clientPushTakeTaskWaitIntervalMs: Long = get(CLIENT_PUSH_TAKE_TASK_WAIT_INTERVAL)
   def clientPushTakeTaskMaxWaitAttempts: Int = get(CLIENT_PUSH_TAKE_TASK_MAX_WAIT_ATTEMPTS)
+  def clientPushSendBufferPoolExpireCheckInterval: Long =
+    get(CLIENT_PUSH_SENDBUFFERPOOL_CHECKEXPIREINTERVAL)
+  def clientPushSendBufferPoolExpireTimeout: Long = get(CLIENT_PUSH_SENDBUFFERPOOL_EXPIRETIMEOUT)
 
   // //////////////////////////////////////////////////////
   //                   Client Shuffle                    //
@@ -2882,6 +2885,24 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .createWithDefault(1)
+
+  val CLIENT_PUSH_SENDBUFFERPOOL_CHECKEXPIREINTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.sendbufferpool.checkExpireInteval")
+      .categories("client")
+      .doc("Interval to check expire for send buffer pool. If the pool has been idle " +
+        "for more than `celeborn.client.push.sendbufferpool.expireTimeout`, the pooled send buffers and push tasks will be cleaned up.")
+      .version("0.3.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val CLIENT_PUSH_SENDBUFFERPOOL_EXPIRETIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.sendbufferpool.expireTimeout")
+      .categories("client")
+      .doc("Timeout before clean up SendBufferPool. If SendBufferPool is idle for more than this time, " +
+        "the send buffers and push tasks will be cleaned up.")
+      .version("0.3.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
 
   val TEST_CLIENT_RETRY_REVIVE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.client.retryRevive")
