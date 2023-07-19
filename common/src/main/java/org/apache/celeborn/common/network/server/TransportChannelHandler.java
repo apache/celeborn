@@ -175,7 +175,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
                 requestTimeoutNs / 1000 / 1000);
           }
           if (closeIdleConnections) {
-            // While CloseIdleConnections is enable, we also close idle connection
+            // While CloseIdleConnections is enabled, we also close idle connection
             client.timeOut();
             ctx.close();
           }

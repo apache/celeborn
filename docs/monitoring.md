@@ -115,7 +115,7 @@ These metrics are exposed by Celeborn master.
 
   - namespace=ResourceConsumption
     - **notes:**
-      - This merics data is generated for each user and they are identified using a metric tag. 
+      - This metrics data is generated for each user and they are identified using a metric tag. 
     - diskFileCount
     - diskBytesWritten
     - hdfsFileCount

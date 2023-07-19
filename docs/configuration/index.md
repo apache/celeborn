@@ -36,7 +36,7 @@ bufferSize = `celeborn.worker.flusher.buffer.size`   # the amount of memory will
 off-heap-memory = bufferSize * estimatedTasks * 2 + network memory
 ```
 
-For example, if an Celeborn worker has 10 storage directories or disks and the buffer size is set to 256 KiB.
+For example, if a Celeborn worker has 10 storage directories or disks and the buffer size is set to 256 KiB.
 The necessary off-heap memory is 10 GiB.
 
 Network memory will be consumed when netty reads from a TPC channel, there will need some extra

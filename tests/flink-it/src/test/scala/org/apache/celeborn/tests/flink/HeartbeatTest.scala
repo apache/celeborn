@@ -29,7 +29,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature with HeartbeatFeature
   with BeforeAndAfterAll with BeforeAndAfterEach {
 
-  test("celeborn flink hearbeat test - client <- worker") {
+  test("celeborn flink heartbeat test - client <- worker") {
     val (_, clientConf) = getTestHeartbeatFromWorker2ClientConf
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
@@ -44,7 +44,7 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
     testHeartbeatFromWorker2Client(flinkShuffleClientImpl.getDataClientFactory)
   }
 
-  test("celeborn flink hearbeat test - client <- worker no heartbeat") {
+  test("celeborn flink heartbeat test - client <- worker no heartbeat") {
     val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithNoHeartbeatConf
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
@@ -59,7 +59,7 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
     testHeartbeatFromWorker2ClientWithNoHeartbeat(flinkShuffleClientImpl.getDataClientFactory)
   }
 
-  test("celeborn flink hearbeat test - client <- worker timeout") {
+  test("celeborn flink heartbeat test - client <- worker timeout") {
     val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(

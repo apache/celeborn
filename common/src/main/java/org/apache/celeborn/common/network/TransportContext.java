@@ -40,9 +40,9 @@ import org.apache.celeborn.common.network.util.TransportFrameDecoder;
  * setup Netty Channel pipelines with a {@link TransportChannelHandler}.
  *
  * <p>There are two communication protocols that the TransportClient provides, control-plane RPCs
- * and data-plane "chunk fetching". The handling of the RPCs is performed outside of the scope of
- * the TransportContext (i.e., by a user-provided handler), and it is responsible for setting up
- * streams which can be streamed through the data plane in chunks using zero-copy IO.
+ * and data-plane "chunk fetching". The handling of the RPCs is performed outside the scope of the
+ * TransportContext (i.e., by a user-provided handler), and it is responsible for setting up streams
+ * which can be streamed through the data plane in chunks using zero-copy IO.
  *
  * <p>The TransportServer and TransportClientFactory both create a TransportChannelHandler for each
  * channel. As each TransportChannelHandler contains a TransportClient, this enables server
