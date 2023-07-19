@@ -2887,7 +2887,7 @@ object CelebornConf extends Logging {
       .createWithDefault(1)
 
   val CLIENT_PUSH_SENDBUFFERPOOL_CHECKEXPIREINTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.sendBufferPool.checkExpireInteval")
+    buildConf("celeborn.client.push.sendBufferPool.checkExpireInterval")
       .categories("client")
       .doc("Interval to check expire for send buffer pool. If the pool has been idle " +
         "for more than `celeborn.client.push.sendbufferpool.expireTimeout`, the pooled send buffers and push tasks will be cleaned up.")
