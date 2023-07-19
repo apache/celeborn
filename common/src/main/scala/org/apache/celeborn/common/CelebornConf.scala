@@ -2886,15 +2886,6 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(1)
 
-  val CLIENT_PUSH_SENDBUFFERPOOL_CHECKEXPIREINTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.client.push.sendBufferPool.checkExpireInterval")
-      .categories("client")
-      .doc("Interval to check expire for send buffer pool. If the pool has been idle " +
-        "for more than `celeborn.client.push.sendbufferpool.expireTimeout`, the pooled send buffers and push tasks will be cleaned up.")
-      .version("0.3.1")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
-
   val CLIENT_PUSH_SENDBUFFERPOOL_EXPIRETIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.sendBufferPool.expireTimeout")
       .categories("client")
@@ -2903,6 +2894,15 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
+
+  val CLIENT_PUSH_SENDBUFFERPOOL_CHECKEXPIREINTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.sendBufferPool.checkExpireInterval")
+      .categories("client")
+      .doc("Interval to check expire for send buffer pool. If the pool has been idle " +
+        s"for more than `${CLIENT_PUSH_SENDBUFFERPOOL_EXPIRETIMEOUT.key}`, the pooled send buffers and push tasks will be cleaned up.")
+      .version("0.3.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val TEST_CLIENT_RETRY_REVIVE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.client.retryRevive")
