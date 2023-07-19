@@ -209,8 +209,13 @@ class WorkerStatusTracker(
       }
       if (statusChanged) {
         logInfo(
-          s"Current excluded workers $excludedWorkers, " +
-            s"Current shutting down workers ${shuttingWorkers.asScala.map(_.readableAddress()).mkString("\n")}")
+          s"""
+             |Current excluded workers:
+             |${excludedWorkers.asScala.mkString("\n")}
+             |
+             |Current shutting down workers:
+             |${shuttingWorkers.asScala.map(_.readableAddress()).mkString("\n")}
+             |""".stripMargin)
       }
     }
   }
