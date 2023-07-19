@@ -96,7 +96,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   /**
    * Are we in the process of stopping? Because map tasks can call stop() with success = true and
    * then call stop() with success = false if they get an exception, we want to make sure we don't
-   * try deleting files, etc twice.
+   * try deleting files, etc. twice.
    */
   private volatile boolean stopping = false;
 
@@ -393,9 +393,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void closeColumnarWrite() throws IOException {
     SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
     for (int i = 0; i < numPartitions; i++) {
-      final CelebornBatchBuilder buidlers = celebornBatchBuilders[i];
-      if (buidlers != null && buidlers.getRowCnt() > 0) {
-        byte[] buffers = buidlers.buildColumnBytes();
+      final CelebornBatchBuilder builders = celebornBatchBuilders[i];
+      if (builders != null && builders.getRowCnt() > 0) {
+        byte[] buffers = builders.buildColumnBytes();
         if (dataSize != null) {
           dataSize.add(buffers.length);
         }
