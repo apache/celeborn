@@ -80,13 +80,11 @@ public class SparkShuffleManager implements ShuffleManager {
     }
   }
 
-
   private SortShuffleManager sortShuffleManager() {
     if (_sortShuffleManager == null) {
       synchronized (this) {
         if (_sortShuffleManager == null) {
-          _sortShuffleManager =
-              SparkUtils.instantiateClass(sortShuffleManagerName, conf, isDriver);
+          _sortShuffleManager = SparkUtils.instantiateClass(sortShuffleManagerName, conf, isDriver);
         }
       }
     }
