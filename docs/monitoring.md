@@ -117,7 +117,8 @@ These metrics are exposed by Celeborn master.
     and in particular the metric sets BufferPoolMetricSet, GarbageCollectorMetricSet and MemoryUsageGaugeSet.
 
   - namespace=ResourceConsumption
-    - **notes:** This merics data is generated for each user and they are identified using a metric tag. 
+    - **notes:**
+        - This metrics data is generated for each user and they are identified using a metric tag. 
     - diskFileCount
     - diskBytesWritten
     - hdfsFileCount

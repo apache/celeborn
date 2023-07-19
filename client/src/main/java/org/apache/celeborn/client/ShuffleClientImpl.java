@@ -605,7 +605,7 @@ public class ShuffleClientImpl extends ShuffleClient {
    * @param shuffleMap
    * @param partitionId
    * @param epoch
-   * @param wait wheter to wait for some time for a newer PartitionLocation
+   * @param wait whether to wait for some time for a newer PartitionLocation
    * @return
    */
   boolean newerPartitionLocationExists(

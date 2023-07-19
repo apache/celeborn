@@ -600,7 +600,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(HA_MASTER_RATIS_LOG_APPENDER_QUEUE_BYTE_LIMIT)
   def haMasterRatisLogPurgeGap: Int = get(HA_MASTER_RATIS_LOG_PURGE_GAP)
   def haMasterRatisLogInstallSnapshotEnabled: Boolean =
-    get(HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED)
+    get(HA_MASTER_RATIS_LOG_INSTALL_SNAPSHOT_ENABLED)
   def haMasterRatisRpcRequestTimeout: Long = get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
@@ -1672,7 +1672,7 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32MB")
 
-  val HA_MASTER_RATIS_LOG_INSTABLL_SNAPSHOT_ENABLED: ConfigEntry[Boolean] =
+  val HA_MASTER_RATIS_LOG_INSTALL_SNAPSHOT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.master.ha.ratis.raft.server.log.appender.install.snapshot.enabled")
       .withAlternative("celeborn.ha.master.ratis.raft.server.log.appender.install.snapshot.enabled")
       .internal
@@ -3191,7 +3191,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.push.stageEnd.timeout")
       .categories("client")
       .doc(s"Timeout for waiting StageEnd. " +
-        s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
+        s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files " +
         s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
         s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
       .version("0.3.0")
@@ -3230,7 +3230,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.rpc.requestPartition.askTimeout")
       .categories("client")
       .version("0.2.0")
-      .doc(s"Timeout for ask operations during requesting change partition location, such as reviving or spliting partition. " +
+      .doc(s"Timeout for ask operations during requesting change partition location, such as reviving or splitting partition. " +
         s"During this process, there are `${CLIENT_RESERVE_SLOTS_MAX_RETRIES.key}` times for retry opportunities for reserving slots. " +
         s"User can customize this value according to your setting. " +
         s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
@@ -3241,7 +3241,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.2.0")
       .doc(s"Timeout for ask operations during getting reducer file group information. " +
-        s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files" +
+        s"During this process, there are `${CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY.key}` times for retry opportunities for committing files " +
         s"and 1 times for releasing slots request. User can customize this value according to your setting. " +
         s"By default, the value is the max timeout value `${NETWORK_IO_CONNECTION_TIMEOUT.key}`.")
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
@@ -3502,7 +3502,7 @@ object CelebornConf extends Logging {
         s"`${classOf[DefaultIdentityProvider].getName}`. " +
         s"Optional values: " +
         s"org.apache.celeborn.common.identity.HadoopBasedIdentityProvider user name will be obtained by UserGroupInformation.getUserName; " +
-        s"org.apache.celeborn.common.identity.DefaultIdentityProvider uesr name and tenant id are default values or user-specific values.")
+        s"org.apache.celeborn.common.identity.DefaultIdentityProvider user name and tenant id are default values or user-specific values.")
       .version("0.2.0")
       .stringConf
       .createWithDefault(classOf[DefaultIdentityProvider].getName)

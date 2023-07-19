@@ -55,7 +55,7 @@ public interface SortBuffer {
   /** Returns true if there is still data can be consumed in this {@link SortBuffer}. */
   boolean hasRemaining();
 
-  /** Finishes this {@link SortBuffer} which means no record can be appended any more. */
+  /** Finishes this {@link SortBuffer} which means no record can be appended anymore. */
   void finish();
 
   /** Whether this {@link SortBuffer} is finished or not. */
