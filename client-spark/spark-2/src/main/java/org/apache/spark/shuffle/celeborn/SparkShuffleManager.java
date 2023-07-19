@@ -139,7 +139,6 @@ public class SparkShuffleManager implements ShuffleManager {
     // For Spark driver side trigger unregister shuffle.
     if (lifecycleManager != null) {
       lifecycleManager.unregisterShuffle(shuffleId);
-      return true;
     }
     // For Spark executor side cleanup shuffle related info.
     if (shuffleClient != null) {
