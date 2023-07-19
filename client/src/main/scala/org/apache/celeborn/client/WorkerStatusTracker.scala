@@ -208,6 +208,7 @@ class WorkerStatusTracker(
         }
       }
       if (statusChanged) {
+        logWarning("Worker status changed from application heartbeat response")
         logInfo(
           s"""
              |Current excluded workers:
