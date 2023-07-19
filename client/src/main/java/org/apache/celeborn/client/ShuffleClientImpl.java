@@ -37,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.TransportContext;
@@ -1497,18 +1496,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public boolean unregisterShuffle(int shuffleId, boolean isDriver) {
-    if (isDriver) {
-      try {
-        lifecycleManagerRef.send(
-            UnregisterShuffle$.MODULE$.apply(appUniqueId, shuffleId, MasterClient.genRequestId()));
-      } catch (Exception e) {
-        // If some exceptions need to be ignored, they shouldn't be logged as error-level,
-        // otherwise it will mislead users.
-        logger.error("Send UnregisterShuffle failed, ignore.", e);
-      }
-    }
-
+  public boolean cleanupShuffle(int shuffleId) {
     // clear status
     reducePartitionMap.remove(shuffleId);
     reduceFileGroupsMap.remove(shuffleId);

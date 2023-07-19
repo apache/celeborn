@@ -44,6 +44,9 @@ public abstract class ShuffleClient {
 
   // for testing
   public static void reset() {
+    if (_instance != null) {
+      _instance.shutdown();
+    }
     _instance = null;
     initialized = false;
     hdfsFs = null;
@@ -149,7 +152,7 @@ public abstract class ShuffleClient {
   public abstract CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber) throws IOException;
 
-  public abstract boolean unregisterShuffle(int shuffleId, boolean isDriver);
+  public abstract boolean cleanupShuffle(int shuffleId);
 
   public abstract void shutdown();
 
