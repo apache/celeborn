@@ -20,7 +20,6 @@ package org.apache.celeborn.client
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
-import java.util.function.Predicate
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -301,9 +300,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logDebug(s"Received GetShuffleFileGroup request," +
         s"shuffleId $shuffleId.")
       handleGetReducerFileGroup(context, shuffleId)
-
-    case pb: PbHeartbeatFromClient =>
-      handleHeartbeatFromClient(context, pb)
   }
 
   private def offerAndReserveSlots(
@@ -566,17 +562,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       context: RpcCallContext,
       shuffleId: Int): Unit = {
     commitManager.handleGetReducerFileGroup(context, shuffleId)
-  }
-
-  private def handleHeartbeatFromClient(
-      context: RpcCallContext,
-      pb: PbHeartbeatFromClient): Unit = {
-    val shuffleIds = new util.ArrayList[Integer](pb.getShuffleIdList)
-    val pred = new Predicate[Integer] {
-      override def test(id: Integer): Boolean = registeredShuffle.contains(id)
-    }
-    shuffleIds.removeIf(pred)
-    context.reply(HeartbeatFromClientResponse(shuffleIds))
   }
 
   private def handleStageEnd(shuffleId: Int): Unit = {

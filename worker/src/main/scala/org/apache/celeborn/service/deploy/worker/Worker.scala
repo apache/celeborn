@@ -393,36 +393,60 @@ private[celeborn] class Worker(
   }
 
   override def close(): Unit = synchronized {
+    shutdown(gracefulShutdown)
+  }
+
+  override def shutdown(graceful: Boolean): Unit = {
     if (!stopped) {
       logInfo("Stopping Worker.")
 
       if (sendHeartbeatTask != null) {
-        sendHeartbeatTask.cancel(true)
+        if (graceful) {
+          sendHeartbeatTask.cancel(false)
+        } else {
+          sendHeartbeatTask.cancel(true)
+        }
         sendHeartbeatTask = null
       }
       if (checkFastFailTask != null) {
-        checkFastFailTask.cancel(true)
+        if (graceful) {
+          checkFastFailTask.cancel(false)
+        } else {
+          checkFastFailTask.cancel(true)
+        }
         checkFastFailTask = null
       }
-      forwardMessageScheduler.shutdownNow()
-      replicateThreadPool.shutdownNow()
-      commitThreadPool.shutdownNow()
-      asyncReplyPool.shutdownNow()
-      partitionsSorter.close()
+      if (graceful) {
+        forwardMessageScheduler.shutdown()
+        replicateThreadPool.shutdown()
+        commitThreadPool.shutdown()
+        asyncReplyPool.shutdown()
+        partitionsSorter.close()
+      } else {
+        forwardMessageScheduler.shutdownNow()
+        replicateThreadPool.shutdownNow()
+        commitThreadPool.shutdownNow()
+        asyncReplyPool.shutdownNow()
+        partitionsSorter.close()
+      }
 
       if (null != storageManager) {
         storageManager.close()
       }
-      memoryManager.close();
+      memoryManager.close()
 
       masterClient.close()
-      replicateServer.close()
-      fetchServer.close()
+      replicateServer.shutdown(graceful)
+      fetchServer.shutdown(graceful)
+      pushServer.shutdown(graceful)
 
-      super.close()
+      super.shutdown(graceful)
 
       logInfo("Worker is stopped.")
       stopped = true
+    }
+    if (!graceful) {
+      shutdown.set(true)
     }
   }
 

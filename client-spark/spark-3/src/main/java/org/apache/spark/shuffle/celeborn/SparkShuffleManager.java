@@ -48,6 +48,7 @@ public class SparkShuffleManager implements ShuffleManager {
       "spark.sql.adaptive.localShuffleReader.enabled";
 
   private final SparkConf conf;
+  private final Boolean isDriver;
   private final CelebornConf celebornConf;
   private final int cores;
   // either be "{appId}_{appAttemptId}" or "{appId}"
@@ -63,7 +64,7 @@ public class SparkShuffleManager implements ShuffleManager {
   private final ExecutorService[] asyncPushers;
   private AtomicInteger pusherIdx = new AtomicInteger(0);
 
-  public SparkShuffleManager(SparkConf conf) {
+  public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(LOCAL_SHUFFLE_READER_KEY, true)) {
       logger.warn(
           "Detected {} (default is true) is enabled, it's highly recommended to disable it when "
@@ -71,6 +72,7 @@ public class SparkShuffleManager implements ShuffleManager {
           LOCAL_SHUFFLE_READER_KEY);
     }
     this.conf = conf;
+    this.isDriver = isDriver;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     this.cores = executorCores(conf);
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
@@ -85,16 +87,12 @@ public class SparkShuffleManager implements ShuffleManager {
     }
   }
 
-  private boolean isDriver() {
-    return "driver".equals(SparkEnv.get().executorId());
-  }
-
   private SortShuffleManager sortShuffleManager() {
     if (_sortShuffleManager == null) {
       synchronized (this) {
         if (_sortShuffleManager == null) {
           _sortShuffleManager =
-              SparkUtils.instantiateClass(SORT_SHUFFLE_MANAGER_NAME, conf, isDriver());
+              SparkUtils.instantiateClass(SORT_SHUFFLE_MANAGER_NAME, conf, isDriver);
         }
       }
     }
@@ -106,7 +104,7 @@ public class SparkShuffleManager implements ShuffleManager {
     // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
     // considered in this place, because if there is one RDD that depends on multiple RDDs
     // at the same time, it may bring parallel `register shuffle`, such as Join in Sql.
-    if (isDriver() && lifecycleManager == null) {
+    if (isDriver && lifecycleManager == null) {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
@@ -116,8 +114,7 @@ public class SparkShuffleManager implements ShuffleManager {
                   lifecycleManager.getHost(),
                   lifecycleManager.getPort(),
                   celebornConf,
-                  lifecycleManager.getUserIdentifier(),
-                  true);
+                  lifecycleManager.getUserIdentifier());
         }
       }
     }
@@ -160,7 +157,7 @@ public class SparkShuffleManager implements ShuffleManager {
     if (shuffleClient == null) {
       return false;
     }
-    return shuffleClient.unregisterShuffle(shuffleId, isDriver());
+    return shuffleClient.unregisterShuffle(shuffleId, isDriver);
   }
 
   @Override
@@ -198,8 +195,7 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerHost(),
                 h.lifecycleManagerPort(),
                 celebornConf,
-                h.userIdentifier(),
-                false);
+                h.userIdentifier());
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
