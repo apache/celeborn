@@ -21,7 +21,7 @@ import org.apache.spark.SparkConf;
 
 public class RssShuffleManager extends SparkShuffleManager {
 
-  public RssShuffleManager(SparkConf conf, Boolean isDriver) {
+  public RssShuffleManager(SparkConf conf, boolean isDriver) {
     super(conf, isDriver);
   }
 }

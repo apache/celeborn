@@ -64,7 +64,7 @@ public class SparkShuffleManager implements ShuffleManager {
   private final ExecutorService[] asyncPushers;
   private AtomicInteger pusherIdx = new AtomicInteger(0);
 
-  public SparkShuffleManager(SparkConf conf, Boolean isDriver) {
+  public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(LOCAL_SHUFFLE_READER_KEY, true)) {
       logger.warn(
           "Detected {} (default is true) is enabled, it's highly recommended to disable it when "
