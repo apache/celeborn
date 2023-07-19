@@ -701,8 +701,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
-  def clientHeartbeatToLifecycleManagerInterval: Long =
-    get(CLIENT_HEARTBEAT_TO_LIFECYCLEMANAGER_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -2656,15 +2654,6 @@ object CelebornConf extends Logging {
         "otherwise use local black list as candidate being checked workers.")
       .booleanConf
       .createWithDefault(false)
-
-  val CLIENT_HEARTBEAT_TO_LIFECYCLEMANAGER_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.client.heartbeatToLifecycleManager.interval")
-      .categories("client")
-      .version("0.3.0")
-      .doc(
-        "Interval for client in Executor(for Spark) to send heartbeat message to lifecycle manager.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
 
   val TEST_CLIENT_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.client.retryCommitFiles")

@@ -109,8 +109,6 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected final String appUniqueId;
 
-  private ScheduledExecutorService heartbeater;
-
   private ThreadLocal<Compressor> compressorThreadLocal =
       new ThreadLocal<Compressor>() {
         @Override
@@ -190,23 +188,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         ThreadUtils.newDaemonCachedThreadPool(
             "celeborn-shuffle-split", pushSplitPartitionThreads, 60);
     reviveManager = new ReviveManager(this, conf);
-
-    heartbeater =
-        ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-lifecyclemanager-heartbeater");
-    heartbeater.scheduleAtFixedRate(
-        () -> {
-          PbHeartbeatFromClientResponse resp =
-              lifecycleManagerRef.askSync(
-                  HeartbeatFromClient$.MODULE$.apply(reducePartitionMap.keySet()),
-                  ClassTag$.MODULE$.apply(PbHeartbeatFromClientResponse.class));
-          List<Integer> unknownShuffleIds = resp.getUnknownShuffleIdList();
-          for (int i = 0; i < unknownShuffleIds.size(); i++) {
-            cleanupShuffle(unknownShuffleIds.get(i));
-          }
-        },
-        conf.clientHeartbeatToLifecycleManagerInterval(),
-        conf.clientHeartbeatToLifecycleManagerInterval(),
-        TimeUnit.MILLISECONDS);
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
@@ -1635,9 +1616,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     if (null != lifecycleManagerRef) {
       lifecycleManagerRef = null;
-    }
-    if (null != heartbeater) {
-      heartbeater.shutdown();
     }
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();

@@ -51,7 +51,7 @@ public class SparkShuffleManager implements ShuffleManager {
   private final int cores;
   // either be "{appId}_{appAttemptId}" or "{appId}"
   private String appUniqueId;
-
+  private ShuffleClient shuffleClient;
   private LifecycleManager lifecycleManager;
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
@@ -102,6 +102,13 @@ public class SparkShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appId, celebornConf);
+          shuffleClient =
+              ShuffleClient.get(
+                  appUniqueId,
+                  lifecycleManager.getHost(),
+                  lifecycleManager.getPort(),
+                  celebornConf,
+                  lifecycleManager.getUserIdentifier());
         }
       }
     }
@@ -138,15 +145,16 @@ public class SparkShuffleManager implements ShuffleManager {
     if (sortShuffleIds.contains(shuffleId)) {
       return sortShuffleManager().unregisterShuffle(shuffleId);
     }
-    if (appUniqueId == null) {
-      return true;
-    }
-    if (!isDriver()) {
-      return false;
-    } else {
+    // For Spark driver side trigger unregister shuffle.
+    if (lifecycleManager != null) {
       lifecycleManager.unregisterShuffle(shuffleId);
       return true;
     }
+    // For Spark executor side cleanup shuffle related info.
+    if (shuffleClient != null) {
+      shuffleClient.cleanupShuffle(shuffleId);
+    }
+    return true;
   }
 
   @Override
