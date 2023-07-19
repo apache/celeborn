@@ -52,8 +52,9 @@ public class SparkShuffleManager implements ShuffleManager {
   private final int cores;
   // either be "{appId}_{appAttemptId}" or "{appId}"
   private String appUniqueId;
-  private ShuffleClient shuffleClient;
+
   private LifecycleManager lifecycleManager;
+  private ShuffleClient shuffleClient;
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
       ConcurrentHashMap.newKeySet();
