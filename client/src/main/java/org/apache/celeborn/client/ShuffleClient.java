@@ -152,7 +152,7 @@ public abstract class ShuffleClient {
   public abstract CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber) throws IOException;
 
-  public abstract boolean unregisterShuffle(int shuffleId);
+  public abstract boolean cleanupShuffle(int shuffleId);
 
   public abstract void shutdown();
 

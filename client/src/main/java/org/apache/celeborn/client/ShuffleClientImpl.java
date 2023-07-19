@@ -201,7 +201,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   ClassTag$.MODULE$.apply(PbHeartbeatFromClientResponse.class));
           List<Integer> unknownShuffleIds = resp.getUnknownShuffleIdList();
           for (int i = 0; i < unknownShuffleIds.size(); i++) {
-            unregisterShuffle(unknownShuffleIds.get(i));
+            cleanupShuffle(unknownShuffleIds.get(i));
           }
         },
         conf.clientHeartbeatToLifecycleManagerInterval(),
@@ -1511,7 +1511,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public boolean unregisterShuffle(int shuffleId) {
+  public boolean cleanupShuffle(int shuffleId) {
     // clear status
     reducePartitionMap.remove(shuffleId);
     reduceFileGroupsMap.remove(shuffleId);

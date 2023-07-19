@@ -122,7 +122,7 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public boolean unregisterShuffle(int shuffleId) {
+  public boolean cleanupShuffle(int shuffleId) {
     return false;
   }
 
