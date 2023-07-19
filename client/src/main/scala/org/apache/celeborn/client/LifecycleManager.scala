@@ -20,7 +20,6 @@ package org.apache.celeborn.client
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
-import java.util.function.Predicate
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

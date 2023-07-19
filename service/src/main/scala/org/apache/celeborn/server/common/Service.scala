@@ -36,6 +36,8 @@ abstract class Service extends Logging {
   }
 
   def close(): Unit = {}
+
+  def shutdown(graceful: Boolean): Unit = {}
 }
 
 object Service {

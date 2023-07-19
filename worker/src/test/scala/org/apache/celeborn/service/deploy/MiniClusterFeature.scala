@@ -130,7 +130,8 @@ trait MiniClusterFeature extends Logging {
     // interrupt threads
     Thread.sleep(5000)
     workerInfos.foreach {
-      case (_, thread) =>
+      case (worker, thread) =>
+        worker.shutdown(graceful = false)
         thread.interrupt()
     }
     workerInfos.clear()

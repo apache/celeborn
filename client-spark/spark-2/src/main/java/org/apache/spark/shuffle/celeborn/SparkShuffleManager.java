@@ -47,6 +47,7 @@ public class SparkShuffleManager implements ShuffleManager {
       "org.apache.spark.shuffle.sort.SortShuffleManager";
 
   private final SparkConf conf;
+  private final Boolean isDriver;
   private final CelebornConf celebornConf;
   private final int cores;
   // either be "{appId}_{appAttemptId}" or "{appId}"
@@ -62,8 +63,9 @@ public class SparkShuffleManager implements ShuffleManager {
   private final ExecutorService[] asyncPushers;
   private AtomicInteger pusherIdx = new AtomicInteger(0);
 
-  public SparkShuffleManager(SparkConf conf) {
+  public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     this.conf = conf;
+    this.isDriver = isDriver;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     this.cores = conf.getInt(SparkLauncher.EXECUTOR_CORES, 1);
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
@@ -78,16 +80,11 @@ public class SparkShuffleManager implements ShuffleManager {
     }
   }
 
-  private boolean isDriver() {
-    return "driver".equals(SparkEnv.get().executorId());
-  }
-
   private SortShuffleManager sortShuffleManager() {
     if (_sortShuffleManager == null) {
       synchronized (this) {
         if (_sortShuffleManager == null) {
-          _sortShuffleManager =
-              SparkUtils.instantiateClass(sortShuffleManagerName, conf, isDriver());
+          _sortShuffleManager = SparkUtils.instantiateClass(sortShuffleManagerName, conf, isDriver);
         }
       }
     }
@@ -99,7 +96,7 @@ public class SparkShuffleManager implements ShuffleManager {
     // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
     // considered in this place, because if there is one RDD that depends on multiple RDDs
     // at the same time, it may bring parallel `register shuffle`, such as Join in Sql.
-    if (isDriver() && lifecycleManager == null) {
+    if (isDriver && lifecycleManager == null) {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appId, celebornConf);

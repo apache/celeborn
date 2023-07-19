@@ -20,7 +20,10 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import scala.reflect.ClassTag$;
 
@@ -173,7 +176,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
-        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn" + module + ".io.threads", 8));
+        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
     TransportContext context =
         new TransportContext(
             dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
