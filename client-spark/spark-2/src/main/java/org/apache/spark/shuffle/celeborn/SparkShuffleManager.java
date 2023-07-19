@@ -165,9 +165,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public void stop() {
-    if (isDriver()) {
-      ShuffleClient.reset();
-    }
+    ShuffleClient.reset();
     if (lifecycleManager != null) {
       lifecycleManager.stop();
     }
