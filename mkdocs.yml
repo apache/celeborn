@@ -76,7 +76,8 @@ nav:
   - Deployment:
       - Overview: deploy.md
       - Kubernetes: deploy_on_k8s.md
+      - Upgrade: upgrade.md
       - Ratis Shell: celeborn_ratis_shell.md
   - Monitoring: monitoring.md
   - Migration Guide: migration.md
-  - Upgrade: upgrade.md
+
