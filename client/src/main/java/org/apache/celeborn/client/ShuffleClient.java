@@ -44,9 +44,6 @@ public abstract class ShuffleClient {
 
   // for testing
   public static void reset() {
-    if (_instance != null) {
-      _instance.shutdown();
-    }
     _instance = null;
     initialized = false;
     hdfsFs = null;
