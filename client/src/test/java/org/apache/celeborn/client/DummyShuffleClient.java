@@ -115,12 +115,7 @@ public class DummyShuffleClient extends ShuffleClient {
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex) {
     return null;
   }
-
-  @Override
-  public CelebornInputStream readPartition(int shuffleId, int partitionId, int attemptNumber) {
-    return null;
-  }
-
+  
   @Override
   public boolean cleanupShuffle(int shuffleId) {
     return false;
