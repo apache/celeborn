@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.write.PushState;
 
@@ -57,9 +56,6 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public void setupLifecycleManagerRef(String host, int port) {}
-
-  @Override
-  public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {}
 
   @Override
   public int pushData(

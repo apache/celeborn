@@ -181,7 +181,8 @@ public class ShuffleClientSuiteJ {
                 RegisterShuffleResponse$.MODULE$.apply(
                     StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}));
 
-    shuffleClient.setupLifecycleManagerRef(endpointRef);
+    shuffleClient.setupLifecycleManagerRef(
+        endpointRef.address().host(), endpointRef.address().port());
 
     ChannelFuture mockedFuture =
         new ChannelFuture() {

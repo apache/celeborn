@@ -28,7 +28,6 @@ import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.write.PushState;
 
@@ -99,8 +98,6 @@ public abstract class ShuffleClient {
   }
 
   public abstract void setupLifecycleManagerRef(String host, int port);
-
-  public abstract void setupLifecycleManagerRef(RpcEndpointRef endpointRef);
 
   // Write data to a specific reduce partition
   public abstract int pushData(

@@ -1632,11 +1632,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         rpcEnv.setupEndpointRef(new RpcAddress(host, port), RpcNameConstants.LIFECYCLE_MANAGER_EP);
   }
 
-  @Override
-  public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
-    lifecycleManagerRef = endpointRef;
-  }
-
   boolean mapperEnded(int shuffleId, int mapId) {
     return (mapperEndMap.containsKey(shuffleId) && mapperEndMap.get(shuffleId).contains(mapId))
         || stageEnded(shuffleId);

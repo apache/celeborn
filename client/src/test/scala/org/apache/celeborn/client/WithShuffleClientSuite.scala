@@ -152,7 +152,9 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   private def prepareService(): Unit = {
     lifecycleManager = new LifecycleManager(APP, celebornConf)
     shuffleClient = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
-    shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
+    shuffleClient.setupLifecycleManagerRef(
+      lifecycleManager.self.address.host,
+      lifecycleManager.self.address.port)
   }
 
   private def registerAndFinishPartition(): Unit = {

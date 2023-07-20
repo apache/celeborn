@@ -48,7 +48,9 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
     val shuffleClient: ShuffleClientImpl = {
       val client = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
-      client.setupLifecycleManagerRef(lifecycleManager.self)
+      client.setupLifecycleManagerRef(
+        lifecycleManager.self.address.host,
+        lifecycleManager.self.address.port)
       client
     }
 
