@@ -146,9 +146,6 @@ public abstract class ShuffleClient {
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException;
 
-  public abstract CelebornInputStream readPartition(
-      int shuffleId, int partitionId, int attemptNumber) throws IOException;
-
   public abstract boolean cleanupShuffle(int shuffleId);
 
   public abstract void shutdown();
