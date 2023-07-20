@@ -1508,12 +1508,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     return true;
   }
 
-  @Override
-  public CelebornInputStream readPartition(int shuffleId, int partitionId, int attemptNumber)
-      throws IOException {
-    return readPartition(shuffleId, partitionId, attemptNumber, 0, Integer.MAX_VALUE);
-  }
-
   protected ReduceFileGroups loadFileGroupInternal(int shuffleId) {
     {
       long getReducerFileGroupStartTime = System.nanoTime();

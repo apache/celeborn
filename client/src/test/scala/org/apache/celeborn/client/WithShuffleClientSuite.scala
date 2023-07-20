@@ -141,11 +141,11 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
 
     // reduce normal empty CelebornInputStream
-    var stream = shuffleClient.readPartition(shuffleId, 1, 1)
+    var stream = shuffleClient.readPartition(shuffleId, 1, 1, 0, Integer.MAX_VALUE)
     Assert.assertEquals(stream.read(), -1)
 
     // reduce normal null partition for CelebornInputStream
-    stream = shuffleClient.readPartition(shuffleId, 3, 1)
+    stream = shuffleClient.readPartition(shuffleId, 3, 1, 0, Integer.MAX_VALUE)
     Assert.assertEquals(stream.read(), -1)
   }
 
