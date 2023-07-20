@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.common.network.util;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -124,14 +123,6 @@ public class NettyUtils {
       if (_allocator == null) {
         // each core should have one arena to allocate memory
         _allocator = createPooledByteBufAllocator(true, true, conf.networkAllocatorArenas());
-        if (source != null) {
-          new NettyMemoryMetrics(
-              _allocator,
-              "shared-pool",
-              conf.networkAllocatorVerboseMetric(),
-              source,
-              Collections.emptyMap());
-        }
       }
       return _allocator;
     }
@@ -139,11 +130,13 @@ public class NettyUtils {
 
   public static PooledByteBufAllocator getPooledByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache) {
+    PooledByteBufAllocator allocator;
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
-      return getSharedPooledByteBufAllocator(conf.getCelebornConf(), source);
+      allocator = getSharedPooledByteBufAllocator(conf.getCelebornConf(), source);
+    } else {
+      allocator =
+          createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, conf.clientThreads());
     }
-    PooledByteBufAllocator allocator =
-        createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, conf.clientThreads());
     if (source != null) {
       String poolName = "default-netty-pool";
       Map<String, String> labels = new HashMap<>();
