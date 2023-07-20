@@ -146,11 +146,7 @@ public abstract class ShuffleClient {
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
   public abstract CelebornInputStream readPartition(
-      int shuffleId,
-      int partitionId,
-      int attemptNumber,
-      int startMapIndex,
-      int endMapIndex)
+      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException;
 
   public abstract boolean cleanupShuffle(int shuffleId);
