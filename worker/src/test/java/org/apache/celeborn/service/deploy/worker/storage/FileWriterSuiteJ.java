@@ -63,14 +63,11 @@ import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OpenStream;
-import org.apache.celeborn.common.network.protocol.StreamHandle;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.PartitionSplitMode;
-import org.apache.celeborn.common.protocol.PartitionType;
-import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -198,19 +195,25 @@ public class FileWriterSuiteJ {
   }
 
   public ByteBuffer createOpenMessage() {
-    byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
-    byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
+    PbOpenStream pbOpenStream =
+        PbOpenStream.newBuilder()
+            .setShuffleKey("shuffleKey")
+            .setFileName("location")
+            .setStartIndex(0)
+            .setEndIndex(Integer.MAX_VALUE)
+            .build();
 
-    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes, 0, Integer.MAX_VALUE);
-
-    return openBlocks.toByteBuffer();
+    return ByteBuffer.wrap(pbOpenStream.toByteArray());
   }
 
   private void setUpConn(TransportClient client) throws IOException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
-    StreamHandle streamHandle = (StreamHandle) Message.decode(resp);
-    streamId = streamHandle.streamId;
-    numChunks = streamHandle.numChunks;
+    PbStreamHandler streamHandle =
+        PbStreamHandler.parseFrom(
+            TransportMessage.fromByteBuffer(Message.decode(resp).body().nioByteBuffer())
+                .getPayload());
+    streamId = streamHandle.getStreamId();
+    numChunks = streamHandle.getNumChunks();
   }
 
   private FetchResult fetchChunks(TransportClient client, List<Integer> chunkIndices)

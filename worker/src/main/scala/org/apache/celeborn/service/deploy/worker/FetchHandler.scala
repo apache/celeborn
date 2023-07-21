@@ -35,7 +35,7 @@ import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.PartitionType
+import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbOpenStream, PbStreamHandler}
 import org.apache.celeborn.common.util.ExceptionUtils
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
@@ -90,15 +90,121 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
-        val msg = Message.decode(r.body().nioByteBuffer())
-        handleOpenStream(client, r, msg)
+        // 1. parse transportMessage
+        try {
+          val pbMsg = TransportMessage.fromByteBuffer(r.body().nioByteBuffer())
+          val pbOpenStream = PbOpenStream.parseFrom(pbMsg.getPayload)
+          handleOpenStream(client, r.requestId, pbOpenStream, () => r.body().release())
+        } catch {
+          case _: Exception =>
+            // 2. parse old rpc message to keep client compatible
+            logDebug("use legacy format")
+            val msg = Message.decode(r.body().nioByteBuffer())
+            handleLegacyOpenStream(client, r, msg)
+        }
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
     }
   }
 
+  def handleOpenStream(
+      client: TransportClient,
+      requestId: Long,
+      msg: PbOpenStream,
+      releaseFunc: () => Unit): Unit = {
+    val (shuffleKey, fileName) = (msg.getShuffleKey, msg.getFileName)
+    try {
+      var fileInfo = getRawFileInfo(shuffleKey, fileName)
+      try fileInfo.getPartitionType match {
+        case PartitionType.REDUCE =>
+          val (startMapIndex, endMapIndex) = (msg.getStartIndex, msg.getEndIndex)
+          if (endMapIndex != Integer.MAX_VALUE) {
+            fileInfo = partitionsSorter.getSortedFileInfo(
+              shuffleKey,
+              fileName,
+              fileInfo,
+              startMapIndex,
+              endMapIndex)
+          }
+          logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
+            s"$startMapIndex $endMapIndex get file info $fileInfo")
+          if (fileInfo.isHdfs) {
+            val streamHandle = PbStreamHandler.newBuilder().build();
+            replyStreamHandler(client, requestId, streamHandle)
+          } else {
+            val buffers = new FileManagedBuffers(fileInfo, transportConf)
+            val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
+            val streamId = chunkStreamManager.registerStream(
+              shuffleKey,
+              buffers,
+              fetchTimeMetrics)
+            val streamHandle = PbStreamHandler.newBuilder().setStreamId(streamId).setNumChunks(
+              fileInfo.numChunks()).build()
+            if (fileInfo.numChunks() == 0)
+              logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
+                s" $startMapIndex endMapIndex $endMapIndex is empty.")
+            else logDebug(
+              s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks()} " +
+                s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
+            replyStreamHandler(client, requestId, streamHandle)
+          }
+        case PartitionType.MAP =>
+          val (initialCredit, startIndex, endIndex) =
+            (msg.getInitialCredit, msg.getStartIndex, msg.getEndIndex)
+
+          val callback = new Consumer[java.lang.Long] {
+            override def accept(streamId: java.lang.Long): Unit = {
+              val streamHandler = PbStreamHandler.newBuilder().setStreamId(streamId).build()
+              replyStreamHandler(client, requestId, streamHandler)
+            }
+          }
+
+          creditStreamManager.registerStream(
+            callback,
+            client.getChannel,
+            initialCredit,
+            startIndex,
+            endIndex,
+            fileInfo)
+
+        case PartitionType.MAPGROUP =>
+      } catch {
+        case e: IOException =>
+          handleRpcIOException(client, requestId, e)
+      } finally {
+        // metrics end
+        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+        releaseFunc()
+      }
+    } catch {
+      case ioe: IOException =>
+        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+        handleRpcIOException(client, requestId, ioe)
+    }
+  }
+
+  private def replyStreamHandler(
+      client: TransportClient,
+      requestId: Long,
+      streamHandle: PbStreamHandler): Unit = {
+    client.getChannel.writeAndFlush(new RpcResponse(
+      requestId,
+      new NioManagedBuffer(new TransportMessage(
+        MessageType.STREAM_HANDLER,
+        streamHandle.toByteArray).toByteBuffer)))
+  }
+
+  private def replyLegacyStreamHandler(
+      client: TransportClient,
+      requestId: Long,
+      streamHandle: StreamHandle): Unit = {
+    client.getChannel.writeAndFlush(new RpcResponse(
+      requestId,
+      new NioManagedBuffer(streamHandle.toByteBuffer)))
+  }
+
   // here are BackLogAnnouncement,OpenStream and OpenStreamWithCredit RPCs to handle
-  def handleOpenStream(client: TransportClient, request: RpcRequest, msg: Message): Unit = {
+  def handleLegacyOpenStream(client: TransportClient, request: RpcRequest, msg: Message): Unit = {
     val (shuffleKey, fileName) =
       if (msg.`type`() == Type.OPEN_STREAM) {
         val openStream = msg.asInstanceOf[OpenStream]
@@ -130,10 +236,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
             s"$startMapIndex $endMapIndex get file info $fileInfo")
           if (fileInfo.isHdfs) {
-            val streamHandle = new StreamHandle(0, 0)
-            client.getChannel.writeAndFlush(new RpcResponse(
-              request.requestId,
-              new NioManagedBuffer(streamHandle.toByteBuffer)))
+            replyLegacyStreamHandler(client, request.requestId, new StreamHandle(0, 0))
           } else {
             val buffers = new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
@@ -141,16 +244,16 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               shuffleKey,
               buffers,
               fetchTimeMetrics)
-            val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
             if (fileInfo.numChunks() == 0)
               logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
                 s" $startMapIndex endMapIndex $endMapIndex is empty.")
             else logDebug(
               s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks()} " +
                 s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
-            client.getChannel.writeAndFlush(new RpcResponse(
+            replyLegacyStreamHandler(
+              client,
               request.requestId,
-              new NioManagedBuffer(streamHandle.toByteBuffer)))
+              new StreamHandle(streamId, fileInfo.numChunks()))
           }
         case PartitionType.MAP =>
           val initialCredit = msg.asInstanceOf[OpenStreamWithCredit].initialCredit
@@ -159,10 +262,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
 
           val callback = new Consumer[java.lang.Long] {
             override def accept(streamId: java.lang.Long): Unit = {
-              val bufferStreamHandle = new StreamHandle(streamId, 0)
-              client.getChannel.writeAndFlush(new RpcResponse(
-                request.requestId,
-                new NioManagedBuffer(bufferStreamHandle.toByteBuffer)))
+              replyLegacyStreamHandler(client, request.requestId, new StreamHandle(streamId, 0))
             }
           }
 

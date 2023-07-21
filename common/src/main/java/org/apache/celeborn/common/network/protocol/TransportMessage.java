@@ -18,11 +18,20 @@
 package org.apache.celeborn.common.network.protocol;
 
 import java.io.Serializable;
+import java.nio.ByteBuffer;
+
+import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.InvalidProtocolBufferException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
 
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
+  private static Logger logger = LoggerFactory.getLogger(TransportMessage.class);
   @Deprecated private final MessageType type;
   private final int messageTypeValue;
   private final byte[] payload;
@@ -43,5 +52,36 @@ public class TransportMessage implements Serializable {
 
   public byte[] getPayload() {
     return payload;
+  }
+
+  public GeneratedMessageV3 getPayLoad() throws InvalidProtocolBufferException {
+    switch (type) {
+      case OPEN_STREAM:
+        return PbOpenStream.parseFrom(payload);
+      case STREAM_HANDLER:
+        return PbStreamHandler.parseFrom(payload);
+      default:
+        logger.error("Unexpected type {}", type);
+    }
+    return null;
+  }
+
+  public ByteBuffer toByteBuffer() {
+    int totalBufferSize = payload.length + 4 + 4;
+    ByteBuffer buffer = ByteBuffer.allocate(totalBufferSize);
+    buffer.putInt(messageTypeValue);
+    buffer.putInt(payload.length);
+    buffer.put(payload);
+    buffer.flip();
+    return buffer;
+  }
+
+  public static TransportMessage fromByteBuffer(ByteBuffer buffer) {
+    int type = buffer.getInt();
+    int payloadLen = buffer.getInt();
+    byte[] payload = new byte[payloadLen];
+    buffer.get(payload);
+    MessageType msgType = MessageType.forNumber(type);
+    return new TransportMessage(msgType, payload);
   }
 }

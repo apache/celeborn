@@ -91,7 +91,8 @@ public abstract class Message implements Encodable {
     BACKLOG_ANNOUNCEMENT(19),
     TRANSPORTABLE_ERROR(20),
     BUFFER_STREAM_END(21),
-    HEARTBEAT(22);
+    HEARTBEAT(22),
+    TRANSPORT_MESSAGE(23);
     private final byte id;
 
     Type(int id) {
@@ -230,6 +231,7 @@ public abstract class Message implements Encodable {
 
       case TRANSPORTABLE_ERROR:
         return TransportableError.decode(in);
+
       case BUFFER_STREAM_END:
         return BufferStreamEnd.decode(in);
 
