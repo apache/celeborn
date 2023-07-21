@@ -392,7 +392,7 @@ private[celeborn] class Worker(
     rpcEnv.awaitTermination()
   }
 
-  override def close(graceful: Boolean): Unit = {
+  override def stop(graceful: Boolean): Unit = {
     if (!stopped) {
       logInfo("Stopping Worker.")
 
@@ -436,7 +436,7 @@ private[celeborn] class Worker(
       fetchServer.shutdown(graceful)
       pushServer.shutdown(graceful)
 
-      super.close(graceful)
+      super.stop(graceful)
 
       logInfo("Worker is stopped.")
       stopped = true
@@ -614,7 +614,7 @@ private[celeborn] class Worker(
               s"unreleased PartitionLocation: \n$partitionLocationInfo")
           }
         }
-        close(gracefulShutdown)
+        stop(gracefulShutdown)
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)
