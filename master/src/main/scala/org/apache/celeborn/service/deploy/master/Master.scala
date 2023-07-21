@@ -882,11 +882,12 @@ private[celeborn] class Master(
     rpcEnv.awaitTermination()
   }
 
-  override def close(): Unit = synchronized {
+  override def close(graceful: Boolean): Unit = synchronized {
     if (!stopped) {
       logInfo("Stopping Master")
+      // Stop RpcEndpoint.
       stop()
-      super.close()
+      super.close(false)
       logInfo("Master stopped.")
       stopped = true
     }

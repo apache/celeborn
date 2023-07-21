@@ -131,7 +131,7 @@ trait MiniClusterFeature extends Logging {
     Thread.sleep(5000)
     workerInfos.foreach {
       case (worker, thread) =>
-        worker.shutdown(graceful = false)
+        worker.close(graceful = false)
         thread.interrupt()
     }
     workerInfos.clear()

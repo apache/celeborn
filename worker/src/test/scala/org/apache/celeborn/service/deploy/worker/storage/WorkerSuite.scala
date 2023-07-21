@@ -46,7 +46,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
   override def afterEach(): Unit = {
     if (null != worker) {
       worker.rpcEnv.shutdown()
-      worker.shutdown(false)
+      worker.close(false)
       worker = null
     }
   }
