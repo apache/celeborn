@@ -17,19 +17,20 @@
 
 package org.apache.celeborn.common.network.util;
 
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
 import java.util.Random;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
-import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OneWayMessage;
 import org.junit.AfterClass;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
+import org.apache.celeborn.common.network.protocol.Message;
+import org.apache.celeborn.common.network.protocol.OneWayMessage;
 
 public class TransportFrameDecoderSuiteJ {
 
@@ -52,7 +53,8 @@ public class TransportFrameDecoderSuiteJ {
   public void testSplitLengthField() throws Exception {
     byte[] body = new byte[1024 * (RND.nextInt(31) + 1)];
 
-    OneWayMessage message = new OneWayMessage(new NioManagedBuffer(Unpooled.wrappedBuffer(body).nioBuffer()));
+    OneWayMessage message =
+        new OneWayMessage(new NioManagedBuffer(Unpooled.wrappedBuffer(body).nioBuffer()));
     // frame size | message type | message encode | message body
     int frameLength = 4 + message.type().encodedLength() + message.encodedLength() + body.length;
     ByteBuf buf = Unpooled.buffer(frameLength);
@@ -87,17 +89,16 @@ public class TransportFrameDecoderSuiteJ {
   }
 
   /**
-   * Creates a number of randomly sized frames and feed them to the given decoder, verifying
-   * that the frames were read.
+   * Creates a number of randomly sized frames and feed them to the given decoder, verifying that
+   * the frames were read.
    */
   private ByteBuf createAndFeedFrames(
-      int frameCount,
-      TransportFrameDecoder decoder,
-      ChannelHandlerContext ctx) throws Exception {
+      int frameCount, TransportFrameDecoder decoder, ChannelHandlerContext ctx) throws Exception {
     ByteBuf data = Unpooled.buffer();
     for (int i = 0; i < frameCount; i++) {
       byte[] body = new byte[1024 * (RND.nextInt(31) + 1)];
-      OneWayMessage message = new OneWayMessage(new NioManagedBuffer(Unpooled.wrappedBuffer(body).nioBuffer()));
+      OneWayMessage message =
+          new OneWayMessage(new NioManagedBuffer(Unpooled.wrappedBuffer(body).nioBuffer()));
       // frame size | message type | message encode | message body
       int frameLength = 4 + message.type().encodedLength() + message.encodedLength() + body.length;
       data.writeInt(frameLength);
@@ -121,9 +122,7 @@ public class TransportFrameDecoderSuiteJ {
   }
 
   private void verifyAndCloseDecoder(
-      TransportFrameDecoder decoder,
-      ChannelHandlerContext ctx,
-      ByteBuf data) throws Exception {
+      TransportFrameDecoder decoder, ChannelHandlerContext ctx, ByteBuf data) throws Exception {
     try {
       decoder.channelInactive(ctx);
       assertTrue("There shouldn't be dangling references to the data.", data.release());
@@ -145,11 +144,13 @@ public class TransportFrameDecoderSuiteJ {
 
   private ChannelHandlerContext mockChannelHandlerContext() {
     ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-    when(ctx.fireChannelRead(any())).thenAnswer(in -> {
-      Message message = (Message) in.getArguments()[0];
-      message.body().release();
-      return null;
-    });
+    when(ctx.fireChannelRead(any()))
+        .thenAnswer(
+            in -> {
+              Message message = (Message) in.getArguments()[0];
+              message.body().release();
+              return null;
+            });
     return ctx;
   }
 

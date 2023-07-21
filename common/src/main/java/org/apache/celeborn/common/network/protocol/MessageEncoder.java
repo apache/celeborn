@@ -79,7 +79,7 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
     ByteBuf header = ctx.alloc().heapBuffer(headerLength);
     header.writeInt(frameLength);
     msgType.encode(header);
-//    header.writeInt(bodyLength);
+    //    header.writeInt(bodyLength);
     in.encode(header);
     assert header.writableBytes() == 0;
 
