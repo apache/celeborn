@@ -874,7 +874,6 @@ public class ShuffleClientImpl extends ShuffleClient {
           new RpcResponseCallback() {
             @Override
             public void onSuccess(ByteBuffer response) {
-              pushState.removeBatch(nextBatchId, loc.hostAndPushPort());
               if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
                 stageEndShuffleSet.add(shuffleId);
               }
@@ -905,6 +904,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void updateLatestPartition(PartitionLocation latest) {
+              pushState.addBatch(nextBatchId, latest.hostAndPushPort());
+              pushState.removeBatch(nextBatchId, this.latest.hostAndPushPort());
               this.latest = latest;
             }
 
@@ -923,6 +924,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       nextBatchId);
                   splitPartition(shuffleId, partitionId, latest);
                   pushState.onSuccess(latest.hostAndPushPort());
+                  pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.HARD_SPLIT.getValue()) {
                   logger.debug(
@@ -969,6 +971,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                       partitionId,
                       nextBatchId);
                   pushState.onCongestControl(latest.hostAndPushPort());
+                  pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
                   callback.onSuccess(response);
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue()) {
                   logger.debug(
@@ -980,15 +983,18 @@ public class ShuffleClientImpl extends ShuffleClient {
                       partitionId,
                       nextBatchId);
                   pushState.onCongestControl(latest.hostAndPushPort());
+                  pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
                   callback.onSuccess(response);
                 } else {
                   // StageEnd.
                   response.rewind();
                   pushState.onSuccess(latest.hostAndPushPort());
+                  pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
                   callback.onSuccess(response);
                 }
               } else {
                 pushState.onSuccess(latest.hostAndPushPort());
+                pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
                 callback.onSuccess(response);
               }
             }
