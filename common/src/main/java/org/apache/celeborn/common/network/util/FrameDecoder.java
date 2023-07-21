@@ -19,6 +19,6 @@ package org.apache.celeborn.common.network.util;
 
 public interface FrameDecoder {
   String HANDLER_NAME = "frameDecoder";
-  // Message size + Msg type + Body size
-  int HEADER_SIZE = 4 + 1 + 4;
+  // Frame size + Msg type
+  int HEADER_SIZE = 4 + 1;
 }

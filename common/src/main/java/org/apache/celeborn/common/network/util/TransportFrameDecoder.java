@@ -44,8 +44,6 @@ import org.apache.celeborn.common.network.protocol.Message;
  * method.
  */
 public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implements FrameDecoder {
-  private int msgSize = -1;
-  private int bodySize = -1;
   private Message.Type curType = Message.Type.UNKNOWN_TYPE;
   private ByteBuf headerBuf = Unpooled.buffer(HEADER_SIZE, HEADER_SIZE);
   private static final int MAX_FRAME_SIZE = Integer.MAX_VALUE;
@@ -78,8 +76,6 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
 
   private void clear() {
     curType = Message.Type.UNKNOWN_TYPE;
-    msgSize = -1;
-    bodySize = -1;
     headerBuf.clear();
   }
 
@@ -94,10 +90,8 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
     // size.
     ByteBuf first = buffers.getFirst();
     if (first.readableBytes() >= HEADER_SIZE) {
-      msgSize = first.readInt();
+      nextFrameSize = first.readInt() - HEADER_SIZE;
       curType = Message.Type.decode(first);
-      bodySize = first.readInt();
-      nextFrameSize = msgSize + bodySize;
       totalSize -= HEADER_SIZE;
       if (!first.isReadable()) {
         buffers.removeFirst().release();
@@ -114,11 +108,10 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
       }
     }
 
-    msgSize = headerBuf.readInt();
+    nextFrameSize = headerBuf.readInt() - HEADER_SIZE;
     curType = Message.Type.decode(headerBuf);
-    bodySize = headerBuf.readInt();
-    nextFrameSize = msgSize + bodySize;
     totalSize -= HEADER_SIZE;
+    headerBuf.clear();
     return nextFrameSize;
   }
 
