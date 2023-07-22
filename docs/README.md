@@ -18,51 +18,52 @@ license: |
 ---
 Quick Start
 ===
-This documentation gives a quick start guide for running Spark with Celeborn.
+This documentation gives a quick start guide for running Apache Spark with Apache Celeborn(Incubating).
 
 ### Download Celeborn
 Download the latest Celeborn binary from the [Downloading Page](https://celeborn.apache.org/download/).
-Decompress the binary into ```$CELEBORN_HOME```
-```angular2html
+Decompress the binary and set `$CELEBORN_HOME`
+```shell
 tar -C <DST_DIR> -zxvf apache-celeborn-<VERSION>-bin.tgz
+export $CELEBORN_HOME=${Decompressed path}
 ```
 
 ## Configure Logging and Storage
 #### Configure Logging
-```angular2html
+```shell
 cd $CELEBORN_HOME/conf
-mv log4j2.xml.template log4j2.xml
+cp log4j2.xml.template log4j2.xml
 ```
 #### Configure Storage
-Configure the directory to store shuffle data, for example $CELEBORN_HOME/shuffle
-```angular2html
+Configure the directory to store shuffle data, for example `$CELEBORN_HOME/shuffle`
+```shell
 cd $CELEBORN_HOME/conf
 echo "celeborn.worker.storage.dirs=$CELEBORN_HOME/shuffle" > celeborn-defaults.conf
 ```
 
 ## Start Celeborn Service
 #### Start Master
-```angular2html
+```shell
 cd $CELEBORN_HOME
 ./sbin/start-master.sh
 ```
 You should see ```Master```'s ip:port in the log:
-```angular2html
+```shell
 INFO [main] NettyRpcEnvFactory: Starting RPC Server [MasterSys] on 192.168.2.109:9097
 ```
 #### Start Worker
 Use the Master's IP and Port to start Worker:
-```angular2html
+```shell
 cd $CELEBORN_HOME
 ./sbin/start-worker.sh celeborn://${Master IP}:${Master Port}
 ```
 You should see the following message in Worker's log:
-```angular2html
+```shell
 23/07/22 11:39:23,546 INFO [main] MasterClient: connect to master 192.168.2.109:9097.
 23/07/22 11:39:23,673 INFO [main] Worker: Register worker successfully.
 ```
 And also the following message in Master's log:
-```angular2html
+```shell
 23/07/22 11:39:23,650 INFO [dispatcher-event-loop-9] Master: Registered worker
 Host: 192.168.2.109
 RpcPort: 57806
@@ -82,12 +83,12 @@ WorkerRef: null
 #### Copy Celeborn Client to Spark's jars
 Celeborn release binary contains clients for Spark2.x and Spark3.x, copy the corresponding client jar into Spark's
 ```jars/``` directory:
-```angular2html
-cp $CELEBORN_HOME/spark/${Celeborn Client Jar} $SPARK_HOME/jars/
+```shell
+cp $CELEBORN_HOME/spark/<Celeborn Client Jar> $SPARK_HOME/jars/
 ```
 #### Start spark-shell
 Set ```spark.shuffle.manager``` to Celeborn's ShuffleManager, and turn off ```spark.shuffle.service.enabled```:
-```angular2html
+```shell
 cd $SPARK_HOME
 
 ./bin/spark-shell \
@@ -95,17 +96,17 @@ cd $SPARK_HOME
 --conf spark.shuffle.service.enabled=false
 ```
 Then run the following test case:
-```angular2html
+```shell
 spark.sparkContext.parallelize(1 to 10, 10)
   .flatMap( _ => (1 to 100).iterator
   .map(num => num)).repartition(10).count
 ```
 During the Spark Job, you should see the following message in Celeborn Master's log:
-```angular2html
+```shell
 Master: Offer slots successfully for 10 reducers of local-1690000152711-0 on 1 workers.
 ```
 And the following message in Celeborn Worker's log:
-```angular2html
+```shell
 23/07/22 12:29:57,952 INFO [dispatcher-event-loop-9] Controller: Reserved 10 primary location and 0 replica location for local-1690000152711-0
 23/07/22 12:29:58,117 INFO [dispatcher-event-loop-10] Controller: Start commitFiles for local-1690000152711-0
 23/07/22 12:29:58,153 INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success with 10 committed primary partitions, 0 empty primary partitions, 0 failed primary partitions, 0 committed replica partitions, 0 empty replica partitions, 0 failed replica partitions.
