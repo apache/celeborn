@@ -23,7 +23,7 @@ please refer to dedicated articles.
 In distributed compute engines, data exchange between compute nodes is common but expensive. The cost comes from
 the disk and network inefficiency (M * N between Mappers and Reducers) in traditional shuffle frame, as following:
 
-![ESS](/assets/img/ess.svg)
+![ESS](../../assets/img/ess.svg)
 
 Besides inefficiency, traditional shuffle framework requires large local storage in compute node to store shuffle
 data, thus blocks the adoption of disaggregated architecture.
@@ -31,7 +31,7 @@ data, thus blocks the adoption of disaggregated architecture.
 Apache Celeborn(Incubating) solves the problems by reorganizing shuffle data in a more efficient way, and storing the data in
 a separate service. The high level architecture of Celeborn is as follows:
 
-![Celeborn](/assets/img/celeborn.svg)
+![Celeborn](../../assets/img/celeborn.svg)
 
 ## Components
 Celeborn(Incubating) has three primary components: Master, Worker, and Client.
