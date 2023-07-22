@@ -87,7 +87,7 @@ Celeborn release binary contains clients for Spark 2.x and Spark 3.x, copy the c
 cp $CELEBORN_HOME/spark/<Celeborn Client Jar> $SPARK_HOME/jars/
 ```
 #### Start spark-shell
-Set ```spark.shuffle.manager``` to Celeborn's ShuffleManager, and turn off ```spark.shuffle.service.enabled```:
+Set `spark.shuffle.manager` to Celeborn's ShuffleManager, and turn off `spark.shuffle.service.enabled`:
 ```shell
 cd $SPARK_HOME
 
