@@ -80,4 +80,11 @@ nav:
       - Ratis Shell: celeborn_ratis_shell.md
   - Monitoring: monitoring.md
   - Migration Guide: migration.md
-
+  - Developers Doc:
+      - Overview: developers/overview.md
+      - Master: developers/master.md
+      - Worker: developers/worker.md
+      - Client: developers/client.md
+      - PushData: developers/pushdata.md
+      - ReadData: developers/readdata.md
+      - Slots Allocation: developers/slotsallocation.md
