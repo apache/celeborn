@@ -47,7 +47,7 @@ echo "celeborn.worker.storage.dirs=$CELEBORN_HOME/shuffle" > celeborn-defaults.c
 cd $CELEBORN_HOME
 ./sbin/start-master.sh
 ```
-You should see ```Master```'s ip:port in the log:
+You should see `Master`'s ip:port in the log:
 ```shell
 INFO [main] NettyRpcEnvFactory: Starting RPC Server [MasterSys] on 192.168.2.109:9097
 ```
