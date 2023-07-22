@@ -78,7 +78,6 @@ UserResourceConsumption: empty
 WorkerRef: null
 ```
 
-
 ## Start Spark with Celeborn
 #### Copy Celeborn Client to Spark's jars
 Celeborn release binary contains clients for Spark2.x and Spark3.x, copy the corresponding client jar into Spark's
