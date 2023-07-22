@@ -78,14 +78,15 @@ UserResourceConsumption: empty
 WorkerRef: null
 ```
 
-## Copy Celeborn Client to Spark's jars
+
+## Start Spark with Celeborn
+#### Copy Celeborn Client to Spark's jars
 Celeborn release binary contains clients for Spark2.x and Spark3.x, copy the corresponding client jar into Spark's
 ```jars/``` directory:
 ```angular2html
 cp $CELEBORN_HOME/spark/${Celeborn Client Jar} $SPARK_HOME/jars/
 ```
-
-## Start Spark with Celeborn
+#### Start spark-shell
 Set ```spark.shuffle.manager``` to Celeborn's ShuffleManager, and turn off ```spark.shuffle.service.enabled```:
 ```angular2html
 cd $SPARK_HOME
