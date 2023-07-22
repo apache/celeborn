@@ -108,3 +108,6 @@ There are two kinds of Split:
 The process of `SOFT_SPLIT` is as follows:
 
 ![softsplit](/assets/img/softsplit.svg)
+
+`LifecycleManager` keeps the split information and tells reducer to read from all splits of the `PartitionLocation`
+to guarantee no data is lost.

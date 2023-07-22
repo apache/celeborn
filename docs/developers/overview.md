@@ -73,8 +73,8 @@ it just needs one network connection and sequentially read the coarse grained fi
 In abnormal cases, such as when the file grows too large, or push data fails, Celeborn spawns a new split of the
 `PartitionLocation`, and future data within the partition will be pushed to the new split.
 
-Client keeps the split information and tells reducer to read from all splits of the `PartitionLocation` to guarantee
-no data is lost.
+`LifecycleManager` keeps the split information and tells reducer to read from all splits of the `PartitionLocation`
+to guarantee no data is lost.
 
 ## Data Storage
 Celeborn stores shuffle data in configurable multiple layers, i.e. `Memroy`, `Local Disks`, `Distributed File System`,
