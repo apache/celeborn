@@ -119,19 +119,19 @@ trait MiniClusterFeature extends Logging {
     // shutdown workers
     workerInfos.foreach {
       case (worker, _) =>
-        worker.close()
+        worker.stop(false)
         worker.rpcEnv.shutdown()
     }
 
     // shutdown masters
-    masterInfo._1.close()
+    masterInfo._1.stop(false)
     masterInfo._1.rpcEnv.shutdown()
 
     // interrupt threads
     Thread.sleep(5000)
     workerInfos.foreach {
       case (worker, thread) =>
-        worker.shutdown(graceful = false)
+        worker.stop(false)
         thread.interrupt()
     }
     workerInfos.clear()

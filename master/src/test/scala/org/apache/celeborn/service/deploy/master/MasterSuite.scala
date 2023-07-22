@@ -53,7 +53,7 @@ class MasterSuite extends AnyFunSuite
       }
     }.start()
     Thread.sleep(5000L)
-    master.close()
+    master.stop(false)
     master.rpcEnv.shutdown()
   }
 }
