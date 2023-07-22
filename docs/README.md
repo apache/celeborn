@@ -82,7 +82,7 @@ WorkerRef: null
 ## Start Spark with Celeborn
 #### Copy Celeborn Client to Spark's jars
 Celeborn release binary contains clients for Spark 2.x and Spark 3.x, copy the corresponding client jar into Spark's
-```jars/``` directory:
+`jars/` directory:
 ```shell
 cp $CELEBORN_HOME/spark/<Celeborn Client Jar> $SPARK_HOME/jars/
 ```
