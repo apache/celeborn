@@ -15,7 +15,7 @@ license: |
 ---
 
 
-Upgrade
+Upgrading
 ===
 
 ## Rolling upgrade

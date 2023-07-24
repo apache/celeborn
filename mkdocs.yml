@@ -72,12 +72,22 @@ copyright: >
   <br>
 
 nav:
-  - Configuration: configuration/index.md
+  - QuickStart: README.md
   - Deployment:
       - Overview: deploy.md
       - Kubernetes: deploy_on_k8s.md
-      - Upgrade: upgrade.md
+      - Monitoring: monitoring.md
+      - Upgrading: upgrading.md
       - Ratis Shell: celeborn_ratis_shell.md
-  - Monitoring: monitoring.md
+  - Configuration: configuration/index.md
   - Migration Guide: migration.md
-
+  - Developers Doc:
+      - Overview: developers/overview.md
+#      - Master: developers/master.md
+      - Worker:
+        - Overview: developers/worker.md
+        - Storage: developers/storage.md
+#      - Client: developers/client.md
+      - PushData: developers/pushdata.md
+#      - ReadData: developers/readdata.md
+#      - Slots Allocation: developers/slotsallocation.md
