@@ -87,6 +87,7 @@ nav:
       - Worker:
         - Overview: developers/worker.md
         - Storage: developers/storage.md
+        - Traffic Control: developers/trafficcontrol.md
 #      - Client: developers/client.md
       - PushData: developers/pushdata.md
 #      - ReadData: developers/readdata.md
