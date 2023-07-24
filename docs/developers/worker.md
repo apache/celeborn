@@ -14,7 +14,6 @@ license: |
   limitations under the License.
 ---
 
-
 # Worker
 The main functions of Celeborn `Worker` are:
 
