@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import org.apache.celeborn.common.util.CelebornExitStatus;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -184,7 +185,7 @@ public class PartitionFilesSorterSuiteJ {
     partitionFilesSorter.initSortedShuffleFiles("application-3-1");
     partitionFilesSorter.updateSortedShuffleFiles("application-3-1", "0-0-1", 0);
     partitionFilesSorter.deleteSortedShuffleFiles("application-2-1");
-    partitionFilesSorter.close();
+    partitionFilesSorter.close(CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN());
     PartitionFilesSorter partitionFilesSorter2 =
         new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
     Assert.assertEquals(
@@ -193,7 +194,7 @@ public class PartitionFilesSorterSuiteJ {
     Assert.assertEquals(partitionFilesSorter2.getSortedShuffleFiles("application-2-1"), null);
     Assert.assertEquals(
         partitionFilesSorter2.getSortedShuffleFiles("application-3-1").toString(), "[0-0-1]");
-    partitionFilesSorter2.close();
+    partitionFilesSorter2.close(CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN());
     recoverPath.delete();
   }
 }
