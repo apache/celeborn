@@ -20,6 +20,9 @@ object CelebornCommonSettings {
   val scala213 = "2.13.5"
   val default_scala_version = defaultScalaVersion()
   val all_scala_versions = Seq(scala211, scala212, scala213)
+
+  val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.2-1")
+  val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
   
   // Dependent library versions
   // val sparkVersion = "3.4.0"
@@ -103,7 +106,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornCommon.common,
       CelebornClient.client,
       CelebornService.service,
-      CelebornMaster.master) ++ loadModules()
+      CelebornMaster.master) ++ maybeSparkClientModules
   }
   
   // ThisBuild / parallelExecution := false
@@ -136,13 +139,13 @@ object Utils {
 
   val SPARK_VERSION = profiles.filter(_.startsWith("spark")).headOption
 
-  def loadModules(): Seq[Project] = {
-    SPARK_VERSION match {
-      case Some("spark-2.4") => Spark24.modules
-      case Some("spark-3.3") => Spark33.modules
-      case _ => Seq.empty
-    }
+  lazy val sparkClientProjects = SPARK_VERSION match {
+    case Some("spark-2.4") => Some(Spark24)
+    case Some("spark-3.3") => Some(Spark33)
+    case _ => None
   }
+
+  lazy val maybeSparkClientModules: Seq[Project] = sparkClientProjects.map(_.modules).getOrElse(Seq.empty)
 
   def defaultScalaVersion(): String = {
     SPARK_VERSION match {
@@ -230,8 +233,8 @@ object CelebornClient {
       libraryDependencies ++= Seq(
           "io.netty" % "netty-all" % "4.1.93.Final",
           "com.google.guava" % "guava" % "14.0.1",
-          "org.lz4" % "lz4-java" % "1.8.0",
-          "com.github.luben" % "zstd-jni" % "1.5.2-1",
+          "org.lz4" % "lz4-java" % lz4JavaVersion,
+          "com.github.luben" % "zstd-jni" % zstdJniVersion,
           "org.apache.commons" % "commons-lang3" % "3.12.0",
           "org.mockito" % "mockito-core" % "4.11.0" % "test",
           "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.17.2" % "test",
