@@ -28,10 +28,10 @@ A `PartitionLocation` file can be read only after it is committed, trigger by `C
 ## File Layout
 Celeborn supports two kinds of partitions:
 
-- `ReducePartition`, where each `PartitionLocation` split file stores a portion of data with the same partition id,
+- `ReducePartition`, where each `PartitionLocation` file stores a portion of data with the same partition id,
   currently used for Apache Spark.
-- `MapPartition`, where each `PartitionLocation` split file stores a portion of data from the same map id, currently
-- used for Apache Flink.
+- `MapPartition`, where each `PartitionLocation` file stores a portion of data from the same map id, currently
+  used for Apache Flink.
 
 #### ReducePartition
 The layout of `ReducePartition` is as follows:
@@ -39,7 +39,7 @@ The layout of `ReducePartition` is as follows:
 ![ReducePartition](../../assets/img/reducepartition.svg)
 
 `ReducePartition` data file consists of several chunks (defaults to 8 MiB). Each data file has an in-memory index
-which points to start positions of each chunk. Upon requesting data from some partition, `Worker` first responds the
+which points to start positions of each chunk. Upon requesting data from some partition, `Worker` first returns the
 index, then sequentially reads and returns a chunk upon each `ChunkFetchRequest`, which is very efficient.
 
 #### MapPartition
