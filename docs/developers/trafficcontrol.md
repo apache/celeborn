@@ -56,9 +56,7 @@ accordingly. The state machine is as follows:
 `Back Pressure` is the basic traffic control and can't be disabled. Users can tune the three watermarks through the
 following configuration.
 
-- `celeborn.worker.directMemoryRatioToPauseReceive`
-- `celeborn.worker.directMemoryRatioToPauseReplicate`
-- `celeborn.worker.directMemoryRatioToResume`
+- `celeborn.worker.directMemoryRatio*`
 
 ## Congestion Control
 `Congestion Control` is an optional mechanism for traffic control, the purpose is to slow down the push rate
@@ -79,8 +77,4 @@ to `Slow Start` phase.
 
 `Congestion Control` can be enabled and tuned by the following configurations:
 
-- `celeborn.worker.congestionControl.enabled`
-- `celeborn.worker.congestionControl.low.watermark`
-- `celeborn.worker.congestionControl.high.watermark`
-- `celeborn.worker.congestionControl.sample.time.window`
-- `celeborn.worker.congestionControl.user.inactive.interval`
+- `celeborn.worker.congestionControl.*`
