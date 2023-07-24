@@ -1,7 +1,12 @@
 // scalastyle:off line.size.limit
 
 import java.nio.file.Files
+import java.nio.charset.StandardCharsets.UTF_8
+import java.util.Locale
+
 import sbtprotoc.ProtocPlugin.autoImport._
+
+import sbt.Keys.streams
 
 // Scala versions
 val scala212 = "2.12.15"
@@ -42,7 +47,8 @@ lazy val commonSettings = Seq(
   crossScalaVersions := all_scala_versions,
   fork := true,
   scalacOptions ++= Seq("-target:jvm-1.8"),
-  javacOptions ++= Seq("-source", "1.8"),
+  javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8"),
+
   // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
   Compile / compile / javacOptions ++= Seq("-target", "1.8"),
 
@@ -123,14 +129,10 @@ lazy val common = (project in file("common"))
 
     Test / envVars += ("IS_TESTING", "1"),
 
-    // Hack to avoid errors related to missing repo-root/target/scala-2.12/classes/
-    createTargetClassesDir := {
-      val dir = baseDirectory.value.getParentFile / "target" / "scala-2.12" / "classes"
-      Files.createDirectories(dir.toPath)
-    },
     // Generate the package object to provide the version information in runtime.
     Compile / sourceGenerators += Def.task {
       val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
+      streams.value.log.info("geneate version information file %s".format(file.toPath))
       IO.write(file,
         s"""package org.apache
            |
@@ -139,7 +141,12 @@ lazy val common = (project in file("common"))
            |}
            |""".stripMargin)
       Seq(file)
-    }
+      // generate version task depends on PB generate to avoid concurrency generate source files
+      // otherwise we may encounter the error:
+      // ```
+      //   [error] IO error while decoding ./celeborn/common/target/scala-2.12/src_managed/main/org/apache/celeborn/package.scala with UTF-8: ./celeborn/common/target/scala-2.12/src_managed/main/org/apache/celeborn/package.scala (No such file or directory)
+      // ```
+    }.dependsOn(Compile / PB.generate)
   )
 
 lazy val client = (project in file("client"))
@@ -185,11 +192,6 @@ lazy val client = (project in file("client"))
 
     Test / envVars += ("IS_TESTING", "1"),
 
-    // Hack to avoid errors related to missing repo-root/target/scala-2.12/classes/
-    createTargetClassesDir := {
-      val dir = baseDirectory.value.getParentFile / "target" / "scala-2.12" / "classes"
-      Files.createDirectories(dir.toPath)
-    }
   )
 
 lazy val service = (project in file("service"))
@@ -236,11 +238,6 @@ lazy val service = (project in file("service"))
 
     Test / envVars += ("IS_TESTING", "1"),
 
-    // Hack to avoid errors related to missing repo-root/target/scala-2.12/classes/
-    createTargetClassesDir := {
-      val dir = baseDirectory.value.getParentFile / "target" / "scala-2.12" / "classes"
-      Files.createDirectories(dir.toPath)
-    }
   )
 
 lazy val master = (project in file("master"))
@@ -292,16 +289,134 @@ lazy val master = (project in file("master"))
 
     Test / envVars += ("IS_TESTING", "1"),
 
-    // Hack to avoid errors related to missing repo-root/target/scala-2.12/classes/
-    createTargetClassesDir := {
-      val dir = baseDirectory.value.getParentFile / "target" / "scala-2.12" / "classes"
-      Files.createDirectories(dir.toPath)
+  )
+
+lazy val sparkCommon = (project in file("client-spark/common"))
+  .dependsOn(common, client)
+  .settings (
+    name := "spark-common",
+    commonSettings,
+    libraryDependencies ++= Seq(
+        "org.scala-lang" % "scala-library" % "2.12.18",
+        "org.apache.spark" %% "spark-core" % "3.3.2" % "provided",
+        "org.apache.spark" %% "spark-sql" % "3.3.2" % "provided",
+        "org.mockito" % "mockito-core" % "4.11.0" % "test",
+        "junit" % "junit" % "4.12" % "test",
+        "org.scalatest" %% "scalatest" % "3.2.16" % "test",
+
+      // Compiler plugins
+      // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+      compilerPlugin(
+        "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+    ),
+
+    Test / testOptions += Tests.Argument("-oDF"),
+    Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
+
+    // Don't execute in parallel since we can't have multiple Sparks in the same JVM
+    Test / parallelExecution := false,
+
+    scalacOptions ++= Seq(
+      "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
+    ),
+
+    javaOptions += "-Xmx2048m",
+
+    // Configurations to speed up tests and reduce memory footprint
+    Test / javaOptions ++= Seq(
+      "-Xmx2048m"
+    ),
+
+    Test / envVars += ("IS_TESTING", "1"),
+  )
+
+lazy val spark3 = (project in file("client-spark/spark-3"))
+  .dependsOn(common, client, sparkCommon)
+  .settings (
+    name := "celeborn-client-spark-3",
+    commonSettings,
+    libraryDependencies ++= Seq(
+        "org.scala-lang" % "scala-library" % "2.12.18",
+        "org.apache.spark" %% "spark-core" % "3.3.2" % "provided",
+        "org.apache.spark" %% "spark-sql" % "3.3.2" % "provided",
+        "org.mockito" % "mockito-core" % "4.11.0" % "test",
+        "junit" % "junit" % "4.12" % "test",
+        "org.scalatest" %% "scalatest" % "3.2.16" % "test",
+
+      // Compiler plugins
+      // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+      compilerPlugin(
+        "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+    ),
+
+    Test / testOptions += Tests.Argument("-oDF"),
+    Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
+
+    // Don't execute in parallel since we can't have multiple Sparks in the same JVM
+    Test / parallelExecution := false,
+
+    scalacOptions ++= Seq(
+      "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
+    ),
+
+    javaOptions += "-Xmx2048m",
+
+    // Configurations to speed up tests and reduce memory footprint
+    Test / javaOptions ++= Seq(
+      "-Xmx2048m"
+    ),
+
+    Test / envVars += ("IS_TESTING", "1"),
+  )
+
+
+lazy val spark3Shaded = (project in file("client-spark/spark-3-shade"))
+  .dependsOn(spark3)
+  .settings (
+    name := "celeborn-client-spark-3",
+    commonSettings,
+
+    (assembly / test) := { },
+
+    (assembly / logLevel) := Level.Info,
+
+    // Exclude `scala-library` from assembly.
+    (assembly / assemblyPackageScala / assembleArtifact) := false,
+
+    // Exclude `pmml-model-*.jar`, `scala-collection-compat_*.jar`,`jsr305-*.jar` and
+    // `netty-*.jar` and `unused-1.0.0.jar` from assembly.
+    (assembly / assemblyExcludedJars) := {
+      val cp = (assembly / fullClasspath).value
+      cp filter { v =>
+        val name = v.data.getName
+        // name.startsWith("pmml-model-") || name.startsWith("scala-collection-compat_") ||
+        //  name.startsWith("jsr305-") || name.startsWith("netty-") || name == "unused-1.0.0.jar"
+        !(name.startsWith("celeborn-") || name.startsWith("protobuf-java-") ||
+          name.startsWith("guava-") || name.startsWith("netty-") || name.startsWith("commons-lang3-"))
+      }
+    },
+
+    (assembly / assemblyShadeRules) := Seq(
+      ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
+      ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
+      ShadeRule.rename("io.netty.**" -> "org.apache.celeborn.shaded.io.netty.@1").inAll,
+      ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll
+    ),
+
+    (assembly / assemblyMergeStrategy) := {
+      case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+      // Drop all proto files that are not needed as artifacts of the build.
+      case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
+      case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
+      // Drop netty jnilib
+      case m if m.toLowerCase(Locale.ROOT).endsWith(".jnilib") => MergeStrategy.discard
+      // rename netty native lib
+      case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" )
+      case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
+      case _ => MergeStrategy.first
     }
   )
 
 ThisBuild / parallelExecution := false
 
 ThisBuild / version := "0.4.0-SNAPSHOT"
-
-val createTargetClassesDir = taskKey[Unit]("create target classes dir")
-
