@@ -16,34 +16,37 @@ import CelebornCommonSettings._
 //
 object CelebornCommonSettings {
   // Scala versions
+  val scala211 = "2.11.12"
   val scala212 = "2.12.15"
   val scala213 = "2.13.5"
-  val default_scala_version = scala212
-  val all_scala_versions = Seq(scala212, scala213)
+  val default_scala_version = scala211
+  val all_scala_versions = Seq(scala211, scala212, scala213)
   
   // Dependent library versions
-  val sparkVersion = "3.4.0"
-  val flinkVersion = "1.16.1"
-  val hadoopVersion = "3.3.1"
-  val scalaTestVersion = "3.2.15"
-  val scalaTestVersionForConnectors = "3.0.8"
-  val parquet4sVersion = "1.9.4"
-  
-  // Versions for Hive 3
-  val hadoopVersionForHive3 = "3.1.0"
-  val hiveVersion = "3.1.2"
-  val tezVersion = "0.9.2"
-  
-  // Versions for Hive 2
-  val hadoopVersionForHive2 = "2.7.2"
-  val hive2Version = "2.3.3"
-  val tezVersionForHive2 = "0.8.4"
+  // val sparkVersion = "3.4.0"
+  // val flinkVersion = "1.16.1"
+  // val hadoopVersion = "3.3.1"
+  // val scalaTestVersion = "3.2.15"
+  // val scalaTestVersionForConnectors = "3.0.8"
+  // val parquet4sVersion = "1.9.4"
+  // 
+  // // Versions for Hive 3
+  // val hadoopVersionForHive3 = "3.1.0"
+  // val hiveVersion = "3.1.2"
+  // val tezVersion = "0.9.2"
+  // 
+  // // Versions for Hive 2
+  // val hadoopVersionForHive2 = "2.7.2"
+  // val hive2Version = "2.3.3"
+  // val tezVersionForHive2 = "0.8.4"
   
   // Versions for proto
   val protocVersion = "3.19.2"
   val protoVersion = "3.19.2"
   
   scalaVersion := default_scala_version
+
+  autoScalaLibrary := false
   
   // crossScalaVersions must be set to Nil on the root project
   crossScalaVersions := Nil
@@ -65,6 +68,25 @@ object CelebornCommonSettings {
     ),
   
     testOptions += Tests.Argument("-oF"),
+
+    Test / testOptions += Tests.Argument("-oDF"),
+    Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
+
+    // Don't execute in parallel since we can't have multiple Sparks in the same JVM
+    Test / parallelExecution := false,
+
+    scalacOptions ++= Seq(
+      "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
+    ),
+
+    javaOptions += "-Xmx2048m",
+
+    // Configurations to speed up tests and reduce memory footprint
+    Test / javaOptions ++= Seq(
+      "-Xmx2048m"
+    ),
+
+    Test / envVars += ("IS_TESTING", "1")
   )
 
   lazy val protoSettings = Seq(
@@ -85,9 +107,15 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornMaster.master) ++ loadModules()
   }
   
-  ThisBuild / parallelExecution := false
+  // ThisBuild / parallelExecution := false
   
   ThisBuild / version := "0.4.0-SNAPSHOT"
+
+  scalaVersion := "2.11.12"
+
+  autoScalaLibrary := false
+
+  crossScalaVersions := Seq("2.11.12", "2.12.15")
 
   // load user-defined Profiles
   loadProfiles()
@@ -114,7 +142,7 @@ object Utils {
   }
 
   def loadModules(): Seq[Project] = {
-    if (profiles.contains("spark-3.3")) {
+    if (profiles.contains("spark-3.3") || profiles.contains("spark-2.4")) {
       // streams.value.log.info("loading spark 3.3 client modules")
       println("loading spark 3.3 client modules")
       return Seq(
@@ -133,7 +161,6 @@ object CelebornCommon {
       commonSettings,
       protoSettings,
       libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-library" % "2.12.15",
           "com.google.protobuf" % "protobuf-java" % "3.19.2" % "protobuf",
           "org.apache.ratis" % "ratis-common" % "2.5.1",
           "org.apache.ratis" % "ratis-client" % "2.5.1",
@@ -151,7 +178,7 @@ object CelebornCommon {
           "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8",
           "com.google.code.findbugs" % "jsr305" % "1.3.9",
           "com.google.guava" % "guava" % "14.0.1",
-          "org.scala-lang" % "scala-reflect" % "2.12.15",
+          "org.scala-lang" % "scala-reflect" % scalaVersion.value,
           "org.apache.hadoop" % "hadoop-client-api" % "3.2.4",
           "org.apache.hadoop" % "hadoop-client-runtime" % "3.2.4",
           "org.roaringbitmap" % "RoaringBitmap" % "0.9.32",
@@ -167,28 +194,7 @@ object CelebornCommon {
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
       ),
-  
-      Test / testOptions += Tests.Argument("-oDF"),
-      Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-  
-      // Don't execute in parallel since we can't have multiple Sparks in the same JVM
-      Test / parallelExecution := false,
-  
-      scalacOptions ++= Seq(
-        "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
-      ),
-  
-      javaOptions += "-Xmx2048m",
-  
-      // Configurations to speed up tests and reduce memory footprint
-      Test / javaOptions ++= Seq(
-        "-Dspark.ui.enabled=false",
-        "-Xmx2048m"
-      ),
-  
-      Test / envVars += ("IS_TESTING", "1"),
-  
-      // Generate the package object to provide the version information in runtime.
+
       Compile / sourceGenerators += Def.task {
         val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
         streams.value.log.info("geneate version information file %s".format(file.toPath))
@@ -199,18 +205,22 @@ object CelebornCommon {
              |  val VERSION = "${version.value}"
              |}
              |""".stripMargin)
-  
-        println("=====")
-        profiles.foreach(println)
-        println("=====")
         Seq(file)
         // generate version task depends on PB generate to avoid concurrency generate source files
         // otherwise we may encounter the error:
         // ```
         //   [error] IO error while decoding ./celeborn/common/target/scala-2.12/src_managed/main/org/apache/celeborn/package.scala with UTF-8: ./celeborn/common/target/scala-2.12/src_managed/main/org/apache/celeborn/package.scala (No such file or directory)
         // ```
-      }.dependsOn(Compile / PB.generate)
+      }.dependsOn(Compile / PB.generate),
+  
+      // a task to show current profiles
+      printProfiles := {
+        val message = profiles.mkString("", " ", "")
+        println("compile with profiles: %s".format(message))
+      }
     )
+
+    lazy val printProfiles = taskKey[Unit]("Prints Profiles")
 }
 
 object CelebornClient {
@@ -220,7 +230,6 @@ object CelebornClient {
       name := "client",
       commonSettings,
       libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-library" % "2.12.18",
           "io.netty" % "netty-all" % "4.1.93.Final",
           "com.google.guava" % "guava" % "14.0.1",
           "org.lz4" % "lz4-java" % "1.8.0",
@@ -238,25 +247,6 @@ object CelebornClient {
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
       ),
   
-      Test / testOptions += Tests.Argument("-oDF"),
-      Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-  
-      // Don't execute in parallel since we can't have multiple Sparks in the same JVM
-      Test / parallelExecution := false,
-  
-      scalacOptions ++= Seq(
-        "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
-      ),
-  
-      javaOptions += "-Xmx2048m",
-  
-      // Configurations to speed up tests and reduce memory footprint
-      Test / javaOptions ++= Seq(
-        "-Xmx2048m"
-      ),
-  
-      Test / envVars += ("IS_TESTING", "1"),
-  
     )
 }
 
@@ -267,7 +257,6 @@ object CelebornService {
       name := "service",
       commonSettings,
       libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-library" % "2.12.18",
           "org.slf4j" % "slf4j-api" % "1.7.36",
           "io.netty" % "netty-all" % "4.1.93.Final",
           "javax.servlet" % "javax.servlet-api" % "3.1.0",
@@ -284,27 +273,7 @@ object CelebornService {
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      ),
-  
-      Test / testOptions += Tests.Argument("-oDF"),
-      Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-  
-      // Don't execute in parallel since we can't have multiple Sparks in the same JVM
-      Test / parallelExecution := false,
-  
-      scalacOptions ++= Seq(
-        "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
-      ),
-  
-      javaOptions += "-Xmx2048m",
-  
-      // Configurations to speed up tests and reduce memory footprint
-      Test / javaOptions ++= Seq(
-        "-Xmx2048m"
-      ),
-  
-      Test / envVars += ("IS_TESTING", "1"),
-  
+      )
     )
 }
 
@@ -316,7 +285,6 @@ object CelebornMaster {
       commonSettings,
       protoSettings,
       libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-library" % "2.12.18",
           "com.google.protobuf" % "protobuf-java" % "3.19.2",
           "io.netty" % "netty-all" % "4.1.93.Final",
           "com.google.guava" % "guava" % "14.0.1",
@@ -337,26 +305,7 @@ object CelebornMaster {
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      ),
-  
-      Test / testOptions += Tests.Argument("-oDF"),
-      Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-  
-      // Don't execute in parallel since we can't have multiple Sparks in the same JVM
-      Test / parallelExecution := false,
-  
-      scalacOptions ++= Seq(
-        "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
-      ),
-  
-      javaOptions += "-Xmx2048m",
-  
-      // Configurations to speed up tests and reduce memory footprint
-      Test / javaOptions ++= Seq(
-        "-Xmx2048m"
-      ),
-  
-      Test / envVars += ("IS_TESTING", "1"),
+      )
     )
 }
 
@@ -364,10 +313,28 @@ object CelebornMaster {
 //                   Spark Client                     //
 ////////////////////////////////////////////////////////
 
+trait SparkClientSettings {
 
-object Spark24 {
-  val jacksonVersion = "2.5.7"
-  val jacksonDatabindVersion = "2.6.7.3"
+  val sparkClientProjectPath: String
+  val sparkClientProjectName: String
+  val sparkClientShadeProjectPath: String
+  val sparkClientShadeProjectName: String
+
+  val lz4JavaVersion: String
+  val default_scala_version: String
+  val sparkVersion: String
+  val zstdJniVersion: String
+}
+
+object Spark24 extends SparkClientSettings {
+
+  val sparkClientProjectPath = "client-spark/spark-2"
+  val sparkClientProjectName = "celeborn-client-spark-2"
+  val sparkClientShadeProjectPath = "client-spark/spark-2-shade"
+  val sparkClientShadeProjectName = "celeborn-client-spark-2-shaded"
+
+  // val jacksonVersion = "2.5.7"
+  // val jacksonDatabindVersion = "2.6.7.3"
   val lz4JavaVersion = "1.4.0"
   val default_scala_version = "2.11.12"
   // scalaBinaryVersion
@@ -376,9 +343,15 @@ object Spark24 {
   val zstdJniVersion = "1.4.4-3"
 }
 
-object Spark33 {
-  val jacksonVersion = "2.13.4"
-  val jacksonDatabindVersion = "2.13.4.2"
+object Spark33 extends SparkClientSettings {
+
+  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectName = "celeborn-client-spark-3"
+  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
+  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+
+  // val jacksonVersion = "2.13.4"
+  // val jacksonDatabindVersion = "2.13.4.2"
   val lz4JavaVersion = "1.8.0"
   val default_scala_version = "2.12.15"
   // scalaBinaryVersion
@@ -388,15 +361,24 @@ object Spark33 {
 }
 
 object SparkClient {
+  var sparkClientSettings: SparkClientSettings = _
+
+  if (profiles.contains("spark-2.4")) {
+    sparkClientSettings = Spark24
+  }
+
+  if (profiles.contains("spark-3.3")) {
+    sparkClientSettings = Spark33
+  }
+
   lazy val sparkCommon = (project in file("client-spark/common"))
     .dependsOn(CelebornCommon.common, CelebornClient.client)
     .settings (
       name := "spark-common",
       commonSettings,
       libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-library" % "2.12.18",
-          "org.apache.spark" %% "spark-core" % "3.3.2" % "provided",
-          "org.apache.spark" %% "spark-sql" % "3.3.2" % "provided",
+          "org.apache.spark" %% "spark-core" % sparkClientSettings.sparkVersion % "provided",
+          "org.apache.spark" %% "spark-sql" % sparkClientSettings.sparkVersion % "provided",
           "org.mockito" % "mockito-core" % "4.11.0" % "test",
           "junit" % "junit" % "4.12" % "test",
           "org.scalatest" %% "scalatest" % "3.2.16" % "test",
@@ -405,37 +387,17 @@ object SparkClient {
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      ),
-  
-      Test / testOptions += Tests.Argument("-oDF"),
-      Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-  
-      // Don't execute in parallel since we can't have multiple Sparks in the same JVM
-      Test / parallelExecution := false,
-  
-      scalacOptions ++= Seq(
-        "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
-      ),
-  
-      javaOptions += "-Xmx2048m",
-  
-      // Configurations to speed up tests and reduce memory footprint
-      Test / javaOptions ++= Seq(
-        "-Xmx2048m"
-      ),
-  
-      Test / envVars += ("IS_TESTING", "1"),
+      )
     )
   
-  lazy val spark3 = (project in file("client-spark/spark-3"))
+  lazy val spark3 = (project in file(sparkClientSettings.sparkClientProjectPath))
     .dependsOn(CelebornCommon.common, CelebornClient.client, sparkCommon)
     .settings (
-      name := "celeborn-client-spark-3",
+      name := sparkClientSettings.sparkClientProjectName,
       commonSettings,
       libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-library" % "2.12.18",
-          "org.apache.spark" %% "spark-core" % "3.3.2" % "provided",
-          "org.apache.spark" %% "spark-sql" % "3.3.2" % "provided",
+          "org.apache.spark" %% "spark-core" % sparkClientSettings.sparkVersion % "provided",
+          "org.apache.spark" %% "spark-sql" % sparkClientSettings.sparkVersion % "provided",
           "org.mockito" % "mockito-core" % "4.11.0" % "test",
           "junit" % "junit" % "4.12" % "test",
           "org.scalatest" %% "scalatest" % "3.2.16" % "test",
@@ -444,33 +406,14 @@ object SparkClient {
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      ),
-  
-      Test / testOptions += Tests.Argument("-oDF"),
-      Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-  
-      // Don't execute in parallel since we can't have multiple Sparks in the same JVM
-      Test / parallelExecution := false,
-  
-      scalacOptions ++= Seq(
-        "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
-      ),
-  
-      javaOptions += "-Xmx2048m",
-  
-      // Configurations to speed up tests and reduce memory footprint
-      Test / javaOptions ++= Seq(
-        "-Xmx2048m"
-      ),
-  
-      Test / envVars += ("IS_TESTING", "1"),
+      )
     )
   
   
-  lazy val spark3Shaded = (project in file("client-spark/spark-3-shade"))
+  lazy val spark3Shaded = (project in file(sparkClientSettings.sparkClientShadeProjectPath))
     .dependsOn(spark3)
     .settings (
-      name := "celeborn-client-spark-3",
+      name := sparkClientSettings.sparkClientShadeProjectName,
       commonSettings,
   
       (assembly / test) := { },
@@ -513,46 +456,4 @@ object SparkClient {
         case _ => MergeStrategy.first
       }
     )
-
-  def sparkCommonProject(): Project = {
-    val sparkCommon = (project in file("client-spark/common"))
-      .dependsOn(CelebornCommon.common, CelebornClient.client)
-      .settings (
-        name := "spark-common",
-        commonSettings,
-        libraryDependencies ++= Seq(
-            "org.scala-lang" % "scala-library" % "2.12.18",
-            "org.apache.spark" %% "spark-core" % "3.3.2" % "provided",
-            "org.apache.spark" %% "spark-sql" % "3.3.2" % "provided",
-            "org.mockito" % "mockito-core" % "4.11.0" % "test",
-            "junit" % "junit" % "4.12" % "test",
-            "org.scalatest" %% "scalatest" % "3.2.16" % "test",
-    
-          // Compiler plugins
-          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-          compilerPlugin(
-            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-        ),
-    
-        Test / testOptions += Tests.Argument("-oDF"),
-        Test / testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-    
-        // Don't execute in parallel since we can't have multiple Sparks in the same JVM
-        Test / parallelExecution := false,
-    
-        scalacOptions ++= Seq(
-          "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
-        ),
-    
-        javaOptions += "-Xmx2048m",
-    
-        // Configurations to speed up tests and reduce memory footprint
-        Test / javaOptions ++= Seq(
-          "-Xmx2048m"
-        ),
-    
-        Test / envVars += ("IS_TESTING", "1"),
-      )
-    return sparkCommon
-  }
 }
