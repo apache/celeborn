@@ -12,14 +12,13 @@ import sbt.Keys._
 import Utils._
 import CelebornCommonSettings._
 // import sbt.Keys.streams
-//
-//
+
 object CelebornCommonSettings {
   // Scala versions
   val scala211 = "2.11.12"
   val scala212 = "2.12.15"
   val scala213 = "2.13.5"
-  val default_scala_version = scala211
+  val default_scala_version = defaultScalaVersion()
   val all_scala_versions = Seq(scala211, scala212, scala213)
   
   // Dependent library versions
@@ -111,11 +110,11 @@ object CelebornBuild extends sbt.internal.BuildDef {
   
   ThisBuild / version := "0.4.0-SNAPSHOT"
 
-  scalaVersion := "2.11.12"
+  // scalaVersion := "2.11.12"
 
-  autoScalaLibrary := false
+  // autoScalaLibrary := false
 
-  crossScalaVersions := Seq("2.11.12", "2.12.15")
+  crossScalaVersions := Nil
 
   // load user-defined Profiles
   loadProfiles()
@@ -135,11 +134,7 @@ object Utils {
       profiles
   }
 
-  def loadProfiles(): Unit = {
-    if (profiles.contains("spark-3.3")) {
-      import SparkClient._
-    }
-  }
+  val SPARK_VERSION = profiles.filter(_.startsWith("spark")).headOption
 
   def loadModules(): Seq[Project] = {
     if (profiles.contains("spark-3.3") || profiles.contains("spark-2.4")) {
@@ -151,6 +146,13 @@ object Utils {
         SparkClient.spark3Shaded)
     }
     Seq.empty
+  }
+
+  def defaultScalaVersion(): String = {
+    SPARK_VERSION match {
+      case Option("spark-2.4") => scala211
+      case _ => scala212
+    }
   }
 }
 
