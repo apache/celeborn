@@ -23,3 +23,10 @@ The main functions of Celeborn `Worker` are:
 - Support rolling upgrade through `Graceful Shutdown`
 - Support elasticity through `Decommission Shutdown`
 - Self health check
+
+Celeborn `Worker` has four dedicated servers:
+
+- `Controller` handles control messages, i.e. `ReserveSlots`, `CommitFiles`, and `DestroyWorkerSlots`
+- `Push Server` handles primary input data, i.e. `PushData` and `PushMergedData`, and push related control messages
+- `Replicate Server` handles replica input data, it has the same logic with `Push Server`
+- `Fetch Server` handles fetch requests, i.e. `ChunkFetchRequest`, and fetch related control messages
