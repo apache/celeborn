@@ -62,7 +62,6 @@ import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -195,23 +194,23 @@ public class FileWriterSuiteJ {
   }
 
   public ByteBuffer createOpenMessage() {
-    PbOpenStream pbOpenStream =
-        PbOpenStream.newBuilder()
-            .setShuffleKey("shuffleKey")
-            .setFileName("location")
-            .setStartIndex(0)
-            .setEndIndex(Integer.MAX_VALUE)
-            .build();
+    TransportMessage message =
+        new TransportMessage(
+            MessageType.OPEN_STREAM,
+            PbOpenStream.newBuilder()
+                .setShuffleKey("shuffleKey")
+                .setFileName("location")
+                .setStartIndex(0)
+                .setEndIndex(Integer.MAX_VALUE)
+                .build()
+                .toByteArray());
 
-    return ByteBuffer.wrap(pbOpenStream.toByteArray());
+    return message.toByteBuffer();
   }
 
   private void setUpConn(TransportClient client) throws IOException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
-    PbStreamHandler streamHandle =
-        PbStreamHandler.parseFrom(
-            TransportMessage.fromByteBuffer(Message.decode(resp).body().nioByteBuffer())
-                .getPayload());
+    PbStreamHandler streamHandle = TransportMessage.fromByteBuffer(resp).getPayLoad();
     streamId = streamHandle.getStreamId();
     numChunks = streamHandle.getNumChunks();
   }

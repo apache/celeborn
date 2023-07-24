@@ -54,12 +54,12 @@ public class TransportMessage implements Serializable {
     return payload;
   }
 
-  public GeneratedMessageV3 getPayLoad() throws InvalidProtocolBufferException {
+  public <T extends GeneratedMessageV3> T getPayLoad() throws InvalidProtocolBufferException {
     switch (type) {
       case OPEN_STREAM:
-        return PbOpenStream.parseFrom(payload);
+        return (T) PbOpenStream.parseFrom(payload);
       case STREAM_HANDLER:
-        return PbStreamHandler.parseFrom(payload);
+        return (T) PbStreamHandler.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }
