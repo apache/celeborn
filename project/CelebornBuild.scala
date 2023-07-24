@@ -98,6 +98,13 @@ object CelebornCommonSettings {
     Compile / PB.protoSources := Seq(sourceDirectory.value / "main" / "proto"),
     Compile / PB.targets := Seq(PB.gens.java -> (Compile / sourceManaged).value)
   )
+
+  lazy val commonUnitTestDependencies = Seq(
+    "org.mockito" % "mockito-core" % "4.11.0" % "test",
+    "org.scalatest" %% "scalatest" % "3.2.16" % "test",
+    "junit" % "junit" % "4.12" % "test",
+    // https://www.scala-sbt.org/1.x/docs/Testing.html
+    "com.github.sbt" % "junit-interface" % "0.13.3" % "test")
 }
 
 object CelebornBuild extends sbt.internal.BuildDef {
@@ -183,18 +190,15 @@ object CelebornCommon {
           "org.apache.hadoop" % "hadoop-client-api" % "3.2.4",
           "org.apache.hadoop" % "hadoop-client-runtime" % "3.2.4",
           "org.roaringbitmap" % "RoaringBitmap" % "0.9.32",
-          "org.mockito" % "mockito-core" % "4.11.0" % "test",
           "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.17.2" % "test",
           "org.apache.logging.log4j" % "log4j-1.2-api" % "2.17.2" % "test",
-          "junit" % "junit" % "4.12" % "test",
-          "org.scalatest" %% "scalatest" % "3.2.16" % "test",
   
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      ),
+      ) ++ commonUnitTestDependencies,
 
       Compile / sourceGenerators += Def.task {
         val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
@@ -237,17 +241,14 @@ object CelebornClient {
           "org.lz4" % "lz4-java" % lz4JavaVersion,
           "com.github.luben" % "zstd-jni" % zstdJniVersion,
           "org.apache.commons" % "commons-lang3" % "3.12.0",
-          "org.mockito" % "mockito-core" % "4.11.0" % "test",
           "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.17.2" % "test",
           "org.apache.logging.log4j" % "log4j-1.2-api" % "2.17.2" % "test",
-          "junit" % "junit" % "4.12" % "test",
-          "org.scalatest" %% "scalatest" % "3.2.16" % "test",
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      )
+      ) ++ commonUnitTestDependencies
     )
 }
 
@@ -264,17 +265,14 @@ object CelebornService {
           "commons-io" % "commons-io" % "2.13.0",
           "org.apache.commons" % "commons-crypto" % "1.0.0",
           "com.google.code.findbugs" % "jsr305" % "1.3.9",
-          "org.mockito" % "mockito-core" % "4.11.0" % "test",
           "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.17.2" % "test",
           "org.apache.logging.log4j" % "log4j-1.2-api" % "2.17.2" % "test",
-          "junit" % "junit" % "4.12" % "test",
-          "org.scalatest" %% "scalatest" % "3.2.16" % "test",
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      )
+      ) ++ commonUnitTestDependencies
     )
 }
 
@@ -297,16 +295,13 @@ object CelebornMaster {
           "org.apache.ratis" % "ratis-shell" % "2.5.1",
           "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.17.2",
           "org.apache.logging.log4j" % "log4j-1.2-api" % "2.17.2",
-          "org.mockito" % "mockito-core" % "4.11.0" % "test",
           "org.apache.hadoop" % "hadoop-client-api" % "3.2.4",
-          "junit" % "junit" % "4.12" % "test",
-          "org.scalatest" %% "scalatest" % "3.2.16" % "test",
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      )
+      ) ++ commonUnitTestDependencies
     )
 }
 
@@ -373,17 +368,12 @@ trait SparkClientProjects {
             "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
             "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
             "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
-            "org.mockito" % "mockito-core" % "4.11.0" % "test",
-            "junit" % "junit" % "4.12" % "test",
-            "org.scalatest" %% "scalatest" % "3.2.16" % "test",
-            // https://www.scala-sbt.org/1.x/docs/Testing.html
-            "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
   
           // Compiler plugins
           // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
           compilerPlugin(
             "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-        )
+        ) ++ commonUnitTestDependencies
       )
   }
   
@@ -398,15 +388,12 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
             "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
             "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-            "org.mockito" % "mockito-core" % "4.11.0" % "test",
-            "junit" % "junit" % "4.12" % "test",
-            "org.scalatest" %% "scalatest" % "3.2.16" % "test",
   
           // Compiler plugins
           // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
           compilerPlugin(
             "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-        )
+        ) ++ commonUnitTestDependencies
       )
   }
   
