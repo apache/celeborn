@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
@@ -118,7 +119,11 @@ public class WorkerPartitionReader implements PartitionReader {
                 .build()
                 .toByteArray());
     ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
-    streamHandle = (PbStreamHandler) TransportMessage.fromByteBuffer(response).getPayLoad();
+    try {
+      streamHandle = TransportMessage.fromByteBuffer(response).getPayLoad();
+    } catch (CelebornException e) {
+      throw new RuntimeException(e);
+    }
 
     this.location = location;
     this.clientFactory = clientFactory;

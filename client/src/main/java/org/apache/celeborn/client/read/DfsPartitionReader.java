@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
@@ -88,7 +89,7 @@ public class DfsPartitionReader implements PartitionReader {
             client.sendRpcSync(ByteBuffer.wrap(openStream.toByteArray()), fetchTimeoutMs);
         TransportMessage.fromByteBuffer(response).getPayLoad();
         // Parse this message to ensure sort is done.
-      } catch (IOException | InterruptedException e) {
+      } catch (IOException | InterruptedException | CelebornException e) {
         throw new IOException(
             "read shuffle file from HDFS failed, filePath: "
                 + location.getStorageInfo().getFilePath(),

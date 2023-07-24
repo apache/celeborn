@@ -25,6 +25,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
@@ -76,8 +77,11 @@ public class TransportMessage implements Serializable {
     return buffer;
   }
 
-  public static TransportMessage fromByteBuffer(ByteBuffer buffer) {
+  public static TransportMessage fromByteBuffer(ByteBuffer buffer) throws CelebornException {
     int type = buffer.getInt();
+    if (MessageType.forNumber(type) == null) {
+      throw new CelebornException("Decode failed,fallback to legacy messages.");
+    }
     int payloadLen = buffer.getInt();
     byte[] payload = new byte[payloadLen];
     buffer.get(payload);

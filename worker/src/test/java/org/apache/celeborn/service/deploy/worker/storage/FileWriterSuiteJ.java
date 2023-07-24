@@ -55,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.TransportContext;
@@ -208,7 +209,7 @@ public class FileWriterSuiteJ {
     return message.toByteBuffer();
   }
 
-  private void setUpConn(TransportClient client) throws IOException {
+  private void setUpConn(TransportClient client) throws IOException, CelebornException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
     PbStreamHandler streamHandle = TransportMessage.fromByteBuffer(resp).getPayLoad();
     streamId = streamHandle.getStreamId();
