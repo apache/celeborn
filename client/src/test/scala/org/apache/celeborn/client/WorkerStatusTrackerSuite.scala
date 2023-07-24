@@ -30,6 +30,22 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 
 class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
+  def f(): Unit = {
+    val a = List(-1, 1)
+    a.foreach( v => {
+      if (v > 0) {
+        println("haha")
+        return
+      }
+      println("aaa")
+    }
+    )
+  }
+
+  test("test") {
+    f()
+  }
+
   test("handleHeartbeatResponse") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L);
