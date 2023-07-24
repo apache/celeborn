@@ -226,7 +226,8 @@ object CelebornCommon {
 
 object CelebornClient {
   lazy val client = (project in file("client"))
-    .dependsOn(CelebornCommon.common)
+    // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+    .dependsOn(CelebornCommon.common % "test->test;compile->compile")
     .settings (
       name := "client",
       commonSettings,
@@ -246,8 +247,7 @@ object CelebornClient {
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
         compilerPlugin(
           "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-      ),
-  
+      )
     )
 }
 
@@ -364,15 +364,20 @@ trait SparkClientProjects {
 
   def sparkCommon: Project = {
     Project("spark-common", file("client-spark/common"))
-      .dependsOn(CelebornCommon.common, CelebornClient.client)
+      .dependsOn(CelebornCommon.common)
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
       .settings (
         commonSettings,
         libraryDependencies ++= Seq(
             "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
             "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+            "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
             "org.mockito" % "mockito-core" % "4.11.0" % "test",
             "junit" % "junit" % "4.12" % "test",
             "org.scalatest" %% "scalatest" % "3.2.16" % "test",
+            // https://www.scala-sbt.org/1.x/docs/Testing.html
+            "com.github.sbt" % "junit-interface" % "0.13.3" % "test",
   
           // Compiler plugins
           // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
@@ -384,7 +389,9 @@ trait SparkClientProjects {
   
   def sparkClient: Project = {
     Project(sparkClientProjectName, file(sparkClientProjectPath))
-      .dependsOn(CelebornCommon.common, CelebornClient.client, sparkCommon)
+      .dependsOn(CelebornCommon.common, sparkCommon)
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
       .settings (
         name := sparkClientProjectName,
         commonSettings,
