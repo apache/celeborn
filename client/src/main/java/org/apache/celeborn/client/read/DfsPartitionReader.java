@@ -35,10 +35,10 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
@@ -78,18 +78,20 @@ public class DfsPartitionReader implements PartitionReader {
       try {
         TransportClient client =
             clientFactory.createClient(location.getHost(), location.getFetchPort());
-        PbOpenStream openStream =
-            PbOpenStream.newBuilder()
-                .setShuffleKey(shuffleKey)
-                .setFileName(location.getFileName())
-                .setStartIndex(startMapIndex)
-                .setEndIndex(endMapIndex)
-                .build();
-        ByteBuffer response =
-            client.sendRpcSync(ByteBuffer.wrap(openStream.toByteArray()), fetchTimeoutMs);
+        TransportMessage openStream =
+            new TransportMessage(
+                MessageType.OPEN_STREAM,
+                PbOpenStream.newBuilder()
+                    .setShuffleKey(shuffleKey)
+                    .setFileName(location.getFileName())
+                    .setStartIndex(startMapIndex)
+                    .setEndIndex(endMapIndex)
+                    .build()
+                    .toByteArray());
+        ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
         TransportMessage.fromByteBuffer(response).getPayLoad();
         // Parse this message to ensure sort is done.
-      } catch (IOException | InterruptedException | CelebornException e) {
+      } catch (IOException | InterruptedException e) {
         throw new IOException(
             "read shuffle file from HDFS failed, filePath: "
                 + location.getStorageInfo().getFilePath(),

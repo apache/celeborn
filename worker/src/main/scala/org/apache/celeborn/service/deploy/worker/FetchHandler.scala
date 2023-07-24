@@ -97,7 +97,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
         // 1. parse transportMessage
         try {
           val pbMsg = TransportMessage.fromByteBuffer(r.body().nioByteBuffer())
-          val pbOpenStream = PbOpenStream.parseFrom(pbMsg.getPayload)
+          val pbOpenStream = pbMsg.getPayLoad[PbOpenStream]
           handleOpenStream(client, r.requestId, pbOpenStream, () => r.body().release())
         } catch {
           case _: Exception =>
@@ -207,7 +207,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       new NioManagedBuffer(streamHandle.toByteBuffer)))
   }
 
-  // here are BackLogAnnouncement,OpenStream and OpenStreamWithCredit RPCs to handle
+  // Here are BackLogAnnouncement,OpenStream and OpenStreamWithCredit RPCs to handle
+  // Do not add new logic here. This method is reserved for compatible reason.
   def handleLegacyOpenStream(client: TransportClient, request: RpcRequest, msg: Message): Unit = {
     val (shuffleKey, fileName) =
       if (msg.`type`() == Type.OPEN_STREAM) {

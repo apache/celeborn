@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+import static org.apache.celeborn.common.protocol.MessageType.OPEN_STREAM_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.STREAM_HANDLER_VALUE;
+
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 
@@ -25,7 +28,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.exception.CelebornException;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
@@ -56,10 +59,10 @@ public class TransportMessage implements Serializable {
   }
 
   public <T extends GeneratedMessageV3> T getPayLoad() throws InvalidProtocolBufferException {
-    switch (type) {
-      case OPEN_STREAM:
+    switch (messageTypeValue) {
+      case OPEN_STREAM_VALUE:
         return (T) PbOpenStream.parseFrom(payload);
-      case STREAM_HANDLER:
+      case STREAM_HANDLER_VALUE:
         return (T) PbStreamHandler.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
@@ -77,10 +80,10 @@ public class TransportMessage implements Serializable {
     return buffer;
   }
 
-  public static TransportMessage fromByteBuffer(ByteBuffer buffer) throws CelebornException {
+  public static TransportMessage fromByteBuffer(ByteBuffer buffer) throws CelebornIOException {
     int type = buffer.getInt();
     if (MessageType.forNumber(type) == null) {
-      throw new CelebornException("Decode failed,fallback to legacy messages.");
+      throw new CelebornIOException("Decode failed,fallback to legacy messages.");
     }
     int payloadLen = buffer.getInt();
     byte[] payload = new byte[payloadLen];

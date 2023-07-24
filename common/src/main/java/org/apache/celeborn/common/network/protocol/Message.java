@@ -91,8 +91,7 @@ public abstract class Message implements Encodable {
     BACKLOG_ANNOUNCEMENT(19),
     TRANSPORTABLE_ERROR(20),
     BUFFER_STREAM_END(21),
-    HEARTBEAT(22),
-    TRANSPORT_MESSAGE(23);
+    HEARTBEAT(22);
     private final byte id;
 
     Type(int id) {
