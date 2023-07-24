@@ -466,7 +466,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkAllocatorVerboseMetric: Boolean = get(NETWORK_MEMORY_ALLOCATOR_VERBOSE_METRIC)
 
-  def shuffleIoMaxChunksBeingTransferred: Long = {
+  def shuffleIoMaxChunksBeingTransferred: Option[Long] = {
     get(MAX_CHUNKS_BEING_TRANSFERRED)
   }
 
@@ -1418,7 +1418,7 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("2m")
 
-  val MAX_CHUNKS_BEING_TRANSFERRED: ConfigEntry[Long] =
+  val MAX_CHUNKS_BEING_TRANSFERRED: OptionalConfigEntry[Long] =
     buildConf("celeborn.shuffle.io.maxChunksBeingTransferred")
       .categories("network")
       .doc("The max number of chunks allowed to be transferred at the same time on shuffle service. Note " +
@@ -1427,7 +1427,7 @@ object CelebornConf extends Logging {
         "`celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure.")
       .version("0.2.0")
       .longConf
-      .createWithDefault(Long.MaxValue)
+      .createOptional
 
   val PUSH_TIMEOUT_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.<module>.push.timeoutCheck.interval")
