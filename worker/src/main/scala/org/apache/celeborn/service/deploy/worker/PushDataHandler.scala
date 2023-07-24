@@ -448,7 +448,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
           } else {
-            logInfo(s"Receive push merged data for committed hard split partition of " +
+            logInfo(s"[Case1] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
@@ -458,7 +458,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
             // in StorageManager. This partition should be HARD_SPLIT partition and
             // after worker restart, some tasks still push data to this HARD_SPLIT partition.
-            logInfo(s"Receive push merged data for committed hard split partition of " +
+            logInfo(s"[Case2] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
