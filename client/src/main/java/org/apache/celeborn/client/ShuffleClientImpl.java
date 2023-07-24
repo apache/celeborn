@@ -1650,10 +1650,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   boolean mapperEnded(int shuffleId, int mapId) {
     return (mapperEndMap.containsKey(shuffleId) && mapperEndMap.get(shuffleId).contains(mapId))
-        || stageEnded(shuffleId);
+        || isStageEnded(shuffleId);
   }
 
-  protected boolean stageEnded(int shuffleId) {
+  protected boolean isStageEnded(int shuffleId) {
     return stageEndShuffleSet.contains(shuffleId);
   }
 
