@@ -17,11 +17,11 @@ license: |
 
 # Push Data
 
-This articles describes the detailed design of the process of push data.
+This article describes the detailed design of the process of push data.
 
 ## API specification
 The push data API is as follows:
-```shell
+```java
   public abstract int pushData(
       int shuffleId,
       int mapId,
@@ -44,14 +44,14 @@ The push data API is as follows:
 - `numPartitions` is the number of partitions in the shuffle
 
 ## Lazy Shuffle Register
-The first time `pushData` is called, Client will check whether the shuffle id has been registered. If Not,
+The first time `pushData` is called, Client will check whether the shuffle id has been registered. If not,
 it sends `RegisterShuffle` to `LifecycleManager`, `LifecycleManager` then sends `RequestSlots` to `Master`.
 `RequestSlots` specifies how many `PartitionLocation`s this shuffle requires, each `PartitionLocation` logically
 responds to data of some partition id.
 
 Upon receiving `RequestSlots`, `Master` allocates slots for the shuffle among `Worker`s. If replication is turned on,
 `Master` allocates a pair of `Worker`s for each `PartitionLocation` to store two replicas for each `PartitionLocation`.
-The detailed allocation strategy can be found in [Slots Allocation](/developers/slotsallocation). `Master` then
+The detailed allocation strategy can be found in [Slots Allocation](../../developers/slotsallocation). `Master` then
 responds to `LifecycleManager` with the allocated `PartitionLocation`s.
 
 `LifcycleManager` caches the `PartitionLocation`s for the shuffle and responds to each `RegisterShuffle` RPCs from
@@ -66,7 +66,7 @@ In normal cases, the process of pushing data is as follows:
 - `ShuffleClient` sends `PushData` to the `Worker` on which the current `PartitionLocation` is allocated, and holds push
   state for this pushing
 - `Worker` receives the data, do replication if needed, then responds success ACK to `ShuffleClient`. For more details
-  about how data is replicated and stored in `Worker`s, please refer to [Worker](/developers/worker)
+  about how data is replicated and stored in `Worker`s, please refer to [Worker](../../developers/worker)
 - Upon receiving success ACK from `Worker`, `ShuffleClient` considers success for this pushing and modifies the push state
 
 ## Push or Merge?
