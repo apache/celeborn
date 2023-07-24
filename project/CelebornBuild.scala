@@ -117,7 +117,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
   crossScalaVersions := Nil
 
   // load user-defined Profiles
-  loadProfiles()
+  // loadProfiles()
 }
 
 object Utils {
@@ -137,20 +137,16 @@ object Utils {
   val SPARK_VERSION = profiles.filter(_.startsWith("spark")).headOption
 
   def loadModules(): Seq[Project] = {
-    if (profiles.contains("spark-3.3") || profiles.contains("spark-2.4")) {
-      // streams.value.log.info("loading spark 3.3 client modules")
-      println("loading spark 3.3 client modules")
-      return Seq(
-        SparkClient.sparkCommon,
-        SparkClient.spark3,
-        SparkClient.spark3Shaded)
+    SPARK_VERSION match {
+      case Some("spark-2.4") => Spark24.modules
+      case Some("spark-3.3") => Spark33.modules
+      case _ => Seq.empty
     }
-    Seq.empty
   }
 
   def defaultScalaVersion(): String = {
     SPARK_VERSION match {
-      case Option("spark-2.4") => scala211
+      case Some("spark-2.4") => scala211
       case _ => scala212
     }
   }
@@ -315,20 +311,7 @@ object CelebornMaster {
 //                   Spark Client                     //
 ////////////////////////////////////////////////////////
 
-trait SparkClientSettings {
-
-  val sparkClientProjectPath: String
-  val sparkClientProjectName: String
-  val sparkClientShadeProjectPath: String
-  val sparkClientShadeProjectName: String
-
-  val lz4JavaVersion: String
-  val default_scala_version: String
-  val sparkVersion: String
-  val zstdJniVersion: String
-}
-
-object Spark24 extends SparkClientSettings {
+object Spark24 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-2"
   val sparkClientProjectName = "celeborn-client-spark-2"
@@ -345,7 +328,7 @@ object Spark24 extends SparkClientSettings {
   val zstdJniVersion = "1.4.4-3"
 }
 
-object Spark33 extends SparkClientSettings {
+object Spark33 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
@@ -362,100 +345,108 @@ object Spark33 extends SparkClientSettings {
   val zstdJniVersion = "1.5.2-1"
 }
 
-object SparkClient {
-  var sparkClientSettings: SparkClientSettings = _
+trait SparkClientProjects {
 
-  if (profiles.contains("spark-2.4")) {
-    sparkClientSettings = Spark24
-  }
+  val sparkClientProjectPath: String
+  val sparkClientProjectName: String
+  val sparkClientShadeProjectPath: String
+  val sparkClientShadeProjectName: String
 
-  if (profiles.contains("spark-3.3")) {
-    sparkClientSettings = Spark33
-  }
+  val lz4JavaVersion: String
+  val default_scala_version: String
+  val sparkVersion: String
+  val zstdJniVersion: String
 
-  lazy val sparkCommon = (project in file("client-spark/common"))
-    .dependsOn(CelebornCommon.common, CelebornClient.client)
-    .settings (
-      name := "spark-common",
-      commonSettings,
-      libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-core" % sparkClientSettings.sparkVersion % "provided",
-          "org.apache.spark" %% "spark-sql" % sparkClientSettings.sparkVersion % "provided",
-          "org.mockito" % "mockito-core" % "4.11.0" % "test",
-          "junit" % "junit" % "4.12" % "test",
-          "org.scalatest" %% "scalatest" % "3.2.16" % "test",
+  def modules: Seq[Project] = Seq(sparkCommon, sparkClient, sparkClientShade)
+
+  def sparkCommon: Project = {
+    Project("spark-common", file("client-spark/common"))
+      .dependsOn(CelebornCommon.common, CelebornClient.client)
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+            "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
+            "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+            "org.mockito" % "mockito-core" % "4.11.0" % "test",
+            "junit" % "junit" % "4.12" % "test",
+            "org.scalatest" %% "scalatest" % "3.2.16" % "test",
   
-        // Compiler plugins
-        // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-        compilerPlugin(
-          "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+          // Compiler plugins
+          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+          compilerPlugin(
+            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        )
       )
-    )
+  }
   
-  lazy val spark3 = (project in file(sparkClientSettings.sparkClientProjectPath))
-    .dependsOn(CelebornCommon.common, CelebornClient.client, sparkCommon)
-    .settings (
-      name := sparkClientSettings.sparkClientProjectName,
-      commonSettings,
-      libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-core" % sparkClientSettings.sparkVersion % "provided",
-          "org.apache.spark" %% "spark-sql" % sparkClientSettings.sparkVersion % "provided",
-          "org.mockito" % "mockito-core" % "4.11.0" % "test",
-          "junit" % "junit" % "4.12" % "test",
-          "org.scalatest" %% "scalatest" % "3.2.16" % "test",
+  def sparkClient: Project = {
+    Project(sparkClientProjectName, file(sparkClientProjectPath))
+      .dependsOn(CelebornCommon.common, CelebornClient.client, sparkCommon)
+      .settings (
+        name := sparkClientProjectName,
+        commonSettings,
+        libraryDependencies ++= Seq(
+            "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
+            "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+            "org.mockito" % "mockito-core" % "4.11.0" % "test",
+            "junit" % "junit" % "4.12" % "test",
+            "org.scalatest" %% "scalatest" % "3.2.16" % "test",
   
-        // Compiler plugins
-        // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-        compilerPlugin(
-          "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+          // Compiler plugins
+          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+          compilerPlugin(
+            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        )
       )
-    )
+  }
   
   
-  lazy val spark3Shaded = (project in file(sparkClientSettings.sparkClientShadeProjectPath))
-    .dependsOn(spark3)
-    .settings (
-      name := sparkClientSettings.sparkClientShadeProjectName,
-      commonSettings,
+  def sparkClientShade: Project = {
+    Project(sparkClientShadeProjectName, file(sparkClientShadeProjectPath))
+      .dependsOn(sparkClient)
+      .settings (
+        name := sparkClientShadeProjectName,
+        commonSettings,
   
-      (assembly / test) := { },
+        (assembly / test) := { },
   
-      (assembly / logLevel) := Level.Info,
+        (assembly / logLevel) := Level.Info,
   
-      // Exclude `scala-library` from assembly.
-      (assembly / assemblyPackageScala / assembleArtifact) := false,
+        // Exclude `scala-library` from assembly.
+        (assembly / assemblyPackageScala / assembleArtifact) := false,
   
-      // Exclude `pmml-model-*.jar`, `scala-collection-compat_*.jar`,`jsr305-*.jar` and
-      // `netty-*.jar` and `unused-1.0.0.jar` from assembly.
-      (assembly / assemblyExcludedJars) := {
-        val cp = (assembly / fullClasspath).value
-        cp filter { v =>
-          val name = v.data.getName
-          // name.startsWith("pmml-model-") || name.startsWith("scala-collection-compat_") ||
-          //  name.startsWith("jsr305-") || name.startsWith("netty-") || name == "unused-1.0.0.jar"
-          !(name.startsWith("celeborn-") || name.startsWith("protobuf-java-") ||
-            name.startsWith("guava-") || name.startsWith("netty-") || name.startsWith("commons-lang3-"))
+        // Exclude `pmml-model-*.jar`, `scala-collection-compat_*.jar`,`jsr305-*.jar` and
+        // `netty-*.jar` and `unused-1.0.0.jar` from assembly.
+        (assembly / assemblyExcludedJars) := {
+          val cp = (assembly / fullClasspath).value
+          cp filter { v =>
+            val name = v.data.getName
+            // name.startsWith("pmml-model-") || name.startsWith("scala-collection-compat_") ||
+            //  name.startsWith("jsr305-") || name.startsWith("netty-") || name == "unused-1.0.0.jar"
+            !(name.startsWith("celeborn-") || name.startsWith("protobuf-java-") ||
+              name.startsWith("guava-") || name.startsWith("netty-") || name.startsWith("commons-lang3-"))
+          }
+        },
+  
+        (assembly / assemblyShadeRules) := Seq(
+          ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
+          ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
+          ShadeRule.rename("io.netty.**" -> "org.apache.celeborn.shaded.io.netty.@1").inAll,
+          ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll
+        ),
+  
+        (assembly / assemblyMergeStrategy) := {
+          case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          // Drop all proto files that are not needed as artifacts of the build.
+          case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
+          case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
+          // Drop netty jnilib
+          case m if m.toLowerCase(Locale.ROOT).endsWith(".jnilib") => MergeStrategy.discard
+          // rename netty native lib
+          case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" )
+          case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
+          case _ => MergeStrategy.first
         }
-      },
-  
-      (assembly / assemblyShadeRules) := Seq(
-        ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
-        ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
-        ShadeRule.rename("io.netty.**" -> "org.apache.celeborn.shaded.io.netty.@1").inAll,
-        ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll
-      ),
-  
-      (assembly / assemblyMergeStrategy) := {
-        case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
-        // Drop all proto files that are not needed as artifacts of the build.
-        case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
-        case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
-        // Drop netty jnilib
-        case m if m.toLowerCase(Locale.ROOT).endsWith(".jnilib") => MergeStrategy.discard
-        // rename netty native lib
-        case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" )
-        case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
-        case _ => MergeStrategy.first
-      }
-    )
+      )
+  }
 }
