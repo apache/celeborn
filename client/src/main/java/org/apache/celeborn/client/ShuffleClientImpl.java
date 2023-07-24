@@ -1575,7 +1575,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   protected ReduceFileGroups loadFileGroup(int shuffleId, int partitionId) throws IOException {
-    ReduceFileGroups reduceFileGroups = updateFileGroup(shuffleId, partitionId);
+    ReduceFileGroups reduceFileGroups = updateFileGroup(shuffleId);
     if (reduceFileGroups == null) {
       String msg =
           "Shuffle data lost for shuffle " + shuffleId + " partitionId " + partitionId + "!";
