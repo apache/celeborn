@@ -42,7 +42,7 @@ import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerRespo
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitStatus, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -392,12 +392,12 @@ private[celeborn] class Worker(
     rpcEnv.awaitTermination()
   }
 
-  override def stop(graceful: Boolean): Unit = {
+  override def stop(exitCode: Int): Unit = {
     if (!stopped) {
       logInfo("Stopping Worker.")
 
       if (sendHeartbeatTask != null) {
-        if (graceful) {
+        if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN) {
           sendHeartbeatTask.cancel(false)
         } else {
           sendHeartbeatTask.cancel(true)
@@ -405,25 +405,25 @@ private[celeborn] class Worker(
         sendHeartbeatTask = null
       }
       if (checkFastFailTask != null) {
-        if (graceful) {
+        if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN) {
           checkFastFailTask.cancel(false)
         } else {
           checkFastFailTask.cancel(true)
         }
         checkFastFailTask = null
       }
-      if (graceful) {
+      if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN) {
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
         asyncReplyPool.shutdown()
-        partitionsSorter.close()
+        partitionsSorter.close(exitCode)
       } else {
         forwardMessageScheduler.shutdownNow()
         replicateThreadPool.shutdownNow()
         commitThreadPool.shutdownNow()
         asyncReplyPool.shutdownNow()
-        partitionsSorter.close()
+        partitionsSorter.close(exitCode)
       }
 
       if (null != storageManager) {
@@ -432,18 +432,16 @@ private[celeborn] class Worker(
       memoryManager.close()
 
       masterClient.close()
-      replicateServer.shutdown(graceful)
-      fetchServer.shutdown(graceful)
-      pushServer.shutdown(graceful)
+      replicateServer.shutdown(exitCode)
+      fetchServer.shutdown(exitCode)
+      pushServer.shutdown(exitCode)
 
-      super.stop(graceful)
+      super.stop(exitCode)
 
       logInfo("Worker is stopped.")
       stopped = true
     }
-    if (!graceful) {
-      shutdown.set(true)
-    }
+    shutdown.set(true)
   }
 
   private def registerWithMaster(): Unit = {
@@ -614,7 +612,7 @@ private[celeborn] class Worker(
               s"unreleased PartitionLocation: \n$partitionLocationInfo")
           }
         }
-        stop(gracefulShutdown)
+        stop(CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN)
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)

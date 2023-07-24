@@ -239,10 +239,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
-  public void close() {
+  public void close(int exitCode) {
     logger.info("Closing {}", this.getClass().getSimpleName());
     shutdown = true;
-    if (gracefulShutdown) {
+    if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN()) {
       long start = System.currentTimeMillis();
       try {
         fileSorterExecutors.shutdown();
@@ -254,6 +254,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       } catch (InterruptedException e) {
         logger.error("Await partition sorter executor shutdown catch exception: ", e);
       }
+      if (sortedFilesDb != null) {
+        try {
+          updateSortedShuffleFilesInDB();
+          sortedFilesDb.close();
+        } catch (IOException e) {
+          logger.error("Store recover data to LevelDB failed.", e);
+        }
+      }
       long end = System.currentTimeMillis();
       logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
     } else {
@@ -261,14 +269,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       fileSorterExecutors.shutdownNow();
     }
     cachedIndexMaps.clear();
-    if (sortedFilesDb != null) {
-      try {
-        updateSortedShuffleFilesInDB();
-        sortedFilesDb.close();
-      } catch (IOException e) {
-        logger.error("Store recover data to LevelDB failed.", e);
-      }
-    }
   }
 
   private void reloadAndCleanSortedShuffleFiles(DB db) {
