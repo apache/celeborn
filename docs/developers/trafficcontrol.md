@@ -32,7 +32,7 @@ From the `Worker`'s perspective, the income data flow comes from two sources:
 The buffered memory can be released when the following conditions are satisfied:
 
 - Data is flushed to file
-- If replication is on, after primary data is sent to replica `Worker`
+- If replication is on, after primary data is written to wire
 
 The basic idea is that, when `Worker` is under high memory pressure, slow down or stop income data, and at same
 time force flush to release memory.
@@ -68,7 +68,7 @@ last time window. It defines two watermarks:
 - `Low Watermark`, under which everything goes OK
 - `High Watermark`, when exceeds this, top users will be Congestion Controlled
 
-Celeborn uses `UserIdentifier` to identify users. `Worker` collects bytes pushed for each user in the last time
+Celeborn uses `UserIdentifier` to identify users. `Worker` collects bytes pushed from each user in the last time
 window. When used direct memory exceeds `High Watermark`, users who occupied more resources than the average
 occupation will receive `Congestion Control` message.
 
@@ -77,4 +77,10 @@ occupation will receive `Congestion Control` message.
 `Congestion Avoidance` phase, which slowly increases push rate. Upon receiving `Congestion Control`, it goes back
 to `Slow Start` phase.
 
+`Congestion Control` can be enabled and tuned by the following configurations:
 
+- `celeborn.worker.congestionControl.enabled`
+- `celeborn.worker.congestionControl.low.watermark`
+- `celeborn.worker.congestionControl.high.watermark`
+- `celeborn.worker.congestionControl.sample.time.window`
+- `celeborn.worker.congestionControl.user.inactive.interval`
