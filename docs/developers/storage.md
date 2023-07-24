@@ -109,7 +109,7 @@ The principles of data placement are:
 
 The high-level design of multi-layered storage is:
 
-![storage](../../assets/img/storage.svg)
+![storage](../../assets/img/multilayer.svg)
 
 `Worker`'s memory is divided into two logical regions: `Push Region` and `Cache Region`. `ShuffleClient` pushes data
 into `Push Region`, as ① indicates. Whenever the buffered data in `PushRegion` for a `PartitionLocation` exceeds the
