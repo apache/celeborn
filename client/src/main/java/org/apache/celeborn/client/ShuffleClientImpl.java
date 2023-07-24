@@ -729,7 +729,6 @@ public class ShuffleClientImpl extends ShuffleClient {
             pushExcludedWorkers.remove(loc.getPeer().hostAndPushPort());
           }
         } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
-          stageEnded(shuffleId);
           return results;
         } else if (StatusCode.SHUFFLE_NOT_REGISTERED.getValue() == statusCode) {
           logger.error("SHUFFLE_NOT_REGISTERED!");
