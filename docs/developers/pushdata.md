@@ -100,6 +100,7 @@ For the first three cases, `Worker` informs `ShuffleClient` that it should trigg
 `ShuffleClient` triggers split itself.
 
 There are two kinds of Split:
+
 - `HARD_SPLIT`, meaning old `PartitionLocation` epoch refuses to accept any data, and future data of the
   `PartitionLocation` will only be pushed after new `PartitionLocation` epoch is ready
 - `SOFT_SPLIT`, meaning old `PartitionLocation` epoch continues to accept data, when new epoch is ready, `ShuffleClient`

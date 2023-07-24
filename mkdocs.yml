@@ -84,7 +84,9 @@ nav:
   - Developers Doc:
       - Overview: developers/overview.md
       - Master: developers/master.md
-      - Worker: developers/worker.md
+      - Worker:
+        - Overview: developers/worker.md
+        - Storage: developers/storage.md
       - Client: developers/client.md
       - PushData: developers/pushdata.md
       - ReadData: developers/readdata.md
