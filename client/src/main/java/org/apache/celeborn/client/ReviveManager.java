@@ -79,7 +79,6 @@ class ReviveManager {
                 } else {
                   filteredRequests.add(req);
                   mapIds.add(req.mapId);
-                  PartitionLocation loc = req.loc;
                   if (!requestsToSend.containsKey(req.partitionId)
                       || requestsToSend.get(req.partitionId).epoch < req.epoch) {
                     requestsToSend.put(req.partitionId, req);
