@@ -141,8 +141,6 @@ object CelebornBuild extends sbt.internal.BuildDef {
   }
   
   // ThisBuild / parallelExecution := false
-  
-  ThisBuild / version := "0.4.0-SNAPSHOT"
 
   // scalaVersion := "2.11.12"
 
