@@ -615,8 +615,12 @@ object Flink114 extends FlinkClientProjects {
   val flinkClientProjectPath = "client-flink/flink-1.14"
   // TODO: can't use `.` in project name
   val flinkClientProjectName = "celeborn-client-flink-1_14"
-  val flinkClientShadeProjectPath: String = ""
-  val flinkClientShadeProjectName: String = ""
+  val flinkClientShadeProjectPath: String = "client-flink/flink-1.14-shaded"
+  val flinkClientShadeProjectName: String = "celeborn-client-flink-1_14-shaded"
+
+  override lazy val flinkStreamingDependency: ModuleID = "org.apache.flink" %% "flink-streaming-java" % flinkVersion % "test"
+  override lazy val flinkClientsDependency: ModuleID = "org.apache.flink" %% "flink-clients" % flinkVersion % "test"
+  override lazy val flinkRuntimeWebDependency: ModuleID = "org.apache.flink" %% "flink-runtime-web" % flinkVersion % "test"
 }
 
 object Flink115 extends FlinkClientProjects {
@@ -625,8 +629,8 @@ object Flink115 extends FlinkClientProjects {
   val flinkClientProjectPath = "client-flink/flink-1.15"
   // TODO: can't use `.` in project name
   val flinkClientProjectName = "celeborn-client-flink-1_15"
-  val flinkClientShadeProjectPath: String = ""
-  val flinkClientShadeProjectName: String = ""
+  val flinkClientShadeProjectPath: String = "client-flink/flink-1.15-shaded"
+  val flinkClientShadeProjectName: String = "celeborn-client-flink-1_15-shaded"
 }
 
 object Flink117 extends FlinkClientProjects {
@@ -635,8 +639,8 @@ object Flink117 extends FlinkClientProjects {
   val flinkClientProjectPath = "client-flink/flink-1.17"
   // TODO: can't use `.` in project name
   val flinkClientProjectName = "celeborn-client-flink-1_17"
-  val flinkClientShadeProjectPath: String = ""
-  val flinkClientShadeProjectName: String = ""
+  val flinkClientShadeProjectPath: String = "client-flink/flink-1.17-shaded"
+  val flinkClientShadeProjectName: String = "celeborn-client-flink-1_17-shaded"
 }
 
 trait FlinkClientProjects {
@@ -648,7 +652,11 @@ trait FlinkClientProjects {
   val flinkClientShadeProjectPath: String
   val flinkClientShadeProjectName: String
 
-  def modules: Seq[Project] = Seq(flinkCommon, flinkClient)
+  lazy val flinkStreamingDependency: ModuleID = "org.apache.flink" % "flink-streaming-java" % flinkVersion % "test"
+  lazy val flinkClientsDependency: ModuleID = "org.apache.flink" % "flink-clients" % flinkVersion % "test"
+  lazy val flinkRuntimeWebDependency: ModuleID = "org.apache.flink" % "flink-runtime-web" % flinkVersion % "test"
+
+  def modules: Seq[Project] = Seq(flinkCommon, flinkClient, flinkIt, flinkClientShade)
 
   def flinkCommon: Project = {
     Project("flink-common", file("client-flink/common"))
@@ -681,6 +689,80 @@ trait FlinkClientProjects {
           compilerPlugin(
             "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
         ) ++ commonUnitTestDependencies
+      )
+  }
+
+  def flinkIt: Project = {
+    Project("flink-it", file("tests/flink-it"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+      .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+      .dependsOn(flinkClient % "test->test;compile->compile")
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.flink" % "flink-runtime" % flinkVersion % "test",
+          "org.apache.flink" %% "flink-scala" % flinkVersion % "test",
+          flinkStreamingDependency,
+          flinkClientsDependency,
+          flinkRuntimeWebDependency,
+  
+          // Compiler plugins
+          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+          compilerPlugin(
+            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        ) ++ commonUnitTestDependencies
+      )
+  }
+
+  def flinkClientShade: Project = {
+    Project(flinkClientShadeProjectName, file(flinkClientShadeProjectPath))
+      .dependsOn(flinkClient)
+      .settings (
+        commonSettings,
+  
+        (assembly / test) := { },
+  
+        (assembly / logLevel) := Level.Info,
+  
+        // Exclude `scala-library` from assembly.
+        (assembly / assemblyPackageScala / assembleArtifact) := false,
+  
+        // Exclude `pmml-model-*.jar`, `scala-collection-compat_*.jar`,`jsr305-*.jar` and
+        // `netty-*.jar` and `unused-1.0.0.jar` from assembly.
+        (assembly / assemblyExcludedJars) := {
+          val cp = (assembly / fullClasspath).value
+          cp filter { v =>
+            val name = v.data.getName
+            // name.startsWith("pmml-model-") || name.startsWith("scala-collection-compat_") ||
+            //  name.startsWith("jsr305-") || name.startsWith("netty-") || name == "unused-1.0.0.jar"
+            !(name.startsWith("celeborn-") || name.startsWith("protobuf-java-") ||
+              name.startsWith("guava-") || name.startsWith("netty-") || name.startsWith("commons-lang3-"))
+          }
+        },
+  
+        (assembly / assemblyShadeRules) := Seq(
+          ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
+          ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
+          ShadeRule.rename("io.netty.**" -> "org.apache.celeborn.shaded.io.netty.@1").inAll,
+          ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
+          ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
+        ),
+  
+        (assembly / assemblyMergeStrategy) := {
+          case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          // Drop all proto files that are not needed as artifacts of the build.
+          case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
+          case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
+          // Drop netty jnilib
+          case m if m.toLowerCase(Locale.ROOT).endsWith(".jnilib") => MergeStrategy.discard
+          // rename netty native lib
+          case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" )
+          case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
+          case _ => MergeStrategy.first
+        }
       )
   }
 }
