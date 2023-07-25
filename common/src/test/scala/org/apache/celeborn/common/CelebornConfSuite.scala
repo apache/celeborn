@@ -188,7 +188,6 @@ class CelebornConfSuite extends CelebornFunSuite {
   }
 
   test("Test empty working dir") {
-    require()
     val conf = new CelebornConf()
     conf.set("celeborn.storage.activeTypes", "HDFS")
     conf.set("celeborn.storage.hdfs.dir", "hdfs:///xxx")
