@@ -427,7 +427,7 @@ private[celeborn] class Worker(
       }
 
       if (null != storageManager) {
-        storageManager.close()
+        storageManager.close(exitKind)
       }
       memoryManager.close()
 
