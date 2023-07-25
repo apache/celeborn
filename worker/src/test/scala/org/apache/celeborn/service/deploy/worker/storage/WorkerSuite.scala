@@ -31,7 +31,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
 class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
@@ -46,7 +46,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
   override def afterEach(): Unit = {
     if (null != worker) {
       worker.rpcEnv.shutdown()
-      worker.stop(false)
+      worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
       worker = null
     }
   }
