@@ -267,7 +267,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     } else {
       fileSorterSchedulerThread.interrupt();
       fileSorterExecutors.shutdownNow();
-      if(sortedFilesDb != null) {
+      if (sortedFilesDb != null) {
         try {
           sortedFilesDb.close();
           recoverFile.delete();

@@ -77,12 +77,14 @@ private[celeborn] class Worker(
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = conf.workerGracefulShutdown
+  private val exitKind = CelebornExitKind.EXIT_IMMEDIATELY
   assert(
     !gracefulShutdown || (gracefulShutdown &&
       conf.workerRpcPort > 0 && conf.workerFetchPort > 0 &&
       conf.workerPushPort > 0 && conf.workerReplicatePort > 0),
     "If enable graceful shutdown, the worker should use stable server port.")
   if (gracefulShutdown) {
+    exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
     try {
       val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
       if (!recoverRoot.exists()) {
@@ -417,18 +419,14 @@ private[celeborn] class Worker(
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
         asyncReplyPool.shutdown()
-        partitionsSorter.close(exitKind)
       } else {
         forwardMessageScheduler.shutdownNow()
         replicateThreadPool.shutdownNow()
         commitThreadPool.shutdownNow()
         asyncReplyPool.shutdownNow()
-        partitionsSorter.close(exitKind)
       }
-
-      if (null != storageManager) {
-        storageManager.close(exitKind)
-      }
+      partitionsSorter.close(exitKind)
+      storageManager.close(exitKind)
       memoryManager.close()
 
       masterClient.close()
@@ -564,55 +562,73 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  def shutdownGracefully(): Unit = {
+    // During shutdown, to avoid allocate slots in this worker,
+    // add this worker to master's excluded list. When restart, register worker will
+    // make master remove this worker from excluded list.
+    try {
+      masterClient.askSync(
+        ReportWorkerUnavailable(List(workerInfo).asJava),
+        OneWayMessageResponse.getClass)
+    } catch {
+      case e: Throwable =>
+        logError(
+          s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+          e)
+    }
+    shutdown.set(true)
+    val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
+    val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
+    var waitTimes = 0
+
+    def waitTime: Long = waitTimes * interval
+
+    while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+      Thread.sleep(interval)
+      waitTimes += 1
+    }
+    if (partitionLocationInfo.isEmpty) {
+      logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
+    } else {
+      logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
+        s"unreleased PartitionLocation: \n$partitionLocationInfo")
+    }
+    stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+  }
+
+  def exitImmediately(): Unit = {
+    // During shutdown, to avoid allocate slots in this worker,
+    // add this worker to master's excluded list. When restart, register worker will
+    // make master remove this worker from excluded list.
+    try {
+      masterClient.askSync[PbWorkerLostResponse](
+        WorkerLost(
+          host,
+          rpcPort,
+          pushPort,
+          fetchPort,
+          replicatePort,
+          MasterClient.genRequestId()),
+        classOf[PbWorkerLostResponse])
+    } catch {
+      case e: Throwable =>
+        logError(
+          s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+          e)
+    }
+    shutdown.set(true)
+    stop(CelebornExitKind.EXIT_IMMEDIATELY)
+  }
+
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
-        // During shutdown, to avoid allocate slots in this worker,
-        // add this worker to master's excluded list. When restart, register worker will
-        // make master remove this worker from excluded list.
-        try {
-          if (gracefulShutdown) {
-            masterClient.askSync(
-              ReportWorkerUnavailable(List(workerInfo).asJava),
-              OneWayMessageResponse.getClass)
-          } else {
-            masterClient.askSync[PbWorkerLostResponse](
-              WorkerLost(
-                host,
-                rpcPort,
-                pushPort,
-                fetchPort,
-                replicatePort,
-                MasterClient.genRequestId()),
-              classOf[PbWorkerLostResponse])
-          }
-        } catch {
-          case e: Throwable =>
-            logError(
-              s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
-              e)
+        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+          shutdownGracefully()
+        } else {
+          exitImmediately()
         }
-        shutdown.set(true)
-        if (gracefulShutdown) {
-          val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
-          val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
-          var waitTimes = 0
-
-          def waitTime: Long = waitTimes * interval
-
-          while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
-            Thread.sleep(interval)
-            waitTimes += 1
-          }
-          if (partitionLocationInfo.isEmpty) {
-            logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
-          } else {
-            logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
-              s"unreleased PartitionLocation: \n$partitionLocationInfo")
-          }
-        }
-        stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)
