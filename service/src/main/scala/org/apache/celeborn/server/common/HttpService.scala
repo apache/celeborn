@@ -105,11 +105,11 @@ abstract class HttpService extends Service with Logging {
     startHttpServer()
   }
 
-  override def stop(graceful: Boolean): Unit = {
+  override def stop(exitKind: Int): Unit = {
     // may be null when running the unit test
     if (null != httpServer) {
-      httpServer.stop(graceful)
+      httpServer.stop(exitKind)
     }
-    super.stop(graceful)
+    super.stop(exitKind)
   }
 }

@@ -15,30 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.server.common
+package org.apache.celeborn.common.util
 
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.MetricsSystem
-
-abstract class Service extends Logging {
-  def serviceName: String
-
-  def conf: CelebornConf
-
-  def metricsSystem: MetricsSystem
-
-  def initialize(): Unit = {
-    if (conf.metricsSystemEnable) {
-      logInfo(s"Metrics system enabled.")
-      metricsSystem.start()
-    }
-  }
-
-  def stop(exitKind: Int): Unit = {}
-}
-
-object Service {
-  val MASTER = "master"
-  val WORKER = "worker"
+private[celeborn] object CelebornExitKind {
+  val EXIT_IMMEDIATELY = 0
+  val WORKER_GRACEFUL_SHUTDOWN = 1
+  val WORKER_DECOMMISSION = 2
 }
