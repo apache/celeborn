@@ -566,7 +566,7 @@ private[celeborn] class Worker(
     new Thread() {
       override def run(): Unit = {
         Thread.sleep(30000)
-        System.exit(exitKind)
+        System.exit(0)
       }
     }.start()
     "Success"
