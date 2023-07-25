@@ -48,22 +48,22 @@ object CelebornCommonSettings {
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
   
   // Dependent library versions
-  val javaxServletVersion = "3.1.0"
-  val ratisVersion = "2.5.1"
-  val metricsVersion = "3.2.6"
-  val snakeyamlVersion = "1.33"
-  val slf4jVersion = "1.7.36"
-  val commonsIoVersion = "2.13.0"
   val commonsCryptoVersion = "1.0.0"
+  val commonsIoVersion = "2.13.0"
   val commonsLang3Version = "3.12.0"
-  val nettyAllVersion = "4.1.93.Final"
-  val leveldbjniAllVersion = "1.8"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "14.0.1"
   val hadoopVersion = "3.2.4"
-  val roaringBitmapVersion = "0.9.32"
+  val javaxServletVersion = "3.1.0"
+  val leveldbjniAllVersion = "1.8"
   val log4jVersion = "2.17.2"
+  val metricsVersion = "3.2.6"
   val mockitoScalaScalatestVersion = "1.17.14"
+  val nettyAllVersion = "4.1.93.Final"
+  val ratisVersion = "2.5.1"
+  val roaringBitmapVersion = "0.9.32"
+  val slf4jVersion = "1.7.36"
+  val snakeyamlVersion = "1.33"
   
   // Versions for proto
   val protocVersion = "3.19.2"
@@ -199,26 +199,26 @@ object CelebornCommon {
       protoSettings,
       libraryDependencies ++= Seq(
         "com.google.protobuf" % "protobuf-java" % protoVersion % "protobuf",
-        "org.apache.ratis" % "ratis-common" % ratisVersion,
-        "org.apache.ratis" % "ratis-client" % ratisVersion,
+        "com.google.code.findbugs" % "jsr305" % findbugsVersion,
+        "com.google.guava" % "guava" % guavaVersion,
+        "commons-io" % "commons-io" % commonsIoVersion,
         "io.dropwizard.metrics" % "metrics-core" % metricsVersion,
         "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion,
         "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion,
-        "org.yaml" % "snakeyaml" % snakeyamlVersion,
-        "org.slf4j" % "slf4j-api" % slf4jVersion,
-        "org.slf4j" % "jul-to-slf4j" % slf4jVersion,
-        "org.slf4j" % "jcl-over-slf4j" % slf4jVersion,
-        "commons-io" % "commons-io" % commonsIoVersion,
+        "io.netty" % "netty-all" % nettyAllVersion,
         "org.apache.commons" % "commons-crypto" % commonsCryptoVersion,
         "org.apache.commons" % "commons-lang3" % commonsLang3Version,
-        "io.netty" % "netty-all" % nettyAllVersion,
-        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbjniAllVersion,
-        "com.google.code.findbugs" % "jsr305" % findbugsVersion,
-        "com.google.guava" % "guava" % guavaVersion,
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion,
         "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion,
+        "org.apache.ratis" % "ratis-client" % ratisVersion,
+        "org.apache.ratis" % "ratis-common" % ratisVersion,
+        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbjniAllVersion,
         "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion,
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+        "org.slf4j" % "jcl-over-slf4j" % slf4jVersion,
+        "org.slf4j" % "jul-to-slf4j" % slf4jVersion,
+        "org.slf4j" % "slf4j-api" % slf4jVersion,
+        "org.yaml" % "snakeyaml" % snakeyamlVersion,
         "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % "test",
         "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion % "test",
   
@@ -287,12 +287,12 @@ object CelebornService {
       name := "service",
       commonSettings,
       libraryDependencies ++= Seq(
-        "org.slf4j" % "slf4j-api" % slf4jVersion,
+        "com.google.code.findbugs" % "jsr305" % findbugsVersion,
+        "commons-io" % "commons-io" % commonsIoVersion,
         "io.netty" % "netty-all" % nettyAllVersion,
         "javax.servlet" % "javax.servlet-api" % javaxServletVersion,
-        "commons-io" % "commons-io" % commonsIoVersion,
         "org.apache.commons" % "commons-crypto" % commonsCryptoVersion,
-        "com.google.code.findbugs" % "jsr305" % findbugsVersion,
+        "org.slf4j" % "slf4j-api" % slf4jVersion,
         "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % "test",
         "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion % "test",
   
@@ -312,18 +312,18 @@ object CelebornMaster {
       commonSettings,
       protoSettings,
       libraryDependencies ++= Seq(
+        "com.google.guava" % "guava" % guavaVersion,
         "com.google.protobuf" % "protobuf-java" % protoVersion,
         "io.netty" % "netty-all" % nettyAllVersion,
-        "com.google.guava" % "guava" % guavaVersion,
-        "org.apache.ratis" % "ratis-common" % ratisVersion,
-        "org.apache.ratis" % "ratis-client" % ratisVersion,
-        "org.apache.ratis" % "ratis-server" % ratisVersion,
-        "org.apache.ratis" % "ratis-netty" % ratisVersion,
-        "org.apache.ratis" % "ratis-grpc" % ratisVersion,
-        "org.apache.ratis" % "ratis-shell" % ratisVersion,
-        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion,
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
         "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion,
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
+        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion,
+        "org.apache.ratis" % "ratis-client" % ratisVersion,
+        "org.apache.ratis" % "ratis-common" % ratisVersion,
+        "org.apache.ratis" % "ratis-grpc" % ratisVersion,
+        "org.apache.ratis" % "ratis-netty" % ratisVersion,
+        "org.apache.ratis" % "ratis-server" % ratisVersion,
+        "org.apache.ratis" % "ratis-shell" % ratisVersion,
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
@@ -342,13 +342,13 @@ object CelebornWorker {
       name := "worker",
       commonSettings,
       libraryDependencies ++= Seq(
-        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbjniAllVersion,
-        "io.netty" % "netty-all" % nettyAllVersion,
         "com.google.guava" % "guava" % guavaVersion,
         "commons-io" % "commons-io" % commonsIoVersion,
-        "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion,
-        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion,
+        "io.netty" % "netty-all" % nettyAllVersion,
         "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
+        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion,
+        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbjniAllVersion,
+        "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion,
         "org.mockito" %% "mockito-scala-scalatest" % mockitoScalaScalatestVersion % "test",
   
         // Compiler plugins
