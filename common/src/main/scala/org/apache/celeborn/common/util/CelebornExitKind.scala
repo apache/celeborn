@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.common.util
 
-private[celeborn] object CelebornExitStatus {
-  val EXIT = 0
+private[celeborn] object CelebornExitKind {
+  val EXIT_IMMEDIATELY = 0
   val WORKER_GRACEFUL_SHUTDOWN = 1
   val WORKER_DECOMMISSION = 2
 }

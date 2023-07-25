@@ -42,7 +42,7 @@ import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerRespo
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{CelebornExitStatus, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -397,7 +397,7 @@ private[celeborn] class Worker(
       logInfo("Stopping Worker.")
 
       if (sendHeartbeatTask != null) {
-        if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN) {
+        if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
           sendHeartbeatTask.cancel(false)
         } else {
           sendHeartbeatTask.cancel(true)
@@ -405,14 +405,14 @@ private[celeborn] class Worker(
         sendHeartbeatTask = null
       }
       if (checkFastFailTask != null) {
-        if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN) {
+        if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
           checkFastFailTask.cancel(false)
         } else {
           checkFastFailTask.cancel(true)
         }
         checkFastFailTask = null
       }
-      if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN) {
+      if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
@@ -612,7 +612,7 @@ private[celeborn] class Worker(
               s"unreleased PartitionLocation: \n$partitionLocationInfo")
           }
         }
-        stop(CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN)
+        stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)

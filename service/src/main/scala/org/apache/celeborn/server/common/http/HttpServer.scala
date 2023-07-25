@@ -27,7 +27,7 @@ import io.netty.handler.logging.{LoggingHandler, LogLevel}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.util.{IOMode, NettyUtils}
-import org.apache.celeborn.common.util.{CelebornExitStatus, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 
 class HttpServer(
     role: String,
@@ -66,7 +66,7 @@ class HttpServer(
       }
       if (bootstrap != null && bootstrap.config.group != null) {
         Utils.tryLogNonFatalError {
-          if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN) {
+          if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
             bootstrap.config.group.shutdownGracefully(3, 5, TimeUnit.SECONDS)
           } else {
             bootstrap.config.group.shutdownGracefully(0, 0, TimeUnit.SECONDS)
@@ -75,7 +75,7 @@ class HttpServer(
       }
       if (bootstrap != null && bootstrap.config.childGroup != null) {
         Utils.tryLogNonFatalError {
-          if (exitCode == CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN) {
+          if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
             bootstrap.config.childGroup.shutdownGracefully(3, 5, TimeUnit.SECONDS)
           } else {
             bootstrap.config.childGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS)

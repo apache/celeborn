@@ -39,7 +39,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.unsafe.Platform;
-import org.apache.celeborn.common.util.CelebornExitStatus;
+import org.apache.celeborn.common.util.CelebornExitKind;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -185,7 +185,7 @@ public class PartitionFilesSorterSuiteJ {
     partitionFilesSorter.initSortedShuffleFiles("application-3-1");
     partitionFilesSorter.updateSortedShuffleFiles("application-3-1", "0-0-1", 0);
     partitionFilesSorter.deleteSortedShuffleFiles("application-2-1");
-    partitionFilesSorter.close(CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN());
+    partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
     PartitionFilesSorter partitionFilesSorter2 =
         new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
     Assert.assertEquals(
@@ -194,7 +194,7 @@ public class PartitionFilesSorterSuiteJ {
     Assert.assertEquals(partitionFilesSorter2.getSortedShuffleFiles("application-2-1"), null);
     Assert.assertEquals(
         partitionFilesSorter2.getSortedShuffleFiles("application-3-1").toString(), "[0-0-1]");
-    partitionFilesSorter2.close(CelebornExitStatus.WORKER_GRACEFUL_SHUTDOWN());
+    partitionFilesSorter2.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
     recoverPath.delete();
   }
 }
