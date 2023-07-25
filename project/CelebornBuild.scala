@@ -461,6 +461,11 @@ object Spark34 extends SparkClientProjects {
     "org.apache.logging.log4j" % "log4j-slf4j2-impl" % "2.19.0" % "test"
   )
 
+  override def sparkCommon: Project = {
+    super.sparkCommon
+      .settings(libraryDependencies ++= deps)
+  }
+
   override def sparkClient: Project = {
     super.sparkClient
       .settings(libraryDependencies ++= deps)
