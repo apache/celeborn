@@ -2476,7 +2476,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("10min")
 
   val WORKER_DECOMMISSION_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.decommission.check.interval")
+    buildConf("celeborn.worker.decommission.checkInterval")
       .categories("worker")
       .doc(
         "The wait interval of checking whether all the shuffle expired during worker decomission")
