@@ -24,7 +24,7 @@ import scala.collection.mutable
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
@@ -119,19 +119,19 @@ trait MiniClusterFeature extends Logging {
     // shutdown workers
     workerInfos.foreach {
       case (worker, _) =>
-        worker.stop(false)
+        worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
         worker.rpcEnv.shutdown()
     }
 
     // shutdown masters
-    masterInfo._1.stop(false)
+    masterInfo._1.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     masterInfo._1.rpcEnv.shutdown()
 
     // interrupt threads
     Thread.sleep(5000)
     workerInfos.foreach {
       case (worker, thread) =>
-        worker.stop(false)
+        worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
         thread.interrupt()
     }
     workerInfos.clear()

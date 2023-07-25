@@ -729,7 +729,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             pushExcludedWorkers.remove(loc.getPeer().hostAndPushPort());
           }
         } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
-          stageEnded(shuffleId);
+          stageEndShuffleSet.add(shuffleId);
           return results;
         } else if (StatusCode.SHUFFLE_NOT_REGISTERED.getValue() == statusCode) {
           logger.error("SHUFFLE_NOT_REGISTERED!");
@@ -1650,15 +1650,15 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   boolean mapperEnded(int shuffleId, int mapId) {
     return (mapperEndMap.containsKey(shuffleId) && mapperEndMap.get(shuffleId).contains(mapId))
-        || stageEnded(shuffleId);
+        || isStageEnded(shuffleId);
   }
 
-  protected boolean stageEnded(int shuffleId) {
+  protected boolean isStageEnded(int shuffleId) {
     return stageEndShuffleSet.contains(shuffleId);
   }
 
   private StatusCode getPushDataFailCause(String message) {
-    logger.debug("Push data failed cause message: " + message);
+    logger.debug("Push data failed cause message: {}", message);
     StatusCode cause;
     if (message == null) {
       logger.error("Push data throw unexpected exception: {}", message);
