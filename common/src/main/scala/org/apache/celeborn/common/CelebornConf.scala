@@ -902,6 +902,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
 
   // //////////////////////////////////////////////////////
+  //                   Decommission                      //
+  // //////////////////////////////////////////////////////
+  def workerDecommissionCheckInterval: Long = get(WORKER_DECOMMISSION_CHECK_INTERVAL)
+  def workerDecommissionCheckTimeout: Long = get(WORKER_DECOMMISSION_CHECK_TIMEOUT)
+
+  // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
   // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
@@ -2468,6 +2474,23 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
+
+  val WORKER_DECOMMISSION_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.decommission.check.interval")
+      .categories("worker")
+      .doc(
+        "The wait interval of checking whether all the shuffle expired during worker decomission")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val WORKER_DECOMMISSION_CHECK_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.decommission.check.timeout")
+      .categories("worker")
+      .doc("The wait time of waiting for all the shuffle expire during worker decommission.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3d")
 
   val WORKER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.enabled")

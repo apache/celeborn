@@ -90,6 +90,8 @@ class HttpRequestHandler(
         service.isShutdown
       case "/isRegistered" if service.serviceName == Service.WORKER =>
         service.isRegistered
+      case "/decommission" if service.serviceName == Service.WORKER =>
+        service.decommission
       case _ => INVALID
     }
   }
