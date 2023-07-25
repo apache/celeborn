@@ -24,6 +24,7 @@ PROJECT_DIR="$(cd "`dirname "$0"`/.."; pwd)"
 DIST_DIR="$PROJECT_DIR/dist"
 NAME="bin"
 RELEASE="false"
+MVN="$PROJECT_DIR/build/mvn"
 
 function exit_with_usage {
   echo "make-distribution.sh - tool for making binary distributions of Celeborn"
@@ -40,6 +41,10 @@ while (( "$#" )); do
   case $1 in
     --name)
       NAME="bin-$2"
+      shift
+      ;;
+    --mvn)
+      MVN="$2"
       shift
       ;;
     --release)
@@ -86,7 +91,6 @@ if [ -z "$JAVA_HOME" ]; then
   exit -1
 fi
 
-MVN="$PROJECT_DIR/build/mvn"
 export MAVEN_OPTS="${MAVEN_OPTS:--Xmx2g -XX:ReservedCodeCacheSize=1g}"
 
 if [ ! "$(command -v "$MVN")" ] ; then
