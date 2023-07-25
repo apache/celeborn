@@ -267,6 +267,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     } else {
       fileSorterSchedulerThread.interrupt();
       fileSorterExecutors.shutdownNow();
+      if(sortedFilesDb != null) {
+        try {
+          sortedFilesDb.close();
+          recoverFile.delete();
+        } catch (IOException e) {
+          logger.error("Clean LevelDB failed.", e);
+        }
+      }
     }
     cachedIndexMaps.clear();
   }
