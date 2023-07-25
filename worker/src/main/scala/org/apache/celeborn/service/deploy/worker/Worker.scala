@@ -616,6 +616,11 @@ private[celeborn] class Worker(
           replicatePort,
           MasterClient.genRequestId()),
         classOf[PbWorkerLostResponse])
+      // Cancel Heartbeat to avoid re-register
+      if (sendHeartbeatTask != null) {
+        sendHeartbeatTask.cancel(true)
+        sendHeartbeatTask = null
+      }
     } catch {
       case e: Throwable =>
         logError(
