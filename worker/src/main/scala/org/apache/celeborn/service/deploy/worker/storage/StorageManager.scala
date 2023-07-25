@@ -42,7 +42,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
@@ -603,18 +603,20 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     false
   }
 
-  def close(): Unit = {
-    if (db != null) {
-      try {
-        updateFileInfosInDB()
-        db.close()
-      } catch {
-        case exception: Exception =>
-          logError("Store recover data to LevelDB failed.", exception)
+  def close(exitKind: Int): Unit = {
+    if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+      if (db != null) {
+        try {
+          updateFileInfosInDB()
+          db.close()
+        } catch {
+          case exception: Exception =>
+            logError("Store recover data to LevelDB failed.", exception)
+        }
       }
     }
     if (null != diskOperators) {
-      if (!conf.workerGracefulShutdown) {
+      if (exitKind != CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         cleanupExpiredShuffleKey(shuffleKeySet())
       }
       ThreadUtils.parmap(
