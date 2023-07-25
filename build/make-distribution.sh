@@ -30,7 +30,7 @@ function exit_with_usage {
   echo "make-distribution.sh - tool for making binary distributions of Celeborn"
   echo ""
   echo "usage:"
-  cl_options="[--name <custom_name>] [--release]"
+  cl_options="[--name <custom_name>] [--release] [--mvn <mvn-command>]"
   echo "make-distribution.sh $cl_options <maven build options>"
   echo ""
   exit 1
