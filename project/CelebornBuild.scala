@@ -184,6 +184,8 @@ object Utils {
 
   lazy val flinkClientProjects = FLINK_VERSION match {
     case Some("flink-1.14") => Some(Flink114)
+    case Some("flink-1.15") => Some(Flink115)
+    case Some("flink-1.17") => Some(Flink117)
     case _ => None
   }
 
@@ -613,6 +615,26 @@ object Flink114 extends FlinkClientProjects {
   val flinkClientProjectPath = "client-flink/flink-1.14"
   // TODO: can't use `.` in project name
   val flinkClientProjectName = "celeborn-client-flink-1_14"
+  val flinkClientShadeProjectPath: String = ""
+  val flinkClientShadeProjectName: String = ""
+}
+
+object Flink115 extends FlinkClientProjects {
+  val flinkVersion = "1.15.4"
+
+  val flinkClientProjectPath = "client-flink/flink-1.15"
+  // TODO: can't use `.` in project name
+  val flinkClientProjectName = "celeborn-client-flink-1_15"
+  val flinkClientShadeProjectPath: String = ""
+  val flinkClientShadeProjectName: String = ""
+}
+
+object Flink117 extends FlinkClientProjects {
+  val flinkVersion = "1.17.0"
+
+  val flinkClientProjectPath = "client-flink/flink-1.17"
+  // TODO: can't use `.` in project name
+  val flinkClientProjectName = "celeborn-client-flink-1_17"
   val flinkClientShadeProjectPath: String = ""
   val flinkClientShadeProjectName: String = ""
 }
