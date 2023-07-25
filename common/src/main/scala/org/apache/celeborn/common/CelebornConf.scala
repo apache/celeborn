@@ -2485,7 +2485,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("30s")
 
   val WORKER_DECOMMISSION_CHECK_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.decommission.check.timeout")
+    buildConf("celeborn.worker.decommission.forceExitTimeout")
       .categories("worker")
       .doc("The wait time of waiting for all the shuffle expire during worker decommission.")
       .version("0.2.0")
