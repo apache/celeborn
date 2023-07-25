@@ -55,11 +55,11 @@ object CelebornCommonSettings {
   val guavaVersion = "14.0.1"
   val hadoopVersion = "3.2.4"
   val javaxServletVersion = "3.1.0"
-  val leveldbjniAllVersion = "1.8"
-  val log4jVersion = "2.17.2"
+  val leveldbJniVersion = "1.8"
+  val log4j2Version = "2.17.2"
   val metricsVersion = "3.2.6"
-  val mockitoScalaScalatestVersion = "1.17.14"
-  val nettyAllVersion = "4.1.93.Final"
+  val scalatestMockitoVersion = "1.17.14"
+  val nettyVersion = "4.1.93.Final"
   val ratisVersion = "2.5.1"
   val roaringBitmapVersion = "0.9.32"
   val slf4jVersion = "1.7.36"
@@ -203,22 +203,22 @@ object CelebornCommon {
         "io.dropwizard.metrics" % "metrics-core" % metricsVersion,
         "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion,
         "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion,
-        "io.netty" % "netty-all" % nettyAllVersion,
+        "io.netty" % "netty-all" % nettyVersion,
         "org.apache.commons" % "commons-crypto" % commonsCryptoVersion,
         "org.apache.commons" % "commons-lang3" % commonsLang3Version,
         "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion,
         "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion,
         "org.apache.ratis" % "ratis-client" % ratisVersion,
         "org.apache.ratis" % "ratis-common" % ratisVersion,
-        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbjniAllVersion,
+        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbJniVersion,
         "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion,
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.slf4j" % "jcl-over-slf4j" % slf4jVersion,
         "org.slf4j" % "jul-to-slf4j" % slf4jVersion,
         "org.slf4j" % "slf4j-api" % slf4jVersion,
         "org.yaml" % "snakeyaml" % snakeyamlVersion,
-        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % "test",
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion % "test",
+        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test",
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
@@ -262,13 +262,13 @@ object CelebornClient {
       name := "client",
       commonSettings,
       libraryDependencies ++= Seq(
-        "io.netty" % "netty-all" % nettyAllVersion,
+        "io.netty" % "netty-all" % nettyVersion,
         "com.google.guava" % "guava" % guavaVersion,
         "org.lz4" % "lz4-java" % lz4JavaVersion,
         "com.github.luben" % "zstd-jni" % zstdJniVersion,
         "org.apache.commons" % "commons-lang3" % commonsLang3Version,
-        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % "test",
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion % "test",
+        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test",
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
@@ -287,12 +287,12 @@ object CelebornService {
       libraryDependencies ++= Seq(
         "com.google.code.findbugs" % "jsr305" % findbugsVersion,
         "commons-io" % "commons-io" % commonsIoVersion,
-        "io.netty" % "netty-all" % nettyAllVersion,
+        "io.netty" % "netty-all" % nettyVersion,
         "javax.servlet" % "javax.servlet-api" % javaxServletVersion,
         "org.apache.commons" % "commons-crypto" % commonsCryptoVersion,
         "org.slf4j" % "slf4j-api" % slf4jVersion,
-        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % "test",
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion % "test",
+        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test",
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
@@ -312,10 +312,10 @@ object CelebornMaster {
       libraryDependencies ++= Seq(
         "com.google.guava" % "guava" % guavaVersion,
         "com.google.protobuf" % "protobuf-java" % protoVersion,
-        "io.netty" % "netty-all" % nettyAllVersion,
+        "io.netty" % "netty-all" % nettyVersion,
         "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion,
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
-        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion,
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version,
+        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version,
         "org.apache.ratis" % "ratis-client" % ratisVersion,
         "org.apache.ratis" % "ratis-common" % ratisVersion,
         "org.apache.ratis" % "ratis-grpc" % ratisVersion,
@@ -342,12 +342,12 @@ object CelebornWorker {
       libraryDependencies ++= Seq(
         "com.google.guava" % "guava" % guavaVersion,
         "commons-io" % "commons-io" % commonsIoVersion,
-        "io.netty" % "netty-all" % nettyAllVersion,
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
-        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion,
-        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbjniAllVersion,
+        "io.netty" % "netty-all" % nettyVersion,
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version,
+        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version,
+        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbJniVersion,
         "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion,
-        "org.mockito" %% "mockito-scala-scalatest" % mockitoScalaScalatestVersion % "test",
+        "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion % "test",
   
         // Compiler plugins
         // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
