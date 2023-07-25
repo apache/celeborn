@@ -1570,7 +1570,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
   }
 
-  protected ReduceFileGroups updateFileGroup(int shuffleId) {
+  protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId) throws IOException {
     return reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> loadFileGroupInternal(shuffleId));
   }
 
