@@ -170,6 +170,7 @@ object Utils {
   lazy val sparkClientProjects = SPARK_VERSION match {
     case Some("spark-2.4") => Some(Spark24)
     case Some("spark-3.0") => Some(Spark30)
+    case Some("spark-3.1") => Some(Spark31)
     case Some("spark-3.3") => Some(Spark33)
     case _ => None
   }
@@ -179,13 +180,9 @@ object Utils {
   def defaultScalaVersion(): String = {
     // 1. Inherit the scala version of the spark project
     // 2. if the spark profile not specified, using the DEFAULT_SCALA_VERSION
-    sparkClientProjects.map(_.sparkProjectScalaVersion)
-      .map { version =>
-        if (!ALL_SCALA_VERSIONS.contains(version)) {
-          throw new IllegalArgumentException(s"found not allow scala version: $version")
-        }
-        version
-      }.getOrElse(DEFAULT_SCALA_VERSION)
+    val v = sparkClientProjects.map(_.sparkProjectScalaVersion).getOrElse(DEFAULT_SCALA_VERSION)
+    require(ALL_SCALA_VERSIONS.contains(v), s"found not allow scala version: $v")
+    v
   }
 }
 
@@ -364,6 +361,20 @@ object Spark30 extends SparkClientProjects {
 
   val sparkVersion = "3.0.3"
   val zstdJniVersion = "1.4.4-3"
+}
+
+object Spark31 extends SparkClientProjects {
+
+  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectName = "celeborn-client-spark-3"
+  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
+  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+
+  val lz4JavaVersion = "1.7.1"
+  val sparkProjectScalaVersion = "2.12.10"
+
+  val sparkVersion = "3.1.3"
+  val zstdJniVersion = "1.4.8-1"
 }
 
 object Spark33 extends SparkClientProjects {
