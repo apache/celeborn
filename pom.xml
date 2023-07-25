@@ -665,7 +665,7 @@
             <compilerPlugins>
               <compilerPlugin>
                 <groupId>com.github.ghik</groupId>
-                <artifactId>silencer-plugin_${scala.version}</artifactId>
+                <artifactId>silencer-plugin_2.12.18</artifactId>
                 <version>1.7.13</version>
               </compilerPlugin>
             </compilerPlugins>
