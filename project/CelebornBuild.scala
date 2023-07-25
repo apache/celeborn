@@ -63,6 +63,7 @@ object CelebornCommonSettings {
   val hadoopVersion = "3.2.4"
   val roaringBitmapVersion = "0.9.32"
   val log4jVersion = "2.17.2"
+  val mockitoScalaScalatestVersion = "1.17.14"
   
   // Versions for proto
   val protocVersion = "3.19.2"
@@ -135,6 +136,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornCommon.common,
       CelebornClient.client,
       CelebornService.service,
+      CelebornWorker.worker,
       CelebornMaster.master) ++ maybeSparkClientModules
   }
   
@@ -331,6 +333,32 @@ object CelebornMaster {
     )
 }
 
+object CelebornWorker {
+  lazy val worker = (project in file("worker"))
+    .dependsOn(CelebornCommon.common, CelebornService.service)
+    .dependsOn(CelebornClient.client % "test->test;compile->compile")
+    .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+    .settings (
+      name := "worker",
+      commonSettings,
+      libraryDependencies ++= Seq(
+        "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbjniAllVersion,
+        "io.netty" % "netty-all" % nettyAllVersion,
+        "com.google.guava" % "guava" % guavaVersion,
+        "commons-io" % "commons-io" % commonsIoVersion,
+        "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion,
+        "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion,
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion,
+        "org.mockito" %% "mockito-scala-scalatest" % mockitoScalaScalatestVersion % "test",
+  
+        // Compiler plugins
+        // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+        compilerPlugin(
+          "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+      ) ++ commonUnitTestDependencies
+    )
+}
+
 ////////////////////////////////////////////////////////
 //                   Spark Client                     //
 ////////////////////////////////////////////////////////
@@ -458,7 +486,6 @@ trait SparkClientProjects {
         ) ++ commonUnitTestDependencies
       )
   }
-  
   def sparkClient: Project = {
     Project(sparkClientProjectName, file(sparkClientProjectPath))
       .dependsOn(CelebornCommon.common, sparkCommon)
