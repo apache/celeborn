@@ -2480,7 +2480,7 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc(
         "The wait interval of checking whether all the shuffle expired during worker decomission")
-      .version("0.2.0")
+      .version("0.4.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
