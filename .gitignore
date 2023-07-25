@@ -24,6 +24,7 @@
 .settings
 /lib/
 build/apache-maven*
+build/sbt-launch-*.jar
 cache
 checkpoint
 conf/*.cmd
