@@ -83,7 +83,7 @@ public class TransportMessage implements Serializable {
   public static TransportMessage fromByteBuffer(ByteBuffer buffer) throws CelebornIOException {
     int type = buffer.getInt();
     if (MessageType.forNumber(type) == null) {
-      throw new CelebornIOException("Decode failed,fallback to legacy messages.");
+      throw new CelebornIOException("Decode failed, fallback to legacy messages.");
     }
     int payloadLen = buffer.getInt();
     byte[] payload = new byte[payloadLen];
