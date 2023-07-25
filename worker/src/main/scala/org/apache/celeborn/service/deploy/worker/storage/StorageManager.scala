@@ -604,14 +604,19 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def close(exitKind: Int): Unit = {
-    if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
-      if (db != null) {
+    if (db != null) {
+      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         try {
           updateFileInfosInDB()
           db.close()
         } catch {
           case exception: Exception =>
             logError("Store recover data to LevelDB failed.", exception)
+        }
+      } else {
+        if (db != null) {
+          db.close()
+          new File(conf.workerGracefulShutdownRecoverPath, RECOVERY_FILE_NAME).delete()
         }
       }
     }
