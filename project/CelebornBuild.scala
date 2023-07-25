@@ -137,7 +137,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornClient.client,
       CelebornService.service,
       CelebornWorker.worker,
-      CelebornMaster.master) ++ maybeSparkClientModules
+      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules
   }
   
   // ThisBuild / parallelExecution := false
@@ -179,6 +179,15 @@ object Utils {
   }
 
   lazy val maybeSparkClientModules: Seq[Project] = sparkClientProjects.map(_.modules).getOrElse(Seq.empty)
+
+  val FLINK_VERSION = profiles.filter(_.startsWith("flink")).headOption
+
+  lazy val flinkClientProjects = FLINK_VERSION match {
+    case Some("flink-1.14") => Some(Flink114)
+    case _ => None
+  }
+
+  lazy val maybeFlinkClientModules: Seq[Project] = flinkClientProjects.map(_.modules).getOrElse(Seq.empty)
 
   def defaultScalaVersion(): String = {
     // 1. Inherit the scala version of the spark project
@@ -590,6 +599,66 @@ trait SparkClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
           case _ => MergeStrategy.first
         }
+      )
+  }
+}
+
+////////////////////////////////////////////////////////
+//                   Flink Client                     //
+////////////////////////////////////////////////////////
+
+object Flink114 extends FlinkClientProjects {
+  val flinkVersion = "1.14.6"
+
+  val flinkClientProjectPath = "client-flink/flink-1.14"
+  // TODO: can't use `.` in project name
+  val flinkClientProjectName = "celeborn-client-flink-1_14"
+  val flinkClientShadeProjectPath: String = ""
+  val flinkClientShadeProjectName: String = ""
+}
+
+trait FlinkClientProjects {
+
+  val flinkVersion: String
+
+  val flinkClientProjectPath: String
+  val flinkClientProjectName: String
+  val flinkClientShadeProjectPath: String
+  val flinkClientShadeProjectName: String
+
+  def modules: Seq[Project] = Seq(flinkCommon, flinkClient)
+
+  def flinkCommon: Project = {
+    Project("flink-common", file("client-flink/common"))
+      .dependsOn(CelebornCommon.common, CelebornClient.client)
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
+  
+          // Compiler plugins
+          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+          compilerPlugin(
+            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        ) ++ commonUnitTestDependencies
+      )
+  }
+
+  def flinkClient: Project = {
+    Project(flinkClientProjectName, file(flinkClientProjectPath))
+      .dependsOn(CelebornCommon.common, CelebornClient.client, flinkCommon)
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
+          "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % "test",
+          "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion % "test",
+  
+          // Compiler plugins
+          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+          compilerPlugin(
+            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        ) ++ commonUnitTestDependencies
       )
   }
 }
