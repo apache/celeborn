@@ -2488,7 +2488,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.decommission.forceExitTimeout")
       .categories("worker")
       .doc("The wait time of waiting for all the shuffle expire during worker decommission.")
-      .version("0.2.0")
+      .version("0.4.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3d")
 
