@@ -31,18 +31,22 @@ import CelebornCommonSettings._
 // import sbt.Keys.streams
 
 object CelebornCommonSettings {
+
   // Scala versions
-  val scala211 = "2.11.12"
-  val scala212 = "2.12.15"
+  val SCALA_2_11_12 = "2.11.12"
+  val SCALA_2_12_10 = "2.12.10"
+  val SCALA_2_12_15 = "2.12.15"
   val scala213 = "2.13.5"
-  val default_scala_version = defaultScalaVersion()
-  val all_scala_versions = Seq(scala211, scala212, scala213)
+  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, scala213)
+
+  val DEFAULT_SCALA_VERSION = SCALA_2_12_15
+
+  val projectScalaVersion = defaultScalaVersion()
 
   val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.2-1")
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
   
   // Dependent library versions
-  
   val javaxServletVersion = "3.1.0"
   val ratisVersion = "2.5.1"
   val metricsVersion = "3.2.6"
@@ -63,7 +67,7 @@ object CelebornCommonSettings {
   val protocVersion = "3.19.2"
   val protoVersion = "3.19.2"
   
-  scalaVersion := default_scala_version
+  scalaVersion := projectScalaVersion
 
   autoScalaLibrary := false
   
@@ -72,8 +76,8 @@ object CelebornCommonSettings {
 
   lazy val commonSettings = Seq(
     organization := "org.apache.celeborn",
-    scalaVersion := default_scala_version,
-    crossScalaVersions := all_scala_versions,
+    scalaVersion := projectScalaVersion,
+    crossScalaVersions := ALL_SCALA_VERSIONS,
     fork := true,
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8"),
@@ -165,6 +169,7 @@ object Utils {
 
   lazy val sparkClientProjects = SPARK_VERSION match {
     case Some("spark-2.4") => Some(Spark24)
+    case Some("spark-3.0") => Some(Spark30)
     case Some("spark-3.3") => Some(Spark33)
     case _ => None
   }
@@ -172,10 +177,15 @@ object Utils {
   lazy val maybeSparkClientModules: Seq[Project] = sparkClientProjects.map(_.modules).getOrElse(Seq.empty)
 
   def defaultScalaVersion(): String = {
-    SPARK_VERSION match {
-      case Some("spark-2.4") => scala211
-      case _ => scala212
-    }
+    // 1. Inherit the scala version of the spark project
+    // 2. if the spark profile not specified, using the DEFAULT_SCALA_VERSION
+    sparkClientProjects.map(_.sparkProjectScalaVersion)
+      .map { version =>
+        if (!ALL_SCALA_VERSIONS.contains(version)) {
+          throw new IllegalArgumentException(s"found not allow scala version: $version")
+        }
+        version
+      }.getOrElse(DEFAULT_SCALA_VERSION)
   }
 }
 
@@ -335,10 +345,24 @@ object Spark24 extends SparkClientProjects {
   // val jacksonVersion = "2.5.7"
   // val jacksonDatabindVersion = "2.6.7.3"
   val lz4JavaVersion = "1.4.0"
-  val default_scala_version = "2.11.12"
+  val sparkProjectScalaVersion = "2.11.12"
   // scalaBinaryVersion
   // val scalaBinaryVersion = "2.11"
   val sparkVersion = "2.4.8"
+  val zstdJniVersion = "1.4.4-3"
+}
+
+object Spark30 extends SparkClientProjects {
+
+  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectName = "celeborn-client-spark-3"
+  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
+  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+
+  val lz4JavaVersion = "1.7.1"
+  val sparkProjectScalaVersion = "2.12.10"
+
+  val sparkVersion = "3.0.3"
   val zstdJniVersion = "1.4.4-3"
 }
 
@@ -352,7 +376,7 @@ object Spark33 extends SparkClientProjects {
   // val jacksonVersion = "2.13.4"
   // val jacksonDatabindVersion = "2.13.4.2"
   val lz4JavaVersion = "1.8.0"
-  val default_scala_version = "2.12.15"
+  val sparkProjectScalaVersion = "2.12.15"
   // scalaBinaryVersion
   // val scalaBinaryVersion = "2.12"
   val sparkVersion = "3.3.2"
@@ -367,7 +391,7 @@ trait SparkClientProjects {
   val sparkClientShadeProjectName: String
 
   val lz4JavaVersion: String
-  val default_scala_version: String
+  val sparkProjectScalaVersion: String
   val sparkVersion: String
   val zstdJniVersion: String
 
