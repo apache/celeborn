@@ -171,6 +171,7 @@ object Utils {
     case Some("spark-2.4") => Some(Spark24)
     case Some("spark-3.0") => Some(Spark30)
     case Some("spark-3.1") => Some(Spark31)
+    case Some("spark-3.2") => Some(Spark32)
     case Some("spark-3.3") => Some(Spark33)
     case _ => None
   }
@@ -375,6 +376,20 @@ object Spark31 extends SparkClientProjects {
 
   val sparkVersion = "3.1.3"
   val zstdJniVersion = "1.4.8-1"
+}
+
+object Spark32 extends SparkClientProjects {
+
+  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectName = "celeborn-client-spark-3"
+  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
+  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+
+  val lz4JavaVersion = "1.7.1"
+  val sparkProjectScalaVersion = "2.12.15"
+
+  val sparkVersion = "3.2.4"
+  val zstdJniVersion = "1.5.0-4"
 }
 
 object Spark33 extends SparkClientProjects {
