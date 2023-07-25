@@ -89,7 +89,7 @@ object CelebornCommonSettings {
   
     // Make sure any tests in any project that uses Spark is configured for running well locally
     Test / javaOptions ++= Seq(
-      "-Xmx2048m"
+      "-Xmx4g"
     ),
   
     testOptions += Tests.Argument("-oF"),
@@ -104,11 +104,11 @@ object CelebornCommonSettings {
       "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
     ),
 
-    javaOptions += "-Xmx2048m",
+    javaOptions += "-Xmx4g",
 
     // Configurations to speed up tests and reduce memory footprint
     Test / javaOptions ++= Seq(
-      "-Xmx2048m"
+      "-Xmx4g"
     ),
 
     Test / envVars += ("IS_TESTING", "1")
@@ -486,27 +486,6 @@ trait SparkClientProjects {
         ) ++ commonUnitTestDependencies
       )
   }
-
-  def sparkIt: Project = {
-    Project("spark-it", file("tests/spark-it"))
-      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
-      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
-      .dependsOn(CelebornClient.client % "test->test;compile->compile")
-      .dependsOn(CelebornMaster.master % "test->test;compile->compile")
-      .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
-      .settings (
-        commonSettings,
-        libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests",
-  
-          // Compiler plugins
-          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-          compilerPlugin(
-            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
-        ) ++ commonUnitTestDependencies
-      )
-  }
   
   def sparkClient: Project = {
     Project(sparkClientProjectName, file(sparkClientProjectPath))
@@ -528,6 +507,29 @@ trait SparkClientProjects {
       )
   }
   
+  def sparkIt: Project = {
+    Project("spark-it", file("tests/spark-it"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+      .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+      .dependsOn(sparkClient % "test->test;compile->compile")
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test",
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test",
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests",
+  
+          // Compiler plugins
+          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+          compilerPlugin(
+            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        ) ++ commonUnitTestDependencies
+      )
+  }
   
   def sparkClientShade: Project = {
     Project(sparkClientShadeProjectName, file(sparkClientShadeProjectPath))
