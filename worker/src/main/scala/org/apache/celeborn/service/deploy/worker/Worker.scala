@@ -439,7 +439,6 @@ private[celeborn] class Worker(
       logInfo("Worker is stopped.")
       stopped = true
     }
-    shutdown.set(true)
   }
 
   private def registerWithMaster(): Unit = {
@@ -623,11 +622,15 @@ private[celeborn] class Worker(
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
-        logInfo("Shutdown hook called.")
-        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
-          shutdownGracefully()
+        if (stopped) {
+          logInfo("Worker already stopped before call ShutdownHook.")
         } else {
-          exitImmediately()
+          logInfo("Shutdown hook called.")
+          if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+            shutdownGracefully()
+          } else {
+            exitImmediately()
+          }
         }
       }
     }),
