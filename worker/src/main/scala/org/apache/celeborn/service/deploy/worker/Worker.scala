@@ -607,24 +607,14 @@ private[celeborn] class Worker(
 
   def decommissionWorker(): Unit = {
     try {
-      masterClient.askSync[PbWorkerLostResponse](
-        WorkerLost(
-          host,
-          rpcPort,
-          pushPort,
-          fetchPort,
-          replicatePort,
-          MasterClient.genRequestId()),
-        classOf[PbWorkerLostResponse])
-      // Cancel Heartbeat to avoid re-register
-      if (sendHeartbeatTask != null) {
-        sendHeartbeatTask.cancel(true)
-        sendHeartbeatTask = null
-      }
+      masterClient.askSync(
+        ReportWorkerUnavailable(List(workerInfo).asJava),
+        OneWayMessageResponse.getClass)
     } catch {
       case e: Throwable =>
         logError(
-          s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+          s"Fail report to master, need wait registered shuffle expired: " +
+            s"\n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}",
           e)
     }
     shutdown.set(true)
