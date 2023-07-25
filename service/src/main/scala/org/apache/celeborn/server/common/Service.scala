@@ -35,7 +35,7 @@ abstract class Service extends Logging {
     }
   }
 
-  def stop(exitCode: Int): Unit = {}
+  def stop(exitKind: Int): Unit = {}
 }
 
 object Service {

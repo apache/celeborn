@@ -392,12 +392,12 @@ private[celeborn] class Worker(
     rpcEnv.awaitTermination()
   }
 
-  override def stop(exitCode: Int): Unit = {
+  override def stop(exitKind: Int): Unit = {
     if (!stopped) {
       logInfo("Stopping Worker.")
 
       if (sendHeartbeatTask != null) {
-        if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
           sendHeartbeatTask.cancel(false)
         } else {
           sendHeartbeatTask.cancel(true)
@@ -405,25 +405,25 @@ private[celeborn] class Worker(
         sendHeartbeatTask = null
       }
       if (checkFastFailTask != null) {
-        if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
           checkFastFailTask.cancel(false)
         } else {
           checkFastFailTask.cancel(true)
         }
         checkFastFailTask = null
       }
-      if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
         asyncReplyPool.shutdown()
-        partitionsSorter.close(exitCode)
+        partitionsSorter.close(exitKind)
       } else {
         forwardMessageScheduler.shutdownNow()
         replicateThreadPool.shutdownNow()
         commitThreadPool.shutdownNow()
         asyncReplyPool.shutdownNow()
-        partitionsSorter.close(exitCode)
+        partitionsSorter.close(exitKind)
       }
 
       if (null != storageManager) {
@@ -432,11 +432,11 @@ private[celeborn] class Worker(
       memoryManager.close()
 
       masterClient.close()
-      replicateServer.shutdown(exitCode)
-      fetchServer.shutdown(exitCode)
-      pushServer.shutdown(exitCode)
+      replicateServer.shutdown(exitKind)
+      fetchServer.shutdown(exitKind)
+      pushServer.shutdown(exitKind)
 
-      super.stop(exitCode)
+      super.stop(exitKind)
 
       logInfo("Worker is stopped.")
       stopped = true

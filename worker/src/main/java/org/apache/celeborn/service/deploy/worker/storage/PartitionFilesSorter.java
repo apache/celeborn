@@ -239,10 +239,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
-  public void close(int exitCode) {
+  public void close(int exitKind) {
     logger.info("Closing {}", this.getClass().getSimpleName());
     shutdown = true;
-    if (exitCode == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN()) {
+    if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN()) {
       long start = System.currentTimeMillis();
       try {
         fileSorterExecutors.shutdown();
