@@ -465,7 +465,7 @@ trait SparkClientProjects {
   val sparkVersion: String
   val zstdJniVersion: String
 
-  def modules: Seq[Project] = Seq(sparkCommon, sparkClient, sparkClientShade)
+  def modules: Seq[Project] = Seq(sparkCommon, sparkClient, sparkIt, sparkClientShade)
 
   def sparkCommon: Project = {
     Project("spark-common", file("client-spark/common"))
@@ -486,6 +486,28 @@ trait SparkClientProjects {
         ) ++ commonUnitTestDependencies
       )
   }
+
+  def sparkIt: Project = {
+    Project("spark-it", file("tests/spark-it"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+      .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests",
+  
+          // Compiler plugins
+          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
+          compilerPlugin(
+            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        ) ++ commonUnitTestDependencies
+      )
+  }
+  
   def sparkClient: Project = {
     Project(sparkClientProjectName, file(sparkClientProjectPath))
       .dependsOn(CelebornCommon.common, sparkCommon)
