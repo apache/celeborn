@@ -25,7 +25,7 @@ Download the latest Celeborn binary from the [Downloading Page](https://celeborn
 Decompress the binary and set `$CELEBORN_HOME`
 ```shell
 tar -C <DST_DIR> -zxvf apache-celeborn-<VERSION>-bin.tgz
-export $CELEBORN_HOME=${Decompressed path}
+export $CELEBORN_HOME=<Decompressed path>
 ```
 
 ## Configure Logging and Storage
@@ -48,7 +48,7 @@ cd $CELEBORN_HOME
 ./sbin/start-master.sh
 ```
 You should see `Master`'s ip:port in the log:
-```shell
+```
 INFO [main] NettyRpcEnvFactory: Starting RPC Server [MasterSys] on 192.168.2.109:9097
 ```
 #### Start Worker
@@ -58,13 +58,13 @@ cd $CELEBORN_HOME
 ./sbin/start-worker.sh celeborn://${Master IP}:${Master Port}
 ```
 You should see the following message in Worker's log:
-```shell
-23/07/22 11:39:23,546 INFO [main] MasterClient: connect to master 192.168.2.109:9097.
-23/07/22 11:39:23,673 INFO [main] Worker: Register worker successfully.
+```
+INFO [main] MasterClient: connect to master 192.168.2.109:9097.
+INFO [main] Worker: Register worker successfully.
 ```
 And also the following message in Master's log:
-```shell
-23/07/22 11:39:23,650 INFO [dispatcher-event-loop-9] Master: Registered worker
+```
+INFO [dispatcher-event-loop-9] Master: Registered worker
 Host: 192.168.2.109
 RpcPort: 57806
 PushPort: 57807
@@ -104,12 +104,12 @@ spark.sparkContext
   .count
 ```
 During the Spark Job, you should see the following message in Celeborn Master's log:
-```shell
+```
 Master: Offer slots successfully for 10 reducers of local-1690000152711-0 on 1 workers.
 ```
 And the following message in Celeborn Worker's log:
-```shell
-23/07/22 12:29:57,952 INFO [dispatcher-event-loop-9] Controller: Reserved 10 primary location and 0 replica location for local-1690000152711-0
-23/07/22 12:29:58,117 INFO [dispatcher-event-loop-10] Controller: Start commitFiles for local-1690000152711-0
-23/07/22 12:29:58,153 INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success with 10 committed primary partitions, 0 empty primary partitions, 0 failed primary partitions, 0 committed replica partitions, 0 empty replica partitions, 0 failed replica partitions.
+```
+INFO [dispatcher-event-loop-9] Controller: Reserved 10 primary location and 0 replica location for local-1690000152711-0
+INFO [dispatcher-event-loop-10] Controller: Start commitFiles for local-1690000152711-0
+INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success with 10 committed primary partitions, 0 empty primary partitions, 0 failed primary partitions, 0 committed replica partitions, 0 empty replica partitions, 0 failed replica partitions.
 ```
