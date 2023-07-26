@@ -20,9 +20,17 @@
 SELF=$(cd $(dirname $0) && pwd)
 . "$SELF/util.sh"
 
-echo "The CN repositories are to be enabled by default for the purpose of downloading bootstrap/plugin/dependencies jars."
-SBT_REPOSITORIES_CONFIG="$(dirname "$(realpath "$0")")/sbt-config/repositories-cn"
-export SBT_OPTS="${SBT_OPTS:="-Dsbt.override.build.repos=true -Dsbt.repository.config=$SBT_REPOSITORIES_CONFIG"}"
+# Check if repositories-local file exists, otherwise use repositories
+SBT_REPOSITORIES_LOCAL_CONFIG="$(dirname "$(realpath "$0")")/sbt-config/repositories-local"
+SBT_REPOSITORIES_CONFIG="$(dirname "$(realpath "$0")")/sbt-config/repositories"
+
+if [ -f "$SBT_REPOSITORIES_LOCAL_CONFIG" ]; then
+  SBT_OPTS="${SBT_OPTS:="-Dsbt.override.build.repos=true -Dsbt.repository.config=$SBT_REPOSITORIES_LOCAL_CONFIG"}"
+else
+  SBT_OPTS="${SBT_OPTS:="-Dsbt.override.build.repos=true -Dsbt.repository.config=$SBT_REPOSITORIES_CONFIG"}"
+fi
+
+export SBT_OPTS
 
 . "$(dirname "$(realpath "$0")")"/sbt-launch-lib.bash
 
