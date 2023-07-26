@@ -1,7 +1,9 @@
-# As a Chinese developer facing network issues, you can accelerate the download speed of bootstrap/plugin/dependencies jar packages by executing the following command to configure the mirror:
+# As a Chinese developer facing network issues, you can accelerate the download
+# speed of bootstrap/plugin/dependencies jar packages by executing the
+# following command to configure the mirror:
 #
 # ```
-#   cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
+# cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
 # ```
 
 [repositories]
