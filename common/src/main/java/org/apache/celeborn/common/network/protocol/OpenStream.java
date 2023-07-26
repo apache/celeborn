@@ -27,6 +27,7 @@ import io.netty.buffer.ByteBuf;
  * Request to read a set of blocks. Returns {@link StreamHandle}. Use PbOpenStream instead of this
  * one.
  */
+@Deprecated
 public final class OpenStream extends RequestMessage {
   public byte[] shuffleKey;
   public byte[] fileName;

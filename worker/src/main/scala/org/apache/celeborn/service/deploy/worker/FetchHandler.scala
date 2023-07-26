@@ -198,6 +198,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
         streamHandle.toByteArray).toByteBuffer)))
   }
 
+  @deprecated
   private def replyLegacyStreamHandler(
       client: TransportClient,
       requestId: Long,
@@ -209,6 +210,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
 
   // Here are BackLogAnnouncement,OpenStream and OpenStreamWithCredit RPCs to handle
   // Do not add new logic here. This method is reserved for compatible reason.
+  @deprecated
   def handleLegacyOpenStream(client: TransportClient, request: RpcRequest, msg: Message): Unit = {
     val (shuffleKey, fileName) =
       if (msg.`type`() == Type.OPEN_STREAM) {
