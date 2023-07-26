@@ -20,7 +20,8 @@
 SELF=$(cd $(dirname $0) && pwd)
 . "$SELF/util.sh"
 
-SBT_REPOSITORIES_CONFIG="$(dirname "$(realpath "$0")")/sbt-config/repositories"
+echo "The CN repositories are to be enabled by default for the purpose of downloading bootstrap/plugin/dependencies jars."
+SBT_REPOSITORIES_CONFIG="$(dirname "$(realpath "$0")")/sbt-config/repositories-cn"
 export SBT_OPTS="${SBT_OPTS:="-Dsbt.override.build.repos=true -Dsbt.repository.config=$SBT_REPOSITORIES_CONFIG"}"
 
 . "$(dirname "$(realpath "$0")")"/sbt-launch-lib.bash
