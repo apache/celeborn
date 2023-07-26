@@ -569,7 +569,11 @@ private[celeborn] class Worker(
         System.exit(0)
       }
     }.start()
-    "Success"
+    val sb = new StringBuilder
+    sb.append("======================== Decommission Worker =========================\n")
+    sb.append("Decommission worker triggered: \n")
+    sb.append(workerInfo.toString()).append("\n")
+    sb.toString()
   }
 
   def shutdownGracefully(): Unit = {
