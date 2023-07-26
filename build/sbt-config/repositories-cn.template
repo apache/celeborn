@@ -1,7 +1,10 @@
+# As a Chinese developer facing network issues, you can accelerate the download speed of bootstrap/plugin/dependencies jar packages by executing the following command to configure the mirror:
+#
+# ```
+#   cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
+# ```
+
 [repositories]
   local
-  local-preloaded-ivy: file:///${sbt.preloaded-${sbt.global.base-${user.home}/.sbt}/preloaded/}, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]
-  local-preloaded: file:///${sbt.preloaded-${sbt.global.base-${user.home}/.sbt}/preloaded/}
   aliyun-maven: https://maven.aliyun.com/nexus/content/groups/public/
   huawei-central: https://mirrors.huaweicloud.com/repository/maven/
-  maven-central

@@ -34,6 +34,5 @@ NOTICE*
 assets/**
 build/apache-maven-*/**
 build/scala-*/**
-build/sbt-config/repositories
-build/sbt-config/repositories-cn.template
+build/sbt-config/**
 **/benchmarks/**
