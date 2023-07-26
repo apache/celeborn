@@ -59,6 +59,9 @@ acquire_sbt_jar () {
   # artifacts from internal repos only.
   # Ex:
   #   DEFAULT_ARTIFACT_REPOSITORY=https://artifacts.internal.com/libs-release/
+  if [ -n "$DEFAULT_ARTIFACT_REPOSITORY" ]; then
+      export SBT_OPTS="$SBT_OPTS -Dceleborn.sbt.default.artifact.repository=${DEFAULT_ARTIFACT_REPOSITORY}"
+  fi
   URL1=${DEFAULT_ARTIFACT_REPOSITORY:-https://repo1.maven.org/maven2/}org/scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch-${SBT_VERSION}.jar
   JAR=build/sbt-launch-${SBT_VERSION}.jar
 

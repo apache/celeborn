@@ -2,7 +2,10 @@
   local
   local-preloaded-ivy: file:///${sbt.preloaded-${sbt.global.base-${user.home}/.sbt}/preloaded/}, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]
   local-preloaded: file:///${sbt.preloaded-${sbt.global.base-${user.home}/.sbt}/preloaded/}
-  private: ${DEFAULT_ARTIFACT_REPOSITORY-file:///dev/null}
+  # The system property value of `celeborn.sbt.default.artifact.repository` is
+  # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
+  # assigned within the build/sbt-launch-lib.bash script.
+  private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
   gcs-maven-central-mirror: https://maven-central.storage-download.googleapis.com/repos/central/data/
   maven-central
   typesafe-ivy-releases: https://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext], bootOnly
