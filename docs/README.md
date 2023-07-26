@@ -97,9 +97,11 @@ cd $SPARK_HOME
 ```
 Then run the following test case:
 ```scala
-spark.sparkContext.parallelize(1 to 10, 10)
-  .flatMap( _ => (1 to 100).iterator
-  .map(num => num)).repartition(10).count
+spark.sparkContext
+  .parallelize(1 to 10, 10)
+  .flatMap(_ => (1 to 100).iterator.map(num => num))
+  .repartition(10)
+  .count
 ```
 During the Spark Job, you should see the following message in Celeborn Master's log:
 ```shell
