@@ -55,7 +55,7 @@ INFO [main] NettyRpcEnvFactory: Starting RPC Server [MasterSys] on 192.168.2.109
 Use the Master's IP and Port to start Worker:
 ```shell
 cd $CELEBORN_HOME
-./sbin/start-worker.sh celeborn://${Master IP}:${Master Port}
+./sbin/start-worker.sh celeborn://<Master IP>:<Master Port>
 ```
 You should see the following message in Worker's log:
 ```log
