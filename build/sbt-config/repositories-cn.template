@@ -6,5 +6,6 @@
 
 [repositories]
   local
+  private: ${DEFAULT_ARTIFACT_REPOSITORY-file:///dev/null}
   aliyun-maven: https://maven.aliyun.com/nexus/content/groups/public/
   huawei-central: https://mirrors.huaweicloud.com/repository/maven/
