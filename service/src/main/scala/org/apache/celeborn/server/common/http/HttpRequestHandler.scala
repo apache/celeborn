@@ -18,12 +18,14 @@
 package org.apache.celeborn.server.common.http
 
 import java.net.URL
+import java.util.Locale
 
 import io.netty.buffer.Unpooled
 import io.netty.channel.{ChannelFutureListener, ChannelHandlerContext, SimpleChannelInboundHandler}
 import io.netty.channel.ChannelHandler.Sharable
 import io.netty.handler.codec.http._
 import io.netty.util.CharsetUtil
+
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.sink.PrometheusHttpRequestHandler
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -93,10 +95,8 @@ class HttpRequestHandler(
         service.isShutdown
       case "/isRegistered" if service.serviceName == Service.WORKER =>
         service.isRegistered
-      case "/decommission" if service.serviceName == Service.WORKER =>
-        service.decommission
       case "/exit" if service.serviceName == Service.WORKER =>
-        service.exit(parameter.getOrElse("type", "exit"))
+        service.exit(parameter.getOrElse("type", "").toUpperCase(Locale.ROOT))
       case _ => INVALID
     }
   }
