@@ -314,3 +314,5 @@ API path listed as below:
 | /isShutdown                | Show if the worker is during the process of shutdown.                                                    |
 | /isRegistered              | Show if the worker is registered to the master success.                                                  |
 | /decommission              | Trigger this worker to decommission from the cluster                                                     |
+| /exit                      | Trigger this worker to exit, if worker enable graceful shutdown, it will exit gracefully.                |
+| /exitImmediately           | Trigger this worker to exit immediately.                                                                 |

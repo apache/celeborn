@@ -576,6 +576,36 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def exit: String = {
+    // Use the original EXIT_CODE
+    new Thread() {
+      override def run(): Unit = {
+        Thread.sleep(10000)
+        System.exit(0)
+      }
+    }.start()
+    val sb = new StringBuilder
+    sb.append("============================ Exit Worker =============================\n")
+    sb.append("Exit worker triggered: \n")
+    sb.append(workerInfo.toString()).append("\n")
+    sb.toString()
+  }
+
+  override def exitImmediately: String = {
+    exitKind = CelebornExitKind.EXIT_IMMEDIATELY
+    new Thread() {
+      override def run(): Unit = {
+        Thread.sleep(10000)
+        System.exit(0)
+      }
+    }.start()
+    val sb = new StringBuilder
+    sb.append("====================== Exit Worker Immediately =======================\n")
+    sb.append("Exit worker immediately triggered: \n")
+    sb.append(workerInfo.toString()).append("\n")
+    sb.toString()
+  }
+
   def shutdownGracefully(): Unit = {
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will

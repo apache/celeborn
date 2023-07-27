@@ -92,6 +92,10 @@ class HttpRequestHandler(
         service.isRegistered
       case "/decommission" if service.serviceName == Service.WORKER =>
         service.decommission
+      case "/exit" if service.serviceName == Service.WORKER =>
+        service.exit
+      case "/exitImmediately" if service.serviceName == Service.WORKER =>
+        service.exitImmediately
       case _ => INVALID
     }
   }
