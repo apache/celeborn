@@ -565,7 +565,7 @@ private[celeborn] class Worker(
     exitKind = CelebornExitKind.WORKER_DECOMMISSION
     new Thread() {
       override def run(): Unit = {
-        Thread.sleep(30000)
+        Thread.sleep(10000)
         System.exit(0)
       }
     }.start()
