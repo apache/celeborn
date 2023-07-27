@@ -92,7 +92,7 @@ The detailed design of split can be found [Here](../../developers/pushdata#split
 
 ## Self Check
 In additional to health and space check on each disk, `Worker` also collects perf statistics to feed Master for
-better [slots allocation](../../developers/slotsallocation):
+better [slots allocation](../../developers/master#slots-allocation):
 
 - Average flush time of the last time window
 - Average fetch time of the last time window
