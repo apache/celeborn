@@ -670,7 +670,7 @@ private[celeborn] class Worker(
     }
   }
 
-  def exitImmediately(): Unit = {
+  def exitWorkerImmediately(): Unit = {
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will
     // make master remove this worker from excluded list.
@@ -703,7 +703,7 @@ private[celeborn] class Worker(
           case CelebornExitKind.WORKER_DECOMMISSION =>
             decommissionWorker()
           case _ =>
-            exitImmediately()
+            exitWorkerImmediately()
         }
         stop(exitKind)
       }
