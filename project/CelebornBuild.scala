@@ -365,8 +365,8 @@ object Spark24 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-2"
   val sparkClientProjectName = "celeborn-client-spark-2"
-  val sparkClientShadeProjectPath = "client-spark/spark-2-shade"
-  val sparkClientShadeProjectName = "celeborn-client-spark-2-shaded"
+  val sparkClientShadedProjectPath = "client-spark/spark-2-shaded"
+  val sparkClientShadedProjectName = "celeborn-client-spark-2-shaded"
 
   // val jacksonVersion = "2.5.7"
   // val jacksonDatabindVersion = "2.6.7.3"
@@ -382,8 +382,8 @@ object Spark30 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
-  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
-  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+  val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
+  val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
 
   val lz4JavaVersion = "1.7.1"
   val sparkProjectScalaVersion = "2.12.10"
@@ -396,8 +396,8 @@ object Spark31 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
-  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
-  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+  val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
+  val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
 
   val lz4JavaVersion = "1.7.1"
   val sparkProjectScalaVersion = "2.12.10"
@@ -410,8 +410,8 @@ object Spark32 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
-  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
-  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+  val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
+  val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
 
   val lz4JavaVersion = "1.7.1"
   val sparkProjectScalaVersion = "2.12.15"
@@ -424,8 +424,8 @@ object Spark33 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
-  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
-  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+  val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
+  val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
 
   // val jacksonVersion = "2.13.4"
   // val jacksonDatabindVersion = "2.13.4.2"
@@ -441,8 +441,8 @@ object Spark34 extends SparkClientProjects {
 
   val sparkClientProjectPath = "client-spark/spark-3"
   val sparkClientProjectName = "celeborn-client-spark-3"
-  val sparkClientShadeProjectPath = "client-spark/spark-3-shade"
-  val sparkClientShadeProjectName = "celeborn-client-spark-3-shaded"
+  val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
+  val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
 
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.12.17"
@@ -479,8 +479,8 @@ trait SparkClientProjects {
 
   val sparkClientProjectPath: String
   val sparkClientProjectName: String
-  val sparkClientShadeProjectPath: String
-  val sparkClientShadeProjectName: String
+  val sparkClientShadedProjectPath: String
+  val sparkClientShadedProjectName: String
 
   val lz4JavaVersion: String
   val sparkProjectScalaVersion: String
@@ -515,7 +515,6 @@ trait SparkClientProjects {
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
       .dependsOn(CelebornClient.client % "test->test;compile->compile")
       .settings (
-        name := sparkClientProjectName,
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
@@ -554,10 +553,9 @@ trait SparkClientProjects {
   }
   
   def sparkClientShade: Project = {
-    Project(sparkClientShadeProjectName, file(sparkClientShadeProjectPath))
+    Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
       .dependsOn(sparkClient)
       .settings (
-        name := sparkClientShadeProjectName,
         commonSettings,
   
         (assembly / test) := { },
