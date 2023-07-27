@@ -91,7 +91,7 @@ Round Robin is the simplest allocation strategy. The basic idea is:
   disk has infinite capacity
 
 #### Load Aware
-For heterogeneous clusters, `Workers` may have different CPU/disk/network performance, so it's necessary to allocate
+For heterogeneous clusters, `Worker`s may have different CPU/disk/network performance, so it's necessary to allocate
 different workloads based on metrics.
 
 Currently, Celeborn allocates slots on disks based on flush and fetch performance in the last time window. As mentioned
