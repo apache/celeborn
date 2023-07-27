@@ -227,7 +227,7 @@ object CelebornCommon {
 
       Compile / sourceGenerators += Def.task {
         val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
-        streams.value.log.info("geneate version information file %s".format(file.toPath))
+        streams.value.log.info(s"geneate version information file ${file.toPath}")
         IO.write(file,
           s"""package org.apache
              |
@@ -237,10 +237,6 @@ object CelebornCommon {
              |""".stripMargin)
         Seq(file)
         // generate version task depends on PB generate to avoid concurrency generate source files
-        // otherwise we may encounter the error:
-        // ```
-        //   [error] IO error while decoding ./celeborn/common/target/scala-2.12/src_managed/main/org/apache/celeborn/package.scala with UTF-8: ./celeborn/common/target/scala-2.12/src_managed/main/org/apache/celeborn/package.scala (No such file or directory)
-        // ```
       }.dependsOn(Compile / PB.generate),
   
       // a task to show current profiles
@@ -566,14 +562,10 @@ trait SparkClientProjects {
         // Exclude `scala-library` from assembly.
         (assembly / assemblyPackageScala / assembleArtifact) := false,
   
-        // Exclude `pmml-model-*.jar`, `scala-collection-compat_*.jar`,`jsr305-*.jar` and
-        // `netty-*.jar` and `unused-1.0.0.jar` from assembly.
         (assembly / assemblyExcludedJars) := {
           val cp = (assembly / fullClasspath).value
           cp filter { v =>
             val name = v.data.getName
-            // name.startsWith("pmml-model-") || name.startsWith("scala-collection-compat_") ||
-            //  name.startsWith("jsr305-") || name.startsWith("netty-") || name == "unused-1.0.0.jar"
             !(name.startsWith("celeborn-") || name.startsWith("protobuf-java-") ||
               name.startsWith("guava-") || name.startsWith("netty-") || name.startsWith("commons-lang3-"))
           }
