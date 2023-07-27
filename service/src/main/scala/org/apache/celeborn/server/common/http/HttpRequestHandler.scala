@@ -64,9 +64,8 @@ class HttpRequestHandler(
   }
 
   def handleRequest(uri: String): String = {
-    val url = new URL(s"https://127.0.0.1:9000$uri")
-    val parameter = url.getQuery.split("&").map(_.split("=")).map(arr => arr(0) -> arr(1)).toMap
-    url.getPath match {
+    val (path, parameters) = HttpUtils.parseUrl(uri)
+    path match {
       case "/conf" =>
         service.getConf
       case "/workerInfo" =>
@@ -96,7 +95,7 @@ class HttpRequestHandler(
       case "/isRegistered" if service.serviceName == Service.WORKER =>
         service.isRegistered
       case "/exit" if service.serviceName == Service.WORKER =>
-        service.exit(parameter.getOrElse("type", "").toUpperCase(Locale.ROOT))
+        service.exit(parameters.getOrElse("TYPE", ""))
       case _ => INVALID
     }
   }
