@@ -19,6 +19,13 @@ license: |
 
 # Migration Guide
 
+## Upgrading from 0.3 to 0.4
+
+- Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.
+  Note that: It's strongly recommended to use the same version of Client and Celeborn Master/Worker in production.
+
+- Since 0.4.0, Celeborn won't support `org.apache.spark.shuffle.celeborn.RssShuffleManager`.
+
 ## Upgrading from 0.2 to 0.3
 
  - Celeborn 0.2 Client is compatible with 0.3 Master/Server, it allows to upgrade Master/Worker first then Client.
@@ -68,7 +75,3 @@ license: |
 
  - Since 0.3.0, Celeborn's spark shuffle manager change from `org.apache.spark.shuffle.celeborn.RssShuffleManager` to `org.apache.spark.shuffle.celeborn.SparkShuffleManager`. User can set spark property `spark.shuffle.manager` to `org.apache.spark.shuffle.celeborn.SparkShuffleManager` to use Celeborn remote shuffle service.
    In 0.3.0, Celeborn still support `org.apache.spark.shuffle.celeborn.RssShuffleManager`, it will be removed in 0.4.0.
-
-## Upgrading from 0.3 to 0.4
-
- - Since 0.4.0, Celeborn won't support `org.apache.spark.shuffle.celeborn.RssShuffleManager`.
