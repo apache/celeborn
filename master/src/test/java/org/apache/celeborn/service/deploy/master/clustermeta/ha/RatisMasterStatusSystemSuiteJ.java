@@ -494,7 +494,6 @@ public class RatisMasterStatusSystemSuiteJ {
           }
         });
 
-    statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
     Thread.sleep(3000L);
 
     // Do not update diskinfo's activeslots
