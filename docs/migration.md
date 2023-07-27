@@ -21,7 +21,8 @@ license: |
 
 ## Upgrading from 0.3 to 0.4
 
-- Since 0.4.0, Celeborn won't be compatible with versions below 0.3.0.
+- Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.
+  Note that: It's strongly recommended to use the same version of Client and Celeborn Master/Worker in production.
 
 - Since 0.4.0, Celeborn won't support `org.apache.spark.shuffle.celeborn.RssShuffleManager`.
 
