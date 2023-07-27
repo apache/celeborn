@@ -23,8 +23,6 @@ import java.util.Locale
 object HttpUtils {
   def parseUrl(uri: String): (String, Map[String, String]) = {
     val url = new URL(s"https://127.0.0.1:9000$uri")
-    println(url.getQuery)
-
     val parameter = if (url.getQuery == null) {
       Map.empty[String, String]
     } else {
