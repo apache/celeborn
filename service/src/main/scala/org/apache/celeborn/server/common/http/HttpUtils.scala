@@ -23,14 +23,15 @@ import java.util.Locale
 object HttpUtils {
   def parseUrl(uri: String): (String, Map[String, String]) = {
     val url = new URL(s"https://127.0.0.1:9000$uri")
-    val parameter = if (url.getQuery == null) {
-      Map.empty[String, String]
-    } else {
-      url.getQuery
-        .split("&")
-        .map(_.split("="))
-        .map(arr => arr(0).toUpperCase(Locale.ROOT) -> arr(1).toUpperCase(Locale.ROOT)).toMap
-    }
+    val parameter =
+      if (url.getQuery == null) {
+        Map.empty[String, String]
+      } else {
+        url.getQuery
+          .split("&")
+          .map(_.split("="))
+          .map(arr => arr(0).toUpperCase(Locale.ROOT) -> arr(1).toUpperCase(Locale.ROOT)).toMap
+      }
     (url.getPath, parameter)
   }
 }

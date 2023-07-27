@@ -35,6 +35,9 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
   test("CELEBORN-847: Support parse HTTP Restful API parameters") {
     checkParseUri("/exit", "/exit", Map.empty)
     checkParseUri("/exit?type=decommission", "/exit", Map("TYPE" -> "DECOMMISSION"))
-    checkParseUri("/exit?type=decommission&foo=a", "/exit", Map("TYPE" -> "DECOMMISSION", "FOO" -> "A"))
+    checkParseUri(
+      "/exit?type=decommission&foo=a",
+      "/exit",
+      Map("TYPE" -> "DECOMMISSION", "FOO" -> "A"))
   }
 }
