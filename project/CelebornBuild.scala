@@ -681,8 +681,8 @@ trait FlinkClientProjects {
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
-          "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % "test",
-          "org.apache.logging.log4j" % "log4j-1.2-api" % log4jVersion % "test",
+          "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
+          "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test",
   
           // Compiler plugins
           // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
