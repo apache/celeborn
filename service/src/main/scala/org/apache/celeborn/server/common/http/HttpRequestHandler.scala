@@ -17,12 +17,13 @@
 
 package org.apache.celeborn.server.common.http
 
+import java.net.URL
+
 import io.netty.buffer.Unpooled
 import io.netty.channel.{ChannelFutureListener, ChannelHandlerContext, SimpleChannelInboundHandler}
 import io.netty.channel.ChannelHandler.Sharable
 import io.netty.handler.codec.http._
 import io.netty.util.CharsetUtil
-
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.sink.PrometheusHttpRequestHandler
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -61,7 +62,9 @@ class HttpRequestHandler(
   }
 
   def handleRequest(uri: String): String = {
-    uri match {
+    val url = new URL(s"https://127.0.0.1:9000$uri")
+    val parameter = url.getQuery.split("&").map(_.split("=")).map(arr => arr(0) -> arr(1)).toMap
+    url.getPath match {
       case "/conf" =>
         service.getConf
       case "/workerInfo" =>
@@ -93,9 +96,7 @@ class HttpRequestHandler(
       case "/decommission" if service.serviceName == Service.WORKER =>
         service.decommission
       case "/exit" if service.serviceName == Service.WORKER =>
-        service.exit
-      case "/exitImmediately" if service.serviceName == Service.WORKER =>
-        service.exitImmediately
+        service.exit(parameter.getOrElse("type", "exit"))
       case _ => INVALID
     }
   }

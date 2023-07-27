@@ -67,11 +67,7 @@ abstract class HttpService extends Service with Logging {
 
   def isRegistered: String
 
-  def decommission: String = throw new UnsupportedOperationException()
-
-  def exit: String = throw new UnsupportedOperationException()
-
-  def exitImmediately: String = throw new UnsupportedOperationException()
+  def exit(exitType: String): String = throw new UnsupportedOperationException()
 
   def startHttpServer(): Unit = {
     val handlers =

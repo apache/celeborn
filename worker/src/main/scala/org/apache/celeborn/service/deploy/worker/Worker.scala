@@ -561,22 +561,16 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
-  override def decommission: String = {
-    exitKind = CelebornExitKind.WORKER_DECOMMISSION
-    new Thread() {
-      override def run(): Unit = {
-        Thread.sleep(10000)
-        System.exit(0)
-      }
-    }.start()
-    val sb = new StringBuilder
-    sb.append("======================== Decommission Worker =========================\n")
-    sb.append("Decommission worker triggered: \n")
-    sb.append(workerInfo.toString()).append("\n")
-    sb.toString()
-  }
-
-  override def exit: String = {
+  override def exit(exitType: String): String = {
+    exitType match {
+      case "DECOMMISSION" =>
+        exitKind = CelebornExitKind.WORKER_DECOMMISSION
+      case "GRACEFUL" =>
+        exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
+      case "IMMEDIATELY" =>
+        exitKind = CelebornExitKind.EXIT_IMMEDIATELY
+      case _ => // Use origin code
+    }
     // Use the original EXIT_CODE
     new Thread() {
       override def run(): Unit = {
@@ -586,22 +580,7 @@ private[celeborn] class Worker(
     }.start()
     val sb = new StringBuilder
     sb.append("============================ Exit Worker =============================\n")
-    sb.append("Exit worker triggered: \n")
-    sb.append(workerInfo.toString()).append("\n")
-    sb.toString()
-  }
-
-  override def exitImmediately: String = {
-    exitKind = CelebornExitKind.EXIT_IMMEDIATELY
-    new Thread() {
-      override def run(): Unit = {
-        Thread.sleep(10000)
-        System.exit(0)
-      }
-    }.start()
-    val sb = new StringBuilder
-    sb.append("====================== Exit Worker Immediately =======================\n")
-    sb.append("Exit worker immediately triggered: \n")
+    sb.append(s"Exit worker by $exitType triggered: \n")
     sb.append(workerInfo.toString()).append("\n")
     sb.toString()
   }
@@ -670,7 +649,7 @@ private[celeborn] class Worker(
     }
   }
 
-  def exitWorkerImmediately(): Unit = {
+  def exitImmediately(): Unit = {
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will
     // make master remove this worker from excluded list.
@@ -703,7 +682,7 @@ private[celeborn] class Worker(
           case CelebornExitKind.WORKER_DECOMMISSION =>
             decommissionWorker()
           case _ =>
-            exitWorkerImmediately()
+            exitImmediately()
         }
         stop(exitKind)
       }
