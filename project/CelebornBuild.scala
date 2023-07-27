@@ -612,8 +612,8 @@ trait SparkClientProjects {
 object Flink114 extends FlinkClientProjects {
   val flinkVersion = "1.14.6"
 
+  // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.14"
-  // TODO: can't use `.` in project name
   val flinkClientProjectName = "celeborn-client-flink-1_14"
   val flinkClientShadeProjectPath: String = "client-flink/flink-1.14-shaded"
   val flinkClientShadeProjectName: String = "celeborn-client-flink-1_14-shaded"
@@ -626,8 +626,8 @@ object Flink114 extends FlinkClientProjects {
 object Flink115 extends FlinkClientProjects {
   val flinkVersion = "1.15.4"
 
+  // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.15"
-  // TODO: can't use `.` in project name
   val flinkClientProjectName = "celeborn-client-flink-1_15"
   val flinkClientShadeProjectPath: String = "client-flink/flink-1.15-shaded"
   val flinkClientShadeProjectName: String = "celeborn-client-flink-1_15-shaded"
@@ -636,8 +636,8 @@ object Flink115 extends FlinkClientProjects {
 object Flink117 extends FlinkClientProjects {
   val flinkVersion = "1.17.0"
 
+  // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.17"
-  // TODO: can't use `.` in project name
   val flinkClientProjectName = "celeborn-client-flink-1_17"
   val flinkClientShadeProjectPath: String = "client-flink/flink-1.17-shaded"
   val flinkClientShadeProjectName: String = "celeborn-client-flink-1_17-shaded"
@@ -647,6 +647,7 @@ trait FlinkClientProjects {
 
   val flinkVersion: String
 
+  // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath: String
   val flinkClientProjectName: String
   val flinkClientShadeProjectPath: String
@@ -658,6 +659,27 @@ trait FlinkClientProjects {
 
   def modules: Seq[Project] = Seq(flinkCommon, flinkClient, flinkIt, flinkClientShade)
 
+  // get flink major version. e.g:
+  //   1.17.0 -> 1.17
+  //   1.15.4 -> 1.15
+  //   1.14.6 -> 1.14
+  lazy val flinkMajorVersion: String = flinkVersion.split("\\.").take(2).reduce(_ + "." + _)
+
+  // the output would be something like: celeborn-client-flink-1.17_2.12-0.4.0-SNAPSHOT.jar
+  def flinkClientJarName(
+      module: ModuleID,
+      artifact: Artifact,
+      scalaBinaryVersionString: String): String =
+    s"celeborn-client-flink-${flinkMajorVersion}_$scalaBinaryVersionString" + "-" + module.revision + "." + artifact.extension
+
+  // the output would be something like: celeborn-client-flink-1.17-shaded_2.12-0.4.0-SNAPSHOT.jar
+  def flinkClientShadeJarName(
+      revision: String,
+      artifact: Artifact,
+      scalaBinaryVersionString: String): String =
+    s"celeborn-client-flink-$flinkMajorVersion-shaded_$scalaBinaryVersionString" + "-" + revision + "." + artifact.extension
+
+  // the output would be something like: celeborn-client-flink-1.17_2.12-0.4.0-SNAPSHOT.jar
   def flinkCommon: Project = {
     Project("flink-common", file("client-flink/common"))
       .dependsOn(CelebornCommon.common, CelebornClient.client)
@@ -679,6 +701,14 @@ trait FlinkClientProjects {
       .dependsOn(CelebornCommon.common, CelebornClient.client, flinkCommon)
       .settings (
         commonSettings,
+
+        // 1. reference for modifying the jar name.
+        // https://stackoverflow.com/questions/52771831/how-to-modify-jar-name-generate-by-cmd-sbt-package
+        // 2. since SBT doesn't allow using `.` in the project name, explicitly setting the artifact Name
+        artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
+          flinkClientJarName(module, artifact, scalaBinaryVersion.value)
+        },
+
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
           "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
@@ -724,6 +754,12 @@ trait FlinkClientProjects {
         commonSettings,
   
         (assembly / test) := { },
+
+        (assembly / assemblyJarName) := {
+            val revision: String = version.value
+            val artifactValue: Artifact = artifact.value
+            flinkClientShadeJarName(revision, artifactValue, scalaBinaryVersion.value)
+        },
   
         (assembly / logLevel) := Level.Info,
   
