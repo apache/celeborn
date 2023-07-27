@@ -133,6 +133,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                       () -> {
                         try {
                           task.sort();
+                          memoryManager.releaseSortMemory(reservedMemoryPerPartition);
                         } catch (InterruptedException e) {
                           logger.warn(
                               "File sorter thread was interrupted when expanding padding buffer.");
@@ -585,8 +586,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           }
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
-
-        memoryManager.releaseSortMemory(reserveMemory);
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
