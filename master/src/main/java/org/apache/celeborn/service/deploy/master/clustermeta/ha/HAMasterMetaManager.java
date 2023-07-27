@@ -86,35 +86,6 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleReleaseSlots(
-      String shuffleKey,
-      List<String> workerIds,
-      List<Map<String, Integer>> slots,
-      String requestId) {
-    try {
-      ratisServer.submitRequest(
-          ResourceRequest.newBuilder()
-              .setCmdType(Type.ReleaseSlots)
-              .setRequestId(requestId)
-              .setReleaseSlotsRequest(
-                  ResourceProtos.ReleaseSlotsRequest.newBuilder()
-                      .setShuffleKey(shuffleKey)
-                      .addAllWorkerIds(workerIds)
-                      .addAllSlots(
-                          slots.stream()
-                              .map(
-                                  slot ->
-                                      ResourceProtos.SlotInfo.newBuilder().putAllSlot(slot).build())
-                              .collect(Collectors.toList()))
-                      .build())
-              .build());
-    } catch (CelebornRuntimeException e) {
-      LOG.error("Handle release slots for {} failed!", shuffleKey, e);
-      throw e;
-    }
-  }
-
-  @Override
   public void handleUnRegisterShuffle(String shuffleKey, String requestId) {
     try {
       ratisServer.submitRequest(
