@@ -6,7 +6,9 @@ license: |
   The ASF licenses this file to You under the Apache License, Version 2.0
   (the "License"); you may not use this file except in compliance with
   the License.  You may obtain a copy of the License at
-  http://www.apache.org/licenses/LICENSE-2.0
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -57,8 +59,9 @@ times out, it considers the app fails, even though the app resends heartbeat in 
 ids. Upon receiving heartbeat from `Worker`, `Master` compares local shuffle ids with `Worker`'s, and tells the
 `Worker` to clean up the unknown shuffles.
 
-Heartbeat for `LifecycleManager` also carries total file count and bytes written by the app, so `Master` can calculate
-estimated file size by `Sum(bytes) / Sum(files)`.
+Heartbeat for `LifecycleManager` also carries total file count and bytes written by the app. `Master` calculates
+estimated file size by `Sum(bytes) / Sum(files)` every 10 minutes using the newest metrics. To resist from impact of
+small files, only files larger than threshold (defaults to 8MiB) will be considered.
 
 ## High Availability
 Celeborn achieves `Master` HA through Raft.
