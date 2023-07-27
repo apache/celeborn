@@ -316,7 +316,6 @@ public class DefaultMetaSystemSuiteJ {
           }
         });
 
-
     Assert.assertEquals(
         0,
         statusSystem.workers.stream()
