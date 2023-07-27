@@ -90,5 +90,6 @@ nav:
         - Traffic Control: developers/trafficcontrol.md
 #      - Client: developers/client.md
       - PushData: developers/pushdata.md
+      - Fault Tolerant: developers/faulttolerant.md
 #      - ReadData: developers/readdata.md
 #      - Slots Allocation: developers/slotsallocation.md

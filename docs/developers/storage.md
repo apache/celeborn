@@ -42,6 +42,11 @@ The layout of `ReducePartition` is as follows:
 which points to start positions of each chunk. Upon requesting data from some partition, `Worker` first returns the
 index, then sequentially reads and returns a chunk upon each `ChunkFetchRequest`, which is very efficient.
 
+Notice that chunk boundaries is simply decided by the current chunk's size. In case of replication, since the
+order of data batch arrival is not guaranteed to be the same for primary and replica, chunks with the same chunk
+index will probably contain different data in primary and replica. Nevertheless, the whole files in primary and
+replica contain the same data batches in normal cases.
+
 #### MapPartition
 The layout of `MapPartition` is as follows:
 
