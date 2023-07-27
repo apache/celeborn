@@ -623,7 +623,7 @@ private[celeborn] class Worker(
     }
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
-    val timeout = conf.workerDecommissionCheckTimeout
+    val timeout = conf.workerDecommissionForceExitTimeout
     var waitTimes = 0
 
     def waitTime: Long = waitTimes * interval
