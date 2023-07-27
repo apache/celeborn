@@ -133,10 +133,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                       () -> {
                         try {
                           task.sort();
-                          memoryManager.releaseSortMemory(reservedMemoryPerPartition);
                         } catch (InterruptedException e) {
-                          logger.warn(
-                              "File sorter thread was interrupted when expanding padding buffer.");
+                          logger.warn("File sorter thread was interrupted.");
+                        } finally {
+                          memoryManager.releaseSortMemory(reservedMemoryPerPartition);
                         }
                       });
                 }
