@@ -169,17 +169,6 @@ object ControlMessages extends Logging {
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
-  case class ReleaseSlots(
-      applicationId: String,
-      shuffleId: Int,
-      workerIds: util.List[String],
-      slots: util.List[util.Map[String, Integer]],
-      override var requestId: String = ZERO_UUID)
-    extends MasterRequestMessage
-
-  case class ReleaseSlotsResponse(status: StatusCode)
-    extends MasterMessage
-
   case class RequestSlotsResponse(
       status: StatusCode,
       workerResource: WorkerResource)
@@ -494,23 +483,6 @@ object ControlMessages extends Logging {
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
-
-    case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
-      val pbSlots = slots.asScala.map(slot =>
-        PbSlotInfo.newBuilder().putAllSlot(slot).build()).toList
-      val payload = PbReleaseSlots.newBuilder()
-        .setApplicationId(applicationId)
-        .setShuffleId(shuffleId)
-        .setRequestId(requestId)
-        .addAllWorkerIds(workerIds)
-        .addAllSlots(pbSlots.asJava)
-        .build().toByteArray
-      new TransportMessage(MessageType.RELEASE_SLOTS, payload)
-
-    case ReleaseSlotsResponse(status) =>
-      val payload = PbReleaseSlotsResponse.newBuilder()
-        .setStatus(status.getValue).build().toByteArray
-      new TransportMessage(MessageType.RELEASE_SLOTS_RESPONSE, payload)
 
     case RequestSlotsResponse(status, workerResource) =>
       val builder = PbRequestSlotsResponse.newBuilder()
@@ -829,21 +801,6 @@ object ControlMessages extends Logging {
           pbRequestSlots.getShouldRackAware,
           userIdentifier,
           pbRequestSlots.getRequestId)
-
-      case RELEASE_SLOTS_VALUE =>
-        val pbReleaseSlots = PbReleaseSlots.parseFrom(message.getPayload)
-        val slotsList = pbReleaseSlots.getSlotsList.asScala.map(pbSlot =>
-          new util.HashMap[String, Integer](pbSlot.getSlotMap)).toList.asJava
-        ReleaseSlots(
-          pbReleaseSlots.getApplicationId,
-          pbReleaseSlots.getShuffleId,
-          new util.ArrayList[String](pbReleaseSlots.getWorkerIdsList),
-          new util.ArrayList[util.Map[String, Integer]](slotsList),
-          pbReleaseSlots.getRequestId)
-
-      case RELEASE_SLOTS_RESPONSE_VALUE =>
-        val pbReleaseSlotsResponse = PbReleaseSlotsResponse.parseFrom(message.getPayload)
-        ReleaseSlotsResponse(Utils.toStatusCode(pbReleaseSlotsResponse.getStatus))
 
       case REQUEST_SLOTS_RESPONSE_VALUE =>
         val pbRequestSlotsResponse = PbRequestSlotsResponse.parseFrom(message.getPayload)

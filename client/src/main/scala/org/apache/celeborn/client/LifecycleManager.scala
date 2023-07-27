@@ -456,9 +456,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (!reserveSlotsSuccess) {
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
       reply(RegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
-      // tell Primary to release slots
-      requestPrimaryReleaseSlots(
-        ReleaseSlots(appUniqueId, shuffleId, List.empty.asJava, List.empty.asJava))
     } else {
       logInfo(s"ReserveSlots for $shuffleId success!")
       logDebug(s"Allocated Slots: $slots")
@@ -576,8 +573,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionLocationInfo.removeAllPrimaryPartitions()
         partitionLocationInfo.removeAllReplicaPartitions()
       }
-      requestPrimaryReleaseSlots(
-        ReleaseSlots(appUniqueId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
   }
 
@@ -626,13 +621,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           logInfo(s"[handleUnregisterShuffle] Wait for handleStageEnd complete costs ${cost}ms")
         }
       }
-    }
-
-    if (shuffleResourceExists(shuffleId)) {
-      logWarning(s"Partition exists for shuffle $shuffleId, " +
-        "maybe caused by task rerun or speculative.")
-      requestPrimaryReleaseSlots(
-        ReleaseSlots(appUniqueId, shuffleId, List.empty.asJava, List.empty.asJava))
     }
 
     // add shuffleKey to delay shuffle removal set
@@ -762,19 +750,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       destroySlotsWithRetry(shuffleId, destroyResource)
       logInfo(s"Destroyed peer partitions for reserve buffer failed workers " +
         s"shuffleId $shuffleId, $destroyResource")
-
-      val workerIds = new util.ArrayList[String]()
-      val workerSlotsPerDisk = new util.ArrayList[util.Map[String, Integer]]()
-      Utils.getSlotsPerDisk(destroyResource).asScala.foreach {
-        case (workerInfo, slotsPerDisk) =>
-          workerIds.add(workerInfo.toUniqueId())
-          workerSlotsPerDisk.add(slotsPerDisk)
-      }
-      val msg = ReleaseSlots(appUniqueId, shuffleId, workerIds, workerSlotsPerDisk)
-      requestPrimaryReleaseSlots(msg)
-      logDebug(s"Released slots for reserve buffer failed workers " +
-        s"${workerIds.asScala.mkString(",")}" + s"${slots.asScala.mkString(",")}" +
-        s"shuffleId $shuffleId")
     }
   }
 
@@ -1089,16 +1064,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def requestPrimaryReleaseSlots(message: ReleaseSlots): ReleaseSlotsResponse = {
-    try {
-      masterClient.askSync[ReleaseSlotsResponse](message, classOf[ReleaseSlotsResponse])
-    } catch {
-      case e: Exception =>
-        logError(s"AskSync ReleaseSlots for ${message.shuffleId} failed.", e)
-        ReleaseSlotsResponse(StatusCode.REQUEST_FAILED)
-    }
-  }
-
   private def requestPrimaryUnregisterShuffle(message: PbUnregisterShuffle)
       : PbUnregisterShuffleResponse = {
     try {
@@ -1123,11 +1088,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         logError(msg, e)
         CheckQuotaResponse(false, msg)
     }
-  }
-
-  private def shuffleResourceExists(shuffleId: Int): Boolean = {
-    val workerPartitionInfos = workerSnapshots(shuffleId)
-    workerPartitionInfos != null && workerPartitionInfos.values().asScala.exists(!_.isEmpty())
   }
 
   // Once a partition is released, it will be never needed anymore
