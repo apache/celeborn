@@ -51,7 +51,7 @@ responds to data of some partition id.
 
 Upon receiving `RequestSlots`, `Master` allocates slots for the shuffle among `Worker`s. If replication is turned on,
 `Master` allocates a pair of `Worker`s for each `PartitionLocation` to store two replicas for each `PartitionLocation`.
-The detailed allocation strategy can be found in [Slots Allocation](../../developers/slotsallocation). `Master` then
+The detailed allocation strategy can be found in [Slots Allocation](../../developers/master#slots-allocation). `Master` then
 responds to `LifecycleManager` with the allocated `PartitionLocation`s.
 
 `LifcycleManager` caches the `PartitionLocation`s for the shuffle and responds to each `RegisterShuffle` RPCs from

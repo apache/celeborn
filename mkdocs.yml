@@ -83,7 +83,7 @@ nav:
   - Migration Guide: migration.md
   - Developers Doc:
       - Overview: developers/overview.md
-#      - Master: developers/master.md
+      - Master: developers/master.md
       - Worker:
         - Overview: developers/worker.md
         - Storage: developers/storage.md
