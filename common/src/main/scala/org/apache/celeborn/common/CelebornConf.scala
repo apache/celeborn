@@ -2173,6 +2173,7 @@ object CelebornConf extends Logging {
       .doc("Reserved memory when sorting a shuffle file off-heap.")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
+      .checkValue(v => v < Int.MaxValue, "Reserved memory per partition must be less than 2GB.")
       .createWithDefaultString("1mb")
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
