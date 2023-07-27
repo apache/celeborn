@@ -68,3 +68,7 @@ license: |
 
  - Since 0.3.0, Celeborn's spark shuffle manager change from `org.apache.spark.shuffle.celeborn.RssShuffleManager` to `org.apache.spark.shuffle.celeborn.SparkShuffleManager`. User can set spark property `spark.shuffle.manager` to `org.apache.spark.shuffle.celeborn.SparkShuffleManager` to use Celeborn remote shuffle service.
    In 0.3.0, Celeborn still support `org.apache.spark.shuffle.celeborn.RssShuffleManager`, it will be removed in 0.4.0.
+
+## Upgrading from 0.3 to 0.4
+
+ - Since 0.4.0, Celeborn won't support `org.apache.spark.shuffle.celeborn.RssShuffleManager`.
