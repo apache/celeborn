@@ -190,9 +190,8 @@ object Utils {
 }
 
 object CelebornCommon {
-  lazy val common = (project in file("common"))
+  lazy val common = Project("celeborn-common", file("common"))
     .settings (
-      name := "celeborn-common",
       commonSettings,
       protoSettings,
       libraryDependencies ++= Seq(
@@ -255,11 +254,10 @@ object CelebornCommon {
 }
 
 object CelebornClient {
-  lazy val client = (project in file("client"))
+  lazy val client = Project("celeborn-client", file("client"))
     // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
     .settings (
-      name := "client",
       commonSettings,
       libraryDependencies ++= Seq(
         "io.netty" % "netty-all" % nettyVersion,
@@ -279,10 +277,9 @@ object CelebornClient {
 }
 
 object CelebornService {
-  lazy val service = (project in file("service"))
+  lazy val service = Project("celeborn-service", file("service"))
     .dependsOn(CelebornCommon.common)
     .settings (
-      name := "service",
       commonSettings,
       libraryDependencies ++= Seq(
         "com.google.code.findbugs" % "jsr305" % findbugsVersion,
@@ -303,10 +300,9 @@ object CelebornService {
 }
 
 object CelebornMaster {
-  lazy val master = (project in file("master"))
+  lazy val master = Project("celeborn-master", file("master"))
     .dependsOn(CelebornCommon.common, CelebornService.service)
     .settings (
-      name := "master",
       commonSettings,
       protoSettings,
       libraryDependencies ++= Seq(
@@ -332,12 +328,11 @@ object CelebornMaster {
 }
 
 object CelebornWorker {
-  lazy val worker = (project in file("worker"))
+  lazy val worker = Project("celeborn-worker", file("worker"))
     .dependsOn(CelebornCommon.common, CelebornService.service)
     .dependsOn(CelebornClient.client % "test->test;compile->compile")
     .dependsOn(CelebornMaster.master % "test->test;compile->compile")
     .settings (
-      name := "worker",
       commonSettings,
       libraryDependencies ++= Seq(
         "com.google.guava" % "guava" % guavaVersion,
@@ -490,7 +485,7 @@ trait SparkClientProjects {
   def modules: Seq[Project] = Seq(sparkCommon, sparkClient, sparkIt, sparkClientShade)
 
   def sparkCommon: Project = {
-    Project("spark-common", file("client-spark/common"))
+    Project("celeborn-spark-common", file("client-spark/common"))
       .dependsOn(CelebornCommon.common)
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
       .dependsOn(CelebornClient.client % "test->test;compile->compile")
@@ -529,7 +524,7 @@ trait SparkClientProjects {
   }
   
   def sparkIt: Project = {
-    Project("spark-it", file("tests/spark-it"))
+    Project("celeborn-spark-it", file("tests/spark-it"))
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
       .dependsOn(CelebornCommon.common % "test->test;compile->compile")
       .dependsOn(CelebornClient.client % "test->test;compile->compile")
