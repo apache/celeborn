@@ -316,3 +316,4 @@ API path listed as below:
 | /unavailablePeers          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.       |
 | /isShutdown                | Show if the worker is during the process of shutdown.                                                    |
 | /isRegistered              | Show if the worker is registered to the master success.                                                  |
+| /decommission              | Trigger this worker to decommission from the cluster                                                     |

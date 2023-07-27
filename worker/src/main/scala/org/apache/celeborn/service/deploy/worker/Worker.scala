@@ -77,7 +77,7 @@ private[celeborn] class Worker(
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = conf.workerGracefulShutdown
-  private val exitKind = CelebornExitKind.EXIT_IMMEDIATELY
+  private var exitKind = CelebornExitKind.EXIT_IMMEDIATELY
   assert(
     !gracefulShutdown || (gracefulShutdown &&
       conf.workerRpcPort > 0 && conf.workerFetchPort > 0 &&
@@ -561,6 +561,21 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def decommission: String = {
+    exitKind = CelebornExitKind.WORKER_DECOMMISSION
+    new Thread() {
+      override def run(): Unit = {
+        Thread.sleep(10000)
+        System.exit(0)
+      }
+    }.start()
+    val sb = new StringBuilder
+    sb.append("======================== Decommission Worker =========================\n")
+    sb.append("Decommission worker triggered: \n")
+    sb.append(workerInfo.toString()).append("\n")
+    sb.toString()
+  }
+
   def shutdownGracefully(): Unit = {
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will
@@ -592,7 +607,37 @@ private[celeborn] class Worker(
       logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
         s"unreleased PartitionLocation: \n$partitionLocationInfo")
     }
-    stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+  }
+
+  def decommissionWorker(): Unit = {
+    try {
+      masterClient.askSync(
+        ReportWorkerUnavailable(List(workerInfo).asJava),
+        OneWayMessageResponse.getClass)
+    } catch {
+      case e: Throwable =>
+        logError(
+          s"Fail report to master, need wait registered shuffle expired: " +
+            s"\n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}",
+          e)
+    }
+    shutdown.set(true)
+    val interval = conf.workerDecommissionCheckInterval
+    val timeout = conf.workerDecommissionForceExitTimeout
+    var waitTimes = 0
+
+    def waitTime: Long = waitTimes * interval
+
+    while (!storageManager.shuffleKeySet().isEmpty && waitTime < timeout) {
+      Thread.sleep(interval)
+      waitTimes += 1
+    }
+    if (storageManager.shuffleKeySet().isEmpty) {
+      logInfo(s"Waiting for all shuffle expired cost ${waitTime}ms.")
+    } else {
+      logWarning(s"Waiting for all shuffle expired cost ${waitTime}ms, " +
+        s"unreleased shuffle: \n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}")
+    }
   }
 
   def exitImmediately(): Unit = {
@@ -616,22 +661,21 @@ private[celeborn] class Worker(
           e)
     }
     shutdown.set(true)
-    stop(CelebornExitKind.EXIT_IMMEDIATELY)
   }
 
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
-        if (stopped) {
-          logInfo("Worker already stopped before call ShutdownHook.")
-        } else {
-          logInfo("Shutdown hook called.")
-          if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        logInfo("Shutdown hook called.")
+        exitKind match {
+          case CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN =>
             shutdownGracefully()
-          } else {
+          case CelebornExitKind.WORKER_DECOMMISSION =>
+            decommissionWorker()
+          case _ =>
             exitImmediately()
-          }
         }
+        stop(exitKind)
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)
