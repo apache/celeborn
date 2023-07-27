@@ -615,8 +615,8 @@ object Flink114 extends FlinkClientProjects {
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.14"
   val flinkClientProjectName = "celeborn-client-flink-1_14"
-  val flinkClientShadeProjectPath: String = "client-flink/flink-1.14-shaded"
-  val flinkClientShadeProjectName: String = "celeborn-client-flink-1_14-shaded"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-1.14-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_14-shaded"
 
   override lazy val flinkStreamingDependency: ModuleID = "org.apache.flink" %% "flink-streaming-java" % flinkVersion % "test"
   override lazy val flinkClientsDependency: ModuleID = "org.apache.flink" %% "flink-clients" % flinkVersion % "test"
@@ -629,8 +629,8 @@ object Flink115 extends FlinkClientProjects {
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.15"
   val flinkClientProjectName = "celeborn-client-flink-1_15"
-  val flinkClientShadeProjectPath: String = "client-flink/flink-1.15-shaded"
-  val flinkClientShadeProjectName: String = "celeborn-client-flink-1_15-shaded"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-1.15-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_15-shaded"
 }
 
 object Flink117 extends FlinkClientProjects {
@@ -639,8 +639,8 @@ object Flink117 extends FlinkClientProjects {
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.17"
   val flinkClientProjectName = "celeborn-client-flink-1_17"
-  val flinkClientShadeProjectPath: String = "client-flink/flink-1.17-shaded"
-  val flinkClientShadeProjectName: String = "celeborn-client-flink-1_17-shaded"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-1.17-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_17-shaded"
 }
 
 trait FlinkClientProjects {
@@ -650,8 +650,8 @@ trait FlinkClientProjects {
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath: String
   val flinkClientProjectName: String
-  val flinkClientShadeProjectPath: String
-  val flinkClientShadeProjectName: String
+  val flinkClientShadedProjectPath: String
+  val flinkClientShadedProjectName: String
 
   lazy val flinkStreamingDependency: ModuleID = "org.apache.flink" % "flink-streaming-java" % flinkVersion % "test"
   lazy val flinkClientsDependency: ModuleID = "org.apache.flink" % "flink-clients" % flinkVersion % "test"
@@ -681,7 +681,7 @@ trait FlinkClientProjects {
 
   // the output would be something like: celeborn-client-flink-1.17_2.12-0.4.0-SNAPSHOT.jar
   def flinkCommon: Project = {
-    Project("flink-common", file("client-flink/common"))
+    Project("celeborn-flink-common", file("client-flink/common"))
       .dependsOn(CelebornCommon.common, CelebornClient.client)
       .settings (
         commonSettings,
@@ -723,7 +723,7 @@ trait FlinkClientProjects {
   }
 
   def flinkIt: Project = {
-    Project("flink-it", file("tests/flink-it"))
+    Project("celeborn-flink-it", file("tests/flink-it"))
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
       .dependsOn(CelebornCommon.common % "test->test;compile->compile")
       .dependsOn(CelebornClient.client % "test->test;compile->compile")
@@ -748,7 +748,7 @@ trait FlinkClientProjects {
   }
 
   def flinkClientShade: Project = {
-    Project(flinkClientShadeProjectName, file(flinkClientShadeProjectPath))
+    Project(flinkClientShadedProjectName, file(flinkClientShadedProjectPath))
       .dependsOn(flinkClient)
       .settings (
         commonSettings,
@@ -766,14 +766,10 @@ trait FlinkClientProjects {
         // Exclude `scala-library` from assembly.
         (assembly / assemblyPackageScala / assembleArtifact) := false,
   
-        // Exclude `pmml-model-*.jar`, `scala-collection-compat_*.jar`,`jsr305-*.jar` and
-        // `netty-*.jar` and `unused-1.0.0.jar` from assembly.
         (assembly / assemblyExcludedJars) := {
           val cp = (assembly / fullClasspath).value
           cp filter { v =>
             val name = v.data.getName
-            // name.startsWith("pmml-model-") || name.startsWith("scala-collection-compat_") ||
-            //  name.startsWith("jsr305-") || name.startsWith("netty-") || name == "unused-1.0.0.jar"
             !(name.startsWith("celeborn-") || name.startsWith("protobuf-java-") ||
               name.startsWith("guava-") || name.startsWith("netty-") || name.startsWith("commons-lang3-"))
           }
