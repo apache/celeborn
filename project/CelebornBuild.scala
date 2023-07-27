@@ -557,6 +557,12 @@ trait SparkClientProjects {
       .dependsOn(sparkClient)
       .settings (
         commonSettings,
+
+        // align final shaded jar name with maven.
+        (assembly / assemblyJarName) := {
+          val extension = artifact.value.extension
+          s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.$extension"
+        },
   
         (assembly / test) := { },
   
