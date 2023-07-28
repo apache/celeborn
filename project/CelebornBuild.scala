@@ -679,7 +679,6 @@ trait FlinkClientProjects {
       scalaBinaryVersionString: String): String =
     s"celeborn-client-flink-$flinkMajorVersion-shaded_$scalaBinaryVersionString" + "-" + revision + "." + artifact.extension
 
-  // the output would be something like: celeborn-client-flink-1.17_2.12-0.4.0-SNAPSHOT.jar
   def flinkCommon: Project = {
     Project("celeborn-flink-common", file("client-flink/common"))
       .dependsOn(CelebornCommon.common, CelebornClient.client)
