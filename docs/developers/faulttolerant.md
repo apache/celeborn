@@ -50,8 +50,8 @@ Then `ShuffleClient` groups the new `PartitionLocations` in the same way as befo
 `PushMergedData` requests, then send them to their destinations.
 
 Celeborn detects data lost when processing `CommitFiles` (See [Worker](../..developers/overview#shuffle-lifecycle)).
-Celeborn considers no `DataLost` IFF every `PartitionLocation` has succeeded to commit at least one replica (if
-replication is turned off, there is only one replica for each `PartitionLocation`).
+Celeborn considers no `DataLost` if and only if every `PartitionLocation` has succeeded to commit at least one replica
+(if replication is turned off, there is only one replica for each `PartitionLocation`).
 
 When a `Worker` is down, all `PartitionLocation`s on the `Worker` will be revived, causing `Revive` RPC flood
 to `LifecycleManager`. To alleviate this, `ShuffleClient` batches all `Revive` requests before sending to
