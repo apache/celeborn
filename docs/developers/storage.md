@@ -6,7 +6,9 @@ license: |
   The ASF licenses this file to You under the Apache License, Version 2.0
   (the "License"); you may not use this file except in compliance with
   the License.  You may obtain a copy of the License at
-  http://www.apache.org/licenses/LICENSE-2.0
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -41,6 +43,11 @@ The layout of `ReducePartition` is as follows:
 `ReducePartition` data file consists of several chunks (defaults to 8 MiB). Each data file has an in-memory index
 which points to start positions of each chunk. Upon requesting data from some partition, `Worker` first returns the
 index, then sequentially reads and returns a chunk upon each `ChunkFetchRequest`, which is very efficient.
+
+Notice that chunk boundaries is simply decided by the current chunk's size. In case of replication, since the
+order of data batch arrival is not guaranteed to be the same for primary and replica, chunks with the same chunk
+index will probably contain different data in primary and replica. Nevertheless, the whole files in primary and
+replica contain the same data batches in normal cases.
 
 #### MapPartition
 The layout of `MapPartition` is as follows:
