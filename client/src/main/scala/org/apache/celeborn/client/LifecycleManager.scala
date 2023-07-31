@@ -398,7 +398,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     // First, request to get allocated slots from Primary
     val ids = new util.ArrayList[Integer](numPartitions)
     (0 until numPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
-    val res = requestPrimaryRequestSlotsWithRetry(shuffleId, ids)
+    val res = requestMasterRequestSlotsWithRetry(shuffleId, ids)
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
@@ -993,7 +993,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        val unregisterShuffleResponse = requestPrimaryUnregisterShuffle(
+        val unregisterShuffleResponse = requestMasterUnregisterShuffle(
           UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
         // if unregister shuffle not success, wait next turn
         if (StatusCode.SUCCESS == Utils.toStatusCode(unregisterShuffleResponse.getStatus)) {
@@ -1003,7 +1003,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def requestPrimaryRequestSlotsWithRetry(
+  private def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
     val req =
@@ -1015,15 +1015,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         pushReplicateEnabled,
         pushRackAwareEnabled,
         userIdentifier)
-    val res = requestPrimaryRequestSlots(req)
+    val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
-      requestPrimaryRequestSlots(req)
+      requestMasterRequestSlots(req)
     } else {
       res
     }
   }
 
-  private def requestPrimaryRequestSlots(message: RequestSlots): RequestSlotsResponse = {
+  private def requestMasterRequestSlots(message: RequestSlots): RequestSlotsResponse = {
     val shuffleKey = Utils.makeShuffleKey(message.applicationId, message.shuffleId)
     try {
       masterClient.askSync[RequestSlotsResponse](message, classOf[RequestSlotsResponse])
@@ -1064,7 +1064,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def requestPrimaryUnregisterShuffle(message: PbUnregisterShuffle)
+  private def requestMasterUnregisterShuffle(message: PbUnregisterShuffle)
       : PbUnregisterShuffleResponse = {
     try {
       masterClient.askSync[PbUnregisterShuffleResponse](
