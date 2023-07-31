@@ -41,8 +41,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 
-public class DataPushQueueSuitJ {
-  private static final Logger LOG = LoggerFactory.getLogger(DataPushQueueSuitJ.class);
+public class DataPushQueueSuiteJ {
+  private static final Logger LOG = LoggerFactory.getLogger(DataPushQueueSuiteJ.class);
   private static File tempDir = null;
 
   private final int shuffleId = 0;
