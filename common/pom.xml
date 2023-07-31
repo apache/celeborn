@@ -106,19 +106,11 @@
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-reflect</artifactId>
     </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client-runtime</artifactId>
-    </dependency>
+
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
     </dependency>
-
     <!-- Test dependencies -->
     <dependency>
       <groupId>org.mockito</groupId>
@@ -152,4 +144,31 @@
       </extension>
     </extensions>
   </build>
+
+  <profiles>
+    <profile>
+      <id>hadoop-2</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-client</artifactId>
+          <version>${hadoop.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>hadoop-3</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-client-api</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-client-runtime</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>
