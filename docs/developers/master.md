@@ -55,9 +55,9 @@ Application failure is common, Celeborn needs a way to decide whether an app is 
 To achieve this, `LifecycleManager` periodically sends heartbeat to `Master`. If `Master` finds an app's heartbeat
 times out, it considers the app fails, even though the app resends heartbeat in the future.
 
-`Master` keeps all shuffle ids it has allocated slots for. Upon app heartbeat timeout, it removes the related shuffle
-ids. Upon receiving heartbeat from `Worker`, `Master` compares local shuffle ids with `Worker`'s, and tells the
-`Worker` to clean up the unknown shuffles.
+`Master` keeps all shuffle ids it has allocated slots for. Upon app heartbeat timeout or receiving UnregisterShuffle,
+it removes the related shuffle ids. Upon receiving heartbeat from `Worker`, `Master` compares local shuffle ids
+with `Worker`'s, and tells the `Worker` to clean up the unknown shuffles.
 
 Heartbeat for `LifecycleManager` also carries total file count and bytes written by the app. `Master` calculates
 estimated file size by `Sum(bytes) / Sum(files)` every 10 minutes using the newest metrics. To resist from impact of
