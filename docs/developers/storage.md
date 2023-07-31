@@ -95,7 +95,7 @@ Celeborn supports two configurable kinds of split:
 - `SOFT_SPLIT`, meaning old `PartitionLocation` epoch continues to accept data, when new epoch is ready, `ShuffleClient`
   switches to the new location transparently
 
-The detailed design of split can be found [Here](../../developers/pushdata#split).
+The detailed design of split can be found [Here](../../developers/shuffleclient#split).
 
 ## Self Check
 In additional to health and space check on each disk, `Worker` also collects perf statistics to feed Master for

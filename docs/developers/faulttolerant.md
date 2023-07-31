@@ -29,7 +29,7 @@ as much as possible, especially the following:
 This article is based on [ReducePartition](../../developers/storage#reducepartition).
 
 ## Handle PushData Failure
-The detailed description of push data can be found in [PushData](../../developers/pushdata). Push data can fail for
+The detailed description of push data can be found in [PushData](../../developers/shuffleclient#pushdata). Push data can fail for
 various reasons, i.e. CPU high load, network fluctuation, JVM GC, `Worker` lost. 
 
 Celeborn does not eagerly consider `Worker` lost when push data fails, instead it considers it as temporary
@@ -38,7 +38,7 @@ The process is called `Revive`:
 
 ![Revive](../../assets/img/revive.svg)
 
-Handling [PushMergedData](../../developers/pushdata#push-or-merge) failure is similar but more complex. Currently,
+Handling [PushMergedData](../../developers/shuffleclient#push-or-merge) failure is similar but more complex. Currently,
 `PushMergedData` is in all-or-nothing fashion, meaning either all data batches in the request succeed or all fail.
 Partial success is not supported yet.
 
