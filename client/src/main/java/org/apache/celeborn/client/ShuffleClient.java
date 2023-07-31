@@ -99,9 +99,9 @@ public abstract class ShuffleClient {
 
   public abstract void setupLifecycleManagerRef(RpcEndpointRef endpointRef);
 
-  // Write data to a specific reduce partition
-
   /**
+   * Write data to a specific reduce partition
+   *
    * @param shuffleId the unique shuffle id of the application
    * @param mapId the map id of the shuffle
    * @param attemptId the attempt id of the map task, i.e. speculative task or task rerun for Apache
