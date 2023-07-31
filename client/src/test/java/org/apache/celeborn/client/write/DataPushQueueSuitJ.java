@@ -95,6 +95,11 @@ public class DataPushQueueSuitJ {
     for (int i = 0; i < numPartitions; i++) {
       mapStatusLengths[i] = new LongAdder();
     }
+    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    PushState pushState = client.getPushState(mapKey);
+    Map<Integer, PartitionLocation> reducePartitionMap =
+        client.getReducePartitionMap().get(shuffleId);
+
     DataPusher dataPusher =
         new DataPusher(
             shuffleId,
@@ -107,13 +112,15 @@ public class DataPushQueueSuitJ {
             client,
             null,
             integer -> {},
-            mapStatusLengths);
-
-    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    DataPushQueue dataPushQueue = dataPusher.getDataPushQueue();
-    PushState pushState = client.getPushState(mapKey);
-    Map<Integer, PartitionLocation> reducePartitionMap =
-        client.getReducePartitionMap().get(shuffleId);
+            mapStatusLengths) {
+          @Override protected void pushData(PushTask task) throws IOException {
+            byte[] buffer = task.getBuffer(); int partitionId = task.getPartitionId();
+            tarWorkerData.get(partitionId % numWorker).add(bytesToInt(buffer));
+            pushState.removeBatch(
+                partitionBatchIdMap.get(partitionId),
+                reducePartitionMap.get(partitionId).hostAndPushPort());
+          }
+        };
 
     for (int i = 0; i < numPartitions; i++) {
       byte[] b = intToBytes(workerData.get(i % numWorker).get(i / numWorker));
@@ -123,30 +130,7 @@ public class DataPushQueueSuitJ {
       partitionBatchIdMap.put(i, batchId);
     }
 
-    AtomicBoolean running = new AtomicBoolean(true);
-    new Thread(
-            () -> {
-              while (running.get()) {
-                try {
-                  ArrayList<PushTask> tasks = dataPushQueue.takePushTasks();
-                  for (int i = 0; i < tasks.size(); i++) {
-                    PushTask task = tasks.get(i);
-                    byte[] buffer = task.getBuffer();
-                    int partitionId = task.getPartitionId();
-                    tarWorkerData.get(partitionId % numWorker).add(bytesToInt(buffer));
-                    pushState.removeBatch(
-                        partitionBatchIdMap.get(partitionId),
-                        reducePartitionMap.get(partitionId).hostAndPushPort());
-                  }
-                } catch (IOException | InterruptedException e) {
-                  throw new RuntimeException(e);
-                }
-              }
-            })
-        .start();
-
-    Thread.sleep(15 * 1000);
-    running.set(false);
+    dataPusher.waitOnTermination();
 
     for (int i = 0; i < numWorker; i++) {
       Assert.assertArrayEquals(workerData.get(i).toArray(), tarWorkerData.get(i).toArray());
