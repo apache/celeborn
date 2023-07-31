@@ -135,7 +135,7 @@ to guarantee no data is lost.
 - `attemptNumber` is the attempt id of reduce task, can be safely set to any value
 - `startMapIndex` is the index of start map index of interested map range, set to 0 if you want to read all
   partition data
-- `endMapIndex` is the index of end map index of interested map range, set to a very large value if you want
+- `endMapIndex` is the index of end map index of interested map range, set to `Integer.MAX_VALUE` if you want
   to read all partition data
 
 The returned input stream is guaranteed to be `Exactly Once`, meaning no data lost and no duplicated reading, or else
@@ -144,16 +144,16 @@ an exception will be thrown, see [Here](../../developers/faulttolerant#exactly-o
 ### Get PartitionLocations
 To read data from a partition id, `ShuffleClient` first checks whether the mapping from partition id to all
 `PartitionLocation`s are locally cached, if not, `ShuffleClient` sends GetReducerFileGroup to `LifecycleManager`
-for the mapping, see [Here](../../developers/lifecyclemanager#).
+for the mapping, see [Here](../../developers/lifecyclemanager#getreducerfilegroup).
 
 ### Read from PartitionLocation
-To read from each `PartitionLocation`, `ShuffleClient` creates a `PartitionReader` for each `PartitinLocation`.
+`ShuffleClient` creates a `PartitionReader` for each `PartitinLocation`.
 As described [Here](../../developers/storage#multi-layered-storage), `PartitionLocation` data can be stored in
 different medium, i.e. memory, local disk, distributed filesystem. For the former two, it creates
 a `WorkerPartitionReader` to read from `Worker`, for the last one, it creates a `DfsPartitionReader` to read
 directly from the distributed filesystem.
 
-As described [Here](../../developers#reducepartition), the file is chunked. `WorkerPartitionReader` asynchronously
+As described [Here](../../developers/storage#reducepartition), the file is chunked. `WorkerPartitionReader` asynchronously
 requests multiple chunks from `Worker`, and reduce task consumes the data whenever available.
 
 If exception occurs when fetching a chunk, `ShuffleClient` will restart reading from the beginning of another
@@ -166,10 +166,10 @@ guaranteed to contain the same data, as explained [Here](../../developers/storag
 
 ### Read from Map Range
 If user specifies `startMapIndex` and `endMapIndex`, `CelebornInputStream` will only return data within the range.
-Under the hood is `Worker` only responds data within the range. This is achieved by sorting and indexing the file
+Under the hood is that `Worker` only responds data within the range. This is achieved by sorting and indexing the file
 by map id upon receiving such range read request, then return the continuous data range of interest.
 
-Notice that the sort on read is only trigger upon map range read, not for the common cases where whole partition data
+Notice that the sort on read is only triggered upon map range read, not for the common cases where whole partition data
 is requested.
 
 Celeborn also optionally records map ids for each `PartitionLocation`, in the case of map range reading,
