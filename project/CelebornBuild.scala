@@ -213,7 +213,7 @@ object CelebornCommon {
         "io.dropwizard.metrics" % "metrics-core" % metricsVersion,
         "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion,
         "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion,
-        "io.netty" % "netty-all" % nettyVersion,
+        ("io.netty" % "netty-all" % nettyVersion).exclude("io.netty", "netty-handler-ssl-ocsp"),
         "org.apache.commons" % "commons-crypto" % commonsCryptoVersion,
         "org.apache.commons" % "commons-lang3" % commonsLang3Version,
         "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion,
@@ -267,7 +267,7 @@ object CelebornClient {
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
-        "io.netty" % "netty-all" % nettyVersion,
+        ("io.netty" % "netty-all" % nettyVersion).exclude("io.netty", "netty-handler-ssl-ocsp"),
         "com.google.guava" % "guava" % guavaVersion,
         "org.lz4" % "lz4-java" % lz4JavaVersion,
         "com.github.luben" % "zstd-jni" % zstdJniVersion,
@@ -291,7 +291,7 @@ object CelebornService {
       libraryDependencies ++= Seq(
         "com.google.code.findbugs" % "jsr305" % findbugsVersion,
         "commons-io" % "commons-io" % commonsIoVersion,
-        "io.netty" % "netty-all" % nettyVersion,
+        ("io.netty" % "netty-all" % nettyVersion).exclude("io.netty", "netty-handler-ssl-ocsp"),
         "javax.servlet" % "javax.servlet-api" % javaxServletVersion,
         "org.apache.commons" % "commons-crypto" % commonsCryptoVersion,
         "org.slf4j" % "slf4j-api" % slf4jVersion,
@@ -315,7 +315,7 @@ object CelebornMaster {
       libraryDependencies ++= Seq(
         "com.google.guava" % "guava" % guavaVersion,
         "com.google.protobuf" % "protobuf-java" % protoVersion,
-        "io.netty" % "netty-all" % nettyVersion,
+        ("io.netty" % "netty-all" % nettyVersion).exclude("io.netty", "netty-handler-ssl-ocsp"),
         "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion,
         "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version,
         "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version,
@@ -344,7 +344,7 @@ object CelebornWorker {
       libraryDependencies ++= Seq(
         "com.google.guava" % "guava" % guavaVersion,
         "commons-io" % "commons-io" % commonsIoVersion,
-        "io.netty" % "netty-all" % nettyVersion,
+        ("io.netty" % "netty-all" % nettyVersion).exclude("io.netty", "netty-handler-ssl-ocsp"),
         "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version,
         "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version,
         "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbJniVersion,
@@ -769,8 +769,12 @@ trait FlinkClientProjects {
           val cp = (assembly / fullClasspath).value
           cp filter { v =>
             val name = v.data.getName
-            !(name.startsWith("celeborn-") || name.startsWith("protobuf-java-") ||
-              name.startsWith("guava-") || name.startsWith("netty-") || name.startsWith("commons-lang3-"))
+            !(name.startsWith("celeborn-") ||
+                name.startsWith("protobuf-java-") ||
+                name.startsWith("guava-") ||
+                name.startsWith("netty-") ||
+                name.startsWith("commons-lang3-") ||
+                name.startsWith("RoaringBitmap-"))
           }
         },
   
