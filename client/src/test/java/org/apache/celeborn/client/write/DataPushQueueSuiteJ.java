@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.junit.AfterClass;
@@ -113,8 +112,10 @@ public class DataPushQueueSuiteJ {
             null,
             integer -> {},
             mapStatusLengths) {
-          @Override protected void pushData(PushTask task) throws IOException {
-            byte[] buffer = task.getBuffer(); int partitionId = task.getPartitionId();
+          @Override
+          protected void pushData(PushTask task) throws IOException {
+            byte[] buffer = task.getBuffer();
+            int partitionId = task.getPartitionId();
             tarWorkerData.get(partitionId % numWorker).add(bytesToInt(buffer));
             pushState.removeBatch(
                 partitionBatchIdMap.get(partitionId),
