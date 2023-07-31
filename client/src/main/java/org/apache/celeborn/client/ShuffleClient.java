@@ -111,8 +111,8 @@ public abstract class ShuffleClient {
    * @param offset start position of data to be pushed
    * @param length length of data to be pushed
    * @param numMappers the number map tasks in the shuffle
-   * @param numPartitions
-   * @return the number of partitions in the shuffle
+   * @param numPartitions the number of partitions in the shuffle
+   * @return bytes pushed
    * @throws IOException
    */
   public abstract int pushData(
