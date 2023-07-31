@@ -91,7 +91,7 @@ nav:
       - Client:
         - Overview: developers/client.md
         - LifecycleManager: developers/lifecyclemanager.md
-      - PushData: developers/pushdata.md
+        - ShuffleClient: developers/shuffleclient.md
       - Fault Tolerant: developers/faulttolerant.md
 #      - ReadData: developers/readdata.md
 #      - Slots Allocation: developers/slotsallocation.md

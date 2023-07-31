@@ -45,7 +45,7 @@ to handle the requests, `LifecycleManager` will send requests to `Master` and `W
 - DestroyWorkerSlots to `Worker`
 
 ## RegisterShuffle
-As described in [PushData](../../developers/pushdata#lazy-shuffle-register), `ShuffleClient` lazily send
+As described in [PushData](../../developers/shuffleclient#lazy-shuffle-register), `ShuffleClient` lazily send
 RegisterShuffle to LifecycleManager, so many concurrent requests will be sent to `LifecycleManager`.
 
 To ensure only one request for each shuffle is handled, `LifecycleManager` puts tail requests in a set and only
