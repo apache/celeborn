@@ -124,11 +124,13 @@ public class SlotsAllocator {
                       }
                     }));
 
-    Set<WorkerInfo> usableWorkers = new HashSet<>();
-    for (DiskInfo disk : usableDisks) {
-      usableWorkers.add(diskToWorkerMap.get(disk));
-    }
-    if ((shouldReplicate && usableWorkers.size() <= 1) || usableDisks.isEmpty()) {
+    boolean shouldFallback =
+        usableDisks.isEmpty()
+            || (shouldReplicate
+                && (usableDisks.size() == 1
+                    || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
+
+    if (shouldFallback) {
       logger.warn(
           "offer slots for {} fallback to roundrobin because there is no usable disks",
           StringUtils.join(partitionIds, ','));
