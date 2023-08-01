@@ -89,7 +89,23 @@ object CelebornCommonSettings {
   
     // Make sure any tests in any project that uses Spark is configured for running well locally
     Test / javaOptions ++= Seq(
-      "-Xmx4g"
+      "-Xmx4g",
+      "-XX:+IgnoreUnrecognizedVMOptions",
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+      "--add-opens=java.base/java.io=ALL-UNNAMED",
+      "--add-opens=java.base/java.net=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+      "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+      "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+      "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
+      "-Dio.netty.tryReflectionSetAccessible=true"
     ),
   
     testOptions += Tests.Argument("-oF"),
@@ -125,7 +141,7 @@ object CelebornCommonSettings {
   lazy val commonUnitTestDependencies = Seq(
     "org.mockito" % "mockito-core" % "4.11.0" % "test",
     "org.scalatest" %% "scalatest" % "3.2.16" % "test",
-    "junit" % "junit" % "4.12" % "test",
+    "junit" % "junit" % "4.13.2" % "test",
     // https://www.scala-sbt.org/1.x/docs/Testing.html
     "com.github.sbt" % "junit-interface" % "0.13.3" % "test")
 }
@@ -489,7 +505,11 @@ trait SparkClientProjects {
   val sparkVersion: String
   val zstdJniVersion: String
 
-  def modules: Seq[Project] = Seq(sparkCommon, sparkClient, sparkIt, sparkClientShade)
+  def modules: Seq[Project] = Seq(sparkCommon, sparkClient, sparkIt, sparkGroup, sparkClientShade)
+
+  // for test only, don't use this group for any other projects
+  lazy val sparkGroup = (project withId "celeborn-spark-group")
+    .aggregate(sparkCommon, sparkClient, sparkIt)
 
   def sparkCommon: Project = {
     Project("celeborn-spark-common", file("client-spark/common"))
@@ -553,7 +573,7 @@ trait SparkClientProjects {
         ) ++ commonUnitTestDependencies
       )
   }
-  
+
   def sparkClientShade: Project = {
     Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
       .dependsOn(sparkClient)
@@ -657,7 +677,11 @@ trait FlinkClientProjects {
   lazy val flinkClientsDependency: ModuleID = "org.apache.flink" % "flink-clients" % flinkVersion % "test"
   lazy val flinkRuntimeWebDependency: ModuleID = "org.apache.flink" % "flink-runtime-web" % flinkVersion % "test"
 
-  def modules: Seq[Project] = Seq(flinkCommon, flinkClient, flinkIt, flinkClientShade)
+  def modules: Seq[Project] = Seq(flinkCommon, flinkClient, flinkIt, flinkGroup, flinkClientShade)
+
+  // for test only, don't use this group for any other projects
+  lazy val flinkGroup = (project withId "celeborn-flink-group")
+    .aggregate(flinkCommon, flinkClient, flinkIt)
 
   // get flink major version. e.g:
   //   1.17.0 -> 1.17
