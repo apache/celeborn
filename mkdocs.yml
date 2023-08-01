@@ -93,5 +93,4 @@ nav:
         - LifecycleManager: developers/lifecyclemanager.md
         - ShuffleClient: developers/shuffleclient.md
       - Fault Tolerant: developers/faulttolerant.md
-#      - ReadData: developers/readdata.md
-#      - Slots Allocation: developers/slotsallocation.md
+      - Worker Exclusion: developers/workerexclusion.md
