@@ -485,6 +485,7 @@ private[deploy] class Controller(
               s"${committedReplicaIds.size()} committed replica partitions, " +
               s"${emptyFileReplicaIds.size()} empty replica partitions, " +
               s"${failedReplicaIds.size()} failed replica partitions.")
+          storageManager.persistShuffle(shuffleKey)
           CommitFilesResponse(
             StatusCode.SUCCESS,
             committedPrimaryIdList,

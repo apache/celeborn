@@ -231,7 +231,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def updateFileInfosInDB(): Unit = {
     fileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
-        db.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
+        // Save fileinfos that has not been persist when graceful shutdown
+        if (db.get(dbShuffleKey(shuffleKey)) != null) {
+          db.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
+        }
         logDebug(s"Update FileInfos into DB: ${shuffleKey} -> ${files}")
       } catch {
         case exception: Exception =>
@@ -486,6 +489,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             case e: Exception => logWarning("Clean expired HDFS shuffle failed.", e)
           }
         }
+        if (db != null) {
+          db.delete(dbShuffleKey(shuffleKey))
+        }
       }
     }
   }
@@ -601,6 +607,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       Thread.sleep(workerCheckFileCleanTimeout)
     }
     false
+  }
+
+  def persistShuffle(shuffleKey: String): Unit = {
+    if (db != null) {
+      db.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(fileInfos.get(shuffleKey)))
+    }
   }
 
   def close(exitKind: Int): Unit = {
