@@ -19,14 +19,14 @@ license: |
 # Overview
 `Worker`s can fail, temporarily or permanently. To reduce the impact of `Worker` failure, Celeborn tries to
 figure out `Worker` status as soon as possible, and as correct as possible. This article describes detailed
-design of blacklist.
+design of `Worker` exclusion.
 
 ## Participants
 As described [Previously](../../developers/overview#components), Celeborn has three components: `Master`, `Worker`,
 and `Client`. `Client` is further separated into `LifecycleManager` and `ShuffleClient`. `Master`/`LifecycleManager`
-/`ShuffleClient` need to know about `Worker` status, actively or re-actively.
+/`ShuffleClient` need to know about `Worker` status, actively or reactively.
 
-## Master Blacklist
+## Master Side Exclusion
 `Master` maintains the ground-truth status of `Worker`s, with relatively longer delay. Master maintains four
 lists of `Worker`s with different status:
 
@@ -38,14 +38,14 @@ lists of `Worker`s with different status:
 - Lost list. `Worker`s whose heartbeat timed out. These `Worker`s will be removed from active and excluded
   list, but will not be removed from graceful shutdown list.
 
-Upon receiving RequestSlots, `Master` will only choose `Worker`s in active list, but not in excluded or graceful
+Upon receiving RequestSlots, `Master` will choose `Worker`s in active list subtracting excluded and graceful
 shutdown list. Since `Master` only exclude `Worker`s upon heartbeat, it has relative long delay.
 
-## ShuffleClient Blacklist
-`ShuffleClient`'s local blacklist is essential to performance. Say the timeout for setup network
+## ShuffleClient Side Exclusion
+`ShuffleClient`'s local exclusion list is essential to performance. Say the timeout to create network
 connection is 10s, if `ShuffleClient` blindly pushes data to a non-exist `Worker`, the task will hang forever.
 
-Waiting for `Master` to inform the blacklist is unacceptable because of the delay. Instead, `ShuffleClient`
+Waiting for `Master` to inform the exclusion list is unacceptable because of the delay. Instead, `ShuffleClient`
 actively exclude `Worker`s when it encounters critical exceptions, for example:
 
 - Fail to create network connection
@@ -57,18 +57,18 @@ In addition to exclude the `Worker`s locally, `ShuffleClient` also carries the c
 [Revive](../../developers/faulttolerant#handle-pushdata-failure) for `LifecycleManager` to also exclude the `Worker`s,
 see the section below.
 
-Such strategy is aggressive, meaning false negative may happen. To rectify, `ShuffleClient` removes from
-the excluded list whenever an event happens that indicates that `Worker` is available, for example:
+Such strategy is aggressive, meaning false negative may happen. To rectify, `ShuffleClient` removes `Worker`s from
+the excluded list whenever an event happens that indicates some `Worker` is available, for example:
 
 - When the `Worker` is allocated slots in register shuffle
 - When `LifecycleManager` says the `Worker` is available in response of Revive
 
-Currently, blacklist in `ShuffleClient` is optional, users can configure using the following configs:
+Currently, exclusion list in `ShuffleClient` is optional, users can configure using the following configs:
 
 `celeborn.client.push/fetch.excludeWorkerOnFailure.enabled`
 
-## LifecycleManager Blacklist
-The accuracy and delay in `LifecycleManager`'s blacklist stands between `Master` and `Worker`. `LifecyleManager`
+## LifecycleManager Side Exclusion 
+The accuracy and delay in `LifecycleManager`'s exclusion list stands between `Master` and `Worker`. `LifecyleManager`
 excludes a `Worker` in the following scenarios:
 
 - Receives Revive request and the cause is critical
@@ -78,4 +78,4 @@ excludes a `Worker` in the following scenarios:
 `LifecycleManager` will remove `Worker` from the excluded list in the following scenarios:
 
 - For critical causes, when timeout expires (defaults to 180s)
-- For non-critical causes, when it's not in `Master`'s blacklist
+- For non-critical causes, when it's not in `Master`'s exclusion list

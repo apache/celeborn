@@ -93,4 +93,4 @@ nav:
         - LifecycleManager: developers/lifecyclemanager.md
         - ShuffleClient: developers/shuffleclient.md
       - Fault Tolerant: developers/faulttolerant.md
-      - Blacklist: developers/blacklist.md
+      - Worker Exclusion: developers/workerexclusion.md
