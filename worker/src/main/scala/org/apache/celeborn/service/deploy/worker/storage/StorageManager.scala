@@ -31,7 +31,7 @@ import scala.concurrent.duration._
 import io.netty.buffer.PooledByteBufAllocator
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
-import org.iq80.leveldb.DB
+import org.iq80.leveldb.{DB, WriteOptions}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
@@ -233,7 +233,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       try {
         // Save fileinfos that has not been persist when graceful shutdown
         if (db.get(dbShuffleKey(shuffleKey)) != null) {
-          db.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
+          persistShuffle(shuffleKey)
         }
         logDebug(s"Update FileInfos into DB: ${shuffleKey} -> ${files}")
       } catch {
@@ -490,6 +490,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         }
         if (db != null) {
+          // if delete a shuffle key failed, heartbeat from worker will clean it again.
           db.delete(dbShuffleKey(shuffleKey))
         }
       }
@@ -609,9 +610,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     false
   }
 
-  def persistShuffle(shuffleKey: String): Unit = {
+  def persistShuffle(shuffleKey: String, sync: Boolean = false): Unit = {
     if (db != null) {
-      db.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(fileInfos.get(shuffleKey)))
+      // sync to disk after put in case of worker crash
+      db.put(
+        dbShuffleKey(shuffleKey),
+        PbSerDeUtils.toPbFileInfoMap(fileInfos.get(shuffleKey)),
+        new WriteOptions().sync(sync))
     }
   }
 
