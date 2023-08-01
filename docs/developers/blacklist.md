@@ -78,4 +78,4 @@ excludes a `Worker` in the following scenarios:
 `LifecycleManager` will remove `Worker` from the excluded list in the following scenarios:
 
 - For critical causes, when timeout expires (defaults to 180s)
-- for non-critical causes, when it's not in `Master`'s blacklist
+- For non-critical causes, when it's not in `Master`'s blacklist
