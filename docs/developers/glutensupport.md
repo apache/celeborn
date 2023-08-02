@@ -34,7 +34,7 @@ Then add the Gluten and Spark Celeborn Client packages to your Spark application
 - Celeborn: xxxx.jar
 - Gluten: xxx.jar
 
-Currently to use Gluten following configurations are required in spark-defaults.conf
+Currently to use Gluten following configurations are required in `spark-defaults.conf`
 
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
