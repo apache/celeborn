@@ -16,7 +16,7 @@ license: |
   limitations under the License.
 ---
 
-# Overview
+# Worker Exclusion
 `Worker`s can fail, temporarily or permanently. To reduce the impact of `Worker` failure, Celeborn tries to
 figure out `Worker` status as soon as possible, and as correct as possible. This article describes detailed
 design of `Worker` exclusion.
@@ -27,7 +27,7 @@ and `Client`. `Client` is further separated into `LifecycleManager` and `Shuffle
 /`ShuffleClient` need to know about `Worker` status, actively or reactively.
 
 ## Master Side Exclusion
-`Master` maintains the ground-truth status of `Worker`s, with relatively longer delay. Master maintains four
+`Master` maintains the ground-truth status of `Worker`s, with relatively longer delay. `Master` maintains four
 lists of `Worker`s with different status:
 
 - Active list. `Worker`s that have successfully registered to `Master`, and heartbeat never timed out.
@@ -43,7 +43,7 @@ shutdown list. Since `Master` only exclude `Worker`s upon heartbeat, it has rela
 
 ## ShuffleClient Side Exclusion
 `ShuffleClient`'s local exclusion list is essential to performance. Say the timeout to create network
-connection is 10s, if `ShuffleClient` blindly pushes data to a non-exist `Worker`, the task will hang forever.
+connection is 10s, if `ShuffleClient` blindly pushes data to a non-exist `Worker`, the task will hang for a long time.
 
 Waiting for `Master` to inform the exclusion list is unacceptable because of the delay. Instead, `ShuffleClient`
 actively exclude `Worker`s when it encounters critical exceptions, for example:
@@ -54,16 +54,15 @@ actively exclude `Worker`s when it encounters critical exceptions, for example:
 - Connection exception happened
 
 In addition to exclude the `Worker`s locally, `ShuffleClient` also carries the cause of push failure with
-[Revive](../../developers/faulttolerant#handle-pushdata-failure) for `LifecycleManager` to also exclude the `Worker`s,
-see the section below.
+[Revive](../../developers/faulttolerant#handle-pushdata-failure) to `LifecycleManager`, see the section below.
 
-Such strategy is aggressive, meaning false negative may happen. To rectify, `ShuffleClient` removes `Worker`s from
-the excluded list whenever an event happens that indicates some `Worker` is available, for example:
+Such strategy is aggressive, false negative may happen. To rectify, `ShuffleClient` removes a `Worker` from
+the excluded list whenever an event happens that indicates that `Worker` is available, for example:
 
 - When the `Worker` is allocated slots in register shuffle
 - When `LifecycleManager` says the `Worker` is available in response of Revive
 
-Currently, exclusion list in `ShuffleClient` is optional, users can configure using the following configs:
+Currently, exclusion in `ShuffleClient` is optional, users can configure using the following configs:
 
 `celeborn.client.push/fetch.excludeWorkerOnFailure.enabled`
 
@@ -79,3 +78,6 @@ excludes a `Worker` in the following scenarios:
 
 - For critical causes, when timeout expires (defaults to 180s)
 - For non-critical causes, when it's not in `Master`'s exclusion list
+
+In the response of Revive, `LifecycleManager` checks the status of the `Worker` where previous push data has failed.
+`ShuffleClient` will remove from local exclusion list if the `Worker` is available.
