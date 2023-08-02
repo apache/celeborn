@@ -173,7 +173,7 @@ After the shuffle finishes, you can call `LifecycleManager.unregisterShuffle` to
 shuffle:
 
 ```java
-lm.unregisterShuffle(0)
+lm.unregisterShuffle(0);
 ```
 
 It's safe not to call `unregisterShuffle`, because Celeborn `Master` recognizes application finish by heartbeat
