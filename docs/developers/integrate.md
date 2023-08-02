@@ -138,10 +138,11 @@ After the map task finishes, `ShuffleClient` should call `mapperEnd` to tell `Li
 finishes pushing its data:
 
 ```java
-public abstract void mapperEnd(int shuffleId,
-        int mapId,
-        int attemptId,
-        int numMappers)
+public abstract void mapperEnd(
+    int shuffleId,
+    int mapId,
+    int attempted,
+    int numMappers)
 ```
 
 - `mapId` map id of the current task
