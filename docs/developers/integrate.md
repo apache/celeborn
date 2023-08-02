@@ -21,7 +21,7 @@ license: |
 The core components of Celeborn, i.e. `Master`, `Worker`, and `Client` are all engine irrelevant. Developers can
 integrate Celeborn with various engines or applications by using or extending Celeborn's `Client`, as the officially
 supported plugins for Apache Spark and Apache Flink, see [Spark Plugin](../../developers/spark) and 
-[FLink Plugin](../../developers/flink).
+[Flink Plugin](../../developers/flink).
 
 This article briefly describes an example of integrating Celeborn into a simple distributed application using
 Celeborn `Client`.
