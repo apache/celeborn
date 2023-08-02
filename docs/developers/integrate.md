@@ -112,7 +112,7 @@ maintains status and reuses resource across all shuffles. To make it work, you h
 In practice, one `ShuffleClient` instance is created in each Executor process of Spark, or in each TaskManager
 process of Flink.
 
-## Step Three: Push Data
+## Step Four: Push Data
 You can then push data with `ShuffleClient` with [pushData](../../developers/shuffleclient#api-specification), like
 the following:
 
@@ -145,11 +145,12 @@ public abstract void mapperEnd(
     int numMappers)
 ```
 
+- `shuffleId` shuffle id of the current task
 - `mapId` map id of the current task
 - `attemptId` attempt id of the current task
 - `numMappers` number of map ids in this shuffle
 
-## Step Four: Read Data
+## Step Five: Read Data
 After all tasks successfully called `mapperEnd`, you can start reading data from some partition id, using the
 [readPartition API](../../developers/shuffleclient#api-specification_1), as the following code:
 
@@ -168,7 +169,7 @@ For simplicity, to read the whole data from the partition, you can pass 0 and `I
 and `endMapIndex`. This method will create an InputStream for the data, and guarantees no data lost and no
 duplicate reading, else exception will be thrown.
 
-## Step Five: Clean Up
+## Step Six: Clean Up
 After the shuffle finishes, you can call `LifecycleManager.unregisterShuffle` to clean up resources related to the
 shuffle:
 
