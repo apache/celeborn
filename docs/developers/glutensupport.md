@@ -27,7 +27,10 @@ When compiling the Gluten Java module, it's required to enable `rss` profile, as
 mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
 ```
 
-Then add the paths of Gluten and Spark Celeborn Client packages to class path.
+Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+
+- Celeborn: xxxx.jar
+- Gluten: xxx.jar
 
 Currently to use Gluten following configurations are required in spark-defaults.conf
 
