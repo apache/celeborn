@@ -101,14 +101,14 @@ public class WorkerPartitionReader implements PartitionReader {
     TransportClient client = null;
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
-    } catch (InterruptedException ie) {
-      logger.error("PartitionReader thread interrupted while creating client.");
-      throw ie;
+      OpenStream openBlocks =
+          new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
+      ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), fetchTimeoutMs);
+      streamHandle = (StreamHandle) Message.decode(response);
+    } catch (IOException | InterruptedException e) {
+      logger.error("PartitionReader thread interrupted while creating client.", e);
+      throw e;
     }
-    OpenStream openBlocks =
-        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), fetchTimeoutMs);
-    streamHandle = (StreamHandle) Message.decode(response);
 
     this.location = location;
     this.clientFactory = clientFactory;
