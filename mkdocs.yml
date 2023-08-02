@@ -94,3 +94,4 @@ nav:
         - ShuffleClient: developers/shuffleclient.md
       - Fault Tolerant: developers/faulttolerant.md
       - Worker Exclusion: developers/workerexclusion.md
+      - Gluten Support: developers/glutensupport.md
