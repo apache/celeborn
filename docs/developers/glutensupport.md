@@ -31,8 +31,8 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
 
 Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
-- Celeborn: xxxx.jar
-- Gluten: xxx.jar
+- Celeborn: celeborn-client-spark-3-shaded_2.12-0.3.0-incubating.jar
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xx-xx-SNAPSHOT.jar, gluten-thirdparty-lib-xx.jar
 
 Currently to use Gluten following configurations are required in `spark-defaults.conf`
 
