@@ -21,7 +21,7 @@ license: |
 
 First refer to this URL(https://github.com/oap-project/gluten/blob/main/docs/get-started/Velox.md) to build Gluten with velox backend.
 
-When compiling the Gluten java module, you need to add rss, as follows:
+When compiling the Gluten Java module, it's required to enable `rss` profile, as follows:
 
 ```
 mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
