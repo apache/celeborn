@@ -54,3 +54,9 @@ spark.sql.adaptive.localShuffleReader.enabled false
 # please refer to this URL (https://github.com/apache/incubator-celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.
 spark.dynamicAllocation.enabled false
 ```
+
+## Availability
+| Celeborn Version | Available in Gluten? | 
+|:----------------:|:--------------------:|
+|     < 0.2.0      |          No          |    
+|    \>= 0.2.0     |         Yes          |
