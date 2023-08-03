@@ -81,6 +81,8 @@ public abstract class FileWriter implements DeviceObserver {
   protected boolean deleted = false;
   private RoaringBitmap mapIdBitMap = null;
   protected final FlushNotifier notifier = new FlushNotifier();
+  private String shuffleKey;
+  private StorageManager storageManager;
 
   public FileWriter(
       FileInfo fileInfo,
@@ -288,6 +290,7 @@ public abstract class FileWriter implements DeviceObserver {
         deviceMonitor.unregisterFileWriter(this);
       }
     }
+    storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), fileInfo);
     return fileInfo.getFileLength();
   }
 
@@ -439,5 +442,13 @@ public abstract class FileWriter implements DeviceObserver {
 
   public PartitionType getPartitionType() {
     return partitionType;
+  }
+
+  public void setShuffleKey(String shuffleKey) {
+    this.shuffleKey = shuffleKey;
+  }
+
+  public void setStorageManager(StorageManager storageManager) {
+    this.storageManager = storageManager;
   }
 }

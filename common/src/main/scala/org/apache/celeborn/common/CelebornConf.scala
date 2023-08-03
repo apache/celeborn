@@ -920,6 +920,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
     get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
+  def workerGracefulShutdownSaveCommittedFileInfoInterval: Long =
+    get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL)
+  def workerGracefulShutdownSaveCommittedFileInfoSync: Boolean =
+    get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC)
 
   // //////////////////////////////////////////////////////
   //                      Flusher                        //
@@ -2245,6 +2249,22 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
+
+  val WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval")
+      .categories("worker")
+      .doc("Interval for a Celeborn worker to flush committed file infos into Level DB.")
+      .version("0.3.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync")
+      .categories("worker")
+      .doc("Whether to call sync method to save committed fileinfo intos into Level DB to handle OS crash.")
+      .version("0.3.1")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.diskTime.slidingWindow.size")
