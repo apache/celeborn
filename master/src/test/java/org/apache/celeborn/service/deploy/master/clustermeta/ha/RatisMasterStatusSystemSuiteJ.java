@@ -398,22 +398,24 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
+    // Do not update diskinfo's activeslots
+
     Assert.assertEquals(
-        15,
+        0,
         statusSystem.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
-        25,
+        0,
         statusSystem.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
-        35,
+        0,
         statusSystem.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME3))
             .findFirst()
@@ -492,25 +494,26 @@ public class RatisMasterStatusSystemSuiteJ {
           }
         });
 
-    statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
     Thread.sleep(3000L);
 
+    // Do not update diskinfo's activeslots
+
     Assert.assertEquals(
-        2,
+        0,
         STATUSSYSTEM1.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
-        2,
+        0,
         STATUSSYSTEM2.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
-        2,
+        0,
         STATUSSYSTEM3.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()

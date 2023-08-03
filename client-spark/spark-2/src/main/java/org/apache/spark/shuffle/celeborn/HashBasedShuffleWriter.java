@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.annotation.Nullable;
@@ -49,6 +50,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
+import org.apache.celeborn.client.write.PushTask;
 import org.apache.celeborn.common.CelebornConf;
 
 @Private
@@ -138,6 +140,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     sendOffsets = new int[numPartitions];
 
     try {
+      LinkedBlockingQueue<PushTask> pushTaskQueue = sendBufferPool.acquirePushTaskQueue();
       dataPusher =
           new DataPusher(
               shuffleId,
@@ -148,6 +151,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               numPartitions,
               conf,
               shuffleClient,
+              pushTaskQueue,
               writeMetrics::incBytesWritten,
               mapStatusLengths);
     } catch (InterruptedException e) {
@@ -188,7 +192,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     SQLMetric dataSize =
         SparkUtils.getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
-    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -200,7 +203,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(serializedRecordSize);
       }
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
@@ -223,16 +225,13 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             rowSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
-      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
-    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private void write0(scala.collection.Iterator iterator) throws IOException, InterruptedException {
     final scala.collection.Iterator<Product2<K, ?>> records = iterator;
 
-    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<K, ?> record = records.next();
       final K key = record._1();
@@ -245,7 +244,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
@@ -254,10 +252,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         System.arraycopy(serBuffer.getBuf(), 0, buffer, offset, serializedRecordSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
-      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
-    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private byte[] getOrCreateBuffer(int partitionId) {
@@ -311,13 +307,16 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void flushSendBuffer(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
+    long start = System.nanoTime();
     logger.debug("Flush buffer for partition {}, size {}.", partitionId, size);
     dataPusher.addTask(partitionId, buffer, size);
+    writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
   private void close() throws IOException, InterruptedException {
     // here we wait for all the in-flight batches to return which sent by dataPusher thread
     dataPusher.waitOnTermination();
+    sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
     shuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
 
     // merge and push residual data to reduce network traffic

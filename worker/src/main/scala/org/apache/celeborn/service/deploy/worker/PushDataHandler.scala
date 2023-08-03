@@ -175,9 +175,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     if (location == null) {
       val (mapId, attemptId) = getMapAttempt(body)
       // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
-      // A shuffle can trigger multiple CommitFiles requests, for reasons like: Hard-Split happens, StageEnd.
+      // A shuffle can trigger multiple CommitFiles requests, for reasons like: HARD_SPLIT happens, StageEnd.
       // If MapperAttempts but the value is -1 for the mapId(-1 means the map has not yet finished),
-      // it's probably because commitFiles for Had-Split happens.
+      // it's probably because commitFiles for HARD_SPLIT happens.
       if (shuffleMapperAttempts.containsKey(shuffleKey)) {
         if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
           // partition data has already been committed
@@ -195,7 +195,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         if (storageManager.shuffleKeySet().contains(shuffleKey)) {
           // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
           // in StorageManager. This partition should be HARD_SPLIT partition and
-          // after worker restart, some task still push data to this HARD_SPLIT partition.
+          // after worker restart, some tasks still push data to this HARD_SPLIT partition.
           logInfo(s"[Case2] Receive push data for committed hard split partition of " +
             s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
@@ -437,9 +437,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
         // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
-        // A shuffle can trigger multiple CommitFiles requests, for reasons like: Hard-Split happens, StageEnd.
+        // A shuffle can trigger multiple CommitFiles requests, for reasons like: HARD_SPLIT happens, StageEnd.
         // If MapperAttempts but the value is -1 for the mapId(-1 means the map has not yet finished),
-        // it's probably because commitFiles for Had-Split happens.
+        // it's probably because commitFiles for HARD_SPLIT happens.
         if (shuffleMapperAttempts.containsKey(shuffleKey)) {
           if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
             logInfo(s"Receive push merged data from speculative " +
@@ -448,7 +448,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
           } else {
-            logInfo(s"Receive push merged data for committed hard split partition of " +
+            logInfo(s"[Case1] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
@@ -457,8 +457,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           if (storageManager.shuffleKeySet().contains(shuffleKey)) {
             // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
             // in StorageManager. This partition should be HARD_SPLIT partition and
-            // after worker restart, some task still push data to this HARD_SPLIT partition.
-            logInfo(s"Receive push merged data for committed hard split partition of " +
+            // after worker restart, some tasks still push data to this HARD_SPLIT partition.
+            logInfo(s"[Case2] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
@@ -1099,6 +1099,23 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     } else {
       pushClientFactory.createClient(host, port, partitionId)
     }
+  }
+
+  /**
+   * Invoked when the channel associated with the given client is active.
+   */
+  override def channelActive(client: TransportClient): Unit = {
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT)
+    super.channelActive(client)
+  }
+
+  /**
+   * Invoked when the channel associated with the given client is inactive.
+   * No further requests will come from this client.
+   */
+  override def channelInactive(client: TransportClient): Unit = {
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT, -1)
+    super.channelInactive(client)
   }
 }
 

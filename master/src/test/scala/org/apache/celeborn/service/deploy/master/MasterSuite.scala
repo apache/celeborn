@@ -22,6 +22,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.CelebornExitKind
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -53,7 +54,7 @@ class MasterSuite extends AnyFunSuite
       }
     }.start()
     Thread.sleep(5000L)
-    master.close()
+    master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     master.rpcEnv.shutdown()
   }
 }

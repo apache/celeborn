@@ -94,7 +94,7 @@ public class HARaftServer {
   private long appTimeoutDeadline;
 
   /**
-   * Returns an Master Ratis server.
+   * Returns a Master Ratis server.
    *
    * @param conf configuration
    * @param localRaftPeerId raft peer id of this Ratis server

@@ -67,6 +67,8 @@ abstract class HttpService extends Service with Logging {
 
   def isRegistered: String
 
+  def decommission: String = throw new UnsupportedOperationException()
+
   def startHttpServer(): Unit = {
     val handlers =
       if (metricsSystem.running) {
@@ -105,8 +107,11 @@ abstract class HttpService extends Service with Logging {
     startHttpServer()
   }
 
-  override def close(): Unit = {
-    httpServer.stop()
-    super.close()
+  override def stop(exitKind: Int): Unit = {
+    // may be null when running the unit test
+    if (null != httpServer) {
+      httpServer.stop(exitKind)
+    }
+    super.stop(exitKind)
   }
 }

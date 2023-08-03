@@ -54,7 +54,7 @@ case class ShuffleCommittedInfo(
     committedPrimaryStorageInfos: ConcurrentHashMap[String, StorageInfo],
     // unique partition id -> storage info
     committedReplicaStorageInfos: ConcurrentHashMap[String, StorageInfo],
-    // unique partition id -> mapid bitmat
+    // unique partition id -> mapId bitmap
     committedMapIdBitmap: ConcurrentHashMap[String, RoaringBitmap],
     // number of partition files
     currentShuffleFileCount: LongAdder,
@@ -250,6 +250,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).isStageEnd(shuffleId)
   }
 
+  def isStageEndOrInProcess(shuffleId: Int): Boolean = {
+    getCommitHandler(shuffleId).isStageEndOrInProcess(shuffleId)
+  }
+
   def setStageEnd(shuffleId: Int): Unit = {
     getCommitHandler(shuffleId).setStageEnd(shuffleId)
   }
@@ -300,27 +304,26 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
 
     override def notifyChangedWorkersStatus(workersStatus: WorkersStatus): Unit = {
       if (workersStatus.shutdownWorkers != null) {
-        workersStatus.shutdownWorkers.asScala.foreach { case shuttingWorker =>
-          logError(s"Worker ${shuttingWorker.toUniqueId()} shutdown, " +
-            "commit all it's partition location.")
-          lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
-            case (shuffleId, workerToPartitionLocationInfos) =>
+        lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
+          case (shuffleId, workerToPartitionLocationInfos) =>
+            if (!isStageEndOrInProcess(shuffleId)) {
               val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
-              val partitionLocationInfo = workerToPartitionLocationInfos.get(shuttingWorker)
-              if (partitionLocationInfo != null) {
-                partitionLocationInfo.getPrimaryPartitions().asScala.foreach { partitionLocation =>
-                  shuffleCommittedInfo.synchronized {
-                    shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
-                  }
-                }
+              val needCommitPartitionLocations = new util.HashSet[PartitionLocation]()
 
-                partitionLocationInfo.getReplicaPartitions().asScala.foreach { partitionLocation =>
-                  shuffleCommittedInfo.synchronized {
-                    shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)
-                  }
+              workersStatus.shutdownWorkers.asScala.foreach { worker =>
+                val partitionLocationInfos = workerToPartitionLocationInfos.get(worker)
+                if (partitionLocationInfos != null) {
+                  logWarning(s"Worker ${worker.toUniqueId()} shutdown, " +
+                    s"commit all it's partition locations for shuffle $shuffleId.")
+                  needCommitPartitionLocations.addAll(partitionLocationInfos.getPrimaryPartitions())
+                  needCommitPartitionLocations.addAll(partitionLocationInfos.getReplicaPartitions())
                 }
               }
-          }
+              shuffleCommittedInfo.synchronized {
+                shuffleCommittedInfo.unhandledPartitionLocations.addAll(
+                  needCommitPartitionLocations)
+              }
+            }
         }
       }
     }

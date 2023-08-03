@@ -1,7 +1,4 @@
 ---
-hide:
-  - navigation
-
 license: |
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -18,10 +15,10 @@ license: |
 ---
 
 
-Upgrade
+Upgrading
 ===
 
-# Rolling upgrade
+## Rolling upgrade
 
 It is necessary to support a fast rolling upgrade process for the Celeborn cluster.
 In order to achieve a fast and unaffected rolling upgrade process,
@@ -29,7 +26,9 @@ Celeborn should support that the written file in the worker should be committed
 and support reading after the worker restarted. Celeborn have done the
 following mechanism to support rolling upgrade.
 
-## Fixed fetch port and client retry
+### Background
+
+**Fixed fetch port and client retry**
 
 In the shuffle reduce side, the read client will obtain the worker's host/port and
 information of the file to be read. In order to ensure that the data can be read
@@ -45,7 +44,7 @@ The shuffle client fetch data retry times configuration is `celeborn.client.fetc
 The shuffle client fetch data retry wait time configuration is `celeborn.data.io.retryWait`, default value is `5s`.
 Users can increase the configuration value appropriately according to the situation.
 
-## Worker store file meta information
+**Worker store file meta information**
 
 Shuffle client records the shuffle partition location's host, service port, and filename,
 to support workers recovering reading existing shuffle data after worker restart,
@@ -59,7 +58,7 @@ Then worker will wait for partition sorter finish all sort task within a timeout
 The whole graceful shutdown process should be finished within a timeout of
 `celeborn.worker.graceful.shutdown.timeout`, which default value is `600s`.
 
-## Allocated partition do hard split and Pre-commit hard split partition
+**Allocated partition do hard split and Pre-commit hard split partition**
 
 As mentioned in the previous section that the worker needs to wait for all allocated partition files
 to be committed during the restart process, which means that the worker need to wait for all the shuffle
@@ -72,9 +71,9 @@ Then client side can record all HARD_SPLIT partition information and pre-commit 
 then the worker side allocated partitions can be committed in a very short time. User should enable
 `celeborn.client.shuffle.batchHandleCommitPartition.enabled`, the default value is false.
 
-## Example setting:
+### Example setting
 
-### Worker
+#### Worker
 
 | Key                                                               | Value |
 |-------------------------------------------------------------------|-------| 
@@ -84,7 +83,7 @@ then the worker side allocated partitions can be committed in a very short time.
 | celeborn.worker.graceful.shutdown.timeout                         | 600s  |
 | celeborn.worker.fetch.port                                        | 9092  |
 
-### Client
+#### Client
 
 | Key                                                              | Value |
 |------------------------------------------------------------------|-------| 

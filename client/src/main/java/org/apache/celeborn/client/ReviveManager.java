@@ -32,7 +32,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.util.ThreadUtils;
 
 class ReviveManager {
-  private static final Logger logger = LoggerFactory.getLogger(ShuffleClientImpl.class);
+  private static final Logger logger = LoggerFactory.getLogger(ReviveManager.class);
 
   LinkedBlockingQueue<ReviveRequest> requestQueue = new LinkedBlockingQueue<>();
   private final long interval;
@@ -79,7 +79,6 @@ class ReviveManager {
                 } else {
                   filteredRequests.add(req);
                   mapIds.add(req.mapId);
-                  PartitionLocation loc = req.loc;
                   if (!requestsToSend.containsKey(req.partitionId)
                       || requestsToSend.get(req.partitionId).epoch < req.epoch) {
                     requestsToSend.put(req.partitionId, req);

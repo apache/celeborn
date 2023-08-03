@@ -27,12 +27,14 @@ license: |
 | celeborn.worker.bufferStream.threadsPerMountpoint | 8 | Threads count for read buffer per mount point. | 0.3.0 | 
 | celeborn.worker.closeIdleConnections | false | Whether worker will close idle connections. | 0.2.0 | 
 | celeborn.worker.commitFiles.threads | 32 | Thread number of worker to commit shuffle data files asynchronously. It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.3.0 | 
-| celeborn.worker.commitFiles.timeout | &lt;value of celeborn.rpc.askTimeout&gt; | Timeout for a Celeborn worker to commit files of a shuffle. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.3.0 | 
+| celeborn.worker.commitFiles.timeout | 120s | Timeout for a Celeborn worker to commit files of a shuffle. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.3.0 | 
 | celeborn.worker.congestionControl.enabled | false | Whether to enable congestion control or not. | 0.3.0 | 
 | celeborn.worker.congestionControl.high.watermark | &lt;undefined&gt; | If the total bytes in disk buffer exceeds this configure, will start to congestusers whose produce rate is higher than the potential average consume rate. The congestion will stop if the produce rate is lower or equal to the average consume rate, or the total pending bytes lower than celeborn.worker.congestionControl.low.watermark | 0.3.0 | 
 | celeborn.worker.congestionControl.low.watermark | &lt;undefined&gt; | Will stop congest users if the total pending bytes of disk buffer is lower than this configuration | 0.3.0 | 
 | celeborn.worker.congestionControl.sample.time.window | 10s | The worker holds a time sliding list to calculate users' produce/consume rate | 0.3.0 | 
 | celeborn.worker.congestionControl.user.inactive.interval | 10min | How long will consider this user is inactive if it doesn't send data | 0.3.0 | 
+| celeborn.worker.decommission.checkInterval | 30s | The wait interval of checking whether all the shuffle expired during worker decomission | 0.4.0 | 
+| celeborn.worker.decommission.forceExitTimeout | 6h | The wait time of waiting for all the shuffle expire during worker decommission. | 0.4.0 | 
 | celeborn.worker.directMemoryRatioForMemoryShuffleStorage | 0.0 | Max ratio of direct memory to store shuffle data | 0.2.0 | 
 | celeborn.worker.directMemoryRatioForReadBuffer | 0.1 | Max ratio of direct memory for read buffer | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToPauseReceive | 0.85 | If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients. | 0.2.0 | 

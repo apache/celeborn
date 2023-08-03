@@ -21,14 +21,14 @@ enum MessageType {
   UNKNOWN_MESSAGE = 0;
   REGISTER_WORKER = 1;
   HEARTBEAT_FROM_WORKER = 2;
-  HEARTBEAT_RESPONSE = 3;
+  HEARTBEAT_FROM_WORKER_RESPONSE = 3;
   REGISTER_SHUFFLE = 4;
   REGISTER_SHUFFLE_RESPONSE = 5;
   REQUEST_SLOTS = 6;
-  RELEASE_SLOTS = 7;
-  RELEASE_SLOTS_RESPONSE = 8;
+  //  RELEASE_SLOTS = 7;
+  //  RELEASE_SLOTS_RESPONSE = 8;
   REQUEST_SLOTS_RESPONSE = 9;
-  REVIVE = 10;
+  CHANGE_LOCATION = 10;
   CHANGE_LOCATION_RESPONSE = 11;
   MAPPER_END = 12;
   MAPPER_END_RESPONSE = 13;
@@ -59,8 +59,8 @@ enum MessageType {
   // THREAD_DUMP_RESPONSE = 38;
   REMOVE_EXPIRED_SHUFFLE = 39;
   ONE_WAY_MESSAGE_RESPONSE = 40;
-  CHECK_FOR_WORKER_TIMEOUT = 41;
-  CHECK_FOR_APPLICATION_TIMEOUT = 42;
+  CHECK_WORKER_TIMEOUT = 41;
+  CHECK_APPLICATION_TIMEOUT = 42;
   WORKER_LOST = 43;
   WORKER_LOST_RESPONSE = 44;
   STAGE_END = 45;
@@ -187,18 +187,6 @@ message PbRequestSlots {
 
 message PbSlotInfo {
   map<string, int32> slot = 1;
-}
-
-message PbReleaseSlots {
-  string applicationId = 1;
-  int32 shuffleId = 2;
-  repeated string workerIds = 3;
-  repeated PbSlotInfo slots = 4;
-  string requestId = 6;
-}
-
-message PbReleaseSlotsResponse {
-  int32 status = 1;
 }
 
 message PbRequestSlotsResponse {

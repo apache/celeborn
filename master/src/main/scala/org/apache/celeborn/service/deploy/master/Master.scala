@@ -305,13 +305,6 @@ private[celeborn] class Master(
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
-    case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
-      logTrace(s"Received ReleaseSlots request $requestId, $applicationId, $shuffleId," +
-        s"workers ${workerIds.asScala.mkString(",")}, slots ${slots.asScala.mkString(",")}")
-      executeWithLeaderChecker(
-        context,
-        handleReleaseSlots(context, applicationId, shuffleId, workerIds, slots, requestId))
-
     case pb: PbUnregisterShuffle =>
       val applicationId = pb.getAppId
       val shuffleId = pb.getShuffleId
@@ -627,19 +620,6 @@ private[celeborn] class Master(
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
   }
 
-  def handleReleaseSlots(
-      context: RpcCallContext,
-      applicationId: String,
-      shuffleId: Int,
-      workerIds: util.List[String],
-      slots: util.List[util.Map[String, Integer]],
-      requestId: String): Unit = {
-    val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
-    statusSystem.handleReleaseSlots(shuffleKey, workerIds, slots, requestId)
-    logInfo(s"Release all slots of $shuffleKey")
-    context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
-  }
-
   def handleUnregisterShuffle(
       context: RpcCallContext,
       applicationId: String,
@@ -884,11 +864,11 @@ private[celeborn] class Master(
     rpcEnv.awaitTermination()
   }
 
-  override def close(): Unit = synchronized {
+  override def stop(exitKind: Int): Unit = synchronized {
     if (!stopped) {
       logInfo("Stopping Master")
-      stop()
-      super.close()
+      rpcEnv.stop(self)
+      super.stop(exitKind)
       logInfo("Master stopped.")
       stopped = true
     }

@@ -25,20 +25,35 @@ import scala.collection.JavaConverters._
 
 import org.junit.Assert
 import org.mockito.MockitoSugar._
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
-class WorkerSuite extends AnyFunSuite {
-  val conf = new CelebornConf()
-  val workerArgs = new WorkerArguments(Array(), conf)
+class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
+  private var worker: Worker = _
+  private val conf = new CelebornConf()
+  private val workerArgs = new WorkerArguments(Array(), conf)
+
+  override def beforeEach(): Unit = {
+    assert(null == worker)
+  }
+
+  override def afterEach(): Unit = {
+    if (null != worker) {
+      worker.rpcEnv.shutdown()
+      worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+      worker = null
+    }
+  }
+
   test("clean up") {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
-    val worker = new Worker(conf, workerArgs)
+    worker = new Worker(conf, workerArgs)
 
     val pl1 = new PartitionLocation(0, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY)
     val pl2 = new PartitionLocation(1, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.REPLICA)
@@ -74,7 +89,7 @@ class WorkerSuite extends AnyFunSuite {
 
   test("flush filewriters") {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
-    val worker = new Worker(conf, workerArgs)
+    worker = new Worker(conf, workerArgs)
     val dir = new File("/tmp")
     val allWriters = new util.HashSet[FileWriter]()
     val map = JavaUtils.newConcurrentHashMap[String, FileWriter]()

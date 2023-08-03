@@ -85,7 +85,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   /**
    * Are we in the process of stopping? Because map tasks can call stop() with success = true and
    * then call stop() with success = false if they get an exception, we want to make sure we don't
-   * try deleting files, etc twice.
+   * try deleting files, etc. twice.
    */
   private volatile boolean stopping = false;
 
@@ -95,13 +95,13 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // parameters. By the way, simplify the passed parameters.
   public SortBasedShuffleWriter(
       ShuffleDependency<K, V, C> dep,
-      String appId,
       int numMappers,
       TaskContext taskContext,
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      ExecutorService executorService)
+      ExecutorService executorService,
+      SendBufferPool sendBufferPool)
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
@@ -133,7 +133,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             new SortBasedPusher(
                 taskContext.taskMemoryManager(),
                 shuffleClient,
-                appId,
                 shuffleId,
                 mapId,
                 taskContext.attemptNumber(),
@@ -145,7 +144,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 mapStatusLengths,
                 conf.clientPushSortMemoryThreshold() / 2,
                 sharedPushLock,
-                executorService);
+                executorService,
+                sendBufferPool);
       }
       currentPusher = pushers[0];
     } else {
@@ -153,7 +153,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           new SortBasedPusher(
               taskContext.taskMemoryManager(),
               shuffleClient,
-              appId,
               shuffleId,
               mapId,
               taskContext.attemptNumber(),
@@ -165,7 +164,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               mapStatusLengths,
               conf.clientPushSortMemoryThreshold(),
               sharedPushLock,
-              null);
+              null,
+              sendBufferPool);
     }
   }
 
@@ -175,17 +175,18 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      ExecutorService executorService)
+      ExecutorService executorService,
+      SendBufferPool sendBufferPool)
       throws IOException {
     this(
         handle.dependency(),
-        handle.appUniqueId(),
         handle.numMappers(),
         taskContext,
         conf,
         client,
         metrics,
-        executorService);
+        executorService,
+        sendBufferPool);
   }
 
   private void updatePeakMemoryUsed() {
@@ -246,7 +247,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
     SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
-    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -259,7 +259,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(serializedRecordSize);
       }
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > pushBufferMaxSize) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
@@ -284,13 +283,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           }
         }
       }
-      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
-    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private void pushAndSwitch() throws IOException {
+    long start = System.nanoTime();
     if (pipelined) {
       currentPusher.triggerPush();
       currentPusher = (currentPusher == pushers[0] ? pushers[1] : pushers[0]);
@@ -298,12 +296,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } else {
       currentPusher.pushData();
     }
+    writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
   private void write0(scala.collection.Iterator iterator) throws IOException {
     final scala.collection.Iterator<Product2<K, ?>> records = iterator;
 
-    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<K, ?> record = records.next();
       final K key = record._1();
@@ -316,7 +314,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > pushBufferMaxSize) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
@@ -341,10 +338,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           }
         }
       }
-      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
-    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {

@@ -51,7 +51,7 @@ public class PartitionLocationSuiteJ {
 
     for (int i = 2; i < 255; ++i) {
       byte otherMode = (byte) i;
-      // Should we return replica mode when the parameter passed in is neither 0 or 1?
+      // Should we return replica mode when the parameter passed in is neither 0 nor 1?
       assert PartitionLocation.getMode(otherMode) == PartitionLocation.Mode.REPLICA;
     }
   }

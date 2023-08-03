@@ -23,7 +23,10 @@ package deploy.master.meta;
 enum Type {
   UnRegisterShuffle = 12;
   RequestSlots = 13;
+
+  //deprecated
   ReleaseSlots = 14;
+
   AppHeartbeat = 15;
   AppLost = 16;
   WorkerLost = 17;
@@ -40,6 +43,7 @@ message ResourceRequest {
   optional string requestId = 2 [default=""];
 
   optional RequestSlotsRequest requestSlotsRequest = 10;
+  // deprecated
   optional ReleaseSlotsRequest releaseSlotsRequest = 11;
   optional UnregisterShuffleRequest unregisterShuffleRequest = 12;
   optional AppHeartbeatRequest appHeartbeatRequest = 13;

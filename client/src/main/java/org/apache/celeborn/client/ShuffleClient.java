@@ -99,7 +99,22 @@ public abstract class ShuffleClient {
 
   public abstract void setupLifecycleManagerRef(RpcEndpointRef endpointRef);
 
-  // Write data to a specific reduce partition
+  /**
+   * Write data to a specific reduce partition
+   *
+   * @param shuffleId the unique shuffle id of the application
+   * @param mapId the map id of the shuffle
+   * @param attemptId the attempt id of the map task, i.e. speculative task or task rerun for Apache
+   *     Spark
+   * @param partitionId the partition id the data belongs to
+   * @param data byte array containing data to be pushed
+   * @param offset start position of data to be pushed
+   * @param length length of data to be pushed
+   * @param numMappers the number map tasks in the shuffle
+   * @param numPartitions the number of partitions in the shuffle
+   * @return bytes pushed
+   * @throws IOException
+   */
   public abstract int pushData(
       int shuffleId,
       int mapId,
@@ -142,14 +157,22 @@ public abstract class ShuffleClient {
 
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
+  /**
+   * @param shuffleId the unique shuffle id of the application
+   * @param partitionId the partition id to read from
+   * @param attemptNumber the attempt id of reduce task, can be safely set to any value
+   * @param startMapIndex the index of start map index of interested map range, set to 0 if you want
+   *     to read all partition data
+   * @param endMapIndex the index of end map index of interested map range, set to
+   *     `Integer.MAX_VALUE` if you want to read all partition data
+   * @return
+   * @throws IOException
+   */
   public abstract CelebornInputStream readPartition(
       int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
       throws IOException;
 
-  public abstract CelebornInputStream readPartition(
-      int shuffleId, int partitionId, int attemptNumber) throws IOException;
-
-  public abstract boolean unregisterShuffle(int shuffleId, boolean isDriver);
+  public abstract boolean cleanupShuffle(int shuffleId);
 
   public abstract void shutdown();
 

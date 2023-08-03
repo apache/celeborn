@@ -93,7 +93,7 @@ trait ReadWriteTestBase extends AnyFunSuite
 
     shuffleClient.mapperEnd(1, 0, 0, 1)
 
-    val inputStream = shuffleClient.readPartition(1, 0, 0)
+    val inputStream = shuffleClient.readPartition(1, 0, 0, 0, Integer.MAX_VALUE)
     val outputStream = new ByteArrayOutputStream()
 
     var b = inputStream.read()

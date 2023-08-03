@@ -28,6 +28,7 @@ import java.util.function.{BiConsumer, IntUnaryOperator}
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
+import io.netty.buffer.PooledByteBufAllocator
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.iq80.leveldb.DB
@@ -38,9 +39,10 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
@@ -96,6 +98,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private val deviceMonitor =
     DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos, workerSource)
 
+  private val byteBufAllocator: PooledByteBufAllocator =
+    NettyUtils.getPooledByteBufAllocator(new TransportConf("StorageManager", conf), null, true)
   // (mountPoint -> LocalFlusher)
   private val (
     localFlushers: ConcurrentHashMap[String, LocalFlusher],
@@ -108,6 +112,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           workerSource,
           deviceMonitor,
           diskInfo.threadCount,
+          byteBufAllocator,
           conf.workerPushMaxComponents,
           diskInfo.mountPoint,
           diskInfo.storageType,
@@ -132,6 +137,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         Some(new HdfsFlusher(
           workerSource,
           conf.workerHdfsFlusherThreads,
+          byteBufAllocator,
           conf.workerPushMaxComponents)),
         conf.workerHdfsFlusherThreads)
     } else {
@@ -597,18 +603,25 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     false
   }
 
-  def close(): Unit = {
+  def close(exitKind: Int): Unit = {
     if (db != null) {
-      try {
-        updateFileInfosInDB()
-        db.close()
-      } catch {
-        case exception: Exception =>
-          logError("Store recover data to LevelDB failed.", exception)
+      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        try {
+          updateFileInfosInDB()
+          db.close()
+        } catch {
+          case exception: Exception =>
+            logError("Store recover data to LevelDB failed.", exception)
+        }
+      } else {
+        if (db != null) {
+          db.close()
+          new File(conf.workerGracefulShutdownRecoverPath, RECOVERY_FILE_NAME).delete()
+        }
       }
     }
     if (null != diskOperators) {
-      if (!conf.workerGracefulShutdown) {
+      if (exitKind != CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         cleanupExpiredShuffleKey(shuffleKeySet())
       }
       ThreadUtils.parmap(

@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.util.*;
+import org.apache.celeborn.common.util.CelebornExitKind;
 import org.apache.celeborn.common.util.JavaUtils;
 
 /** Server for the efficient, low-level streaming service. */
@@ -130,16 +131,28 @@ public class TransportServer implements Closeable {
 
   @Override
   public void close() {
+    shutdown(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+  }
+
+  public void shutdown(int exitKind) {
     if (channelFuture != null) {
       // close is a local operation and should finish within milliseconds; timeout just to be safe
       channelFuture.channel().close().awaitUninterruptibly(10, TimeUnit.SECONDS);
       channelFuture = null;
     }
     if (bootstrap != null && bootstrap.config().group() != null) {
-      bootstrap.config().group().shutdownGracefully();
+      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN()) {
+        bootstrap.config().group().shutdownGracefully();
+      } else {
+        bootstrap.config().group().shutdownGracefully(0, 0, TimeUnit.SECONDS);
+      }
     }
     if (bootstrap != null && bootstrap.config().childGroup() != null) {
-      bootstrap.config().childGroup().shutdownGracefully();
+      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN()) {
+        bootstrap.config().childGroup().shutdownGracefully();
+      } else {
+        bootstrap.config().childGroup().shutdownGracefully(0, 0, TimeUnit.SECONDS);
+      }
     }
     bootstrap = null;
   }

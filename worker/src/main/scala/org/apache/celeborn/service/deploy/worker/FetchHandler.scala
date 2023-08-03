@@ -27,6 +27,7 @@ import com.google.common.base.Throwables
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
@@ -36,12 +37,15 @@ import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.PartitionType
-import org.apache.celeborn.common.util.ExceptionUtils
+import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
 class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   extends BaseMessageHandler with Logging {
-  var chunkStreamManager = new ChunkStreamManager()
+
+  val chunkStreamManager = new ChunkStreamManager()
+  val maxChunkBeingTransferred: Option[Long] = conf.shuffleIoMaxChunksBeingTransferred
+
   val creditStreamManager = new CreditStreamManager(
     conf.partitionReadBuffersMin,
     conf.partitionReadBuffersMax,
@@ -214,51 +218,61 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
-    val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred
-    if (chunksBeingTransferred > conf.shuffleIoMaxChunksBeingTransferred) {
-      val message = "Worker is too busy. The number of chunks being transferred " +
-        s"$chunksBeingTransferred exceeds celeborn.shuffle.maxChunksBeingTransferred " +
-        s"${conf.shuffleIoMaxChunksBeingTransferred}."
-      logError(message)
-      client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice, message))
-    } else {
-      workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
-      val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(req.streamChunkSlice.streamId)
-      val fetchBeginTime = System.nanoTime()
-      try {
-        val buf = chunkStreamManager.getChunk(
-          req.streamChunkSlice.streamId,
-          req.streamChunkSlice.chunkIndex,
-          req.streamChunkSlice.offset,
-          req.streamChunkSlice.len)
-        chunkStreamManager.chunkBeingSent(req.streamChunkSlice.streamId)
-        client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
-          .addListener(new GenericFutureListener[Future[_ >: Void]] {
-            override def operationComplete(future: Future[_ >: Void]): Unit = {
-              chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
-              if (fetchTimeMetric != null) {
-                fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
-              }
-              workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
-            }
-          })
-      } catch {
-        case e: Exception =>
-          logError(
-            s"Error opening block ${req.streamChunkSlice} for request from " +
-              NettyUtils.getRemoteAddress(client.getChannel),
-            e)
-          client.getChannel.writeAndFlush(new ChunkFetchFailure(
-            req.streamChunkSlice,
-            Throwables.getStackTraceAsString(e)))
-          workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+    maxChunkBeingTransferred.foreach { threshold =>
+      val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred // take high cpu usage
+      if (chunksBeingTransferred > threshold) {
+        val message = "Worker is too busy. The number of chunks being transferred " +
+          s"$chunksBeingTransferred exceeds ${MAX_CHUNKS_BEING_TRANSFERRED.key} " +
+          s"${Utils.bytesToString(threshold)}."
+        logError(message)
+        client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice, message))
+        return
       }
+    }
+
+    workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+    val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(req.streamChunkSlice.streamId)
+    val fetchBeginTime = System.nanoTime()
+    try {
+      val buf = chunkStreamManager.getChunk(
+        req.streamChunkSlice.streamId,
+        req.streamChunkSlice.chunkIndex,
+        req.streamChunkSlice.offset,
+        req.streamChunkSlice.len)
+      chunkStreamManager.chunkBeingSent(req.streamChunkSlice.streamId)
+      client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
+        .addListener(new GenericFutureListener[Future[_ >: Void]] {
+          override def operationComplete(future: Future[_ >: Void]): Unit = {
+            chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
+            if (fetchTimeMetric != null) {
+              fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
+            }
+            workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+          }
+        })
+    } catch {
+      case e: Exception =>
+        logError(
+          s"Error opening block ${req.streamChunkSlice} for request from " +
+            NettyUtils.getRemoteAddress(client.getChannel),
+          e)
+        client.getChannel.writeAndFlush(new ChunkFetchFailure(
+          req.streamChunkSlice,
+          Throwables.getStackTraceAsString(e)))
+        workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
     }
   }
 
   override def checkRegistered: Boolean = registered.get
 
+  /** Invoked when the channel associated with the given client is active. */
+  override def channelActive(client: TransportClient): Unit = {
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT)
+    super.channelActive(client)
+  }
+
   override def channelInactive(client: TransportClient): Unit = {
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT, -1)
     creditStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }

@@ -139,7 +139,7 @@ public class MasterClient {
     LOG.debug("Send rpc message " + message);
     RpcEndpointRef endpointRef = null;
     // Use AtomicInteger or Integer or any Object which holds an int value is ok, we just need to
-    // transfer a object to get the change of the current index of master addresses.
+    // transfer an object to get the change of the current index of master addresses.
     AtomicInteger currentMasterIdx = new AtomicInteger(0);
 
     long sleepLimitTime = 2000; // 2s

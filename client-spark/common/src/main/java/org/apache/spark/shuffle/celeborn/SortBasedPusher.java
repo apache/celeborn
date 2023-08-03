@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
+import org.apache.celeborn.client.write.PushTask;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -43,6 +45,8 @@ import org.apache.celeborn.common.util.Utils;
 public class SortBasedPusher extends MemoryConsumer {
 
   private static final Logger logger = LoggerFactory.getLogger(SortBasedPusher.class);
+
+  private static final int UAO_SIZE = UnsafeAlignedOffset.getUaoSize();
 
   /** Peak memory used by this sorter so far, in bytes. * */
   private long peakMemoryUsedBytes;
@@ -56,29 +60,24 @@ public class SortBasedPusher extends MemoryConsumer {
   private DataPusher dataPusher;
   private final int pushBufferMaxSize;
   private final long pushSortMemoryThreshold;
-  final int uaoSize = UnsafeAlignedOffset.getUaoSize();
-
-  String appId;
-  int shuffleId;
-  int mapId;
-  int attemptNumber;
-  long taskAttemptId;
-  int numMappers;
-  int numPartitions;
-  CelebornConf conf;
-  Consumer<Integer> afterPush;
-  LongAdder[] mapStatusLengths;
+  private final int shuffleId;
+  private final int mapId;
+  private final int attemptNumber;
+  private final int numMappers;
+  private final int numPartitions;
+  private final Consumer<Integer> afterPush;
+  private final LongAdder[] mapStatusLengths;
   // this lock is shared between different SortBasedPushers to synchronize pushData
-  final Object sharedPushLock;
-  volatile boolean asyncPushing = false;
-  int[] shuffledPartitions = null;
-  int[] inversedShuffledPartitions = null;
-  ExecutorService executorService;
+  private final Object sharedPushLock;
+  private volatile boolean asyncPushing = false;
+  private int[] shuffledPartitions = null;
+  private int[] inversedShuffledPartitions = null;
+  private final ExecutorService executorService;
+  private final SendBufferPool sendBufferPool;
 
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
       ShuffleClient shuffleClient,
-      String appId,
       int shuffleId,
       int mapId,
       int attemptNumber,
@@ -90,7 +89,8 @@ public class SortBasedPusher extends MemoryConsumer {
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
       Object sharedPushLock,
-      ExecutorService executorService) {
+      ExecutorService executorService,
+      SendBufferPool sendBufferPool) {
     super(
         memoryManager,
         (int) Math.min(PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES, memoryManager.pageSizeBytes()),
@@ -98,11 +98,9 @@ public class SortBasedPusher extends MemoryConsumer {
 
     this.shuffleClient = shuffleClient;
 
-    this.appId = appId;
     this.shuffleId = shuffleId;
     this.mapId = mapId;
     this.attemptNumber = attemptNumber;
-    this.taskAttemptId = taskAttemptId;
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
 
@@ -112,11 +110,13 @@ public class SortBasedPusher extends MemoryConsumer {
       JavaUtils.shuffleArray(shuffledPartitions, inversedShuffledPartitions);
     }
 
-    this.conf = conf;
     this.afterPush = afterPush;
     this.mapStatusLengths = mapStatusLengths;
 
+    this.sendBufferPool = sendBufferPool;
+
     try {
+      LinkedBlockingQueue<PushTask> pushTaskQueue = sendBufferPool.acquirePushTaskQueue();
       dataPusher =
           new DataPusher(
               shuffleId,
@@ -127,6 +127,7 @@ public class SortBasedPusher extends MemoryConsumer {
               numPartitions,
               conf,
               shuffleClient,
+              pushTaskQueue,
               afterPush,
               mapStatusLengths);
     } catch (InterruptedException e) {
@@ -193,7 +194,7 @@ public class SortBasedPusher extends MemoryConsumer {
           offSet = 0;
         }
 
-        long recordReadPosition = recordOffsetInPage + uaoSize;
+        long recordReadPosition = recordOffsetInPage + UAO_SIZE;
         Platform.copyMemory(
             recordPage,
             recordReadPosition,
@@ -223,9 +224,9 @@ public class SortBasedPusher extends MemoryConsumer {
     int required;
     // Need 4 or 8 bytes to store the record recordSize.
     if (copySize) {
-      required = recordSize + 4 + uaoSize;
+      required = recordSize + 4 + UAO_SIZE;
     } else {
-      required = recordSize + uaoSize;
+      required = recordSize + UAO_SIZE;
     }
 
     if (getUsed() > pushSortMemoryThreshold
@@ -245,14 +246,14 @@ public class SortBasedPusher extends MemoryConsumer {
     final long recordAddress = taskMemoryManager.encodePageNumberAndOffset(currentPage, pageCursor);
     if (copySize) {
       UnsafeAlignedOffset.putSize(base, pageCursor, recordSize + 4);
-      pageCursor += uaoSize;
+      pageCursor += UAO_SIZE;
       Platform.putInt(base, pageCursor, Integer.reverseBytes(recordSize));
       pageCursor += 4;
       Platform.copyMemory(recordBase, recordOffset, base, pageCursor, recordSize);
       pageCursor += recordSize;
     } else {
       UnsafeAlignedOffset.putSize(base, pageCursor, recordSize);
-      pageCursor += uaoSize;
+      pageCursor += UAO_SIZE;
       Platform.copyMemory(recordBase, recordOffset, base, pageCursor, recordSize);
       pageCursor += recordSize;
     }
@@ -444,6 +445,7 @@ public class SortBasedPusher extends MemoryConsumer {
     cleanupResources();
     try {
       dataPusher.waitOnTermination();
+      sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
     }

@@ -72,11 +72,26 @@ copyright: >
   <br>
 
 nav:
-  - Configuration: configuration/index.md
+  - QuickStart: README.md
   - Deployment:
       - Overview: deploy.md
       - Kubernetes: deploy_on_k8s.md
+      - Monitoring: monitoring.md
+      - Upgrading: upgrading.md
       - Ratis Shell: celeborn_ratis_shell.md
-  - Monitoring: monitoring.md
+  - Configuration: configuration/index.md
   - Migration Guide: migration.md
-  - Upgrade: upgrade.md
+  - Developers Doc:
+      - Overview: developers/overview.md
+      - Master: developers/master.md
+      - Worker:
+        - Overview: developers/worker.md
+        - Storage: developers/storage.md
+        - Traffic Control: developers/trafficcontrol.md
+      - Client:
+        - Overview: developers/client.md
+        - LifecycleManager: developers/lifecyclemanager.md
+        - ShuffleClient: developers/shuffleclient.md
+      - Fault Tolerant: developers/faulttolerant.md
+      - Worker Exclusion: developers/workerexclusion.md
+      - Integrating Celeborn: developers/integrate.md

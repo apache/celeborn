@@ -15,13 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn;
+package org.apache.celeborn.common.util
 
-import org.apache.spark.SparkConf;
-
-public class RssShuffleManager extends SparkShuffleManager {
-
-  public RssShuffleManager(SparkConf conf) {
-    super(conf);
-  }
+private[celeborn] object CelebornExitKind {
+  val EXIT_IMMEDIATELY = 0
+  val WORKER_GRACEFUL_SHUTDOWN = 1
+  val WORKER_DECOMMISSION = 2
 }
