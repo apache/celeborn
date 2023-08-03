@@ -118,7 +118,7 @@ private[celeborn] class Master(
 
   private def diskReserveSize = conf.workerDiskReserveSize
 
-  private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
+  private val slotsAssignMaxWorkers = conf.slotAssignMaxWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
   private val slotsAssignLoadAwareDiskGroupGradient =
     conf.masterSlotAssignLoadAwareDiskGroupGradient
@@ -303,7 +303,7 @@ private[celeborn] class Master(
           userResourceConsumption,
           requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
@@ -558,7 +558,11 @@ private[celeborn] class Master(
 
     var availableWorkers = workersAvailable()
     Collections.shuffle(availableWorkers)
-    val numWorkers = Math.max(if (requestSlots.shouldReplicate) 2 else 1, slotsAssignMaxWorkers)
+    val numWorkers = Math.min(
+      Math.max(
+        if (requestSlots.shouldReplicate) 2 else 1,
+        if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers else requestSlots.maxWorkers),
+      availableWorkers.size())
     availableWorkers =
       if (availableWorkers.size() > numWorkers)
         availableWorkers.subList(0, numWorkers)
