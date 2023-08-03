@@ -2261,7 +2261,8 @@ object CelebornConf extends Logging {
   val WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync")
       .categories("worker")
-      .doc("Whether to call sync method to save committed file infos into Level DB to handle OS crash.")
+      .doc(
+        "Whether to call sync method to save committed file infos into Level DB to handle OS crash.")
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
