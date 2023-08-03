@@ -290,7 +290,10 @@ public abstract class FileWriter implements DeviceObserver {
         deviceMonitor.unregisterFileWriter(this);
       }
     }
-    storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), fileInfo);
+    // For UT
+    if (storageManager != null) {
+      storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), fileInfo);
+    }
     return fileInfo.getFileLength();
   }
 
