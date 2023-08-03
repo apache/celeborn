@@ -563,10 +563,7 @@ private[celeborn] class Master(
         if (requestSlots.shouldReplicate) 2 else 1,
         if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers else requestSlots.maxWorkers),
       availableWorkers.size())
-    availableWorkers =
-      if (availableWorkers.size() > numWorkers)
-        availableWorkers.subList(0, numWorkers)
-      else availableWorkers
+    availableWorkers = availableWorkers.subList(0, numWorkers)
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
