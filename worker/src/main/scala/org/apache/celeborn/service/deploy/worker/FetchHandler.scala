@@ -215,20 +215,12 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           }
         case PartitionType.MAP =>
           val creditStreamHandler =
-            if (isLegacy) {
-              new Consumer[java.lang.Long] {
-                override def accept(streamId: java.lang.Long): Unit = {
-                  replyLegacyStreamHandler(client, request.requestId, new StreamHandle(streamId, 0))
-                }
-              }
-            } else {
-              new Consumer[lang.Long] {
-                override def accept(streamId: lang.Long): Unit = {
-                  val streamHandler = PbStreamHandler.newBuilder().setStreamId(streamId).build()
-                  replyPbStreamHandler(client, request.requestId, streamHandler)
-                }
+            new Consumer[java.lang.Long] {
+              override def accept(streamId: java.lang.Long): Unit = {
+                replyStreamHandler(client, request.requestId, streamId, 0, isLegacy)
               }
             }
+
           creditStreamManager.registerStream(
             creditStreamHandler,
             client.getChannel,
@@ -251,34 +243,17 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       numChunks: Int,
       isLegacy: Boolean): Unit = {
     if (isLegacy) {
-      replyLegacyStreamHandler(client, requestId, new StreamHandle(streamId, numChunks))
-    } else {
-      replyPbStreamHandler(
-        client,
+      client.getChannel.writeAndFlush(new RpcResponse(
         requestId,
-        PbStreamHandler.newBuilder.setStreamId(streamId).setNumChunks(numChunks).build)
+        new NioManagedBuffer(new StreamHandle(streamId, numChunks).toByteBuffer)))
+    } else {
+      client.getChannel.writeAndFlush(new RpcResponse(
+        requestId,
+        new NioManagedBuffer(new TransportMessage(
+          MessageType.STREAM_HANDLER,
+          PbStreamHandler.newBuilder.setStreamId(streamId).setNumChunks(
+            numChunks).build.toByteArray).toByteBuffer)))
     }
-  }
-
-  private def replyPbStreamHandler(
-      client: TransportClient,
-      requestId: Long,
-      streamHandle: PbStreamHandler): Unit = {
-    client.getChannel.writeAndFlush(new RpcResponse(
-      requestId,
-      new NioManagedBuffer(new TransportMessage(
-        MessageType.STREAM_HANDLER,
-        streamHandle.toByteArray).toByteBuffer)))
-  }
-
-  @deprecated
-  private def replyLegacyStreamHandler(
-      client: TransportClient,
-      requestId: Long,
-      streamHandle: StreamHandle): Unit = {
-    client.getChannel.writeAndFlush(new RpcResponse(
-      requestId,
-      new NioManagedBuffer(streamHandle.toByteBuffer)))
   }
 
   private def handleRpcIOException(
