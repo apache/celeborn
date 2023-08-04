@@ -352,7 +352,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
         }
         if (workerGracefulShutdown) {
-          hdfsWriter.setShuffleKeyAndStorageManagerWhenGracefulShutdownIsEnabled(shuffleKey, this)
+          hdfsWriter.setStorageManager(this)
+          hdfsWriter.setShuffleKey(shuffleKey)
         }
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.put(fileInfo.getFilePath, hdfsWriter)
@@ -398,7 +399,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
           }
           if (workerGracefulShutdown) {
-            fileWriter.setShuffleKeyAndStorageManagerWhenGracefulShutdownIsEnabled(shuffleKey, this)
+            fileWriter.setStorageManager(this)
+            fileWriter.setShuffleKey(shuffleKey)
           }
           deviceMonitor.registerFileWriter(fileWriter)
           val map = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
@@ -789,7 +791,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  def notifyFileInfoCommittedWhenGracefulShutdownIsEnabled(
+  def notifyFileInfoCommitted(
       shuffleKey: String,
       fileName: String,
       fileInfo: FileInfo): Unit = {

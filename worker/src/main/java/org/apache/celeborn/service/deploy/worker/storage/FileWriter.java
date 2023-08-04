@@ -81,7 +81,7 @@ public abstract class FileWriter implements DeviceObserver {
   protected boolean deleted = false;
   private RoaringBitmap mapIdBitMap = null;
   protected final FlushNotifier notifier = new FlushNotifier();
-  // It's only needed when graceful shutdown is enabled, no need to add it into constructor
+  // It's only needed when graceful shutdown is enabled
   private String shuffleKey;
   private StorageManager storageManager;
   private boolean workerGracefulShutdown;
@@ -294,8 +294,7 @@ public abstract class FileWriter implements DeviceObserver {
       }
     }
     if (workerGracefulShutdown) {
-      storageManager.notifyFileInfoCommittedWhenGracefulShutdownIsEnabled(
-          shuffleKey, getFile().getName(), fileInfo);
+      storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), fileInfo);
     }
     return fileInfo.getFileLength();
   }
@@ -450,9 +449,11 @@ public abstract class FileWriter implements DeviceObserver {
     return partitionType;
   }
 
-  public void setShuffleKeyAndStorageManagerWhenGracefulShutdownIsEnabled(
-      String shuffleKey, StorageManager storageManager) {
+  public void setShuffleKey(String shuffleKey) {
     this.shuffleKey = shuffleKey;
+  }
+
+  public void setStorageManager(StorageManager storageManager) {
     this.storageManager = storageManager;
   }
 }
