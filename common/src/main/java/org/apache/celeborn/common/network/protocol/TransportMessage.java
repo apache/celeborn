@@ -58,7 +58,7 @@ public class TransportMessage implements Serializable {
     return payload;
   }
 
-  public <T extends GeneratedMessageV3> T getPayLoad() throws InvalidProtocolBufferException {
+  public <T extends GeneratedMessageV3> T getParsedPayload() throws InvalidProtocolBufferException {
     switch (messageTypeValue) {
       case OPEN_STREAM_VALUE:
         return (T) PbOpenStream.parseFrom(payload);
@@ -81,14 +81,14 @@ public class TransportMessage implements Serializable {
   }
 
   public static TransportMessage fromByteBuffer(ByteBuffer buffer) throws CelebornIOException {
-    int type = buffer.getInt();
-    if (MessageType.forNumber(type) == null) {
+    int messageTypeValue = buffer.getInt();
+    if (MessageType.forNumber(messageTypeValue) == null) {
       throw new CelebornIOException("Decode failed, fallback to legacy messages.");
     }
     int payloadLen = buffer.getInt();
     byte[] payload = new byte[payloadLen];
     buffer.get(payload);
-    MessageType msgType = MessageType.forNumber(type);
+    MessageType msgType = MessageType.forNumber(messageTypeValue);
     return new TransportMessage(msgType, payload);
   }
 }

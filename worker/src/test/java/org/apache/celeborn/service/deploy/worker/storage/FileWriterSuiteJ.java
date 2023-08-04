@@ -211,7 +211,7 @@ public class FileWriterSuiteJ {
 
   private void setUpConn(TransportClient client) throws IOException, CelebornException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
-    PbStreamHandler streamHandle = TransportMessage.fromByteBuffer(resp).getPayLoad();
+    PbStreamHandler streamHandle = TransportMessage.fromByteBuffer(resp).getParsedPayload();
     streamId = streamHandle.getStreamId();
     numChunks = streamHandle.getNumChunks();
   }

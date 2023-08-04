@@ -17,9 +17,9 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.{lang, util}
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
-import java.util
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
@@ -97,7 +97,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
         // 1. parse transportMessage
         try {
           val pbMsg = TransportMessage.fromByteBuffer(r.body().nioByteBuffer())
-          val pbOpenStream = pbMsg.getPayLoad[PbOpenStream]
+          val pbOpenStream = pbMsg.getParsedPayload[PbOpenStream]
           handleOpenStream(client, r.requestId, pbOpenStream, () => r.body().release())
         } catch {
           case _: Exception =>
@@ -111,79 +111,123 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     }
   }
 
+  private def handleOpenStreamInternal(
+      client: TransportClient,
+      shuffleKey: String,
+      fileName: String,
+      startIndex: Int,
+      endIndex: Int,
+      initialCredit: Int,
+      creditStreamHandler: Consumer[java.lang.Long]): (Long, Int) = {
+    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+    var fileInfo = getRawFileInfo(shuffleKey, fileName)
+    fileInfo.getPartitionType match {
+      case PartitionType.REDUCE =>
+        if (endIndex != Integer.MAX_VALUE) {
+          fileInfo = partitionsSorter.getSortedFileInfo(
+            shuffleKey,
+            fileName,
+            fileInfo,
+            startIndex,
+            endIndex)
+        }
+        logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
+          s"$startIndex $endIndex get file info $fileInfo")
+        if (fileInfo.isHdfs) {
+          (0, 0)
+        } else {
+          val buffers = new FileManagedBuffers(fileInfo, transportConf)
+          val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
+          val streamId = chunkStreamManager.registerStream(
+            shuffleKey,
+            buffers,
+            fetchTimeMetrics)
+          (streamId, fileInfo.numChunks())
+        }
+      case PartitionType.MAP =>
+        creditStreamManager.registerStream(
+          creditStreamHandler,
+          client.getChannel,
+          initialCredit,
+          startIndex,
+          endIndex,
+          fileInfo)
+        (-1, -1)
+      case PartitionType.MAPGROUP =>
+        (-1, -1)
+    }
+  }
+
   def handleOpenStream(
       client: TransportClient,
       requestId: Long,
       msg: PbOpenStream,
       releaseFunc: () => Unit): Unit = {
-    val (shuffleKey, fileName) = (msg.getShuffleKey, msg.getFileName)
+    val (shuffleKey, fileName, startIndex, endIndex, initialCredit) =
+      (msg.getShuffleKey, msg.getFileName, msg.getStartIndex, msg.getEndIndex, msg.getInitialCredit)
     try {
-      var fileInfo = getRawFileInfo(shuffleKey, fileName)
-      try fileInfo.getPartitionType match {
-        case PartitionType.REDUCE =>
-          val (startMapIndex, endMapIndex) = (msg.getStartIndex, msg.getEndIndex)
-          if (endMapIndex != Integer.MAX_VALUE) {
-            fileInfo = partitionsSorter.getSortedFileInfo(
-              shuffleKey,
-              fileName,
-              fileInfo,
-              startMapIndex,
-              endMapIndex)
+      val (streamId, numChunks) = handleOpenStreamInternal(
+        client,
+        shuffleKey,
+        fileName,
+        startIndex,
+        endIndex,
+        initialCredit,
+        new Consumer[lang.Long] {
+          override def accept(streamId: lang.Long): Unit = {
+            val streamHandler = PbStreamHandler.newBuilder().setStreamId(streamId).build()
+            replyStreamHandler(client, requestId, streamHandler)
           }
-          logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
-            s"$startMapIndex $endMapIndex get file info $fileInfo")
-          if (fileInfo.isHdfs) {
-            val streamHandle = PbStreamHandler.newBuilder().build();
-            replyStreamHandler(client, requestId, streamHandle)
-          } else {
-            val buffers = new FileManagedBuffers(fileInfo, transportConf)
-            val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
-            val streamId = chunkStreamManager.registerStream(
-              shuffleKey,
-              buffers,
-              fetchTimeMetrics)
-            val streamHandle = PbStreamHandler.newBuilder().setStreamId(streamId).setNumChunks(
-              fileInfo.numChunks()).build()
-            if (fileInfo.numChunks() == 0)
-              logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
-                s" $startMapIndex endMapIndex $endMapIndex is empty.")
-            else logDebug(
-              s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks()} " +
-                s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
-            replyStreamHandler(client, requestId, streamHandle)
-          }
-        case PartitionType.MAP =>
-          val (initialCredit, startIndex, endIndex) =
-            (msg.getInitialCredit, msg.getStartIndex, msg.getEndIndex)
-
-          val callback = new Consumer[java.lang.Long] {
-            override def accept(streamId: java.lang.Long): Unit = {
-              val streamHandler = PbStreamHandler.newBuilder().setStreamId(streamId).build()
-              replyStreamHandler(client, requestId, streamHandler)
-            }
-          }
-
-          creditStreamManager.registerStream(
-            callback,
-            client.getChannel,
-            initialCredit,
-            startIndex,
-            endIndex,
-            fileInfo)
-
-        case PartitionType.MAPGROUP =>
-      } catch {
-        case e: IOException =>
-          handleRpcIOException(client, requestId, e)
-      } finally {
-        // metrics end
-        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
-        releaseFunc()
-      }
+        })
+      replyStreamHandler(client, requestId, fileName, startIndex, endIndex, streamId, numChunks)
     } catch {
-      case ioe: IOException =>
-        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
-        handleRpcIOException(client, requestId, ioe)
+      case e: IOException =>
+        handleRpcIOException(client, requestId, e)
+    } finally {
+      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+      releaseFunc()
+    }
+  }
+
+  private def replyStreamHandler(
+      client: TransportClient,
+      requestId: Long,
+      fileName: String,
+      startIndex: Int,
+      endIndex: Int,
+      streamId: Long,
+      numChunks: Int,
+      legacy: Boolean = false): Unit = {
+    var streamHandler: PbStreamHandler = null
+    var legacyStreamHandler: StreamHandle = null
+    if (streamId == 0) {
+      // read from HDFS return empty stream handler
+      if (legacy) {
+        legacyStreamHandler = new StreamHandle(0, 0)
+      } else {
+        streamHandler = PbStreamHandler.newBuilder().build();
+      }
+    } else if (streamId == -1) {
+      // creditStream will handle this open stream
+    } else {
+      if (numChunks == 0)
+        logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
+          s" $startIndex endMapIndex $endIndex is empty.")
+      else logDebug(
+        s"StreamId $streamId fileName $fileName numChunks ${numChunks} " +
+          s"startMapIndex $startIndex endMapIndex $endIndex")
+      if (legacy) {
+        legacyStreamHandler = new StreamHandle(streamId, numChunks)
+      } else {
+        streamHandler = PbStreamHandler.newBuilder().setStreamId(streamId).setNumChunks(
+          numChunks).build()
+      }
+    }
+    if (streamHandler != null) {
+      replyStreamHandler(client, requestId, streamHandler)
+    }
+    if (legacyStreamHandler != null) {
+      replyLegacyStreamHandler(client, requestId, legacyStreamHandler)
     }
   }
 
@@ -224,76 +268,50 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           new String(openStreamWithCredit.shuffleKey, StandardCharsets.UTF_8),
           new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
       }
-    // metrics start
-    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
-    try {
-      var fileInfo = getRawFileInfo(shuffleKey, fileName)
-      try fileInfo.getPartitionType match {
-        case PartitionType.REDUCE =>
-          val startMapIndex = msg.asInstanceOf[OpenStream].startMapIndex
-          val endMapIndex = msg.asInstanceOf[OpenStream].endMapIndex
-          if (endMapIndex != Integer.MAX_VALUE) {
-            fileInfo = partitionsSorter.getSortedFileInfo(
-              shuffleKey,
-              fileName,
-              fileInfo,
-              startMapIndex,
-              endMapIndex)
-          }
-          logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
-            s"$startMapIndex $endMapIndex get file info $fileInfo")
-          if (fileInfo.isHdfs) {
-            replyLegacyStreamHandler(client, request.requestId, new StreamHandle(0, 0))
-          } else {
-            val buffers = new FileManagedBuffers(fileInfo, transportConf)
-            val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
-            val streamId = chunkStreamManager.registerStream(
-              shuffleKey,
-              buffers,
-              fetchTimeMetrics)
-            if (fileInfo.numChunks() == 0)
-              logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
-                s" $startMapIndex endMapIndex $endMapIndex is empty.")
-            else logDebug(
-              s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks()} " +
-                s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
-            replyLegacyStreamHandler(
-              client,
-              request.requestId,
-              new StreamHandle(streamId, fileInfo.numChunks()))
-          }
-        case PartitionType.MAP =>
-          val initialCredit = msg.asInstanceOf[OpenStreamWithCredit].initialCredit
-          val startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
-          val endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
-
-          val callback = new Consumer[java.lang.Long] {
-            override def accept(streamId: java.lang.Long): Unit = {
-              replyLegacyStreamHandler(client, request.requestId, new StreamHandle(streamId, 0))
-            }
-          }
-
-          creditStreamManager.registerStream(
-            callback,
-            client.getChannel,
-            initialCredit,
-            startIndex,
-            endIndex,
-            fileInfo)
-
-        case PartitionType.MAPGROUP =>
-      } catch {
-        case e: IOException =>
-          handleRpcIOException(client, request.requestId, e)
-      } finally {
-        // metrics end
-        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
-        request.body().release()
+    var startIndex = 0
+    var endIndex = 0
+    var initialCredit = 0
+    val creditStreamHandler = new Consumer[java.lang.Long] {
+      override def accept(streamId: java.lang.Long): Unit = {
+        replyLegacyStreamHandler(client, request.requestId, new StreamHandle(streamId, 0))
       }
+    }
+
+    // metrics start
+    getRawFileInfo(shuffleKey, fileName).getPartitionType match {
+      case PartitionType.REDUCE =>
+        startIndex = msg.asInstanceOf[OpenStream].startMapIndex
+        endIndex = msg.asInstanceOf[OpenStream].endMapIndex
+      case PartitionType.MAP =>
+        initialCredit = msg.asInstanceOf[OpenStreamWithCredit].initialCredit
+        startIndex = msg.asInstanceOf[OpenStreamWithCredit].startIndex
+        endIndex = msg.asInstanceOf[OpenStreamWithCredit].endIndex
+      case PartitionType.MAPGROUP =>
+    }
+    try {
+      val (streamId, numChunks) = handleOpenStreamInternal(
+        client,
+        shuffleKey,
+        fileName,
+        startIndex,
+        endIndex,
+        initialCredit,
+        creditStreamHandler)
+      replyStreamHandler(
+        client,
+        request.requestId,
+        fileName,
+        startIndex,
+        endIndex,
+        streamId,
+        numChunks,
+        true)
     } catch {
-      case ioe: IOException =>
-        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
-        handleRpcIOException(client, request.requestId, ioe)
+      case e: IOException =>
+        handleRpcIOException(client, request.requestId, e)
+    } finally {
+      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+      request.body().release()
     }
   }
 

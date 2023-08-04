@@ -118,7 +118,7 @@ public class WorkerPartitionReader implements PartitionReader {
                 .build()
                 .toByteArray());
     ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
-    streamHandle = TransportMessage.fromByteBuffer(response).getPayLoad();
+    streamHandle = TransportMessage.fromByteBuffer(response).getParsedPayload();
 
     this.location = location;
     this.clientFactory = clientFactory;

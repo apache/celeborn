@@ -89,7 +89,7 @@ public class DfsPartitionReader implements PartitionReader {
                     .build()
                     .toByteArray());
         ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
-        TransportMessage.fromByteBuffer(response).getPayLoad();
+        TransportMessage.fromByteBuffer(response).getParsedPayload();
         // Parse this message to ensure sort is done.
       } catch (IOException | InterruptedException e) {
         throw new IOException(
