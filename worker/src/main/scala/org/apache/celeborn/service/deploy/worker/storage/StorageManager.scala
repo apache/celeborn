@@ -21,7 +21,7 @@ import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.{BiConsumer, IntUnaryOperator}
 
@@ -202,10 +202,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     saveCommittedFileInfosExecutor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
         "StorageManager-save-committed-fileinfo-thread")
-    saveCommittedFileInfosExecutor.schedule(
+    saveCommittedFileInfosExecutor.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = {
           if (!committedFileInfos.isEmpty) {
+            logInfo(s"Save committed fileinfo with ${committedFileInfos.size()} shuffle keys")
             committedFileInfos.asScala.foreach { case (shuffleKey, files) =>
               db.put(
                 dbShuffleKey(shuffleKey),
@@ -215,6 +216,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         }
       },
+      saveCommittedFileInfoInterval,
       saveCommittedFileInfoInterval,
       TimeUnit.MILLISECONDS)
   }
@@ -494,7 +496,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     isHdfsExpired
   }
 
-  def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
+  def cleanupExpiredShuffleKey(
+      expiredShuffleKeys: util.HashSet[String],
+      onClose: Boolean = false): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (fileInfos.containsKey(shuffleKey)) {
@@ -527,7 +531,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (db != null) {
           committedFileInfos.remove(shuffleKey)
           // if delete a shuffle key failed, heartbeat from worker will clean it again.
-          db.delete(dbShuffleKey(shuffleKey))
+          if (onClose) {
+            // worker shutdown don't clean expired shuffle because db is closed.
+            db.delete(dbShuffleKey(shuffleKey))
+          }
         }
       }
     }
@@ -665,7 +672,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
     if (null != diskOperators) {
       if (exitKind != CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
-        cleanupExpiredShuffleKey(shuffleKeySet())
+        cleanupExpiredShuffleKey(shuffleKeySet(), true)
       }
       ThreadUtils.parmap(
         diskOperators.asScala.toMap,
