@@ -120,16 +120,27 @@ public class TransportClient implements Closeable {
       int len,
       long fetchDataTimeout,
       ChunkReceivedCallback callback) {
+
+    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(streamId, chunkIndex, offset, len);
     if (logger.isDebugEnabled()) {
       logger.debug(
           "Sending fetch chunk request {} to {}.",
-          chunkIndex,
+          streamChunkSlice,
           NettyUtils.getRemoteAddress(channel));
     }
-
-    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(streamId, chunkIndex, offset, len);
     StdChannelListener listener =
         new StdChannelListener(streamChunkSlice) {
+          @Override
+          public void operationComplete(Future<? super Void> future) throws Exception {
+            if (logger.isDebugEnabled()) {
+              logger.debug(
+                  "Sending fetch chunk {} to {} operation completed",
+                  ((StreamChunkSlice) this.requestId).toString(),
+                  NettyUtils.getRemoteAddress(channel));
+            }
+            super.operationComplete(future);
+          }
+
           @Override
           protected void handleFailure(String errorMsg, Throwable cause) {
             handler.removeFetchRequest(streamChunkSlice);

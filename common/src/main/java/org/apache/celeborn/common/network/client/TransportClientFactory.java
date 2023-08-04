@@ -176,6 +176,9 @@ public class TransportClientFactory implements Closeable {
         }
       }
       clientPool.clients[clientIndex] = internalCreateClient(resolvedAddress, decoder);
+      logger.debug(
+          "local client channel address {}",
+          clientPool.clients[clientIndex].getChannel().localAddress());
       return clientPool.clients[clientIndex];
     }
   }

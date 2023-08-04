@@ -233,6 +233,14 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   @Override
   public void channelInactive() {
     if (numOutstandingRequests() > 0) {
+      if (logger.isDebugEnabled() && outstandingFetches.size() > 0) {
+        for (Map.Entry<StreamChunkSlice, FetchRequestInfo> entry : outstandingFetches.entrySet()) {
+          StreamChunkSlice key = entry.getKey();
+          logger.debug("outstandingFetches: {}", key);
+        }
+      } else {
+        logger.debug("outstandingFetches is empty");
+      }
       String remoteAddress = NettyUtils.getRemoteAddress(channel);
       logger.error(
           "Still have {} requests outstanding when connection from {} is closed",
@@ -262,6 +270,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   public void handle(ResponseMessage message) throws Exception {
     if (message instanceof ChunkFetchSuccess) {
       ChunkFetchSuccess resp = (ChunkFetchSuccess) message;
+      logger.debug("Chunk {} fetch succeeded", resp.streamChunkSlice);
       FetchRequestInfo info = outstandingFetches.remove(resp.streamChunkSlice);
       if (info == null) {
         logger.warn(
@@ -278,6 +287,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof ChunkFetchFailure) {
       ChunkFetchFailure resp = (ChunkFetchFailure) message;
+      logger.error(
+          "chunk {} fetch failed, errorMessage {}", resp.streamChunkSlice, resp.errorString);
       FetchRequestInfo info = outstandingFetches.remove(resp.streamChunkSlice);
       if (info == null) {
         logger.warn(
