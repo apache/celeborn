@@ -147,8 +147,11 @@ public class TransportClientFactory implements Closeable {
       }
 
       if (cachedClient.isActive()) {
-        logger.trace(
-            "Returning cached connection to {}: {}", cachedClient.getSocketAddress(), cachedClient);
+        logger.debug(
+            "Returning cached connection from {} to {}: {}",
+            cachedClient.getChannel().localAddress(),
+            cachedClient.getSocketAddress(),
+            cachedClient);
         return cachedClient;
       }
     }
@@ -169,16 +172,17 @@ public class TransportClientFactory implements Closeable {
 
       if (cachedClient != null) {
         if (cachedClient.isActive()) {
-          logger.trace("Returning cached connection to {}: {}", resolvedAddress, cachedClient);
+          logger.debug(
+              "Returning cached connection from {} to {}: {}",
+              cachedClient.getChannel().localAddress(),
+              resolvedAddress,
+              cachedClient);
           return cachedClient;
         } else {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
       }
       clientPool.clients[clientIndex] = internalCreateClient(resolvedAddress, decoder);
-      logger.debug(
-          "local client channel address {}",
-          clientPool.clients[clientIndex].getChannel().localAddress());
       return clientPool.clients[clientIndex];
     }
   }
@@ -240,7 +244,8 @@ public class TransportClientFactory implements Closeable {
     TransportClient client = clientRef.get();
     assert client != null : "Channel future completed successfully with null client";
 
-    logger.debug("Connection to {} successful", address);
+    logger.debug(
+        "Connection from {} to {} successful", client.getChannel().localAddress(), address);
 
     return client;
   }

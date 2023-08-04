@@ -233,13 +233,16 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   @Override
   public void channelInactive() {
     if (numOutstandingRequests() > 0) {
-      if (logger.isDebugEnabled() && outstandingFetches.size() > 0) {
-        for (Map.Entry<StreamChunkSlice, FetchRequestInfo> entry : outstandingFetches.entrySet()) {
-          StreamChunkSlice key = entry.getKey();
-          logger.debug("outstandingFetches: {}", key);
+      // show the details of outstanding Fetches
+      if (logger.isDebugEnabled()) {
+        if (outstandingFetches.size() > 0) {
+          for (Map.Entry<StreamChunkSlice, FetchRequestInfo> entry : outstandingFetches.entrySet()) {
+            StreamChunkSlice key = entry.getKey();
+            logger.debug("The channel is closed, but there are still outstanding Fetch {}", key);
+          }
+        } else {
+          logger.debug("The channel is closed, the outstanding Fetches are empty");
         }
-      } else {
-        logger.debug("outstandingFetches is empty");
       }
       String remoteAddress = NettyUtils.getRemoteAddress(channel);
       logger.error(

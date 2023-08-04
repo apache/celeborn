@@ -135,7 +135,7 @@ public class TransportClient implements Closeable {
             if (logger.isDebugEnabled()) {
               logger.debug(
                   "Sending fetch chunk {} to {} operation completed",
-                  ((StreamChunkSlice) this.requestId).toString(),
+                  requestId,
                   NettyUtils.getRemoteAddress(channel));
             }
             super.operationComplete(future);
