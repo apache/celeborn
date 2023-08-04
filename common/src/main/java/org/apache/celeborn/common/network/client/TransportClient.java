@@ -131,17 +131,6 @@ public class TransportClient implements Closeable {
     StdChannelListener listener =
         new StdChannelListener(streamChunkSlice) {
           @Override
-          public void operationComplete(Future<? super Void> future) throws Exception {
-            if (logger.isDebugEnabled()) {
-              logger.debug(
-                  "Sending fetch chunk {} to {} operation completed",
-                  requestId,
-                  NettyUtils.getRemoteAddress(channel));
-            }
-            super.operationComplete(future);
-          }
-
-          @Override
           protected void handleFailure(String errorMsg, Throwable cause) {
             handler.removeFetchRequest(streamChunkSlice);
             callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
@@ -319,7 +308,7 @@ public class TransportClient implements Closeable {
       if (future.isSuccess()) {
         if (logger.isTraceEnabled()) {
           long timeTaken = System.currentTimeMillis() - startTime;
-          logger.trace(
+          logger.debug(
               "Sending request {} to {} took {} ms",
               requestId,
               NettyUtils.getRemoteAddress(channel),
