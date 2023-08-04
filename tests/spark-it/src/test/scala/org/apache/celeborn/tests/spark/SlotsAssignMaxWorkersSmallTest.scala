@@ -33,7 +33,7 @@ class SlotsAssignMaxWorkersSmallTest extends AnyFunSuite
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup Celeborn mini cluster")
     val masterConf = Map(
-      s"${CelebornConf.SLOT_ASSIGN_MAX_WORKERS.key}" -> "5")
+      s"${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}" -> "5")
     setUpMiniCluster(masterConf = masterConf, workerConf = null)
   }
 
@@ -48,7 +48,7 @@ class SlotsAssignMaxWorkersSmallTest extends AnyFunSuite
   test("celeborn spark integration test - slots assign maxWorkers small") {
     val sparkConf = new SparkConf()
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
-      .set(s"spark.${CelebornConf.SLOT_ASSIGN_MAX_WORKERS.key}", "1")
+      .set(s"spark.${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}", "1")
       .setAppName("celeborn-demo").setMaster("local[2]")
     val ss = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))

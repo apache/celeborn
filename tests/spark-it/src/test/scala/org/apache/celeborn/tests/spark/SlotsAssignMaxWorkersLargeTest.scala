@@ -33,7 +33,7 @@ class SlotsAssignMaxWorkersLargeTest extends AnyFunSuite
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup Celeborn mini cluster")
     val masterConf = Map(
-      s"${CelebornConf.SLOT_ASSIGN_MAX_WORKERS.key}" -> "10")
+      s"${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}" -> "10")
     setUpMiniCluster(masterConf = masterConf, workerConf = null)
   }
 

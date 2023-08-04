@@ -118,7 +118,7 @@ private[celeborn] class Master(
 
   private def diskReserveSize = conf.workerDiskReserveSize
 
-  private val slotsAssignMaxWorkers = conf.slotAssignMaxWorkers
+  private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
   private val slotsAssignLoadAwareDiskGroupGradient =
     conf.masterSlotAssignLoadAwareDiskGroupGradient
@@ -561,7 +561,8 @@ private[celeborn] class Master(
     val numWorkers = Math.min(
       Math.max(
         if (requestSlots.shouldReplicate) 2 else 1,
-        if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers else requestSlots.maxWorkers),
+        if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers
+        else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
       availableWorkers.size())
     availableWorkers = availableWorkers.subList(0, numWorkers)
     // offer slots
