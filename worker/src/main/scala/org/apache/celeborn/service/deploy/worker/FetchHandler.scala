@@ -158,7 +158,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
                 endIndex,
                 initialCredit,
                 r,
-                false)
+                true)
             } catch {
               case e: IOException =>
                 handleRpcIOException(client, r.requestId, e)
