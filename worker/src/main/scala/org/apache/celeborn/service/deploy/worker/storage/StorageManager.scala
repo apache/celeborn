@@ -187,7 +187,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private var committedFileInfos: ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]] = _
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
-  if (conf.workerGracefulShutdown) {
+  val workerGracefulShutdown = conf.workerGracefulShutdown
+  if (workerGracefulShutdown) {
     try {
       val recoverFile = new File(conf.workerGracefulShutdownRecoverPath, RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
@@ -350,8 +351,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               rangeReadFilter)
           case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
         }
-        hdfsWriter.setShuffleKey(shuffleKey)
-        hdfsWriter.setStorageManager(this)
+        if (workerGracefulShutdown) {
+          hdfsWriter.setShuffleKeyAndStorageManagerWhenGracefulShutdownIsEnabled(shuffleKey, this)
+        }
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.put(fileInfo.getFilePath, hdfsWriter)
         return hdfsWriter
@@ -395,8 +397,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 rangeReadFilter)
             case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
           }
-          fileWriter.setShuffleKey(shuffleKey)
-          fileWriter.setStorageManager(this)
+          if (workerGracefulShutdown) {
+            fileWriter.setShuffleKeyAndStorageManagerWhenGracefulShutdownIsEnabled(shuffleKey, this)
+          }
           deviceMonitor.registerFileWriter(fileWriter)
           val map = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
           map.put(fileInfo.getFilePath, fileWriter)
@@ -498,7 +501,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def cleanupExpiredShuffleKey(
       expiredShuffleKeys: util.HashSet[String],
-      onClose: Boolean = false): Unit = {
+      cleanDB: Boolean = true): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (fileInfos.containsKey(shuffleKey)) {
@@ -528,11 +531,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             case e: Exception => logWarning("Clean expired HDFS shuffle failed.", e)
           }
         }
-        if (db != null) {
+        if (workerGracefulShutdown) {
           committedFileInfos.remove(shuffleKey)
-          // if delete a shuffle key failed, heartbeat from worker will clean it again.
-          if (!onClose) {
-            // worker shutdown don't clean expired shuffle because db is closed.
+          if (cleanDB) {
             db.delete(dbShuffleKey(shuffleKey))
           }
         }
@@ -672,7 +673,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
     if (null != diskOperators) {
       if (exitKind != CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
-        cleanupExpiredShuffleKey(shuffleKeySet(), true)
+        cleanupExpiredShuffleKey(shuffleKeySet(), false)
       }
       ThreadUtils.parmap(
         diskOperators.asScala.toMap,
@@ -788,10 +789,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  def notifyFileInfoCommitted(shuffleKey: String, fileName: String, fileInfo: FileInfo): Unit = {
-    if (committedFileInfos != null) {
-      committedFileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
-    }
+  def notifyFileInfoCommittedWhenGracefulShutdownIsEnabled(
+      shuffleKey: String,
+      fileName: String,
+      fileInfo: FileInfo): Unit = {
+    committedFileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
   }
 }
 
