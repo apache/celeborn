@@ -531,7 +531,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (db != null) {
           committedFileInfos.remove(shuffleKey)
           // if delete a shuffle key failed, heartbeat from worker will clean it again.
-          if (onClose) {
+          if (!onClose) {
             // worker shutdown don't clean expired shuffle because db is closed.
             db.delete(dbShuffleKey(shuffleKey))
           }
