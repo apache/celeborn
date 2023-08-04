@@ -306,7 +306,7 @@ public class TransportClient implements Closeable {
     @Override
     public void operationComplete(Future<? super Void> future) throws Exception {
       if (future.isSuccess()) {
-        if (logger.isTraceEnabled()) {
+        if (logger.isDebugEnabled()) {
           long timeTaken = System.currentTimeMillis() - startTime;
           logger.debug(
               "Sending request {} to {} took {} ms",

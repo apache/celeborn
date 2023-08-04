@@ -246,15 +246,15 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
           override def operationComplete(future: Future[_ >: Void]): Unit = {
-            if (log.isDebugEnabled) {
-              if (future.isSuccess()) {
-                logInfo(
+            if (future.isSuccess()) {
+              if (log.isDebugEnabled) {
+                logDebug(
                   s"Sending ChunkFetchSuccess operation succeeded, chunk ${req.streamChunkSlice}")
-              } else {
-                logError(
-                  s"Sending ChunkFetchSuccess operation failed, chunk ${req.streamChunkSlice}",
-                  future.cause())
               }
+            } else {
+              logError(
+                s"Sending ChunkFetchSuccess operation failed, chunk ${req.streamChunkSlice}",
+                future.cause())
             }
             chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
