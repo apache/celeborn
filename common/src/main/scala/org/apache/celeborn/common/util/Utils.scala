@@ -613,7 +613,7 @@ object Utils extends Logging {
   }
 
   def makeReducerKey(shuffleId: Int, partitionId: Int): String = {
-    s"shuffleId-$partitionId"
+    s"$shuffleId-$partitionId"
   }
 
   def makeMapKey(applicationId: String, shuffleId: Int, mapId: Int, attemptId: Int): String = {
