@@ -35,17 +35,18 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OpenStream;
-import org.apache.celeborn.common.network.protocol.StreamHandle;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.util.ExceptionUtils;
 
 public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
   private PartitionLocation location;
   private final TransportClientFactory clientFactory;
-  private StreamHandle streamHandle;
+  private PbStreamHandler streamHandle;
 
   private int returnedChunks;
   private int chunkIndex;
@@ -105,10 +106,19 @@ public class WorkerPartitionReader implements PartitionReader {
       logger.error("PartitionReader thread interrupted while creating client.");
       throw ie;
     }
-    OpenStream openBlocks =
-        new OpenStream(shuffleKey, location.getFileName(), startMapIndex, endMapIndex);
-    ByteBuffer response = client.sendRpcSync(openBlocks.toByteBuffer(), fetchTimeoutMs);
-    streamHandle = (StreamHandle) Message.decode(response);
+
+    TransportMessage openStreamMsg =
+        new TransportMessage(
+            MessageType.OPEN_STREAM,
+            PbOpenStream.newBuilder()
+                .setShuffleKey(shuffleKey)
+                .setFileName(location.getFileName())
+                .setStartIndex(startMapIndex)
+                .setEndIndex(endMapIndex)
+                .build()
+                .toByteArray());
+    ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
+    streamHandle = TransportMessage.fromByteBuffer(response).getParsedPayload();
 
     this.location = location;
     this.clientFactory = clientFactory;
@@ -118,12 +128,12 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   public boolean hasNext() {
-    return returnedChunks < streamHandle.numChunks;
+    return returnedChunks < streamHandle.getNumChunks();
   }
 
   public ByteBuf next() throws IOException, InterruptedException {
     checkException();
-    if (chunkIndex < streamHandle.numChunks) {
+    if (chunkIndex < streamHandle.getNumChunks()) {
       fetchChunks();
     }
     ByteBuf chunk = null;
@@ -159,7 +169,7 @@ public class WorkerPartitionReader implements PartitionReader {
     final int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
-          Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandle.numChunks - chunkIndex);
+          Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandle.getNumChunks() - chunkIndex);
       for (int i = 0; i < toFetch; i++) {
         if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
           callback.onFailure(chunkIndex, new CelebornIOException("Test fetch chunk failure"));
@@ -167,12 +177,12 @@ public class WorkerPartitionReader implements PartitionReader {
           try {
             TransportClient client =
                 clientFactory.createClient(location.getHost(), location.getFetchPort());
-            client.fetchChunk(streamHandle.streamId, chunkIndex, fetchTimeoutMs, callback);
+            client.fetchChunk(streamHandle.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
             chunkIndex++;
           } catch (IOException e) {
             logger.error(
                 "fetchChunk for streamId: {}, chunkIndex: {} failed.",
-                streamHandle.streamId,
+                streamHandle.getStreamId(),
                 chunkIndex,
                 e);
             ExceptionUtils.wrapAndThrowIOException(e);

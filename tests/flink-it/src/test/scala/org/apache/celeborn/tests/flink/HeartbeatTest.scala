@@ -24,7 +24,6 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl
 import org.apache.celeborn.service.deploy.{HeartbeatFeature, MiniClusterFeature}
-import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature with HeartbeatFeature
   with BeforeAndAfterAll with BeforeAndAfterEach {
