@@ -131,8 +131,9 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               startMapIndex,
               endMapIndex)
           }
-          logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
-            s"$startMapIndex $endMapIndex get file info $fileInfo")
+          logDebug(s"Received chunk fetch request $shuffleKey $fileName $startMapIndex " +
+            s"$endMapIndex get file info $fileInfo from client channel " +
+            s"${NettyUtils.getRemoteAddress(client.getChannel)}")
           if (fileInfo.isHdfs) {
             val streamHandle = new StreamHandle(0, 0)
             client.getChannel.writeAndFlush(new RpcResponse(
@@ -147,11 +148,13 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               fetchTimeMetrics)
             val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
             if (fileInfo.numChunks() == 0)
-              logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
-                s" $startMapIndex endMapIndex $endMapIndex is empty.")
+              logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
+                s"[$startMapIndex-$endMapIndex] is empty. Received from client channel " +
+                s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId fileName $fileName numChunks ${fileInfo.numChunks()} " +
-                s"startMapIndex $startMapIndex endMapIndex $endMapIndex")
+              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
+                s"mapRange [$startMapIndex-$endMapIndex]. Received from client channel " +
+                s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             client.getChannel.writeAndFlush(new RpcResponse(
               request.requestId,
               new NioManagedBuffer(streamHandle.toByteBuffer)))
@@ -215,7 +218,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
-    logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
+    logDebug(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
     maxChunkBeingTransferred.foreach { threshold =>
@@ -243,6 +246,16 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
           override def operationComplete(future: Future[_ >: Void]): Unit = {
+            if (future.isSuccess()) {
+              if (log.isDebugEnabled) {
+                logDebug(
+                  s"Sending ChunkFetchSuccess operation succeeded, chunk ${req.streamChunkSlice}")
+              }
+            } else {
+              logError(
+                s"Sending ChunkFetchSuccess operation failed, chunk ${req.streamChunkSlice}",
+                future.cause())
+            }
             chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
@@ -264,6 +277,12 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   }
 
   override def checkRegistered: Boolean = registered.get
+
+  /** Invoked when the channel associated with the given client is active. */
+  override def channelActive(client: TransportClient): Unit = {
+    logDebug(s"channel active ${client.getSocketAddress}")
+    super.channelActive(client)
+  }
 
   override def channelInactive(client: TransportClient): Unit = {
     creditStreamManager.connectionTerminated(client.getChannel)
