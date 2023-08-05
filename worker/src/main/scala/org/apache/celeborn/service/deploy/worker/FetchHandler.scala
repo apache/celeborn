@@ -193,8 +193,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               startIndex,
               endIndex)
           }
-          logDebug(s"Received chunk fetch request $shuffleKey $fileName $startMapIndex " +
-            s"$endMapIndex get file info $fileInfo from client channel " +
+          logDebug(s"Received chunk fetch request $shuffleKey $fileName $startIndex " +
+            s"$endIndex get file info $fileInfo from client channel " +
             s"${NettyUtils.getRemoteAddress(client.getChannel)}")
           if (fileInfo.isHdfs) {
             replyStreamHandler(client, request.requestId, 0, 0, isLegacy)
@@ -205,14 +205,13 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               shuffleKey,
               buffers,
               fetchTimeMetrics)
-            val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
             if (fileInfo.numChunks() == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
-                s"[$startMapIndex-$endMapIndex] is empty. Received from client channel " +
+                s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
               s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
-                s"mapRange [$startMapIndex-$endMapIndex]. Received from client channel " +
+                s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             replyStreamHandler(client, request.requestId, streamId, fileInfo.numChunks(), isLegacy)
           }
