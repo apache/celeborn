@@ -214,6 +214,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
                 s"mapRange [$startMapIndex-$endMapIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
+            replyStreamHandler(client, request.requestId, streamId, fileInfo.numChunks(), isLegacy)
           }
         case PartitionType.MAP =>
           val creditStreamHandler =
