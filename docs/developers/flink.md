@@ -16,10 +16,4 @@ license: |
   limitations under the License.
 ---
 
-# Overview
-Celeborn Client is separated into [two roles](../../developers/overview#components):
-
-- `LifecycleManager` for control plane, responsible for managing all shuffle metadata for the application, resides
-  in driver for Apache Spark and JobMaster for Apache Flink. See [LifecycleManager](../../developers/lifecyclemanager)
-- `ShuffleClient` for data plane, responsible for write/read data to/from Workers, resides in executors for Apache
-  Spark and TaskManager for Apache Flink. See [ShuffleClient](../../developers/shuffleclient)
+# Flink Plugin

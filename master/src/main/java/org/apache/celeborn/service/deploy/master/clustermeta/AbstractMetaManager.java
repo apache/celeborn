@@ -95,29 +95,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
   }
 
-  public void updateReleaseSlotsMeta(String shuffleKey) {
-    updateReleaseSlotsMeta(shuffleKey, null, null);
-  }
-
-  public void updateReleaseSlotsMeta(
-      String shuffleKey, List<String> workerIds, List<Map<String, Integer>> slots) {
-    if (workerIds != null && !workerIds.isEmpty()) {
-      for (int i = 0; i < workerIds.size(); i++) {
-        String workerId = workerIds.get(i);
-        WorkerInfo worker = WorkerInfo.fromUniqueId(workerId);
-        for (WorkerInfo w : workers) {
-          if (w.equals(worker)) {
-            Map<String, Integer> slotToRelease = slots.get(i);
-            LOG.info("release slots for worker {}, to release: {}", w, slotToRelease);
-            w.releaseSlots(shuffleKey, slotToRelease);
-          }
-        }
-      }
-    } else {
-      workers.forEach(workerInfo -> workerInfo.releaseSlots(shuffleKey));
-    }
-  }
-
   public void updateUnregisterShuffleMeta(String shuffleKey) {
     registeredShuffle.remove(shuffleKey);
   }

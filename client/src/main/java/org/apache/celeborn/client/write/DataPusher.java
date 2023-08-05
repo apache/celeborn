@@ -193,7 +193,7 @@ public class DataPusher {
     }
   }
 
-  private void pushData(PushTask task) throws IOException {
+  protected void pushData(PushTask task) throws IOException {
     int bytesWritten =
         client.pushData(
             shuffleId,

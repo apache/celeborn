@@ -193,8 +193,9 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               startIndex,
               endIndex)
           }
-          logDebug(s"Received chunk fetch request $shuffleKey $fileName " +
-            s"$startIndex $endIndex get file info $fileInfo")
+          logDebug(s"Received chunk fetch request $shuffleKey $fileName $startMapIndex " +
+            s"$endMapIndex get file info $fileInfo from client channel " +
+            s"${NettyUtils.getRemoteAddress(client.getChannel)}")
           if (fileInfo.isHdfs) {
             replyStreamHandler(client, request.requestId, 0, 0, isLegacy)
           } else {
@@ -204,14 +205,15 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               shuffleKey,
               buffers,
               fetchTimeMetrics)
-            val numChunks = fileInfo.numChunks()
-            if (numChunks == 0)
-              logDebug(s"StreamId $streamId fileName $fileName startMapIndex" +
-                s" $startIndex endMapIndex $endIndex is empty.")
+            val streamHandle = new StreamHandle(streamId, fileInfo.numChunks())
+            if (fileInfo.numChunks() == 0)
+              logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
+                s"[$startMapIndex-$endMapIndex] is empty. Received from client channel " +
+                s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId fileName $fileName numChunks ${numChunks} " +
-                s"startMapIndex $startIndex endMapIndex $endIndex")
-            replyStreamHandler(client, request.requestId, streamId, fileInfo.numChunks(), isLegacy)
+              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
+                s"mapRange [$startMapIndex-$endMapIndex]. Received from client channel " +
+                s"${NettyUtils.getRemoteAddress(client.getChannel)}")
           }
         case PartitionType.MAP =>
           val creditStreamHandler =
@@ -277,7 +279,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
-    logTrace(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
+    logDebug(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
       s" to fetch block ${req.streamChunkSlice}")
 
     maxChunkBeingTransferred.foreach { threshold =>
@@ -305,6 +307,16 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
           override def operationComplete(future: Future[_ >: Void]): Unit = {
+            if (future.isSuccess()) {
+              if (log.isDebugEnabled) {
+                logDebug(
+                  s"Sending ChunkFetchSuccess operation succeeded, chunk ${req.streamChunkSlice}")
+              }
+            } else {
+              logError(
+                s"Sending ChunkFetchSuccess operation failed, chunk ${req.streamChunkSlice}",
+                future.cause())
+            }
             chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
@@ -327,7 +339,15 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
 
   override def checkRegistered: Boolean = registered.get
 
+  /** Invoked when the channel associated with the given client is active. */
+  override def channelActive(client: TransportClient): Unit = {
+    logDebug(s"channel active ${client.getSocketAddress}")
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT)
+    super.channelActive(client)
+  }
+
   override def channelInactive(client: TransportClient): Unit = {
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT, -1)
     creditStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }

@@ -33,6 +33,8 @@ license: |
 | celeborn.worker.congestionControl.low.watermark | &lt;undefined&gt; | Will stop congest users if the total pending bytes of disk buffer is lower than this configuration | 0.3.0 | 
 | celeborn.worker.congestionControl.sample.time.window | 10s | The worker holds a time sliding list to calculate users' produce/consume rate | 0.3.0 | 
 | celeborn.worker.congestionControl.user.inactive.interval | 10min | How long will consider this user is inactive if it doesn't send data | 0.3.0 | 
+| celeborn.worker.decommission.checkInterval | 30s | The wait interval of checking whether all the shuffle expired during worker decomission | 0.4.0 | 
+| celeborn.worker.decommission.forceExitTimeout | 6h | The wait time of waiting for all the shuffle expire during worker decommission. | 0.4.0 | 
 | celeborn.worker.directMemoryRatioForMemoryShuffleStorage | 0.0 | Max ratio of direct memory to store shuffle data | 0.2.0 | 
 | celeborn.worker.directMemoryRatioForReadBuffer | 0.1 | Max ratio of direct memory for read buffer | 0.2.0 | 
 | celeborn.worker.directMemoryRatioToPauseReceive | 0.85 | If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients. | 0.2.0 | 
@@ -54,6 +56,8 @@ license: |
 | celeborn.worker.graceful.shutdown.enabled | false | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout | 120s | The wait time of waiting for sorting partition files during worker graceful shutdown. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.recoverPath | &lt;tmp&gt;/recover | The path to store levelDB. | 0.2.0 | 
+| celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval | 5s | Interval for a Celeborn worker to flush committed file infos into Level DB. | 0.3.1 | 
+| celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync | false | Whether to call sync method to save committed file infos into Level DB to handle OS crash. | 0.3.1 | 
 | celeborn.worker.graceful.shutdown.timeout | 600s | The worker's graceful shutdown timeout time. | 0.2.0 | 
 | celeborn.worker.monitor.disk.check.interval | 60s | Intervals between device monitor to check disk. | 0.3.0 | 
 | celeborn.worker.monitor.disk.check.timeout | 30s | Timeout time for worker check device status. | 0.3.0 | 

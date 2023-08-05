@@ -902,6 +902,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readBuffersToTriggerReadMin: Int = get(WORKER_READBUFFERS_TOTRIGGERREAD_MIN)
 
   // //////////////////////////////////////////////////////
+  //                   Decommission                      //
+  // //////////////////////////////////////////////////////
+  def workerDecommissionCheckInterval: Long = get(WORKER_DECOMMISSION_CHECK_INTERVAL)
+  def workerDecommissionForceExitTimeout: Long = get(WORKER_DECOMMISSION_FORCE_EXIT_TIMEOUT)
+
+  // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
   // //////////////////////////////////////////////////////
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
@@ -914,6 +920,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
     get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
+  def workerGracefulShutdownSaveCommittedFileInfoInterval: Long =
+    get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL)
+  def workerGracefulShutdownSaveCommittedFileInfoSync: Boolean =
+    get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC)
 
   // //////////////////////////////////////////////////////
   //                      Flusher                        //
@@ -1559,7 +1569,7 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .doc("Port for master to bind.")
       .intConf
-      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9097)
 
   val HA_ENABLED: ConfigEntry[Boolean] =
@@ -1596,7 +1606,7 @@ object CelebornConf extends Logging {
       .doc("Port to bind of master node <id> in HA mode.")
       .version("0.3.0")
       .intConf
-      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9097)
 
   val HA_MASTER_NODE_RATIS_HOST: OptionalConfigEntry[String] =
@@ -1617,7 +1627,7 @@ object CelebornConf extends Logging {
       .doc("Ratis port to bind of master node <id> in HA mode.")
       .version("0.3.0")
       .intConf
-      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9872)
 
   val HA_MASTER_RATIS_RPC_TYPE: ConfigEntry[String] =
@@ -2173,6 +2183,7 @@ object CelebornConf extends Logging {
       .doc("Reserved memory when sorting a shuffle file off-heap.")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
+      .checkValue(v => v < Int.MaxValue, "Reserved memory per partition must be less than 2GB.")
       .createWithDefaultString("1mb")
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
@@ -2238,6 +2249,23 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
+
+  val WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval")
+      .categories("worker")
+      .doc("Interval for a Celeborn worker to flush committed file infos into Level DB.")
+      .version("0.3.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync")
+      .categories("worker")
+      .doc(
+        "Whether to call sync method to save committed file infos into Level DB to handle OS crash.")
+      .version("0.3.1")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.diskTime.slidingWindow.size")
@@ -2381,7 +2409,7 @@ object CelebornConf extends Logging {
         "sorter memory, partition sorter will stop sorting.")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
+      .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
       .createWithDefault(0.1)
 
   val WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER: ConfigEntry[Double] =
@@ -2468,6 +2496,23 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
+
+  val WORKER_DECOMMISSION_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.decommission.checkInterval")
+      .categories("worker")
+      .doc(
+        "The wait interval of checking whether all the shuffle expired during worker decomission")
+      .version("0.4.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val WORKER_DECOMMISSION_FORCE_EXIT_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.decommission.forceExitTimeout")
+      .categories("worker")
+      .doc("The wait time of waiting for all the shuffle expire during worker decommission.")
+      .version("0.4.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("6h")
 
   val WORKER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.enabled")
@@ -2800,7 +2845,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc(s"Timeout for a task to push data rpc message. This value should better be more than twice of `${PUSH_TIMEOUT_CHECK_INTERVAL.key}`")
       .timeConf(TimeUnit.MILLISECONDS)
-      .checkValue(_ > 0, "celeborn.client.push.data.timeout must be positive!")
+      .checkValue(_ > 0, "Value must be positive!")
       .createWithDefaultString("120s")
 
   val TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT: ConfigEntry[Boolean] =
@@ -3196,7 +3241,7 @@ object CelebornConf extends Logging {
       .doc("Max retry times for requestCommitFiles RPC.")
       .version("0.3.0")
       .intConf
-      .checkValue(v => v > 0, "value must be positive")
+      .checkValue(v => v > 0, "Value must be positive")
       .createWithDefault(4)
 
   val CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS: ConfigEntry[Boolean] =
@@ -3404,7 +3449,7 @@ object CelebornConf extends Logging {
       .doc("It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0].")
       .version("0.2.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "should be in [0.0, 1.0].")
+      .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
       .createWithDefault(1.0)
 
   val METRICS_SLIDING_WINDOW_SIZE: ConfigEntry[Int] =
@@ -3447,7 +3492,7 @@ object CelebornConf extends Logging {
       .doc("Master's Prometheus port.")
       .version("0.3.0")
       .intConf
-      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9098)
 
   val WORKER_PROMETHEUS_HOST: ConfigEntry[String] =
@@ -3466,7 +3511,7 @@ object CelebornConf extends Logging {
       .doc("Worker's Prometheus port.")
       .version("0.3.0")
       .intConf
-      .checkValue(p => p >= 1024 && p < 65535, "invalid port")
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9096)
 
   val METRICS_EXTRA_LABELS: ConfigEntry[Seq[String]] =
@@ -3577,7 +3622,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Vector batch size for columnar shuffle.")
       .intConf
-      .checkValue(v => v > 0, "value must be positive")
+      .checkValue(v => v > 0, "Value must be positive")
       .createWithDefault(10000)
 
   val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =

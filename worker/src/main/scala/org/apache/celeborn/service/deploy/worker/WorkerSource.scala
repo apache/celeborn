@@ -36,6 +36,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addCounter(PUSH_DATA_HANDSHAKE_FAIL_COUNT)
   addCounter(REGION_START_FAIL_COUNT)
   addCounter(REGION_FINISH_FAIL_COUNT)
+  addCounter(ACTIVE_CONNECTION_COUNT)
 
   // add Timers
   addTimer(COMMIT_FILES_TIME)
@@ -93,6 +94,8 @@ object WorkerSource {
 
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
+
+  val ACTIVE_CONNECTION_COUNT = "ActiveConnectionCount"
 
   // memory
   val NETTY_MEMORY = "NettyMemory"
