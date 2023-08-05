@@ -22,8 +22,9 @@ import io.netty.buffer.ByteBuf;
 
 /**
  * Identifier for a fixed number of chunks to read from a stream created by an "open blocks"
- * message.
+ * message. Use PbStreamHandler instead of this.
  */
+@Deprecated
 public final class StreamHandle extends RequestMessage {
   public final long streamId;
   public final int numChunks;
