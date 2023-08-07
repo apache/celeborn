@@ -58,6 +58,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val lifecycleHost = Utils.localHostName(conf)
 
   private val shuffleExpiredCheckIntervalMs = conf.shuffleExpiredCheckIntervalMs
+  private val slotsAssignMaxWorkers = conf.clientSlotAssignMaxWorkers
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val pushRackAwareEnabled = conf.clientReserveSlotsRackAwareEnabled
   private val partitionSplitThreshold = conf.shufflePartitionSplitThreshold
@@ -1014,7 +1015,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         lifecycleHost,
         pushReplicateEnabled,
         pushRackAwareEnabled,
-        userIdentifier)
+        userIdentifier,
+        slotsAssignMaxWorkers)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)
