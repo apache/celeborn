@@ -44,9 +44,9 @@ spark.celeborn.master.endpoints clb-master:9097
 
 # we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication
 # If you have only one worker, this setting must be false 
-spark.celeborn.push.replicate.enabled true
+spark.celeborn.client.push.replicate.enabled true
 
-spark.celeborn.shuffle.writer hash
+spark.celeborn.client.spark.shuffle.writer hash
 spark.shuffle.service.enabled false
 spark.sql.adaptive.localShuffleReader.enabled false
 
