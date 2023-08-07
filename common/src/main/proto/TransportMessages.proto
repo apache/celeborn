@@ -25,7 +25,8 @@ enum MessageType {
   REGISTER_SHUFFLE = 4;
   REGISTER_SHUFFLE_RESPONSE = 5;
   REQUEST_SLOTS = 6;
-  //  RELEASE_SLOTS = 7;
+  // keep it for compatible reason
+  RELEASE_SLOTS = 7;
   //  RELEASE_SLOTS_RESPONSE = 8;
   REQUEST_SLOTS_RESPONSE = 9;
   CHANGE_LOCATION = 10;
@@ -190,6 +191,15 @@ message PbRequestSlots {
 
 message PbSlotInfo {
   map<string, int32> slot = 1;
+}
+
+// keep it for compatible reason
+message PbReleaseSlots {
+  string applicationId = 1;
+  int32 shuffleId = 2;
+  repeated string workerIds = 3;
+  repeated PbSlotInfo slots = 4;
+  string requestId = 6;
 }
 
 message PbRequestSlotsResponse {

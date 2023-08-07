@@ -303,6 +303,9 @@ private[celeborn] class Master(
           userResourceConsumption,
           requestId))
 
+    case ReleaseSlots(_, _, _, _, _) =>
+    // keep it for compatible reason
+
     case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
