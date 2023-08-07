@@ -77,6 +77,7 @@ nav:
       - Overview: deploy.md
       - Kubernetes: deploy_on_k8s.md
       - Monitoring: monitoring.md
+      - SBT Build: sbt.md
       - Upgrading: upgrading.md
       - Ratis Shell: celeborn_ratis_shell.md
   - Configuration: configuration/index.md
