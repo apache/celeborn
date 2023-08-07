@@ -1240,7 +1240,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .internal
       .version("0.4.0")
-      .doc("when false, globally disabled thread-local cache in the shared PooledByteBufAllocator.")
+      .doc("When false, globally disable thread-local cache in the shared PooledByteBufAllocator.")
       .booleanConf
       .createWithDefault(true)
 
