@@ -511,6 +511,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterSlotAssignLoadAwareFetchTimeWeight: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
+  def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
   def initialEstimatedPartitionSize: Long = get(ESTIMATED_PARTITION_SIZE_INITIAL_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
@@ -770,6 +771,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
+  def clientSlotAssignMaxWorkers: Int = get(CLIENT_SLOT_ASSIGN_MAX_WORKERS)
   def clientPushSlowStartMaxSleepMills: Long = get(CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME)
   def clientPushLimitInFlightTimeoutMs: Long =
     if (clientPushReplicateEnabled) {
@@ -1873,6 +1875,15 @@ object CelebornConf extends Logging {
       .doc("Extra slots number when master assign slots.")
       .intConf
       .createWithDefault(2)
+
+  val MASTER_SLOT_ASSIGN_MAX_WORKERS: ConfigEntry[Int] =
+    buildConf("celeborn.master.slot.assign.maxWorkers")
+      .categories("master")
+      .version("0.3.1")
+      .doc("Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one " +
+        s"from Master side and Client side, see `celeborn.client.slot.assign.maxWorkers`.")
+      .intConf
+      .createWithDefault(10000)
 
   val ESTIMATED_PARTITION_SIZE_INITIAL_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.initialSize")
@@ -3346,6 +3357,15 @@ object CelebornConf extends Logging {
       .doc("Whether need to place different replicates on different racks when allocating slots.")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_SLOT_ASSIGN_MAX_WORKERS: ConfigEntry[Int] =
+    buildConf("celeborn.client.slot.assign.maxWorkers")
+      .categories("client")
+      .version("0.3.1")
+      .doc("Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one " +
+        s"from Master side and Client side, see `${CelebornConf.MASTER_SLOT_ASSIGN_MAX_WORKERS.key}`.")
+      .intConf
+      .createWithDefault(10000)
 
   val CLIENT_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.closeIdleConnections")

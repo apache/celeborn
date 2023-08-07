@@ -166,6 +166,7 @@ object ControlMessages extends Logging {
       shouldReplicate: Boolean,
       shouldRackAware: Boolean,
       userIdentifier: UserIdentifier,
+      maxWorkers: Int,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -471,6 +472,7 @@ object ControlMessages extends Logging {
           shouldReplicate,
           shouldRackAware,
           userIdentifier,
+          maxWorkers,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -479,6 +481,7 @@ object ControlMessages extends Logging {
         .setHostname(hostname)
         .setShouldReplicate(shouldReplicate)
         .setShouldRackAware(shouldRackAware)
+        .setMaxWorkers(maxWorkers)
         .setRequestId(requestId)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .build().toByteArray
@@ -800,6 +803,7 @@ object ControlMessages extends Logging {
           pbRequestSlots.getShouldReplicate,
           pbRequestSlots.getShouldRackAware,
           userIdentifier,
+          pbRequestSlots.getMaxWorkers,
           pbRequestSlots.getRequestId)
 
       case REQUEST_SLOTS_RESPONSE_VALUE =>
