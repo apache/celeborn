@@ -72,8 +72,7 @@ public class CelebornBufferStream {
         clientFactory.createClientWithRetry(
             locations[currentLocationIndex].getHost(),
             locations[currentLocationIndex].getFetchPort());
-    String fileName = locations[currentLocationIndex].getFileName();
-    currentLocationIndex++;
+    String fileName = locations[currentLocationIndex++].getFileName();
     OpenStreamWithCredit openBufferStream =
         new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);
     client.sendRpc(
