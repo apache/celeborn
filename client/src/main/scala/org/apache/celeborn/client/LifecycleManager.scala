@@ -403,16 +403,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
-        logDebug(s"OfferSlots RPC request failed for $shuffleId!")
+        logInfo(s"OfferSlots RPC request failed for $shuffleId!")
         reply(RegisterShuffleResponse(StatusCode.REQUEST_FAILED, Array.empty))
         return
       case StatusCode.SLOT_NOT_AVAILABLE =>
-        logDebug(s"OfferSlots for $shuffleId failed!")
+        logInfo(s"OfferSlots for $shuffleId failed!")
         reply(RegisterShuffleResponse(StatusCode.SLOT_NOT_AVAILABLE, Array.empty))
         return
       case StatusCode.SUCCESS =>
-        logInfo(s"OfferSlots for $shuffleId Success!")
-        logDebug(s" Slots Info: ${res.workerResource}")
+        logInfo(s"OfferSlots for $shuffleId Success!Slots Info: ${res.workerResource}")
       case _ => // won't happen
         throw new UnsupportedOperationException()
     }
@@ -458,8 +457,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
       reply(RegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
     } else {
-      logInfo(s"ReserveSlots for $shuffleId success!")
-      logDebug(s"Allocated Slots: $slots")
+      logInfo(s"ReserveSlots for $shuffleId success with details:$slots!")
       // Forth, register shuffle success, update status
       val allocatedWorkers =
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()

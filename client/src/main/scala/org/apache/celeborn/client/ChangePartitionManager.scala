@@ -298,7 +298,7 @@ class ChangePartitionManager(
             val changes = locations.map { partition =>
               s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
             }.mkString("[", ", ", "]")
-            logDebug(s"[Update partition] success for " +
+            logInfo(s"[Update partition] success for " +
               s"shuffle $shuffleId, succeed partitions: " +
               s"$changes.")
           }
