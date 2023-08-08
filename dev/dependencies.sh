@@ -81,7 +81,7 @@ function check_diff() {
     if [[ -n "${the_diff}" ]]; then
         echo "Dependency List Changed Detected: "
         echo "${the_diff}"
-        echo "To update the dependency file, run './deb/dependencies.sh --replace'."
+        echo "To update the dependency file, run './dev/dependencies.sh --replace'."
         exit 1
     fi
 }
