@@ -56,9 +56,8 @@ public class RemoteShuffleOutputGateSuiteJ {
             1, 0, "localhost", 123, 245, 789, 238, PartitionLocation.Mode.PRIMARY);
     when(shuffleClient.registerMapPartitionTask(anyInt(), anyInt(), anyInt(), anyInt(), anyInt()))
         .thenAnswer(t -> partitionLocation);
-    doNothing()
-        .when(remoteShuffleOutputGate.flinkShuffleClient)
-        .pushDataHandShake(anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
+        when(remoteShuffleOutputGate.flinkShuffleClient
+        .pushDataHandShake(anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any())).thenAnswer(t -> Optional.empty());
 
     remoteShuffleOutputGate.handshake(true);
 
