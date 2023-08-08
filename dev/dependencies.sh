@@ -36,7 +36,7 @@ DEP_PR="${PWD}/dev/deps/dependencyList.tmp"
 DEP="${PWD}/dev/deps/dependencyList"
 
 function mvn_build_classpath() {
-  # $MVN clean package -DskipTests
+  $MVN clean package -DskipTests
   $MVN dependency:build-classpath | \
     grep -v "INFO\|WARN" | \
     # This will skip the first two lines 
