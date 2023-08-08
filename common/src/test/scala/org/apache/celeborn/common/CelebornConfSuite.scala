@@ -38,7 +38,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.size == 1)
-    assert(workerBaseDirs.head._3 == 2)
+    assert(workerBaseDirs.head._3 == 16)
     assert(workerBaseDirs.head._2 == defaultMaxUsableSpace)
   }
 
@@ -47,7 +47,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1:disktype=SSD:capacity=10g")
     val workerBaseDirs = conf.workerBaseDirs
     assert(workerBaseDirs.size == 1)
-    assert(workerBaseDirs.head._3 == 8)
+    assert(workerBaseDirs.head._3 == 16)
     assert(workerBaseDirs.head._2 == 10 * 1024 * 1024 * 1024L)
   }
 
@@ -83,7 +83,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1")
     val workerBaseDirs = conf.workerBaseDirs
-    assert(workerBaseDirs.head._3 == 2)
+    assert(workerBaseDirs.head._3 == 16)
   }
 
   test("storage test6") {
@@ -107,7 +107,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     conf.set(CelebornConf.WORKER_FLUSHER_THREADS.key, "4")
       .set(CelebornConf.WORKER_STORAGE_DIRS.key, "/mnt/disk1:disktype=SSD")
     val workerBaseDirs = conf.workerBaseDirs
-    assert(workerBaseDirs.head._3 == 8)
+    assert(workerBaseDirs.head._3 == 16)
   }
 
   test("storage test9") {
@@ -182,17 +182,19 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   test("CELEBORN-601: Consolidate configsWithAlternatives with `ConfigBuilder.withAlternative`") {
     val conf = new CelebornConf()
-      .set(CelebornConf.TEST_ALTERNATIVE.alternatives.head._1, "rss")
+      .set(CelebornConf.TEST_ALTERNATIVE.alternatives.head._1, "celeborn")
 
-    assert(conf.testAlternative == "rss")
+    assert(conf.testAlternative == "celeborn")
   }
 
   test("Test empty working dir") {
     val conf = new CelebornConf()
     conf.set("celeborn.storage.activeTypes", "HDFS")
+    conf.set("celeborn.storage.hdfs.dir", "hdfs:///xxx")
     assert(conf.workerBaseDirs.isEmpty)
 
     conf.set("celeborn.storage.activeTypes", "SDD,HDD,HDFS")
+    conf.set("celeborn.storage.hdfs.dir", "hdfs:///xxx")
     assert(conf.workerBaseDirs.isEmpty)
 
     conf.set("celeborn.storage.activeTypes", "SDD,HDD")
@@ -202,6 +204,7 @@ class CelebornConfSuite extends CelebornFunSuite {
   test("Test commit file threads") {
     val conf = new CelebornConf()
     conf.set("celeborn.storage.activeTypes", "HDFS")
+    conf.set("celeborn.storage.hdfs.dir", "hdfs:///xxx")
     assert(conf.workerCommitThreads === 128)
 
     conf.set("celeborn.storage.activeTypes", "SDD,HDD")

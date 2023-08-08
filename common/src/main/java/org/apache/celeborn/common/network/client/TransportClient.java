@@ -120,14 +120,14 @@ public class TransportClient implements Closeable {
       int len,
       long fetchDataTimeout,
       ChunkReceivedCallback callback) {
+
+    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(streamId, chunkIndex, offset, len);
     if (logger.isDebugEnabled()) {
       logger.debug(
           "Sending fetch chunk request {} to {}.",
-          chunkIndex,
+          streamChunkSlice,
           NettyUtils.getRemoteAddress(channel));
     }
-
-    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(streamId, chunkIndex, offset, len);
     StdChannelListener listener =
         new StdChannelListener(streamChunkSlice) {
           @Override
@@ -241,7 +241,7 @@ public class TransportClient implements Closeable {
     try {
       return result.get(timeoutMs, TimeUnit.MILLISECONDS);
     } catch (Exception e) {
-      throw new IOException("Exception in sendRpcSync to:" + this.getSocketAddress(), e);
+      throw new IOException("Exception in sendRpcSync to: " + this.getSocketAddress(), e);
     }
   }
 
@@ -306,9 +306,9 @@ public class TransportClient implements Closeable {
     @Override
     public void operationComplete(Future<? super Void> future) throws Exception {
       if (future.isSuccess()) {
-        if (logger.isTraceEnabled()) {
+        if (logger.isDebugEnabled()) {
           long timeTaken = System.currentTimeMillis() - startTime;
-          logger.trace(
+          logger.debug(
               "Sending request {} to {} took {} ms",
               requestId,
               NettyUtils.getRemoteAddress(channel),

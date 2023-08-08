@@ -55,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.TransportContext;
@@ -62,14 +63,11 @@ import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OpenStream;
-import org.apache.celeborn.common.network.protocol.StreamHandle;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.server.TransportServer;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.protocol.PartitionSplitMode;
-import org.apache.celeborn.common.protocol.PartitionType;
-import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -116,7 +114,14 @@ public class FileWriterSuiteJ {
     dirs.$plus$eq(tempDir);
     localFlusher =
         new LocalFlusher(
-            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk1", StorageInfo.Type.HDD, null);
+            source,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            1,
+            NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),
+            256,
+            "disk1",
+            StorageInfo.Type.HDD,
+            null);
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
@@ -131,9 +136,9 @@ public class FileWriterSuiteJ {
     MemoryManager.initialize(conf);
   }
 
-  public static void setupChunkServer(FileInfo info) throws Exception {
+  public static void setupChunkServer(FileInfo info) {
     FetchHandler handler =
-        new FetchHandler(transConf) {
+        new FetchHandler(transConf.getCelebornConf(), transConf) {
           @Override
           public StorageManager storageManager() {
             return new StorageManager(CONF, source);
@@ -190,19 +195,25 @@ public class FileWriterSuiteJ {
   }
 
   public ByteBuffer createOpenMessage() {
-    byte[] shuffleKeyBytes = "shuffleKey".getBytes(StandardCharsets.UTF_8);
-    byte[] fileNameBytes = "location".getBytes(StandardCharsets.UTF_8);
+    TransportMessage message =
+        new TransportMessage(
+            MessageType.OPEN_STREAM,
+            PbOpenStream.newBuilder()
+                .setShuffleKey("shuffleKey")
+                .setFileName("location")
+                .setStartIndex(0)
+                .setEndIndex(Integer.MAX_VALUE)
+                .build()
+                .toByteArray());
 
-    OpenStream openBlocks = new OpenStream(shuffleKeyBytes, fileNameBytes, 0, Integer.MAX_VALUE);
-
-    return openBlocks.toByteBuffer();
+    return message.toByteBuffer();
   }
 
-  private void setUpConn(TransportClient client) throws IOException {
+  private void setUpConn(TransportClient client) throws IOException, CelebornException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
-    StreamHandle streamHandle = (StreamHandle) Message.decode(resp);
-    streamId = streamHandle.streamId;
-    numChunks = streamHandle.numChunks;
+    PbStreamHandler streamHandle = TransportMessage.fromByteBuffer(resp).getParsedPayload();
+    streamId = streamHandle.getStreamId();
+    numChunks = streamHandle.getNumChunks();
   }
 
   private FetchResult fetchChunks(TransportClient client, List<Integer> chunkIndices)
@@ -210,9 +221,9 @@ public class FileWriterSuiteJ {
     final Semaphore sem = new Semaphore(0);
 
     final FetchResult res = new FetchResult();
-    res.successChunks = Collections.synchronizedSet(new HashSet<Integer>());
-    res.failedChunks = Collections.synchronizedSet(new HashSet<Integer>());
-    res.buffers = Collections.synchronizedList(new LinkedList<ManagedBuffer>());
+    res.successChunks = Collections.synchronizedSet(new HashSet<>());
+    res.failedChunks = Collections.synchronizedSet(new HashSet<>());
+    res.buffers = Collections.synchronizedList(new LinkedList<>());
 
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {
@@ -380,7 +391,14 @@ public class FileWriterSuiteJ {
     dirs.$plus$eq(file);
     localFlusher =
         new LocalFlusher(
-            source, DeviceMonitor$.MODULE$.EmptyMonitor(), 1, "disk2", StorageInfo.Type.HDD, null);
+            source,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            1,
+            NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),
+            256,
+            "disk2",
+            StorageInfo.Type.HDD,
+            null);
   }
 
   @Test
@@ -488,6 +506,212 @@ public class FileWriterSuiteJ {
     assertEquals(0, compositeByteBuf.numComponents());
   }
 
+  @Test
+  public void testChunkSize() throws IOException {
+    // NOTE: SHUFFLE_CHUNK_SIZE and WORKER_FLUSHER_BUFFER_SIZE are set to 1K/128B
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "1k");
+    conf.set(CelebornConf.WORKER_FLUSHER_BUFFER_SIZE().key(), "128B");
+
+    // case 1: write 8MiB
+    File file = getTemporaryFile();
+    FileInfo fileInfo = new FileInfo(file, userIdentifier);
+    FileWriter fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(8 * 1024 * 1024));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 1);
+    assertEquals(fileInfo.getLastChunkOffset(), 8 * 1024 * 1024);
+    assertEquals(
+        fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 8 * 1024 * 1024);
+
+    // case 2: write 1024B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 8; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 1);
+    assertEquals(fileInfo.getLastChunkOffset(), 1024);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
+    // case 3: write 1023B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(1020));
+    fileWriter.write(generateData(3));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 1);
+    assertEquals(fileInfo.getLastChunkOffset(), 1023);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1023);
+
+    // case 4: write 1025B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 8; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.write(generateData(1));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 2);
+    assertEquals(fileInfo.getLastChunkOffset(), 1025);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
+    // case 5: write 2048B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 16; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 2);
+    assertEquals(fileInfo.getLastChunkOffset(), 2048);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
+    // case 5.1: write 2048B with trim; without PR #1702 this case will fail
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 16; i++) {
+      fileWriter.write(generateData(128));
+    }
+    // mock trim
+    fileWriter.flush(false);
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 2);
+    assertEquals(fileInfo.getLastChunkOffset(), 2048);
+    assertEquals(fileInfo.getChunkOffsets().get(1) - fileInfo.getChunkOffsets().get(0), 1024);
+
+    // case 6: write 2049B
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    for (int i = 0; i < 16; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.write(generateData(1));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 3);
+    assertEquals(fileInfo.getLastChunkOffset(), 2049);
+    assertEquals(fileInfo.getChunkOffsets().get(2) - fileInfo.getChunkOffsets().get(1), 1024);
+
+    // case 7: write 4097B with 3 chunks
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(1024));
+    for (int i = 0; i < 9; i++) {
+      fileWriter.write(generateData(128));
+    }
+    fileWriter.write(generateData(1920));
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 3);
+    assertEquals(fileInfo.getLastChunkOffset(), 4096);
+    assertEquals(fileInfo.getChunkOffsets().get(3) - fileInfo.getChunkOffsets().get(2), 2048);
+
+    // case 7.2: write 4097B with 3 chunks with trim; without PR #1702 this case will fail
+    file = getTemporaryFile();
+    fileInfo = new FileInfo(file, userIdentifier);
+    fileWriter =
+        new ReducePartitionFileWriter(
+            fileInfo,
+            localFlusher,
+            source,
+            conf,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            SPLIT_THRESHOLD,
+            splitMode,
+            false);
+    fileWriter.write(generateData(1024));
+    for (int i = 0; i < 9; i++) {
+      fileWriter.write(generateData(128));
+      fileWriter.flush(false);
+    }
+    fileWriter.write(generateData(1920));
+    // mock trim
+    fileWriter.flush(false);
+    fileWriter.close();
+    assertEquals(fileInfo.numChunks(), 3);
+    assertEquals(fileInfo.getLastChunkOffset(), 4096);
+    assertEquals(fileInfo.getChunkOffsets().get(3) - fileInfo.getChunkOffsets().get(2), 2048);
+  }
+
   private File getTemporaryFile() throws IOException {
     String filename = UUID.randomUUID().toString();
     File temporaryFile = new File(tempDir, filename);
@@ -506,5 +730,13 @@ public class FileWriterSuiteJ {
       System.arraycopy(hello, 0, data, i, hello.length);
     }
     return data;
+  }
+
+  private ByteBuf generateData(int len) {
+    byte[] data = new byte[len];
+    for (int i = 0; i < len; i++) {
+      data[i] = 'a';
+    }
+    return Unpooled.wrappedBuffer(data);
   }
 }

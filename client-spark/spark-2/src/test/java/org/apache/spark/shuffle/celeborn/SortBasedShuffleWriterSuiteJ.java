@@ -31,9 +31,15 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
 
   @Override
   protected ShuffleWriter<Integer, String> createShuffleWriter(
-      RssShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
+      CelebornShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
       throws IOException {
     return new SortBasedShuffleWriter<Integer, String, String>(
-        handle.dependency(), handle.appUniqueId(), numPartitions, context, conf, client, null);
+        handle.dependency(),
+        numPartitions,
+        context,
+        conf,
+        client,
+        null,
+        SendBufferPool.get(4, 30, 60));
   }
 }

@@ -30,13 +30,13 @@ public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
 
   @Override
   protected ShuffleWriter<Integer, String> createShuffleWriter(
-      RssShuffleHandle handle,
+      CelebornShuffleHandle handle,
       TaskContext context,
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics)
       throws IOException {
     return new HashBasedShuffleWriter<Integer, String, String>(
-        handle, context, conf, client, metrics, SendBufferPool.get(1));
+        handle, context, conf, client, metrics, SendBufferPool.get(1, 30, 60));
   }
 }

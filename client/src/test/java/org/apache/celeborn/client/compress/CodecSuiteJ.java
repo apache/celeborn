@@ -30,15 +30,14 @@ public class CodecSuiteJ {
   @Test
   public void testLz4Codec() {
     int blockSize = (new CelebornConf()).clientPushBufferMaxSize();
-    RssLz4Compressor rssLz4Compressor = new RssLz4Compressor(blockSize);
+    Lz4Compressor lz4Compressor = new Lz4Compressor(blockSize);
     byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
     int oriLength = data.length;
-    rssLz4Compressor.compress(data, 0, oriLength);
+    lz4Compressor.compress(data, 0, oriLength);
 
-    RssLz4Decompressor rssLz4Decompressor = new RssLz4Decompressor();
+    Lz4Decompressor lz4Decompressor = new Lz4Decompressor();
     byte[] dst = new byte[oriLength];
-    int decompressLength =
-        rssLz4Decompressor.decompress(rssLz4Compressor.getCompressedBuffer(), dst, 0);
+    int decompressLength = lz4Decompressor.decompress(lz4Compressor.getCompressedBuffer(), dst, 0);
 
     Assert.assertNotEquals(-1, decompressLength);
     Assert.assertEquals(oriLength, decompressLength);
@@ -49,15 +48,15 @@ public class CodecSuiteJ {
   public void testZstdCodec() {
     for (int level = -5; level <= 22; level++) {
       int blockSize = (new CelebornConf()).clientPushBufferMaxSize();
-      RssZstdCompressor rssZstdCompressor = new RssZstdCompressor(blockSize, level);
+      ZstdCompressor zstdCompressor = new ZstdCompressor(blockSize, level);
       byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
       int oriLength = data.length;
-      rssZstdCompressor.compress(data, 0, oriLength);
+      zstdCompressor.compress(data, 0, oriLength);
 
-      RssZstdDecompressor rssZstdDecompressor = new RssZstdDecompressor();
+      ZstdDecompressor zstdDecompressor = new ZstdDecompressor();
       byte[] dst = new byte[oriLength];
       int decompressLength =
-          rssZstdDecompressor.decompress(rssZstdCompressor.getCompressedBuffer(), dst, 0);
+          zstdDecompressor.decompress(zstdCompressor.getCompressedBuffer(), dst, 0);
 
       Assert.assertNotEquals(-1, decompressLength);
       Assert.assertEquals(oriLength, decompressLength);

@@ -17,9 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.memory;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -33,8 +30,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
-import org.apache.commons.lang3.JavaVersion;
-import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +37,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.reflect.DynMethods;
 import org.apache.celeborn.service.deploy.worker.storage.CreditStreamManager;
 
 public class MemoryManager {
@@ -63,14 +59,13 @@ public class MemoryManager {
   private final ExecutorService actionService =
       ThreadUtils.newDaemonSingleThreadExecutor("memory-manager-actor");
 
-  private AtomicBoolean trimInProcess = new AtomicBoolean(false);
+  private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
-  private AtomicLong nettyMemoryCounter = null;
   private final AtomicLong sortMemoryCounter = new AtomicLong(0);
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
-  private MemoryManagerStat memoryManagerStat = MemoryManagerStat.resumeAll;
+  private ServingState servingState = ServingState.NONE_PAUSED;
   private boolean underPressure;
 
   // For credit stream
@@ -82,11 +77,9 @@ public class MemoryManager {
   private long lastNotifiedTarget = 0;
   private final ScheduledExecutorService readBufferTargetUpdateService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-          "memory-mananger-readBufferTarget-updater");
+          "memory-manager-read-buffer-target-updater");
   private CreditStreamManager creditStreamManager = null;
 
-  // For memory shuffle storage
-  private final AtomicLong memoryShuffleStorageCounter = new AtomicLong(0);
   private long memoryShuffleStorageThreshold = 0;
 
   public static MemoryManager initialize(CelebornConf conf) {
@@ -119,28 +112,13 @@ public class MemoryManager {
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
 
-    String[] provider;
-    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_10)) {
-      provider = new String[] {"jdk.internal.misc.VM", "maxDirectMemory"};
-    } else {
-      provider = new String[] {"sun.misc.VM", "maxDirectMemory"};
-    }
+    maxDirectorMemory =
+        DynMethods.builder("maxDirectMemory")
+            .impl("jdk.internal.misc.VM") // for Java 10 and above
+            .impl("sun.misc.VM") // for Java 9 and previous
+            .buildStatic()
+            .<Long>invoke();
 
-    Method maxMemMethod;
-    String clazz = provider[0];
-    String method = provider[1];
-    try {
-      Class<?> vmClass = Class.forName(clazz);
-      maxMemMethod = vmClass.getDeclaredMethod(method);
-
-      maxDirectorMemory = (long) maxMemMethod.invoke(null);
-    } catch (ClassNotFoundException
-        | NoSuchMethodException
-        | IllegalAccessException
-        | InvocationTargetException ignored) {
-      System.out.println("exception " + ignored);
-      // Ignore Exception
-    }
     Preconditions.checkArgument(maxDirectorMemory > 0);
     Preconditions.checkArgument(pauseReplicateRatio > pausePushDataRatio);
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
@@ -154,19 +132,16 @@ public class MemoryManager {
     readBufferTarget = (long) (readBufferThreshold * readBufferTargetRatio);
     memoryShuffleStorageThreshold = (long) (maxDirectorMemory * shuffleStorageRatio);
 
-    initDirectMemoryIndicator();
-
     checkService.scheduleWithFixedDelay(
         () -> {
           try {
-            MemoryManagerStat lastAction = memoryManagerStat;
-            memoryManagerStat = currentMemoryAction();
-            if (lastAction != memoryManagerStat) {
-              logger.info(
-                  "Memory manager actions transformed {} -> {}", lastAction, memoryManagerStat);
-              if (memoryManagerStat == MemoryManagerStat.pausePushDataAndResumeReplicate) {
+            ServingState lastState = servingState;
+            servingState = currentServingState();
+            if (lastState != servingState) {
+              logger.info("Serving state transformed from {} to {}", lastState, servingState);
+              if (servingState == ServingState.PUSH_PAUSED) {
                 pausePushDataCounter.increment();
-                logger.info("Trigger pausePushDataAndResumeReplicate action");
+                logger.info("Trigger action: PAUSE PUSH, RESUME REPLICATE");
                 memoryPressureListeners.forEach(
                     memoryPressureListener ->
                         memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -174,9 +149,9 @@ public class MemoryManager {
                     memoryPressureListener ->
                         memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
                 trimAllListeners();
-              } else if (memoryManagerStat == MemoryManagerStat.pausePushDataAndReplicate) {
+              } else if (servingState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
                 pausePushDataAndReplicateCounter.increment();
-                logger.info("Trigger pausePushDataAndReplicate action");
+                logger.info("Trigger action: PAUSE PUSH and REPLICATE");
                 memoryPressureListeners.forEach(
                     memoryPressureListener ->
                         memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -185,13 +160,13 @@ public class MemoryManager {
                         memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
                 trimAllListeners();
               } else {
-                logger.info("Trigger resume action");
+                logger.info("Trigger action: RESUME PUSH and REPLICATE");
                 memoryPressureListeners.forEach(
                     memoryPressureListener -> memoryPressureListener.onResume("all"));
               }
             } else {
-              if (memoryManagerStat != MemoryManagerStat.resumeAll) {
-                logger.debug("Trigger trim action");
+              if (servingState != ServingState.NONE_PAUSED) {
+                logger.debug("Trigger action: TRIM");
                 trimAllListeners();
               }
             }
@@ -207,7 +182,7 @@ public class MemoryManager {
         () ->
             logger.info(
                 "Direct memory usage: {}/{}, disk buffer size: {}, sort memory size: {}, read buffer size: {}",
-                Utils.bytesToString(nettyMemoryCounter.get()),
+                Utils.bytesToString(getNettyUsedDirectMemory()),
                 Utils.bytesToString(maxDirectorMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
                 Utils.bytesToString(sortMemoryCounter.get()),
@@ -256,9 +231,10 @@ public class MemoryManager {
 
     logger.info(
         "Memory tracker initialized with: "
-            + "max direct memory: {}, pause pushdata memory: {}, "
-            + "pause replication memory: {}, resume memory: {},"
-            + "read buffer memory limit: {} target :{} , memory shuffle storage limit : {}",
+            + "max direct memory: {}, pause push memory: {}, "
+            + "pause replication memory: {}, resume memory: {}, "
+            + "read buffer memory limit: {} target: {}, "
+            + "memory shuffle storage limit: {}",
         Utils.bytesToString(maxDirectorMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
@@ -268,47 +244,29 @@ public class MemoryManager {
         Utils.bytesToString(memoryShuffleStorageThreshold));
   }
 
-  private void initDirectMemoryIndicator() {
-    try {
-      Field field = null;
-      Field[] result = PlatformDependent.class.getDeclaredFields();
-      for (Field tf : result) {
-        if ("DIRECT_MEMORY_COUNTER".equals(tf.getName())) {
-          field = tf;
-        }
-      }
-      field.setAccessible(true);
-      nettyMemoryCounter = ((AtomicLong) field.get(PlatformDependent.class));
-    } catch (Exception e) {
-      logger.error("Fatal error, get netty_direct_memory failed, worker should stop", e);
-      System.exit(-1);
-    }
-  }
-
-  public MemoryManagerStat currentMemoryAction() {
+  public ServingState currentServingState() {
     long memoryUsage = getMemoryUsage();
     boolean pausePushData = memoryUsage > pausePushDataThreshold;
-    boolean pauseReplication = memoryUsage > pauseReplicateThreshold;
-    if (pausePushData) {
+    boolean pauseReplicate = memoryUsage > pauseReplicateThreshold;
+    boolean resume = memoryUsage < resumeThreshold;
+    if (pausePushData || pauseReplicate) {
       underPressure = true;
-      if (pauseReplication) {
-        return MemoryManagerStat.pausePushDataAndReplicate;
-      } else {
-        return MemoryManagerStat.pausePushDataAndResumeReplicate;
-      }
-    } else {
-      boolean resume = memoryUsage < resumeThreshold;
-      if (resume) {
-        underPressure = false;
-        return MemoryManagerStat.resumeAll;
-      } else {
-        if (underPressure) {
-          return MemoryManagerStat.pausePushDataAndResumeReplicate;
-        } else {
-          return MemoryManagerStat.resumeAll;
-        }
-      }
+    } else if (resume) {
+      underPressure = false;
     }
+    if (pausePushData && pauseReplicate) {
+      return ServingState.PUSH_AND_REPLICATE_PAUSED;
+    }
+    if (pausePushData) {
+      return ServingState.PUSH_PAUSED;
+    }
+    if (resume) {
+      return ServingState.NONE_PAUSED;
+    }
+    if (underPressure) {
+      return ServingState.PUSH_PAUSED;
+    }
+    return ServingState.NONE_PAUSED;
   }
 
   public void trimAllListeners() {
@@ -328,7 +286,7 @@ public class MemoryManager {
   }
 
   public boolean sortMemoryReady() {
-    return (currentMemoryAction().equals(MemoryManagerStat.resumeAll))
+    return currentServingState() == ServingState.NONE_PAUSED
         && sortMemoryCounter.get() < maxSortMemory;
   }
 
@@ -350,12 +308,14 @@ public class MemoryManager {
     diskBufferCounter.addAndGet(size * -1);
   }
 
-  public AtomicLong getNettyMemoryCounter() {
-    return nettyMemoryCounter;
+  public long getNettyUsedDirectMemory() {
+    long usedDirectMemory = PlatformDependent.usedDirectMemory();
+    assert usedDirectMemory != -1;
+    return usedDirectMemory;
   }
 
   public long getMemoryUsage() {
-    return nettyMemoryCounter.get() + sortMemoryCounter.get();
+    return getNettyUsedDirectMemory() + sortMemoryCounter.get();
   }
 
   public AtomicLong getSortMemoryCounter() {
@@ -445,9 +405,9 @@ public class MemoryManager {
     void onChange(long newMemoryTarget);
   }
 
-  enum MemoryManagerStat {
-    resumeAll,
-    pausePushDataAndReplicate,
-    pausePushDataAndResumeReplicate
+  enum ServingState {
+    NONE_PAUSED,
+    PUSH_AND_REPLICATE_PAUSED,
+    PUSH_PAUSED
   }
 }

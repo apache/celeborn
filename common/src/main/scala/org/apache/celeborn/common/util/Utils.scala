@@ -17,28 +17,28 @@
 
 package org.apache.celeborn.common.util
 
-import java.io.{File, FileInputStream, InputStreamReader, IOException}
+import java.io.{File, FileInputStream, InputStream, InputStreamReader, IOException}
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
-import java.text.SimpleDateFormat
 import java.util
 import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.io.Source
 import scala.reflect.ClassTag
 import scala.util.Try
 import scala.util.control.{ControlThrowable, NonFatal}
 
-import com.google.common.net.InetAddresses
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
+import org.apache.hadoop.fs.Path
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -136,6 +136,27 @@ object Utils extends Logging {
     ms match {
       case t if t < second =>
         "%d ms".formatLocal(locale, t)
+      case t if t < minute =>
+        "%.1f s".formatLocal(locale, t.toFloat / second)
+      case t if t < hour =>
+        "%.1f m".formatLocal(locale, t.toFloat / minute)
+      case t =>
+        "%.2f h".formatLocal(locale, t.toFloat / hour)
+    }
+  }
+
+  def nanoDurationToString(ns: Long): String = {
+    val ms = 1000 * 1000L
+    val second = 1000 * ms
+    val minute = 60 * second
+    val hour = 60 * minute
+    val locale = Locale.US
+
+    ns match {
+      case t if t < ms =>
+        "%d ns".formatLocal(locale, t)
+      case t if t < second =>
+        "%.1f ms".formatLocal(locale, t.toFloat / ms)
       case t if t < minute =>
         "%.1f s".formatLocal(locale, t.toFloat / second)
       case t if t < hour =>
@@ -567,7 +588,7 @@ object Utils extends Logging {
 
     } catch {
       case e: IOException =>
-        throw new CelebornException(s"Failed when loading RSS properties from $filename", e)
+        throw new CelebornException(s"Failed when loading Celeborn properties from $filename", e)
     } finally {
       inReader.close()
     }
@@ -592,7 +613,7 @@ object Utils extends Logging {
   }
 
   def makeReducerKey(shuffleId: Int, partitionId: Int): String = {
-    s"shuffleId-$partitionId"
+    s"$shuffleId-$partitionId"
   }
 
   def makeMapKey(applicationId: String, shuffleId: Int, mapId: Int, attemptId: Int): String = {
@@ -650,10 +671,77 @@ object Utils extends Logging {
   }
 
   /**
+   * Execute a command and return the process running the command.
+   */
+  def executeCommand(
+      command: Seq[String],
+      workingDir: File = new File("."),
+      extraEnvironment: Map[String, String] = Map.empty,
+      redirectStderr: Boolean = true): Process = {
+    val builder = new ProcessBuilder(command: _*).directory(workingDir)
+    val environment = builder.environment()
+    for ((key, value) <- extraEnvironment) {
+      environment.put(key, value)
+    }
+    val process = builder.start()
+    if (redirectStderr) {
+      val threadName = "redirect stderr for command " + command.head
+
+      def log(s: String): Unit = logInfo(s)
+
+      processStreamByLine(threadName, process.getErrorStream, log)
+    }
+    process
+  }
+
+  /**
+   * Execute a command and get its output, throwing an exception if it yields a code other than 0.
+   */
+  def executeAndGetOutput(
+      command: Seq[String],
+      workingDir: File = new File("."),
+      extraEnvironment: Map[String, String] = Map.empty,
+      redirectStderr: Boolean = true): String = {
+    val process = executeCommand(command, workingDir, extraEnvironment, redirectStderr)
+    val output = new StringBuilder
+    val threadName = "read stdout for " + command.head
+
+    def appendToOutput(s: String): Unit = output.append(s).append("\n")
+
+    val stdoutThread = processStreamByLine(threadName, process.getInputStream, appendToOutput)
+    val exitCode = process.waitFor()
+    stdoutThread.join() // Wait for it to finish reading output
+    if (exitCode != 0) {
+      logError(s"Process $command exited with code $exitCode: $output")
+      throw new CelebornException(s"Process $command exited with code $exitCode")
+    }
+    output.toString
+  }
+
+  /**
+   * Return and start a daemon thread that processes the content of the input stream line by line.
+   */
+  def processStreamByLine(
+      threadName: String,
+      inputStream: InputStream,
+      processLine: String => Unit): Thread = {
+    val t = new Thread(threadName) {
+      override def run(): Unit = {
+        for (line <- Source.fromInputStream(inputStream).getLines()) {
+          processLine(line)
+        }
+      }
+    }
+    t.setDaemon(true)
+    t.start()
+    t
+  }
+
+  /**
    * Create a directory inside the given parent directory. The directory is guaranteed to be
    * newly created, and is not marked for automatic deletion.
    */
-  def createDirectory(root: String, namePrefix: String = "rss"): File = {
+  def createDirectory(root: String, namePrefix: String = "celeborn"): File = {
     var attempts = 0
     val maxAttempts = 10
     var dir: File = null
@@ -703,7 +791,7 @@ object Utils extends Logging {
   def getSlotsPerDisk(
       slots: WorkerResource): util.Map[WorkerInfo, util.Map[String, Integer]] = {
     val workerSlotsDistribution = new util.HashMap[WorkerInfo, util.Map[String, Integer]]()
-    slots.asScala.foreach { case (workerInfo, (masterPartitionLoc, slavePartitionLoc)) =>
+    slots.asScala.foreach { case (workerInfo, (primaryPartitionLoc, replicaPartitionLoc)) =>
       val diskSlotsMap = new util.HashMap[String, Integer]()
 
       def countSlotsByDisk(location: util.List[PartitionLocation]): Unit = {
@@ -717,8 +805,8 @@ object Utils extends Logging {
         })
       }
 
-      countSlotsByDisk(masterPartitionLoc)
-      countSlotsByDisk(slavePartitionLoc)
+      countSlotsByDisk(primaryPartitionLoc)
+      countSlotsByDisk(replicaPartitionLoc)
       workerSlotsDistribution.put(workerInfo, diskSlotsMap)
     }
     workerSlotsDistribution
@@ -822,7 +910,7 @@ object Utils extends Logging {
       case 8 =>
         StatusCode.PARTITION_NOT_FOUND
       case 9 =>
-        StatusCode.SLAVE_PARTITION_NOT_FOUND
+        StatusCode.REPLICA_PARTITION_NOT_FOUND
       case 10 =>
         StatusCode.DELETE_FILES_FAILED
       case 11 =>
@@ -840,9 +928,9 @@ object Utils extends Logging {
       case 17 =>
         StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE
       case 18 =>
-        StatusCode.PUSH_DATA_WRITE_FAIL_SLAVE
+        StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
       case 19 =>
-        StatusCode.PUSH_DATA_WRITE_FAIL_MASTER
+        StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
       case 20 =>
         StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND
       case 21 =>
@@ -858,29 +946,29 @@ object Utils extends Logging {
       case 26 =>
         StatusCode.NO_AVAILABLE_WORKING_DIR
       case 27 =>
-        StatusCode.WORKER_IN_BLACKLIST
+        StatusCode.WORKER_EXCLUDED
       case 28 =>
-        StatusCode.UNKNOWN_WORKER
+        StatusCode.WORKER_UNKNOWN
       case 30 =>
-        StatusCode.PUSH_DATA_SUCCESS_MASTER_CONGESTED
+        StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED
       case 31 =>
-        StatusCode.PUSH_DATA_SUCCESS_SLAVE_CONGESTED
+        StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED
       case 38 =>
-        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_MASTER
+        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY
       case 39 =>
-        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_SLAVE
+        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA
       case 40 =>
-        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_MASTER
+        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY
       case 41 =>
-        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_SLAVE
+        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
       case 42 =>
-        StatusCode.PUSH_DATA_TIMEOUT_MASTER
+        StatusCode.PUSH_DATA_TIMEOUT_PRIMARY
       case 43 =>
-        StatusCode.PUSH_DATA_TIMEOUT_SLAVE
+        StatusCode.PUSH_DATA_TIMEOUT_REPLICA
       case 44 =>
-        StatusCode.PUSH_DATA_MASTER_BLACKLISTED
+        StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED
       case 45 =>
-        StatusCode.PUSH_DATA_SLAVE_BLACKLISTED
+        StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED
       case 46 =>
         StatusCode.FETCH_DATA_TIMEOUT
       case 47 =>

@@ -255,7 +255,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       String filename, FileChannel channel, ByteBuffer header, ByteBuf buffer, int headerSize)
       throws IOException {
     readHeaderOrIndexBuffer(channel, header, headerSize);
-    // header is combined of mapId(4),attemptId(4),nextBatchId(4) and total Compresszed Length(4)
+    // header is combined of mapId(4),attemptId(4),nextBatchId(4) and total Compressed Length(4)
     // we need size here,so we read length directly
     int bufferLength = header.getInt(12);
     if (bufferLength <= 0 || bufferLength > buffer.capacity()) {

@@ -222,83 +222,85 @@ class WorkerInfoSuite extends CelebornFunSuite {
       ResourceConsumption(20971520, 1, 52428800, 1))
     val conf = new CelebornConf()
     val endpointAddress = new RpcEndpointAddress(new RpcAddress("localhost", 12345), "mockRpc")
-    val rpcEnv = RpcEnv.create("mockEnv", "localhost", "localhost", 12345, conf, 64)
-    val worker4 = new WorkerInfo(
-      "h4",
-      40001,
-      40002,
-      40003,
-      4000,
-      disks,
-      userResourceConsumption)
+    var rpcEnv: RpcEnv = null
+    try {
+      rpcEnv = RpcEnv.create("mockEnv", "localhost", "localhost", 12345, conf, 64)
+      val worker4 = new WorkerInfo(
+        "h4",
+        40001,
+        40002,
+        40003,
+        4000,
+        disks,
+        userResourceConsumption)
 
-    val placeholder = ""
-    val exp1 =
-      s"""
-         |Host: h1
-         |RpcPort: 10001
-         |PushPort: 10002
-         |FetchPort: 10003
-         |ReplicatePort: 1000
-         |SlotsUsed: 0
-         |LastHeartbeat: 0
-         |Disks: empty
-         |UserResourceConsumption: empty
-         |WorkerRef: null
-         |""".stripMargin
+      val placeholder = ""
+      val exp1 =
+        s"""
+           |Host: h1
+           |RpcPort: 10001
+           |PushPort: 10002
+           |FetchPort: 10003
+           |ReplicatePort: 1000
+           |SlotsUsed: 0
+           |LastHeartbeat: 0
+           |Disks: empty
+           |UserResourceConsumption: empty
+           |WorkerRef: null
+           |""".stripMargin
 
-    val exp2 =
-      """
-        |Host: h2
-        |RpcPort: 20001
-        |PushPort: 20002
-        |FetchPort: 20003
-        |ReplicatePort: 2000
-        |SlotsUsed: 0
-        |LastHeartbeat: 0
-        |Disks: empty
-        |UserResourceConsumption: empty
-        |WorkerRef: null
-        |""".stripMargin
-    val exp3 =
-      s"""
-         |Host: h3
-         |RpcPort: 30001
-         |PushPort: 30002
-         |FetchPort: 30003
-         |ReplicatePort: 3000
-         |SlotsUsed: 0
-         |LastHeartbeat: 0
-         |Disks: empty
-         |UserResourceConsumption: empty
-         |WorkerRef: null
-         |""".stripMargin
-    val exp4 =
-      s"""
-         |Host: h4
-         |RpcPort: 40001
-         |PushPort: 40002
-         |FetchPort: 40003
-         |ReplicatePort: 4000
-         |SlotsUsed: 60
-         |LastHeartbeat: 0
-         |Disks: $placeholder
-         |  DiskInfo0: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2147483647, avgFlushTime: 3, avgFetchTime: 3, activeSlots: 30) status: HEALTHY dirs $placeholder
-         |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2147483647, avgFlushTime: 1, avgFetchTime: 1, activeSlots: 10) status: HEALTHY dirs $placeholder
-         |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2147483647, avgFlushTime: 2, avgFetchTime: 2, activeSlots: 20) status: HEALTHY dirs $placeholder
-         |UserResourceConsumption: $placeholder
-         |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1)
-         |WorkerRef: null
-         |""".stripMargin;
+      val exp2 =
+        """
+          |Host: h2
+          |RpcPort: 20001
+          |PushPort: 20002
+          |FetchPort: 20003
+          |ReplicatePort: 2000
+          |SlotsUsed: 0
+          |LastHeartbeat: 0
+          |Disks: empty
+          |UserResourceConsumption: empty
+          |WorkerRef: null
+          |""".stripMargin
+      val exp3 =
+        s"""
+           |Host: h3
+           |RpcPort: 30001
+           |PushPort: 30002
+           |FetchPort: 30003
+           |ReplicatePort: 3000
+           |SlotsUsed: 0
+           |LastHeartbeat: 0
+           |Disks: empty
+           |UserResourceConsumption: empty
+           |WorkerRef: null
+           |""".stripMargin
+      val exp4 =
+        s"""
+           |Host: h4
+           |RpcPort: 40001
+           |PushPort: 40002
+           |FetchPort: 40003
+           |ReplicatePort: 4000
+           |SlotsUsed: 60
+           |LastHeartbeat: 0
+           |Disks: $placeholder
+           |  DiskInfo0: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2048.0 MiB, avgFlushTime: 3 ns, avgFetchTime: 3 ns, activeSlots: 30) status: HEALTHY dirs $placeholder
+           |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2048.0 MiB, avgFlushTime: 1 ns, avgFetchTime: 1 ns, activeSlots: 10) status: HEALTHY dirs $placeholder
+           |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0 shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2048.0 MiB, avgFlushTime: 2 ns, avgFetchTime: 2 ns, activeSlots: 20) status: HEALTHY dirs $placeholder
+           |UserResourceConsumption: $placeholder
+           |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1)
+           |WorkerRef: null
+           |""".stripMargin;
 
-    println(worker1)
-    println(worker2)
-    println(worker3)
-    println(worker4)
-
-    assertEquals(exp1, worker1.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-    assertEquals(exp2, worker2.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-    assertEquals(exp3, worker3.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-    assertEquals(exp4, worker4.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+      assertEquals(exp1, worker1.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+      assertEquals(exp2, worker2.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+      assertEquals(exp3, worker3.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+      assertEquals(exp4, worker4.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+    } finally {
+      if (null != rpcEnv) {
+        rpcEnv.shutdown()
+      }
+    }
   }
 }

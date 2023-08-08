@@ -328,7 +328,7 @@ public class StateMachine extends BaseStateMachine {
   }
 
   /**
-   * Store the current state as an snapshot file in the stateMachineStorage.
+   * Store the current state as a snapshot file in the stateMachineStorage.
    *
    * @return the index of the snapshot
    */

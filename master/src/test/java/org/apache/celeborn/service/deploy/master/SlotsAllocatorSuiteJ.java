@@ -261,19 +261,23 @@ public class SlotsAllocatorSuiteJ {
       }
       Map<WorkerInfo, Map<String, Integer>> workerToAllocatedSlots =
           SlotsAllocator.slotsToDiskAllocations(slots);
+      int unknownDiskSlots = 0;
       for (Map.Entry<WorkerInfo, Map<String, Integer>> entry : workerToAllocatedSlots.entrySet()) {
         WorkerInfo worker = entry.getKey();
         Map<String, Integer> allocationMap = entry.getValue();
         worker.allocateSlots(shuffleKey, allocationMap);
+        if (allocationMap.containsKey("UNKNOWN_DISK")) {
+          unknownDiskSlots += allocationMap.get("UNKNOWN_DISK");
+        }
       }
-      int usedTotalSlots = 0;
+      int allocateToDiskSlots = 0;
       for (WorkerInfo worker : workers) {
-        usedTotalSlots += worker.usedSlots();
+        allocateToDiskSlots += worker.usedSlots();
       }
       if (shouldReplicate) {
-        Assert.assertEquals(partitionIds.size() * 2, usedTotalSlots);
+        Assert.assertEquals(partitionIds.size() * 2, unknownDiskSlots + allocateToDiskSlots);
       } else {
-        Assert.assertEquals(partitionIds.size(), usedTotalSlots);
+        Assert.assertEquals(partitionIds.size(), unknownDiskSlots + allocateToDiskSlots);
       }
     } else {
       assert slots.isEmpty()
@@ -297,10 +301,10 @@ public class SlotsAllocatorSuiteJ {
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         workerToPartitions : slots.entrySet()) {
       WorkerInfo workerInfo = workerToPartitions.getKey();
-      List<PartitionLocation> masterLocs = workerToPartitions.getValue()._1;
-      List<PartitionLocation> slaveLocs = workerToPartitions.getValue()._2();
-      allocatedPartitionCount += masterLocs.size();
-      allocatedPartitionCount += slaveLocs.size();
+      List<PartitionLocation> primaryLocs = workerToPartitions.getValue()._1;
+      List<PartitionLocation> replicaLocs = workerToPartitions.getValue()._2();
+      allocatedPartitionCount += primaryLocs.size();
+      allocatedPartitionCount += replicaLocs.size();
     }
     if (expectSuccess) {
       Assert.assertEquals(slots.isEmpty(), false);

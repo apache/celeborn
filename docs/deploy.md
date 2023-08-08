@@ -79,7 +79,7 @@ celeborn.master.ha.node.2.ratis.port 9872
 celeborn.master.ha.node.3.host clb-3
 celeborn.master.ha.node.3.port 9097
 celeborn.master.ha.node.3.ratis.port 9872
-celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/rss_ratis/
+celeborn.master.ha.ratis.raft.server.storage.dir /mnt/disk1/celeborn_ratis/
 
 celeborn.metrics.enabled true
 # If you want to use HDFS as shuffle storage, make sure that flush buffer size is at least 4MB or larger.
@@ -154,7 +154,7 @@ Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 ### Spark Configuration
 To use Celeborn, following spark configurations should be added.
 ```properties
-spark.shuffle.manager org.apache.spark.shuffle.celeborn.RssShuffleManager
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
 

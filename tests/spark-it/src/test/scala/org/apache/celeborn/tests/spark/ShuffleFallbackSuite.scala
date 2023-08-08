@@ -40,17 +40,17 @@ class ShuffleFallbackSuite extends AnyFunSuite
     System.gc()
   }
 
-  private def enableRss(conf: SparkConf) = {
-    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.RssShuffleManager")
+  private def enableCeleborn(conf: SparkConf) = {
+    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
   }
 
   test(s"celeborn spark integration test - fallback") {
-    val sparkConf = new SparkConf().setAppName("rss-demo")
+    val sparkConf = new SparkConf().setAppName("celeborn-demo")
       .setMaster("local[2]")
       .set(s"spark.${CelebornConf.SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED.key}", "true")
 
-    enableRss(sparkConf)
+    enableCeleborn(sparkConf)
 
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val df = sparkSession.sparkContext.parallelize(1 to 120000, 8)

@@ -66,7 +66,7 @@ public abstract class FileWriter implements DeviceObserver {
   @GuardedBy("flushLock")
   private CompositeByteBuf flushBuffer;
 
-  private Object flushLock = new Object();
+  private final Object flushLock = new Object();
   private final long writerCloseTimeoutMs;
 
   protected final long flusherBufferSize;
@@ -81,6 +81,10 @@ public abstract class FileWriter implements DeviceObserver {
   protected boolean deleted = false;
   private RoaringBitmap mapIdBitMap = null;
   protected final FlushNotifier notifier = new FlushNotifier();
+  // It's only needed when graceful shutdown is enabled
+  private String shuffleKey;
+  private StorageManager storageManager;
+  private boolean workerGracefulShutdown;
 
   public FileWriter(
       FileInfo fileInfo,
@@ -97,6 +101,7 @@ public abstract class FileWriter implements DeviceObserver {
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
     this.writerCloseTimeoutMs = conf.workerWriterCloseTimeoutMs();
+    this.workerGracefulShutdown = conf.workerGracefulShutdown();
     this.splitThreshold = splitThreshold;
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
@@ -170,11 +175,7 @@ public abstract class FileWriter implements DeviceObserver {
     }
   }
 
-  /**
-   * assume data size is less than chunk capacity
-   *
-   * @param data
-   */
+  /** assume data size is less than chunk capacity */
   public void write(ByteBuf data) throws IOException {
     if (closed) {
       String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();
@@ -244,14 +245,14 @@ public abstract class FileWriter implements DeviceObserver {
   public abstract long close() throws IOException;
 
   @FunctionalInterface
-  public interface RunnableWithException<R extends IOException> {
-    void run() throws R;
+  public interface RunnableWithIOException {
+    void run() throws IOException;
   }
 
   protected synchronized long close(
-      RunnableWithException tryClose,
-      RunnableWithException streamClose,
-      RunnableWithException finalClose)
+      RunnableWithIOException tryClose,
+      RunnableWithIOException streamClose,
+      RunnableWithIOException finalClose)
       throws IOException {
     if (closed) {
       String msg = "FileWriter has already closed! fileName " + fileInfo.getFilePath();
@@ -264,7 +265,9 @@ public abstract class FileWriter implements DeviceObserver {
       closed = true;
 
       synchronized (flushLock) {
-        flush(true);
+        if (flushBuffer.readableBytes() > 0) {
+          flush(true);
+        }
       }
 
       tryClose.run();
@@ -279,16 +282,19 @@ public abstract class FileWriter implements DeviceObserver {
           streamClose.run();
         }
       } catch (IOException e) {
-        logger.warn("close file writer" + this + "failed", e);
+        logger.warn("close file writer {} failed", this, e);
       }
 
       finalClose.run();
 
       // unregister from DeviceMonitor
       if (!fileInfo.isHdfs()) {
-        logger.debug("file info {} register from device monitor");
+        logger.debug("file info {} register from device monitor", fileInfo);
         deviceMonitor.unregisterFileWriter(this);
       }
+    }
+    if (workerGracefulShutdown) {
+      storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), fileInfo);
     }
     return fileInfo.getFileLength();
   }
@@ -357,7 +363,7 @@ public abstract class FileWriter implements DeviceObserver {
     String metricsName = null;
     String fileAbsPath = null;
     if (source.metricsCollectCriticalEnabled()) {
-      metricsName = WorkerSource.TakeBufferTime();
+      metricsName = WorkerSource.TAKE_BUFFER_TIME();
       fileAbsPath = fileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
     }
@@ -441,5 +447,13 @@ public abstract class FileWriter implements DeviceObserver {
 
   public PartitionType getPartitionType() {
     return partitionType;
+  }
+
+  public void setShuffleKey(String shuffleKey) {
+    this.shuffleKey = shuffleKey;
+  }
+
+  public void setStorageManager(StorageManager storageManager) {
+    this.storageManager = storageManager;
   }
 }

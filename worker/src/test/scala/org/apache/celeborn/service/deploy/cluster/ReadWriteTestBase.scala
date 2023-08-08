@@ -62,7 +62,7 @@ trait ReadWriteTestBase extends AnyFunSuite
       .set("celeborn.data.io.numConnectionsPerPeer", "1")
     val lifecycleManager = new LifecycleManager(APP, clientConf)
     val shuffleClient = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
-    shuffleClient.setupMetaServiceRef(lifecycleManager.self)
+    shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
 
     val STR1 = RandomStringUtils.random(1024)
     val DATA1 = STR1.getBytes(StandardCharsets.UTF_8)
@@ -93,7 +93,7 @@ trait ReadWriteTestBase extends AnyFunSuite
 
     shuffleClient.mapperEnd(1, 0, 0, 1)
 
-    val inputStream = shuffleClient.readPartition(1, 0, 0)
+    val inputStream = shuffleClient.readPartition(1, 0, 0, 0, Integer.MAX_VALUE)
     val outputStream = new ByteArrayOutputStream()
 
     var b = inputStream.read()

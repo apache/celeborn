@@ -1,0 +1,17 @@
+# As a Chinese developer facing network issues, you can accelerate the download
+# speed of bootstrap/plugin/dependencies jar packages by executing the
+# following command to configure the mirror:
+#
+# ```
+# cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
+# ```
+
+[repositories]
+  local
+  mavenLocal: file://${user.home}/.m2/repository/
+  # The system property value of `celeborn.sbt.default.artifact.repository` is
+  # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
+  # assigned within the build/sbt-launch-lib.bash script.
+  private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
+  aliyun-maven: https://maven.aliyun.com/nexus/content/groups/public/
+  huawei-central: https://mirrors.huaweicloud.com/repository/maven/

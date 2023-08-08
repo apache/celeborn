@@ -38,7 +38,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   var workers: collection.Set[Worker] = null
 
   override def beforeAll(): Unit = {
-    logInfo("test initialized , setup rss mini cluster")
+    logInfo("test initialized , setup celeborn mini cluster")
     val masterConf = Map(
       "celeborn.master.host" -> "localhost",
       "celeborn.master.port" -> "9097")
@@ -47,7 +47,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   }
 
   override def afterAll(): Unit = {
-    logInfo("all test complete , stop rss mini cluster")
+    logInfo("all test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
   }
 

@@ -24,7 +24,7 @@ import scala.collection.mutable
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
@@ -95,25 +95,23 @@ trait MiniClusterFeature extends Logging {
   }
 
   def setUpMiniCluster(
-      masterConfs: Map[String, String] = null,
-      workerConfs: Map[String, String] = null,
+      masterConf: Map[String, String] = null,
+      workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
-    val master = createMaster(masterConfs)
+    val master = createMaster(masterConf)
     val masterThread = runnerWrap(master.rpcEnv.awaitTermination())
     masterThread.start()
     masterInfo = (master, masterThread)
     Thread.sleep(5000L)
-    for (_ <- 1 to workerNum) {
-      val worker = createWorker(workerConfs)
+    (1 to workerNum).foreach { _ =>
+      val worker = createWorker(workerConf)
       val workerThread = runnerWrap(worker.initialize())
       workerThread.start()
       workerInfos.put(worker, workerThread)
     }
     Thread.sleep(5000L)
 
-    workerInfos.foreach {
-      case (worker, _) => assert(worker.registered.get())
-    }
+    workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
     (master, workerInfos.keySet)
   }
 
@@ -121,18 +119,19 @@ trait MiniClusterFeature extends Logging {
     // shutdown workers
     workerInfos.foreach {
       case (worker, _) =>
-        worker.close()
+        worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
         worker.rpcEnv.shutdown()
     }
 
     // shutdown masters
-    masterInfo._1.close()
+    masterInfo._1.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     masterInfo._1.rpcEnv.shutdown()
 
     // interrupt threads
     Thread.sleep(5000)
     workerInfos.foreach {
-      case (_, thread) =>
+      case (worker, thread) =>
+        worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
         thread.interrupt()
     }
     workerInfos.clear()

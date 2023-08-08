@@ -32,7 +32,7 @@ class JVMCPUSource(conf: CelebornConf, role: String) extends AbstractSource(conf
   import JVMCPUSource._
 
   addGauge(
-    JVMCPUTime,
+    JVM_CPU_TIME,
     new Gauge[Long] {
       val mBean: MBeanServer = ManagementFactory.getPlatformMBeanServer
       val name = new ObjectName("java.lang", "type", "OperatingSystem")
@@ -51,5 +51,5 @@ class JVMCPUSource(conf: CelebornConf, role: String) extends AbstractSource(conf
 }
 
 object JVMCPUSource {
-  val JVMCPUTime = "JVMCPUTime"
+  val JVM_CPU_TIME = "JVMCPUTime"
 }

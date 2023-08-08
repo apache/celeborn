@@ -64,7 +64,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int shuffleId;
   private final int mapId;
   private final TaskContext taskContext;
-  private final ShuffleClient rssShuffleClient;
+  private final ShuffleClient shuffleClient;
   private final int numMappers;
   private final int numPartitions;
 
@@ -95,12 +95,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // parameters. By the way, simplify the passed parameters.
   public SortBasedShuffleWriter(
       ShuffleDependency<K, V, C> dep,
-      String appId,
       int numMappers,
       TaskContext taskContext,
       CelebornConf conf,
       ShuffleClient client,
-      ExecutorService executorService)
+      ExecutorService executorService,
+      SendBufferPool sendBufferPool)
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
@@ -111,7 +111,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.taskContext = taskContext;
     this.numMappers = numMappers;
     this.numPartitions = dep.partitioner().numPartitions();
-    this.rssShuffleClient = client;
+    this.shuffleClient = client;
     unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
@@ -132,8 +132,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         pushers[i] =
             new SortBasedPusher(
                 taskContext.taskMemoryManager(),
-                rssShuffleClient,
-                appId,
+                shuffleClient,
                 shuffleId,
                 mapId,
                 taskContext.attemptNumber(),
@@ -145,15 +144,15 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
                 mapStatusLengths,
                 conf.clientPushSortMemoryThreshold() / 2,
                 globalPushLock,
-                executorService);
+                executorService,
+                sendBufferPool);
       }
       currentPusher = pushers[0];
     } else {
       currentPusher =
           new SortBasedPusher(
               taskContext.taskMemoryManager(),
-              rssShuffleClient,
-              appId,
+              shuffleClient,
               shuffleId,
               mapId,
               taskContext.attemptNumber(),
@@ -165,7 +164,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               mapStatusLengths,
               conf.clientPushSortMemoryThreshold(),
               globalPushLock,
-              null);
+              null,
+              sendBufferPool);
     }
   }
 
@@ -198,7 +198,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     SQLMetric dataSize =
         SparkUtils.getUnsafeRowSerializerDataSizeMetric((UnsafeRowSerializer) dep.serializer());
 
-    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<Integer, UnsafeRow> record = records.next();
       final int partitionId = record._1();
@@ -210,7 +209,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         dataSize.add(serializedRecordSize);
       }
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > pushBufferMaxSize) {
         byte[] giantBuffer = new byte[serializedRecordSize];
         Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
@@ -235,13 +233,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           }
         }
       }
-      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
-    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private void pushAndSwitch() throws IOException {
+    long start = System.nanoTime();
     if (pipelined) {
       currentPusher.triggerPush();
       currentPusher = (currentPusher == pushers[0] ? pushers[1] : pushers[0]);
@@ -249,6 +246,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } else {
       currentPusher.pushData();
     }
+    writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
   private void updatePeakMemoryUsed() {
@@ -282,7 +280,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void write0(scala.collection.Iterator iterator) throws IOException {
     final scala.collection.Iterator<Product2<K, ?>> records = iterator;
 
-    long shuffleWriteTimeSum = 0L;
     while (records.hasNext()) {
       final Product2<K, ?> record = records.next();
       final K key = record._1();
@@ -295,7 +292,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = serBuffer.size();
       assert (serializedRecordSize > 0);
 
-      long insertAndPushStartTime = System.nanoTime();
       if (serializedRecordSize > pushBufferMaxSize) {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
@@ -320,16 +316,14 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           }
         }
       }
-      shuffleWriteTimeSum += System.nanoTime() - insertAndPushStartTime;
       tmpRecords[partitionId] += 1;
     }
-    writeMetrics.incWriteTime(shuffleWriteTimeSum);
   }
 
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
     int bytesWritten =
-        rssShuffleClient.pushData(
+        shuffleClient.pushData(
             shuffleId,
             mapId,
             taskContext.attemptNumber(),
@@ -363,12 +357,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
 
-    rssShuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
+    shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
 
     updateMapStatus();
 
     long waitStartTime = System.nanoTime();
-    rssShuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
+    shuffleClient.mapperEnd(shuffleId, mapId, taskContext.attemptNumber(), numMappers);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
   }
 
@@ -404,12 +398,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } catch (IOException e) {
       return Option.apply(null);
     } finally {
-      rssShuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
+      shuffleClient.cleanup(shuffleId, mapId, taskContext.attemptNumber());
     }
   }
 
   public long[] getPartitionLengths() {
     throw new UnsupportedOperationException(
-        "RSS is not compatible with Spark push mode, please set spark.shuffle.push.enabled to false");
+        "Celeborn is not compatible with Spark push mode, please set spark.shuffle.push.enabled to false");
   }
 }

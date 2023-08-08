@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLongArray}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-import io.netty.buffer.{CompositeByteBuf, Unpooled}
+import io.netty.buffer.{CompositeByteBuf, PooledByteBufAllocator, Unpooled}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
@@ -38,8 +38,10 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
     val threadCount: Int,
+    val allocator: PooledByteBufAllocator,
+    val maxComponents: Int,
     flushTimeMetric: TimeWindow) extends Logging {
-  protected lazy val flusherId = System.identityHashCode(this)
+  protected lazy val flusherId: Int = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
   protected val workers = new Array[Thread](threadCount)
@@ -47,7 +49,6 @@ abstract private[worker] class Flusher(
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
   val stopFlag = new AtomicBoolean(false)
-  val rand = new Random()
 
   init()
 
@@ -61,8 +62,8 @@ abstract private[worker] class Flusher(
         override def run(): Unit = {
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
-            val key = s"Flusher-$this-${rand.nextInt()}"
-            workerSource.sample(WorkerSource.FlushDataTime, key) {
+            val key = s"Flusher-$this-${Random.nextInt()}"
+            workerSource.sample(WorkerSource.FLUSH_DATA_TIME, key) {
               if (!task.notifier.hasException) {
                 try {
                   val flushBeginTime = System.nanoTime()
@@ -104,7 +105,7 @@ abstract private[worker] class Flusher(
   def takeBuffer(): CompositeByteBuf = {
     var buffer = bufferQueue.poll()
     if (buffer == null) {
-      buffer = Unpooled.compositeBuffer(256)
+      buffer = allocator.compositeDirectBuffer(maxComponents)
     }
     buffer
   }
@@ -148,11 +149,15 @@ private[worker] class LocalFlusher(
     workerSource: AbstractSource,
     val deviceMonitor: DeviceMonitor,
     threadCount: Int,
+    allocator: PooledByteBufAllocator,
+    maxComponents: Int,
     val mountPoint: String,
     val diskType: StorageInfo.Type,
     timeWindow: TimeWindow) extends Flusher(
     workerSource,
     threadCount,
+    allocator,
+    maxComponents,
     timeWindow)
   with DeviceObserver with Logging {
 
@@ -178,16 +183,18 @@ private[worker] class LocalFlusher(
     obj.asInstanceOf[LocalFlusher].mountPoint.equals(mountPoint)
   }
 
-  override def toString(): String = {
-    s"LocalFlusher@$flusherId-$mountPoint"
-  }
+  override def toString: String = s"LocalFlusher@$flusherId-$mountPoint"
 }
 
 final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
-    hdfsFlusherThreads: Int) extends Flusher(
+    hdfsFlusherThreads: Int,
+    allocator: PooledByteBufAllocator,
+    maxComponents: Int) extends Flusher(
     workerSource,
     hdfsFlusherThreads,
+    allocator,
+    maxComponents,
     null) with Logging {
   override def toString: String = s"HdfsFlusher@$flusherId"
 

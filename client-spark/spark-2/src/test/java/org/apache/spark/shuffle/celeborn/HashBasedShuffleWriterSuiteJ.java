@@ -31,10 +31,10 @@ public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
 
   @Override
   protected ShuffleWriter<Integer, String> createShuffleWriter(
-      RssShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
+      CelebornShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
       throws IOException {
     // this test case is independent of the `mapId` value
     return new HashBasedShuffleWriter<Integer, String, String>(
-        handle, /*mapId=*/ 0, context, conf, client, SendBufferPool.get(1));
+        handle, /*mapId=*/ 0, context, conf, client, SendBufferPool.get(1, 30, 60));
   }
 }

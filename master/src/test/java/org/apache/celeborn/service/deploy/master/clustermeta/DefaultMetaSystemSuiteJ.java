@@ -30,7 +30,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
+import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -105,8 +105,7 @@ public class DefaultMetaSystemSuiteJ {
   public void tearDown() throws Exception {}
 
   private String getNewReqeustId() {
-    return RssHARetryClient.encodeRequestId(
-        UUID.randomUUID().toString(), callerId.incrementAndGet());
+    return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
   }
 
   @Test
@@ -248,8 +247,8 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
-    assert (workerInfo1.usedSlots() == 5);
-    assert (workerInfo2.usedSlots() == 5);
+    assert (workerInfo1.usedSlots() == 0);
+    assert (workerInfo2.usedSlots() == 0);
     assert (workerInfo3.usedSlots() == 0);
   }
 
@@ -317,10 +316,8 @@ public class DefaultMetaSystemSuiteJ {
           }
         });
 
-    statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
-
     Assert.assertEquals(
-        2,
+        0,
         statusSystem.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
@@ -511,7 +508,7 @@ public class DefaultMetaSystemSuiteJ {
         1,
         getNewReqeustId());
 
-    Assert.assertEquals(statusSystem.blacklist.size(), 1);
+    Assert.assertEquals(statusSystem.excludedWorkers.size(), 1);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
@@ -525,7 +522,7 @@ public class DefaultMetaSystemSuiteJ {
         1,
         getNewReqeustId());
 
-    Assert.assertEquals(statusSystem.blacklist.size(), 2);
+    Assert.assertEquals(statusSystem.excludedWorkers.size(), 2);
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
@@ -539,7 +536,7 @@ public class DefaultMetaSystemSuiteJ {
         1,
         getNewReqeustId());
 
-    Assert.assertEquals(statusSystem.blacklist.size(), 2);
+    Assert.assertEquals(statusSystem.excludedWorkers.size(), 2);
   }
 
   @Test
@@ -596,7 +593,7 @@ public class DefaultMetaSystemSuiteJ {
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     assert 1 == statusSystem.shutdownWorkers.size();
-    assert 0 == statusSystem.blacklist.size();
+    assert 0 == statusSystem.excludedWorkers.size();
   }
 
   @Test

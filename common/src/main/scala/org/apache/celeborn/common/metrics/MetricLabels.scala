@@ -25,12 +25,6 @@ private[metrics] trait MetricLabels {
 
 object MetricLabels {
   def labelString(labels: Map[String, String]): String = {
-    "{" +
-      labels
-        .map { case (key: String, value: String) => s"""$key="$value"""" }
-        .toList
-        .sorted
-        .mkString(", ") +
-      "}"
+    labels.map { case (k, v) => s"""$k="$v"""" }.toArray.sorted.mkString("{", ",", "}")
   }
 }

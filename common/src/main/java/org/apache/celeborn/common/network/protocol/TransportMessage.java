@@ -17,17 +17,32 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import java.io.Serializable;
+import static org.apache.celeborn.common.protocol.MessageType.OPEN_STREAM_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.STREAM_HANDLER_VALUE;
 
+import java.io.Serializable;
+import java.nio.ByteBuffer;
+
+import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.InvalidProtocolBufferException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
 
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
-  private final MessageType type;
+  private static Logger logger = LoggerFactory.getLogger(TransportMessage.class);
+  @Deprecated private final MessageType type;
+  private final int messageTypeValue;
   private final byte[] payload;
 
   public TransportMessage(MessageType type, byte[] payload) {
     this.type = type;
+    this.messageTypeValue = type.getNumber();
     this.payload = payload;
   }
 
@@ -35,7 +50,45 @@ public class TransportMessage implements Serializable {
     return type;
   }
 
+  public int getMessageTypeValue() {
+    return messageTypeValue;
+  }
+
   public byte[] getPayload() {
     return payload;
+  }
+
+  public <T extends GeneratedMessageV3> T getParsedPayload() throws InvalidProtocolBufferException {
+    switch (messageTypeValue) {
+      case OPEN_STREAM_VALUE:
+        return (T) PbOpenStream.parseFrom(payload);
+      case STREAM_HANDLER_VALUE:
+        return (T) PbStreamHandler.parseFrom(payload);
+      default:
+        logger.error("Unexpected type {}", type);
+    }
+    return null;
+  }
+
+  public ByteBuffer toByteBuffer() {
+    int totalBufferSize = payload.length + 4 + 4;
+    ByteBuffer buffer = ByteBuffer.allocate(totalBufferSize);
+    buffer.putInt(messageTypeValue);
+    buffer.putInt(payload.length);
+    buffer.put(payload);
+    buffer.flip();
+    return buffer;
+  }
+
+  public static TransportMessage fromByteBuffer(ByteBuffer buffer) throws CelebornIOException {
+    int messageTypeValue = buffer.getInt();
+    if (MessageType.forNumber(messageTypeValue) == null) {
+      throw new CelebornIOException("Decode failed, fallback to legacy messages.");
+    }
+    int payloadLen = buffer.getInt();
+    byte[] payload = new byte[payloadLen];
+    buffer.get(payload);
+    MessageType msgType = MessageType.forNumber(messageTypeValue);
+    return new TransportMessage(msgType, payload);
   }
 }

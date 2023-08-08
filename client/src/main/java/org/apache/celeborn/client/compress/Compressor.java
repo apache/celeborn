@@ -42,10 +42,10 @@ public interface Compressor {
     int blockSize = conf.clientPushBufferMaxSize();
     switch (codec) {
       case LZ4:
-        return new RssLz4Compressor(blockSize);
+        return new Lz4Compressor(blockSize);
       case ZSTD:
         int zstdLevel = conf.shuffleCompressionZstdCompressLevel();
-        return new RssZstdCompressor(blockSize, zstdLevel);
+        return new ZstdCompressor(blockSize, zstdLevel);
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);
     }

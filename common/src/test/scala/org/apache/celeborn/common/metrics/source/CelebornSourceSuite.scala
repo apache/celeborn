@@ -34,8 +34,8 @@ class CelebornSourceSuite extends CelebornFunSuite {
     val user1 = Map("user" -> "user1")
     val user2 = Map("user" -> "user2")
     val user3 = Map("user" -> "user3")
-    mockSource.addGauge("Gauge1", _ => 1000)
-    mockSource.addGauge("Gauge2", _ => 2000, user1)
+    mockSource.addGauge("Gauge1") { () => 1000 }
+    mockSource.addGauge("Gauge2", user1) { () => 2000 }
     mockSource.addCounter("Counter1")
     mockSource.addCounter("Counter2", user2)
     // test operation with and without label
@@ -53,16 +53,14 @@ class CelebornSourceSuite extends CelebornFunSuite {
     val res = mockSource.getMetrics()
     var extraLabelsStr = extraLabels
     if (extraLabels.nonEmpty) {
-      extraLabelsStr = extraLabels + ", "
+      extraLabelsStr = extraLabels + ","
     }
     val exp1 = s"""metrics_Gauge1_Value{${extraLabelsStr}role="mock"} 1000"""
-    val exp2 =
-      s"""metrics_Gauge2_Value{${extraLabelsStr}role="mock", user="user1"} 2000"""
+    val exp2 = s"""metrics_Gauge2_Value{${extraLabelsStr}role="mock",user="user1"} 2000"""
     val exp3 = s"""metrics_Counter1_Count{${extraLabelsStr}role="mock"} 3000"""
-    val exp4 =
-      s"""metrics_Counter2_Count{${extraLabelsStr}role="mock", user="user2"} 4000"""
+    val exp4 = s"""metrics_Counter2_Count{${extraLabelsStr}role="mock",user="user2"} 4000"""
     val exp5 = s"""metrics_Timer1_Count{${extraLabelsStr}role="mock"} 1"""
-    val exp6 = s"""metrics_Timer2_Count{${extraLabelsStr}role="mock", user="user3"} 1"""
+    val exp6 = s"""metrics_Timer2_Count{${extraLabelsStr}role="mock",user="user3"} 1"""
 
     assert(res.contains(exp1))
     assert(res.contains(exp2))
@@ -76,19 +74,19 @@ class CelebornSourceSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     // label's is normal
     conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "l1=v1,l2=v2,l3=v3")
-    val extraLabels = """l1="v1", l2="v2", l3="v3""""
+    val extraLabels = """l1="v1",l2="v2",l3="v3""""
     createAbstractSourceAndCheck(conf, extraLabels)
 
     // labels' kv not correct
-    assertThrows[IllegalArgumentException]({
+    assertThrows[IllegalArgumentException] {
       conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "l1=v1,l2=")
-      val extraLabels2 = """l1="v1", l2="v2", l3="v3""""
+      val extraLabels2 = """l1="v1",l2="v2",l3="v3""""
       createAbstractSourceAndCheck(conf, extraLabels2)
-    })
+    }
 
     // there are spaces in labels
     conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, " l1 = v1, l2  =v2  ,l3 =v3  ")
-    val extraLabels3 = """l1="v1", l2="v2", l3="v3""""
+    val extraLabels3 = """l1="v1",l2="v2",l3="v3""""
     createAbstractSourceAndCheck(conf, extraLabels3)
 
   }

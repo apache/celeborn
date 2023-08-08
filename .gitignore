@@ -8,6 +8,7 @@
 *.swp
 *~
 .DS_Store
+.bsp
 .cache
 .classpath
 .ensime
@@ -24,6 +25,8 @@
 .settings
 /lib/
 build/apache-maven*
+build/sbt-launch-*.jar
+build/sbt-config/repositories-local
 cache
 checkpoint
 conf/*.cmd
@@ -58,13 +61,7 @@ reports/
 scalastyle-on-compile.generated.xml
 scalastyle-output.xml
 scalastyle.txt
-rss-*.tgz
-rss-*-bin*
-emr-*.tgz
-emr-*-bin*
-celeborn-*.tgz
 apache-celeborn-*.tgz
-celeborn-*-bin*
 apache-celeborn-*-bin*
 src_managed/
 target/

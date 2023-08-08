@@ -36,8 +36,8 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()
-    statusTracker.blacklist.put(mock("host1"), (StatusCode.UNKNOWN_WORKER, registerTime));
-    statusTracker.blacklist.put(mock("host2"), (StatusCode.WORKER_SHUTDOWN, registerTime));
+    statusTracker.excludedWorkers.put(mock("host1"), (StatusCode.WORKER_UNKNOWN, registerTime));
+    statusTracker.excludedWorkers.put(mock("host2"), (StatusCode.WORKER_SHUTDOWN, registerTime));
 
     // test reserve (only statusCode list in handleHeartbeatResponse)
     val empty = buildResponse(Array.empty, Array.empty, Array.empty)
@@ -45,53 +45,57 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
     // only reserve host1
     Assert.assertEquals(
-      statusTracker.blacklist.get(mock("host1")),
-      (StatusCode.UNKNOWN_WORKER, registerTime))
-    Assert.assertFalse(statusTracker.blacklist.containsKey(mock("host2")))
+      statusTracker.excludedWorkers.get(mock("host1")),
+      (StatusCode.WORKER_UNKNOWN, registerTime))
+    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host2")))
 
-    // add shutdown/blacklist
+    // add shutdown/excluded worker
     val response1 = buildResponse(Array("host0"), Array("host1", "host3"), Array("host4"))
     statusTracker.handleHeartbeatResponse(response1)
 
     // test keep Unknown register time
     Assert.assertEquals(
-      statusTracker.blacklist.get(mock("host1")),
-      (StatusCode.UNKNOWN_WORKER, registerTime))
+      statusTracker.excludedWorkers.get(mock("host1")),
+      (StatusCode.WORKER_UNKNOWN, registerTime))
 
     // test new added workers
-    Assert.assertTrue(statusTracker.blacklist.containsKey(mock("host0")))
-    Assert.assertTrue(statusTracker.blacklist.containsKey(mock("host3")))
-    Assert.assertTrue(!statusTracker.blacklist.contains(mock("host4")))
+    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host0")))
+    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host3")))
+    Assert.assertTrue(!statusTracker.excludedWorkers.contains(mock("host4")))
     Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
 
     // test re heartbeat with shutdown workers
     val response3 = buildResponse(Array.empty, Array.empty, Array("host4"))
     statusTracker.handleHeartbeatResponse(response3)
-    Assert.assertTrue(!statusTracker.blacklist.contains(mock("host4")))
+    Assert.assertTrue(!statusTracker.excludedWorkers.contains(mock("host4")))
     Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
 
     // test remove
     val workers = new util.HashSet[WorkerInfo]
     workers.add(mock("host3"))
-    statusTracker.removeFromBlacklist(workers)
-    Assert.assertFalse(statusTracker.blacklist.containsKey(mock("host3")))
+    statusTracker.removeFromExcludedWorkers(workers)
+    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host3")))
 
     // test register time elapsed
     Thread.sleep(3000)
     val response2 = buildResponse(Array.empty, Array("host5", "host6"), Array.empty)
     statusTracker.handleHeartbeatResponse(response2)
-    Assert.assertEquals(statusTracker.blacklist.size(), 2)
-    Assert.assertFalse(statusTracker.blacklist.containsKey(mock("host1")))
+    Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
+    Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host1")))
   }
 
   private def buildResponse(
-      blackWorkerHosts: Array[String],
+      excludedWorkerHosts: Array[String],
       unknownWorkerHosts: Array[String],
       shuttingWorkerHosts: Array[String]): HeartbeatFromApplicationResponse = {
-    val blacklist = mockWorkers(blackWorkerHosts)
+    val excludedWorkers = mockWorkers(excludedWorkerHosts)
     val unknownWorkers = mockWorkers(unknownWorkerHosts)
     val shuttingWorkers = mockWorkers(shuttingWorkerHosts)
-    HeartbeatFromApplicationResponse(StatusCode.SUCCESS, blacklist, unknownWorkers, shuttingWorkers)
+    HeartbeatFromApplicationResponse(
+      StatusCode.SUCCESS,
+      excludedWorkers,
+      unknownWorkers,
+      shuttingWorkers)
   }
 
   private def mockWorkers(workerHosts: Array[String]): util.ArrayList[WorkerInfo] = {

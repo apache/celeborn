@@ -75,10 +75,10 @@ public class CongestionController {
         this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.MILLISECONDS);
 
     this.workerSource.addGauge(
-        WorkerSource.PotentialConsumeSpeed(), this::getPotentialConsumeSpeed);
+        WorkerSource.POTENTIAL_CONSUME_SPEED(), this::getPotentialConsumeSpeed);
 
     this.workerSource.addGauge(
-        WorkerSource.WorkerConsumeSpeed(), consumedBufferStatusHub::avgBytesPerSec);
+        WorkerSource.WORKER_CONSUME_SPEED(), consumedBufferStatusHub::avgBytesPerSec);
   }
 
   public static synchronized CongestionController initialize(
@@ -139,8 +139,6 @@ public class CongestionController {
     }
 
     long pendingConsumed = getTotalPendingBytes();
-    long avgConsumeSpeed = getPotentialConsumeSpeed();
-
     if (pendingConsumed > highWatermark && overHighWatermark.compareAndSet(false, true)) {
       logger.info(
           "Pending consume bytes: {} higher than high watermark, need to congest it",
@@ -161,10 +159,10 @@ public class CongestionController {
 
       // If the user produce speed is higher that the avg consume speed, will congest it
       long userProduceSpeed = getUserProduceSpeed(userBufferStatuses.get(userIdentifier));
+      long avgConsumeSpeed = getPotentialConsumeSpeed();
       if (logger.isDebugEnabled()) {
         logger.debug(
-            "The user {}, produceSpeed is {},"
-                + " while consumeSpeed is {}, need to congest it: {}",
+            "The user {}, produceSpeed is {}, while consumeSpeed is {}, need to congest it: {}",
             userIdentifier,
             userProduceSpeed,
             avgConsumeSpeed,
@@ -172,7 +170,6 @@ public class CongestionController {
       }
       return userProduceSpeed > avgConsumeSpeed;
     }
-
     return false;
   }
 
@@ -186,9 +183,9 @@ public class CongestionController {
               BufferStatusHub bufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
               UserBufferInfo userInfo = new UserBufferInfo(currentTimeMillis, bufferStatusHub);
               workerSource.addGauge(
-                  WorkerSource.UserProduceSpeed(),
-                  () -> getUserProduceSpeed(userInfo),
-                  userIdentifier.toMap());
+                  WorkerSource.USER_PRODUCE_SPEED(),
+                  userIdentifier.toJMap(),
+                  () -> getUserProduceSpeed(userInfo));
               return userInfo;
             });
 
@@ -243,10 +240,8 @@ public class CongestionController {
         UserBufferInfo userBufferInfo = next.getValue();
         if (currentTimeMillis - userBufferInfo.getTimestamp() >= userInactiveTimeMills) {
           userBufferStatuses.remove(userIdentifier);
-          workerSource.removeGauge(WorkerSource.UserProduceSpeed(), userIdentifier.toMap());
-          logger.info(
-              String.format(
-                  "User: %s has been expired, remove it from rate limit list", userIdentifier));
+          workerSource.removeGauge(WorkerSource.USER_PRODUCE_SPEED(), userIdentifier.toMap());
+          logger.info("User {} has been expired, remove from rate limit list", userIdentifier);
         }
       }
     } catch (Exception e) {

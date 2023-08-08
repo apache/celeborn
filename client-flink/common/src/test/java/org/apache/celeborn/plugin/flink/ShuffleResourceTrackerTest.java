@@ -101,16 +101,16 @@ public class ShuffleResourceTrackerTest {
   public ShufflePartitionLocationInfo mockShufflePartitionLocationInfo() {
     ShufflePartitionLocationInfo shufflePartitionLocationInfo = new ShufflePartitionLocationInfo();
 
-    List<PartitionLocation> masterLocations = new ArrayList<>();
-    masterLocations.add(mockShufflePartitionLocationInfo(1));
-    masterLocations.add(mockShufflePartitionLocationInfo(2));
+    List<PartitionLocation> primaryLocations = new ArrayList<>();
+    primaryLocations.add(mockShufflePartitionLocationInfo(1));
+    primaryLocations.add(mockShufflePartitionLocationInfo(2));
 
-    List<PartitionLocation> slaveLocations = new ArrayList<>();
-    slaveLocations.add(mockShufflePartitionLocationInfo(3));
-    slaveLocations.add(mockShufflePartitionLocationInfo(4));
+    List<PartitionLocation> replicaLocations = new ArrayList<>();
+    replicaLocations.add(mockShufflePartitionLocationInfo(3));
+    replicaLocations.add(mockShufflePartitionLocationInfo(4));
 
-    shufflePartitionLocationInfo.addMasterPartitions(masterLocations);
-    shufflePartitionLocationInfo.addSlavePartitions(slaveLocations);
+    shufflePartitionLocationInfo.addPrimaryPartitions(primaryLocations);
+    shufflePartitionLocationInfo.addReplicaPartitions(replicaLocations);
     return shufflePartitionLocationInfo;
   }
 
@@ -131,6 +131,6 @@ public class ShuffleResourceTrackerTest {
 
   private PartitionLocation mockShufflePartitionLocationInfo(int partitionId) {
     return new PartitionLocation(
-        partitionId, -1, "mock", -1, -1, -1, -1, PartitionLocation.Mode.MASTER);
+        partitionId, -1, "mock", -1, -1, -1, -1, PartitionLocation.Mode.PRIMARY);
   }
 }

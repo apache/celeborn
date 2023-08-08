@@ -38,7 +38,7 @@ class HugeDataTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - huge data") {
-    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
+    val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val ss = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()

@@ -35,8 +35,8 @@ then it's convenient for Celeborn Admin to operate the master ratis service.
 
 Celeborn directly introduces the ratis-shell into the project, users don't need to set up ratis-shell env from ratis repo.
 User can directly download the Celeborn source tarball from [Download](https://celeborn.apache.org/download) and
-build the Celeborn accoriding to [build_and_test](https://celeborn.apache.org/community/contributor_guide/build_and_test/)
-or just down load the pre-built binary tarball from [Download](https://celeborn.apache.org/download)
+build the Celeborn according to [build_and_test](https://celeborn.apache.org/community/contributor_guide/build_and_test/)
+or just download the pre-built binary tarball from [Download](https://celeborn.apache.org/download)
 to get the binary package `apache-celeborn-<VERSION>-bin.tgz`.
 
 After getting the binary package `apache-celeborn-<VERSION>-bin.tgz`:
@@ -64,7 +64,7 @@ Usage: celeborn-ratis sh [generic options]
 
 ## generic options
 The `generic options` pass values for a given ratis-shell property.
-It support the following content:
+It supports the following content:
 `-D*`, `-X*`, `-agentlib*`, `-javaagent*`
 
 ```

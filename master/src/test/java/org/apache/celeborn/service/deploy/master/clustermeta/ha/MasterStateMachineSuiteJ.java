@@ -254,9 +254,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     String host2 = "host2";
     String host3 = "host3";
 
-    masterStatusSystem.blacklist.add(info1);
-    masterStatusSystem.blacklist.add(info2);
-    masterStatusSystem.blacklist.add(info3);
+    masterStatusSystem.excludedWorkers.add(info1);
+    masterStatusSystem.excludedWorkers.add(info2);
+    masterStatusSystem.excludedWorkers.add(info3);
 
     masterStatusSystem.hostnameSet.add(host1);
     masterStatusSystem.hostnameSet.add(host2);
@@ -281,11 +281,11 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 
     masterStatusSystem.hostnameSet.clear();
-    masterStatusSystem.blacklist.clear();
+    masterStatusSystem.excludedWorkers.clear();
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
 
-    Assert.assertEquals(3, masterStatusSystem.blacklist.size());
+    Assert.assertEquals(3, masterStatusSystem.excludedWorkers.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
     Assert.assertEquals(
         conf.metricsAppTopDiskUsageWindowSize(),

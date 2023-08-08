@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.worker
 
 import java.io.File
 import java.lang.{Long => JLong}
-import java.util.{HashMap => JHashMap, HashSet => JHashSet}
+import java.util.{HashMap => JHashMap, HashSet => JHashSet, Map => JMap}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
@@ -30,8 +30,8 @@ import io.netty.util.HashedWheelTimer
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
-import org.apache.celeborn.common.haclient.RssHARetryClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
@@ -42,7 +42,9 @@ import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerRespo
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
+// Can Remove this if celeborn don't support scala211 in future
+import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
@@ -60,7 +62,7 @@ private[celeborn] class Worker(
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf, MetricsSystem.SERVLET_PATH)
 
-  val rpcEnv = RpcEnv.create(
+  val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
     workerArgs.host,
     workerArgs.host,
@@ -75,12 +77,14 @@ private[celeborn] class Worker(
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = conf.workerGracefulShutdown
+  private var exitKind = CelebornExitKind.EXIT_IMMEDIATELY
   assert(
     !gracefulShutdown || (gracefulShutdown &&
-      conf.workerRpcPort != 0 && conf.workerFetchPort != 0 &&
-      conf.workerPushPort != 0 && conf.workerReplicatePort != 0),
+      conf.workerRpcPort > 0 && conf.workerFetchPort > 0 &&
+      conf.workerPushPort > 0 && conf.workerReplicatePort > 0),
     "If enable graceful shutdown, the worker should use stable server port.")
   if (gracefulShutdown) {
+    exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
     try {
       val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
       if (!recoverRoot.exists()) {
@@ -102,7 +106,7 @@ private[celeborn] class Worker(
 
   val storageManager = new StorageManager(conf, workerSource)
 
-  val memoryManager = MemoryManager.initialize(conf)
+  val memoryManager: MemoryManager = MemoryManager.initialize(conf)
   memoryManager.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
@@ -169,7 +173,7 @@ private[celeborn] class Worker(
     val numThreads = conf.workerFetchIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
-    fetchHandler = new FetchHandler(transportConf)
+    fetchHandler = new FetchHandler(conf, transportConf)
     val transportContext: TransportContext =
       new TransportContext(
         transportConf,
@@ -181,23 +185,26 @@ private[celeborn] class Worker(
   }
 
   private val pushPort = pushServer.getPort
-  private val fetchPort = fetchServer.getPort
-  private val replicatePort = replicateServer.getPort
+  assert(pushPort > 0, "worker push bind port should be positive")
 
-  assert(pushPort > 0)
-  assert(fetchPort > 0)
-  assert(replicatePort > 0)
+  private val fetchPort = fetchServer.getPort
+  assert(fetchPort > 0, "worker fetch bind port should be positive")
+
+  private val replicatePort = replicateServer.getPort
+  assert(replicatePort > 0, "worker replica bind port should be positive")
 
   storageManager.updateDiskInfos()
+
   // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
   val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
-  storageManager.disksSnapshot().foreach { case diskInfo =>
+  storageManager.disksSnapshot().foreach { diskInfo =>
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
 
   // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
-  val userResourceConsumption = JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](
-    storageManager.userResourceConsumptionSnapshot().asJava)
+  val userResourceConsumption: ConcurrentHashMap[UserIdentifier, ResourceConsumption] =
+    JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](
+      storageManager.userResourceConsumptionSnapshot().asJava)
 
   val workerInfo =
     new WorkerInfo(
@@ -211,63 +218,83 @@ private[celeborn] class Worker(
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
-  val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[String, AtomicIntegerArray]()
-  val shufflePartitionType = JavaUtils.newConcurrentHashMap[String, PartitionType]
-  var shufflePushDataTimeout = JavaUtils.newConcurrentHashMap[String, Long]
+  val shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] =
+    JavaUtils.newConcurrentHashMap[String, AtomicIntegerArray]()
+  val shufflePartitionType: ConcurrentHashMap[String, PartitionType] =
+    JavaUtils.newConcurrentHashMap[String, PartitionType]
+  var shufflePushDataTimeout: ConcurrentHashMap[String, Long] =
+    JavaUtils.newConcurrentHashMap[String, Long]
   val partitionLocationInfo = new WorkerPartitionLocationInfo
 
-  val shuffleCommitInfos =
+  val shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
-  private val rssHARetryClient = new RssHARetryClient(rpcEnv, conf)
+  private val masterClient = new MasterClient(rpcEnv, conf)
 
   // (workerInfo -> last connect timeout timestamp)
-  val unavailablePeers = JavaUtils.newConcurrentHashMap[WorkerInfo, Long]()
+  val unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] =
+    JavaUtils.newConcurrentHashMap[WorkerInfo, Long]()
 
   // Threads
-  private val forwardMessageScheduler =
+  private val forwardMessageScheduler: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-forward-message-scheduler")
   private var sendHeartbeatTask: ScheduledFuture[_] = _
-  private var checkFastfailTask: ScheduledFuture[_] = _
-  val replicateThreadPool = ThreadUtils.newDaemonCachedThreadPool(
-    "worker-replicate-data",
-    conf.workerReplicateThreads)
-  val commitThreadPool = ThreadUtils.newDaemonCachedThreadPool(
-    "Worker-CommitFiles",
-    conf.workerCommitThreads)
-  val asyncReplyPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
+  private var checkFastFailTask: ScheduledFuture[_] = _
+
+  val replicateThreadPool: ThreadPoolExecutor =
+    ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
+  val commitThreadPool: ThreadPoolExecutor =
+    ThreadUtils.newDaemonCachedThreadPool("Worker-CommitFiles", conf.workerCommitThreads)
+  val asyncReplyPool: ScheduledExecutorService =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
 
   // Configs
-  private val HEARTBEAT_MILLIS = conf.workerHeartbeatTimeout / 4
-  private val REPLICATE_FAST_FAIL_DURATION = conf.workerReplicateFastFailDuration
+  private val heartbeatInterval = conf.workerHeartbeatTimeout / 4
+  private val replicaFastFailDuration = conf.workerReplicateFastFailDuration
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: Thread = _
 
-  workerSource.addGauge(
-    WorkerSource.RegisteredShuffleCount,
-    _ => workerInfo.getShuffleKeySet.size())
-  workerSource.addGauge(WorkerSource.SlotsAllocated, _ => workerInfo.allocationsInLastHour())
-  workerSource.addGauge(WorkerSource.SortMemory, _ => memoryManager.getSortMemoryCounter.get())
-  workerSource.addGauge(WorkerSource.SortingFiles, _ => partitionsSorter.getSortingCount)
-  workerSource.addGauge(WorkerSource.SortedFiles, _ => partitionsSorter.getSortedCount)
-  workerSource.addGauge(WorkerSource.SortedFileSize, _ => partitionsSorter.getSortedSize)
-  workerSource.addGauge(WorkerSource.DiskBuffer, _ => memoryManager.getDiskBufferCounter.get())
-  workerSource.addGauge(WorkerSource.NettyMemory, _ => memoryManager.getNettyMemoryCounter.get())
-  workerSource.addGauge(WorkerSource.PausePushDataCount, _ => memoryManager.getPausePushDataCounter)
-  workerSource.addGauge(
-    WorkerSource.PausePushDataAndReplicateCount,
-    _ => memoryManager.getPausePushDataAndReplicateCounter)
-  workerSource.addGauge(
-    WorkerSource.BufferStreamReadBuffer,
-    _ => memoryManager.getReadBufferCounter())
-  workerSource.addGauge(
-    WorkerSource.ReadBufferDispatcherRequestsLength,
-    _ => memoryManager.dispatchRequestsLength)
-  workerSource.addGauge(
-    WorkerSource.ReadBufferAllocatedCount,
-    _ => memoryManager.getAllocatedReadBuffers)
+  workerSource.addGauge(WorkerSource.REGISTERED_SHUFFLE_COUNT) { () =>
+    workerInfo.getShuffleKeySet.size
+  }
+  workerSource.addGauge(WorkerSource.SLOTS_ALLOCATED) { () =>
+    workerInfo.allocationsInLastHour()
+  }
+  workerSource.addGauge(WorkerSource.SORT_MEMORY) { () =>
+    memoryManager.getSortMemoryCounter.get()
+  }
+  workerSource.addGauge(WorkerSource.SORTING_FILES) { () =>
+    partitionsSorter.getSortingCount
+  }
+  workerSource.addGauge(WorkerSource.SORTED_FILES) { () =>
+    partitionsSorter.getSortedCount
+  }
+  workerSource.addGauge(WorkerSource.SORTED_FILE_SIZE) { () =>
+    partitionsSorter.getSortedSize
+  }
+  workerSource.addGauge(WorkerSource.DISK_BUFFER) { () =>
+    memoryManager.getDiskBufferCounter.get()
+  }
+  workerSource.addGauge(WorkerSource.NETTY_MEMORY) { () =>
+    memoryManager.getNettyUsedDirectMemory
+  }
+  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_COUNT) { () =>
+    memoryManager.getPausePushDataCounter
+  }
+  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT) { () =>
+    memoryManager.getPausePushDataAndReplicateCounter
+  }
+  workerSource.addGauge(WorkerSource.BUFFER_STREAM_READ_BUFFER) { () =>
+    memoryManager.getReadBufferCounter
+  }
+  workerSource.addGauge(WorkerSource.READ_BUFFER_DISPATCHER_REQUESTS_LENGTH) { () =>
+    memoryManager.dispatchRequestsLength
+  }
+  workerSource.addGauge(WorkerSource.READ_BUFFER_ALLOCATED_COUNT) { () =>
+    memoryManager.getAllocatedReadBuffers
+  }
 
   private def heartbeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
@@ -285,7 +312,7 @@ private[celeborn] class Worker(
     val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
       storageManager.userResourceConsumptionSnapshot().asJava)
 
-    val response = rssHARetryClient.askSync[HeartbeatResponse](
+    val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
         rpcPort,
@@ -296,7 +323,7 @@ private[celeborn] class Worker(
         resourceConsumption,
         activeShuffleKeys,
         estimatedAppDiskUsage),
-      classOf[HeartbeatResponse])
+      classOf[HeartbeatFromWorkerResponse])
     response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
     if (!response.registered) {
@@ -321,26 +348,24 @@ private[celeborn] class Worker(
     // start heartbeat
     sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(
       new Runnable {
-        override def run(): Unit = Utils.tryLogNonFatalError {
-          heartbeatToMaster()
-        }
+        override def run(): Unit = Utils.tryLogNonFatalError { heartbeatToMaster() }
       },
-      HEARTBEAT_MILLIS,
-      HEARTBEAT_MILLIS,
+      heartbeatInterval,
+      heartbeatInterval,
       TimeUnit.MILLISECONDS)
 
-    checkFastfailTask = forwardMessageScheduler.scheduleAtFixedRate(
+    checkFastFailTask = forwardMessageScheduler.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          unavailablePeers.entrySet().asScala.foreach { entry =>
-            if (System.currentTimeMillis() - entry.getValue > REPLICATE_FAST_FAIL_DURATION) {
+          unavailablePeers.entrySet().forEach { entry: JMap.Entry[WorkerInfo, Long] =>
+            if (System.currentTimeMillis() - entry.getValue > replicaFastFailDuration) {
               unavailablePeers.remove(entry.getKey)
             }
           }
         }
       },
       0,
-      REPLICATE_FAST_FAIL_DURATION,
+      replicaFastFailDuration,
       TimeUnit.MILLISECONDS)
 
     cleaner = new Thread("Cleaner") {
@@ -369,34 +394,47 @@ private[celeborn] class Worker(
     rpcEnv.awaitTermination()
   }
 
-  override def close(): Unit = synchronized {
+  override def stop(exitKind: Int): Unit = {
     if (!stopped) {
       logInfo("Stopping Worker.")
 
       if (sendHeartbeatTask != null) {
-        sendHeartbeatTask.cancel(true)
+        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+          sendHeartbeatTask.cancel(false)
+        } else {
+          sendHeartbeatTask.cancel(true)
+        }
         sendHeartbeatTask = null
       }
-      if (checkFastfailTask != null) {
-        checkFastfailTask.cancel(true)
-        checkFastfailTask = null
+      if (checkFastFailTask != null) {
+        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+          checkFastFailTask.cancel(false)
+        } else {
+          checkFastFailTask.cancel(true)
+        }
+        checkFastFailTask = null
       }
-      forwardMessageScheduler.shutdownNow()
-      replicateThreadPool.shutdownNow()
-      commitThreadPool.shutdownNow()
-      asyncReplyPool.shutdownNow()
-      partitionsSorter.close()
-
-      if (null != storageManager) {
-        storageManager.close()
+      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        forwardMessageScheduler.shutdown()
+        replicateThreadPool.shutdown()
+        commitThreadPool.shutdown()
+        asyncReplyPool.shutdown()
+      } else {
+        forwardMessageScheduler.shutdownNow()
+        replicateThreadPool.shutdownNow()
+        commitThreadPool.shutdownNow()
+        asyncReplyPool.shutdownNow()
       }
-      memoryManager.close();
+      partitionsSorter.close(exitKind)
+      storageManager.close(exitKind)
+      memoryManager.close()
 
-      rssHARetryClient.close()
-      replicateServer.close()
-      fetchServer.close()
+      masterClient.close()
+      replicateServer.shutdown(exitKind)
+      fetchServer.shutdown(exitKind)
+      pushServer.shutdown(exitKind)
 
-      super.close()
+      super.stop(exitKind)
 
       logInfo("Worker is stopped.")
       stopped = true
@@ -410,7 +448,7 @@ private[celeborn] class Worker(
     while (registerTimeout > 0) {
       val resp =
         try {
-          rssHARetryClient.askSync[PbRegisterWorkerResponse](
+          masterClient.askSync[PbRegisterWorkerResponse](
             RegisterWorker(
               host,
               rpcPort,
@@ -422,7 +460,7 @@ private[celeborn] class Worker(
               workerInfo.diskInfos.asScala.toMap,
               workerInfo.updateThenGetUserResourceConsumption(
                 storageManager.userResourceConsumptionSnapshot().asJava).asScala.toMap,
-              RssHARetryClient.genRequestId()),
+              MasterClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {
           case throwable: Throwable =>
@@ -523,55 +561,121 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def decommission: String = {
+    exitKind = CelebornExitKind.WORKER_DECOMMISSION
+    new Thread() {
+      override def run(): Unit = {
+        Thread.sleep(10000)
+        System.exit(0)
+      }
+    }.start()
+    val sb = new StringBuilder
+    sb.append("======================== Decommission Worker =========================\n")
+    sb.append("Decommission worker triggered: \n")
+    sb.append(workerInfo.toString()).append("\n")
+    sb.toString()
+  }
+
+  def shutdownGracefully(): Unit = {
+    // During shutdown, to avoid allocate slots in this worker,
+    // add this worker to master's excluded list. When restart, register worker will
+    // make master remove this worker from excluded list.
+    try {
+      masterClient.askSync(
+        ReportWorkerUnavailable(List(workerInfo).asJava),
+        OneWayMessageResponse.getClass)
+    } catch {
+      case e: Throwable =>
+        logError(
+          s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+          e)
+    }
+    shutdown.set(true)
+    val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
+    val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
+    var waitTimes = 0
+
+    def waitTime: Long = waitTimes * interval
+
+    while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+      Thread.sleep(interval)
+      waitTimes += 1
+    }
+    if (partitionLocationInfo.isEmpty) {
+      logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
+    } else {
+      logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
+        s"unreleased PartitionLocation: \n$partitionLocationInfo")
+    }
+  }
+
+  def decommissionWorker(): Unit = {
+    try {
+      masterClient.askSync(
+        ReportWorkerUnavailable(List(workerInfo).asJava),
+        OneWayMessageResponse.getClass)
+    } catch {
+      case e: Throwable =>
+        logError(
+          s"Fail report to master, need wait registered shuffle expired: " +
+            s"\n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}",
+          e)
+    }
+    shutdown.set(true)
+    val interval = conf.workerDecommissionCheckInterval
+    val timeout = conf.workerDecommissionForceExitTimeout
+    var waitTimes = 0
+
+    def waitTime: Long = waitTimes * interval
+
+    while (!storageManager.shuffleKeySet().isEmpty && waitTime < timeout) {
+      Thread.sleep(interval)
+      waitTimes += 1
+    }
+    if (storageManager.shuffleKeySet().isEmpty) {
+      logInfo(s"Waiting for all shuffle expired cost ${waitTime}ms.")
+    } else {
+      logWarning(s"Waiting for all shuffle expired cost ${waitTime}ms, " +
+        s"unreleased shuffle: \n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}")
+    }
+  }
+
+  def exitImmediately(): Unit = {
+    // During shutdown, to avoid allocate slots in this worker,
+    // add this worker to master's excluded list. When restart, register worker will
+    // make master remove this worker from excluded list.
+    try {
+      masterClient.askSync[PbWorkerLostResponse](
+        WorkerLost(
+          host,
+          rpcPort,
+          pushPort,
+          fetchPort,
+          replicatePort,
+          MasterClient.genRequestId()),
+        classOf[PbWorkerLostResponse])
+    } catch {
+      case e: Throwable =>
+        logError(
+          s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+          e)
+    }
+    shutdown.set(true)
+  }
+
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
-        // During shutdown, to avoid allocate slots in this worker,
-        // add this worker to master's blacklist. When restart, register worker will
-        // make master remove this worker from blacklist.
-        try {
-          if (gracefulShutdown) {
-            rssHARetryClient.askSync(
-              ReportWorkerUnavailable(List(workerInfo).asJava),
-              OneWayMessageResponse.getClass)
-          } else {
-            rssHARetryClient.askSync[PbWorkerLostResponse](
-              WorkerLost(
-                host,
-                rpcPort,
-                pushPort,
-                fetchPort,
-                replicatePort,
-                RssHARetryClient.genRequestId()),
-              classOf[PbWorkerLostResponse])
-          }
-        } catch {
-          case e: Throwable =>
-            logError(
-              s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
-              e)
+        exitKind match {
+          case CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN =>
+            shutdownGracefully()
+          case CelebornExitKind.WORKER_DECOMMISSION =>
+            decommissionWorker()
+          case _ =>
+            exitImmediately()
         }
-        shutdown.set(true)
-        if (gracefulShutdown) {
-          val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
-          val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
-          var waitTimes = 0
-
-          def waitTime: Long = waitTimes * interval
-
-          while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
-            Thread.sleep(interval)
-            waitTimes += 1
-          }
-          if (partitionLocationInfo.isEmpty) {
-            logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
-          } else {
-            logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
-              s"unreleased PartitionLocation: \n$partitionLocationInfo")
-          }
-        }
-        close()
+        stop(exitKind)
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)

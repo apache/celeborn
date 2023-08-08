@@ -28,6 +28,7 @@ import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
@@ -52,8 +53,7 @@ class LocalDeviceMonitor(
     observer: DeviceObserver,
     deviceInfos: util.Map[String, DeviceInfo],
     diskInfos: util.Map[String, DiskInfo],
-    workerSource: AbstractSource) extends DeviceMonitor {
-  val logger = LoggerFactory.getLogger(classOf[LocalDeviceMonitor])
+    workerSource: AbstractSource) extends DeviceMonitor with Logging {
 
   // (deviceName -> ObservedDevice)
   var observedDevices: util.Map[DeviceInfo, ObservedDevice] = _
@@ -71,14 +71,14 @@ class LocalDeviceMonitor(
   def init(): Unit = {
     this.observedDevices = new util.HashMap[DeviceInfo, ObservedDevice]()
     deviceInfos.asScala.filter(!_._2.deviceStatAvailable).foreach { case (deviceName, _) =>
-      logger.warn(s"Device monitor may not work properly on $deviceName " +
+      logWarning(s"Device monitor may not work properly on $deviceName " +
         s"because device $deviceName not exists.")
     }
-    deviceInfos.asScala.foreach(entry => {
+    deviceInfos.asScala.foreach { entry =>
       val observedDevice = new ObservedDevice(entry._2, conf, workerSource)
       observedDevice.addObserver(observer)
       observedDevices.put(entry._2, observedDevice)
-    })
+    }
     diskInfos
       .asScala
       .values
@@ -87,22 +87,18 @@ class LocalDeviceMonitor(
       .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfo]) =>
         val deviceLabel = Map("device" -> deviceInfo.name)
         def usage = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
-        workerSource.addGauge(
-          s"${WorkerSource.DeviceOSTotalCapacity}",
-          _ => usage(usage.length - 5).toLong,
-          deviceLabel)
-        workerSource.addGauge(
-          s"${WorkerSource.DeviceOSFreeCapacity}",
-          _ => usage(usage.length - 3).toLong,
-          deviceLabel)
-        workerSource.addGauge(
-          s"${WorkerSource.DeviceCelebornTotalCapacity}",
-          _ => diskInfos.map(_.configuredUsableSpace).sum,
-          deviceLabel)
-        workerSource.addGauge(
-          s"${WorkerSource.DeviceCelebornFreeCapacity}",
-          _ => diskInfos.map(_.actualUsableSpace).sum,
-          deviceLabel)
+        workerSource.addGauge(WorkerSource.DEVICE_OS_TOTAL_CAPACITY, deviceLabel) { () =>
+          usage(usage.length - 5).toLong
+        }
+        workerSource.addGauge(WorkerSource.DEVICE_OS_FREE_CAPACITY, deviceLabel) { () =>
+          usage(usage.length - 3).toLong
+        }
+        workerSource.addGauge(WorkerSource.DEVICE_CELEBORN_TOTAL_CAPACITY, deviceLabel) { () =>
+          diskInfos.map(_.configuredUsableSpace).sum
+        }
+        workerSource.addGauge(WorkerSource.DEVICE_CELEBORN_FREE_CAPACITY, deviceLabel) { () =>
+          diskInfos.map(_.actualUsableSpace).sum
+        }
       }
   }
 
@@ -110,7 +106,7 @@ class LocalDeviceMonitor(
     diskChecker.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit = {
-          logger.debug("Device check start")
+          logDebug("Device check start")
           try {
             observedDevices.values().asScala.foreach(device => {
               val mountPoints = device.diskInfos.keySet.asScala.toList
@@ -125,7 +121,7 @@ class LocalDeviceMonitor(
               }
               val nonCriticalErrorSum = device.nonCriticalErrors.values().asScala.map(_.size).sum
               if (nonCriticalErrorSum > device.notifyErrorThreshold) {
-                logger.error(s"Device ${device.deviceInfo.name} has accumulated $nonCriticalErrorSum non-critical " +
+                logError(s"Device ${device.deviceInfo.name} has accumulated $nonCriticalErrorSum non-critical " +
                   s"error within the past ${Utils.msDurationToString(device.notifyErrorExpireTimeout)} , its sum has " +
                   s"exceed the threshold (${device.notifyErrorThreshold}), device monitor will notify error to " +
                   s"observed device.")
@@ -133,18 +129,17 @@ class LocalDeviceMonitor(
                 device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
               } else {
                 if (checkIoHang && device.ioHang()) {
-                  logger.error(s"Encounter device io hang error!" +
+                  logError(s"Encounter device io hang error!" +
                     s"${device.deviceInfo.name}, notify observers")
                   device.notifyObserversOnNonCriticalError(mountPoints, DiskStatus.IO_HANG)
                 } else {
                   device.diskInfos.values().asScala.foreach { diskInfo =>
                     if (checkDiskUsage && DeviceMonitor.highDiskUsage(conf, diskInfo)) {
-                      logger.error(
-                        s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
+                      logError(s"${diskInfo.mountPoint} high_disk_usage error, notify observers")
                       device.notifyObserversOnHighDiskUsage(diskInfo.mountPoint)
                     } else if (checkReadWrite &&
                       DeviceMonitor.readWriteError(conf, diskInfo.dirs.head)) {
-                      logger.error(s"${diskInfo.mountPoint} read-write error, notify observers")
+                      logError(s"${diskInfo.mountPoint} read-write error, notify observers")
                       // We think that if one dir in device has read-write problem, if possible all
                       // dirs in this device have the problem
                       device.notifyObserversOnNonCriticalError(
@@ -159,7 +154,7 @@ class LocalDeviceMonitor(
             })
           } catch {
             case t: Throwable =>
-              logger.error("Device check failed.", t)
+              logError("Device check failed.", t)
           }
         }
       },
@@ -190,7 +185,7 @@ class LocalDeviceMonitor(
       mountPoint: String,
       e: IOException,
       diskStatus: DiskStatus): Unit = {
-    logger.error(s"Receive non-critical exception, disk: $mountPoint, $e")
+    logError(s"Receive non-critical exception, disk: $mountPoint, $e")
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo)
       .notifyObserversOnNonCriticalError(List(mountPoint), diskStatus)
   }
@@ -202,8 +197,7 @@ class LocalDeviceMonitor(
   }
 }
 
-object DeviceMonitor {
-  val logger = LoggerFactory.getLogger(classOf[DeviceMonitor])
+object DeviceMonitor extends Logging {
   val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
 
   def createDeviceMonitor(
@@ -217,14 +211,14 @@ object DeviceMonitor {
         val monitor =
           new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos, workerSource)
         monitor.init()
-        logger.info("Device monitor init success")
+        logInfo("Device monitor init success")
         monitor
       } else {
         EmptyDeviceMonitor
       }
     } catch {
       case t: Throwable =>
-        logger.error("Device monitor init failed.", t)
+        logError("Device monitor init failed.", t)
         throw t
     }
   }
@@ -251,7 +245,7 @@ object DeviceMonitor {
       val highDiskUsage =
         freeSpace.toLong < conf.workerDiskReserveSize || diskInfo.actualUsableSpace <= 0
       if (highDiskUsage) {
-        logger.warn(s"${diskInfo.mountPoint} usage is above threshold." +
+        logWarning(s"${diskInfo.mountPoint} usage is above threshold." +
           s" Disk usage(Report by OS):{total:${Utils.bytesToString(totalSpace.toLong)}," +
           s" free:${Utils.bytesToString(freeSpace.toLong)}, used_percent:$used_percent} " +
           s"usage(Report by Celeborn):{" +
@@ -305,7 +299,7 @@ object DeviceMonitor {
         }
       } catch {
         case t: Throwable =>
-          logger.error(s"Disk dir $dataDir cannot read or write", t)
+          logError(s"Disk dir $dataDir cannot read or write", t)
           true
       }
     })(false)(

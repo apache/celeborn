@@ -31,56 +31,82 @@ class WorkerPartitionLocationInfo extends Logging {
 
   // key: ShuffleKey, values: (uniqueId -> PartitionLocation))
   type PartitionInfo = ConcurrentHashMap[String, ConcurrentHashMap[String, PartitionLocation]]
-  private val masterPartitionLocations = new PartitionInfo
-  private val slavePartitionLocations = new PartitionInfo
+  private val primaryPartitionLocations = new PartitionInfo
+  private val replicaPartitionLocations = new PartitionInfo
 
   def shuffleKeySet: util.HashSet[String] = {
     val shuffleKeySet = new util.HashSet[String]()
-    shuffleKeySet.addAll(masterPartitionLocations.keySet())
-    shuffleKeySet.addAll(slavePartitionLocations.keySet())
+    shuffleKeySet.addAll(primaryPartitionLocations.keySet())
+    shuffleKeySet.addAll(replicaPartitionLocations.keySet())
     shuffleKeySet
   }
 
   def containsShuffle(shuffleKey: String): Boolean = {
-    masterPartitionLocations.containsKey(shuffleKey) ||
-    slavePartitionLocations.containsKey(shuffleKey)
+    primaryPartitionLocations.containsKey(shuffleKey) ||
+    replicaPartitionLocations.containsKey(shuffleKey)
   }
 
-  def addMasterPartitions(
+  def addPrimaryPartitions(
       shuffleKey: String,
       locations: util.List[PartitionLocation]): Unit = {
-    addPartitions(shuffleKey, locations, masterPartitionLocations)
+    addPartitions(shuffleKey, locations, primaryPartitionLocations)
   }
 
-  def addSlavePartitions(
+  def addReplicaPartitions(
       shuffleKey: String,
       locations: util.List[PartitionLocation]): Unit = {
-    addPartitions(shuffleKey, locations, slavePartitionLocations)
+    addPartitions(shuffleKey, locations, replicaPartitionLocations)
   }
 
-  def getMasterLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
-    getLocation(shuffleKey, uniqueId, masterPartitionLocations)
+  def getPrimaryLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
+    getLocation(shuffleKey, uniqueId, primaryPartitionLocations)
   }
 
-  def getSlaveLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
-    getLocation(shuffleKey, uniqueId, slavePartitionLocations)
+  def getPrimaryLocations(
+      shuffleKey: String,
+      uniqueIds: Array[String]): Array[(String, PartitionLocation)] = {
+    val locations = new Array[(String, PartitionLocation)](uniqueIds.length)
+    var i = 0
+    while (i < uniqueIds.length) {
+      val uniqueId = uniqueIds(i)
+      locations(i) = uniqueId -> getPrimaryLocation(shuffleKey, uniqueId)
+      i += 1
+    }
+    locations
+  }
+
+  def getReplicaLocation(shuffleKey: String, uniqueId: String): PartitionLocation = {
+    getLocation(shuffleKey, uniqueId, replicaPartitionLocations)
+  }
+
+  def getReplicaLocations(
+      shuffleKey: String,
+      uniqueIds: Array[String]): Array[(String, PartitionLocation)] = {
+    val locations = new Array[(String, PartitionLocation)](uniqueIds.length)
+    var i = 0
+    while (i < uniqueIds.length) {
+      val uniqueId = uniqueIds(i)
+      locations(i) = uniqueId -> getReplicaLocation(shuffleKey, uniqueId)
+      i += 1
+    }
+    locations
   }
 
   def removeShuffle(shuffleKey: String): Unit = {
-    masterPartitionLocations.remove(shuffleKey)
-    slavePartitionLocations.remove(shuffleKey)
+    primaryPartitionLocations.remove(shuffleKey)
+    replicaPartitionLocations.remove(shuffleKey)
   }
 
-  def removeMasterPartitions(
+  def removePrimaryPartitions(
       shuffleKey: String,
       uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
-    removePartitions(shuffleKey, uniqueIds, masterPartitionLocations)
+    removePartitions(shuffleKey, uniqueIds, primaryPartitionLocations)
   }
 
-  def removeSlavePartitions(
+  def removeReplicaPartitions(
       shuffleKey: String,
       uniqueIds: util.Collection[String]): (util.Map[String, Integer], Integer) = {
-    removePartitions(shuffleKey, uniqueIds, slavePartitionLocations)
+    removePartitions(shuffleKey, uniqueIds, replicaPartitionLocations)
   }
 
   def addPartitions(
@@ -143,17 +169,17 @@ class WorkerPartitionLocationInfo extends Logging {
   }
 
   def isEmpty: Boolean = {
-    (masterPartitionLocations.isEmpty ||
-      masterPartitionLocations.asScala.values.forall(_.isEmpty)) &&
-    (slavePartitionLocations.isEmpty ||
-      slavePartitionLocations.asScala.values.forall(_.isEmpty))
+    (primaryPartitionLocations.isEmpty ||
+      primaryPartitionLocations.asScala.values.forall(_.isEmpty)) &&
+    (replicaPartitionLocations.isEmpty ||
+      replicaPartitionLocations.asScala.values.forall(_.isEmpty))
   }
 
   override def toString: String = {
     s"""
        | Partition Location Info:
-       | master: ${masterPartitionLocations.asScala}
-       | slave: ${slavePartitionLocations.asScala}
+       | primary: ${primaryPartitionLocations.asScala}
+       | replica: ${replicaPartitionLocations.asScala}
        |""".stripMargin
   }
 }

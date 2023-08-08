@@ -392,13 +392,13 @@ class DeviceMonitorSuite extends AnyFunSuite {
       deviceMonitor2.init()
 
       val metrics1 = workerSource2.gauges().filter(
-        _.name.startsWith(WorkerSource.DeviceOSTotalCapacity)).sortBy(_.labels("device"))
+        _.name.startsWith(WorkerSource.DEVICE_OS_TOTAL_CAPACITY)).sortBy(_.labels("device"))
       val metrics2 = workerSource2.gauges().filter(
-        _.name.startsWith(WorkerSource.DeviceOSFreeCapacity)).sortBy(_.labels("device"))
+        _.name.startsWith(WorkerSource.DEVICE_OS_FREE_CAPACITY)).sortBy(_.labels("device"))
       val metrics3 = workerSource2.gauges().filter(
-        _.name.startsWith(WorkerSource.DeviceCelebornTotalCapacity)).sortBy(_.labels("device"))
+        _.name.startsWith(WorkerSource.DEVICE_CELEBORN_TOTAL_CAPACITY)).sortBy(_.labels("device"))
       val metrics4 = workerSource2.gauges().filter(
-        _.name.startsWith(WorkerSource.DeviceCelebornFreeCapacity)).sortBy(_.labels("device"))
+        _.name.startsWith(WorkerSource.DEVICE_CELEBORN_FREE_CAPACITY)).sortBy(_.labels("device"))
 
       assertEquals("vda", metrics1.head.labels("device"))
       assertEquals(1395864371200L, metrics1.head.gauge.getValue)

@@ -69,18 +69,23 @@ public class DataPusher {
       int numPartitions,
       CelebornConf conf,
       ShuffleClient client,
+      LinkedBlockingQueue<PushTask> pushTasks,
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths)
       throws InterruptedException {
     final int pushQueueCapacity = conf.clientPushQueueCapacity();
     final int pushBufferMaxSize = conf.clientPushBufferMaxSize();
 
-    idleQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
+    if (pushTasks == null) {
+      idleQueue = new LinkedBlockingQueue<>(pushQueueCapacity);
+    } else {
+      idleQueue = pushTasks;
+    }
     dataPushQueue =
         new DataPushQueue(
             conf, this, client, shuffleId, mapId, attemptId, numMappers, numPartitions);
 
-    for (int i = 0; i < pushQueueCapacity; i++) {
+    for (int i = idleQueue.size(); i < pushQueueCapacity; i++) {
       idleQueue.put(new PushTask(pushBufferMaxSize));
     }
 
@@ -174,7 +179,6 @@ public class DataPusher {
       Thread.currentThread().interrupt();
       throw e;
     }
-    idleQueue.clear();
     dataPushQueue.clear();
     checkException();
   }
@@ -189,7 +193,7 @@ public class DataPusher {
     }
   }
 
-  private void pushData(PushTask task) throws IOException {
+  protected void pushData(PushTask task) throws IOException {
     int bytesWritten =
         client.pushData(
             shuffleId,
@@ -224,5 +228,9 @@ public class DataPusher {
 
   public DataPushQueue getDataPushQueue() {
     return dataPushQueue;
+  }
+
+  public LinkedBlockingQueue<PushTask> getIdleQueue() {
+    return idleQueue;
   }
 }

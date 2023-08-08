@@ -26,8 +26,8 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 /**
  * Response to {@link ChunkFetchRequest} when a chunk exists and has been successfully fetched.
  *
- * <p>Note that the server-side encoding of this messages does NOT include the buffer itself, as
- * this may be written by Netty in a more efficient manner (i.e., zero-copy write). Similarly, the
+ * <p>Note that the server-side encoding of this message does NOT include the buffer itself, as this
+ * may be written by Netty in a more efficient manner (i.e., zero-copy write). Similarly, the
  * client-side decoding will reuse the Netty ByteBuf as the buffer.
  */
 public final class ChunkFetchSuccess extends ResponseMessage {

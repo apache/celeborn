@@ -28,15 +28,14 @@ import org.slf4j.LoggerFactory
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.common.util.Utils.runCommand
 
 class DiskInfo(
     val mountPoint: String,
     var actualUsableSpace: Long,
-    // avgFlushTime is nano seconds
-    var avgFlushTime: Long,
-    var avgFetchTime: Long,
+    var avgFlushTime: Long, // in nano seconds
+    var avgFetchTime: Long, // in nano seconds
     var activeSlots: Long,
     val dirs: List[File],
     val deviceInfo: DeviceInfo) extends Serializable with Logging {
@@ -134,9 +133,9 @@ class DiskInfo(
       s" committed shuffles ${emptyShuffles.size}" +
       s" shuffleAllocations: $nonEmptyShuffles," +
       s" mountPoint: $mountPoint," +
-      s" usableSpace: $actualUsableSpace," +
-      s" avgFlushTime: $avgFlushTime," +
-      s" avgFetchTime: $avgFetchTime," +
+      s" usableSpace: ${Utils.bytesToString(actualUsableSpace)}," +
+      s" avgFlushTime: ${Utils.nanoDurationToString(avgFlushTime)}," +
+      s" avgFetchTime: ${Utils.nanoDurationToString(avgFetchTime)}," +
       s" activeSlots: $activeSlots)" +
       s" status: $status" +
       s" dirs ${dirs.mkString("\t")}"

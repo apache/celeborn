@@ -37,9 +37,9 @@ public interface Decompressor {
     CompressionCodec codec = conf.shuffleCompressionCodec();
     switch (codec) {
       case LZ4:
-        return new RssLz4Decompressor();
+        return new Lz4Decompressor();
       case ZSTD:
-        return new RssZstdDecompressor();
+        return new ZstdDecompressor();
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);
     }
@@ -49,9 +49,9 @@ public interface Decompressor {
     CompressionCodec codec = conf.shuffleCompressionCodec();
     switch (codec) {
       case LZ4:
-        return RssLz4Trait.HEADER_LENGTH;
+        return Lz4Trait.HEADER_LENGTH;
       case ZSTD:
-        return RssZstdTrait.HEADER_LENGTH;
+        return ZstdTrait.HEADER_LENGTH;
       default:
         throw new IllegalArgumentException("Unknown compression codec: " + codec);
     }

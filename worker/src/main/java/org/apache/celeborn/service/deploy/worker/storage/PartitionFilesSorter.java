@@ -134,8 +134,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                         try {
                           task.sort();
                         } catch (InterruptedException e) {
-                          logger.warn(
-                              "File sorter thread was interrupted when expanding padding buffer.");
+                          logger.warn("File sorter thread was interrupted.");
+                        } finally {
+                          memoryManager.releaseSortMemory(reservedMemoryPerPartition);
                         }
                       });
                 }
@@ -154,8 +155,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFileCount.get();
   }
 
-  public int getSortedSize() {
-    return (int) sortedFilesSize.get();
+  public long getSortedSize() {
+    return sortedFilesSize.get();
   }
 
   public FileInfo getSortedFileInfo(
@@ -193,8 +194,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           throw new IOException(
               "Sort scheduler thread is interrupted means worker is shutting down.", e);
         } catch (IOException e) {
-          logger.error("File sorter access hdfs failed.", e);
-          throw new IOException("File sorter access hdfs failed.", e);
+          logger.error("File sorter access HDFS failed.", e);
+          throw new IOException("File sorter access HDFS failed.", e);
         }
       }
     }
@@ -239,10 +240,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
-  public void close() {
+  public void close(int exitKind) {
     logger.info("Closing {}", this.getClass().getSimpleName());
     shutdown = true;
-    if (gracefulShutdown) {
+    if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN()) {
       long start = System.currentTimeMillis();
       try {
         fileSorterExecutors.shutdown();
@@ -254,21 +255,29 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       } catch (InterruptedException e) {
         logger.error("Await partition sorter executor shutdown catch exception: ", e);
       }
+      if (sortedFilesDb != null) {
+        try {
+          updateSortedShuffleFilesInDB();
+          sortedFilesDb.close();
+        } catch (IOException e) {
+          logger.error("Store recover data to LevelDB failed.", e);
+        }
+      }
       long end = System.currentTimeMillis();
       logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
     } else {
       fileSorterSchedulerThread.interrupt();
       fileSorterExecutors.shutdownNow();
-    }
-    cachedIndexMaps.clear();
-    if (sortedFilesDb != null) {
-      try {
-        updateSortedShuffleFilesInDB();
-        sortedFilesDb.close();
-      } catch (IOException e) {
-        logger.error("Store recover data to LevelDB failed.", e);
+      if (sortedFilesDb != null) {
+        try {
+          sortedFilesDb.close();
+          recoverFile.delete();
+        } catch (IOException e) {
+          logger.error("Clean LevelDB failed.", e);
+        }
       }
     }
+    cachedIndexMaps.clear();
   }
 
   private void reloadAndCleanSortedShuffleFiles(DB db) {
@@ -525,7 +534,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     public void sort() throws InterruptedException {
-      source.startTimer(WorkerSource.SortTime(), fileId);
+      source.startTimer(WorkerSource.SORT_TIME(), fileId);
 
       try {
         initializeFiles();
@@ -578,8 +587,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
 
-        memoryManager.releaseSortMemory(reserveMemory);
-
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
         deleteOriginFiles();
@@ -594,7 +601,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sorting.remove(fileId);
         }
       }
-      source.stopTimer(WorkerSource.SortTime(), fileId);
+      source.stopTimer(WorkerSource.SORT_TIME(), fileId);
     }
 
     private void initializeFiles() throws IOException {

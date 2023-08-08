@@ -29,13 +29,13 @@ import org.apache.celeborn.common.CelebornConf;
 public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
   @Override
   protected ShuffleWriter<Integer, String> createShuffleWriter(
-      RssShuffleHandle handle,
+      CelebornShuffleHandle handle,
       TaskContext context,
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics)
       throws IOException {
     return new SortBasedShuffleWriter<Integer, String, String>(
-        handle, context, conf, client, metrics, null);
+        handle, context, conf, client, metrics, null, SendBufferPool.get(4, 30, 60));
   }
 }

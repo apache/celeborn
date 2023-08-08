@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import io.netty.buffer.ByteBuf;
 
 /** Buffer stream used in Map partition scenario. */
+@Deprecated
 public final class OpenStreamWithCredit extends RequestMessage {
   public final byte[] shuffleKey;
   public final byte[] fileName;

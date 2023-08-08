@@ -20,7 +20,7 @@ Monitoring
 
 There are two ways to monitor Celeborn cluster: Prometheus metrics and REST API.
 
-# Metrics
+## Metrics
 
 Celeborn has a configurable metrics system based on the
 [Dropwizard Metrics Library](http://metrics.dropwizard.io/4.2.0).
@@ -73,7 +73,7 @@ no source is the available optional source. For example the following configurat
 activates the Example source:
 `"celeborn.metrics.conf.*.source.jvm.class"="org.apache.celeborn.common.metrics.source.ExampleSource"`
 
-## List of available metrics providers
+### Available metrics providers
 
 Metrics used by Celeborn are of multiple types: gauge, counter, histogram, meter and timer,
 see [Dropwizard library documentation for details](https://metrics.dropwizard.io/4.2.0/getting-started.html).
@@ -86,26 +86,26 @@ The large majority of metrics are active as soon as their parent component insta
 some metrics require also to be enabled via an additional configuration parameter, the details are
 reported in the list.
 
-### Component instance = Master
+#### Master
 These metrics are exposed by Celeborn master.
 
   - namespace=master 
     - WorkerCount
     - LostWorkers
-    - BlacklistedWorkerCount
+    - ExcludedWorkerCount
     - RegisteredShuffleCount
     - IsActiveMaster
     - PartitionSize
-      - The size of estimated shuffle partition.
+        - The size of estimated shuffle partition.
     - OfferSlotsTime
-      - The time for masters to handle `RequestSlots` request when registering shuffle.
+        - The time for masters to handle `RequestSlots` request when registering shuffle.
 
   - namespace=CPU
     - JVMCPUTime
 
   - namespace=system
     - LastMinuteSystemLoad
-      - The average system load for the last minute.
+        - The average system load for the last minute.
     - AvailableProcessors
 
   - namespace=JVM
@@ -115,29 +115,29 @@ These metrics are exposed by Celeborn master.
 
   - namespace=ResourceConsumption
     - **notes:**
-      - This merics data is generated for each user and they are identified using a metric tag. 
+        - This metrics data is generated for each user and they are identified using a metric tag. 
     - diskFileCount
     - diskBytesWritten
     - hdfsFileCount
     - hdfsBytesWritten
 
-### Component instance = Worker
+#### Worker
 These metrics are exposed by Celeborn worker.
 
   - namespace=worker
     - CommitFilesTime
-      - The time for a worker to flush buffers and close files related to specified shuffle.
+        - The time for a worker to flush buffers and close files related to specified shuffle.
     - ReserveSlotsTime
     - FlushDataTime
-      - The time for a worker to write a buffer which is 256KB by default to storage.
+        - The time for a worker to write a buffer which is 256KB by default to storage.
     - OpenStreamTime
-      - The time for a worker to process openStream RPC and return StreamHandle.
+        - The time for a worker to process openStream RPC and return StreamHandle.
     - FetchChunkTime
-      - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
-    - MasterPushDataTime
-      - The time for a worker to handle a pushData RPC sent from a celeborn client.
-    - SlavePushDataTime
-      - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
+        - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
+    - PrimaryPushDataTime
+        - The time for a worker to handle a pushData RPC sent from a celeborn client.
+    - ReplicaPushDataTime
+        - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
     - WriteDataFailCount
     - ReplicateDataFailCount
     - ReplicateDataWriteFailCount
@@ -147,39 +147,39 @@ These metrics are exposed by Celeborn worker.
     - PushDataHandshakeFailCount
     - RegionStartFailCount
     - RegionFinishFailCount
-    - MasterPushDataHandshakeTime
-    - SlavePushDataHandshakeTime
-    - MasterRegionStartTime
-    - SlaveRegionStartTime
-    - MasterRegionFinishTime
-    - SlaveRegionFinishTime
+    - PrimaryPushDataHandshakeTime
+    - ReplicaPushDataHandshakeTime
+    - PrimaryRegionStartTime
+    - ReplicaRegionStartTime
+    - PrimaryRegionFinishTime
+    - ReplicaRegionFinishTime
     - TakeBufferTime
-      - The time for a worker to take out a buffer from a disk flusher.
+        - The time for a worker to take out a buffer from a disk flusher.
     - RegisteredShuffleCount
     - SlotsAllocated
     - NettyMemory
-      - The total amount of off-heap memory used by celeborn worker.
+        - The total amount of off-heap memory used by celeborn worker.
     - SortTime
-      - The time for a worker to sort a shuffle file.
+        - The time for a worker to sort a shuffle file.
     - SortMemory
-      - The memory used by sorting shuffle files.
+        - The memory used by sorting shuffle files.
     - SortingFiles
     - SortedFiles
     - SortedFileSize
     - DiskBuffer
-      - The memory occupied by pushData and pushMergedData which should be written to disk.
+        - The memory occupied by pushData and pushMergedData which should be written to disk.
     - PausePushData
-      - The count for a worker to stop receiving pushData from clients because of back pressure.
+        - The count for a worker to stop receiving pushData from clients because of back pressure.
     - PausePushDataAndReplicate
-      - The count for a worker to stop receiving pushData from clients and other workers because of back pressure.
+        - The count for a worker to stop receiving pushData from clients and other workers because of back pressure.
     - BufferStreamReadBuffer
-      - The memory used by credit stream read buffer.
+        - The memory used by credit stream read buffer.
     - ReadBufferDispatcherRequestsLength
-      - The queue size of read buffer allocation requests.
+        - The queue size of read buffer allocation requests.
     - ReadBufferAllocatedCount
-      - Allocated read buffer count.
+        - Allocated read buffer count.
     - CreditStreamCount
-      - Stream count for map partition reading streams.
+        - Stream count for map partition reading streams.
     - ActiveMapPartitionCount
     - DeviceOSFreeBytes
     - DeviceOSTotalBytes
@@ -243,17 +243,12 @@ These metrics are exposed by Celeborn worker.
     - fetch_server_numActiveHugeAllocations
     - fetch_server_numActiveBytes
 
-**Note:**
-
-The Netty DirectArenaMetrics named like `push/fetch/replicate_server_numXX` are not exposed by default, nor in Grafana dashboard. 
-If there is a need, you can enable `celeborn.network.memory.allocator.verbose.metric` to expose these metrics.
-
   - namespace=CPU
     - JVMCPUTime
 
   - namespace=system
     - LastMinuteSystemLoad
-      - Returns the system load average for the last minute.
+        - Returns the system load average for the last minute.
     - AvailableProcessors
 
   - namespace=JVM
@@ -261,7 +256,12 @@ If there is a need, you can enable `celeborn.network.memory.allocator.verbose.me
       [Dropwizard/Codahale Metric Sets for JVM instrumentation](https://metrics.dropwizard.io/4.2.0/manual/jvm.html)
       and in particular the metric sets BufferPoolMetricSet, GarbageCollectorMetricSet and MemoryUsageGaugeSet.
 
-# REST API
+**Note:**
+
+The Netty DirectArenaMetrics named like `push/fetch/replicate_server_numXX` are not exposed by default, nor in Grafana dashboard.
+If there is a need, you can enable `celeborn.network.memory.allocator.verbose.metric` to expose these metrics.
+
+## REST API
 
 In addition to viewing the metrics, Celeborn also support REST API. This gives developers
 an easy way to create new visualizations and monitoring tools for Celeborn and
@@ -280,21 +280,37 @@ The configuration of `<master-prometheus-host>`, `<master-prometheus-port>`, `<w
 | celeborn.metrics.worker.prometheus.host | 0.0.0.0 | Worker's Prometheus host.  | 0.2.0 |
 | celeborn.metrics.worker.prometheus.port | 9096    | Worker's Prometheus port.  | 0.2.0 |
 
+### Available API providers
+
 API path listed as below:
 
-| Path                       | Service         | Meaning                                                                                                                                                                              |
-|----------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus        | master, worker  | List service metrics data in prometheus format.                                                                                                                                      |
-| /conf                      | master, worker  | List the conf setting of the service.                                                                                                                                                |
-| /workerInfo                | master, worker  | List worker information of the service. For the master, it will list all registered workers 's information.                                                                          |
-| /lostWorkers               | master          | List all lost workers of the master.                                                                                                                                                 |
-| /blacklistedWorkers        | master          | List all  blacklisted workers of the master.                                                                                                                                         |
-| /threadDump                | master, worker  | List the current thread dump of the service.                                                                                                                                         |
-| /hostnames                 | master          | List all running application's LifecycleManager's hostnames of the cluster.                                                                                                          |
-| /applications              | master          | List all running application's ids of the cluster.                                                                                                                                   |
-| /shuffles                  | master, worker  | List all running shuffle keys of the service. For master, will return all running shuffle's key of the cluster, for worker, only return keys of shuffles running in that worker.     |
-| /listTopDiskUsedApps       | master, worker  | List the top disk usage application ids. For master, will return the top disk usage application ids for the cluster, for worker, only return application ids running in that worker. |
-| /listPartitionLocationInfo | worker          | List all living PartitionLocation information in that worker.                                                                                                                        |
-| /unavailablePeers          | worker          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.                                                                                   |
-| /isShutdown                | worker          | Show if the worker is during the process of shutdown.                                                                                                                                |
-| /isRegistered              | worker          | Show if the worker is registered to the master success.                                                                                                                              |
+#### Master
+
+| Path                  | Meaning                                                                                                     |
+|-----------------------|-------------------------------------------------------------------------------------------------------------|
+| /metrics/prometheus   | List the metrics data in prometheus format of the master.                                                   |
+| /conf                 | List the conf setting of the master.                                                                        |
+| /workerInfo           | List worker information of the service. It will list all registered workers 's information.                 |
+| /lostWorkers          | List all lost workers of the master.                                                                        |
+| /excludedWorkers      | List all excluded workers of the master.                                                                    |
+| /threadDump           | List the current thread dump of the master.                                                                 |
+| /hostnames            | List all running application's LifecycleManager's hostnames of the cluster.                                 |
+| /applications         | List all running application's ids of the cluster.                                                          |
+| /shuffles             | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.      |
+| /listTopDiskUsedApps  | List the top disk usage application ids. It will return the top disk usage application ids for the cluster. |
+
+#### Worker
+
+| Path                       | Meaning                                                                                                  |
+|----------------------------|----------------------------------------------------------------------------------------------------------|
+| /metrics/prometheus        | List the metrics data in prometheus format of the worker.                                                |
+| /conf                      | List the conf setting of the worker.                                                                     |
+| /workerInfo                | List the worker information of the worker.                                                               |
+| /threadDump                | List the current thread dump of the worker.                                                              |
+| /shuffles                  | List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker. |
+| /listTopDiskUsedApps       | List the top disk usage application ids. It only return application ids running in that worker.          |
+| /listPartitionLocationInfo | List all the living PartitionLocation information in that worker.                                        |
+| /unavailablePeers          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.       |
+| /isShutdown                | Show if the worker is during the process of shutdown.                                                    |
+| /isRegistered              | Show if the worker is registered to the master success.                                                  |
+| /decommission              | Trigger this worker to decommission from the cluster                                                     |

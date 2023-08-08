@@ -47,8 +47,8 @@ public class FlinkShuffleClientImplSuiteJ {
   static FlinkShuffleClientImpl shuffleClient;
   protected static final TransportClientFactory clientFactory = mock(TransportClientFactory.class);
   protected final TransportClient client = mock(TransportClient.class);
-  protected static final PartitionLocation masterLocation =
-      new PartitionLocation(0, 1, "localhost", 1, 1, 1, 1, PartitionLocation.Mode.MASTER);
+  protected static final PartitionLocation primaryLocation =
+      new PartitionLocation(0, 1, "localhost", 1, 1, 1, 1, PartitionLocation.Mode.PRIMARY);
 
   @Before
   public void setup() throws IOException, InterruptedException {
@@ -57,9 +57,9 @@ public class FlinkShuffleClientImplSuiteJ {
         new FlinkShuffleClientImpl(
             "APP", "localhost", 1232, System.currentTimeMillis(), conf, null) {
           @Override
-          public void setupMetaServiceRef(String host, int port) {}
+          public void setupLifecycleManagerRef(String host, int port) {}
         };
-    when(clientFactory.createClient(masterLocation.getHost(), masterLocation.getPushPort(), 1))
+    when(clientFactory.createClient(primaryLocation.getHost(), primaryLocation.getPushPort(), 1))
         .thenAnswer(t -> client);
 
     shuffleClient.setDataClientFactory(clientFactory);
@@ -87,7 +87,7 @@ public class FlinkShuffleClientImplSuiteJ {
             });
 
     int pushDataLen =
-        shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, masterLocation, () -> {});
+        shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, primaryLocation, () -> {});
     Assert.assertEquals(BufferSize, pushDataLen);
   }
 
@@ -104,7 +104,7 @@ public class FlinkShuffleClientImplSuiteJ {
               return mockedFuture;
             });
     int pushDataLen =
-        shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, masterLocation, () -> {});
+        shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, primaryLocation, () -> {});
   }
 
   @Test
@@ -118,12 +118,12 @@ public class FlinkShuffleClientImplSuiteJ {
               return mockedFuture;
             });
     // first push just  set pushdata.exception
-    shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, masterLocation, () -> {});
+    shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, primaryLocation, () -> {});
 
     boolean isFailed = false;
     // second push will throw exception
     try {
-      shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, masterLocation, () -> {});
+      shuffleClient.pushDataToLocation(2, 3, 4, 5, byteBuf, primaryLocation, () -> {});
     } catch (IOException e) {
       isFailed = true;
     } finally {

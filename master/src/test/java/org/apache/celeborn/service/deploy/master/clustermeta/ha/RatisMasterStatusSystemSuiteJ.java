@@ -29,8 +29,8 @@ import org.junit.*;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
-import org.apache.celeborn.common.haclient.RssHARetryClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
@@ -88,19 +88,19 @@ public class RatisMasterStatusSystemSuiteJ {
     MetaHandler handler3 = new MetaHandler(STATUSSYSTEM3);
 
     CelebornConf conf1 = new CelebornConf();
-    File tmpDir1 = File.createTempFile("rss-ratis1", "for-test-only");
+    File tmpDir1 = File.createTempFile("celeborn-ratis1", "for-test-only");
     tmpDir1.delete();
     tmpDir1.mkdirs();
     conf1.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir1.getAbsolutePath());
 
     CelebornConf conf2 = new CelebornConf();
-    File tmpDir2 = File.createTempFile("rss-ratis2", "for-test-only");
+    File tmpDir2 = File.createTempFile("celeborn-ratis2", "for-test-only");
     tmpDir2.delete();
     tmpDir2.mkdirs();
     conf2.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir2.getAbsolutePath());
 
     CelebornConf conf3 = new CelebornConf();
-    File tmpDir3 = File.createTempFile("rss-ratis3", "for-test-only");
+    File tmpDir3 = File.createTempFile("celeborn-ratis3", "for-test-only");
     tmpDir3.delete();
     tmpDir3.mkdirs();
     conf3.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir3.getAbsolutePath());
@@ -195,8 +195,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
 
   private String getNewReqeustId() {
-    return RssHARetryClient.encodeRequestId(
-        UUID.randomUUID().toString(), callerId.incrementAndGet());
+    return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
   }
 
   public HAMasterMetaManager pickLeaderStatusSystem() {
@@ -399,22 +398,24 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
 
+    // Do not update diskinfo's activeslots
+
     Assert.assertEquals(
-        15,
+        0,
         statusSystem.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
-        25,
+        0,
         statusSystem.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME2))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
-        35,
+        0,
         statusSystem.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME3))
             .findFirst()
@@ -493,25 +494,26 @@ public class RatisMasterStatusSystemSuiteJ {
           }
         });
 
-    statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
     Thread.sleep(3000L);
 
+    // Do not update diskinfo's activeslots
+
     Assert.assertEquals(
-        2,
+        0,
         STATUSSYSTEM1.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
-        2,
+        0,
         STATUSSYSTEM2.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
             .get()
             .usedSlots());
     Assert.assertEquals(
-        2,
+        0,
         STATUSSYSTEM3.workers.stream()
             .filter(w -> w.host().equals(HOSTNAME1))
             .findFirst()
@@ -736,9 +738,9 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
@@ -753,10 +755,10 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(2, statusSystem.blacklist.size());
-    Assert.assertEquals(2, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(2, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(2, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(2, statusSystem.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME1,
@@ -771,10 +773,10 @@ public class RatisMasterStatusSystemSuiteJ {
         getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(1, statusSystem.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(1, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(1, statusSystem.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
   }
 
   @Before
@@ -783,21 +785,21 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM1.hostnameSet.clear();
     STATUSSYSTEM1.workers.clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
-    STATUSSYSTEM1.blacklist.clear();
+    STATUSSYSTEM1.excludedWorkers.clear();
     STATUSSYSTEM1.workerLostEvents.clear();
 
     STATUSSYSTEM2.registeredShuffle.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.workers.clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
-    STATUSSYSTEM2.blacklist.clear();
+    STATUSSYSTEM2.excludedWorkers.clear();
     STATUSSYSTEM2.workerLostEvents.clear();
 
     STATUSSYSTEM3.registeredShuffle.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.workers.clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
-    STATUSSYSTEM3.blacklist.clear();
+    STATUSSYSTEM3.excludedWorkers.clear();
     STATUSSYSTEM3.workerLostEvents.clear();
 
     disks1.clear();
@@ -879,9 +881,9 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.shutdownWorkers.size());
-    Assert.assertEquals(0, STATUSSYSTEM1.blacklist.size());
-    Assert.assertEquals(0, STATUSSYSTEM2.blacklist.size());
-    Assert.assertEquals(0, STATUSSYSTEM3.blacklist.size());
+    Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
   }
 
   @Test

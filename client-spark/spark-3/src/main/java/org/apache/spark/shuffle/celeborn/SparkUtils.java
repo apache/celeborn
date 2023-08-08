@@ -75,7 +75,7 @@ public class SparkUtils {
     return res;
   }
 
-  /** make rss conf from spark conf */
+  /** make celeborn conf from spark conf */
   public static CelebornConf fromSparkConf(SparkConf conf) {
     CelebornConf tmpCelebornConf = new CelebornConf();
     for (Tuple2<String, String> kv : conf.getAll()) {
