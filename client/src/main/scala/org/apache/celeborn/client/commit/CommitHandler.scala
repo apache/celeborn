@@ -397,7 +397,7 @@ abstract class CommitHandler(
     committedPartitions.values().asScala.foreach { partition =>
       val partitionLocations = reducerFileGroupsMap.get(shuffleId).computeIfAbsent(
         partition.getId,
-        (k: Integer) => new util.LinkedHashSet[PartitionLocation]())
+        (k: Integer) => new util.HashSet[PartitionLocation]())
       partitionLocations.add(partition)
     }
   }

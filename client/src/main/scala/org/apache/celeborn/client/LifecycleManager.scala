@@ -46,7 +46,7 @@ import org.apache.celeborn.common.util.FunctionConverter._
 object LifecycleManager {
   // shuffle id -> partition id -> partition locations
   type ShuffleFileGroups =
-    ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.LinkedHashSet[PartitionLocation]]]
+    ConcurrentHashMap[Int, ConcurrentHashMap[Integer, util.Set[PartitionLocation]]]
   type ShuffleAllocatedWorkers =
     ConcurrentHashMap[Int, ConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]]
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]

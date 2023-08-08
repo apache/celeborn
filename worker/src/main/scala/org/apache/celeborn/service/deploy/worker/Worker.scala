@@ -698,11 +698,11 @@ private[celeborn] class Worker(
     loop.breakable {
 
       val mapPartititionMasterLocations =
-        partitionLocationInfo.getMasterLocations.asScala.filter(l =>
+        partitionLocationInfo.getPrimaryPartitionLocations.asScala.filter(l =>
           shufflePartitionType.get(l._1) == PartitionType.MAP)
-      val mapPartititionSlaveLocations = partitionLocationInfo.getSlaveLocations.asScala.filter(l =>
+      val mapPartititionSlaveLocations = partitionLocationInfo.getReplicaPartitionLocations.asScala.filter(l =>
         shufflePartitionType.get(l._1) == PartitionType.MAP)
-      logDebug(s"masterlocations size: ${partitionLocationInfo.getMasterLocations.size()}, ${mapPartititionMasterLocations.size}")
+      logDebug(s"masterlocations size: ${partitionLocationInfo.getPrimaryPartitionLocations.size()}, ${mapPartititionMasterLocations.size}")
       for ((_, locationMap) <- mapPartititionMasterLocations) {
         for ((_, location) <- locationMap.asScala) {
           if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[

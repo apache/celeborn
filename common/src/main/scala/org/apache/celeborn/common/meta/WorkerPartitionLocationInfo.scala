@@ -183,8 +183,8 @@ class WorkerPartitionLocationInfo extends Logging {
        |""".stripMargin
   }
 
-  def getMasterLocations(): PartitionInfo = masterPartitionLocations
+  def getPrimaryPartitionLocations(): PartitionInfo = primaryPartitionLocations
 
-  def getSlaveLocations(): PartitionInfo = slavePartitionLocations
+  def getReplicaPartitionLocations(): PartitionInfo = replicaPartitionLocations
 
 }

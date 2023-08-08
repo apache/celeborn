@@ -123,12 +123,12 @@ public class ShuffleClientImpl extends ShuffleClient {
   private final ReviveManager reviveManager;
 
   protected static class ReduceFileGroups {
-    public Map<Integer, LinkedHashSet<PartitionLocation>> partitionGroups;
+    public Map<Integer, Set<PartitionLocation>> partitionGroups;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
 
     ReduceFileGroups(
-        Map<Integer, LinkedHashSet<PartitionLocation>> partitionGroups,
+        Map<Integer, Set<PartitionLocation>> partitionGroups,
         int[] mapAttempts,
         Set<Integer> partitionIds) {
       this.partitionGroups = partitionGroups;
