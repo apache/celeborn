@@ -30,6 +30,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 
@@ -112,6 +113,11 @@ public class CelebornBufferStream {
 
           @Override
           public void onFailure(Throwable e) {
+            logger.error(
+                "Open file {} stream for {} error from {}",
+                fileName,
+                shuffleKey,
+                NettyUtils.getRemoteAddress(client.getChannel()));
             messageConsumer.accept(new TransportableError(streamId, e));
           }
         });
@@ -176,5 +182,9 @@ public class CelebornBufferStream {
       }
       isClosed = true;
     }
+  }
+
+  public TransportClient getClient() {
+    return client;
   }
 }
