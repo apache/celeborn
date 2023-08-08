@@ -192,7 +192,6 @@ public class CelebornBufferStream {
       logger.debug("get stream end with {}", endedStreamId);
       cleanStream(endedStreamId);
       if (currentLocationIndex < locations.length) {
-        //        currentLocationIndex++;
         try {
           openStreamInternal();
         } catch (Exception e) {

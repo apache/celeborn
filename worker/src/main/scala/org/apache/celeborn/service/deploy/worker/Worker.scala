@@ -697,28 +697,30 @@ private[celeborn] class Worker(
     val loop = new Breaks
     loop.breakable {
 
-      val mapPartititionMasterLocations =
+      val mapPartititionPrimaryPartitionLocations =
         partitionLocationInfo.getPrimaryPartitionLocations.asScala.filter(l =>
           shufflePartitionType.get(l._1) == PartitionType.MAP)
-      val mapPartititionSlaveLocations = partitionLocationInfo.getReplicaPartitionLocations.asScala.filter(l =>
-        shufflePartitionType.get(l._1) == PartitionType.MAP)
-      logDebug(s"masterlocations size: ${partitionLocationInfo.getPrimaryPartitionLocations.size()}, ${mapPartititionMasterLocations.size}")
-      for ((_, locationMap) <- mapPartititionMasterLocations) {
+      val mapPartititionReplicaPartitionLocations =
+        partitionLocationInfo.getReplicaPartitionLocations.asScala.filter(l =>
+          shufflePartitionType.get(l._1) == PartitionType.MAP)
+      logDebug(
+        s"masterlocations size: ${partitionLocationInfo.getPrimaryPartitionLocations.size()}, ${mapPartititionPrimaryPartitionLocations.size}")
+      for ((_, locationMap) <- mapPartititionPrimaryPartitionLocations) {
         for ((_, location) <- locationMap.asScala) {
           if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
               MapPartitionFileWriter].isResionFinished) {
             isFinish = false
-            logDebug(s"master region is not finished: $location")
+            logDebug(s"primary partitionLocations region is not finished: $location")
             loop.break()
           }
         }
       }
-      for ((_, locationMap) <- mapPartititionSlaveLocations) {
+      for ((_, locationMap) <- mapPartititionReplicaPartitionLocations) {
         for ((_, location) <- locationMap.asScala) {
           if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
               MapPartitionFileWriter].isResionFinished) {
             isFinish = false
-            logDebug(s"slave region is not finished: $location")
+            logDebug(s"replica partitionLocations region is not finished: $location")
             loop.break()
           }
         }

@@ -412,7 +412,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             StatusCode.HARD_SPLIT);
     requests.add(req);
     PbChangeLocationResponse response =
-            lifecycleManagerRef.askSync(
+        lifecycleManagerRef.askSync(
             ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
             conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
             ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
