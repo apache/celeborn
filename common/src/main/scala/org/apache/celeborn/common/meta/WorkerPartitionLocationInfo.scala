@@ -182,4 +182,9 @@ class WorkerPartitionLocationInfo extends Logging {
        | replica: ${replicaPartitionLocations.asScala}
        |""".stripMargin
   }
+
+  def getMasterLocations(): PartitionInfo = masterPartitionLocations
+
+  def getSlaveLocations(): PartitionInfo = slavePartitionLocations
+
 }

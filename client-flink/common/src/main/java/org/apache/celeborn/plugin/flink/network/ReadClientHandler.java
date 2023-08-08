@@ -90,7 +90,7 @@ public class ReadClientHandler extends BaseMessageHandler {
       case BUFFER_STREAM_END:
         BufferStreamEnd streamEnd = (BufferStreamEnd) msg;
         logger.debug("received streamend for {}", streamEnd.getStreamId());
-        processMessageInternal(streamId, streamEnd);
+        processMessageInternal(streamEnd.getStreamId(), streamEnd);
         break;
       case ONE_WAY_MESSAGE:
         // ignore it.

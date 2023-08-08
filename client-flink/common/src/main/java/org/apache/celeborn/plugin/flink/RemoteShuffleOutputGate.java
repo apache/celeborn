@@ -144,10 +144,23 @@ public class RemoteShuffleOutputGate {
    * @param isBroadcast Whether it's a broadcast region.
    */
   public void regionStart(boolean isBroadcast) {
-    Optional<PartitionLocation> newPartitionLoc;
+    Optional<PartitionLocation> newPartitionLoc = Optional.empty();
+    boolean isHandShakeRevive = false;
     try {
       if (isFirstHandShake) {
-        handshake(true);
+        newPartitionLoc = handshake(true);
+        if (newPartitionLoc.isPresent()) {
+          isHandShakeRevive = true;
+          LOG.info(
+              "revive at handshake for shuffleId:{}, mapId:{}, attempId:{}, currentRegionIndex:{}, isBroadcast:{}, newPartition:{}, oldPartition:{}",
+              shuffleId,
+              mapId,
+              attemptId,
+              currentRegionIndex,
+              isBroadcast,
+              newPartitionLoc,
+              partitionLocation);
+        }
         isFirstHandShake = false;
         LOG.debug(
             "shuffleId: {}, location: {}, send firstHandShake: {}, isBroadcast: {}",
@@ -157,9 +170,23 @@ public class RemoteShuffleOutputGate {
             isBroadcast);
       }
 
-      newPartitionLoc =
-          flinkShuffleClient.regionStart(
-              shuffleId, mapId, attemptId, partitionLocation, currentRegionIndex, isBroadcast);
+      if (!isHandShakeRevive) {
+        newPartitionLoc =
+            flinkShuffleClient.regionStart(
+                shuffleId, mapId, attemptId, partitionLocation, currentRegionIndex, isBroadcast);
+        if (newPartitionLoc.isPresent()) {
+          LOG.info(
+              "revive at regionStart for shuffleId:{}, mapId:{}, attempId:{}, currentRegionIndex:{}, isBroadcast:{}, newPartition:{},  oldPartition:{}",
+              shuffleId,
+              mapId,
+              attemptId,
+              currentRegionIndex,
+              isBroadcast,
+              newPartitionLoc,
+              partitionLocation);
+        }
+      }
+
       // revived
       if (newPartitionLoc.isPresent()) {
         partitionLocation = newPartitionLoc.get();
@@ -240,7 +267,7 @@ public class RemoteShuffleOutputGate {
     }
   }
 
-  public void handshake(boolean isFirstHandShake) throws IOException {
+  public Optional<PartitionLocation> handshake(boolean isFirstHandShake) throws IOException {
     if (isFirstHandShake) {
       partitionLocation =
           flinkShuffleClient.registerMapPartitionTask(
@@ -250,10 +277,11 @@ public class RemoteShuffleOutputGate {
       currentRegionIndex = 0;
     }
     try {
-      flinkShuffleClient.pushDataHandShake(
+      return flinkShuffleClient.pushDataHandShake(
           shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
     }
+    return Optional.empty();
   }
 }

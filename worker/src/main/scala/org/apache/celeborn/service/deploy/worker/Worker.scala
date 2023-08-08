@@ -24,6 +24,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
+import scala.util.control.Breaks
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -48,7 +49,7 @@ import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
-import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionFileWriter, PartitionFilesSorter, StorageManager}
 
 private[celeborn] class Worker(
     override val conf: CelebornConf,
@@ -596,8 +597,9 @@ private[celeborn] class Worker(
     var waitTimes = 0
 
     def waitTime: Long = waitTimes * interval
-
-    while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+    // for mappartition, it should wait that datas of a region are completely received.
+    val isRegionFinished = isRegionFinish
+    while (!partitionLocationInfo.isEmpty && !isRegionFinished && waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
     }
@@ -607,6 +609,13 @@ private[celeborn] class Worker(
       logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
         s"unreleased PartitionLocation: \n$partitionLocationInfo")
     }
+
+    if (isRegionFinished) {
+      logInfo(s"Waiting for all partition regionFinish cost ${waitTime}ms.")
+    } else {
+      logWarning(s"Waiting for all partition regionFinish cost ${waitTime}ms, but some regions are not finished")
+    }
+
   }
 
   def decommissionWorker(): Unit = {
@@ -682,6 +691,42 @@ private[celeborn] class Worker(
 
   @VisibleForTesting
   def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)
+
+  def isRegionFinish: Boolean = {
+    var isFinish = true
+    val loop = new Breaks
+    loop.breakable {
+
+      val mapPartititionMasterLocations =
+        partitionLocationInfo.getMasterLocations.asScala.filter(l =>
+          shufflePartitionType.get(l._1) == PartitionType.MAP)
+      val mapPartititionSlaveLocations = partitionLocationInfo.getSlaveLocations.asScala.filter(l =>
+        shufflePartitionType.get(l._1) == PartitionType.MAP)
+      logDebug(s"masterlocations size: ${partitionLocationInfo.getMasterLocations.size()}, ${mapPartititionMasterLocations.size}")
+      for ((_, locationMap) <- mapPartititionMasterLocations) {
+        for ((_, location) <- locationMap.asScala) {
+          if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
+              MapPartitionFileWriter].isResionFinished) {
+            isFinish = false
+            logDebug(s"master region is not finished: $location")
+            loop.break()
+          }
+        }
+      }
+      for ((_, locationMap) <- mapPartititionSlaveLocations) {
+        for ((_, location) <- locationMap.asScala) {
+          if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
+              MapPartitionFileWriter].isResionFinished) {
+            isFinish = false
+            logDebug(s"slave region is not finished: $location")
+            loop.break()
+          }
+        }
+
+      }
+    }
+    isFinish
+  }
 }
 
 private[deploy] object Worker extends Logging {

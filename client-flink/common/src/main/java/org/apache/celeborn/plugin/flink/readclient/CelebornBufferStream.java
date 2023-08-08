@@ -73,6 +73,7 @@ public class CelebornBufferStream {
             locations[currentLocationIndex].getHost(),
             locations[currentLocationIndex].getFetchPort());
     String fileName = locations[currentLocationIndex].getFileName();
+    currentLocationIndex++;
     OpenStreamWithCredit openBufferStream =
         new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);
     client.sendRpc(
@@ -191,7 +192,7 @@ public class CelebornBufferStream {
       logger.debug("get stream end with {}", endedStreamId);
       cleanStream(endedStreamId);
       if (currentLocationIndex < locations.length) {
-        currentLocationIndex++;
+        //        currentLocationIndex++;
         try {
           openStreamInternal();
         } catch (Exception e) {

@@ -784,14 +784,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         callback,
         wrappedCallback)) return
 
-    // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
-    // This should before return exception to make current push request revive and retry.
-    if (shutdown.get()) {
-      logInfo(s"Push data return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-      return
-    }
-
     val fileWriter =
       getFileWriterAndCheck(pushData.`type`(), location, isPrimary, callback) match {
         case (true, _) => return
@@ -908,6 +900,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         location,
         callback,
         wrappedCallback)) return
+
+    // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
+    // This should before return exception to make current push request revive and retry.
+    if (shutdown.get() && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE)) {
+      logInfo(s"$messageType return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      return
+    }
 
     val fileWriter =
       getFileWriterAndCheck(messageType, location, isPrimary, callback) match {
@@ -1080,6 +1080,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       softSplit: AtomicBoolean,
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
+    logDebug(
+      s"check filelength: ${fileWriter.getFileInfo.getFileLength}, filename:${fileWriter.getFileInfo.getFilePath}")
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
         (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&

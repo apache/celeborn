@@ -501,7 +501,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         false)
       return
     }
-
+    logDebug(s"revive $shuffleId, $mapIds, $partitionIds, $oldEpochs, $oldPartitions, $causes")
     if (commitManager.isStageEnd(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId stage ended!")
       contextWrapper.reply(
