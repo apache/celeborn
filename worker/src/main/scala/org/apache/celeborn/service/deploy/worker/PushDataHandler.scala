@@ -915,7 +915,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         case (false, f: FileWriter) => f
       }
 
-    if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && checkDiskFullAndSplit(fileWriter, isPrimary, null, callback)) return
+    if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && checkDiskFullAndSplit(
+        fileWriter,
+        isPrimary,
+        null,
+        callback)) return
 
     try {
       messageType match {
