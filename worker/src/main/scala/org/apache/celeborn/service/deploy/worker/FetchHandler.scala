@@ -95,7 +95,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
         // process PbOpenStream RPC
-        var timerShuffleKey: String = null
+        var streamShuffleKey: String = null
+        var streamFileName: String = null
         try {
           val pbMsg = TransportMessage.fromByteBuffer(r.body().nioByteBuffer())
           val pbOpenStream = pbMsg.getParsedPayload[PbOpenStream]
@@ -106,9 +107,9 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               pbOpenStream.getStartIndex,
               pbOpenStream.getEndIndex,
               pbOpenStream.getInitialCredit)
-
-          timerShuffleKey = shuffleKey
-          workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, timerShuffleKey)
+          streamShuffleKey = shuffleKey
+          streamFileName = fileName
+          workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
           handleOpenStreamInternal(
             client,
             shuffleKey,
@@ -136,7 +137,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
                     new String(openStreamWithCredit.shuffleKey, StandardCharsets.UTF_8),
                     new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
                 }
-              timerShuffleKey = shuffleKey
+              streamShuffleKey = shuffleKey
+              streamFileName = fileName
               var startIndex = 0
               var endIndex = 0
               var initialCredit = 0
@@ -161,11 +163,11 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
                 true)
             } catch {
               case e: IOException =>
-                handleRpcIOException(client, r.requestId, e)
+                handleRpcIOException(client, r.requestId, streamShuffleKey, streamFileName, e)
             }
         } finally {
           r.body().release()
-          workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, timerShuffleKey)
+          workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
         }
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
@@ -234,7 +236,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       }
     } catch {
       case e: IOException =>
-        handleRpcIOException(client, request.requestId, e)
+        handleRpcIOException(client, request.requestId, shuffleKey, fileName, e)
     }
   }
 
@@ -261,13 +263,18 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   private def handleRpcIOException(
       client: TransportClient,
       requestId: Long,
+      shuffleKey: String,
+      fileName: String,
       ioe: IOException): Unit = {
     // if open stream rpc failed, this IOException actually should be FileNotFoundException
     // we wrapper this IOException(Other place may have other exception like FileCorruptException) unify to
     // PartitionUnRetryableException for reader can give up this partition and choose to regenerate the partition data
+    logError(
+      s"Read file: $fileName with shuffleKey: $shuffleKey error from ${NettyUtils.getRemoteAddress(client.getChannel)}",
+      ioe)
     client.getChannel.writeAndFlush(new RpcFailure(
       requestId,
-      Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe, false))))
+      Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))))
   }
 
   def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {
