@@ -40,6 +40,7 @@ import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.TransportableError;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -372,7 +373,12 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   private void notifyError(Throwable throwable) {
-    logger.error("read error stream id {} message:{}", streamId, throwable.getMessage(), throwable);
+    logger.error(
+        "Read file: {} error from {}, stream id {}",
+        fileInfo.getFilePath(),
+        NettyUtils.getRemoteAddress(this.associatedChannel),
+        streamId,
+        throwable);
     if (throwable instanceof ClosedChannelException) {
       return;
     }
@@ -382,8 +388,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       // And do not close channel because multiple streams are using the very same channel.
       // wrapIOException to PartitionUnRetryAbleException, client may choose regenerate the data.
       this.associatedChannel.writeAndFlush(
-          new TransportableError(
-              streamId, ExceptionUtils.wrapIOExceptionToUnRetryable(throwable, true)));
+          new TransportableError(streamId, ExceptionUtils.wrapIOExceptionToUnRetryable(throwable)));
     }
   }
 

@@ -23,7 +23,11 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.protocol.ReadAddCredit;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.TransportableError;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
@@ -127,6 +131,12 @@ public class RemoteBufferStreamReader extends CreditListener {
   public void errorReceived(String errorMsg) {
     if (!closed) {
       closed = true;
+      if (bufferStream != null && bufferStream.getClient() != null) {
+        logger.error(
+            "Received error from {} message {}",
+            NettyUtils.getRemoteAddress(bufferStream.getClient().getChannel()),
+            errorMsg);
+      }
       failureListener.accept(new IOException(errorMsg));
     }
   }
