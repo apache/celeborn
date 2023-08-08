@@ -1239,7 +1239,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.network.memory.allocator.allowCache")
       .categories("network")
       .internal
-      .version("0.4.0")
+      .version("0.3.1")
       .doc("When false, globally disable thread-local cache in the shared PooledByteBufAllocator.")
       .booleanConf
       .createWithDefault(true)
