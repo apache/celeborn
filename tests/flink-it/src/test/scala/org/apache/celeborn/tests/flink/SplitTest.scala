@@ -62,7 +62,7 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
     shutdownMiniCluster()
   }
 
-  test("celeborn flink integration test - simple shuffle test") {
+  test("celeborn flink integration test - shuffle partition split test") {
     val configuration = new Configuration
     val parallelism = 8
     configuration.setString(
@@ -75,6 +75,9 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString(RestOptions.BIND_PORT, "8081-8089")
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.min-parallelism",
+      "" + parallelism)
+    configuration.setString(
+      "execution.batch.adaptive.auto-parallelism.max-parallelism",
       "" + parallelism)
     configuration.setString(CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key, "100k")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)

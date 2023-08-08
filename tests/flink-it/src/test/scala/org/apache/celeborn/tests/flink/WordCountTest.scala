@@ -66,9 +66,6 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.min-parallelism",
       "" + parallelism)
-    configuration.setString(
-      "execution.batch.adaptive.auto-parallelism.max-parallelism",
-      "" + parallelism)
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(parallelism)
