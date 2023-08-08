@@ -116,10 +116,6 @@ object CelebornCommonSettings {
     // Don't execute in parallel since we can't have multiple Sparks in the same JVM
     Test / parallelExecution := false,
 
-    scalacOptions ++= Seq(
-      "-P:genjavadoc:strictVisibility=true" // hide package private types and methods in javadoc
-    ),
-
     javaOptions += "-Xmx4g",
 
     // Configurations to speed up tests and reduce memory footprint
@@ -244,12 +240,7 @@ object CelebornCommon {
         "org.slf4j" % "slf4j-api" % slf4jVersion,
         "org.yaml" % "snakeyaml" % snakeyamlVersion,
         "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test",
-  
-        // Compiler plugins
-        // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-        compilerPlugin(
-          "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test"
       ) ++ commonUnitTestDependencies,
 
       Compile / sourceGenerators += Def.task {
@@ -289,12 +280,7 @@ object CelebornClient {
         "com.github.luben" % "zstd-jni" % zstdJniVersion,
         "org.apache.commons" % "commons-lang3" % commonsLang3Version,
         "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test",
-  
-        // Compiler plugins
-        // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-        compilerPlugin(
-          "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test"
       ) ++ commonUnitTestDependencies
     )
 }
@@ -312,12 +298,7 @@ object CelebornService {
         "org.apache.commons" % "commons-crypto" % commonsCryptoVersion,
         "org.slf4j" % "slf4j-api" % slf4jVersion,
         "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
-        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test",
-  
-        // Compiler plugins
-        // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-        compilerPlugin(
-          "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+        "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test"
       ) ++ commonUnitTestDependencies
     )
 }
@@ -341,11 +322,6 @@ object CelebornMaster {
         "org.apache.ratis" % "ratis-netty" % ratisVersion,
         "org.apache.ratis" % "ratis-server" % ratisVersion,
         "org.apache.ratis" % "ratis-shell" % ratisVersion,
-  
-        // Compiler plugins
-        // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-        compilerPlugin(
-          "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
       ) ++ commonUnitTestDependencies
     )
 }
@@ -366,11 +342,6 @@ object CelebornWorker {
         "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbJniVersion,
         "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion,
         "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion % "test",
-  
-        // Compiler plugins
-        // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-        compilerPlugin(
-          "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
       ) ++ commonUnitTestDependencies
     )
 }
@@ -521,12 +492,7 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
-  
-          // Compiler plugins
-          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-          compilerPlugin(
-            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests"
         ) ++ commonUnitTestDependencies
       )
   }
@@ -541,11 +507,6 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-  
-          // Compiler plugins
-          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-          compilerPlugin(
-            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
         ) ++ commonUnitTestDependencies
       )
   }
@@ -564,12 +525,7 @@ trait SparkClientProjects {
           "org.apache.spark" %% "spark-core" % sparkVersion % "test",
           "org.apache.spark" %% "spark-sql" % sparkVersion % "test",
           "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests",
-  
-          // Compiler plugins
-          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-          compilerPlugin(
-            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests"
         ) ++ commonUnitTestDependencies
       )
   }
@@ -709,12 +665,7 @@ trait FlinkClientProjects {
       .settings (
         commonSettings,
         libraryDependencies ++= Seq(
-          "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
-  
-          // Compiler plugins
-          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-          compilerPlugin(
-            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+          "org.apache.flink" % "flink-runtime" % flinkVersion % "provided"
         ) ++ commonUnitTestDependencies
       )
   }
@@ -735,12 +686,7 @@ trait FlinkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
           "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version % "test",
-          "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test",
-  
-          // Compiler plugins
-          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-          compilerPlugin(
-            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+          "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version % "test"
         ) ++ commonUnitTestDependencies
       )
   }
@@ -760,12 +706,7 @@ trait FlinkClientProjects {
           "org.apache.flink" %% "flink-scala" % flinkVersion % "test",
           flinkStreamingDependency,
           flinkClientsDependency,
-          flinkRuntimeWebDependency,
-  
-          // Compiler plugins
-          // -- Bump up the genjavadoc version explicitly to 0.18 to work with Scala 2.12
-          compilerPlugin(
-            "com.typesafe.genjavadoc" %% "genjavadoc-plugin" % "0.18" cross CrossVersion.full)
+          flinkRuntimeWebDependency
         ) ++ commonUnitTestDependencies
       )
   }
