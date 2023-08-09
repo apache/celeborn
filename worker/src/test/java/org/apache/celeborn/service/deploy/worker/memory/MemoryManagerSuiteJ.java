@@ -27,8 +27,8 @@ public class MemoryManagerSuiteJ {
   @Test
   public void testInitMemoryManagerWithInvalidConfig() {
     CelebornConf conf = new CelebornConf();
-    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE(), "0.9");
-    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE(), "0.95");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE(), "0.95");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE(), "0.85");
     try {
       MemoryManager.initialize(conf);
       // should throw exception before here
