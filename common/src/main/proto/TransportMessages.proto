@@ -75,6 +75,7 @@ enum MessageType {
   STREAM_HANDLER = 52;
   CHECK_WORKERS_AVAILABLE = 53;
   CHECK_WORKERS_AVAILABLE_RESPONSE = 54;
+  BUFFER_STREAM_END = 55;
 }
 
 message PbStorageInfo {
@@ -493,4 +494,13 @@ message PbStreamHandler {
   int32 numChunks = 2;
   repeated int64 chunkOffsets = 3 ;
   string fullPath = 4;
+}
+
+message PbBufferStreamEnd {
+  enum Type {
+    Spark = 0;
+    Flink = 1;
+  }
+  Type clientType = 1;
+  int64 streamId = 2;
 }

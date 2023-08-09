@@ -25,7 +25,11 @@ import java.util.function.Consumer
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 
+import scala.collection.JavaConverters._
+
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Throwables
+import com.google.protobuf.GeneratedMessageV3
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import org.apache.celeborn.common.CelebornConf
@@ -38,7 +42,7 @@ import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbOpenStream, PbStreamHandler}
+import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbOpenStream, PbStreamHandler}
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
@@ -101,30 +105,11 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
         var streamFileName: String = null
         try {
           val pbMsg = TransportMessage.fromByteBuffer(r.body().nioByteBuffer())
-          val pbOpenStream = pbMsg.getParsedPayload[PbOpenStream]
-          val (shuffleKey, fileName, startIndex, endIndex, initialCredit, readLocalShuffle) =
-            (
-              pbOpenStream.getShuffleKey,
-              pbOpenStream.getFileName,
-              pbOpenStream.getStartIndex,
-              pbOpenStream.getEndIndex,
-              pbOpenStream.getInitialCredit,
-              pbOpenStream.getReadLocalShuffle)
-          streamShuffleKey = shuffleKey
-          streamFileName = fileName
-          workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
-          handleOpenStreamInternal(
-            client,
-            shuffleKey,
-            fileName,
-            startIndex,
-            endIndex,
-            initialCredit,
-            r,
-            false,
-            readLocalShuffle)
+          val pbRequest = pbMsg.getParsedPayload[GeneratedMessageV3]
+          handleRpcRequest(client, r, pbRequest)
         } catch {
-          case _: Exception =>
+          case e: Exception =>
+            e.printStackTrace()
             // process legacy OpenStream RPCs
             logDebug("Open stream with legacy RPCs")
             try {
@@ -178,6 +163,40 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     }
   }
 
+  private def handleRpcRequest(
+      client: TransportClient,
+      rpcRequest: RpcRequest,
+      request: GeneratedMessageV3): Unit = {
+    request match {
+      case pbOpenStream: PbOpenStream =>
+        var streamShuffleKey: String = null
+        var streamFileName: String = null
+        val (shuffleKey, fileName, startIndex, endIndex, initialCredit) =
+          (
+            pbOpenStream.getShuffleKey,
+            pbOpenStream.getFileName,
+            pbOpenStream.getStartIndex,
+            pbOpenStream.getEndIndex,
+            pbOpenStream.getInitialCredit)
+        streamShuffleKey = shuffleKey
+        streamFileName = fileName
+        workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
+        handleOpenStreamInternal(
+          client,
+          shuffleKey,
+          fileName,
+          startIndex,
+          endIndex,
+          initialCredit,
+          rpcRequest,
+          false)
+      case pbBufferStreamEnd: PbBufferStreamEnd =>
+        handleEndStreamFromClient(pbBufferStreamEnd)
+      case _ =>
+        logError(s"Unknown message $request")
+    }
+  }
+
   private def handleOpenStreamInternal(
       client: TransportClient,
       shuffleKey: String,
@@ -192,14 +211,14 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       fileInfo.getPartitionType match {
         case PartitionType.REDUCE =>
-          if (endIndex != Integer.MAX_VALUE) {
-            fileInfo = partitionsSorter.getSortedFileInfo(
-              shuffleKey,
-              fileName,
-              fileInfo,
-              startIndex,
-              endIndex)
-          }
+          val streamId =
+            chunkStreamManager.registeringStream(shuffleKey, fileName, startIndex, endIndex)
+          fileInfo = partitionsSorter.getSortedFileInfo(
+            shuffleKey,
+            fileName,
+            fileInfo,
+            startIndex,
+            endIndex)
           logDebug(s"Received chunk fetch request $shuffleKey $fileName $startIndex " +
             s"$endIndex get file info $fileInfo from client channel " +
             s"${NettyUtils.getRemoteAddress(client.getChannel)}")
@@ -217,7 +236,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           } else {
             val buffers = new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
-            val streamId = chunkStreamManager.registerStream(
+            chunkStreamManager.registerStream(
+              streamId,
               shuffleKey,
               buffers,
               fetchTimeMetrics)
@@ -305,6 +325,16 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     creditStreamManager.notifyStreamEndByClient(req.getStreamId)
   }
 
+  def handleEndStreamFromClient(req: PbBufferStreamEnd): Unit = {
+    req.getClientType match {
+      case PbBufferStreamEnd.Type.Spark =>
+        chunkStreamManager.unregisterStream(req.getStreamId)
+      case PbBufferStreamEnd.Type.Flink =>
+        creditStreamManager.notifyStreamEndByClient(req.getStreamId)
+      case _ =>
+    }
+  }
+
   def handleReadAddCredit(req: ReadAddCredit): Unit = {
     creditStreamManager.addCredit(req.getCredit, req.getStreamId)
   }
@@ -344,6 +374,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
                   s"Sending ChunkFetchSuccess operation succeeded, chunk ${req.streamChunkSlice}")
               }
             } else {
+              future.cause().printStackTrace()
               logError(
                 s"Sending ChunkFetchSuccess operation failed, chunk ${req.streamChunkSlice}",
                 future.cause())
@@ -389,5 +420,6 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     chunkStreamManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    partitionsSorter.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
 }

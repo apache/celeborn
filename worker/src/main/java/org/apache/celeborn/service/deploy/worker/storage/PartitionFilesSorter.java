@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +36,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.IOUtils;
@@ -73,6 +77,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final ConcurrentHashMap<String, Map<String, Map<Integer, List<ShuffleBlockInfo>>>>
       cachedIndexMaps = JavaUtils.newConcurrentHashMap();
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
+  private final PartitionFilesCleaner cleaner;
 
   private final AtomicInteger sortedFileCount = new AtomicInteger();
   private final AtomicLong sortedFilesSize = new AtomicLong();
@@ -88,9 +93,16 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
+  //  private final Thread originFileCleanerThread;
+
+  //  private ScheduledExecutorService cleaner =
+  //      ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-file-scheduler");
 
   public PartitionFilesSorter(
-      MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
+      MemoryManager memoryManager,
+      ChunkStreamManager chunkStreamManager,
+      CelebornConf conf,
+      AbstractSource source) {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
@@ -98,6 +110,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.source = source;
     this.memoryManager = memoryManager;
+    this.cleaner = new PartitionFilesCleaner(chunkStreamManager);
     this.gracefulShutdown = conf.workerGracefulShutdown();
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
@@ -144,6 +157,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                 logger.warn("Sort scheduler thread is shutting down, detail: ", e);
               }
             });
+    fileSorterSchedulerThread.setDaemon(true);
     fileSorterSchedulerThread.start();
   }
 
@@ -164,7 +178,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       throws IOException {
     String fileId = shuffleKey + "-" + fileName;
     UserIdentifier userIdentifier = fileInfo.getUserIdentifier();
-
+    // not a range read and the sorted file not generate now
+    if (endMapIndex == Integer.MAX_VALUE && !sortedShuffleFiles.containsKey(shuffleKey)) {
+      return fileInfo;
+    }
     Set<String> sorted =
         sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
     Set<String> sorting =
@@ -172,18 +189,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
     String indexFilePath = Utils.getIndexFilePath(fileInfo.getFilePath());
-
+    if (sorted.contains(fileId)) {
+      return resolve(
+          shuffleKey,
+          fileId,
+          userIdentifier,
+          sortedFilePath,
+          indexFilePath,
+          startMapIndex,
+          endMapIndex);
+    }
     synchronized (sorting) {
-      if (sorted.contains(fileId)) {
-        return resolve(
-            shuffleKey,
-            fileId,
-            userIdentifier,
-            sortedFilePath,
-            indexFilePath,
-            startMapIndex,
-            endMapIndex);
-      }
       if (!sorting.contains(fileId)) {
         try {
           FileSorter fileSorter = new FileSorter(fileInfo, fileId, shuffleKey);
@@ -500,6 +516,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String fileId;
     private final String shuffleKey;
     private final boolean isHdfs;
+    private final long startTimestamp;
 
     private FSDataInputStream hdfsOriginInput = null;
     private FSDataOutputStream hdfsSortedOutput = null;
@@ -514,6 +531,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
       this.indexFilePath = Utils.getIndexFilePath(originFilePath);
+      this.startTimestamp = System.currentTimeMillis();
       if (!isHdfs) {
         File sortedFile = new File(this.sortedFilePath);
         if (sortedFile.exists()) {
@@ -589,7 +607,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
-        deleteOriginFiles();
+        cleaner.add(this);
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
         logger.error(
@@ -602,6 +620,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
       source.stopTimer(WorkerSource.SORT_TIME(), fileId);
+    }
+
+    public String getShuffleKey() {
+      return shuffleKey;
+    }
+
+    public long getStartTimestamp() {
+      return startTimestamp;
     }
 
     private void initializeFiles() throws IOException {
@@ -638,7 +664,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-    private void deleteOriginFiles() throws IOException {
+    public void deleteOriginFiles() throws IOException {
       boolean deleteSuccess = false;
       if (isHdfs) {
         deleteSuccess = StorageManager.hadoopFs().delete(new Path(originFilePath), false);
@@ -684,6 +710,90 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         hdfsOriginInput.seek(toRead + hdfsOriginInput.getPos());
       } else {
         readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
+      }
+    }
+  }
+
+  public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
+    cleaner.cleanupExpiredShuffleKey(expiredShuffleKeys);
+  }
+}
+
+class PartitionFilesCleaner {
+  private static final Logger logger = LoggerFactory.getLogger(PartitionFilesCleaner.class);
+
+  private final LinkedBlockingQueue<PartitionFilesSorter.FileSorter> queue =
+      new LinkedBlockingQueue<>();
+  private final Lock lock = new ReentrantLock();
+  private final Condition notEmpty = lock.newCondition();
+
+  PartitionFilesCleaner(ChunkStreamManager chunkStreamManager) {
+    Thread cleaner =
+        new Thread(
+            () -> {
+              while (true) {
+                try {
+                  lock.lockInterruptibly();
+                  while (queue.isEmpty()) {
+                    notEmpty.await(500, TimeUnit.MILLISECONDS);
+                  }
+                  Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
+                  while (it.hasNext()) {
+                    PartitionFilesSorter.FileSorter sorter = it.next();
+                    boolean streamFetchFinished = true;
+                    Set<Long> streamIds =
+                        chunkStreamManager.shuffleStreamIds.get(sorter.getShuffleKey());
+
+                    if (streamIds != null) {
+                      for (long streamId : streamIds) {
+                        ChunkStreamManager.StreamRegisterState registerState =
+                            chunkStreamManager.streamRegisterStates.get(streamId);
+                        if (registerState != null) {
+                          boolean hasOriginalFileFetcher =
+                              !registerState.isRangeRead()
+                                  // TODO:(fchen)
+                                  // && registerState.isReadBufferFromOriginalFile()
+                                  && registerState.isRegisterBefore(sorter.getStartTimestamp());
+                          if (hasOriginalFileFetcher) {
+                            streamFetchFinished = false;
+                          }
+                        }
+                      }
+                    }
+                    try {
+                      if (streamFetchFinished) {
+                        sorter.deleteOriginFiles();
+                        queue.remove(sorter);
+                      }
+                    } catch (IOException e) {
+                      logger.error("catch IOException when delete origin files", e);
+                    }
+                  }
+                } catch (InterruptedException e) {
+                  logger.error(
+                      "partition file cleaner thread interrupted while wait new sorter.", e);
+                  throw new RuntimeException(e);
+                } finally {
+                  lock.unlock();
+                }
+              }
+            });
+    cleaner.setName("partition-files-cleaner");
+    cleaner.setDaemon(true);
+    cleaner.start();
+  }
+
+  public void add(PartitionFilesSorter.FileSorter fileSorter) {
+    queue.add(fileSorter);
+    notEmpty.signal();
+  }
+
+  public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
+    Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
+    while (it.hasNext()) {
+      PartitionFilesSorter.FileSorter sorter = it.next();
+      if (expiredShuffleKeys.contains(sorter.getShuffleKey())) {
+        queue.remove(sorter);
       }
     }
   }

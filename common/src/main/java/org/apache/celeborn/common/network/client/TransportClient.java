@@ -75,7 +75,9 @@ public class TransportClient implements Closeable {
 
   public TransportClient(Channel channel, TransportResponseHandler handler) {
     this.channel = Preconditions.checkNotNull(channel);
-    this.handler = Preconditions.checkNotNull(handler);
+    // TODO:(fchen) revert
+    //    this.handler = Preconditions.checkNotNull(handler);
+    this.handler = handler;
     this.timedOut = false;
   }
 
@@ -168,6 +170,15 @@ public class TransportClient implements Closeable {
         .addListener(listener);
 
     return requestId;
+  }
+
+  public void sendRpc(ByteBuffer message) {
+    if (logger.isTraceEnabled()) {
+      logger.trace("Sending RPC to {}", NettyUtils.getRemoteAddress(channel));
+    }
+
+    long requestId = requestId();
+    channel.writeAndFlush(new RpcRequest(requestId, new NioManagedBuffer(message)));
   }
 
   public ChannelFuture pushData(

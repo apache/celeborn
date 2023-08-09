@@ -39,6 +39,7 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.util.ExceptionUtils;
@@ -47,7 +48,8 @@ public class WorkerPartitionReader implements PartitionReader {
   private final Logger logger = LoggerFactory.getLogger(WorkerPartitionReader.class);
   private PartitionLocation location;
   private final TransportClientFactory clientFactory;
-  private PbStreamHandler streamHandle;
+  private PbStreamHandler streamHandler;
+  private TransportClient client;
 
   private int returnedChunks;
   private int chunkIndex;
@@ -100,7 +102,6 @@ public class WorkerPartitionReader implements PartitionReader {
             exception.set(new CelebornIOException(errorMsg, e));
           }
         };
-    TransportClient client = null;
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     } catch (InterruptedException ie) {
@@ -119,7 +120,7 @@ public class WorkerPartitionReader implements PartitionReader {
                 .build()
                 .toByteArray());
     ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
-    streamHandle = TransportMessage.fromByteBuffer(response).getParsedPayload();
+    streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
 
     this.location = location;
     this.clientFactory = clientFactory;
@@ -130,12 +131,12 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   public boolean hasNext() {
-    return returnedChunks < streamHandle.getNumChunks();
+    return returnedChunks < streamHandler.getNumChunks();
   }
 
   public ByteBuf next() throws IOException, InterruptedException {
     checkException();
-    if (chunkIndex < streamHandle.getNumChunks()) {
+    if (chunkIndex < streamHandler.getNumChunks()) {
       fetchChunks();
     }
     ByteBuf chunk = null;
@@ -160,6 +161,7 @@ public class WorkerPartitionReader implements PartitionReader {
       results.forEach(ReferenceCounted::release);
     }
     results.clear();
+    closeStream();
   }
 
   @Override
@@ -167,31 +169,46 @@ public class WorkerPartitionReader implements PartitionReader {
     return location;
   }
 
+  private void closeStream() {
+    if (client != null && client.isActive()) {
+      TransportMessage bufferStreamEnd =
+          new TransportMessage(
+              MessageType.BUFFER_STREAM_END,
+              PbBufferStreamEnd.newBuilder()
+                  .setClientType(PbBufferStreamEnd.Type.Spark)
+                  .setStreamId(streamHandler.getStreamId())
+                  .build()
+                  .toByteArray());
+      client.sendRpc(bufferStreamEnd.toByteBuffer());
+    }
+  }
+
   private void fetchChunks() throws IOException, InterruptedException {
     final int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       final int toFetch =
-          Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandle.getNumChunks() - chunkIndex);
+          Math.min(fetchMaxReqsInFlight - inFlight + 1, streamHandler.getNumChunks() - chunkIndex);
       for (int i = 0; i < toFetch; i++) {
         if (testFetch && fetchChunkRetryCnt < fetchChunkMaxRetry - 1 && chunkIndex == 3) {
           callback.onFailure(chunkIndex, new CelebornIOException("Test fetch chunk failure"));
         } else {
-          try {
-            TransportClient client =
-                clientFactory.createClient(location.getHost(), location.getFetchPort());
-            client.fetchChunk(streamHandle.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
-            chunkIndex++;
-          } catch (IOException e) {
-            logger.error(
-                "fetchChunk for streamId: {}, chunkIndex: {} failed.",
-                streamHandle.getStreamId(),
-                chunkIndex,
-                e);
-            ExceptionUtils.wrapAndThrowIOException(e);
-          } catch (InterruptedException e) {
-            logger.error("PartitionReader thread interrupted while fetching chunks.");
-            throw e;
+          if (!client.isActive()) {
+            try {
+              client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+            } catch (IOException e) {
+              logger.error(
+                  "fetchChunk for streamId: {}, chunkIndex: {} failed.",
+                  streamHandler.getStreamId(),
+                  chunkIndex,
+                  e);
+              ExceptionUtils.wrapAndThrowIOException(e);
+            } catch (InterruptedException e) {
+              logger.error("PartitionReader thread interrupted while fetching chunks.");
+              throw e;
+            }
           }
+          client.fetchChunk(streamHandler.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
+          chunkIndex++;
         }
       }
     }

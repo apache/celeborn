@@ -138,7 +138,7 @@ public class PartitionFilesSorterSuiteJ {
       CelebornConf conf = new CelebornConf();
       conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
       PartitionFilesSorter partitionFilesSorter =
-          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
+          new PartitionFilesSorter(MemoryManager.instance(), null, conf, new WorkerSource(conf));
       FileInfo info =
           partitionFilesSorter.getSortedFileInfo(
               "application-1",
@@ -184,7 +184,7 @@ public class PartitionFilesSorterSuiteJ {
     conf.set(CelebornConf.WORKER_GRACEFUL_SHUTDOWN_ENABLED().key(), "true");
     conf.set(CelebornConf.WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH(), recoverPath.getPath());
     PartitionFilesSorter partitionFilesSorter =
-        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
+        new PartitionFilesSorter(MemoryManager.instance(), null, conf, new WorkerSource(conf));
     partitionFilesSorter.initSortedShuffleFiles("application-1-1");
     partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-1", 0);
     partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-2", 0);
@@ -197,7 +197,7 @@ public class PartitionFilesSorterSuiteJ {
     partitionFilesSorter.deleteSortedShuffleFiles("application-2-1");
     partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
     PartitionFilesSorter partitionFilesSorter2 =
-        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
+        new PartitionFilesSorter(MemoryManager.instance(), null, conf, new WorkerSource(conf));
     Assert.assertEquals(
         partitionFilesSorter2.getSortedShuffleFiles("application-1-1").toString(),
         "[0-0-3, 0-0-2, 0-0-1]");

@@ -37,14 +37,20 @@ public class ShuffleBlockInfoUtils {
       Map<Integer, List<ShuffleBlockInfo>> indexMap) {
     List<Long> sortedChunkOffset = new ArrayList<>();
     ShuffleBlockInfo lastBlock = null;
-    for (int i = startMapIndex; i < endMapIndex; i++) {
+    int maxMapIndex = endMapIndex;
+    if (endMapIndex == Integer.MAX_VALUE) {
+      // not a range read
+      maxMapIndex = indexMap.keySet().stream().max(Integer::compareTo).get() + 1;
+    }
+
+    for (int i = startMapIndex; i < maxMapIndex; i++) {
       List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
       if (blockInfos != null) {
         for (ShuffleBlockInfo info : blockInfos) {
           if (sortedChunkOffset.size() == 0) {
             sortedChunkOffset.add(info.offset);
           }
-          if (info.offset - sortedChunkOffset.get(sortedChunkOffset.size() - 1) > fetchChunkSize) {
+          if (info.offset - sortedChunkOffset.get(sortedChunkOffset.size() - 1) >= fetchChunkSize) {
             sortedChunkOffset.add(info.offset);
           }
           lastBlock = info;

@@ -17,8 +17,7 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import static org.apache.celeborn.common.protocol.MessageType.OPEN_STREAM_VALUE;
-import static org.apache.celeborn.common.protocol.MessageType.STREAM_HANDLER_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.*;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -30,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 
@@ -64,6 +64,8 @@ public class TransportMessage implements Serializable {
         return (T) PbOpenStream.parseFrom(payload);
       case STREAM_HANDLER_VALUE:
         return (T) PbStreamHandler.parseFrom(payload);
+      case BUFFER_STREAM_END_VALUE:
+        return (T) PbBufferStreamEnd.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }

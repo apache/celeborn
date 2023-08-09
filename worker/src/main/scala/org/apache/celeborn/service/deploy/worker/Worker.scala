@@ -111,7 +111,7 @@ private[celeborn] class Worker(
   val memoryManager: MemoryManager = MemoryManager.initialize(conf)
   memoryManager.registerMemoryListener(storageManager)
 
-  val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
+  var partitionsSorter: PartitionFilesSorter = _
 
   if (conf.workerCongestionControlEnabled) {
     if (conf.workerCongestionControlLowWatermark.isEmpty || conf.workerCongestionControlHighWatermark.isEmpty) {
@@ -176,6 +176,8 @@ private[celeborn] class Worker(
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(conf, transportConf)
+    partitionsSorter =
+      new PartitionFilesSorter(memoryManager, fetchHandler.chunkStreamManager, conf, workerSource)
     val transportContext: TransportContext =
       new TransportContext(
         transportConf,

@@ -64,7 +64,7 @@ public class ChunkFetchIntegrationSuiteJ {
 
   @BeforeClass
   public static void setUp() throws Exception {
-    int bufSize = 100000;
+    int bufSize = 100_000;
     final ByteBuffer buf = ByteBuffer.allocate(bufSize);
     for (int i = 0; i < bufSize; i++) {
       buf.put((byte) i);
