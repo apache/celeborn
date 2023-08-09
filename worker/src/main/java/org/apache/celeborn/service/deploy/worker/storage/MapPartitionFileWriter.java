@@ -120,8 +120,8 @@ public final class MapPartitionFileWriter extends FileWriter {
     long length = data.readableBytes();
     totalBytes += length;
     numSubpartitionBytes[partitionId] += length;
-
     super.write(data);
+    isResionFinished = false;
   }
 
   @Override
@@ -175,7 +175,6 @@ public final class MapPartitionFileWriter extends FileWriter {
     numSubpartitionBytes = new long[numSubpartitions];
     fileInfo.setBufferSize(bufferSize);
     fileInfo.setNumSubpartitions(numSubpartitions);
-    isResionFinished = false;
   }
 
   public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
@@ -188,7 +187,6 @@ public final class MapPartitionFileWriter extends FileWriter {
     this.currentSubpartition = 0;
     this.currentDataRegionIndex = currentDataRegionIndex;
     this.isBroadcastRegion = isBroadcastRegion;
-    isResionFinished = false;
   }
 
   public void regionFinish() throws IOException {
