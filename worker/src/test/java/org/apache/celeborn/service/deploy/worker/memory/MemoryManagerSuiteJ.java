@@ -35,11 +35,11 @@ public class MemoryManagerSuiteJ {
       Assert.fail("MemoryManager initialize should throw exception with invalid configuration");
     } catch (IllegalArgumentException iae) {
       Assert.assertEquals(
-          iae.getMessage(),
           String.format(
-              "Invalid config, " + "{} should be greater than {}",
+              "Invalid config, {} should be greater than {}",
               CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE().key(),
-              CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key()));
+              CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key()),
+          iae.getMessage());
     } catch (Exception e) {
       Assert.fail("With unexpected exception" + e);
     }
