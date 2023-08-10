@@ -213,7 +213,7 @@ For more about how to run individual tests with sbt, see the [sbt documentation]
 
 # Accelerating SBT
 
-This section provides instructions on setting up repository proxies for a smoother SBT experience. Depending on your location and network conditions, you can choose the appropriate approach to accelerate SBT startup and enhance dependency retrieval.
+This section provides instructions on setting up repository mirrors or proxies for a smoother SBT experience. Depending on your location and network conditions, you can choose the appropriate approach to accelerate SBT startup and enhance dependency retrieval.
 
 ## Accelerating SBT Startup
 
