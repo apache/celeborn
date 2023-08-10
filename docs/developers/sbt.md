@@ -22,7 +22,7 @@ Starting from version 0.4.0, the Celeborn project supports building and packagin
 
 # System Requirements
 
-Celeborn Service (master/worker) supports Scala 2.11/Scala 2.12 and Java 8/11/17.
+Celeborn Service (master/worker) supports Scala 2.11/2.12 and Java 8/11/17.
 
 The table following indicates the compatibility of Celeborn Spark and Flink clients with different versions of Spark and Flink for various Java and Scala versions:
 
