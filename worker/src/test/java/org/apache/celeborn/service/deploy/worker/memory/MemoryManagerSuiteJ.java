@@ -18,11 +18,17 @@
 package org.apache.celeborn.service.deploy.worker.memory;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 
 public class MemoryManagerSuiteJ {
+
+  @Before
+  public void resetMemoryManager() {
+    MemoryManager.reset();
+  }
 
   @Test
   public void testInitMemoryManagerWithInvalidConfig() {
