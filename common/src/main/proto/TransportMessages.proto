@@ -25,7 +25,7 @@ enum MessageType {
   REGISTER_SHUFFLE = 4;
   REGISTER_SHUFFLE_RESPONSE = 5;
   REQUEST_SLOTS = 6;
-  // keep it for compatible reason
+  // keep it for compatible with 0.3 client, will remove in 0.5
   RELEASE_SLOTS = 7;
   //  RELEASE_SLOTS_RESPONSE = 8;
   REQUEST_SLOTS_RESPONSE = 9;
