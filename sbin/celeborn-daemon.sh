@@ -32,7 +32,7 @@ usage() {
   echo "Usage: celeborn-daemon.sh [--config <conf-dir>] (start|stop|restart|status) <celeborn-class-name> <celeborn-instance-number> [args]"
   echo "Definitions:"
   echo "  <conf-dir>                  Override CELEBORN_CONF_DIR"
-  echo "  <celeborn-class-name>       The java class name of the celeborn command to run"
+  echo "  <celeborn-class-name>       The class name of the celeborn command to run"
   echo "                              Example: org.apache.celeborn.service.deploy.master.Master for celeborn master"
   echo "                                       org.apache.celeborn.service.deploy.worker.Worker for celeborn worker"
   echo "  <celeborn-instance-number>  The instance number of the celeborn command to run"
