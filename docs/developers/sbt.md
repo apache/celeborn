@@ -15,6 +15,7 @@ license: |
   See the License for the specific language governing permissions and
   limitations under the License.
 ---
+[ToC]
 
 # Building via SBT
 
@@ -38,71 +39,7 @@ The table following indicates the compatibility of Celeborn Spark and Flink clie
 | Flink 1.15     | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
 | Flink 1.17     | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
 
-
-# Setting up Private Repository Proxy
-
-If you don't encounter any network issues, you can skip this step.
-
-## Setting up Repositories for Chinese Developers
-
-As a developer in China, you might face slow resource loading during the sbt startup process. To accelerate resource retrieval, you can replace the default repositories with the following configurations.
-
-Copy the following content into `${CELEBORN_HOME}/build/sbt-config/repositories`:
-
-```plaintext
-[repositories]
-  local
-  mavenLocal: file://${user.home}/.m2/repository/
-  # The system property value of `celeborn.sbt.default.artifact.repository` is
-  # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
-  # assigned within the build/sbt-launch-lib.bash script.
-  private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
-  aliyun-maven: https://maven.aliyun.com/nexus/content/groups/public/
-  huawei-central: https://mirrors.huaweicloud.com/repository/maven/
-```
-
-Alternatively, you can generate the `repositories-local` file directly using the following command:
-
-```shell
-cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
-```
-
-To further accelerate the download speed of `./build/sbt-launch-x.y.z.jar`, you can set the `DEFAULT_ARTIFACT_REPOSITORY` environment variable before running `./build/sbt`:
-
-```shell
-export DEFAULT_ARTIFACT_REPOSITORY=https://mirrors.huaweicloud.com/repository/maven/ && ./build/sbt
-```
-
-## Setting up Private Repositories for Offline Build
-
-In many cases, we need to build and use private versions within an internal network (meaning public repositories are inaccessible). To achieve this, follow the steps below:
-
-Generate the `./build/sbt-config/repositories-local` file with the following content:
-
-```plaintext
-[repositories]
-  local
-  mavenLocal: file://${user.home}/.m2/repository/
-  # The system property value of `celeborn.sbt.default.artifact.repository` is
-  # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
-  # assigned within the build/sbt-launch-lib.bash script.
-  private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
-```
-
-Set the `DEFAULT_ARTIFACT_REPOSITORY` environment variable to point to your internal repository. This is necessary to download the sbt bootstrap jar. Note that your internal repository must properly proxy the sbt plugins required by the project, or it may result in errors or failures.
-
-Use the following command to set the environment variable and run `./build/sbt`:
-
-```shell
-export DEFAULT_ARTIFACT_REPOSITORY=https://example.com/repository/maven/ && ./build/sbt
-```
-
-> NOTE:
->   1. The `repositories-local` takes precedence over `repositories`.
->   2. The priority of repositories is based on the order in the file. If you want to prioritize a specific repository, place it higher in the file.
-
-
-# Useful sbt commands
+# Useful SBT commands
 
 ## Packaging the Project
 
@@ -182,7 +119,7 @@ $ ./build/sbt
 > project celeborn-client-flink-1_15-shaded
 > assembly
 
-$ # Oryou can use sbt directly with the `-Pflink-1.15` profile:
+$ # Or, you can use sbt directly with the `-Pflink-1.15` profile:
 $ ./build/sbt -Pflink-1.15 celeborn-client-flink-1_15-shaded/assembly
 ```
 
@@ -198,7 +135,7 @@ $ build/sbt
 > project celeborn-client
 > package
 
-$ # or you can build the spark-core module with sbt directly using:
+$ # Or, you can build the celeborn-client module with sbt directly using:
 $ build/sbt celeborn-client/package
 ```
 
@@ -210,9 +147,9 @@ To run all tests for the Celeborn project, you can use the following command:
 ./build/sbt test
 ```
 
-Running Tests for Specific Versions of Spark/Flink Client.
+Running tests for specific versions of Spark/Flink client.
 
-For example, to run the test cases for the Spark 3.3 client only, use the following command:
+For example, to run the test cases for the Spark 3.3 client, use the following command:
 
 ```shell
 $ ./build/sbt -Pspark-3.3 test
@@ -221,10 +158,10 @@ $ # only run spark client related modules tests
 $ ./build/sbt -Pspark-3.3 celeborn-spark-group/test
 ```
 
-Similarly, to run the test cases for the Flink 1.15 client only, use the following command:
+Similarly, to run the test cases for the Flink 1.15 client, use the following command:
 
 ```shell
-./build/sbt -Pflink-1.15 test
+$ ./build/sbt -Pflink-1.15 test
 
 $ # only run flink client related modules tests
 $ ./build/sbt -Pflink-1.15 celeborn-flink-group/test
@@ -241,12 +178,12 @@ $ build/sbt
 > project celeborn-client
 > test
 ```
-You can run a single test suite using the testOnly command. For example, to run the `ShuffleClientSuiteJ`:
+You can run a single test suite using the `testOnly` command. For example, to run the `ShuffleClientSuiteJ`:
 
 ```
 > testOnly org.apache.celeborn.client.ShuffleClientSuiteJ
 ```
-The testOnly command accepts wildcards; e.g., you can also run the `ShuffleClientSuiteJ` with:
+The `testOnly` command accepts wildcards; e.g., you can also run the `ShuffleClientSuiteJ` with:
 
 ```
 > testOnly *ShuffleClientSuiteJ
@@ -268,9 +205,72 @@ If you’d like to run just a single Scala test in the `WorkerStatusTrackerSuite
 > testOnly *WorkerStatusTrackerSuite -- -z handleHeartbeatResponse
 ```
 
-If you’d prefer, you can run all of these commands on the command line (but this will be slower than running tests using an open console). To do this, you need to surround testOnly and the following arguments in quotes:
+If you’d prefer, you can run all of these commands on the command line (but this will be slower than running tests using an open console). To do this, you need to surround `testOnly` and the following arguments in quotes:
 
 ```
 $ build/sbt "celeborn-client/testOnly *WorkerStatusTrackerSuite -- -z handleHeartbeatResponse"
 ```
-For more about how to run individual tests with sbt, see the [sbt documentation](https://www.scala-sbt.org/1.x/docs/Testing.html).
+For more about how to run individual tests with sbt, see the [sbt documentation](https://www.scala-sbt.org/1.x/docs/Testing.html) and [JUnit Interface](https://github.com/sbt/junit-interface/#junit-interface).
+
+# Setting up Private Repository Proxy
+
+If you don't encounter any network issues, you can skip this step.
+
+## Setting up Repositories for Chinese Developers
+
+As a developer in China, you might face slow resource loading during the sbt startup process. To accelerate resource retrieval, you can replace the default repositories with the following configurations.
+
+Copy the following content into `${CELEBORN_HOME}/build/sbt-config/repositories`:
+
+```plaintext
+[repositories]
+  local
+  mavenLocal: file://${user.home}/.m2/repository/
+  # The system property value of `celeborn.sbt.default.artifact.repository` is
+  # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
+  # assigned within the build/sbt-launch-lib.bash script.
+  private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
+  aliyun-maven: https://maven.aliyun.com/nexus/content/groups/public/
+  huawei-central: https://mirrors.huaweicloud.com/repository/maven/
+```
+
+Alternatively, you can generate the `repositories-local` file directly using the following command:
+
+```shell
+cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
+```
+
+To further accelerate the download speed of `./build/sbt-launch-x.y.z.jar`, you can set the `DEFAULT_ARTIFACT_REPOSITORY` environment variable before running `./build/sbt`:
+
+```shell
+export DEFAULT_ARTIFACT_REPOSITORY=https://mirrors.huaweicloud.com/repository/maven/ && ./build/sbt
+```
+
+## Setting up Private Repositories for Offline Build
+
+In many cases, we need to build and use private versions within an internal network (meaning public repositories are inaccessible). To achieve this, follow the steps below:
+
+Generate the `./build/sbt-config/repositories-local` file with the following content:
+
+```plaintext
+[repositories]
+  local
+  mavenLocal: file://${user.home}/.m2/repository/
+  # The system property value of `celeborn.sbt.default.artifact.repository` is
+  # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
+  # assigned within the build/sbt-launch-lib.bash script.
+  private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
+```
+
+Set the `DEFAULT_ARTIFACT_REPOSITORY` environment variable to point to your internal repository. This is necessary to download the sbt bootstrap jar. Note that your internal repository must properly proxy the sbt plugins required by the project, or it may result in errors or failures.
+
+Use the following command to set the environment variable and run `./build/sbt`:
+
+```shell
+export DEFAULT_ARTIFACT_REPOSITORY=https://example.com/repository/maven/ && ./build/sbt
+```
+
+> NOTE:
+>   1. The `repositories-local` takes precedence over `repositories`.
+>   2. The priority of repositories is based on the order in the file. If you want to prioritize a specific repository, place it higher in the file.
+
