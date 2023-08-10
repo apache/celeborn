@@ -28,19 +28,21 @@
 #   CELEBORN_NO_DAEMONIZE   If set, will run the proposed command in the foreground. It will not output a PID file.
 ##
 
-usage="Usage: celeborn-daemon.sh [--config <conf-dir>] (start|stop|status) <celeborn-command> <celeborn-instance-number> <args...>"
+usage() {
+  echo "Usage: celeborn-daemon.sh [--config <conf-dir>] (start|stop|restart|status) <celeborn-class-name> <celeborn-instance-number> [args]"
+  echo "Definitions:"
+  echo "  <conf-dir>                  Override CELEBORN_CONF_DIR"
+  echo "  <celeborn-class-name>       The java class name of the celeborn command to run"
+  echo "                              Example: org.apache.celeborn.service.deploy.master.Master for celeborn master"
+  echo "                                       org.apache.celeborn.service.deploy.worker.Worker for celeborn worker"
+  echo "  <celeborn-instance-number>  The instance number of the celeborn command to run"
+}
 
 # if no args specified, show usage
 if [ $# -le 1 ]; then
-  echo $usage
+  usage
   exit 1
 fi
-
-if [ -z "${CELEBORN_HOME}" ]; then
-  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
-fi
-
-. "${CELEBORN_HOME}/sbin/load-celeborn-env.sh"
 
 # get arguments
 
@@ -54,7 +56,7 @@ then
   if [ ! -d "$conf_dir" ]
   then
     echo "ERROR : $conf_dir is not a directory"
-    echo $usage
+    usage
     exit 1
   else
     export CELEBORN_CONF_DIR="$conf_dir"
@@ -69,8 +71,13 @@ shift
 instance=$1
 shift
 
-celeborn_rotate_log ()
-{
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+fi
+
+. "${CELEBORN_HOME}/sbin/load-celeborn-env.sh"
+
+celeborn_rotate_log() {
     log=$1;
     num=5;
     if [ -n "$2" ]; then
@@ -192,7 +199,7 @@ case $option in
         do
           sleep 1s
           ((wait_time++))
-          echo "waiting for worker graceful shutdown, wait for ${wait_time}s"
+          echo "waiting for server shutdown, wait for ${wait_time}s"
         done
         if [[ $(ps -p "$TARGET_ID" -o comm=) == "" ]]; then
           run_command class "$@"
@@ -228,7 +235,7 @@ case $option in
     ;;
 
   (*)
-    echo $usage
+    usage
     exit 1
     ;;
 
