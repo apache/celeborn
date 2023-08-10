@@ -252,7 +252,7 @@ The current repositories embedded within the Celeborn project are detailed below
   typesafe-releases: https://repo.typesafe.com/typesafe/releases/
 ```
 
-For numerous developers across various regions, the default repository download speeds are less than optimal. Consider, for example, developers situated in mainland China. In such cases, the following command can be employed to enhance dependency download speeds:
+For numerous developers across various regions, the default repository download speeds are less than optimal. Consider, for example, developers situated in China mainland. In such cases, the following command can be employed to enhance dependency download speeds:
 
 ```
 cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
