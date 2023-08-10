@@ -223,7 +223,8 @@ The SBT startup process involves fetching the SBT bootstrap jar, which is typica
 ```shell
 $ # The following command fetches sbt-launch-x.y.z.jar from https://maven.aliyun.com/nexus/content/groups/public/
 $ # Ensure that the URL ends with a trailing slash "/"
-$ export DEFAULT_ARTIFACT_REPOSITORY=https://maven.aliyun.com/nexus/content/groups/public/ && ./build/sbt
+$ export DEFAULT_ARTIFACT_REPOSITORY=https://maven.aliyun.com/nexus/content/groups/public/
+$ ./build/sbt
 ```
 
 This will initiate SBT using the specified repository, allowing for faster download and startup times.
