@@ -123,9 +123,11 @@ public class MemoryManager {
     Preconditions.checkArgument(
         pauseReplicateRatio > pausePushDataRatio,
         String.format(
-            "Invalid config, {} should be greater than {}",
+            "Invalid config, %s(%s) should be greater than %s(%s)",
             CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE().key(),
-            CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key()));
+            pauseReplicateRatio,
+            CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(),
+            pausePushDataRatio));
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
     Preconditions.checkArgument(resumeRatio > (readBufferRatio + shuffleStorageRatio));
 

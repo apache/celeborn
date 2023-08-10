@@ -2450,7 +2450,7 @@ object CelebornConf extends Logging {
   val WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioToPauseReplicate")
       .categories("worker")
-      .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers." +
+      .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. " +
         s"This value should be higher than ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE.key}.")
       .version("0.2.0")
       .doubleConf
