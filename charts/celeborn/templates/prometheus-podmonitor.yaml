@@ -20,7 +20,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: celeborn-master-podmonitor
+  name: {{ .Values.celebornClusterPrefix }}-master-podmonitor
   labels:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}
@@ -40,12 +40,15 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
       app.kubernetes.io/role: master
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: celeborn-worker-podmonitor
+  name: {{ .Values.celebornClusterPrefix }}-worker-podmonitor
   labels:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}
@@ -65,6 +68,9 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
       app.kubernetes.io/role: worker
 {{ end }}
 {{- end }}

@@ -18,7 +18,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: celeborn-worker-svc
+  name: {{ .Values.celebornClusterPrefix }}-worker-svc
   labels:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}

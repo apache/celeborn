@@ -18,7 +18,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: celeborn-conf
+  name: {{ .Values.celebornClusterPrefix }}-conf
   labels:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}
@@ -29,9 +29,9 @@ metadata:
 data:
   celeborn-defaults.conf: |-
     {{- $namespace := .Release.Namespace }}
-    celeborn.master.endpoints={{ range until (.Values.masterReplicas |int) }}celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local,{{ end }}
+    celeborn.master.endpoints={{ range until (.Values.masterReplicas |int) }}{{ $.Values.celebornClusterPrefix }}-master-{{ . }}.{{ $.Values.celebornClusterPrefix }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local,{{ end }}
     {{- range until (.Values.masterReplicas |int) }}
-    celeborn.master.ha.node.{{ . }}.host=celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local
+    celeborn.master.ha.node.{{ . }}.host={{ $.Values.celebornClusterPrefix }}-master-{{ . }}.{{ $.Values.celebornClusterPrefix }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local
     {{- end }}
     {{- $dirs := .Values.volumes.master }}
     celeborn.master.ha.ratis.raft.server.storage.dir={{ (index $dirs 0).mountPath }}
