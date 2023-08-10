@@ -15,7 +15,6 @@ license: |
   See the License for the specific language governing permissions and
   limitations under the License.
 ---
-[ToC]
 
 # Building via SBT
 
@@ -212,65 +211,66 @@ $ build/sbt "celeborn-client/testOnly *WorkerStatusTrackerSuite -- -z handleHear
 ```
 For more about how to run individual tests with sbt, see the [sbt documentation](https://www.scala-sbt.org/1.x/docs/Testing.html) and [JUnit Interface](https://github.com/sbt/junit-interface/#junit-interface).
 
-# Setting up Private Repository Proxy
+# Accelerating SBT
 
-If you don't encounter any network issues, you can skip this step.
+This section provides instructions on setting up repository proxies for a smoother SBT experience. Depending on your location and network conditions, you can choose the appropriate approach to accelerate SBT startup and enhance dependency retrieval.
 
-## Setting up Repositories for Chinese Developers
+## Accelerating SBT Startup
 
-As a developer in China, you might face slow resource loading during the sbt startup process. To accelerate resource retrieval, you can replace the default repositories with the following configurations.
+The SBT startup process involves fetching the SBT bootstrap jar, which is typically obtained from the Maven Central Repository (https://repo1.maven.org/maven2/). If you encounter slow access to this repository or if it's inaccessible in your network environment, you can expedite the SBT startup by configuring a custom artifact repository using the `DEFAULT_ARTIFACT_REPOSITORY` environment variable.
 
-Copy the following content into `${CELEBORN_HOME}/build/sbt-config/repositories`:
 
-```plaintext
+```shell
+$ # The following command fetches sbt-launch-x.y.z.jar from https://maven.aliyun.com/nexus/content/groups/public/
+$ # Ensure that the URL ends with a trailing slash "/"
+$ export DEFAULT_ARTIFACT_REPOSITORY=https://maven.aliyun.com/nexus/content/groups/public/ && ./build/sbt
+```
+
+This will initiate SBT using the specified repository, allowing for faster download and startup times.
+
+## Custom SBT Repositories
+
+The current repositories embedded within the Celeborn project are detailed below:
+
+```
 [repositories]
   local
   mavenLocal: file://${user.home}/.m2/repository/
+  local-preloaded-ivy: file:///${sbt.preloaded-${sbt.global.base-${user.home}/.sbt}/preloaded/}, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]
+  local-preloaded: file:///${sbt.preloaded-${sbt.global.base-${user.home}/.sbt}/preloaded/}
   # The system property value of `celeborn.sbt.default.artifact.repository` is
   # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
   # assigned within the build/sbt-launch-lib.bash script.
   private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
-  aliyun-maven: https://maven.aliyun.com/nexus/content/groups/public/
-  huawei-central: https://mirrors.huaweicloud.com/repository/maven/
+  gcs-maven-central-mirror: https://maven-central.storage-download.googleapis.com/repos/central/data/
+  maven-central
+  typesafe-ivy-releases: https://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext], bootOnly
+  sbt-ivy-snapshots: https://repo.scala-sbt.org/scalasbt/ivy-snapshots/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext], bootOnly
+  sbt-plugin-releases: https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/, [organization]/[module]/(scala_[scalaVersion]/)(sbt_[sbtVersion]/)[revision]/[type]s/[artifact](-[classifier]).[ext]
+  bintray-typesafe-sbt-plugin-releases: https://dl.bintray.com/typesafe/sbt-plugins/, [organization]/[module]/(scala_[scalaVersion]/)(sbt_[sbtVersion]/)[revision]/[type]s/[artifact](-[classifier]).[ext]
+  bintray-spark-packages: https://dl.bintray.com/spark-packages/maven/
+  typesafe-releases: https://repo.typesafe.com/typesafe/releases/
 ```
 
-Alternatively, you can generate the `repositories-local` file directly using the following command:
+For numerous developers across various regions, the default repository download speeds are less than optimal. Consider, for example, developers situated in mainland China. In such cases, the following command can be employed to enhance dependency download speeds:
 
-```shell
+```
 cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
 ```
 
-To further accelerate the download speed of `./build/sbt-launch-x.y.z.jar`, you can set the `DEFAULT_ARTIFACT_REPOSITORY` environment variable before running `./build/sbt`:
+> NOTE: <br>
+> 1. `build/sbt-config/repositories-local` takes precedence over `build/sbt-config/repositories` and is ignored by `.gitignore`. <br>
+> 2. Should the environment variable `DEFAULT_ARTIFACT_REPOSITORY` be set, it attains the highest priority among non-local repositories. <br>
+> 3. Repository priority is determined by the file order; repositories listed earlier possess higher precedence.
 
-```shell
-export DEFAULT_ARTIFACT_REPOSITORY=https://mirrors.huaweicloud.com/repository/maven/ && ./build/sbt
+Similarly, if your objective involves compiling and packaging within an intranet environment, you can edit `build/sbt-config/repositories-local` as demonstrated below:
+
 ```
-
-## Setting up Private Repositories for Offline Build
-
-In many cases, we need to build and use private versions within an internal network (meaning public repositories are inaccessible). To achieve this, follow the steps below:
-
-Generate the `./build/sbt-config/repositories-local` file with the following content:
-
-```plaintext
 [repositories]
   local
   mavenLocal: file://${user.home}/.m2/repository/
-  # The system property value of `celeborn.sbt.default.artifact.repository` is
-  # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
-  # assigned within the build/sbt-launch-lib.bash script.
   private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
+  private-central: https://example.com/repository/maven/
 ```
 
-Set the `DEFAULT_ARTIFACT_REPOSITORY` environment variable to point to your internal repository. This is necessary to download the sbt bootstrap jar. Note that your internal repository must properly proxy the sbt plugins required by the project, or it may result in errors or failures.
-
-Use the following command to set the environment variable and run `./build/sbt`:
-
-```shell
-export DEFAULT_ARTIFACT_REPOSITORY=https://example.com/repository/maven/ && ./build/sbt
-```
-
-> NOTE:
->   1. The `repositories-local` takes precedence over `repositories`.
->   2. The priority of repositories is based on the order in the file. If you want to prioritize a specific repository, place it higher in the file.
-
+For more details on sbt repository configuration, please refer to the [SBT documentation](https://www.scala-sbt.org/1.x/docs/Proxy-Repositories.html).
