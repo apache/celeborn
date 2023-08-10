@@ -170,7 +170,7 @@ object ControlMessages extends Logging {
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
-  @Deprecated
+  @deprecated
   // Keep it for compatible reason
   case class ReleaseSlots(
       applicationId: String,
