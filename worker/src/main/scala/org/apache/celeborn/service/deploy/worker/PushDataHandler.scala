@@ -242,6 +242,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       logWarning(
         s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
+      fileWriter.decrementPendingWrites()
       return;
     }
 
@@ -512,6 +513,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       logWarning(
         s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
+      fileWriters.foreach(_.decrementPendingWrites())
       return
     }
 
@@ -823,6 +825,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       logWarning(
         s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
       callback.onFailure(new CelebornIOException("File already closed!"))
+      fileWriter.decrementPendingWrites()
       return;
     }
 
