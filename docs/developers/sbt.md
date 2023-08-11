@@ -20,7 +20,7 @@ license: |
 
 Starting from version 0.4.0, the Celeborn project supports building and packaging using SBT. This article provides a detailed guide on how to build the Celeborn project using SBT.
 
-# System Requirements
+## System Requirements
 
 Celeborn Service (master/worker) supports Scala 2.11/2.12 and Java 8/11/17.
 
@@ -38,9 +38,9 @@ The following table indicates the compatibility of Celeborn Spark and Flink clie
 | Flink 1.15     | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
 | Flink 1.17     | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
 
-# Useful SBT commands
+## Useful SBT commands
 
-## Packaging the Project
+### Packaging the Project
 
 As an example, one can build a version of Celeborn as follows:
 
@@ -54,7 +54,7 @@ To create a Celeborn distribution like those distributed by the [Celeborn Downlo
 ./build/make-distribution.sh --sbt-enabled
 ```
 
-## Maven-Style Profile Management
+### Maven-Style Profile Management
 
 We have adopted the Maven-style profile management for our Client module. For example, you can enable the Spark 3.3 client module by adding `-Pspark-3.3`:
 
@@ -98,7 +98,7 @@ To enable the Flink 1.15 client module, add `-Pflink-1.15`:
 
 By using these profiles, you can easily switch between different client modules for Spark and Flink. These profiles enable specific dependencies and configurations relevant to the chosen version. This way, you can conveniently manage and build the desired configurations of the Celeborn project.
 
-## Building Spark/Flink Assembly Client Jars
+### Building Spark/Flink Assembly Client Jars
 
 For example, you can build the Spark 3.3 client assembly jar by running the following commands:
 
@@ -124,7 +124,7 @@ $ ./build/sbt -Pflink-1.15 celeborn-client-flink-1_15-shaded/assembly
 
 By executing these commands, you will create assembly jar files for the respective Spark and Flink client modules. The assembly jar bundles all the dependencies, allowing the client module to be used independently with all required dependencies included.
 
-## Building submodules individually
+### Building submodules individually
 
 For instance, you can build the Celeborn Master module using:
 
@@ -166,7 +166,7 @@ $ # only run flink client related modules tests
 $ ./build/sbt -Pflink-1.15 celeborn-flink-group/test
 ```
 
-## Running Individual Tests
+### Running Individual Tests
 
 When developing locally, it’s often convenient to run a single test or a few tests, rather than running the entire test suite.
 
@@ -211,11 +211,11 @@ $ ./build/sbt "celeborn-master/testOnly *AppDiskUsageMetricSuite -- -z \"app usa
 ```
 For more about how to run individual tests with sbt, see the [sbt documentation](https://www.scala-sbt.org/1.x/docs/Testing.html) and [JUnit Interface](https://github.com/sbt/junit-interface/#junit-interface).
 
-# Accelerating SBT
+## Accelerating SBT
 
 This section provides instructions on setting up repository mirrors or proxies for a smoother SBT experience. Depending on your location and network conditions, you can choose the appropriate approach to accelerate SBT startup and enhance dependency retrieval.
 
-## Accelerating SBT Startup
+### Accelerating SBT Startup
 
 The SBT startup process involves fetching the SBT bootstrap jar, which is typically obtained from the Maven Central Repository (https://repo1.maven.org/maven2/). If you encounter slow access to this repository or if it's inaccessible in your network environment, you can expedite the SBT startup by configuring a custom artifact repository using the `DEFAULT_ARTIFACT_REPOSITORY` environment variable.
 
@@ -229,7 +229,7 @@ $ ./build/sbt
 
 This will initiate SBT using the specified repository, allowing for faster download and startup times.
 
-## Custom SBT Repositories
+### Custom SBT Repositories
 
 The current repositories embedded within the Celeborn project are detailed below:
 
@@ -261,10 +261,10 @@ cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
 
 Furthermore, it is strongly encouraged that developers from various regions contribute templates tailored to their respective areas.
 
-> NOTE: <br>
-> 1. `build/sbt-config/repositories-local` takes precedence over `build/sbt-config/repositories` and is ignored by `.gitignore`. <br>
-> 2. Should the environment variable `DEFAULT_ARTIFACT_REPOSITORY` be set, it attains the highest priority among non-local repositories. <br>
-> 3. Repository priority is determined by the file order; repositories listed earlier possess higher precedence.
+??? note
+    1. `build/sbt-config/repositories-local` takes precedence over `build/sbt-config/repositories` and is ignored by `.gitignore`.
+    2. Should the environment variable `DEFAULT_ARTIFACT_REPOSITORY` be set, it attains the highest priority among non-local repositories.
+    3. Repository priority is determined by the file order; repositories listed earlier possess higher precedence.
 
 Similarly, if your objective involves compiling and packaging within an intranet environment, you can edit `build/sbt-config/repositories-local` as demonstrated below:
 
