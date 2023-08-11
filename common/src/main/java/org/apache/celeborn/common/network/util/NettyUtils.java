@@ -42,7 +42,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 /** Utilities for creating various Netty constructs based on whether we're using EPOLL or NIO. */
 public class NettyUtils {
-  private static volatile PooledByteBufAllocator _allocator;
+  private static final PooledByteBufAllocator[] _sharedPooledByteBufAllocator =
+      new PooledByteBufAllocator[2];
   private static ConcurrentHashMap<String, Integer> allocatorsIndex =
       JavaUtils.newConcurrentHashMap();
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
@@ -118,29 +119,35 @@ public class NettyUtils {
         allowCache && PooledByteBufAllocator.defaultUseCacheForAllThreads());
   }
 
-  private static PooledByteBufAllocator getSharedPooledByteBufAllocator(
-      CelebornConf conf, AbstractSource source) {
-    synchronized (PooledByteBufAllocator.class) {
-      if (_allocator == null) {
-        // each core should have one arena to allocate memory
-        _allocator = createPooledByteBufAllocator(true, true, conf.networkAllocatorArenas());
-        if (source != null) {
-          new NettyMemoryMetrics(
-              _allocator,
-              "shared-pool",
-              conf.networkAllocatorVerboseMetric(),
-              source,
-              Collections.emptyMap());
-        }
+  /**
+   * Returns the lazily created shared pooled ByteBuf allocator for the specified allowCache
+   * parameter value.
+   */
+  public static synchronized PooledByteBufAllocator getSharedPooledByteBufAllocator(
+      CelebornConf conf, AbstractSource source, boolean allowCache) {
+    final int index = allowCache ? 0 : 1;
+    if (_sharedPooledByteBufAllocator[index] == null) {
+      _sharedPooledByteBufAllocator[index] =
+          createPooledByteBufAllocator(true, allowCache, conf.networkAllocatorArenas());
+      if (source != null) {
+        new NettyMemoryMetrics(
+            _sharedPooledByteBufAllocator[index],
+            "shared-pool",
+            conf.networkAllocatorVerboseMetric(),
+            source,
+            Collections.emptyMap());
       }
-      return _allocator;
     }
+    return _sharedPooledByteBufAllocator[index];
   }
 
   public static PooledByteBufAllocator getPooledByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache) {
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
-      return getSharedPooledByteBufAllocator(conf.getCelebornConf(), source);
+      return getSharedPooledByteBufAllocator(
+          conf.getCelebornConf(),
+          source,
+          allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
     }
     PooledByteBufAllocator allocator =
         createPooledByteBufAllocator(conf.preferDirectBufs(), allowCache, conf.clientThreads());
