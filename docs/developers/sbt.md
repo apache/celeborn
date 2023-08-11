@@ -256,8 +256,6 @@ The current repositories embedded within the Celeborn project are detailed below
 For numerous developers across various regions, the default repository download speeds are less than optimal. To address this concern, we have curated a selection of verified public mirror templates tailored for specific regions with a significant local developer presence. For instance, we provide the `repositories-cn.template` template for developers situated within the expanse of the Chinese mainland, and the `repositories-asia.template` template designed for developers across the Asian continent. In such cases, the following command can be employed to enhance dependency download speeds:
 
 ```
-cp build/sbt-config/repositories-asia.template build/sbt-config/repositories-local
-# Or
 cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
 ```
 
