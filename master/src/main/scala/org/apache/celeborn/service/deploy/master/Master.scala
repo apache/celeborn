@@ -304,7 +304,8 @@ private[celeborn] class Master(
           requestId))
 
     case ReleaseSlots(_, _, _, _, _) =>
-    // keep it for compatible reason
+      // keep it for compatible reason
+      context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
     case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")

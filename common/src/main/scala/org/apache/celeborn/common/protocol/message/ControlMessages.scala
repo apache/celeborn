@@ -170,8 +170,8 @@ object ControlMessages extends Logging {
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
-  @deprecated
   // Keep it for compatible reason
+  @deprecated
   case class ReleaseSlots(
       applicationId: String,
       shuffleId: Int,
@@ -179,6 +179,11 @@ object ControlMessages extends Logging {
       slots: util.List[util.Map[String, Integer]],
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
+
+  // Keep it for compatible reason
+  @deprecated
+  case class ReleaseSlotsResponse(status: StatusCode)
+    extends MasterMessage
 
   case class RequestSlotsResponse(
       status: StatusCode,
@@ -509,6 +514,11 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.RELEASE_SLOTS, payload)
 
+    case ReleaseSlotsResponse(status) =>
+      val payload = PbReleaseSlotsResponse.newBuilder()
+        .setStatus(status.getValue).build().toByteArray
+      new TransportMessage(MessageType.RELEASE_SLOTS_RESPONSE, payload)
+
     case RequestSlotsResponse(status, workerResource) =>
       val builder = PbRequestSlotsResponse.newBuilder()
         .setStatus(status.getValue)
@@ -779,6 +789,10 @@ object ControlMessages extends Logging {
           new util.ArrayList[String](pbReleaseSlots.getWorkerIdsList),
           new util.ArrayList[util.Map[String, Integer]](slotsList),
           pbReleaseSlots.getRequestId)
+
+      case RELEASE_SLOTS_RESPONSE_VALUE =>
+        val pbReleaseSlotsResponse = PbReleaseSlotsResponse.parseFrom(message.getPayload)
+        ReleaseSlotsResponse(Utils.toStatusCode(pbReleaseSlotsResponse.getStatus))
 
       case REGISTER_WORKER_VALUE =>
         PbRegisterWorker.parseFrom(message.getPayload)

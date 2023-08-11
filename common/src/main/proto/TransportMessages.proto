@@ -27,7 +27,8 @@ enum MessageType {
   REQUEST_SLOTS = 6;
   // keep it for compatible with 0.3 client, will remove in 0.5
   RELEASE_SLOTS = 7;
-  //  RELEASE_SLOTS_RESPONSE = 8;
+  RELEASE_SLOTS_RESPONSE = 8;
+
   REQUEST_SLOTS_RESPONSE = 9;
   CHANGE_LOCATION = 10;
   CHANGE_LOCATION_RESPONSE = 11;
@@ -201,6 +202,12 @@ message PbReleaseSlots {
   repeated PbSlotInfo slots = 4;
   string requestId = 6;
 }
+
+// keep it for compatible reason
+message PbReleaseSlotsResponse {
+  int32 status = 1;
+}
+
 
 message PbRequestSlotsResponse {
   int32 status = 1;
