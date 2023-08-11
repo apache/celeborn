@@ -238,6 +238,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     fileWriter.incrementPendingWrites()
 
+    if (fileWriter.isClosed) {
+      logWarning(
+        s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
+      callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
+      return;
+    }
+
     // for primary, send data to replica
     if (doReplicate) {
       pushData.body().retain()
@@ -376,8 +383,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             shuffleMapperAttempts.get(shuffleKey).get(mapId)
           } else -1
         // TODO just info log for ended attempt
-        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+        logWarning(
+          s"[handlePushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
         logError("Exception encountered when write.", e)
     }
@@ -498,6 +506,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
+
+    val closedFileWriter = fileWriters.find(_.isClosed)
+    if (closedFileWriter.isDefined) {
+      logWarning(
+        s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getFileInfo.getFilePath}")
+      callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
+      return
+    }
 
     // for primary, send data to replica
     if (doReplicate) {
@@ -649,8 +665,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               shuffleMapperAttempts.get(shuffleKey).get(mapId)
             } else -1
           // TODO just info log for ended attempt
-          logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+          logWarning(
+            s"[handlePushMergedData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+              s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
         case e: Exception =>
           logError("Exception encountered when write.", e)
       }
@@ -802,6 +819,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     fileWriter.incrementPendingWrites()
 
+    if (fileWriter.isClosed) {
+      logWarning(
+        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
+      callback.onFailure(new CelebornIOException("File already closed!"))
+      return;
+    }
+
     // for primary, send data to replica
     if (location.hasPeer && isPrimary) {
       // to do
@@ -821,8 +845,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             shuffleMapperAttempts.get(shuffleKey).get(mapId)
           } else -1
         // TODO just info log for ended attempt
-        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+        logWarning(
+          s"[handleMapPartitionPushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
         logError("Exception encountered when write.", e)
     }
