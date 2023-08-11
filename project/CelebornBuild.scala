@@ -597,8 +597,12 @@ trait SparkClientProjects {
           val cp = (assembly / fullClasspath).value
           cp filter { v =>
             val name = v.data.getName
-            !(name.startsWith("celeborn-") || name.startsWith("protobuf-java-") ||
-              name.startsWith("guava-") || name.startsWith("netty-") || name.startsWith("commons-lang3-"))
+            !(name.startsWith("celeborn-") ||
+              name.startsWith("protobuf-java-") ||
+              name.startsWith("guava-") ||
+              name.startsWith("netty-") ||
+              name.startsWith("commons-lang3-") ||
+              name.startsWith("RoaringBitmap-"))
           }
         },
   
@@ -606,7 +610,8 @@ trait SparkClientProjects {
           ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
           ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
           ShadeRule.rename("io.netty.**" -> "org.apache.celeborn.shaded.io.netty.@1").inAll,
-          ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll
+          ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
+          ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
         ),
   
         (assembly / assemblyMergeStrategy) := {
