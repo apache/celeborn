@@ -383,7 +383,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             shuffleMapperAttempts.get(shuffleKey).get(mapId)
           } else -1
         // TODO just info log for ended attempt
-        logWarning(
+        logError(
           s"[handlePushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
             s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
@@ -665,7 +665,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               shuffleMapperAttempts.get(shuffleKey).get(mapId)
             } else -1
           // TODO just info log for ended attempt
-          logWarning(
+          logError(
             s"[handlePushMergedData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
               s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
         case e: Exception =>
@@ -845,7 +845,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             shuffleMapperAttempts.get(shuffleKey).get(mapId)
           } else -1
         // TODO just info log for ended attempt
-        logWarning(
+        logError(
           s"[handleMapPartitionPushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
             s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
