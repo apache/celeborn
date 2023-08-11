@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
@@ -69,7 +70,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private final LongAdder[] mapStatusLengths;
   // this lock is shared between different SortBasedPushers to synchronize pushData
   private final Object sharedPushLock;
-  private volatile boolean asyncPushing = false;
+  private final Semaphore asyncPushing = new Semaphore(1);
   private int[] shuffledPartitions = null;
   private int[] inversedShuffledPartitions = null;
   private final ExecutorService executorService;
@@ -267,13 +268,18 @@ public class SortBasedPusher extends MemoryConsumer {
   }
 
   public void triggerPush() throws IOException {
-    asyncPushing = true;
+    try {
+      asyncPushing.acquire();
+    } catch (InterruptedException e) {
+      logger.error("SortBasedPusher thread interrupted while waiting push finished.");
+      TaskInterruptedHelper.throwTaskKillException();
+    }
     dataPusher.checkException();
     executorService.submit(
         () -> {
           try {
             pushData();
-            asyncPushing = false;
+            asyncPushing.release();
           } catch (IOException ie) {
             dataPusher.setException(ie);
           }
@@ -283,12 +289,10 @@ public class SortBasedPusher extends MemoryConsumer {
   /**
    * Since this method and pushData() are synchronized When this method returns, it means pushData
    * has released lock
-   *
-   * @throws IOException
    */
   public void waitPushFinish() throws IOException {
     dataPusher.checkException();
-    while (asyncPushing) {
+    while (asyncPushing.availablePermits() < 1) {
       try {
         Thread.sleep(50);
       } catch (InterruptedException e) {
