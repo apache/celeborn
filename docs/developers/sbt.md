@@ -253,11 +253,15 @@ The current repositories embedded within the Celeborn project are detailed below
   typesafe-releases: https://repo.typesafe.com/typesafe/releases/
 ```
 
-For numerous developers across various regions, the default repository download speeds are less than optimal. Consider, for example, developers situated in Chinese mainland. In such cases, the following command can be employed to enhance dependency download speeds:
+For numerous developers across various regions, the default repository download speeds are less than optimal. To address this concern, we have curated a selection of verified public mirror templates tailored for specific regions with a significant local developer presence. For instance, we provide the `repositories-cn.template` template for developers situated within the expanse of the Chinese mainland, and the `repositories-asia.template` template designed for developers across the Asian continent. In such cases, the following command can be employed to enhance dependency download speeds:
 
 ```
+cp build/sbt-config/repositories-asia.template build/sbt-config/repositories-local
+# Or
 cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
 ```
+
+Furthermore, it is strongly encouraged that developers from various regions contribute templates tailored to their respective areas.
 
 > NOTE: <br>
 > 1. `build/sbt-config/repositories-local` takes precedence over `build/sbt-config/repositories` and is ignored by `.gitignore`. <br>
