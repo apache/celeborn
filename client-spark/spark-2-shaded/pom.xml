@@ -82,6 +82,8 @@
                 <exclude>META-INF/*.DSA</exclude>
                 <exclude>META-INF/*.RSA</exclude>
                 <exclude>**/log4j.properties</exclude>
+                <exclude>META-INF/LICENSE.txt</exclude>
+                <exclude>META-INF/NOTICE.txt</exclude>
               </excludes>
             </filter>
           </filters>
