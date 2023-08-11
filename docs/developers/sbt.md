@@ -126,16 +126,16 @@ By executing these commands, you will create assembly jar files for the respecti
 
 ## Building submodules individually
 
-For instance, you can build the Celeborn Client module using:
+For instance, you can build the Celeborn Master module using:
 
 ```
 $ # sbt
-$ build/sbt
-> project celeborn-client
+$ ./build/sbt
+> project celeborn-master
 > package
 
-$ # Or, you can build the celeborn-client module with sbt directly using:
-$ build/sbt celeborn-client/package
+$ # Or, you can build the celeborn-master module with sbt directly using:
+$ ./build/sbt celeborn-master/package
 ```
 
 ## Testing with SBT
@@ -170,44 +170,44 @@ $ ./build/sbt -Pflink-1.15 celeborn-flink-group/test
 
 When developing locally, it’s often convenient to run a single test or a few tests, rather than running the entire test suite.
 
-The fastest way to run individual tests is to use the sbt console. It’s fastest to keep a sbt console open, and use it to re-run tests as necessary. For example, to run all of the tests in a particular project, e.g., client:
+The fastest way to run individual tests is to use the sbt console. It’s fastest to keep a sbt console open, and use it to re-run tests as necessary. For example, to run all of the tests in a particular project, e.g., master:
 
 ```
-$ build/sbt
-> project celeborn-client
+$ ./build/sbt
+> project celeborn-master
 > test
 ```
-You can run a single test suite using the `testOnly` command. For example, to run the `ShuffleClientSuiteJ`:
+You can run a single test suite using the `testOnly` command. For example, to run the `SlotsAllocatorSuiteJ`:
 
 ```
-> testOnly org.apache.celeborn.client.ShuffleClientSuiteJ
+> testOnly org.apache.celeborn.service.deploy.master.SlotsAllocatorSuiteJ
 ```
-The `testOnly` command accepts wildcards; e.g., you can also run the `ShuffleClientSuiteJ` with:
+The `testOnly` command accepts wildcards; e.g., you can also run the `SlotsAllocatorSuiteJ` with:
 
 ```
-> testOnly *ShuffleClientSuiteJ
+> testOnly *SlotsAllocatorSuiteJ
 ```
-Or you could run all of the tests in the `client` package:
+Or you could run all of the tests in the `master` package:
 
 ```
-> testOnly org.apache.celeborn.client.*
+> testOnly org.apache.celeborn.service.deploy.master.*
 ```
-If you’d like to run just a single Java test in the `ShuffleClientSuiteJ`, e.g., a test that with the name `testPushData`, you run the following command in the sbt console:
+If you’d like to run just a single Java test in the `SlotsAllocatorSuiteJ`, e.g., a test that with the name `testAllocateSlotsForSinglePartitionId`, you run the following command in the sbt console:
 
 ```
-> testOnly *ShuffleClientSuiteJ -- *ShuffleClientSuiteJ.testPushData
+> testOnly *SlotsAllocatorSuiteJ -- *SlotsAllocatorSuiteJ.testAllocateSlotsForSinglePartitionId
 ```
 
-If you’d like to run just a single Scala test in the `WorkerStatusTrackerSuite`, e.g., a test that incudes "handleHeartbeatResponse" in the name, you run the following command in the sbt console:
+If you’d like to run just a single Scala test in the `AppDiskUsageMetricSuite`, e.g., a test that incudes "app usage snapshot" in the name, you run the following command in the sbt console:
 
 ```
-> testOnly *WorkerStatusTrackerSuite -- -z handleHeartbeatResponse
+> testOnly *AppDiskUsageMetricSuite -- -z "app usage snapshot"
 ```
 
 If you’d prefer, you can run all of these commands on the command line (but this will be slower than running tests using an open console). To do this, you need to surround `testOnly` and the following arguments in quotes:
 
 ```
-$ build/sbt "celeborn-client/testOnly *WorkerStatusTrackerSuite -- -z handleHeartbeatResponse"
+$ ./build/sbt "celeborn-master/testOnly *AppDiskUsageMetricSuite -- -z \"app usage snapshot\""
 ```
 For more about how to run individual tests with sbt, see the [sbt documentation](https://www.scala-sbt.org/1.x/docs/Testing.html) and [JUnit Interface](https://github.com/sbt/junit-interface/#junit-interface).
 
@@ -253,7 +253,7 @@ The current repositories embedded within the Celeborn project are detailed below
   typesafe-releases: https://repo.typesafe.com/typesafe/releases/
 ```
 
-For numerous developers across various regions, the default repository download speeds are less than optimal. Consider, for example, developers situated in China mainland. In such cases, the following command can be employed to enhance dependency download speeds:
+For numerous developers across various regions, the default repository download speeds are less than optimal. Consider, for example, developers situated in Chinese mainland. In such cases, the following command can be employed to enhance dependency download speeds:
 
 ```
 cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
