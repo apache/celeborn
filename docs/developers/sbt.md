@@ -261,7 +261,7 @@ cp build/sbt-config/repositories-cn.template build/sbt-config/repositories-local
 
 Furthermore, it is strongly encouraged that developers from various regions contribute templates tailored to their respective areas.
 
-??? note
+!!! note
     1. `build/sbt-config/repositories-local` takes precedence over `build/sbt-config/repositories` and is ignored by `.gitignore`.
     2. Should the environment variable `DEFAULT_ARTIFACT_REPOSITORY` be set, it attains the highest priority among non-local repositories.
     3. Repository priority is determined by the file order; repositories listed earlier possess higher precedence.
