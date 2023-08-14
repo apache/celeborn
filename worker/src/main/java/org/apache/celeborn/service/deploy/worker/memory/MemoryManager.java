@@ -257,8 +257,8 @@ public class MemoryManager {
   }
 
   /**
-   * Get current worker serving state.
-   * isPaused should be set true when trigger pause, and set false when trigger resume.
+   * Get current worker serving state. isPaused should be set true when trigger pause, and set false
+   * when trigger resume.
    */
   public ServingState currentServingState() {
     long memoryUsage = getMemoryUsage();
