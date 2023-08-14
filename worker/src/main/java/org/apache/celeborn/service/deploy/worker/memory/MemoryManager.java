@@ -43,7 +43,7 @@ import org.apache.celeborn.service.deploy.worker.storage.CreditStreamManager;
 public class MemoryManager {
   private static final Logger logger = LoggerFactory.getLogger(MemoryManager.class);
   private static volatile MemoryManager _INSTANCE = null;
-  private long maxDirectorMemory = 0;
+  @VisibleForTesting public long maxDirectorMemory = 0;
   private final long pausePushDataThreshold;
   private final long pauseReplicateThreshold;
   private final long resumeThreshold;
@@ -66,7 +66,7 @@ public class MemoryManager {
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private ServingState servingState = ServingState.NONE_PAUSED;
-  private boolean underPressure;
+  private volatile boolean isPaused = false;
 
   // For credit stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
@@ -139,51 +139,56 @@ public class MemoryManager {
     readBufferTarget = (long) (readBufferThreshold * readBufferTargetRatio);
     memoryShuffleStorageThreshold = (long) (maxDirectorMemory * shuffleStorageRatio);
 
-    checkService.scheduleWithFixedDelay(
-        () -> {
-          try {
-            ServingState lastState = servingState;
-            servingState = currentServingState();
-            if (lastState != servingState) {
-              logger.info("Serving state transformed from {} to {}", lastState, servingState);
-              if (servingState == ServingState.PUSH_PAUSED) {
-                pausePushDataCounter.increment();
-                logger.info("Trigger action: PAUSE PUSH, RESUME REPLICATE");
-                memoryPressureListeners.forEach(
-                    memoryPressureListener ->
-                        memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                memoryPressureListeners.forEach(
-                    memoryPressureListener ->
-                        memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
-                trimAllListeners();
-              } else if (servingState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
-                pausePushDataAndReplicateCounter.increment();
-                logger.info("Trigger action: PAUSE PUSH and REPLICATE");
-                memoryPressureListeners.forEach(
-                    memoryPressureListener ->
-                        memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                memoryPressureListeners.forEach(
-                    memoryPressureListener ->
-                        memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
-                trimAllListeners();
+    // disabled trim thread in test case
+    if (!Boolean.valueOf(conf.get("celeborn.testing", "false"))) {
+      checkService.scheduleWithFixedDelay(
+          () -> {
+            try {
+              ServingState lastState = servingState;
+              servingState = currentServingState();
+              if (lastState != servingState) {
+                logger.info("Serving state transformed from {} to {}", lastState, servingState);
+                if (servingState == ServingState.PUSH_PAUSED) {
+                  pausePushDataCounter.increment();
+                  logger.info("Trigger action: PAUSE PUSH, RESUME REPLICATE");
+                  memoryPressureListeners.forEach(
+                      memoryPressureListener ->
+                          memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                  memoryPressureListeners.forEach(
+                      memoryPressureListener ->
+                          memoryPressureListener.onResume(
+                              TransportModuleConstants.REPLICATE_MODULE));
+                  trimAllListeners();
+                } else if (servingState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
+                  pausePushDataAndReplicateCounter.increment();
+                  logger.info("Trigger action: PAUSE PUSH and REPLICATE");
+                  memoryPressureListeners.forEach(
+                      memoryPressureListener ->
+                          memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+                  memoryPressureListeners.forEach(
+                      memoryPressureListener ->
+                          memoryPressureListener.onPause(
+                              TransportModuleConstants.REPLICATE_MODULE));
+                  trimAllListeners();
+                } else {
+                  logger.info("Trigger action: RESUME PUSH and REPLICATE");
+                  memoryPressureListeners.forEach(
+                      memoryPressureListener -> memoryPressureListener.onResume("all"));
+                }
               } else {
-                logger.info("Trigger action: RESUME PUSH and REPLICATE");
-                memoryPressureListeners.forEach(
-                    memoryPressureListener -> memoryPressureListener.onResume("all"));
+                if (servingState != ServingState.NONE_PAUSED) {
+                  logger.debug("Trigger action: TRIM");
+                  trimAllListeners();
+                }
               }
-            } else {
-              if (servingState != ServingState.NONE_PAUSED) {
-                logger.debug("Trigger action: TRIM");
-                trimAllListeners();
-              }
+            } catch (Exception e) {
+              logger.error("Memory tracker check error", e);
             }
-          } catch (Exception e) {
-            logger.error("Memory tracker check error", e);
-          }
-        },
-        checkInterval,
-        checkInterval,
-        TimeUnit.MILLISECONDS);
+          },
+          checkInterval,
+          checkInterval,
+          TimeUnit.MILLISECONDS);
+    }
 
     reportService.scheduleWithFixedDelay(
         () ->
@@ -251,29 +256,30 @@ public class MemoryManager {
         Utils.bytesToString(memoryShuffleStorageThreshold));
   }
 
+  /**
+   * Get current worker serving state.
+   * isPaused should be set true when trigger pause, and set false when trigger resume.
+   */
   public ServingState currentServingState() {
     long memoryUsage = getMemoryUsage();
-    boolean pausePushData = memoryUsage > pausePushDataThreshold;
-    boolean pauseReplicate = memoryUsage > pauseReplicateThreshold;
-    boolean resume = memoryUsage < resumeThreshold;
-    if (pausePushData || pauseReplicate) {
-      underPressure = true;
-    } else if (resume) {
-      underPressure = false;
-    }
-    if (pausePushData && pauseReplicate) {
+    // trigger pause both push and replicate
+    if (memoryUsage > pauseReplicateThreshold) {
+      isPaused = true;
       return ServingState.PUSH_AND_REPLICATE_PAUSED;
     }
-    if (pausePushData) {
+    // trigger pause only push
+    if (memoryUsage > pausePushDataThreshold) {
+      isPaused = true;
       return ServingState.PUSH_PAUSED;
     }
-    if (resume) {
+    // trigger resume
+    if (memoryUsage < resumeThreshold) {
+      isPaused = false;
       return ServingState.NONE_PAUSED;
     }
-    if (underPressure) {
-      return ServingState.PUSH_PAUSED;
-    }
-    return ServingState.NONE_PAUSED;
+    // if isPaused and not trigger resume, then return pause push
+    // wait for trigger resumeThreshold to resume state
+    return isPaused ? ServingState.PUSH_PAUSED : ServingState.NONE_PAUSED;
   }
 
   public void trimAllListeners() {
@@ -412,7 +418,8 @@ public class MemoryManager {
     void onChange(long newMemoryTarget);
   }
 
-  enum ServingState {
+  @VisibleForTesting
+  public enum ServingState {
     NONE_PAUSED,
     PUSH_AND_REPLICATE_PAUSED,
     PUSH_PAUSED

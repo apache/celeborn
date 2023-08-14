@@ -17,13 +17,12 @@
 
 package org.apache.celeborn.service.deploy.memory
 
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.funsuite.AnyFunSuite
-
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE, WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
-class MemoryManagerSuite extends AnyFunSuite with BeforeAndAfterEach {
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
+class MemoryManagerSuite extends CelebornFunSuite {
 
   // reset the memory manager before each test
   override protected def beforeEach(): Unit = {
@@ -41,5 +40,43 @@ class MemoryManagerSuite extends AnyFunSuite with BeforeAndAfterEach {
     assert(
       caught.getMessage == s"Invalid config, ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE.key}(0.85) " +
         s"should be greater than ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE.key}(0.95)")
+  }
+
+  test("[CELEBORN-888] Test MemoryManager#currentServingState trigger case") {
+    val conf = new CelebornConf()
+    try {
+      val memoryManager = MemoryManager.initialize(conf)
+      val maxDirectorMemory = memoryManager.maxDirectorMemory
+      val pushThreshold =
+        (conf.workerDirectMemoryRatioToPauseReceive * maxDirectorMemory).longValue()
+      val replicateThreshold =
+        (conf.workerDirectMemoryRatioToPauseReplicate * maxDirectorMemory).longValue()
+      val resumeThreshold = (conf.workerDirectMemoryRatioToResume * maxDirectorMemory).longValue()
+
+      // use sortMemoryCounter to trigger each state
+      val memoryCounter = memoryManager.getSortMemoryCounter
+
+      // default state
+      assert(ServingState.NONE_PAUSED == memoryManager.currentServingState())
+      // reach pause push data threshold
+      memoryCounter.set(pushThreshold + 1)
+      assert(ServingState.PUSH_PAUSED == memoryManager.currentServingState())
+      // reach pause replicate data threshold
+      memoryCounter.set(replicateThreshold + 1);
+      assert(ServingState.PUSH_AND_REPLICATE_PAUSED == memoryManager.currentServingState());
+      // touch pause push data threshold again
+      memoryCounter.set(pushThreshold + 1);
+      assert(MemoryManager.ServingState.PUSH_PAUSED == memoryManager.currentServingState());
+      // between pause push data threshold and resume data threshold
+      memoryCounter.set(resumeThreshold + 2);
+      assert(MemoryManager.ServingState.PUSH_PAUSED == memoryManager.currentServingState());
+      // touch resume data threshold
+      memoryCounter.set(resumeThreshold - 1);
+      assert(MemoryManager.ServingState.NONE_PAUSED == memoryManager.currentServingState());
+    } catch {
+      case e: Exception => throw e
+    } finally {
+      MemoryManager.reset()
+    }
   }
 }
