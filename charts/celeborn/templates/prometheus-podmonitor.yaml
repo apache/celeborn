@@ -20,7 +20,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: {{ .Values.celebornClusterPrefix }}-master-podmonitor
+  name: {{ .Release.Name }}-master-podmonitor
   labels:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}
@@ -48,7 +48,7 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: {{ .Values.celebornClusterPrefix }}-worker-podmonitor
+  name: {{ .Release.Name }}-worker-podmonitor
   labels:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}

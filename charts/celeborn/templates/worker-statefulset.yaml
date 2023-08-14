@@ -18,7 +18,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Values.celebornClusterPrefix }}-worker
+  name: {{ .Release.Name }}-worker
   labels:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}
@@ -35,7 +35,7 @@ spec:
       app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
       app.kubernetes.io/role: worker
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
-  serviceName: {{ .Values.celebornClusterPrefix }}-worker
+  serviceName: {{ .Release.Name }}-worker
   replicas: {{ .Values.workerReplicas }}
   template:
     metadata:
@@ -103,7 +103,7 @@ spec:
           - "/bin/sh"
           - '-c'
           {{- $namespace := .Release.Namespace }}
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ $.Values.celebornClusterPrefix }}-master-{{ . }}.{{ $.Values.celebornClusterPrefix }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-worker.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-worker.sh"
         resources:
           {{- toYaml .Values.resources.worker | nindent 12 }}
         ports:
@@ -128,7 +128,7 @@ spec:
       terminationGracePeriodSeconds: 30
       volumes:
         - configMap:
-            name: {{ .Values.celebornClusterPrefix }}-conf
+            name: {{ .Release.Name }}-conf
           name: {{ include "celeborn.fullname" . }}-volume
         {{- range $index, $volume := .Values.volumes.worker }}
         {{- if eq "emptyDir" $volume.type }}
