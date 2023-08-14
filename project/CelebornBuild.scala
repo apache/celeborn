@@ -95,13 +95,11 @@ object Dependencies {
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
-  val junitInterfaceTest = "com.github.sbt" % "junit-interface" % junitInterfaceVersion % "test"
-  val junitTest = "junit" % "junit" % junitVersion % "test"
-  val log4j12ApiTest = log4j12Api % "test"
-  val log4jSlf4jImplTest = log4jSlf4jImpl % "test"
-  val mockitoCoreTest = "org.mockito" % "mockito-core" % mockitoVersion % "test"
-  val scalatestMockitoTest = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion % "test"
-  val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion % "test"
+  val junitInterface = "com.github.sbt" % "junit-interface" % junitInterfaceVersion
+  val junit = "junit" % "junit" % junitVersion
+  val mockitoCore = "org.mockito" % "mockito-core" % mockitoVersion
+  val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
+  val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
 }
 
 object CelebornCommonSettings {
@@ -184,11 +182,11 @@ object CelebornCommonSettings {
   )
 
   lazy val commonUnitTestDependencies = Seq(
-    Dependencies.mockitoCoreTest,
-    Dependencies.scalatest,
-    Dependencies.junitTest,
+    Dependencies.mockitoCore % "test",
+    Dependencies.scalatest % "test",
+    Dependencies.junit % "test",
     // https://www.scala-sbt.org/1.x/docs/Testing.html
-    Dependencies.junitInterfaceTest)
+    Dependencies.junitInterface % "test")
 }
 
 object CelebornBuild extends sbt.internal.BuildDef {
@@ -288,8 +286,8 @@ object CelebornCommon {
         Dependencies.slf4jJulToSlf4j,
         Dependencies.slf4jApi,
         Dependencies.snakeyaml,
-        Dependencies.log4jSlf4jImplTest,
-        Dependencies.log4j12ApiTest
+        Dependencies.log4jSlf4jImpl % "test",
+        Dependencies.log4j12Api % "test"
       ) ++ commonUnitTestDependencies,
 
       Compile / sourceGenerators += Def.task {
@@ -328,8 +326,8 @@ object CelebornClient {
         Dependencies.lz4Java,
         Dependencies.zstdJni,
         Dependencies.commonsLang3,
-        Dependencies.log4jSlf4jImplTest,
-        Dependencies.log4j12ApiTest
+        Dependencies.log4jSlf4jImpl % "test",
+        Dependencies.log4j12Api % "test"
       ) ++ commonUnitTestDependencies
     )
 }
@@ -346,8 +344,8 @@ object CelebornService {
         Dependencies.javaxServletApi,
         Dependencies.commonsCrypto,
         Dependencies.slf4jApi,
-        Dependencies.log4jSlf4jImplTest,
-        Dependencies.log4j12ApiTest
+        Dependencies.log4jSlf4jImpl % "test",
+        Dependencies.log4j12Api % "test"
       ) ++ commonUnitTestDependencies
     )
 }
@@ -390,7 +388,7 @@ object CelebornWorker {
         Dependencies.log4jSlf4jImpl,
         Dependencies.leveldbJniAll,
         Dependencies.roaringBitmap,
-        Dependencies.scalatestMockitoTest
+        Dependencies.scalatestMockito % "test"
       ) ++ commonUnitTestDependencies
     )
 }
@@ -734,8 +732,8 @@ trait FlinkClientProjects {
 
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
-          Dependencies.log4jSlf4jImplTest,
-          Dependencies.log4j12ApiTest
+          Dependencies.log4jSlf4jImpl % "test",
+          Dependencies.log4j12Api % "test"
         ) ++ commonUnitTestDependencies
       )
   }
