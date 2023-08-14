@@ -73,6 +73,8 @@ enum MessageType {
   CHECK_FOR_HDFS_EXPIRED_DIRS_TIMEOUT = 50;
   OPEN_STREAM = 51;
   STREAM_HANDLER = 52;
+  CHECK_WORKERS_AVAILABLE = 53;
+  CHECK_WORKERS_AVAILABLE_RESPONSE = 54;
 }
 
 message PbStorageInfo {
@@ -317,6 +319,13 @@ message PbCheckQuota {
 message PbCheckQuotaResponse {
   bool available = 1;
   string reason = 2;
+}
+
+message PbCheckWorkersAvailable {
+}
+
+message PbCheckWorkersAvailableResponse {
+  bool available = 1;
 }
 
 message PbReportWorkerUnavailable {
