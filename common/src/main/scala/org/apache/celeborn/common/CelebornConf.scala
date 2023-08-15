@@ -3364,9 +3364,9 @@ object CelebornConf extends Logging {
       .createWithDefaultString("15s")
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.reserveSlots.rackware.enabled")
+    buildConf("celeborn.client.reserveSlots.rackaware.enabled")
       .categories("client")
-      .version("0.3.0")
+      .version("0.3.1")
       .doc("Whether need to place different replicates on different racks when allocating slots.")
       .booleanConf
       .createWithDefault(false)
