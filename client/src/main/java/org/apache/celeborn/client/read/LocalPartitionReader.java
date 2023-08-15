@@ -119,14 +119,26 @@ public class LocalPartitionReader implements PartitionReader {
                   long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
                   logger.debug("Read {} offset {} length {}", currentChunkIndex, offset, length);
                   // A chunk must be lesser than INT.MAX_VALUE
-                  ByteBuffer buffer = ByteBuffer.allocate((int) length);
+                  ByteBuffer buffer = ByteBuffer.allocateDirect((int) length);
                   while (buffer.hasRemaining()) {
-                    if (-1 == shuffleChannel.read(buffer)) {
-                      exception.set(
-                          new CelebornIOException(
-                              "Read local file "
-                                  + location.getStorageInfo().getFilePath()
-                                  + " failed"));
+                    if (endMapIndex == Integer.MAX_VALUE) {
+                      if (-1 == shuffleChannel.read(buffer)) {
+                        exception.set(
+                            new CelebornIOException(
+                                "Read local file "
+                                    + location.getStorageInfo().getFilePath()
+                                    + " failed"));
+                      }
+                    } else {
+                      // skew partition
+                      shuffleChannel.position(offset);
+                      if (-1 == shuffleChannel.read(buffer)) {
+                        exception.set(
+                            new CelebornIOException(
+                                "Read local file "
+                                    + location.getStorageInfo().getFilePath()
+                                    + " failed"));
+                      }
                     }
                   }
                   buffer.flip();
@@ -159,7 +171,7 @@ public class LocalPartitionReader implements PartitionReader {
     try {
       while (chunk == null && returnedChunks < numChunks) {
         checkException();
-        chunk = results.poll(500, TimeUnit.MILLISECONDS);
+        chunk = results.poll(100, TimeUnit.MILLISECONDS);
         logger.debug("Poll result with result size: {}", results.size());
       }
     } catch (InterruptedException e) {
