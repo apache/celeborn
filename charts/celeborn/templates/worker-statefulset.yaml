@@ -117,7 +117,7 @@ spec:
             readOnly: true
           {{- end }}
           {{- range $index, $volume := .Values.volumes.worker }}
-          - name: celeborn-worker-vol-{{ $index }}
+          - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
             mountPath: {{ .mountPath }}
           {{- end }}
         env:
@@ -131,12 +131,11 @@ spec:
             name: {{ .Release.Name }}-conf
           name: {{ include "celeborn.fullname" . }}-volume
         {{- range $index, $volume := .Values.volumes.worker }}
+        - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
         {{- if eq "emptyDir" $volume.type }}
-        - name: celeborn-worker-vol-{{ $index }}
           emptyDir:
             sizeLimit: {{ $volume.size }}
         {{- else if eq "hostPath" $volume.type }}
-        - name: celeborn-worker-vol-{{ $index }}
           hostPath:
             path: {{ $volume.hostPath | default $volume.mountPath }}/worker
             type: DirectoryOrCreate

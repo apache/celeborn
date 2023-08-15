@@ -112,7 +112,7 @@ spec:
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
           {{- range $index, $volume := .Values.volumes.master }}
-          - name: celeborn-master-vol-{{ $index }}
+          - name: {{ $.Release.Name }}-master-vol-{{ $index }}
             mountPath: {{ .mountPath }}
           {{- end }}
         env:
@@ -126,7 +126,7 @@ spec:
             name: {{ .Release.Name }}-conf
           name: {{ include "celeborn.fullname" . }}-volume
         {{- range $index, $volume := .Values.volumes.master }}
-        - name: celeborn-master-vol-{{ $index }}
+        - name: {{ $.Release.Name }}-master-vol-{{ $index }}
         {{- if eq "emptyDir" $volume.type }}
           emptyDir:
             sizeLimit: {{ $volume.size }}
