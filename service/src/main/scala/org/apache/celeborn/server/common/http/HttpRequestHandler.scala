@@ -61,7 +61,8 @@ class HttpRequestHandler(
   }
 
   def handleRequest(uri: String): String = {
-    uri match {
+    val (path, parameters) = HttpUtils.parseUrl(uri)
+    path match {
       case "/conf" =>
         service.getConf
       case "/workerInfo" =>
@@ -90,8 +91,8 @@ class HttpRequestHandler(
         service.isShutdown
       case "/isRegistered" if service.serviceName == Service.WORKER =>
         service.isRegistered
-      case "/decommission" if service.serviceName == Service.WORKER =>
-        service.decommission
+      case "/exit" if service.serviceName == Service.WORKER =>
+        service.exit(parameters.getOrElse("TYPE", ""))
       case _ => INVALID
     }
   }

@@ -561,8 +561,17 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
-  override def decommission: String = {
-    exitKind = CelebornExitKind.WORKER_DECOMMISSION
+  override def exit(exitType: String): String = {
+    exitType match {
+      case "DECOMMISSION" =>
+        exitKind = CelebornExitKind.WORKER_DECOMMISSION
+      case "GRACEFUL" =>
+        exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
+      case "IMMEDIATELY" =>
+        exitKind = CelebornExitKind.EXIT_IMMEDIATELY
+      case _ => // Use origin code
+    }
+    // Use the original EXIT_CODE
     new Thread() {
       override def run(): Unit = {
         Thread.sleep(10000)
@@ -570,8 +579,8 @@ private[celeborn] class Worker(
       }
     }.start()
     val sb = new StringBuilder
-    sb.append("======================== Decommission Worker =========================\n")
-    sb.append("Decommission worker triggered: \n")
+    sb.append("============================ Exit Worker =============================\n")
+    sb.append(s"Exit worker by $exitType triggered: \n")
     sb.append(workerInfo.toString()).append("\n")
     sb.toString()
   }
