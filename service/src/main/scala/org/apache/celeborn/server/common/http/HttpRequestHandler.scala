@@ -17,9 +17,6 @@
 
 package org.apache.celeborn.server.common.http
 
-import java.net.URL
-import java.util.Locale
-
 import io.netty.buffer.Unpooled
 import io.netty.channel.{ChannelFutureListener, ChannelHandlerContext, SimpleChannelInboundHandler}
 import io.netty.channel.ChannelHandler.Sharable
