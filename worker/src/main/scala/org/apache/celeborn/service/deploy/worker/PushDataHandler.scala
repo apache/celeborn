@@ -238,6 +238,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     fileWriter.incrementPendingWrites()
 
+    if (fileWriter.isClosed) {
+      logWarning(
+        s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
+      callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
+      fileWriter.decrementPendingWrites()
+      return;
+    }
+
     // for primary, send data to replica
     if (doReplicate) {
       pushData.body().retain()
@@ -376,8 +384,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             shuffleMapperAttempts.get(shuffleKey).get(mapId)
           } else -1
         // TODO just info log for ended attempt
-        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+        logError(
+          s"[handlePushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
         logError("Exception encountered when write.", e)
     }
@@ -498,6 +507,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
     fileWriters.foreach(_.incrementPendingWrites())
+
+    val closedFileWriter = fileWriters.find(_.isClosed)
+    if (closedFileWriter.isDefined) {
+      logWarning(
+        s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getFileInfo.getFilePath}")
+      callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
+      fileWriters.foreach(_.decrementPendingWrites())
+      return
+    }
 
     // for primary, send data to replica
     if (doReplicate) {
@@ -649,8 +667,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               shuffleMapperAttempts.get(shuffleKey).get(mapId)
             } else -1
           // TODO just info log for ended attempt
-          logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+          logError(
+            s"[handlePushMergedData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+              s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
         case e: Exception =>
           logError("Exception encountered when write.", e)
       }
@@ -802,6 +821,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     fileWriter.incrementPendingWrites()
 
+    if (fileWriter.isClosed) {
+      logWarning(
+        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
+      callback.onFailure(new CelebornIOException("File already closed!"))
+      fileWriter.decrementPendingWrites()
+      return;
+    }
+
     // for primary, send data to replica
     if (location.hasPeer && isPrimary) {
       // to do
@@ -821,8 +848,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             shuffleMapperAttempts.get(shuffleKey).get(mapId)
           } else -1
         // TODO just info log for ended attempt
-        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+        logError(
+          s"[handleMapPartitionPushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
         logError("Exception encountered when write.", e)
     }
@@ -1099,6 +1127,23 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     } else {
       pushClientFactory.createClient(host, port, partitionId)
     }
+  }
+
+  /**
+   * Invoked when the channel associated with the given client is active.
+   */
+  override def channelActive(client: TransportClient): Unit = {
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT)
+    super.channelActive(client)
+  }
+
+  /**
+   * Invoked when the channel associated with the given client is inactive.
+   * No further requests will come from this client.
+   */
+  override def channelInactive(client: TransportClient): Unit = {
+    workerSource.incCounter(WorkerSource.ACTIVE_CONNECTION_COUNT, -1)
+    super.channelInactive(client)
   }
 }
 

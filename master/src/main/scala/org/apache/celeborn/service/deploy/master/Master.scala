@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
+import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -117,6 +118,7 @@ private[celeborn] class Master(
 
   private def diskReserveSize = conf.workerDiskReserveSize
 
+  private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
   private val slotsAssignLoadAwareDiskGroupGradient =
     conf.masterSlotAssignLoadAwareDiskGroupGradient
@@ -301,16 +303,13 @@ private[celeborn] class Master(
           userResourceConsumption,
           requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _) =>
+    case ReleaseSlots(_, _, _, _, _) =>
+      // keep it for compatible reason
+      context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
+
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
-
-    case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
-      logTrace(s"Received ReleaseSlots request $requestId, $applicationId, $shuffleId," +
-        s"workers ${workerIds.asScala.mkString(",")}, slots ${slots.asScala.mkString(",")}")
-      executeWithLeaderChecker(
-        context,
-        handleReleaseSlots(context, applicationId, shuffleId, workerIds, slots, requestId))
 
     case pb: PbUnregisterShuffle =>
       val applicationId = pb.getAppId
@@ -561,7 +560,15 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
-    val availableWorkers = workersAvailable()
+    var availableWorkers = workersAvailable()
+    Collections.shuffle(availableWorkers)
+    val numWorkers = Math.min(
+      Math.max(
+        if (requestSlots.shouldReplicate) 2 else 1,
+        if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers
+        else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
+      availableWorkers.size())
+    availableWorkers = availableWorkers.subList(0, numWorkers)
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
@@ -625,17 +632,6 @@ private[celeborn] class Master(
     }
 
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
-  }
-
-  def handleReleaseSlots(
-      context: RpcCallContext,
-      applicationId: String,
-      shuffleId: Int,
-      workerIds: util.List[String],
-      slots: util.List[util.Map[String, Integer]],
-      requestId: String): Unit = {
-    // For compatibility, ignore this message
-    context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
   }
 
   def handleUnregisterShuffle(

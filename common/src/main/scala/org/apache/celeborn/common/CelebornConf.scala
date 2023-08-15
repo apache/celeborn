@@ -460,6 +460,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkShareMemoryAllocator: Boolean = get(NETWORK_MEMORY_ALLOCATOR_SHARE)
 
+  def networkMemoryAllocatorAllowCache: Boolean =
+    get(NETWORK_MEMORY_ALLOCATOR_ALLOW_CACHE)
+
   def networkAllocatorArenas: Int = get(NETWORK_MEMORY_ALLOCATOR_ARENAS).getOrElse(Math.max(
     Runtime.getRuntime.availableProcessors(),
     2))
@@ -511,6 +514,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterSlotAssignLoadAwareFetchTimeWeight: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
+  def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
   def initialEstimatedPartitionSize: Long = get(ESTIMATED_PARTITION_SIZE_INITIAL_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
@@ -770,6 +774,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
+  def clientSlotAssignMaxWorkers: Int = get(CLIENT_SLOT_ASSIGN_MAX_WORKERS)
   def clientPushSlowStartMaxSleepMills: Long = get(CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME)
   def clientPushLimitInFlightTimeoutMs: Long =
     if (clientPushReplicateEnabled) {
@@ -920,6 +925,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
     get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
+  def workerGracefulShutdownSaveCommittedFileInfoInterval: Long =
+    get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL)
+  def workerGracefulShutdownSaveCommittedFileInfoSync: Boolean =
+    get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC)
 
   // //////////////////////////////////////////////////////
   //                      Flusher                        //
@@ -1227,6 +1236,15 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
+
+  val NETWORK_MEMORY_ALLOCATOR_ALLOW_CACHE: ConfigEntry[Boolean] =
+    buildConf("celeborn.network.memory.allocator.allowCache")
+      .categories("network")
+      .internal
+      .version("0.3.1")
+      .doc("When false, globally disable thread-local cache in the shared PooledByteBufAllocator.")
+      .booleanConf
+      .createWithDefault(true)
 
   val NETWORK_MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.share")
@@ -1870,6 +1888,15 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(2)
 
+  val MASTER_SLOT_ASSIGN_MAX_WORKERS: ConfigEntry[Int] =
+    buildConf("celeborn.master.slot.assign.maxWorkers")
+      .categories("master")
+      .version("0.3.1")
+      .doc("Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one " +
+        s"from Master side and Client side, see `celeborn.client.slot.assign.maxWorkers`.")
+      .intConf
+      .createWithDefault(10000)
+
   val ESTIMATED_PARTITION_SIZE_INITIAL_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.initialSize")
       .withAlternative("celeborn.shuffle.initialEstimatedPartitionSize")
@@ -2246,6 +2273,23 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
 
+  val WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval")
+      .categories("worker")
+      .doc("Interval for a Celeborn worker to flush committed file infos into Level DB.")
+      .version("0.3.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  val WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync")
+      .categories("worker")
+      .doc(
+        "Whether to call sync method to save committed file infos into Level DB to handle OS crash.")
+      .version("0.3.1")
+      .booleanConf
+      .createWithDefault(false)
+
   val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.diskTime.slidingWindow.size")
       .withAlternative("celeborn.worker.flusher.avgFlushTime.slidingWindow.size")
@@ -2418,7 +2462,8 @@ object CelebornConf extends Logging {
   val WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioToPauseReplicate")
       .categories("worker")
-      .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers.")
+      .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. " +
+        s"This value should be higher than ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE.key}.")
       .version("0.2.0")
       .doubleConf
       .createWithDefault(0.95)
@@ -3319,12 +3364,21 @@ object CelebornConf extends Logging {
       .createWithDefaultString("15s")
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.reserveSlots.rackware.enabled")
+    buildConf("celeborn.client.reserveSlots.rackaware.enabled")
       .categories("client")
-      .version("0.3.0")
+      .version("0.3.1")
       .doc("Whether need to place different replicates on different racks when allocating slots.")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_SLOT_ASSIGN_MAX_WORKERS: ConfigEntry[Int] =
+    buildConf("celeborn.client.slot.assign.maxWorkers")
+      .categories("client")
+      .version("0.3.1")
+      .doc("Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one " +
+        s"from Master side and Client side, see `${CelebornConf.MASTER_SLOT_ASSIGN_MAX_WORKERS.key}`.")
+      .intConf
+      .createWithDefault(10000)
 
   val CLIENT_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
     buildConf("celeborn.client.closeIdleConnections")

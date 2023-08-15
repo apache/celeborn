@@ -32,12 +32,6 @@ public interface IMetadataHandler {
       Map<String, Map<String, Integer>> workerToAllocatedSlots,
       String requestId);
 
-  void handleReleaseSlots(
-      String shuffleKey,
-      List<String> workerIds,
-      List<Map<String, Integer>> slotStrings,
-      String requestId);
-
   void handleUnRegisterShuffle(String shuffleKey, String requestId);
 
   void handleAppHeartbeat(

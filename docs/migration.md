@@ -9,7 +9,9 @@ license: |
   The ASF licenses this file to You under the Apache License, Version 2.0
   (the "License"); you may not use this file except in compliance with
   the License.  You may obtain a copy of the License at
-  http://www.apache.org/licenses/LICENSE-2.0
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,6 +20,13 @@ license: |
 ---
 
 # Migration Guide
+
+## Upgrading from 0.3 to 0.4
+
+- Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.
+  Note that: It's strongly recommended to use the same version of Client and Celeborn Master/Worker in production.
+
+- Since 0.4.0, Celeborn won't support `org.apache.spark.shuffle.celeborn.RssShuffleManager`.
 
 ## Upgrading from 0.2 to 0.3
 

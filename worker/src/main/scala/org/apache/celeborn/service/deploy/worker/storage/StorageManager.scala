@@ -21,7 +21,7 @@ import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.{BiConsumer, IntUnaryOperator}
 
@@ -31,7 +31,7 @@ import scala.concurrent.duration._
 import io.netty.buffer.PooledByteBufAllocator
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
-import org.iq80.leveldb.DB
+import org.iq80.leveldb.{DB, WriteOptions}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
@@ -179,9 +179,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
   private val RECOVERY_FILE_NAME = "recovery.ldb"
   private var db: DB = null
+  private var saveCommittedFileInfosExecutor: ScheduledExecutorService = _
+  private val saveCommittedFileInfoBySyncMethod =
+    conf.workerGracefulShutdownSaveCommittedFileInfoSync
+  private val saveCommittedFileInfoInterval =
+    conf.workerGracefulShutdownSaveCommittedFileInfoInterval
+  private var committedFileInfos: ConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]] = _
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
-  if (conf.workerGracefulShutdown) {
+  val workerGracefulShutdown = conf.workerGracefulShutdown
+  if (workerGracefulShutdown) {
     try {
       val recoverFile = new File(conf.workerGracefulShutdownRecoverPath, RECOVERY_FILE_NAME)
       this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
@@ -191,6 +198,28 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         logError("Init level DB failed:", e)
         this.db = null
     }
+    committedFileInfos =
+      JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
+    saveCommittedFileInfosExecutor =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+        "StorageManager-save-committed-fileinfo-thread")
+    saveCommittedFileInfosExecutor.scheduleAtFixedRate(
+      new Runnable {
+        override def run(): Unit = {
+          if (!committedFileInfos.isEmpty) {
+            logInfo(s"Save committed fileinfo with ${committedFileInfos.size()} shuffle keys")
+            committedFileInfos.asScala.foreach { case (shuffleKey, files) =>
+              db.put(
+                dbShuffleKey(shuffleKey),
+                PbSerDeUtils.toPbFileInfoMap(files),
+                new WriteOptions().sync(saveCommittedFileInfoBySyncMethod))
+            }
+          }
+        }
+      },
+      saveCommittedFileInfoInterval,
+      saveCommittedFileInfoInterval,
+      TimeUnit.MILLISECONDS)
   }
   cleanupExpiredAppDirs()
   if (!checkIfWorkingDirCleaned) {
@@ -228,10 +257,19 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
-  def updateFileInfosInDB(): Unit = {
-    fileInfos.asScala.foreach { case (shuffleKey, files) =>
+  def saveAllCommittedFileInfosToDB(): Unit = {
+    val runnables = saveCommittedFileInfosExecutor.shutdownNow()
+    // save committed fileinfo to DB should be done within the time of saveCommittedFileInfoInterval
+    runnables.asScala.foreach(_.wait(saveCommittedFileInfoInterval))
+    // graceful shutdown might be timed out, persist all committed fileinfos to levelDB
+    // final flush write through
+    committedFileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
-        db.put(dbShuffleKey(shuffleKey), PbSerDeUtils.toPbFileInfoMap(files))
+        db.put(
+          dbShuffleKey(shuffleKey),
+          PbSerDeUtils.toPbFileInfoMap(files),
+          // K8s container might gone
+          new WriteOptions().sync(true))
         logDebug(s"Update FileInfos into DB: ${shuffleKey} -> ${files}")
       } catch {
         case exception: Exception =>
@@ -313,7 +351,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               rangeReadFilter)
           case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
         }
-
+        if (workerGracefulShutdown) {
+          hdfsWriter.setStorageManager(this)
+          hdfsWriter.setShuffleKey(shuffleKey)
+        }
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.put(fileInfo.getFilePath, hdfsWriter)
         return hdfsWriter
@@ -356,6 +397,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 splitMode,
                 rangeReadFilter)
             case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
+          }
+          if (workerGracefulShutdown) {
+            fileWriter.setStorageManager(this)
+            fileWriter.setShuffleKey(shuffleKey)
           }
           deviceMonitor.registerFileWriter(fileWriter)
           val map = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
@@ -456,7 +501,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     isHdfsExpired
   }
 
-  def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
+  def cleanupExpiredShuffleKey(
+      expiredShuffleKeys: util.HashSet[String],
+      cleanDB: Boolean = true): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (fileInfos.containsKey(shuffleKey)) {
@@ -484,6 +531,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               true)
           } catch {
             case e: Exception => logWarning("Clean expired HDFS shuffle failed.", e)
+          }
+        }
+        if (workerGracefulShutdown) {
+          committedFileInfos.remove(shuffleKey)
+          if (cleanDB) {
+            db.delete(dbShuffleKey(shuffleKey))
           }
         }
       }
@@ -607,7 +660,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (db != null) {
       if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         try {
-          updateFileInfosInDB()
+          saveAllCommittedFileInfosToDB()
           db.close()
         } catch {
           case exception: Exception =>
@@ -622,7 +675,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
     if (null != diskOperators) {
       if (exitKind != CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
-        cleanupExpiredShuffleKey(shuffleKeySet())
+        cleanupExpiredShuffleKey(shuffleKeySet(), false)
       }
       ThreadUtils.parmap(
         diskOperators.asScala.toMap,
@@ -736,6 +789,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           (userIdentifier, resourceConsumption)
         }
     }
+  }
+
+  def notifyFileInfoCommitted(
+      shuffleKey: String,
+      fileName: String,
+      fileInfo: FileInfo): Unit = {
+    committedFileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
   }
 }
 

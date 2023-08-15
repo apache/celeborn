@@ -120,7 +120,14 @@ public class MemoryManager {
             .<Long>invoke();
 
     Preconditions.checkArgument(maxDirectorMemory > 0);
-    Preconditions.checkArgument(pauseReplicateRatio > pausePushDataRatio);
+    Preconditions.checkArgument(
+        pauseReplicateRatio > pausePushDataRatio,
+        String.format(
+            "Invalid config, %s(%s) should be greater than %s(%s)",
+            CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE().key(),
+            pauseReplicateRatio,
+            CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(),
+            pausePushDataRatio));
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
     Preconditions.checkArgument(resumeRatio > (readBufferRatio + shuffleStorageRatio));
 

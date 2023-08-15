@@ -15,13 +15,4 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn;
-
-import org.apache.spark.SparkConf;
-
-public class RssShuffleManager extends SparkShuffleManager {
-
-  public RssShuffleManager(SparkConf conf, boolean isDriver) {
-    super(conf, isDriver);
-  }
-}
+ThisBuild / version := "0.4.0-SNAPSHOT"

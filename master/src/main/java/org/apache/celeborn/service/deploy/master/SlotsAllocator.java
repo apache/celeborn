@@ -60,8 +60,6 @@ public class SlotsAllocator {
     if (workers.size() < 2 && shouldReplicate) {
       return new HashMap<>();
     }
-    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        new HashMap<>();
     Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
     for (WorkerInfo worker : workers) {
       List<UsableDiskInfo> usableDisks =
@@ -74,16 +72,7 @@ public class SlotsAllocator {
         }
       }
     }
-    List<Integer> remain =
-        roundRobin(slots, partitionIds, workers, restrictions, shouldReplicate, shouldRackAware);
-    if (!remain.isEmpty()) {
-      remain = roundRobin(slots, remain, workers, null, shouldReplicate, shouldRackAware);
-    }
-
-    if (!remain.isEmpty()) {
-      roundRobin(slots, remain, workers, null, shouldReplicate, false);
-    }
-    return slots;
+    return locateSlots(partitionIds, workers, restrictions, shouldReplicate, shouldRackAware);
   }
 
   /**
@@ -124,11 +113,13 @@ public class SlotsAllocator {
                       }
                     }));
 
-    Set<WorkerInfo> usableWorkers = new HashSet<>();
-    for (DiskInfo disk : usableDisks) {
-      usableWorkers.add(diskToWorkerMap.get(disk));
-    }
-    if ((shouldReplicate && usableWorkers.size() <= 1) || usableDisks.isEmpty()) {
+    boolean shouldFallback =
+        usableDisks.isEmpty()
+            || (shouldReplicate
+                && (usableDisks.size() == 1
+                    || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
+
+    if (shouldFallback) {
       logger.warn(
           "offer slots for {} fallback to roundrobin because there is no usable disks",
           StringUtils.join(partitionIds, ','));
@@ -139,36 +130,12 @@ public class SlotsAllocator {
       initLoadAwareAlgorithm(diskGroupCount, diskGroupGradient);
     }
 
-    Map<WorkerInfo, List<UsableDiskInfo>> restriction =
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         getRestriction(
             placeDisksToGroups(usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight),
             diskToWorkerMap,
             shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
-
-    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        new HashMap<>();
-    List<Integer> remainPartitions =
-        roundRobin(
-            slots,
-            partitionIds,
-            new ArrayList<>(restriction.keySet()),
-            restriction,
-            shouldReplicate,
-            shouldRackAware);
-    if (!remainPartitions.isEmpty()) {
-      remainPartitions =
-          roundRobin(
-              slots,
-              remainPartitions,
-              new ArrayList<>(workers),
-              null,
-              shouldReplicate,
-              shouldRackAware);
-    }
-    if (!remainPartitions.isEmpty()) {
-      roundRobin(slots, remainPartitions, new ArrayList<>(workers), null, shouldReplicate, false);
-    }
-    return slots;
+    return locateSlots(partitionIds, workers, restrictions, shouldReplicate, shouldRackAware);
   }
 
   private static StorageInfo getStorageInfo(
@@ -186,6 +153,39 @@ public class SlotsAllocator {
     StorageInfo storageInfo = new StorageInfo(usableDiskInfos.get(diskIndex).diskInfo.mountPoint());
     workerDiskIndex.put(selectedWorker, (diskIndex + 1) % usableDiskInfos.size());
     return storageInfo;
+  }
+
+  /**
+   * Progressive locate slots for all partitions <br>
+   * 1. try to allocate for all partitions under restrictions <br>
+   * 2. allocate remain partitions to all workers <br>
+   * 3. allocate remain partitions to all workers again without considering rack aware <br>
+   */
+  private static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
+      locateSlots(
+          List<Integer> partitionIds,
+          List<WorkerInfo> workers,
+          Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
+          boolean shouldReplicate,
+          boolean shouldRackAware) {
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        new HashMap<>();
+
+    List<Integer> remain =
+        roundRobin(
+            slots,
+            partitionIds,
+            new LinkedList<>(restrictions.keySet()),
+            restrictions,
+            shouldReplicate,
+            shouldRackAware);
+    if (!remain.isEmpty()) {
+      remain = roundRobin(slots, remain, workers, null, shouldReplicate, shouldRackAware);
+    }
+    if (!remain.isEmpty()) {
+      roundRobin(slots, remain, workers, null, shouldReplicate, false);
+    }
+    return slots;
   }
 
   private static List<Integer> roundRobin(

@@ -230,6 +230,7 @@ public abstract class Message implements Encodable {
 
       case TRANSPORTABLE_ERROR:
         return TransportableError.decode(in);
+
       case BUFFER_STREAM_END:
         return BufferStreamEnd.decode(in);
 

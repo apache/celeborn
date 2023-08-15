@@ -25,8 +25,10 @@ enum MessageType {
   REGISTER_SHUFFLE = 4;
   REGISTER_SHUFFLE_RESPONSE = 5;
   REQUEST_SLOTS = 6;
+  // keep it for compatible with 0.3 client, will remove in 0.5
   RELEASE_SLOTS = 7;
   RELEASE_SLOTS_RESPONSE = 8;
+
   REQUEST_SLOTS_RESPONSE = 9;
   CHANGE_LOCATION = 10;
   CHANGE_LOCATION_RESPONSE = 11;
@@ -69,6 +71,8 @@ enum MessageType {
   REGISTER_MAP_PARTITION_TASK = 48;
   HEARTBEAT_FROM_APPLICATION_RESPONSE = 49;
   CHECK_FOR_HDFS_EXPIRED_DIRS_TIMEOUT = 50;
+  OPEN_STREAM = 51;
+  STREAM_HANDLER = 52;
 }
 
 message PbStorageInfo {
@@ -183,12 +187,14 @@ message PbRequestSlots {
   int32 storageType = 7;
   PbUserIdentifier userIdentifier = 8;
   bool shouldRackAware = 9;
+  int32 maxWorkers = 10;
 }
 
 message PbSlotInfo {
   map<string, int32> slot = 1;
 }
 
+// keep it for compatible reason
 message PbReleaseSlots {
   string applicationId = 1;
   int32 shuffleId = 2;
@@ -197,9 +203,11 @@ message PbReleaseSlots {
   string requestId = 6;
 }
 
+// keep it for compatible reason
 message PbReleaseSlotsResponse {
   int32 status = 1;
 }
+
 
 message PbRequestSlotsResponse {
   int32 status = 1;
@@ -457,4 +465,20 @@ message PbSnapshotMetaInfo {
   optional PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
   map<string, int64> lostWorkers = 12;
   repeated PbWorkerInfo shutdownWorkers = 13;
+}
+
+message PbOpenStream {
+  string shuffleKey = 1;
+  string fileName = 2;
+  int32 startIndex = 3;
+  int32 endIndex = 4;
+  int32 initialCredit = 5;
+  bool localRead = 6;
+}
+
+message PbStreamHandler {
+  int64 streamId = 1 ;
+  int32 numChunks = 2;
+  repeated int64 chunkOffsets = 3 ;
+  string fullPath = 4;
 }

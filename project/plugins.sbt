@@ -15,13 +15,6 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn;
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.1")
 
-import org.apache.spark.SparkConf;
-
-public class RssShuffleManager extends SparkShuffleManager {
-
-  public RssShuffleManager(SparkConf conf, boolean isDriver) {
-    super(conf, isDriver);
-  }
-}
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")

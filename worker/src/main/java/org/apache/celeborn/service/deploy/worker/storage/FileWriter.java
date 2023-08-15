@@ -81,6 +81,10 @@ public abstract class FileWriter implements DeviceObserver {
   protected boolean deleted = false;
   private RoaringBitmap mapIdBitMap = null;
   protected final FlushNotifier notifier = new FlushNotifier();
+  // It's only needed when graceful shutdown is enabled
+  private String shuffleKey;
+  private StorageManager storageManager;
+  private boolean workerGracefulShutdown;
 
   public FileWriter(
       FileInfo fileInfo,
@@ -97,6 +101,7 @@ public abstract class FileWriter implements DeviceObserver {
     this.flusher = flusher;
     this.flushWorkerIndex = flusher.getWorkerIndex();
     this.writerCloseTimeoutMs = conf.workerWriterCloseTimeoutMs();
+    this.workerGracefulShutdown = conf.workerGracefulShutdown();
     this.splitThreshold = splitThreshold;
     this.deviceMonitor = deviceMonitor;
     this.splitMode = splitMode;
@@ -244,6 +249,10 @@ public abstract class FileWriter implements DeviceObserver {
     void run() throws IOException;
   }
 
+  public boolean isClosed() {
+    return closed;
+  }
+
   protected synchronized long close(
       RunnableWithIOException tryClose,
       RunnableWithIOException streamClose,
@@ -287,6 +296,9 @@ public abstract class FileWriter implements DeviceObserver {
         logger.debug("file info {} register from device monitor", fileInfo);
         deviceMonitor.unregisterFileWriter(this);
       }
+    }
+    if (workerGracefulShutdown) {
+      storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), fileInfo);
     }
     return fileInfo.getFileLength();
   }
@@ -439,5 +451,13 @@ public abstract class FileWriter implements DeviceObserver {
 
   public PartitionType getPartitionType() {
     return partitionType;
+  }
+
+  public void setShuffleKey(String shuffleKey) {
+    this.shuffleKey = shuffleKey;
+  }
+
+  public void setStorageManager(StorageManager storageManager) {
+    this.storageManager = storageManager;
   }
 }

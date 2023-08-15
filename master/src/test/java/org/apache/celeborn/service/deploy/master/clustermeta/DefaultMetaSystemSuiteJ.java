@@ -316,8 +316,6 @@ public class DefaultMetaSystemSuiteJ {
           }
         });
 
-    statusSystem.handleReleaseSlots(SHUFFLEKEY1, workerIds, workerSlots, getNewReqeustId());
-
     Assert.assertEquals(
         0,
         statusSystem.workers.stream()
