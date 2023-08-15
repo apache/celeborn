@@ -1244,7 +1244,7 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .doc("When false, globally disable thread-local cache in the shared PooledByteBufAllocator.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val NETWORK_MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.share")
