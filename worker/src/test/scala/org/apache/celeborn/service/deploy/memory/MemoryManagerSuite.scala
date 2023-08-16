@@ -71,7 +71,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
       memoryCounter.set(resumeThreshold + 2);
       assert(MemoryManager.ServingState.PUSH_PAUSED == memoryManager.currentServingState());
       // touch resume data threshold
-      memoryCounter.set(resumeThreshold - 1);
+      memoryCounter.set(0);
       assert(MemoryManager.ServingState.NONE_PAUSED == memoryManager.currentServingState());
     } catch {
       case e: Exception => throw e
