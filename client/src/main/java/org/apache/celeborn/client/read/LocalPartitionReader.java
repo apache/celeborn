@@ -74,7 +74,7 @@ public class LocalPartitionReader implements PartitionReader {
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
     try {
       TransportClient client =
-          clientFactory.createClient(location.getHost(), location.getFetchPort());
+          clientFactory.createClient(location.getHost(), location.getFetchPort(), 0);
       TransportMessage openStreamMsg =
           new TransportMessage(
               MessageType.OPEN_STREAM,
@@ -119,26 +119,18 @@ public class LocalPartitionReader implements PartitionReader {
                   long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
                   logger.debug("Read {} offset {} length {}", currentChunkIndex, offset, length);
                   // A chunk must be lesser than INT.MAX_VALUE
-                  ByteBuffer buffer = ByteBuffer.allocateDirect((int) length);
+                  ByteBuffer buffer = ByteBuffer.allocate((int) length);
+                  if (endMapIndex != Integer.MAX_VALUE) {
+                    // skew partition
+                    shuffleChannel.position(offset);
+                  }
                   while (buffer.hasRemaining()) {
-                    if (endMapIndex == Integer.MAX_VALUE) {
-                      if (-1 == shuffleChannel.read(buffer)) {
-                        exception.set(
-                            new CelebornIOException(
-                                "Read local file "
-                                    + location.getStorageInfo().getFilePath()
-                                    + " failed"));
-                      }
-                    } else {
-                      // skew partition
-                      shuffleChannel.position(offset);
-                      if (-1 == shuffleChannel.read(buffer)) {
-                        exception.set(
-                            new CelebornIOException(
-                                "Read local file "
-                                    + location.getStorageInfo().getFilePath()
-                                    + " failed"));
-                      }
+                    if (-1 == shuffleChannel.read(buffer)) {
+                      exception.set(
+                          new CelebornIOException(
+                              "Read local file "
+                                  + location.getStorageInfo().getFilePath()
+                                  + " failed"));
                     }
                   }
                   buffer.flip();
