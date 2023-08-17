@@ -675,7 +675,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           attemptId,
           partitionId);
       return true;
-    } else if (results == null || results.get(partitionId) != StatusCode.SUCCESS.getValue()) {
+    } else if (results == null
+        || !results.containsKey(partitionId)
+        || results.get(partitionId) != StatusCode.SUCCESS.getValue()) {
       return false;
     } else {
       return true;
