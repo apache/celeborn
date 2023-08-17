@@ -68,6 +68,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
       lifecycleManager = new LifecycleManager(applicationAttemptId.toString(), conf);
       String lcHost = lifecycleManager.getHost();
       int lcPort = lifecycleManager.getPort();
+      logger.info("RMAppMaster initialized with {} {} {}", lcHost, lcPort, applicationAttemptId);
       JobConf lcConf = new JobConf();
       lcConf.clear();
       lcConf.set(HadoopUtils.MR_CELEBORN_LC_HOST, lcHost);

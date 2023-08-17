@@ -36,7 +36,7 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
   private Class<K> keyClass;
   private Class<V> valClass;
   private Task.TaskReporter reporter;
-  private SortBasedPusher<K, V> sortBasedPusher;
+  private CelebornSortBasedPusher<K, V> celebornSortBasedPusher;
   private int numReducers;
 
   @Override
@@ -60,6 +60,7 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
     String lcHost = celebornAppendConf.get(HadoopUtils.MR_CELEBORN_LC_HOST);
     int lcPort = Integer.parseInt(celebornAppendConf.get(HadoopUtils.MR_CELEBORN_LC_PORT));
     String applicationAttemptId = celebornAppendConf.get(HadoopUtils.MR_CELEBORN_APPLICATION_ID);
+    logger.info("Mapper initialized with celeborn {} {} {}", lcHost, lcPort, applicationAttemptId);
     UserIdentifier userIdentifier =
         new UserIdentifier(
             celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName());
@@ -69,15 +70,17 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
     int pushSize = (int) ((IOBufferSize << 20) * spillper);
 
     SerializationFactory serializationFactory = new SerializationFactory(jobConf);
-    sortBasedPusher =
-        new SortBasedPusher<>(
+    celebornSortBasedPusher =
+        new CelebornSortBasedPusher<>(
             jobConf.getNumMapTasks(),
             jobConf.getNumReduceTasks(),
-            context.getMapTask().getTaskID().getId(),
+            // this is map id
             context.getMapTask().getTaskID().getTaskID().getId(),
+            // this is attempt id
+            context.getMapTask().getTaskID().getId(),
             serializationFactory.getSerializer(keyClass),
             serializationFactory.getSerializer(valClass),
-            IOBufferSize,
+            IOBufferSize << 20,
             pushSize,
             jobConf.getOutputKeyComparator(),
             reporter.getCounter(TaskCounter.MAP_OUTPUT_BYTES),
@@ -106,19 +109,21 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
     if (partition < 0 || partition >= numReducers) {
       throw new IOException("Illegal partition for " + key + " (" + partition + ")");
     }
-    sortBasedPusher.checkException();
-    sortBasedPusher.insert(key, value, partition);
+    celebornSortBasedPusher.checkException();
+    celebornSortBasedPusher.insert(key, value, partition);
   }
 
   @Override
   public void close() {
+    logger.info("Mapper called close");
     reporter.progress();
-    sortBasedPusher.close();
+    celebornSortBasedPusher.close();
   }
 
   @Override
   public void flush() {
+    logger.info("Mapper flush close");
+    celebornSortBasedPusher.flush();
     reporter.progress();
-    sortBasedPusher.flush();
   }
 }

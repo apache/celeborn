@@ -18,10 +18,10 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-import org.apache.hadoop.mapred.Counters;
-import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.TaskStatus;
+import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.TaskType;
@@ -33,8 +33,8 @@ import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.unsafe.Platform;
 
-public class CelebornShuffleReader<K, V> {
-  private static Logger logger = LoggerFactory.getLogger(CelebornShuffleReader.class);
+public class CelebornShuffleFetcher<K, V> {
+  private static Logger logger = LoggerFactory.getLogger(CelebornShuffleFetcher.class);
   private TaskAttemptID reduceId;
   private final Reporter reporter;
   private final TaskStatus status;
@@ -48,15 +48,20 @@ public class CelebornShuffleReader<K, V> {
   private boolean hasPendingData = false;
   private long inputShuffleSize;
   private byte[] shuffleData;
+  private List<Long> offsets;
+  private JobConf mrJobConf;
+  private MapOutputFile mapOutputFile;
 
-  public CelebornShuffleReader(
+  public CelebornShuffleFetcher(
       TaskAttemptID reduceId,
       TaskStatus status,
       MergeManager<K, V> merger,
       Progress progress,
       Reporter reporter,
       ShuffleClientMetrics metrics,
-      CelebornInputStream input) {
+      CelebornInputStream input,
+      JobConf mrJobConf,
+      MapOutputFile mapOutputFile) {
     this.reduceId = reduceId;
     this.reporter = reporter;
     this.status = status;
@@ -64,8 +69,11 @@ public class CelebornShuffleReader<K, V> {
     this.progress = progress;
     this.metrics = metrics;
     this.celebornInputStream = input;
+    this.mrJobConf = mrJobConf;
+    this.mapOutputFile = mapOutputFile;
 
     ioErrs = reporter.getCounter("Shuffle Errors", "IO_ERROR");
+    offsets = new ArrayList<>();
   }
 
   // fetch all push data and merge
@@ -77,7 +85,9 @@ public class CelebornShuffleReader<K, V> {
         // Do shuffle
         metrics.threadBusy();
         // read blocks
-        doReadAndMerge();
+        fetchToLocalAndMerge();
+      } catch (Exception e) {
+        logger.error("Celeborn shuffle fetcher fetch data failed.", e);
       } finally {
         metrics.threadFree();
       }
@@ -93,27 +103,27 @@ public class CelebornShuffleReader<K, V> {
       return null;
     }
     while (count != header.length) {
-      count += celebornInputStream.read(header);
+      count += celebornInputStream.read(header, count, 4 - count);
     }
 
     // get data
-    int blockLen = Platform.getInt(header, 0);
+    int blockLen = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
     inputShuffleSize += blockLen;
     byte[] shuffleData = new byte[blockLen];
     count = 0;
-    count = celebornInputStream.read(header);
-    if (count == -1) {
-      // read shuffle is done.
-      stopped = true;
-      throw new CelebornIOException("Read mr shuffle failed.");
-    }
+    count = celebornInputStream.read(shuffleData);
     while (count != shuffleData.length) {
-      count += celebornInputStream.read(header);
+      count += celebornInputStream.read(shuffleData, count, blockLen - count);
+      if (count == -1) {
+        // read shuffle is done.
+        stopped = true;
+        throw new CelebornIOException("Read mr shuffle failed.");
+      }
     }
     return shuffleData;
   }
 
-  private void doReadAndMerge() throws IOException {
+  private void fetchToLocalAndMerge() throws IOException {
     if (!hasPendingData) {
       shuffleData = getShuffleBlock();
     }
@@ -149,7 +159,7 @@ public class CelebornShuffleReader<K, V> {
       throw ioe;
     }
     if (mapOutput == null) {
-      logger.info("RssMRFetcher" + " - MergeManager returned status WAIT ...");
+      logger.info("Celeborn fetcher" + " - MergeManager returned status WAIT ...");
       hasPendingData = true;
       return false;
     }

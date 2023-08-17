@@ -21,6 +21,7 @@ import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.NET_TOPOLOGY_NO
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
@@ -29,8 +30,6 @@ import scala.Tuple2;
 
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.TableMapping;
-import org.apache.hadoop.shaded.com.google.common.base.Charsets;
-import org.apache.hadoop.shaded.com.google.common.io.Files;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,10 +46,12 @@ public class SlotsAllocatorRackAwareSuiteJ {
     conf.set(CelebornConf.CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED().key(), "true");
 
     File mapFile = File.createTempFile("testResolve1", ".txt");
-    Files.asCharSink(mapFile, Charsets.UTF_8)
-        .write(
-            "host1 /default/rack1\nhost2 /default/rack1\nhost3 /default/rack1\n"
-                + "host4 /default/rack2\nhost5 /default/rack2\nhost6 /default/rack2\n");
+    FileWriter mapFileWriter = new FileWriter(mapFile);
+    mapFileWriter.write(
+        "host1 /default/rack1\nhost2 /default/rack1\nhost3 /default/rack1\n"
+            + "host4 /default/rack2\nhost5 /default/rack2\nhost6 /default/rack2\n");
+    mapFileWriter.flush();
+    mapFileWriter.close();
     mapFile.deleteOnExit();
 
     conf.set(

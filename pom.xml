@@ -64,8 +64,13 @@
     <maven.version>3.8.8</maven.version>
 
     <flink.version>1.14.6</flink.version>
-    <hadoop.version>3.2.4</hadoop.version>
     <spark.version>3.3.2</spark.version>
+
+    <!-- use hadoop-3 as default  -->
+    <hadoop.version>3.2.4</hadoop.version>
+    <hadoop-client-api.artifact>hadoop-client-api</hadoop-client-api.artifact>
+    <hadoop-client-runtime.artifact>hadoop-client-runtime</hadoop-client-runtime.artifact>
+    <hadoop-client-minicluster.artifact>hadoop-client-minicluster</hadoop-client-minicluster.artifact>
 
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
@@ -364,16 +369,6 @@
         <version>${zstd-jni.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-client-api</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-client-runtime</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.roaringbitmap</groupId>
         <artifactId>RoaringBitmap</artifactId>
         <version>${roaringbitmap.version}</version>
@@ -383,6 +378,32 @@
         <artifactId>snakeyaml</artifactId>
         <version>${snakeyaml.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>${hadoop-client-api.artifact}</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>${hadoop-client-runtime.artifact}</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-mapreduce-client-app</artifactId>
+        <version>${hadoop.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
@@ -1077,9 +1098,21 @@
     </profile>
 
     <profile>
+      <id>hadoop-2</id>
+      <properties>
+        <hadoop.version>2.8.4</hadoop.version>
+        <hadoop-client-api.artifact>hadoop-client</hadoop-client-api.artifact>
+        <hadoop-client-runtime.artifact>hadoop-yarn-api</hadoop-client-runtime.artifact>
+        <hadoop-client-minicluster.artifact>hadoop-client</hadoop-client-minicluster.artifact>
+      </properties>
+    </profile>
+
+    <profile>
       <id>mr</id>
       <modules>
-        <module>client-mr</module>
+        <module>client-mr/mr</module>
+        <module>client-mr/mr-shaded</module>
+        <module>tests/mr-it</module>
       </modules>
     </profile>
 

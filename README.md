@@ -41,12 +41,12 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4 and flink 1.14/1.15/1.17.
+1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4 and flink 1.14/1.15/1.17 and mr hadoop-2/hadoop-3.
 2.Celeborn tested under Java 8 environment.
 
 Build Celeborn
 ```shell
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pflink-1.14/-Pflink-1.15/-Pflink-1.17
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pflink-1.14/-Pflink-1.15/-Pflink-1.17/-Phadoop-2,mr/-Pmr
 ```
 
 package apache-celeborn-${project.version}-bin.tgz will be generated.
@@ -76,6 +76,18 @@ Flink package layout:
     ├── worker-jars                     
     ├── sbin
     └── flink          // flink client jars
+```
+
+MR package layout:
+```
+    ├── RELEASE                         
+    ├── bin                             
+    ├── conf                            
+    ├── jars           // common jars for master and worker                        
+    ├── master-jars                     
+    ├── worker-jars                     
+    ├── sbin
+    └── mr          // mr client jars
 ```
 
 ### Compatibility
@@ -292,6 +304,19 @@ taskmanager.network.memory.floating-buffers-per-gate: 4096
 taskmanager.network.memory.buffers-per-channel: 0
 taskmanager.memory.task.off-heap.size: 512m
 ```
+
+### Deploy mr client 
+Add $CELEBORN_HOME/mr/*.jar to to `mapreduce.application.classpath` and `yarn.application.classpath`.
+And setting the following settings in Yarn and MR config.
+```bash
+-Dyarn.app.mapreduce.am.job.recovery.enable=false
+-Dmapreduce.job.reduce.slowstart.completedmaps=1
+-Dmapreduce.celeborn.master.endpoints=<master-1-1>:9097
+-Dyarn.app.mapreduce.am.command-opts=org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn
+-Dmapreduce.job.map.output.collector.class=org.apache.hadoop.mapred.CelebornMapOutputCollector
+-Dmapreduce.job.reduce.shuffle.consumer.plugin.class=org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer
+```
+
 
 ### Best Practice
 If you want to set up a production-ready Celeborn cluster, your cluster should have at least 3 masters and at least 4 workers.

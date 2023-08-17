@@ -108,6 +108,17 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>${hadoop-client-api.artifact}</artifactId>
+      <version>${hadoop.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>${hadoop-client-runtime.artifact}</artifactId>
+      <version>${hadoop.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
     </dependency>
@@ -145,30 +156,4 @@
     </extensions>
   </build>
 
-  <profiles>
-    <profile>
-      <id>hadoop-2</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-client</artifactId>
-          <version>${hadoop.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
-      <id>hadoop-3</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-client-api</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-client-runtime</artifactId>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
 </project>

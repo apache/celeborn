@@ -21,102 +21,88 @@
     <groupId>org.apache.celeborn</groupId>
     <artifactId>celeborn-parent_${scala.binary.version}</artifactId>
     <version>${project.version}</version>
+    <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-master_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-mr-it</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Master</name>
+  <name>Celeborn MapReduce Integration Test</name>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-common_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-service_${scala.binary.version}</artifactId>
+      <artifactId>celeborn-client_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-master_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-worker_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-worker_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-common</artifactId>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-client-mr-shade-${hadoop.version}</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-server</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-netty</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-grpc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.ratis</groupId>
-      <artifactId>ratis-shell</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-1.2-api</artifactId>
-    </dependency>
+
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>${hadoop-client-api.artifact}</artifactId>
       <version>${hadoop.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>${hadoop-client-runtime.artifact}</artifactId>
       <version>${hadoop.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-minicluster</artifactId>
+      <version>${hadoop.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>21.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-mapreduce-examples</artifactId>
+      <version>${hadoop.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+    </dependency>
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-      </plugin>
-    </plugins>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${maven.plugin.os.version}</version>
-      </extension>
-    </extensions>
-  </build>
 </project>
