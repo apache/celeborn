@@ -37,27 +37,6 @@ DEP_PR=""
 DEP=""
 
 function mvn_build_classpath() {
-  case "$MODULE" in
-    "spark-2.4")
-      MVN_MODULES="client-spark/spark-2"
-      ;;
-    "spark-3.0" | "spark-3.1" | "spark-3.2" | "spark-3.3" | "spark-3.4")
-      MVN_MODULES="client-spark/spark-3"
-      ;;
-    "flink-1.14")
-      MVN_MODULES="client-flink/flink-1.14"
-      ;;
-    "flink-1.15")
-      MVN_MODULES="client-flink/flink-1.15"
-      ;;
-    "flink-1.17")
-      MVN_MODULES="client-flink/flink-1.17"
-      ;;
-    *)
-      MVN_MODULES="worker,master"
-      ;;
-  esac
-
   $MVN -P$MODULE clean install -DskipTests -am -pl $MVN_MODULES
   $MVN -P$MODULE dependency:build-classpath -am -pl $MVN_MODULES | \
     grep -v "INFO\|WARN" | \
@@ -76,14 +55,8 @@ function mvn_build_classpath() {
 }
 
 function sbt_build_client_classpath() {
-  $SBT -P$MODULE "clean; export ${SBT_PROJECT}externalDependencyClasspath" | \
-    awk 'NR % 2 == 0 { even_line = $0 } END { if (even_line != "Compile / externalDependencyClasspath") print even_line }' filename
-    grep -v "\[info\]\|\[success\]" | \
-    grep -v "Compile / externalDependencyClasspath" | \
-    # This will skip the first two lines
-    tail -n +3 | \
-    # This will skip the last line 
-    sed '$d' | \
+  $SBT -P$MODULE "error; clean; export ${SBT_PROJECT}/Runtime/externalDependencyClasspath" | \
+    tail -1 | \
     tr ":" "\n" | \
     awk -F '/' '{
       artifact_id=$(NF-2);
@@ -165,6 +138,33 @@ while (( "$#" )); do
   esac
   shift
 done
+
+case "$MODULE" in
+  "spark-2.4")
+    MVN_MODULES="client-spark/spark-2"
+    SBT_PROJECT="celeborn-client-spark-2"
+    ;;
+  "spark-3.0" | "spark-3.1" | "spark-3.2" | "spark-3.3" | "spark-3.4")
+    MVN_MODULES="client-spark/spark-3"
+    SBT_PROJECT="celeborn-client-spark-3"
+    ;;
+  "flink-1.14")
+    MVN_MODULES="client-flink/flink-1.14"
+    SBT_PROJECT="celeborn-client-flink-1_14"
+    ;;
+  "flink-1.15")
+    MVN_MODULES="client-flink/flink-1.15"
+    SBT_PROJECT="celeborn-client-flink-1_15"
+    ;;
+  "flink-1.17")
+    MVN_MODULES="client-flink/flink-1.17"
+    SBT_PROJECT="celeborn-client-flink-1_17"
+    ;;
+  *)
+    MVN_MODULES="worker,master"
+    ;;
+esac
+
 
 if [ "$MODULE" = "server" ]; then
     DEP="${PWD}/dev/deps/dependencies-server"
