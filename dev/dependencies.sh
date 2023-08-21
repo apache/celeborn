@@ -37,8 +37,29 @@ DEP_PR=""
 DEP=""
 
 function mvn_build_classpath() {
-  $MVN clean package -DskipTests
-  $MVN dependency:build-classpath | \
+  case "$MODULE" in
+    "spark-2.4")
+      MVN_MODULES="client-spark/spark-2"
+      ;;
+    "spark-3.0" | "spark-3.1" | "spark-3.2" | "spark-3.3" | "spark-3.4")
+      MVN_MODULES="client-spark/spark-3"
+      ;;
+    "flink-1.14")
+      MVN_MODULES="client-flink/flink-1.14"
+      ;;
+    "flink-1.15")
+      MVN_MODULES="client-flink/flink-1.15"
+      ;;
+    "flink-1.17")
+      MVN_MODULES="client-flink/flink-1.17"
+      ;;
+    *)
+      MVN_MODULES="worker,master"
+      ;;
+  esac
+
+  $MVN -P$MODULE clean install -DskipTests -am -pl $MVN_MODULES
+  $MVN -P$MODULE dependency:build-classpath -am -pl $MVN_MODULES | \
     grep -v "INFO\|WARN" | \
     # This will skip the first two lines 
     tail -n +3 | \
@@ -144,28 +165,6 @@ while (( "$#" )); do
   esac
   shift
 done
-
-# case "$MODULE" in
-#   "spark-2.4")
-#     SBT_PROJECT="celeborn-client-spark-2/"
-#     ;;
-#   "spark-3.0" | "spark-3.1" | "spark-3.2" | "spark-3.3" | "spark-3.4")
-#     SBT_PROJECT="celeborn-client-spark-3/"
-#     ;;
-#   "flink-1.14")
-#     SBT_PROJECT="celeborn-client-flink-1_14/"
-#     ;;
-#   "flink-1.15")
-#     SBT_PROJECT="celeborn-client-flink-1_15/"
-#     ;;
-#   "flink-1.17")
-#     SBT_PROJECT="celeborn-client-flink-1_17/"
-#     ;;
-#   *)
-#     DEP="${PWD}/dev/deps/dependencies-server"
-#     DEP_PR="${PWD}/dev/deps/dependencies-server.tmp"
-#     ;;
-# esac
 
 if [ "$MODULE" = "server" ]; then
     DEP="${PWD}/dev/deps/dependencies-server"
