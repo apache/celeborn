@@ -2314,7 +2314,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.diskTime.slidingWindow.minFetchCount")
       .categories("worker")
       .doc("The minimum fetch count to enter a sliding window" +
-        " to calculate statistics about flushed time and count.")
+        " to calculate statistics about fetched time and count.")
       .version("0.2.1")
       .internal
       .intConf
