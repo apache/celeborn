@@ -31,9 +31,10 @@ SBT="${PWD}/build/sbt"
 SBT_ENABLED="false"
 REPLACE="false"
 CHECK="false"
+MODULE=""
 
-DEP_PR="${PWD}/dev/deps/dependencyList.tmp"
-DEP="${PWD}/dev/deps/dependencyList"
+DEP_PR=""
+DEP=""
 
 function mvn_build_classpath() {
   $MVN clean package -DskipTests
@@ -53,12 +54,31 @@ function mvn_build_classpath() {
     }' | grep -v "celeborn" | sort -u >> "${DEP_PR}"
 }
 
-function sbt_build_classpath() {
-  $SBT "clean; export externalDependencyClasspath" | \
+function sbt_build_client_classpath() {
+  $SBT -P$MODULE "clean; export ${SBT_PROJECT}externalDependencyClasspath" | \
+    awk 'NR % 2 == 0 { even_line = $0 } END { if (even_line != "Compile / externalDependencyClasspath") print even_line }' filename
     grep -v "\[info\]\|\[success\]" | \
     grep -v "Compile / externalDependencyClasspath" | \
     # This will skip the first two lines
     tail -n +3 | \
+    # This will skip the last line 
+    sed '$d' | \
+    tr ":" "\n" | \
+    awk -F '/' '{
+      artifact_id=$(NF-2);
+      version=$(NF-1);
+      jar_name=$NF;
+      classifier_start_index=length(artifact_id"-"version"-") + 1;
+      classifier_end_index=index(jar_name, ".jar") - 1;
+      classifier=substr(jar_name, classifier_start_index, classifier_end_index - classifier_start_index + 1);
+      print artifact_id"/"version"/"classifier"/"jar_name
+    }' | sort -u >> "${DEP_PR}"
+}
+
+function sbt_build_server_classpath() {
+  $SBT "error; clean; export externalDependencyClasspath" | \
+    awk '/externalDependencyClasspath/ { found=1 } found { print }' | \
+    awk 'NR % 2 == 0' | \
     # This will skip the last line 
     sed '$d' | \
     tr ":" "\n" | \
@@ -87,9 +107,73 @@ function check_diff() {
 }
 
 function exit_with_usage() {
-  echo "Usage: $0 [--sbt | --mvn] [--replace] [--check] [--help]"
+  echo "Usage: $0 [--sbt | --mvn] [--replace] [--check] [--module MODULE_VALUE] [--help]"
   exit 1
 }
+
+# Parse arguments
+while (( "$#" )); do
+  case $1 in
+    --sbt)
+      SBT_ENABLED="true"
+      ;;
+    --mvn)
+      SBT_ENABLED="false"
+      ;;
+    --replace)
+      REPLACE="true"
+      ;;
+    --check)
+      CHECK="true"
+      ;;
+    --module)   # Support for --module parameter
+      shift
+      MODULE="$1"
+      ;;
+    --help)
+      exit_with_usage
+      ;;
+    --*)
+      echo "Error: $1 is not supported"
+      exit_with_usage
+      ;;
+    *)
+      echo "Error: $1 is not supported"
+      exit_with_usage
+      ;;
+  esac
+  shift
+done
+
+# case "$MODULE" in
+#   "spark-2.4")
+#     SBT_PROJECT="celeborn-client-spark-2/"
+#     ;;
+#   "spark-3.0" | "spark-3.1" | "spark-3.2" | "spark-3.3" | "spark-3.4")
+#     SBT_PROJECT="celeborn-client-spark-3/"
+#     ;;
+#   "flink-1.14")
+#     SBT_PROJECT="celeborn-client-flink-1_14/"
+#     ;;
+#   "flink-1.15")
+#     SBT_PROJECT="celeborn-client-flink-1_15/"
+#     ;;
+#   "flink-1.17")
+#     SBT_PROJECT="celeborn-client-flink-1_17/"
+#     ;;
+#   *)
+#     DEP="${PWD}/dev/deps/dependencies-server"
+#     DEP_PR="${PWD}/dev/deps/dependencies-server.tmp"
+#     ;;
+# esac
+
+if [ "$MODULE" = "server" ]; then
+    DEP="${PWD}/dev/deps/dependencies-server"
+    DEP_PR="${PWD}/dev/deps/dependencies-server.tmp"
+else
+    DEP="${PWD}/dev/deps/dependencies-client-$MODULE"
+    DEP_PR="${PWD}/dev/deps/dependencies-client-$MODULE.tmp"
+fi
 
 rm -rf "${DEP_PR}"
 cat >"${DEP_PR}"<<EOF
@@ -112,38 +196,12 @@ cat >"${DEP_PR}"<<EOF
 
 EOF
 
-# Parse arguments
-while (( "$#" )); do
-  case $1 in
-    --sbt)
-      SBT_ENABLED="true"
-      ;;
-    --mvn)
-      SBT_ENABLED="false"
-      ;;
-    --replace)
-      REPLACE="true"
-      ;;
-    --check)
-      CHECK="true"
-      ;;
-    --help)
-      exit_with_usage
-      ;;
-    --*)
-      echo "Error: $1 is not supported"
-      exit_with_usage
-      ;;
-    *)
-      echo "Error: $1 is not supported"
-      exit_with_usage
-      ;;
-  esac
-  shift
-done
-
 if [ "$SBT_ENABLED" == "true" ]; then
-  sbt_build_classpath
+  if [ "$MODULE" == "server" ]; then
+    sbt_build_server_classpath
+  else
+    sbt_build_client_classpath
+  fi
 else
   mvn_build_classpath
 fi

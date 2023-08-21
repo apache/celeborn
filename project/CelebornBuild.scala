@@ -190,13 +190,21 @@ object CelebornCommonSettings {
 }
 
 object CelebornBuild extends sbt.internal.BuildDef {
+  lazy val serverGroup = (project withId "celeborn-server-group")
+    .aggregate(
+      CelebornCommon.common,
+      CelebornClient.client,
+      CelebornService.service,
+      CelebornWorker.worker,
+      CelebornMaster.master)
   override def projectDefinitions(baseDirectory: File): Seq[Project] = {
     Seq(
       CelebornCommon.common,
       CelebornClient.client,
       CelebornService.service,
       CelebornWorker.worker,
-      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules
+      CelebornMaster.master,
+      serverGroup) ++ maybeSparkClientModules ++ maybeFlinkClientModules
   }
   
   // ThisBuild / parallelExecution := false
