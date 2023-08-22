@@ -424,7 +424,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     // Second, for each worker, try to initialize the endpoint.
     val parallelism = Math.min(Math.max(1, slots.size()), conf.clientRpcMaxParallelism)
-    ThreadUtils.parmap(slots.asScala.to, "InitWorkerRef", parallelism) { case (workerInfo, _) =>
+    ThreadUtils.parmap(slots.asScala, "InitWorkerRef", parallelism) { case (workerInfo, _) =>
       try {
         workerInfo.endpoint =
           rpcEnv.setupEndpointRef(RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
@@ -648,7 +648,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val workerPartitionLocations = slots.asScala.filter(p => !p._2._1.isEmpty || !p._2._2.isEmpty)
     val parallelism =
       Math.min(Math.max(1, workerPartitionLocations.size), conf.clientRpcMaxParallelism)
-    ThreadUtils.parmap(workerPartitionLocations.to, "ReserveSlot", parallelism) {
+    ThreadUtils.parmap(workerPartitionLocations, "ReserveSlot", parallelism) {
       case (workerInfo, (primaryLocations, replicaLocations)) =>
         val res = requestWorkerReserveSlots(
           workerInfo.endpoint,
