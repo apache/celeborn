@@ -94,7 +94,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # SPARK-33772: Spark supports JDK 17 since 3.3.0
           # Spark 3.0
           - spark: '3.0'
             scala: '2.12.10'
@@ -102,9 +101,6 @@ jobs:
           - spark: '3.0'
             scala: '2.12.10'
             java: 11
-          - spark: '3.0'
-            scala: '2.12.10'
-            java: 17
           # Spark 3.1
           - spark: '3.1'
             scala: '2.12.10'
@@ -112,9 +108,6 @@ jobs:
           - spark: '3.1'
             scala: '2.12.10'
             java: 11
-          - spark: '3.1'
-            scala: '2.12.10'
-            java: 17
           # Spark supports scala 2.13 since 3.2.0
           # Spark 3.2
           - spark: '3.2'
@@ -124,17 +117,12 @@ jobs:
             scala: '2.12.15'
             java: 11
           - spark: '3.2'
-            scala: '2.12.15'
-            java: 17
-          - spark: '3.2'
             scala: '2.13.5'
             java: 8
           - spark: '3.2'
             scala: '2.13.5'
             java: 11
-          - spark: '3.2'
-            scala: '2.13.5'
-            java: 17
+          # SPARK-33772: Spark supports JDK 17 since 3.3.0
           # Spark 3.3
           - spark: '3.3'
             scala: '2.12.15'
