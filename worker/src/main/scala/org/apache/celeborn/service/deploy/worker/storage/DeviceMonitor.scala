@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import java.io.{BufferedReader, File, FileInputStream, IOException, InputStreamReader}
+import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
 import java.nio.charset.Charset
 import java.util
 import java.util.concurrent.TimeUnit

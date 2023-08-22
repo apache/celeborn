@@ -802,7 +802,8 @@ object ControlMessages extends Logging {
         val estimatedAppDiskUsage = new util.HashMap[String, java.lang.Long]()
         val userResourceConsumption = PbSerDeUtils.fromPbUserResourceConsumption(
           pbHeartbeatFromWorker.getUserResourceConsumptionMap)
-        val pbDisks = pbHeartbeatFromWorker.getDisksList.asScala.toSeq.map(PbSerDeUtils.fromPbDiskInfo)
+        val pbDisks =
+          pbHeartbeatFromWorker.getDisksList.asScala.toSeq.map(PbSerDeUtils.fromPbDiskInfo)
         if (!pbHeartbeatFromWorker.getEstimatedAppDiskUsageMap.isEmpty) {
           estimatedAppDiskUsage.putAll(pbHeartbeatFromWorker.getEstimatedAppDiskUsageMap)
         }
