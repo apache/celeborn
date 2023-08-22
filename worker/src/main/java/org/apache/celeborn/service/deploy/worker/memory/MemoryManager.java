@@ -256,10 +256,6 @@ public class MemoryManager {
         Utils.bytesToString(memoryShuffleStorageThreshold));
   }
 
-  /**
-   * Get current worker serving state. isPaused should be set true when trigger pause, and set false
-   * when trigger resume.
-   */
   public ServingState currentServingState() {
     long memoryUsage = getMemoryUsage();
     // trigger pause both push and replicate
