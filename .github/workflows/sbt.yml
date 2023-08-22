@@ -109,10 +109,19 @@ jobs:
           - '2.12.17'
           - '2.13.5'
         include:
+          # SPARK-33772: Spark supports JDK 17 since 3.3.0
           - spark: '3.0'
             scala: '2.12.10'
+            java: 8
+          - spark: '3.0'
+            scala: '2.12.10'
+            java: 11
           - spark: '3.1'
             scala: '2.12.10'
+            java: 8
+          - spark: '3.1'
+            scala: '2.12.10'
+            java: 11
           # Spark supports scala 2.13 since 3.2.0
           - spark: '3.2'
             scala: '2.12.15'
@@ -126,14 +135,6 @@ jobs:
             scala: '2.12.17'
           - spark: '3.4'
             scala: '2.13.5'
-        exclude:
-          # SPARK-33772: Spark supports JDK 17 since 3.3.0
-          - java: 17
-            spark: '3.0'
-          - java: 17
-            spark: '3.1'
-          - java: 17
-            spark: '3.2'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK ${{ matrix.java }}
