@@ -197,7 +197,7 @@ abstract class CommitHandler(
     val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
     val parallelism = Math.min(workerPartitionLocations.size, conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(
-      workerPartitionLocations.to,
+      workerPartitionLocations,
       "CommitFiles",
       parallelism) { case (worker, partitionLocationInfo) =>
       val primaryParts =

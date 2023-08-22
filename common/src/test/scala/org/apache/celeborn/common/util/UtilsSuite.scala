@@ -162,7 +162,7 @@ class UtilsSuite extends CelebornFunSuite {
       GetReducerFileGroupResponse]
 
     assert(response.status == responseTrans.status)
-    assert(response.attempts.deep == responseTrans.attempts.deep)
+    assert(util.Arrays.equals(response.attempts, responseTrans.attempts))
     val set =
       (response.fileGroup.values().toArray diff responseTrans.fileGroup.values().toArray).toSet
     assert(set.size == 0)

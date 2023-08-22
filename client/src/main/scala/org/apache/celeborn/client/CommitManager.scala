@@ -117,7 +117,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                         Math.min(workerToRequests.size, conf.clientRpcMaxParallelism)
                       try {
                         ThreadUtils.parmap(
-                          workerToRequests.to,
+                          workerToRequests,
                           "CommitFiles",
                           parallelism) {
                           case (worker, requests) =>
