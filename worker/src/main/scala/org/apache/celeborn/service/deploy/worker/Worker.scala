@@ -84,7 +84,7 @@ private[celeborn] class Worker(
       conf.workerPushPort > 0 && conf.workerReplicatePort > 0),
     "If enable graceful shutdown, the worker should use stable server port.")
   if (gracefulShutdown) {
-    exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
+    exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
     try {
       val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
       if (!recoverRoot.exists()) {
@@ -678,10 +678,13 @@ private[celeborn] class Worker(
         logInfo("Shutdown hook called.")
         exitKind match {
           case CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN =>
+            logInfo("Worker start to shutdown gracefully")
             shutdownGracefully()
           case CelebornExitKind.WORKER_DECOMMISSION =>
+            logInfo("Worker start to decommission")
             decommissionWorker()
           case _ =>
+            logInfo("Worker start to exit immediately")
             exitImmediately()
         }
         stop(exitKind)
