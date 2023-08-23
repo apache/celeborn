@@ -470,7 +470,7 @@ object Spark33 extends SparkClientProjects {
   val sparkProjectScalaVersion = "2.12.15"
   // scalaBinaryVersion
   // val scalaBinaryVersion = "2.12"
-  val sparkVersion = "3.3.2"
+  val sparkVersion = "3.3.3"
   val zstdJniVersion = "1.5.2-1"
 }
 
