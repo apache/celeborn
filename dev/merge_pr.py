@@ -280,7 +280,7 @@ def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
 
     default_fix_versions = []
     for b in merge_branches:
-        if b == "master":
+        if b == "main":
             default_fix_versions.append(versions[0].name)
         else:
             found = False
