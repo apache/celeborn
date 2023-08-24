@@ -2474,7 +2474,7 @@ object CelebornConf extends Logging {
       .doc("If direct memory usage is less than this limit, worker will resume.")
       .version("0.2.0")
       .doubleConf
-      .createWithDefault(0.5)
+      .createWithDefault(0.7)
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
