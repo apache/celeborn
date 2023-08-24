@@ -804,6 +804,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def shuffleManagerPort: Int = get(CLIENT_SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
+  def dfsReadChunkSize: Long = get(CLIENT_FETCH_DFS_READ_CHUNK_SIZE)
   def shufflePartitionSplitMode: PartitionSplitMode =
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
@@ -1944,10 +1945,18 @@ object CelebornConf extends Logging {
 
   val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chunk.size")
-      .categories("client", "worker")
+      .categories("worker")
       .version("0.2.0")
       .doc("Max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
         "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8m")
+
+  val CLIENT_FETCH_DFS_READ_CHUNK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.dfsReadChunkSize")
+      .categories("client")
+      .version("0.3.1")
+      .doc("Max chunk size for DfsPartitionReader.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8m")
 
