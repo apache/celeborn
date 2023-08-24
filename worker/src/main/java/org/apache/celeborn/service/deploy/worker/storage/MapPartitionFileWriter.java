@@ -51,7 +51,7 @@ public final class MapPartitionFileWriter extends FileWriter {
   private long totalBytes;
   private long regionStartingOffset;
   private FileChannel indexChannel;
-  private boolean isRegionFinished = true;
+  private volatile boolean isRegionFinished = true;
   private boolean splitEnabled;
 
   public MapPartitionFileWriter(

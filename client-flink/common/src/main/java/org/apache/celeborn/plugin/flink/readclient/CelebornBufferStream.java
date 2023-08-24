@@ -137,7 +137,6 @@ public class CelebornBufferStream {
     synchronized (lock) {
       if (isOpenSuccess) {
         cleanStream(streamId);
-        isOpenSuccess = false;
       }
       isClosed = true;
     }

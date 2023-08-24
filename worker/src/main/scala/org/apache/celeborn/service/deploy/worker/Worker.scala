@@ -607,9 +607,11 @@ private[celeborn] class Worker(
 
     def waitTime: Long = waitTimes * interval
     // for mappartition, it should wait that datas of a region are completely received.
-    while (!partitionLocationInfo.isEmpty && !isRegionFinished && waitTime < timeout) {
+    var isFinished = isRegionFinished
+    while (!partitionLocationInfo.isEmpty && !isFinished && waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
+      isFinished = isRegionFinished
     }
     if (partitionLocationInfo.isEmpty) {
       logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
@@ -618,7 +620,7 @@ private[celeborn] class Worker(
         s"unreleased PartitionLocation: \n$partitionLocationInfo")
     }
 
-    if (isRegionFinished) {
+    if (isFinished) {
       logInfo(s"Waiting for all partition regionFinish cost ${waitTime}ms.")
     } else {
       logWarning(s"Waiting for all partition regionFinish cost ${waitTime}ms, but some regions are not finished")
