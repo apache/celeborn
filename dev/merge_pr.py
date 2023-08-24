@@ -237,15 +237,6 @@ def cherry_pick(pr_num, merge_hash, default_branch):
     return pick_ref
 
 
-def fix_version_from_branch(branch, versions):
-    # Note: Assumes this is a sorted (newest->oldest) list of un-released versions
-    if branch == "main":
-        return versions[0]
-    else:
-        branch_ver = branch.replace("branch-", "")
-        return list(filter(lambda x: x.name.startswith(branch_ver), versions))[-1]
-
-
 def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
     asf_jira = jira.client.JIRA(
         {"server": JIRA_API_BASE}, basic_auth=(ASF_USERNAME, ASF_PASSWORD)
@@ -280,14 +271,36 @@ def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
     )
 
     versions = asf_jira.project_versions("CELEBORN")
-    versions = sorted(versions, key=lambda x: x.name, reverse=True)
-    versions = list(filter(lambda x: x.raw["released"] is False, versions))
-    # Consider only x.y.z versions
-    versions = list(filter(lambda x: re.match(r"\d+\.\d+\.\d+", x.name), versions))
+    # Consider only x.y.z, unreleased, unarchived versions
+    versions = [
+        x
+        for x in versions
+        if not x.raw["released"] and not x.raw["archived"] and re.match(r"\d+\.\d+\.\d+", x.name)
+    ]
 
-    default_fix_versions = list(
-        map(lambda x: fix_version_from_branch(x, versions).name, merge_branches)
-    )
+    default_fix_versions = []
+    for b in merge_branches:
+        if b == "main":
+            default_fix_versions.append(versions[0].name)
+        else:
+            found = False
+            found_versions = []
+            for v in versions:
+                if v.name.startswith(b.replace("branch-", "")):
+                    found_versions.append(v.name)
+                    found = True
+            if found:
+                # There might be several unreleased versions for specific branches
+                # For example, assuming
+                # versions = ['4.0.0', '3.5.1', '3.5.0', '3.4.2', '3.3.4', '3.3.3']
+                # we've found two candidates for branch-3.5, we pick the last/smallest one
+                default_fix_versions.append(found_versions[-1])
+            else:
+                print(
+                    "Target version for %s is not found on JIRA, it may be archived or "
+                    "not created. Skipping it." % b
+                )
+
     for v in default_fix_versions:
         # Handles the case where we have forked a release branch but not yet made the release.
         # In this case, if the PR is committed to the main branch and the release branch, we
@@ -372,13 +385,26 @@ def choose_jira_assignee(issue, asf_jira):
                 except BaseException:
                     # assume it's a user id, and try to assign (might fail, we just prompt again)
                     assignee = asf_jira.user(raw_assignee)
-                asf_jira.assign_issue(issue.key, assignee.name)
+                assign_issue(asf_jira, issue.key, assignee.name)
                 return assignee
         except KeyboardInterrupt:
             raise
         except BaseException:
             traceback.print_exc()
             print("Error assigning JIRA, try again (or leave blank and fix manually)")
+
+def assign_issue(client, issue: int, assignee: str) -> bool:
+    """
+    Assign an issue to a user, which is a shorthand for jira.client.JIRA.assign_issue.
+    The original one has an issue that it will search users again and only choose the assignee
+    from 20 candidates. If it's unmatched, it picks the head blindly. In our case, the assignee
+    is already resolved.
+    """
+    url = getattr(client, "_get_latest_url")(f"issue/{issue}/assignee")
+    payload = {"name": assignee}
+    getattr(client, "_session").put(url, data=json.dumps(payload))
+    return True
+
 
 
 def resolve_jira_issues(title, merge_branches, comment):

@@ -249,6 +249,10 @@ public abstract class FileWriter implements DeviceObserver {
     void run() throws IOException;
   }
 
+  public boolean isClosed() {
+    return closed;
+  }
+
   protected synchronized long close(
       RunnableWithIOException tryClose,
       RunnableWithIOException streamClose,

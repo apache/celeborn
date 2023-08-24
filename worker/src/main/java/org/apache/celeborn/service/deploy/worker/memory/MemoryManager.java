@@ -43,7 +43,7 @@ import org.apache.celeborn.service.deploy.worker.storage.CreditStreamManager;
 public class MemoryManager {
   private static final Logger logger = LoggerFactory.getLogger(MemoryManager.class);
   private static volatile MemoryManager _INSTANCE = null;
-  private long maxDirectorMemory = 0;
+  @VisibleForTesting public long maxDirectorMemory = 0;
   private final long pausePushDataThreshold;
   private final long pauseReplicateThreshold;
   private final long resumeThreshold;
@@ -66,7 +66,7 @@ public class MemoryManager {
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private ServingState servingState = ServingState.NONE_PAUSED;
-  private boolean underPressure;
+  private volatile boolean isPaused = false;
 
   // For credit stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
@@ -120,7 +120,14 @@ public class MemoryManager {
             .<Long>invoke();
 
     Preconditions.checkArgument(maxDirectorMemory > 0);
-    Preconditions.checkArgument(pauseReplicateRatio > pausePushDataRatio);
+    Preconditions.checkArgument(
+        pauseReplicateRatio > pausePushDataRatio,
+        String.format(
+            "Invalid config, %s(%s) should be greater than %s(%s)",
+            CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE().key(),
+            pauseReplicateRatio,
+            CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(),
+            pausePushDataRatio));
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
     Preconditions.checkArgument(resumeRatio > (readBufferRatio + shuffleStorageRatio));
 
@@ -246,27 +253,25 @@ public class MemoryManager {
 
   public ServingState currentServingState() {
     long memoryUsage = getMemoryUsage();
-    boolean pausePushData = memoryUsage > pausePushDataThreshold;
-    boolean pauseReplicate = memoryUsage > pauseReplicateThreshold;
-    boolean resume = memoryUsage < resumeThreshold;
-    if (pausePushData || pauseReplicate) {
-      underPressure = true;
-    } else if (resume) {
-      underPressure = false;
-    }
-    if (pausePushData && pauseReplicate) {
+    // pause replicate threshold always greater than pause push data threshold
+    // so when trigger pause replicate, pause both push and replicate
+    if (memoryUsage > pauseReplicateThreshold) {
+      isPaused = true;
       return ServingState.PUSH_AND_REPLICATE_PAUSED;
     }
-    if (pausePushData) {
+    // trigger pause only push
+    if (memoryUsage > pausePushDataThreshold) {
+      isPaused = true;
       return ServingState.PUSH_PAUSED;
     }
-    if (resume) {
+    // trigger resume
+    if (memoryUsage < resumeThreshold) {
+      isPaused = false;
       return ServingState.NONE_PAUSED;
     }
-    if (underPressure) {
-      return ServingState.PUSH_PAUSED;
-    }
-    return ServingState.NONE_PAUSED;
+    // if isPaused and not trigger resume, then return pause push
+    // wait for trigger resumeThreshold to resume state
+    return isPaused ? ServingState.PUSH_PAUSED : ServingState.NONE_PAUSED;
   }
 
   public void trimAllListeners() {
@@ -405,7 +410,8 @@ public class MemoryManager {
     void onChange(long newMemoryTarget);
   }
 
-  enum ServingState {
+  @VisibleForTesting
+  public enum ServingState {
     NONE_PAUSED,
     PUSH_AND_REPLICATE_PAUSED,
     PUSH_PAUSED

@@ -197,7 +197,7 @@ abstract class CommitHandler(
     val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
     val parallelism = Math.min(workerPartitionLocations.size, conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(
-      workerPartitionLocations.to,
+      workerPartitionLocations,
       "CommitFiles",
       parallelism) { case (worker, partitionLocationInfo) =>
       val primaryParts =
@@ -317,8 +317,8 @@ abstract class CommitHandler(
         CommitFilesResponse(
           status = if (res1.status == StatusCode.SUCCESS) res2.status else res1.status,
           (res1.committedPrimaryIds.asScala ++ res2.committedPrimaryIds.asScala).toList.asJava,
-          (res1.committedReplicaIds.asScala ++ res1.committedReplicaIds.asScala).toList.asJava,
-          (res1.failedPrimaryIds.asScala ++ res1.failedPrimaryIds.asScala).toList.asJava,
+          (res1.committedReplicaIds.asScala ++ res2.committedReplicaIds.asScala).toList.asJava,
+          (res1.failedPrimaryIds.asScala ++ res2.failedPrimaryIds.asScala).toList.asJava,
           (res1.failedReplicaIds.asScala ++ res2.failedReplicaIds.asScala).toList.asJava,
           res1.committedPrimaryStorageInfos,
           res1.committedReplicaStorageInfos,

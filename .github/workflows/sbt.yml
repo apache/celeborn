@@ -38,6 +38,9 @@ jobs:
           - 8
           - 11
           - 17
+        scala:
+          - '2.12.15'
+          - '2.13.5'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK ${{ matrix.java }}
@@ -45,16 +48,15 @@ jobs:
       with:
         distribution: zulu
         java-version: ${{ matrix.java }}
-        cache: maven
         check-latest: false
     - name: Test Service with SBT
       run: |
-        build/sbt "clean; test"
+        build/sbt ++${{ matrix.scala }} "clean; test"
     - name: Upload test log
       if: failure()
       uses: actions/upload-artifact@v3
       with:
-          name: service-${{ matrix.java }}-unit-test-log
+          name: service-java-${{ matrix.java }}-scala-${{ matrix.scala }}-unit-test-log
           path: |
               **/target/test-reports/**
 
@@ -74,7 +76,6 @@ jobs:
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
-          cache: maven
           check-latest: false
       - name: Test with SBT
         run: |
@@ -92,24 +93,74 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java:
-          - 8
-          - 11
-          - 17
-        spark:
-          - '3.0'
-          - '3.1'
-          - '3.2'
-          - '3.3'
-          - '3.4'
-        exclude:
+        include:
+          # Spark 3.0
+          - spark: '3.0'
+            scala: '2.12.10'
+            java: 8
+          - spark: '3.0'
+            scala: '2.12.10'
+            java: 11
+          # Spark 3.1
+          - spark: '3.1'
+            scala: '2.12.10'
+            java: 8
+          - spark: '3.1'
+            scala: '2.12.10'
+            java: 11
+          # Spark supports scala 2.13 since 3.2.0
+          # Spark 3.2
+          - spark: '3.2'
+            scala: '2.12.15'
+            java: 8
+          - spark: '3.2'
+            scala: '2.12.15'
+            java: 11
+          - spark: '3.2'
+            scala: '2.13.5'
+            java: 8
+          - spark: '3.2'
+            scala: '2.13.5'
+            java: 11
           # SPARK-33772: Spark supports JDK 17 since 3.3.0
-          - java: 17
-            spark: '3.0'
-          - java: 17
-            spark: '3.1'
-          - java: 17
-            spark: '3.2'
+          # Spark 3.3
+          - spark: '3.3'
+            scala: '2.12.15'
+            java: 8
+          - spark: '3.3'
+            scala: '2.12.15'
+            java: 11
+          - spark: '3.3'
+            scala: '2.12.15'
+            java: 17
+          - spark: '3.3'
+            scala: '2.13.5'
+            java: 8
+          - spark: '3.3'
+            scala: '2.13.5'
+            java: 11
+          - spark: '3.3'
+            scala: '2.13.5'
+            java: 17
+          # Spark 3.4
+          - spark: '3.4'
+            scala: '2.12.17'
+            java: 8
+          - spark: '3.4'
+            scala: '2.12.17'
+            java: 11
+          - spark: '3.4'
+            scala: '2.12.17'
+            java: 17
+          - spark: '3.4'
+            scala: '2.13.5'
+            java: 8
+          - spark: '3.4'
+            scala: '2.13.5'
+            java: 11
+          - spark: '3.4'
+            scala: '2.13.5'
+            java: 17
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK ${{ matrix.java }}
@@ -117,16 +168,15 @@ jobs:
       with:
         distribution: zulu
         java-version: ${{ matrix.java }}
-        cache: maven
         check-latest: false
     - name: Test with SBT
       run: |
-        build/sbt -Pspark-${{ matrix.spark }} "clean; celeborn-spark-group/test"
+        build/sbt -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
     - name: Upload test log
       if: failure()
       uses: actions/upload-artifact@v3
       with:
-          name: spark-${{ matrix.spark }}-unit-test-log
+          name: spark-${{ matrix.spark }}-scala-${{ matrix.scala }}-unit-test-log
           path: |
               **/target/test-reports/**
 
@@ -149,7 +199,6 @@ jobs:
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
-          cache: maven
           check-latest: false
       - name: Test with SBT
         run: |

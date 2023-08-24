@@ -460,6 +460,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def networkShareMemoryAllocator: Boolean = get(NETWORK_MEMORY_ALLOCATOR_SHARE)
 
+  def networkMemoryAllocatorAllowCache: Boolean =
+    get(NETWORK_MEMORY_ALLOCATOR_ALLOW_CACHE)
+
   def networkAllocatorArenas: Int = get(NETWORK_MEMORY_ALLOCATOR_ARENAS).getOrElse(Math.max(
     Runtime.getRuntime.availableProcessors(),
     2))
@@ -1234,6 +1237,15 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
+
+  val NETWORK_MEMORY_ALLOCATOR_ALLOW_CACHE: ConfigEntry[Boolean] =
+    buildConf("celeborn.network.memory.allocator.allowCache")
+      .categories("network")
+      .internal
+      .version("0.3.1")
+      .doc("When false, globally disable thread-local cache in the shared PooledByteBufAllocator.")
+      .booleanConf
+      .createWithDefault(false)
 
   val NETWORK_MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.share")
@@ -2303,7 +2315,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.diskTime.slidingWindow.minFetchCount")
       .categories("worker")
       .doc("The minimum fetch count to enter a sliding window" +
-        " to calculate statistics about flushed time and count.")
+        " to calculate statistics about fetched time and count.")
       .version("0.2.1")
       .internal
       .intConf
@@ -2451,7 +2463,8 @@ object CelebornConf extends Logging {
   val WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioToPauseReplicate")
       .categories("worker")
-      .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers.")
+      .doc("If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. " +
+        s"This value should be higher than ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE.key}.")
       .version("0.2.0")
       .doubleConf
       .createWithDefault(0.95)
@@ -2462,7 +2475,7 @@ object CelebornConf extends Logging {
       .doc("If direct memory usage is less than this limit, worker will resume.")
       .version("0.2.0")
       .doubleConf
-      .createWithDefault(0.5)
+      .createWithDefault(0.7)
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
@@ -3352,9 +3365,10 @@ object CelebornConf extends Logging {
       .createWithDefaultString("15s")
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.reserveSlots.rackware.enabled")
+    buildConf("celeborn.client.reserveSlots.rackaware.enabled")
+      .withAlternative("celeborn.client.reserveSlots.rackware.enabled")
       .categories("client")
-      .version("0.3.0")
+      .version("0.3.1")
       .doc("Whether need to place different replicates on different racks when allocating slots.")
       .booleanConf
       .createWithDefault(false)

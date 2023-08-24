@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import java.io._
+import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
 import java.nio.charset.Charset
 import java.util
 import java.util.concurrent.TimeUnit
@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 
 import org.apache.commons.io.FileUtils
-import org.slf4j.LoggerFactory
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging

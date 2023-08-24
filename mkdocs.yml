@@ -95,4 +95,5 @@ nav:
       - Fault Tolerant: developers/faulttolerant.md
       - Worker Exclusion: developers/workerexclusion.md
       - Integrating Celeborn: developers/integrate.md
+      - SBT Build: developers/sbt.md
       - Gluten Support: developers/glutensupport.md

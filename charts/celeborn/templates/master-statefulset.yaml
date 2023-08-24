@@ -18,7 +18,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: celeborn-master
+  name: {{ .Release.Name }}-master
   labels:
     helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     app.kubernetes.io/name: {{ .Chart.Name }}
@@ -35,7 +35,7 @@ spec:
       app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
       app.kubernetes.io/role: master
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
-  serviceName: celeborn-master-svc
+  serviceName: {{ .Release.Name }}-master-svc
   replicas: {{ .Values.masterReplicas }}
   template:
     metadata:
@@ -99,7 +99,7 @@ spec:
           - "/bin/sh"
           - '-c'
           {{- $namespace := .Release.Namespace }}
-          - "until {{ range until (.Values.masterReplicas |int) }}nslookup celeborn-master-{{ . }}.celeborn-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
+          - "until {{ range until (.Values.masterReplicas |int) }}nslookup {{ $.Release.Name }}-master-{{ . }}.{{ $.Release.Name }}-master-svc.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && {{ end }}true; do echo waiting for master; sleep 2; done && exec /opt/celeborn/sbin/start-master.sh"
         resources:
           {{- toYaml .Values.resources.master | nindent 12 }}
         ports:
@@ -112,7 +112,7 @@ spec:
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
           {{- range $index, $volume := .Values.volumes.master }}
-          - name: celeborn-master-vol-{{ $index }}
+          - name: {{ $.Release.Name }}-master-vol-{{ $index }}
             mountPath: {{ .mountPath }}
           {{- end }}
         env:
@@ -123,13 +123,13 @@ spec:
       terminationGracePeriodSeconds: 30 
       volumes:
         - configMap:
-            name: {{ .Values.configmap }}
+            name: {{ .Release.Name }}-conf
           name: {{ include "celeborn.fullname" . }}-volume
         {{- range $index, $volume := .Values.volumes.master }}
-        - name: celeborn-master-vol-{{ $index }}
+        - name: {{ $.Release.Name }}-master-vol-{{ $index }}
         {{- if eq "emptyDir" $volume.type }}
           emptyDir:
-            sizeLimit: {{ $volume.size }}
+            sizeLimit: {{ $volume.capacity }}
         {{- else if eq "hostPath" $volume.type }}
           hostPath:
             path: {{ $volume.hostPath | default $volume.mountPath }}/master

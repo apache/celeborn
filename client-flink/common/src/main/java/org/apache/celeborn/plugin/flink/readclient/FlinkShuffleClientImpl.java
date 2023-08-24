@@ -179,7 +179,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         } else {
           // refresh file groups
           ReduceFileGroups newGroups = loadFileGroupInternal(shuffleId);
-          if (newGroups == null || !newGroups.partitionIds.contains(partitionId)) {
+          if (newGroups == null) {
+            throw new IOException(
+                "Load file group from lifecycle manager failed: "
+                    + Utils.makeReducerKey(shuffleId, partitionId));
+          } else if (!newGroups.partitionIds.contains(partitionId)) {
             throw new IOException(
                 "shuffle data lost for partition: " + Utils.makeReducerKey(shuffleId, partitionId));
           }
