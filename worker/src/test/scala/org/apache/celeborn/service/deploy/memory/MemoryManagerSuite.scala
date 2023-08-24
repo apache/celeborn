@@ -103,7 +103,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     memoryManager.registerMemoryListener(pushListener)
     memoryManager.registerMemoryListener(replicateListener)
 
-    // Non PAUSED -> PAUSE PUSH
+    // NONE PAUSED -> PAUSE PUSH
     memoryCounter.set(pushThreshold + 1)
     // default check interval is 10ms and we need wait 30ms to make sure the listener is triggered
     eventually(timeout(30.second), interval(10.milliseconds)) {
