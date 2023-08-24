@@ -62,25 +62,25 @@ object Dependencies {
   val protocVersion = "3.19.2"
   val protoVersion = "3.19.2"
   
-  val commonsCrypto = ("org.apache.commons" % "commons-crypto" % commonsCryptoVersion)
-      .exclude("net.java.dev.jna", "jna")
+  val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
+    ExclusionRule("net.java.dev.jna", "jna"))
   val commonsIo = "commons-io" % "commons-io" % commonsIoVersion
   val commonsLang3 = "org.apache.commons" % "commons-lang3" % commonsLang3Version
   val findbugsJsr305 = "com.google.code.findbugs" % "jsr305" % findbugsVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion excludeAll(
-      ExclusionRule("org.slf4j", "slf4j-api"))
+    ExclusionRule("org.slf4j", "slf4j-api"))
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion excludeAll(
-      ExclusionRule("com.google.code.findbugs", "jsr305"),
-      ExclusionRule("org.slf4j", "slf4j-api"))
-  val ioDropwizardMetricsCore = ("io.dropwizard.metrics" % "metrics-core" % metricsVersion)
-      .exclude("org.slf4j", "slf4j-api")
-  val ioDropwizardMetricsGraphite = ("io.dropwizard.metrics" % "metrics-graphite" % metricsVersion)
-      .exclude("org.slf4j", "slf4j-api")
-  val ioDropwizardMetricsJvm = ("io.dropwizard.metrics" % "metrics-jvm" % metricsVersion)
-      .exclude("org.slf4j", "slf4j-api")
-  val ioNetty = ("io.netty" % "netty-all" % nettyVersion)
-      .exclude("io.netty", "netty-handler-ssl-ocsp")
+    ExclusionRule("com.google.code.findbugs", "jsr305"),
+    ExclusionRule("org.slf4j", "slf4j-api"))
+  val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion excludeAll(
+    ExclusionRule("org.slf4j", "slf4j-api"))
+  val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll(
+    ExclusionRule("org.slf4j", "slf4j-api"))
+  val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion excludeAll(
+    ExclusionRule("org.slf4j", "slf4j-api"))
+  val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
+    ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
   val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletVersion
   val leveldbJniAll = "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbJniVersion
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
