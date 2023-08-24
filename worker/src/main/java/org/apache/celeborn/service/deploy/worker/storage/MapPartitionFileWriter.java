@@ -51,7 +51,8 @@ public final class MapPartitionFileWriter extends FileWriter {
   private long totalBytes;
   private long regionStartingOffset;
   private FileChannel indexChannel;
-  private boolean isResionFinished = true;
+  private boolean isRegionFinished = true;
+  private boolean splitEnabled;
 
   public MapPartitionFileWriter(
       FileInfo fileInfo,
@@ -63,6 +64,29 @@ public final class MapPartitionFileWriter extends FileWriter {
       PartitionSplitMode splitMode,
       boolean rangeReadFilter)
       throws IOException {
+    this(
+        fileInfo,
+        flusher,
+        workerSource,
+        conf,
+        deviceMonitor,
+        splitThreshold,
+        splitMode,
+        rangeReadFilter,
+        false);
+  }
+
+  public MapPartitionFileWriter(
+      FileInfo fileInfo,
+      Flusher flusher,
+      AbstractSource workerSource,
+      CelebornConf conf,
+      DeviceMonitor deviceMonitor,
+      long splitThreshold,
+      PartitionSplitMode splitMode,
+      boolean rangeReadFilter,
+      boolean splitEnabled)
+      throws IOException {
     super(
         fileInfo,
         flusher,
@@ -73,6 +97,7 @@ public final class MapPartitionFileWriter extends FileWriter {
         splitMode,
         PartitionType.MAP,
         rangeReadFilter);
+    this.splitEnabled = splitEnabled;
     if (!fileInfo.isHdfs()) {
       indexChannel = FileChannelUtils.createWritableFileChannel(fileInfo.getIndexPath());
     } else {
@@ -121,7 +146,7 @@ public final class MapPartitionFileWriter extends FileWriter {
     totalBytes += length;
     numSubpartitionBytes[partitionId] += length;
     super.write(data);
-    isResionFinished = false;
+    isRegionFinished = false;
   }
 
   @Override
@@ -233,7 +258,7 @@ public final class MapPartitionFileWriter extends FileWriter {
 
     regionStartingOffset = totalBytes;
     Arrays.fill(numSubpartitionBytes, 0);
-    isResionFinished = true;
+    isRegionFinished = true;
   }
 
   private synchronized void destroyIndex() {
@@ -301,7 +326,11 @@ public final class MapPartitionFileWriter extends FileWriter {
     return buffer;
   }
 
-  public boolean isResionFinished() {
-    return isResionFinished;
+  public boolean isRegionFinished() {
+    return isRegionFinished;
+  }
+
+  public boolean isSplitEnabled() {
+    return splitEnabled;
   }
 }

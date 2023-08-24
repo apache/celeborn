@@ -708,7 +708,7 @@ private[celeborn] class Worker(
       for ((_, locationMap) <- mapPartititionPrimaryPartitionLocations) {
         for ((_, location) <- locationMap.asScala) {
           if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
-              MapPartitionFileWriter].isResionFinished) {
+              MapPartitionFileWriter].isRegionFinished) {
             isFinish = false
             logDebug(s"primary partitionLocations region is not finished: $location")
             loop.break()
@@ -718,7 +718,7 @@ private[celeborn] class Worker(
       for ((_, locationMap) <- mapPartititionReplicaPartitionLocations) {
         for ((_, location) <- locationMap.asScala) {
           if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
-              MapPartitionFileWriter].isResionFinished) {
+              MapPartitionFileWriter].isRegionFinished) {
             isFinish = false
             logDebug(s"replica partitionLocations region is not finished: $location")
             loop.break()

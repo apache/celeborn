@@ -302,6 +302,29 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): FileWriter = {
+    createWriter(
+      appId,
+      shuffleId,
+      location,
+      splitThreshold,
+      splitMode,
+      partitionType,
+      rangeReadFilter,
+      userIdentifier,
+      false)
+  }
+
+  @throws[IOException]
+  def createWriter(
+      appId: String,
+      shuffleId: Int,
+      location: PartitionLocation,
+      splitThreshold: Long,
+      splitMode: PartitionSplitMode,
+      partitionType: PartitionType,
+      rangeReadFilter: Boolean,
+      userIdentifier: UserIdentifier,
+      splitEnabled: Boolean): FileWriter = {
     if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage) {
       throw new IOException("No available working dirs!")
     }
@@ -339,7 +362,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               deviceMonitor,
               splitThreshold,
               splitMode,
-              rangeReadFilter)
+              rangeReadFilter,
+              splitEnabled)
           case PartitionType.REDUCE => new ReducePartitionFileWriter(
               fileInfo,
               hdfsFlusher.get,
@@ -386,7 +410,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 deviceMonitor,
                 splitThreshold,
                 splitMode,
-                rangeReadFilter)
+                rangeReadFilter,
+                splitEnabled)
             case PartitionType.REDUCE => new ReducePartitionFileWriter(
                 fileInfo,
                 localFlushers.get(mountPoint),

@@ -824,7 +824,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val msg = Message.decode(rpcRequest.body().nioByteBuffer())
     val requestId = rpcRequest.requestId
     val (mode, shuffleKey, partitionUniqueId, checkSplit) = msg match {
-      case p: PushDataHandShake => (p.mode, p.shuffleKey, p.partitionUniqueId, false)
+      case p: PushDataHandShake => (p.mode, p.shuffleKey, p.partitionUniqueId, true)
       case rs: RegionStart => (rs.mode, rs.shuffleKey, rs.partitionUniqueId, true)
       case rf: RegionFinish => (rf.mode, rf.shuffleKey, rf.partitionUniqueId, false)
     }
@@ -915,7 +915,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         case (false, f: FileWriter) => f
       }
 
-    if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && checkDiskFullAndSplit(
+    if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && fileWriter.asInstanceOf[
+        MapPartitionFileWriter].isSplitEnabled && checkDiskFullAndSplit(
         fileWriter,
         isPrimary,
         null,

@@ -60,7 +60,7 @@ public class RemoteShuffleOutputGateSuiteJ {
             anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any()))
         .thenAnswer(t -> Optional.empty());
 
-    remoteShuffleOutputGate.handshake(true);
+    remoteShuffleOutputGate.handshake();
 
     when(remoteShuffleOutputGate.flinkShuffleClient.regionStart(
             anyInt(), anyInt(), anyInt(), any(), anyInt(), anyBoolean()))

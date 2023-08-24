@@ -143,14 +143,14 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
-    PartitionLocation[] partitionLocations =
-        fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
-    Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
+      PartitionLocation[] partitionLocations =
+          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
+      Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
       return CelebornBufferStream.create(
           this,
           flinkTransportClientFactory,

@@ -68,64 +68,14 @@ public class CelebornBufferStream {
     this.subIndexEnd = subIndexEnd;
   }
 
-  private void openStreamInternal() throws IOException, InterruptedException {
-    this.client =
-        clientFactory.createClientWithRetry(
-            locations[currentLocationIndex].getHost(),
-            locations[currentLocationIndex].getFetchPort());
-    String fileName = locations[currentLocationIndex++].getFileName();
-    OpenStreamWithCredit openBufferStream =
-        new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);
-    client.sendRpc(
-        openBufferStream.toByteBuffer(),
-        new RpcResponseCallback() {
-
-          @Override
-          public void onSuccess(ByteBuffer response) {
-            StreamHandle streamHandle = (StreamHandle) Message.decode(response);
-            CelebornBufferStream.this.streamId = streamHandle.streamId;
-            synchronized (lock) {
-              if (!isClosed) {
-                clientFactory.registerSupplier(CelebornBufferStream.this.streamId, bufferSupplier);
-                mapShuffleClient
-                    .getReadClientHandler()
-                    .registerHandler(streamId, messageConsumer, client);
-                isOpenSuccess = true;
-                logger.debug(
-                    "open stream success from remote:{}, stream id:{}, fileName: {}",
-                    client.getSocketAddress(),
-                    streamId,
-                    fileName);
-              } else {
-                logger.debug(
-                    "open stream success from remote:{}, but stream reader is already closed, stream id:{}, fileName: {}",
-                    client.getSocketAddress(),
-                    streamId,
-                    fileName);
-                closeStream(streamId);
-              }
-            }
-          }
-
-          @Override
-          public void onFailure(Throwable e) {
-            logger.error(
-                "Open file {} stream for {} error from {}",
-                fileName,
-                shuffleKey,
-                NettyUtils.getRemoteAddress(client.getChannel()));
-            messageConsumer.accept(new TransportableError(streamId, e));
-          }
-        });
-  }
-
   public void open(
-      Supplier<ByteBuf> bufferSupplier, int initialCredit, Consumer<RequestMessage> messageConsumer)
-      throws IOException, InterruptedException {
+      Supplier<ByteBuf> bufferSupplier,
+      int initialCredit,
+      Consumer<RequestMessage> messageConsumer) {
     this.bufferSupplier = bufferSupplier;
     this.initialCredit = initialCredit;
     this.messageConsumer = messageConsumer;
-    openStreamInternal();
+    moveToNextPartitionIfPossible(0);
   }
 
   public void addCredit(ReadAddCredit addCredit) {
@@ -187,29 +137,85 @@ public class CelebornBufferStream {
     synchronized (lock) {
       if (isOpenSuccess) {
         cleanStream(streamId);
+        isOpenSuccess = false;
       }
       isClosed = true;
     }
   }
 
   public void moveToNextPartitionIfPossible(long endedStreamId) {
-    if (endedStreamId == streamId) {
-      logger.debug("get stream end with {}", endedStreamId);
-      cleanStream(endedStreamId);
-      if (currentLocationIndex < locations.length) {
-        try {
-          openStreamInternal();
-        } catch (Exception e) {
-          logger.warn("Failed to open stream and report to flink framework. ", e);
-          messageConsumer.accept(new TransportableError(0L, e));
+    if (currentLocationIndex < locations.length) {
+      if (currentLocationIndex > 0) {
+        if (endedStreamId == streamId) {
+          logger.debug("Get end streamId {}", endedStreamId);
+          cleanStream(endedStreamId);
+        } else {
+          logger.warn(
+              "Received unexpected stream end, current stream id {} received ended stream id {}",
+              this.streamId,
+              endedStreamId);
+          return;
         }
       }
-    } else {
-      logger.warn(
-          "Received unexpected stream end, current stream id {} received ended stream id {}",
-          this.streamId,
-          endedStreamId);
+      try {
+        openStreamInternal();
+        currentLocationIndex++;
+      } catch (Exception e) {
+        logger.warn("Failed to open stream and report to flink framework. ", e);
+        messageConsumer.accept(new TransportableError(0L, e));
+      }
     }
+  }
+
+  private void openStreamInternal() throws IOException, InterruptedException {
+    this.client =
+        clientFactory.createClientWithRetry(
+            locations[currentLocationIndex].getHost(),
+            locations[currentLocationIndex].getFetchPort());
+    String fileName = locations[currentLocationIndex].getFileName();
+    OpenStreamWithCredit openBufferStream =
+        new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);
+    client.sendRpc(
+        openBufferStream.toByteBuffer(),
+        new RpcResponseCallback() {
+
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            StreamHandle streamHandle = (StreamHandle) Message.decode(response);
+            CelebornBufferStream.this.streamId = streamHandle.streamId;
+            synchronized (lock) {
+              if (!isClosed) {
+                clientFactory.registerSupplier(CelebornBufferStream.this.streamId, bufferSupplier);
+                mapShuffleClient
+                    .getReadClientHandler()
+                    .registerHandler(streamId, messageConsumer, client);
+                isOpenSuccess = true;
+                logger.debug(
+                    "open stream success from remote:{}, stream id:{}, fileName: {}",
+                    client.getSocketAddress(),
+                    streamId,
+                    fileName);
+              } else {
+                logger.debug(
+                    "open stream success from remote:{}, but stream reader is already closed, stream id:{}, fileName: {}",
+                    client.getSocketAddress(),
+                    streamId,
+                    fileName);
+                closeStream(streamId);
+              }
+            }
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            logger.error(
+                "Open file {} stream for {} error from {}",
+                fileName,
+                shuffleKey,
+                NettyUtils.getRemoteAddress(client.getChannel()));
+            messageConsumer.accept(new TransportableError(streamId, e));
+          }
+        });
   }
 
   public TransportClient getClient() {

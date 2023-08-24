@@ -664,7 +664,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             getPartitionType(shuffleId),
             rangeReadFilter,
             userIdentifier,
-            conf.pushDataTimeoutMs))
+            conf.pushDataTimeoutMs,
+            if (getPartitionType(shuffleId) == PartitionType.MAP)
+              conf.clientFlinkShufflePartitionSplitEnabled
+            else true))
         if (res.status.equals(StatusCode.SUCCESS)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for shuffleId $shuffleId" +

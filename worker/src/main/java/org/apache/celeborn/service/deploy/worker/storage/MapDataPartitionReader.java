@@ -438,7 +438,9 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       if (!isReleased) {
         logger.debug("release reader for stream {}", streamId);
         // tell client that this stream is finished.
-        associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
+        if (readFinished) {
+          associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
+        }
         if (!buffersToSend.isEmpty()) {
           numInUseBuffers.addAndGet(-1 * buffersToSend.size());
           buffersToSend.forEach(RecyclableBuffer::recycle);
