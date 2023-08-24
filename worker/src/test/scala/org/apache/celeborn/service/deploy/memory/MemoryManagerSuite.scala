@@ -87,7 +87,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     }
   }
 
-  test("[CELEBORN-882]") {
+  test("[CELEBORN-882] Test MemoryManager check memory thread logic") {
     val conf = new CelebornConf()
     val memoryManager = MemoryManager.initialize(conf)
     val maxDirectorMemory = memoryManager.maxDirectorMemory
