@@ -18,7 +18,7 @@ license: |
 
 <!--begin-include-->
 | Key | Default | Description | Since |
-| --- | ------- | ----------- |-------|
+| --- | ------- | ----------- | ----- |
 | celeborn.client.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.3.0 | 
 | celeborn.client.closeIdleConnections | true | Whether client will close idle connections. | 0.3.0 | 
 | celeborn.client.commitFiles.ignoreExcludedWorker | false | When true, LifecycleManager will skip workers which are in the excluded list. | 0.3.0 | 
