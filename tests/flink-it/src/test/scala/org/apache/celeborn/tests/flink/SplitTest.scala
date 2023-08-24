@@ -49,16 +49,6 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
 
   override def afterAll(): Unit = {
     logInfo("all test complete , stop rss mini cluster")
-    // verify that shuffle 0 has split partitions
-    var splitPartitionCount = 0
-    workers.foreach(w => {
-      w.partitionLocationInfo.getPrimaryPartitionLocations().keys().asScala.foreach(shufflekey => {
-        val baseDir = w.conf.get(CelebornConf.WORKER_STORAGE_DIRS.key)
-        println(s"basedir: $baseDir")
-        val file = new File(s"$baseDir/rss-worker/shuffle_data/$shufflekey")
-        println(file.listFiles())
-      })
-    })
     shutdownMiniCluster()
   }
 

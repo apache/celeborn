@@ -607,7 +607,6 @@ private[celeborn] class Worker(
 
     def waitTime: Long = waitTimes * interval
     // for mappartition, it should wait that datas of a region are completely received.
-    val isRegionFinished = isRegionFinish
     while (!partitionLocationInfo.isEmpty && !isRegionFinished && waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
@@ -704,7 +703,7 @@ private[celeborn] class Worker(
   @VisibleForTesting
   def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)
 
-  def isRegionFinish: Boolean = {
+  def isRegionFinished: Boolean = {
     var isFinish = true
     val loop = new Breaks
     loop.breakable {

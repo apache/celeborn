@@ -861,7 +861,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       rpcRequest,
       requestId,
       () =>
-        handleRpcRequestCore(
+        handleMapPartitionRpcRequestCore(
           mode,
           msg,
           shuffleKey,
@@ -875,7 +875,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   }
 
-  private def handleRpcRequestCore(
+  private def handleMapPartitionRpcRequestCore(
       mode: Byte,
       message: Message,
       shuffleKey: String,
