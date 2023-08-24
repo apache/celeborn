@@ -1955,7 +1955,7 @@ object CelebornConf extends Logging {
   val CLIENT_FETCH_DFS_READ_CHUNK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.dfsReadChunkSize")
       .categories("client")
-      .version("0.4.0")
+      .version("0.3.0")
       .doc("Client max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
         "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
       .bytesConf(ByteUnit.BYTE)
