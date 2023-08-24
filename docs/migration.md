@@ -21,16 +21,18 @@ license: |
 
 # Migration Guide
 
-## Upgrading from 0.3 to 0.4
+## Upgrading from 0.3.1 to 0.4
 
 - Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.
   Note that: It's strongly recommended to use the same version of Client and Celeborn Master/Worker in production.
 
 - Since 0.4.0, Celeborn won't support `org.apache.spark.shuffle.celeborn.RssShuffleManager`.
 
-- Since 0.4.0, Celeborn changed the default value of `celeborn.worker.directMemoryRatioToResume` from `0.5` to `0.7`.
+## Upgrading from 0.3.0 to 0.3.1
 
-## Upgrading from 0.2 to 0.3
+- Since 0.3.1, Celeborn changed the default value of `celeborn.worker.directMemoryRatioToResume` from `0.5` to `0.7`.
+
+## Upgrading from 0.2 to 0.3.0
 
  - Celeborn 0.2 Client is compatible with 0.3 Master/Server, it allows to upgrade Master/Worker first then Client.
    Note that: It's strongly recommended to use the same version of Client and Celeborn Master/Worker in production.
