@@ -36,33 +36,26 @@ import org.apache.celeborn.util.HadoopUtils;
 
 public class CelebornShuffleConsumer<K, V>
     implements ShuffleConsumerPlugin<K, V>, ExceptionReporter {
-  private static Logger logger = LoggerFactory.getLogger(CelebornShuffleConsumer.class);
+  private static final Logger logger = LoggerFactory.getLogger(CelebornShuffleConsumer.class);
   private JobConf mrJobConf;
-  private JobConf celebornJobConf;
   private MergeManager<K, V> merger;
   private Throwable throwable = null;
   private Progress copyPhase;
   private TaskStatus taskStatus;
-  private Context context;
   private org.apache.hadoop.mapreduce.TaskAttemptID reduceId;
   private TaskUmbilicalProtocol umbilical;
   private Reporter reporter;
   private ShuffleClientMetrics metrics;
   private Task reduceTask;
 
-  private String appId;
-  private String lcHost;
-  private int lcPort;
   private ShuffleClient shuffleClient;
-  private CelebornConf celebornConf;
 
   @Override
   public void init(Context<K, V> context) {
-    this.context = context;
 
     reduceId = context.getReduceId();
     mrJobConf = context.getJobConf();
-    celebornJobConf = new JobConf(HadoopUtils.MR_CELEBORN_CONF);
+    JobConf celebornJobConf = new JobConf(HadoopUtils.MR_CELEBORN_CONF);
 
     umbilical = context.getUmbilical();
     reporter = context.getReporter();
@@ -76,11 +69,11 @@ public class CelebornShuffleConsumer<K, V>
     taskStatus = context.getStatus();
     reduceTask = context.getReduceTask();
 
-    appId = celebornJobConf.get(HadoopUtils.MR_CELEBORN_APPLICATION_ID);
-    lcHost = celebornJobConf.get(HadoopUtils.MR_CELEBORN_LC_HOST);
-    lcPort = Integer.parseInt(celebornJobConf.get(HadoopUtils.MR_CELEBORN_LC_PORT));
+    String appId = celebornJobConf.get(HadoopUtils.MR_CELEBORN_APPLICATION_ID);
+    String lcHost = celebornJobConf.get(HadoopUtils.MR_CELEBORN_LC_HOST);
+    int lcPort = Integer.parseInt(celebornJobConf.get(HadoopUtils.MR_CELEBORN_LC_PORT));
     logger.info("Reducer initialized with celeborn {} {} {}", appId, lcHost, lcPort);
-    celebornConf = HadoopUtils.fromYarnConf(mrJobConf);
+    CelebornConf celebornConf = HadoopUtils.fromYarnConf(mrJobConf);
     shuffleClient =
         ShuffleClient.get(
             appId,
@@ -113,8 +106,8 @@ public class CelebornShuffleConsumer<K, V>
 
   private ShuffleClientMetrics createMetrics(
       org.apache.hadoop.mapreduce.TaskAttemptID taskAttemptID, JobConf jobConf)
-      throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException,
-          InstantiationException, IllegalAccessException {
+      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+          IllegalAccessException {
     // for hadoop 3
     Method createMethod = null;
     try {
@@ -137,8 +130,8 @@ public class CelebornShuffleConsumer<K, V>
   @Override
   public RawKeyValueIterator run() throws IOException, InterruptedException {
     logger.info(
-        "In reduce: {}, Celeborn mr client start to read shuffle data."
-            + " Create inputstream with params: shuffleId 0, reduceId {}, attemptId {}",
+        "In reduce:{}, Celeborn mr client start to read shuffle data."
+            + " Create inputstream with params: shuffleId 0 reduceId:{} attemptId:{}",
         reduceId,
         reduceId.getTaskID().getId(),
         reduceId.getId());
@@ -148,15 +141,7 @@ public class CelebornShuffleConsumer<K, V>
             0, reduceId.getTaskID().getId(), reduceId.getId(), 0, Integer.MAX_VALUE);
     CelebornShuffleFetcher<K, V> shuffleReader =
         new CelebornShuffleFetcher(
-            reduceId,
-            taskStatus,
-            merger,
-            copyPhase,
-            reporter,
-            metrics,
-            shuffleInputStream,
-            mrJobConf,
-            context.getMapOutputFile());
+            reduceId, taskStatus, merger, copyPhase, reporter, metrics, shuffleInputStream);
     shuffleReader.fetchAndMerge();
 
     copyPhase.complete();

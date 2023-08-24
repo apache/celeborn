@@ -51,7 +51,7 @@ import org.apache.celeborn.service.deploy.worker.Worker;
 import org.apache.celeborn.service.deploy.worker.WorkerArguments;
 
 public class MRTestBase {
-  private static Logger logger = LoggerFactory.getLogger(MRTestBase.class);
+  private static final Logger logger = LoggerFactory.getLogger(MRTestBase.class);
   protected static Configuration conf;
   protected static String HDFS_URI;
   protected static FileSystem fs;
@@ -228,16 +228,16 @@ public class MRTestBase {
     }
 
     String props = System.getProperty("java.class.path");
-    String newProps = "";
+    StringBuilder newProps = new StringBuilder();
     String[] splittedProps = props.split(":");
     for (String prop : splittedProps) {
       if (!prop.contains("classes") && !prop.contains("grpc") && !prop.contains("celeborn-")) {
-        newProps = newProps + ":" + prop;
+        newProps.append(":").append(prop);
       } else if (prop.contains("mr")) {
-        newProps = newProps + ":" + prop;
+        newProps.append(":").append(prop);
       }
     }
-    System.setProperty("java.class.path", newProps);
+    System.setProperty("java.class.path", newProps.toString());
 
     Path newPath = new Path(HDFS_URI + "/celeborn");
     FileUtil.copy(clientJar, fs, newPath, false, jobConf);

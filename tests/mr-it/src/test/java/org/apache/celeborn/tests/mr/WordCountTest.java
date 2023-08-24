@@ -42,7 +42,7 @@ public class WordCountTest extends MRTestBase {
       Lists.newArrayList(
           "apple", "banana", "fruit", "cherry", "Chinese", "America", "Japan", "tomato");
 
-  class TestCaseWordCount extends org.apache.hadoop.mapred.WordCount {
+  static class TestCaseWordCount extends org.apache.hadoop.mapred.WordCount {
     String outputPath = "word_count_output/" + System.currentTimeMillis();
 
     @Override

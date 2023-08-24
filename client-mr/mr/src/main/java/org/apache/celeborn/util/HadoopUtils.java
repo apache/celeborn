@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.util;
 
-import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.hadoop.mapred.JobConf;
@@ -32,9 +31,7 @@ public class HadoopUtils {
 
   public static CelebornConf fromYarnConf(JobConf conf) {
     CelebornConf tmpCelebornConf = new CelebornConf();
-    Iterator<Map.Entry<String, String>> proIter = conf.iterator();
-    while (proIter.hasNext()) {
-      Map.Entry<String, String> property = proIter.next();
+    for (Map.Entry<String, String> property : conf) {
       String proName = property.getKey();
       String proValue = property.getValue();
       if (proName.startsWith("mapreduce.celeborn")) {

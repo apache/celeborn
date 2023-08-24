@@ -34,24 +34,24 @@ import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 
 public class CelebornSortBasedPusher<K, V> extends OutputStream {
-  Logger logger = LoggerFactory.getLogger(CelebornSortBasedPusher.class);
-  private int mapId;
-  private int attempt;
-  private int numMappers;
-  private int numReducers;
-  private ShuffleClient shuffleClient;
-  private int maxIOBufferSize;
-  private int spillIOBufferSize;
-  private Serializer<K> kSer;
-  private Serializer<V> vSer;
-  private RawComparator<K> comparator;
-  private AtomicReference<Exception> exception = new AtomicReference<>();
-  private Counters.Counter mapOutputByteCounter;
-  private Counters.Counter mapOutputRecordCounter;
-  private Map<Integer, List<SerializedKV>> currentSerializedKVs;
+  final Logger logger = LoggerFactory.getLogger(CelebornSortBasedPusher.class);
+  private final int mapId;
+  private final int attempt;
+  private final int numMappers;
+  private final int numReducers;
+  private final ShuffleClient shuffleClient;
+  private final int maxIOBufferSize;
+  private final int spillIOBufferSize;
+  private final Serializer<K> kSer;
+  private final Serializer<V> vSer;
+  private final RawComparator<K> comparator;
+  private final AtomicReference<Exception> exception = new AtomicReference<>();
+  private final Counters.Counter mapOutputByteCounter;
+  private final Counters.Counter mapOutputRecordCounter;
+  private final Map<Integer, List<SerializedKV>> currentSerializedKVs;
   private int writePos;
   private byte[] serializedKV;
-  private int maxPushDataSize;
+  private final int maxPushDataSize;
 
   public CelebornSortBasedPusher(
       int numMappers,
@@ -83,9 +83,9 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     serializedKV = new byte[maxIOBufferSize];
     maxPushDataSize = (int) celebornConf.clientMrMaxPushData();
     logger.info(
-        "Sort based push initialized with params:"
-            + " numMappers {}, numReducers {}, mapId {}, attemptId {},"
-            + " maxIOBufferSize {}, spillIOBufferSize {} ",
+        "Sort based push initialized with"
+            + " numMappers:{} numReducers:{} mapId:{} attemptId:{}"
+            + " maxIOBufferSize:{} spillIOBufferSize:{}",
         numMappers,
         numReducers,
         mapId,
@@ -104,11 +104,13 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     try {
       if (writePos >= spillIOBufferSize) {
         // needs to sort and flush data
-        logger.info(
-            "Data is large enough {}/{}/{}, trigger sort and flush",
-            Utils.bytesToString(writePos),
-            Utils.bytesToString(spillIOBufferSize),
-            Utils.bytesToString(maxIOBufferSize));
+        if (logger.isDebugEnabled()) {
+          logger.debug(
+              "Data is large enough {}/{}/{}, trigger sort and flush",
+              Utils.bytesToString(writePos),
+              Utils.bytesToString(spillIOBufferSize),
+              Utils.bytesToString(maxIOBufferSize));
+        }
         synchronized (this) {
           sortKVs();
           sendKVAndUpdateWritePos();
@@ -116,7 +118,8 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
       }
       int dataLen = insertRecordInternal(key, value, partition);
       if (logger.isDebugEnabled()) {
-        logger.debug("Sort based pusher insert into {} with {} bytes", partition, dataLen);
+        logger.debug(
+            "Sort based pusher insert into partition:{} with {} bytes", partition, dataLen);
       }
       mapOutputRecordCounter.increment(1);
       mapOutputByteCounter.increment(dataLen);
@@ -196,13 +199,15 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
             4 + extraSize + partitionKVTotalLen,
             numMappers,
             numReducers);
-    logger.info(
-        "Send sorted buffer on {}-{} to partition {} with {} compressed {}",
-        mapId,
-        attempt,
-        partition,
-        Utils.bytesToString(4 + extraSize + partitionKVTotalLen),
-        Utils.bytesToString(compressedSize));
+    if (logger.isDebugEnabled()) {
+      logger.debug(
+          "Send sorted buffer mapId:{} attemptId:{} to partition:{} uncompressed size:{} compressed size:{}",
+          mapId,
+          attempt,
+          partition,
+          Utils.bytesToString(4 + extraSize + partitionKVTotalLen),
+          Utils.bytesToString(compressedSize));
+    }
   }
 
   private int writeDataInt(byte[] data, int offset, long dataInt) {
@@ -261,7 +266,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     }
     if (logger.isDebugEnabled()) {
       logger.debug(
-          "Pusher insert into buffer {} {} {} {} {}",
+          "Pusher insert into buffer partition:{} offset:{} keyLen:{} valueLen:{} size:{}",
           partition,
           offset,
           keyLen,
@@ -303,7 +308,12 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   public void close() {
     flush();
     try {
-      logger.info("Call mapper end {} {} {} {}", 0, mapId, attempt, numMappers);
+      logger.info(
+          "Call mapper end shuffleId:{} mapId:{} attemptId:{} numMappers:{}",
+          0,
+          mapId,
+          attempt,
+          numMappers);
       // make sure that all data has been pushed
       shuffleClient.prepareForMergeData(0, mapId, attempt);
       shuffleClient.mapperEnd(0, mapId, attempt, numMappers);
@@ -315,9 +325,9 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   }
 
   static class SerializedKV {
-    int offset;
-    int kLen;
-    int vLen;
+    final int offset;
+    final int kLen;
+    final int vLen;
 
     public SerializedKV(int offset, int kLen, int vLen) {
       this.offset = offset;

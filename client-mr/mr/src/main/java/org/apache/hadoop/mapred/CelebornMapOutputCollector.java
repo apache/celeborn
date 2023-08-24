@@ -32,7 +32,7 @@ import org.apache.celeborn.util.HadoopUtils;
 
 public class CelebornMapOutputCollector<K extends Object, V extends Object>
     implements MapOutputCollector<K, V> {
-  private static Logger logger = LoggerFactory.getLogger(CelebornMapOutputCollector.class);
+  private static final Logger logger = LoggerFactory.getLogger(CelebornMapOutputCollector.class);
   private Class<K> keyClass;
   private Class<V> valClass;
   private Task.TaskReporter reporter;
@@ -66,8 +66,8 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
             celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName());
 
     logger.info(JobContext.IO_SORT_MB + ": " + IOBufferSize);
-    final float spillper = jobConf.getFloat(JobContext.MAP_SORT_SPILL_PERCENT, (float) 0.8);
-    int pushSize = (int) ((IOBufferSize << 20) * spillper);
+    final float spiller = jobConf.getFloat(JobContext.MAP_SORT_SPILL_PERCENT, (float) 0.8);
+    int pushSize = (int) ((IOBufferSize << 20) * spiller);
 
     SerializationFactory serializationFactory = new SerializationFactory(jobConf);
     celebornSortBasedPusher =
@@ -115,14 +115,14 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
 
   @Override
   public void close() {
-    logger.info("Mapper called close");
+    logger.info("Mapper collector close");
     reporter.progress();
     celebornSortBasedPusher.close();
   }
 
   @Override
   public void flush() {
-    logger.info("Mapper flush close");
+    logger.info("Mapper collector flush");
     celebornSortBasedPusher.flush();
     reporter.progress();
   }

@@ -18,10 +18,13 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.reflect.Field;
 
-import org.apache.hadoop.mapred.*;
+import org.apache.hadoop.io.compress.CodecPool;
+import org.apache.hadoop.io.compress.Decompressor;
+import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.TaskStatus;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.TaskType;
@@ -34,8 +37,8 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.unsafe.Platform;
 
 public class CelebornShuffleFetcher<K, V> {
-  private static Logger logger = LoggerFactory.getLogger(CelebornShuffleFetcher.class);
-  private TaskAttemptID reduceId;
+  private static final Logger logger = LoggerFactory.getLogger(CelebornShuffleFetcher.class);
+  private final TaskAttemptID reduceId;
   private final Reporter reporter;
   private final TaskStatus status;
   private final MergeManager<K, V> merger;
@@ -48,9 +51,6 @@ public class CelebornShuffleFetcher<K, V> {
   private boolean hasPendingData = false;
   private long inputShuffleSize;
   private byte[] shuffleData;
-  private List<Long> offsets;
-  private JobConf mrJobConf;
-  private MapOutputFile mapOutputFile;
 
   public CelebornShuffleFetcher(
       TaskAttemptID reduceId,
@@ -59,9 +59,7 @@ public class CelebornShuffleFetcher<K, V> {
       Progress progress,
       Reporter reporter,
       ShuffleClientMetrics metrics,
-      CelebornInputStream input,
-      JobConf mrJobConf,
-      MapOutputFile mapOutputFile) {
+      CelebornInputStream input) {
     this.reduceId = reduceId;
     this.reporter = reporter;
     this.status = status;
@@ -69,15 +67,12 @@ public class CelebornShuffleFetcher<K, V> {
     this.progress = progress;
     this.metrics = metrics;
     this.celebornInputStream = input;
-    this.mrJobConf = mrJobConf;
-    this.mapOutputFile = mapOutputFile;
 
     ioErrs = reporter.getCounter("Shuffle Errors", "IO_ERROR");
-    offsets = new ArrayList<>();
   }
 
   // fetch all push data and merge
-  public void fetchAndMerge() throws InterruptedException, IOException {
+  public void fetchAndMerge() {
     while (!stopped) {
       try {
         // If merge is on, block
@@ -141,7 +136,7 @@ public class CelebornShuffleFetcher<K, V> {
     } else {
       celebornInputStream.close();
       metrics.inputBytes(inputShuffleSize);
-      logger.info("reduce task " + reduceId.toString() + "read" + inputShuffleSize + "bytes");
+      logger.info("reduce task {} read {} bytes", reduceId, inputShuffleSize);
       stopped = true;
     }
   }
@@ -159,7 +154,7 @@ public class CelebornShuffleFetcher<K, V> {
       throw ioe;
     }
     if (mapOutput == null) {
-      logger.info("Celeborn fetcher" + " - MergeManager returned status WAIT ...");
+      logger.info("Celeborn fetcher returned status WAIT ...");
       hasPendingData = true;
       return false;
     }
@@ -169,31 +164,36 @@ public class CelebornShuffleFetcher<K, V> {
       writeShuffle(mapOutput, shuffleData);
       // let the merger knows this block is ready for merging
       mapOutput.commit();
-      if (mapOutput instanceof OnDiskMapOutput) {
-        logger.info(
-            "Reduce: "
-                + reduceId
-                + " allocates disk to accept block "
-                + " with byte sizes: "
-                + shuffleData.length);
-      }
     } catch (Throwable t) {
       ioErrs.increment(1);
       mapOutput.abort();
       throw new CelebornIOException(
-          "Reduce: "
+          "Reduce: {} "
               + reduceId
-              + " cannot write block to "
+              + " fetch failed to {} "
               + mapOutput.getClass().getSimpleName()
-              + " due to: "
+              + " due to: {} "
               + t.getClass().getName());
     }
     return true;
   }
 
+  private Decompressor getDecompressor(InMemoryMapOutput inMemoryMapOutput)
+      throws CelebornIOException {
+    try {
+      Class clazz = Class.forName(InMemoryMapOutput.class.getName());
+      Field deCompressorField = clazz.getDeclaredField("decompressor");
+      deCompressorField.setAccessible(true);
+      return (Decompressor) deCompressorField.get(inMemoryMapOutput);
+    } catch (Exception e) {
+      throw new CelebornIOException("Get Decompressor fail " + e.getMessage());
+    }
+  }
+
   private void writeShuffle(MapOutput mapOutput, byte[] shuffle) throws CelebornIOException {
     if (mapOutput instanceof InMemoryMapOutput) {
       InMemoryMapOutput inMemoryMapOutput = (InMemoryMapOutput) mapOutput;
+      CodecPool.returnDecompressor(getDecompressor(inMemoryMapOutput));
       byte[] memory = inMemoryMapOutput.getMemory();
       System.arraycopy(shuffle, 0, memory, 0, shuffle.length);
     } else if (mapOutput instanceof OnDiskMapOutput) {

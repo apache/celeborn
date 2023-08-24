@@ -48,8 +48,7 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.util.HadoopUtils;
 
 public class MRAppMasterWithCeleborn extends MRAppMaster {
-  private static Logger logger = LoggerFactory.getLogger(MRAppMasterWithCeleborn.class);
-  private LifecycleManager lifecycleManager;
+  private static final Logger logger = LoggerFactory.getLogger(MRAppMasterWithCeleborn.class);
 
   public MRAppMasterWithCeleborn(
       ApplicationAttemptId applicationAttemptId,
@@ -65,7 +64,8 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     int numReducers = jobConf.getInt(MRJobConfig.NUM_REDUCES, 0);
     if (numReducers > 0) {
       CelebornConf conf = HadoopUtils.fromYarnConf(jobConf);
-      lifecycleManager = new LifecycleManager(applicationAttemptId.toString(), conf);
+      LifecycleManager lifecycleManager =
+          new LifecycleManager(applicationAttemptId.toString(), conf);
       String lcHost = lifecycleManager.getHost();
       int lcPort = lifecycleManager.getPort();
       logger.info("RMAppMaster initialized with {} {} {}", lcHost, lcPort, applicationAttemptId);
