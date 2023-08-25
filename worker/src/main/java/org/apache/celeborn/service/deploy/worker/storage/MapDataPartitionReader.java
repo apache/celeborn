@@ -408,6 +408,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   public void closeReader() {
     synchronized (lock) {
       readFinished = true;
+      // tell client that this stream is finished.
+      associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
     }
     logger.debug("Closed read for stream {}", this.streamId);
   }
@@ -437,8 +439,6 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     synchronized (lock) {
       if (!isReleased) {
         logger.debug("release reader for stream {}", streamId);
-        // tell client that this stream is finished.
-        associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
         if (!buffersToSend.isEmpty()) {
           numInUseBuffers.addAndGet(-1 * buffersToSend.size());
           buffersToSend.forEach(RecyclableBuffer::recycle);
