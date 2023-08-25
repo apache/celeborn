@@ -130,7 +130,7 @@ public abstract class CelebornInputStream extends InputStream {
     private final byte[] sizeBuf = new byte[BATCH_HEADER_SIZE];
     private LongAdder skipCount = new LongAdder();
     private final boolean rangeReadFilter;
-    private final boolean readLocalShuffle;
+    private final boolean enabledReadLocalShuffle;
     private final String localHostAddress;
 
     private boolean pushReplicateEnabled;
@@ -159,7 +159,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
-      this.readLocalShuffle = conf.enableReadLocalShuffleFile();
+      this.enabledReadLocalShuffle = conf.enableReadLocalShuffleFile();
       this.localHostAddress = Utils.localHostName(conf);
       this.pushReplicateEnabled = conf.clientPushReplicateEnabled();
       this.fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
@@ -400,11 +400,11 @@ public abstract class CelebornInputStream extends InputStream {
       if (storageInfo.getType() == StorageInfo.Type.HDD
           || storageInfo.getType() == StorageInfo.Type.SSD) {
         logger.debug(
-            "Read local shuffle file {} , {}, {}",
-            readLocalShuffle,
+            "Read local shuffle file enabled {} , {}, {}",
+            enabledReadLocalShuffle,
             location.getWorker().host(),
             localHostAddress);
-        if (readLocalShuffle && location.getWorker().host().equals(localHostAddress)) {
+        if (enabledReadLocalShuffle && location.getWorker().host().equals(localHostAddress)) {
           return new LocalPartitionReader(
               conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
         } else {
@@ -499,7 +499,7 @@ public abstract class CelebornInputStream extends InputStream {
         currentReader.close();
         currentReader = null;
       }
-      if (readLocalShuffle) {
+      if (enabledReadLocalShuffle) {
         logger.info(ShuffleClient.queryReadCounters());
       }
     }

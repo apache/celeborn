@@ -204,7 +204,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
             s"$endIndex get file info $fileInfo from client channel " +
             s"${NettyUtils.getRemoteAddress(client.getChannel)}")
           if (readLocalShuffle) {
-            replyStreamHandler(
+            return replyStreamHandler(
               client,
               request.requestId,
               0,
