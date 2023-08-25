@@ -30,7 +30,7 @@ object GlutenColumnarBatchSerdeHelper {
     // see Gluten
     // https://github.com/oap-project/gluten/blob/main/gluten-celeborn/src/main/scala/org/apache/spark/shuffle/CelebornColumnarBatchSerializer.scala
     // scalastyle:on
-    serdeName.contains("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
+    "org.apache.spark.shuffle.CelebornColumnarBatchSerializer".equals(serdeName)
   }
 
   def withUpdatedRecordsRead(
