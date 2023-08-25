@@ -22,10 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -121,8 +118,8 @@ public class LocalPartitionReader implements PartitionReader {
     if (hasPendingFetchTask.compareAndSet(false, true)) {
       Future firstFetchTask = readLocalShufflePool.submit(() -> fetchDataTask());
       try {
-        firstFetchTask.wait();
-      } catch (InterruptedException e) {
+        firstFetchTask.get();
+      } catch (Exception e) {
         throw new CelebornIOException("Fetch data for local shuffle reader failed", e);
       }
     }
