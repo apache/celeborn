@@ -735,6 +735,7 @@ public class RatisMasterStatusSystemSuiteJ {
         userResourceConsumption1,
         new HashMap<>(),
         1,
+        false,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -752,6 +753,7 @@ public class RatisMasterStatusSystemSuiteJ {
         userResourceConsumption2,
         new HashMap<>(),
         1,
+        false,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -770,6 +772,7 @@ public class RatisMasterStatusSystemSuiteJ {
         userResourceConsumption1,
         new HashMap<>(),
         1,
+        false,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -777,6 +780,24 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        new HashMap<>(),
+        1,
+        true,
+        getNewReqeustId());
+    Thread.sleep(3000L);
+    Assert.assertEquals(2, statusSystem.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
   }
 
   @Before

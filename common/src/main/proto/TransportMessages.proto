@@ -151,6 +151,7 @@ message PbHeartbeatFromWorker {
   string requestId = 8;
   map<string, PbResourceConsumption> userResourceConsumption = 9;
   map<string, int64> estimatedAppDiskUsage = 10;
+  bool highWorkload = 11;
 }
 
 message PbHeartbeatFromWorkerResponse {
