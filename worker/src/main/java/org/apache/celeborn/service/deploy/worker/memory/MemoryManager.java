@@ -142,41 +142,7 @@ public class MemoryManager {
     checkService.scheduleWithFixedDelay(
         () -> {
           try {
-            ServingState lastState = servingState;
-            servingState = currentServingState();
-            if (lastState != servingState) {
-              logger.info("Serving state transformed from {} to {}", lastState, servingState);
-              if (servingState == ServingState.PUSH_PAUSED) {
-                pausePushDataCounter.increment();
-                logger.info("Trigger action: PAUSE PUSH, RESUME REPLICATE");
-                memoryPressureListeners.forEach(
-                    memoryPressureListener ->
-                        memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                memoryPressureListeners.forEach(
-                    memoryPressureListener ->
-                        memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
-                trimAllListeners();
-              } else if (servingState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
-                pausePushDataAndReplicateCounter.increment();
-                logger.info("Trigger action: PAUSE PUSH and REPLICATE");
-                memoryPressureListeners.forEach(
-                    memoryPressureListener ->
-                        memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
-                memoryPressureListeners.forEach(
-                    memoryPressureListener ->
-                        memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
-                trimAllListeners();
-              } else {
-                logger.info("Trigger action: RESUME PUSH and REPLICATE");
-                memoryPressureListeners.forEach(
-                    memoryPressureListener -> memoryPressureListener.onResume("all"));
-              }
-            } else {
-              if (servingState != ServingState.NONE_PAUSED) {
-                logger.debug("Trigger action: TRIM");
-                trimAllListeners();
-              }
-            }
+            switchServingState();
           } catch (Exception e) {
             logger.error("Memory tracker check error", e);
           }
@@ -272,6 +238,59 @@ public class MemoryManager {
     // if isPaused and not trigger resume, then return pause push
     // wait for trigger resumeThreshold to resume state
     return isPaused ? ServingState.PUSH_PAUSED : ServingState.NONE_PAUSED;
+  }
+
+  @VisibleForTesting
+  protected void switchServingState() {
+    ServingState lastState = servingState;
+    servingState = currentServingState();
+    if (lastState == servingState) {
+      if (servingState != ServingState.NONE_PAUSED) {
+        logger.debug("Trigger action: TRIM");
+        trimAllListeners();
+      }
+      return;
+    }
+    logger.info("Serving state transformed from {} to {}", lastState, servingState);
+    switch (servingState) {
+      case PUSH_PAUSED:
+        pausePushDataCounter.increment();
+        logger.info("Trigger action: PAUSE PUSH, RESUME REPLICATE");
+        if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
+          memoryPressureListeners.forEach(
+              memoryPressureListener ->
+                  memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
+        } else if (lastState == ServingState.NONE_PAUSED) {
+          memoryPressureListeners.forEach(
+              memoryPressureListener ->
+                  memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+        }
+        trimAllListeners();
+        break;
+      case PUSH_AND_REPLICATE_PAUSED:
+        pausePushDataAndReplicateCounter.increment();
+        logger.info("Trigger action: PAUSE PUSH and REPLICATE");
+        if (lastState == ServingState.NONE_PAUSED) {
+          memoryPressureListeners.forEach(
+              memoryPressureListener ->
+                  memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
+        }
+        memoryPressureListeners.forEach(
+            memoryPressureListener ->
+                memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
+        trimAllListeners();
+        break;
+      case NONE_PAUSED:
+        logger.info("Trigger action: RESUME PUSH and REPLICATE");
+        if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
+          memoryPressureListeners.forEach(
+              memoryPressureListener ->
+                  memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
+        }
+        memoryPressureListeners.forEach(
+            memoryPressureListener ->
+                memoryPressureListener.onResume(TransportModuleConstants.PUSH_MODULE));
+    }
   }
 
   public void trimAllListeners() {
