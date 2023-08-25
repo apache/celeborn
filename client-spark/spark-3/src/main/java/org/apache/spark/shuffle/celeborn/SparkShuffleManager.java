@@ -129,7 +129,13 @@ public class SparkShuffleManager implements ShuffleManager {
 
     if (fallbackPolicyRunner.applyAllFallbackPolicy(
         lifecycleManager, dependency.partitioner().numPartitions())) {
-      logger.warn("Fallback to SortShuffleManager!");
+      if (conf.getBoolean("spark.dynamicAllocation.enabled", false)) {
+        logger.error("DRA is enabled but we fallback to vanilla Spark SortShuffleManager for " +
+            "shuffle: {} due to fallback policy. It may cause block can not found when reducer " +
+                "task fetch data.", shuffleId);
+      } else {
+        logger.warn("Fallback to vanilla Spark SortShuffleManager for shuffle: {}", shuffleId);
+      }
       sortShuffleIds.add(shuffleId);
       return sortShuffleManager().registerShuffle(shuffleId, dependency);
     } else {
