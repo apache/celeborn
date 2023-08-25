@@ -97,11 +97,17 @@ class CelebornShuffleReader[K, C](
     }).flatMap(
       serializerInstance.deserializeStream(_).asKeyValueIterator)
 
+    val iterWithUpdatedRecordsRead =
+      if (GlutenColumnarBatchSerdeHelper.isGlutenSerde(serializerInstance.getClass.getName)) {
+        GlutenColumnarBatchSerdeHelper.withUpdatedRecordsRead(recordIter, metrics)
+      } else {
+        recordIter.map { record =>
+          metrics.incRecordsRead(1)
+          record
+        }
+      }
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
-      recordIter.map { record =>
-        metrics.incRecordsRead(1)
-        record
-      },
+      iterWithUpdatedRecordsRead,
       context.taskMetrics().mergeShuffleReadMetrics())
 
     // An interruptible iterator must be used here in order to support task cancellation
