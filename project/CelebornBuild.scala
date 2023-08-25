@@ -68,17 +68,11 @@ object Dependencies {
   val commonsLang3 = "org.apache.commons" % "commons-lang3" % commonsLang3Version
   val findbugsJsr305 = "com.google.code.findbugs" % "jsr305" % findbugsVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
-  val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion excludeAll(
-    ExclusionRule("org.slf4j", "slf4j-api"))
-  val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion excludeAll(
-    ExclusionRule("com.google.code.findbugs", "jsr305"),
-    ExclusionRule("org.slf4j", "slf4j-api"))
-  val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion excludeAll(
-    ExclusionRule("org.slf4j", "slf4j-api"))
-  val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll(
-    ExclusionRule("org.slf4j", "slf4j-api"))
-  val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion excludeAll(
-    ExclusionRule("org.slf4j", "slf4j-api"))
+  val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
+  val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
+  val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
+  val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion
+  val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
   val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletVersion
@@ -87,10 +81,8 @@ object Dependencies {
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
   val lz4Java = "org.lz4" % "lz4-java" % lz4JavaVersion
   val protobufJava = "com.google.protobuf" % "protobuf-java" % protoVersion
-  val ratisClient = "org.apache.ratis" % "ratis-client" % ratisVersion excludeAll(
-      ExclusionRule("org.slf4j", "slf4j-api"))
-  val ratisCommon = "org.apache.ratis" % "ratis-common" % ratisVersion excludeAll(
-      ExclusionRule("org.slf4j", "slf4j-api"))
+  val ratisClient = "org.apache.ratis" % "ratis-client" % ratisVersion
+  val ratisCommon = "org.apache.ratis" % "ratis-common" % ratisVersion
   val ratisGrpc = "org.apache.ratis" % "ratis-grpc" % ratisVersion
   val ratisNetty = "org.apache.ratis" % "ratis-netty" % ratisVersion
   val ratisServer = "org.apache.ratis" % "ratis-server" % ratisVersion
@@ -98,10 +90,8 @@ object Dependencies {
   val roaringBitmap = "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
-  val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion excludeAll(
-      ExclusionRule("org.slf4j", "slf4j-api"))
-  val slf4jJclOverSlf4j = "org.slf4j" % "jcl-over-slf4j" % slf4jVersion excludeAll(
-      ExclusionRule("org.slf4j", "slf4j-api"))
+  val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
+  val slf4jJclOverSlf4j = "org.slf4j" % "jcl-over-slf4j" % slf4jVersion
   val snakeyaml = "org.yaml" % "snakeyaml" % snakeyamlVersion
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
 
@@ -145,6 +135,10 @@ object CelebornCommonSettings {
   
     // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
+
+    dependencyOverrides := Seq(
+      Dependencies.findbugsJsr305,
+      Dependencies.slf4jApi),
   
     // Make sure any tests in any project that uses Spark is configured for running well locally
     Test / javaOptions ++= Seq(
