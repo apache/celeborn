@@ -2700,7 +2700,7 @@ object CelebornConf extends Logging {
       .doc("If the number of active connections on a worker exceeds this configuration value, " +
         "the worker will be marked as high-load in the heartbeat report, " +
         "and the master will not include that node in the response of RequestSlots.")
-      .version("0.3.0")
+      .version("0.3.1")
       .longConf
       .createOptional
 
