@@ -121,6 +121,7 @@ message WorkerHeartbeatRequest {
   required int64 time = 7;
   map<string, ResourceConsumption> userResourceConsumption = 8;
   map<string, int64> estimatedAppDiskUsage = 9;
+  required bool highWorkload = 10;
 }
 
 message RegisterWorkerRequest {

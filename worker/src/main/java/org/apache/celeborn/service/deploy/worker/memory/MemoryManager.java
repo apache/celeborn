@@ -429,7 +429,6 @@ public class MemoryManager {
     void onChange(long newMemoryTarget);
   }
 
-  @VisibleForTesting
   public enum ServingState {
     NONE_PAUSED,
     PUSH_AND_REPLICATE_PAUSED,

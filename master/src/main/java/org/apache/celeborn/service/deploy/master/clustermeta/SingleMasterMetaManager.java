@@ -92,6 +92,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
+      boolean highWorkload,
       String requestId) {
     updateWorkerHeartbeatMeta(
         host,
@@ -102,7 +103,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         disks,
         userResourceConsumption,
         estimatedAppDiskUsage,
-        time);
+        time,
+        highWorkload);
   }
 
   @Override

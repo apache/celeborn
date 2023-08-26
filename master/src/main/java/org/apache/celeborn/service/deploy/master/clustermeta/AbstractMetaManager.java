@@ -143,7 +143,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
-      long time) {
+      long time,
+      boolean highWorkload) {
     WorkerInfo worker =
         new WorkerInfo(
             host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
@@ -161,10 +162,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     appDiskUsageMetric.update(estimatedAppDiskUsage);
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
-    if (!excludedWorkers.contains(worker) && (disks.isEmpty() && !conf.hasHDFSStorage())) {
+    if (!excludedWorkers.contains(worker)
+        && ((disks.isEmpty() && !conf.hasHDFSStorage()) || highWorkload)) {
       LOG.debug("Worker: {} num total slots is 0, add to excluded list", worker);
       excludedWorkers.add(worker);
-    } else if (availableSlots.get() > 0) {
+    } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage()) && !highWorkload) {
       // only unblack if numSlots larger than 0
       excludedWorkers.remove(worker);
     }

@@ -506,6 +506,7 @@ public class DefaultMetaSystemSuiteJ {
         userResourceConsumption1,
         new HashMap<>(),
         1,
+        false,
         getNewReqeustId());
 
     Assert.assertEquals(statusSystem.excludedWorkers.size(), 1);
@@ -520,23 +521,40 @@ public class DefaultMetaSystemSuiteJ {
         userResourceConsumption2,
         new HashMap<>(),
         1,
+        false,
         getNewReqeustId());
 
     Assert.assertEquals(statusSystem.excludedWorkers.size(), 2);
 
     statusSystem.handleWorkerHeartbeat(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
         REPLICATEPORT3,
-        disks1,
-        userResourceConsumption1,
+        disks3,
+        userResourceConsumption3,
         new HashMap<>(),
         1,
+        false,
         getNewReqeustId());
 
     Assert.assertEquals(statusSystem.excludedWorkers.size(), 2);
+
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        new HashMap<>(),
+        1,
+        true,
+        getNewReqeustId());
+
+    Assert.assertEquals(statusSystem.excludedWorkers.size(), 3);
   }
 
   @Test

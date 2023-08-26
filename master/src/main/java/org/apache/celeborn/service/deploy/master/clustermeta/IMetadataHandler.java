@@ -55,6 +55,7 @@ public interface IMetadataHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
+      boolean highWorkload,
       String requestId);
 
   void handleRegisterWorker(
