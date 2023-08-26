@@ -337,6 +337,7 @@ private[celeborn] class Master(
           userResourceConsumption,
           activeShuffleKey,
           estimatedAppDiskUsage,
+          highWorkload,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
@@ -353,6 +354,7 @@ private[celeborn] class Master(
           userResourceConsumption,
           activeShuffleKey,
           estimatedAppDiskUsage,
+          highWorkload,
           requestId))
 
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
@@ -435,6 +437,7 @@ private[celeborn] class Master(
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
+      highWorkload: Boolean,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = workersSnapShot.asScala.contains(targetWorker)
@@ -452,6 +455,7 @@ private[celeborn] class Master(
         userResourceConsumption,
         estimatedAppDiskUsage,
         System.currentTimeMillis(),
+        highWorkload,
         requestId)
     }
 

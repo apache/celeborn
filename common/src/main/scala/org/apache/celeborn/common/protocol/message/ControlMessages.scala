@@ -113,6 +113,7 @@ object ControlMessages extends Logging {
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
+      highWorkload: Boolean,
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class HeartbeatFromWorkerResponse(
@@ -452,6 +453,7 @@ object ControlMessages extends Logging {
           userResourceConsumption,
           activeShuffleKeys,
           estimatedAppDiskUsage,
+          highWorkload,
           requestId) =>
       val pbDisks = disks.map(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceConsumption =
@@ -466,6 +468,7 @@ object ControlMessages extends Logging {
         .setReplicatePort(replicatePort)
         .addAllActiveShuffleKeys(activeShuffleKeys)
         .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
+        .setHighWorkload(highWorkload)
         .setRequestId(requestId)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER, payload)
@@ -847,6 +850,7 @@ object ControlMessages extends Logging {
           userResourceConsumption,
           activeShuffleKeys,
           estimatedAppDiskUsage,
+          pbHeartbeatFromWorker.getHighWorkload,
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE_VALUE =>

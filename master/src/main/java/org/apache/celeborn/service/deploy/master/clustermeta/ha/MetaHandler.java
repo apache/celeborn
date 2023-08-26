@@ -163,6 +163,7 @@ public class MetaHandler {
           estimatedAppDiskUsage.putAll(
               request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
+          boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {} {}",
               host,
@@ -182,7 +183,8 @@ public class MetaHandler {
               diskInfos,
               userResourceConsumption,
               estimatedAppDiskUsage,
-              time);
+              time,
+              highWorkload);
           break;
 
         case RegisterWorker:

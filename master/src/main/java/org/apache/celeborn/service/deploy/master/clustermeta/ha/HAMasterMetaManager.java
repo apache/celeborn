@@ -197,6 +197,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
+      boolean highWorkload,
       String requestId) {
     try {
       ratisServer.submitRequest(
@@ -215,6 +216,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
                       .setTime(time)
+                      .setHighWorkload(highWorkload)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {

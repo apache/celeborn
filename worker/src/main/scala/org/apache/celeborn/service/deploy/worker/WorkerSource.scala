@@ -56,6 +56,10 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addTimer(TAKE_BUFFER_TIME)
   addTimer(SORT_TIME)
 
+  def getCounterCount(metricsName: String): Long = {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, Map.empty)
+    namedCounters.get(metricNameWithLabel).counter.getCount
+  }
   // start cleaner thread
   startCleaner()
 }

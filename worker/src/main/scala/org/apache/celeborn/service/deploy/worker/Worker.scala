@@ -46,8 +46,10 @@ import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ShutdownHoo
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.service.deploy.worker.WorkerSource.ACTIVE_CONNECTION_COUNT
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 private[celeborn] class Worker(
@@ -296,6 +298,16 @@ private[celeborn] class Worker(
     memoryManager.getAllocatedReadBuffers
   }
 
+  private def highWorkload: Boolean = {
+    (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {
+      case (ServingState.PUSH_AND_REPLICATE_PAUSED, _) => true
+      case (ServingState.PUSH_PAUSED, _) => true
+      case (_, Some(activeConnectionMax)) =>
+        workerSource.getCounterCount(ACTIVE_CONNECTION_COUNT) >= activeConnectionMax
+      case _ => false
+    }
+  }
+
   private def heartbeatToMaster(): Unit = {
     val activeShuffleKeys = new JHashSet[String]()
     val estimatedAppDiskUsage = new JHashMap[String, JLong]()
@@ -322,7 +334,8 @@ private[celeborn] class Worker(
         diskInfos,
         resourceConsumption,
         activeShuffleKeys,
-        estimatedAppDiskUsage),
+        estimatedAppDiskUsage,
+        highWorkload),
       classOf[HeartbeatFromWorkerResponse])
     response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
