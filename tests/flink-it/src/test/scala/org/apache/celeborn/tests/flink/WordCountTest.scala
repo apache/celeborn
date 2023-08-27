@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.graph.{GlobalStreamExchangeMode, Streaming
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -80,6 +81,11 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     val graph = env.getStreamGraph
     graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
     graph.setJobType(JobType.BATCH)
+    if (flinkCluster != null) {
+      flinkCluster.close()
+      flinkCluster = null
+      System.gc()
+    }
     val miniClusterConfiguration =
       (new MiniClusterConfiguration.Builder).setConfiguration(configuration).build()
     flinkCluster = new MiniCluster(miniClusterConfiguration)
@@ -101,5 +107,47 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
         })
       })
     })
+  }
+
+  test("celeborn flink integration test - shuffle partition split test") {
+    val configuration = new Configuration
+    val parallelism = 8
+    configuration.setString(
+      "shuffle-service-factory.class",
+      "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
+    configuration.setString(CelebornConf.MASTER_ENDPOINTS.key, "localhost:9097")
+    configuration.setString("execution.batch-shuffle-mode", "ALL_EXCHANGES_BLOCKING")
+    configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    configuration.setString("taskmanager.memory.network.min", "1024m")
+    configuration.setString(RestOptions.BIND_PORT, "8081-8089")
+    configuration.setString(
+      "execution.batch.adaptive.auto-parallelism.min-parallelism",
+      "" + parallelism)
+    configuration.setString(
+      "execution.batch.adaptive.auto-parallelism.max-parallelism",
+      "" + parallelism)
+    configuration.setString(CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key, "10k")
+    configuration.setString(CelebornConf.CLIENT_FLINK_SHUFFLE_PARTITION_SPLIT_ENABLED.key, "true");
+    val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
+    env.getConfig.setExecutionMode(ExecutionMode.BATCH)
+    env.getConfig.setParallelism(parallelism)
+    SplitHelper.runSplitRead(env)
+    if (flinkCluster != null) {
+      flinkCluster.close()
+      flinkCluster = null
+      System.gc()
+    }
+    val miniClusterConfiguration =
+      (new MiniClusterConfiguration.Builder).setConfiguration(configuration).build()
+    flinkCluster = new MiniCluster(miniClusterConfiguration)
+    flinkCluster.start()
+    val graph = env.getStreamGraph
+    graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
+    graph.setJobType(JobType.BATCH)
+    val jobGraph: JobGraph = StreamingJobGraphGenerator.createJobGraph(graph)
+    val jobID = flinkCluster.submitJob(jobGraph).get.getJobID
+    val jobResult = flinkCluster.requestJobResult(jobID).get
+    if (jobResult.getSerializedThrowable.isPresent)
+      throw new AssertionError(jobResult.getSerializedThrowable.get)
   }
 }
