@@ -52,6 +52,11 @@ PUSH_REMOTE_NAME = os.environ.get("PUSH_REMOTE_NAME", "apache")
 ASF_USERNAME = os.environ.get("ASF_USERNAME", "")
 # ASF JIRA password
 ASF_PASSWORD = os.environ.get("ASF_PASSWORD", "")
+# ASF JIRA access token
+# If it is configured, username and password are dismissed
+# Go to https://issues.apache.org/jira/secure/ViewProfile.jspa -> Personal Access Tokens for
+# your own token management.
+JIRA_ACCESS_TOKEN = os.environ.get("JIRA_ACCESS_TOKEN")
 # OAuth key used for issuing requests against the GitHub API. If this is not defined, then requests
 # will be unauthenticated. You should only need to configure this if you find yourself regularly
 # exceeding your IP's unauthenticated request rate limit. You can create an OAuth key at
@@ -238,9 +243,12 @@ def cherry_pick(pr_num, merge_hash, default_branch):
 
 
 def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
-    asf_jira = jira.client.JIRA(
-        {"server": JIRA_API_BASE}, basic_auth=(ASF_USERNAME, ASF_PASSWORD)
-    )
+    jira_server = {"server": JIRA_API_BASE}
+
+    if JIRA_ACCESS_TOKEN is not None:
+        asf_jira = jira.client.JIRA(jira_server, token_auth=JIRA_ACCESS_TOKEN)
+    else:
+        asf_jira = jira.client.JIRA(jira_server, basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
 
     jira_id = input("Enter a JIRA id [%s]: " % default_jira_id)
     if jira_id == "":
@@ -385,13 +393,33 @@ def choose_jira_assignee(issue, asf_jira):
                 except BaseException:
                     # assume it's a user id, and try to assign (might fail, we just prompt again)
                     assignee = asf_jira.user(raw_assignee)
-                assign_issue(asf_jira, issue.key, assignee.name)
+                try:
+                    assign_issue(asf_jira, issue.key, assignee.name)
+                except Exception as e:
+                    if (
+                        e.__class__.__name__ == "JIRAError"
+                        and ("'%s' cannot be assigned" % assignee.name)
+                        in getattr(e, "response").text
+                    ):
+                        continue_maybe(
+                            "User '%s' cannot be assigned, add to contributors role and try again?"
+                            % assignee.name
+                        )
+                        grant_contributor_role(assignee.name, asf_jira)
+                        assign_issue(asf_jira, issue.key, assignee.name)
+                    else:
+                        raise e
                 return assignee
         except KeyboardInterrupt:
             raise
         except BaseException:
             traceback.print_exc()
             print("Error assigning JIRA, try again (or leave blank and fix manually)")
+
+def grant_contributor_role(user: str, asf_jira):
+    role = asf_jira.project_role("CELEBORN", 10010)
+    role.add_user(user)
+    print("Successfully added user '%s' to contributors role" % user)
 
 def assign_issue(client, issue: int, assignee: str) -> bool:
     """
@@ -474,8 +502,9 @@ def main():
     original_head = get_current_ref()
 
     # Check this up front to avoid failing the JIRA update at the very end
-    if not ASF_USERNAME or not ASF_PASSWORD:
-        continue_maybe("The env-vars ASF_USERNAME and/or ASF_PASSWORD are not set. Continue?")
+    if not JIRA_ACCESS_TOKEN and (not ASF_USERNAME or not ASF_PASSWORD):
+        msg = "The env-vars JIRA_ACCESS_TOKEN or ASF_USERNAME/ASF_PASSWORD are not set. Continue?"
+        continue_maybe(msg)
 
     branches = get_json("%s/branches" % GITHUB_API_BASE)
     branch_names = list(filter(lambda x: x.startswith("branch-"), [x["name"] for x in branches]))
@@ -575,7 +604,7 @@ def main():
         merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
 
     if JIRA_IMPORTED:
-        if ASF_USERNAME and ASF_PASSWORD:
+        if JIRA_ACCESS_TOKEN or (ASF_USERNAME and ASF_PASSWORD):
             continue_maybe("Would you like to update an associated JIRA?")
             jira_comment = "Issue resolved by pull request %s\n[%s/%s]" % (
                 pr_num,
@@ -584,7 +613,7 @@ def main():
             )
             resolve_jira_issues(title, merged_refs, jira_comment)
         else:
-            print("ASF_USERNAME and ASF_PASSWORD not set")
+            print("Neither JIRA_ACCESS_TOKEN nor ASF_USERNAME/ASF_PASSWORD are set.")
             print("Exiting without trying to close the associated JIRA.")
     else:
         print("Could not find jira-python library. Run 'sudo pip3 install jira' to install.")

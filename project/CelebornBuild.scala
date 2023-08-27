@@ -62,7 +62,8 @@ object Dependencies {
   val protocVersion = "3.19.2"
   val protoVersion = "3.19.2"
   
-  val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion
+  val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
+    ExclusionRule("net.java.dev.jna", "jna"))
   val commonsIo = "commons-io" % "commons-io" % commonsIoVersion
   val commonsLang3 = "org.apache.commons" % "commons-lang3" % commonsLang3Version
   val findbugsJsr305 = "com.google.code.findbugs" % "jsr305" % findbugsVersion
@@ -72,7 +73,8 @@ object Dependencies {
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
-  val ioNetty = "io.netty" % "netty-all" % nettyVersion
+  val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
+    ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
   val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletVersion
   val leveldbJniAll = "org.fusesource.leveldbjni" % "leveldbjni-all" % leveldbJniVersion
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
@@ -133,6 +135,10 @@ object CelebornCommonSettings {
   
     // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
+
+    dependencyOverrides := Seq(
+      Dependencies.findbugsJsr305,
+      Dependencies.slf4jApi),
   
     // Make sure any tests in any project that uses Spark is configured for running well locally
     Test / javaOptions ++= Seq(

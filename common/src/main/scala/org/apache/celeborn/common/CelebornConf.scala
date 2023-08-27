@@ -654,6 +654,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
+  def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
 
   // //////////////////////////////////////////////////////
   //                 Metrics System                      //
@@ -804,6 +805,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def shuffleManagerPort: Int = get(CLIENT_SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
+  def dfsReadChunkSize: Long = get(CLIENT_FETCH_DFS_READ_CHUNK_SIZE)
   def shufflePartitionSplitMode: PartitionSplitMode =
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
@@ -1945,10 +1947,18 @@ object CelebornConf extends Logging {
 
   val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chunk.size")
-      .categories("client", "worker")
+      .categories("worker")
       .version("0.2.0")
       .doc("Max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
         "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8m")
+
+  val CLIENT_FETCH_DFS_READ_CHUNK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.dfsReadChunkSize")
+      .categories("client")
+      .version("0.3.1")
+      .doc("Max chunk size for DfsPartitionReader.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8m")
 
@@ -2684,6 +2694,16 @@ object CelebornConf extends Logging {
       .doc("enable the heartbeat from worker to client when fetching data")
       .booleanConf
       .createWithDefault(false)
+
+  val WORKER_ACTIVE_CONNECTION_MAX: OptionalConfigEntry[Long] =
+    buildConf("celeborn.worker.activeConnection.max")
+      .categories("worker")
+      .doc("If the number of active connections on a worker exceeds this configuration value, " +
+        "the worker will be marked as high-load in the heartbeat report, " +
+        "and the master will not include that node in the response of RequestSlots.")
+      .version("0.3.1")
+      .longConf
+      .createOptional
 
   val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.application.heartbeatInterval")
