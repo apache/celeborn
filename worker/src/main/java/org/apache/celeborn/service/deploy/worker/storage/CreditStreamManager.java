@@ -78,9 +78,9 @@ public class CreditStreamManager {
       int initialCredit,
       int startSubIndex,
       int endSubIndex,
-      FileInfo fileInfo) {
+      FileInfo fileInfo) throws IOException {
     return registerStream(
-        notifyStreamHandlerCallback, channel, initialCredit, startSubIndex, endSubIndex, fileInfo);
+        notifyStreamHandlerCallback, channel, initialCredit, startSubIndex, endSubIndex, fileInfo, false);
   }
 
   public long registerStream(
