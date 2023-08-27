@@ -78,7 +78,19 @@ public class CreditStreamManager {
       int initialCredit,
       int startSubIndex,
       int endSubIndex,
-      FileInfo fileInfo)
+      FileInfo fileInfo) {
+    return registerStream(
+        notifyStreamHandlerCallback, channel, initialCredit, startSubIndex, endSubIndex, fileInfo);
+  }
+
+  public long registerStream(
+      Consumer<Long> notifyStreamHandlerCallback,
+      Channel channel,
+      int initialCredit,
+      int startSubIndex,
+      int endSubIndex,
+      FileInfo fileInfo,
+      boolean isLegacy)
       throws IOException {
     long streamId = nextStreamId.getAndIncrement();
     logger.debug(
@@ -102,7 +114,8 @@ public class CreditStreamManager {
                           threadsPerMountPoint,
                           fileInfo,
                           id -> recycleStream(id),
-                          minBuffersToTriggerRead);
+                          minBuffersToTriggerRead,
+                          isLegacy);
                 } catch (IOException e) {
                   exception.set(e);
                   return null;

@@ -24,7 +24,7 @@ import java.util.function.BiFunction
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.util.JavaUtils
 
 class WorkerPartitionLocationInfo extends Logging {
@@ -183,8 +183,18 @@ class WorkerPartitionLocationInfo extends Logging {
        |""".stripMargin
   }
 
-  def getPrimaryPartitionLocations(): PartitionInfo = primaryPartitionLocations
-
-  def getReplicaPartitionLocations(): PartitionInfo = replicaPartitionLocations
+  def getPrimaryPartitionLocationsByFiler(f: String => Boolean)
+      : Array[Map[String, ConcurrentHashMap[String, PartitionLocation]]] = {
+    val primary = primaryPartitionLocations.asScala.filterKeys(f)
+    val replica = replicaPartitionLocations.asScala.filterKeys(f)
+    if (primary.size > 0) {
+      if (replica.size > 0) {
+        Array(primary, replica)
+      } else {
+        Array(primary)
+      }
+    }
+    Array()
+  }
 
 }

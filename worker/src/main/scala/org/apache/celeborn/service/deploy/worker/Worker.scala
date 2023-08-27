@@ -709,35 +709,22 @@ private[celeborn] class Worker(
     var isFinish = true
     val loop = new Breaks
     loop.breakable {
-
-      val mapPartititionPrimaryPartitionLocations =
-        partitionLocationInfo.getPrimaryPartitionLocations.asScala.filter(l =>
-          shufflePartitionType.get(l._1) == PartitionType.MAP)
-      val mapPartititionReplicaPartitionLocations =
-        partitionLocationInfo.getReplicaPartitionLocations.asScala.filter(l =>
-          shufflePartitionType.get(l._1) == PartitionType.MAP)
+      val partitionLocations =
+        partitionLocationInfo.getPrimaryPartitionLocationsByFiler(l =>
+          shufflePartitionType.get(l) == PartitionType.MAP)
       logDebug(
-        s"masterlocations size: ${partitionLocationInfo.getPrimaryPartitionLocations.size()}, ${mapPartititionPrimaryPartitionLocations.size}")
-      for ((_, locationMap) <- mapPartititionPrimaryPartitionLocations) {
-        for ((_, location) <- locationMap.asScala) {
-          if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
-              MapPartitionFileWriter].isRegionFinished) {
-            isFinish = false
-            logDebug(s"primary partitionLocations region is not finished: $location")
-            loop.break()
+        s"IsRegionFinished the partitions total size before filter : ${partitionLocationInfo.shuffleKeySet.size()}, the partitions toal size after filter${partitionLocations.size}")
+      for (partitonLocationInfo <- partitionLocations) {
+        for ((_, locationMap) <- partitonLocationInfo) {
+          for ((_, location) <- locationMap.asScala) {
+            if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
+                MapPartitionFileWriter].isRegionFinished) {
+              isFinish = false
+              logDebug(s"primary partitionLocations region is not finished: $location")
+              loop.break()
+            }
           }
         }
-      }
-      for ((_, locationMap) <- mapPartititionReplicaPartitionLocations) {
-        for ((_, location) <- locationMap.asScala) {
-          if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
-              MapPartitionFileWriter].isRegionFinished) {
-            isFinish = false
-            logDebug(s"replica partitionLocations region is not finished: $location")
-            loop.break()
-          }
-        }
-
       }
     }
     isFinish

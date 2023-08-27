@@ -30,7 +30,10 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 
 public class CelebornBufferStream {
@@ -131,13 +134,13 @@ public class CelebornBufferStream {
     mapShuffleClient.getReadClientHandler().removeHandler(streamId);
     clientFactory.unregisterSupplier(streamId);
     closeStream(streamId);
+    isOpenSuccess = false;
   }
 
   public void close() {
     synchronized (lock) {
       if (isOpenSuccess) {
         cleanStream(streamId);
-        isOpenSuccess = false;
       }
       isClosed = true;
     }
@@ -173,36 +176,56 @@ public class CelebornBufferStream {
             locations[currentLocationIndex].getHost(),
             locations[currentLocationIndex].getFetchPort());
     String fileName = locations[currentLocationIndex].getFileName();
-    OpenStreamWithCredit openBufferStream =
-        new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);
+    TransportMessage openStream =
+        new TransportMessage(
+            MessageType.OPEN_STREAM,
+            PbOpenStream.newBuilder()
+                .setShuffleKey(shuffleKey)
+                .setFileName(fileName)
+                .setStartIndex(subIndexStart)
+                .setEndIndex(subIndexEnd)
+                .setInitialCredit(initialCredit)
+                .build()
+                .toByteArray());
     client.sendRpc(
-        openBufferStream.toByteBuffer(),
+        openStream.toByteBuffer(),
         new RpcResponseCallback() {
 
           @Override
           public void onSuccess(ByteBuffer response) {
-            StreamHandle streamHandle = (StreamHandle) Message.decode(response);
-            CelebornBufferStream.this.streamId = streamHandle.streamId;
-            synchronized (lock) {
-              if (!isClosed) {
-                clientFactory.registerSupplier(CelebornBufferStream.this.streamId, bufferSupplier);
-                mapShuffleClient
-                    .getReadClientHandler()
-                    .registerHandler(streamId, messageConsumer, client);
-                isOpenSuccess = true;
-                logger.debug(
-                    "open stream success from remote:{}, stream id:{}, fileName: {}",
-                    client.getSocketAddress(),
-                    streamId,
-                    fileName);
-              } else {
-                logger.debug(
-                    "open stream success from remote:{}, but stream reader is already closed, stream id:{}, fileName: {}",
-                    client.getSocketAddress(),
-                    streamId,
-                    fileName);
-                closeStream(streamId);
+            try {
+              PbStreamHandler pbStreamHandler =
+                  TransportMessage.fromByteBuffer(response).getParsedPayload();
+              CelebornBufferStream.this.streamId = pbStreamHandler.getStreamId();
+              synchronized (lock) {
+                if (!isClosed) {
+                  clientFactory.registerSupplier(
+                      CelebornBufferStream.this.streamId, bufferSupplier);
+                  mapShuffleClient
+                      .getReadClientHandler()
+                      .registerHandler(streamId, messageConsumer, client);
+                  isOpenSuccess = true;
+                  logger.debug(
+                      "open stream success from remote:{}, stream id:{}, fileName: {}",
+                      client.getSocketAddress(),
+                      streamId,
+                      fileName);
+                } else {
+                  logger.debug(
+                      "open stream success from remote:{}, but stream reader is already closed, stream id:{}, fileName: {}",
+                      client.getSocketAddress(),
+                      streamId,
+                      fileName);
+                  closeStream(streamId);
+                }
               }
+            } catch (Exception e) {
+              logger.error(
+                  "Open file {} stream for {} error from {}",
+                  fileName,
+                  shuffleKey,
+                  NettyUtils.getRemoteAddress(client.getChannel()));
+              messageConsumer.accept(new TransportableError(streamId, e));
             }
           }
 

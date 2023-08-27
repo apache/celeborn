@@ -23,9 +23,10 @@ import scala.collection.JavaConverters._
 
 import org.apache.flink.api.common.{ExecutionMode, RuntimeExecutionMode}
 import org.apache.flink.configuration.{Configuration, ExecutionOptions, RestOptions}
-import org.apache.flink.runtime.jobgraph.JobType
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobType}
+import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
+import org.apache.flink.streaming.api.graph.{GlobalStreamExchangeMode, StreamingJobGraphGenerator}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -36,7 +37,7 @@ import org.apache.celeborn.service.deploy.worker.Worker
 class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
-
+  var flinkCluster: MiniCluster = null
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
     val masterConf = Map(
@@ -48,6 +49,9 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
 
   override def afterAll(): Unit = {
     logInfo("all test complete , stop celeborn mini cluster")
+    if (flinkCluster != null) {
+      flinkCluster.close()
+    }
     shutdownMiniCluster()
   }
 
@@ -76,7 +80,16 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     val graph = env.getStreamGraph
     graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
     graph.setJobType(JobType.BATCH)
-    env.execute(graph)
+    val miniClusterConfiguration =
+      (new MiniClusterConfiguration.Builder).setConfiguration(configuration).build()
+    flinkCluster = new MiniCluster(miniClusterConfiguration)
+    flinkCluster.start()
+
+    val jobGraph: JobGraph = StreamingJobGraphGenerator.createJobGraph(graph)
+    val jobID = flinkCluster.submitJob(jobGraph).get.getJobID
+    val jobResult = flinkCluster.requestJobResult(jobID).get
+    if (jobResult.getSerializedThrowable.isPresent)
+      throw new AssertionError(jobResult.getSerializedThrowable.get)
     checkFlushingFileLength()
   }
 

@@ -64,7 +64,5 @@ public class SplitHelper {
                 //                      Thread.sleep(30 * 1000);
               }
             });
-
-    env.execute("Shuffle Task");
   }
 }
