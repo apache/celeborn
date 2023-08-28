@@ -151,7 +151,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       PartitionLocation[] partitionLocations =
           fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
       Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
-      logger.debug("readBufferedPartition shuffleKey:{} partitionid:{} partitionLocation:{}", shuffleKey, partitionId, partitionLocations);
+      logger.debug(
+          "readBufferedPartition shuffleKey:{} partitionid:{} partitionLocation:{}",
+          shuffleKey,
+          partitionId,
+          partitionLocations);
       return CelebornBufferStream.create(
           this,
           flinkTransportClientFactory,
