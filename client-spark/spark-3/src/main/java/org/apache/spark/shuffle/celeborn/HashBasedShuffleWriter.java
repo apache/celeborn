@@ -41,11 +41,7 @@ import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
-import org.apache.spark.sql.execution.columnar.CelebornBatchBuilder;
-import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchBuilder;
-import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchCodeGenBuild;
 import org.apache.spark.sql.execution.metric.SQLMetric;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.BlockManagerId;
 import org.apache.spark.unsafe.Platform;
 import org.slf4j.Logger;
@@ -77,7 +73,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int numMappers;
   private final int numPartitions;
 
-  private final CelebornConf conf;
   @Nullable private MapStatus mapStatus;
   private long peakMemoryUsedBytes = 0;
 
@@ -90,7 +85,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final LongAdder[] mapStatusLengths;
   private final long[] tmpRecords;
 
-  private CelebornBatchBuilder[] celebornBatchBuilders;
   private final SendBufferPool sendBufferPool;
 
   /**
@@ -102,23 +96,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private DataPusher dataPusher;
 
-  private StructType schema;
-
   private final boolean unsafeRowFastWrite;
-
-  // //////////////////////////////////////////////////////
-  //                 Columnar Relate Conf                //
-  // //////////////////////////////////////////////////////
-
-  private boolean isColumnarShuffle = false;
-
-  private int columnarShuffleBatchSize;
-
-  private boolean columnarShuffleCodeGenEnabled;
-
-  private boolean columnarShuffleDictionaryEnabled;
-
-  private double columnarShuffleDictionaryMaxFactor;
 
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
@@ -140,7 +118,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.numMappers = handle.numMappers();
     this.numPartitions = dep.partitioner().numPartitions();
     this.shuffleClient = client;
-    this.conf = conf;
 
     unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
@@ -177,27 +154,13 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
     }
-
-    if (conf.columnarShuffleEnabled()) {
-      columnarShuffleBatchSize = conf.columnarShuffleBatchSize();
-      columnarShuffleCodeGenEnabled = conf.columnarShuffleCodeGenEnabled();
-      columnarShuffleDictionaryEnabled = conf.columnarShuffleDictionaryEnabled();
-      columnarShuffleDictionaryMaxFactor = conf.columnarShuffleDictionaryMaxFactor();
-      this.schema = SparkUtils.getSchema(dep);
-      this.celebornBatchBuilders = new CelebornBatchBuilder[numPartitions];
-      this.isColumnarShuffle = CelebornBatchBuilder.supportsColumnarType(schema);
-    }
   }
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     try {
       if (canUseFastWrite()) {
-        if (isColumnarShuffle) {
-          fastColumnarWrite0(records);
-        } else {
-          fastWrite0(records);
-        }
+        fastWrite0(records);
       } else if (dep.mapSideCombine()) {
         if (dep.aggregator().isEmpty()) {
           throw new UnsupportedOperationException(
@@ -224,46 +187,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     return keyIsPartitionId;
   }
 
-  private void fastColumnarWrite0(scala.collection.Iterator iterator) throws IOException {
-    final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
-
-    SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
-    while (records.hasNext()) {
-      final Product2<Integer, UnsafeRow> record = records.next();
-      final int partitionId = record._1();
-      final UnsafeRow row = record._2();
-
-      if (celebornBatchBuilders[partitionId] == null) {
-        CelebornBatchBuilder columnBuilders;
-        if (columnarShuffleCodeGenEnabled && !columnarShuffleDictionaryEnabled) {
-          columnBuilders =
-              new CelebornColumnarBatchCodeGenBuild().create(schema, columnarShuffleBatchSize);
-        } else {
-          columnBuilders =
-              new CelebornColumnarBatchBuilder(
-                  schema,
-                  columnarShuffleBatchSize,
-                  columnarShuffleDictionaryMaxFactor,
-                  columnarShuffleDictionaryEnabled);
-        }
-        columnBuilders.newBuilders();
-        celebornBatchBuilders[partitionId] = columnBuilders;
-      }
-
-      celebornBatchBuilders[partitionId].writeRow(row);
-      if (celebornBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize) {
-        byte[] arr = celebornBatchBuilders[partitionId].buildColumnBytes();
-        pushGiantRecord(partitionId, arr, arr.length);
-        if (dataSize != null) {
-          dataSize.add(arr.length);
-        }
-        celebornBatchBuilders[partitionId].newBuilders();
-      }
-      tmpRecords[partitionId] += 1;
-    }
-  }
-
-  private void fastWrite0(scala.collection.Iterator iterator)
+  protected void fastWrite0(scala.collection.Iterator iterator)
       throws IOException, InterruptedException {
     final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
 
@@ -302,8 +226,12 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             rowSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
-      tmpRecords[partitionId] += 1;
+      incRecordsWritten(partitionId);
     }
+  }
+
+  protected void incRecordsWritten(int partitionId) {
+    tmpRecords[partitionId] += 1;
   }
 
   private void write0(scala.collection.Iterator iterator) throws IOException, InterruptedException {
@@ -329,7 +257,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         System.arraycopy(serBuffer.getBuf(), 0, buffer, offset, serializedRecordSize);
         sendOffsets[partitionId] = offset + serializedRecordSize;
       }
-      tmpRecords[partitionId] += 1;
+      incRecordsWritten(partitionId);
     }
   }
 
@@ -343,7 +271,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     return buffer;
   }
 
-  private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
+  protected void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", numBytes);
     int bytesWritten =
         shuffleClient.pushData(
@@ -390,61 +318,38 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
-  private void closeColumnarWrite() throws IOException {
-    SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
-    for (int i = 0; i < numPartitions; i++) {
-      final CelebornBatchBuilder builders = celebornBatchBuilders[i];
-      if (builders != null && builders.getRowCnt() > 0) {
-        byte[] buffers = builders.buildColumnBytes();
-        if (dataSize != null) {
-          dataSize.add(buffers.length);
-        }
-        int bytesWritten =
-            shuffleClient.mergeData(
-                shuffleId,
-                mapId,
-                taskContext.attemptNumber(),
-                i,
-                buffers,
-                0,
-                buffers.length,
-                numMappers,
-                numPartitions);
-        // free buffer
-        celebornBatchBuilders[i] = null;
-        mapStatusLengths[i].add(bytesWritten);
-        writeMetrics.incBytesWritten(bytesWritten);
-      }
-    }
-  }
-
-  private void closeRowWrite() throws IOException {
+  protected void closeWrite() throws IOException {
     // merge and push residual data to reduce network traffic
     // NB: since dataPusher thread have no in-flight data at this point,
     //     we now push merged data by task thread will not introduce any contention
     for (int i = 0; i < numPartitions; i++) {
       final int size = sendOffsets[i];
       if (size > 0) {
-        int bytesWritten =
-            shuffleClient.mergeData(
-                shuffleId,
-                mapId,
-                taskContext.attemptNumber(),
-                i,
-                sendBuffers[i],
-                0,
-                size,
-                numMappers,
-                numPartitions);
+        mergeData(i, sendBuffers[i], 0, size);
         // free buffer
         sendBuffers[i] = null;
-        mapStatusLengths[i].add(bytesWritten);
-        writeMetrics.incBytesWritten(bytesWritten);
       }
     }
     sendBufferPool.returnBuffer(sendBuffers);
     sendBuffers = null;
     sendOffsets = null;
+  }
+
+  protected void mergeData(int partitionId, byte[] buffer, int offset, int length)
+      throws IOException {
+    int bytesWritten =
+        shuffleClient.mergeData(
+            shuffleId,
+            mapId,
+            taskContext.attemptNumber(),
+            partitionId,
+            buffer,
+            offset,
+            length,
+            numMappers,
+            numPartitions);
+    mapStatusLengths[partitionId].add(bytesWritten);
+    writeMetrics.incBytesWritten(bytesWritten);
   }
 
   private void close() throws IOException, InterruptedException {
@@ -453,11 +358,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     dataPusher.waitOnTermination();
     sendBufferPool.returnPushTaskQueue(dataPusher.getIdleQueue());
     shuffleClient.prepareForMergeData(shuffleId, mapId, taskContext.attemptNumber());
-    if (isColumnarShuffle) {
-      closeColumnarWrite();
-    } else {
-      closeRowWrite();
-    }
+    closeWrite();
     shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
 

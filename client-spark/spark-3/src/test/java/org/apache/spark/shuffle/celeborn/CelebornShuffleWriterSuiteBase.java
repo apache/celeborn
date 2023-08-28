@@ -50,6 +50,7 @@ import org.apache.spark.memory.UnifiedMemoryManager;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
+import org.apache.spark.serializer.SerializerInstance;
 import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -267,7 +268,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
     assertEquals(metrics.bytesWritten(), tempFile.length());
 
     try (FileInputStream fis = new FileInputStream(tempFile)) {
-      Iterator it = serializer.newInstance().deserializeStream(fis).asKeyValueIterator();
+      Iterator it = newSerializerInstance(serializer).deserializeStream(fis).asKeyValueIterator();
       int checksum = 0;
       while (it.hasNext()) {
         Product2<Integer, ?> record;
@@ -358,6 +359,10 @@ public abstract class CelebornShuffleWriterSuiteBase {
   private static String getGiantRecord() {
     int numCopies = (128 + NORMAL_RECORD.length() - 1) / NORMAL_RECORD.length();
     return String.join("/", Collections.nCopies(numCopies, NORMAL_RECORD));
+  }
+
+  protected SerializerInstance newSerializerInstance(Serializer serializer) {
+    return serializer.newInstance();
   }
 
   protected abstract ShuffleWriter<Integer, String> createShuffleWriter(
