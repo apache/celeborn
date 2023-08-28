@@ -52,6 +52,8 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     logInfo("all test complete , stop celeborn mini cluster")
     if (flinkCluster != null) {
       flinkCluster.close()
+      flinkCluster = null
+      System.gc()
     }
     shutdownMiniCluster()
   }
