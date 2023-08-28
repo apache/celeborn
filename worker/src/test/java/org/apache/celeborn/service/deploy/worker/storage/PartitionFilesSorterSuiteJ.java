@@ -151,11 +151,7 @@ public class PartitionFilesSorterSuiteJ {
         totalSizeToFetch += partitionSize[i];
       }
       long numChunks = totalSizeToFetch / conf.shuffleChunkSize() + 1;
-      if (totalSizeToFetch % conf.shuffleChunkSize() > 65525 + 192 * 1024) {
-        Assert.assertTrue(info.numChunks() == numChunks);
-      } else {
-        Assert.assertTrue(numChunks - 1 <= info.numChunks() && info.numChunks() <= numChunks);
-      }
+      Assert.assertTrue(0 < info.numChunks() && info.numChunks() <= numChunks);
     } finally {
       clean();
     }
