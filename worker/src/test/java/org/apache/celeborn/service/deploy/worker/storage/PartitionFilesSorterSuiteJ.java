@@ -39,6 +39,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.CelebornExitKind;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -122,8 +123,13 @@ public class PartitionFilesSorterSuiteJ {
     return partitionSize;
   }
 
-  public void clean() {
-    shuffleFile.delete();
+  public void clean() throws IOException {
+    // origin file
+    JavaUtils.deleteRecursively(shuffleFile);
+    // sorted file
+    JavaUtils.deleteRecursively(new File(shuffleFile.getPath() + ".sorted"));
+    // index file
+    JavaUtils.deleteRecursively(new File(shuffleFile.getPath() + ".index"));
   }
 
   private void check(int mapCount, int startMapIndex, int endMapIndex) throws IOException {
@@ -141,11 +147,15 @@ public class PartitionFilesSorterSuiteJ {
               startMapIndex,
               endMapIndex);
       long totalSizeToFetch = 0;
-      for (int i = startMapIndex; i <= endMapIndex; i++) {
+      for (int i = startMapIndex; i < endMapIndex; i++) {
         totalSizeToFetch += partitionSize[i];
       }
       long numChunks = totalSizeToFetch / conf.shuffleChunkSize() + 1;
-      Assert.assertTrue(numChunks - 1 <= info.numChunks() && info.numChunks() <= numChunks);
+      if (totalSizeToFetch % conf.shuffleChunkSize() > 65525 + 192 * 1024) {
+        Assert.assertTrue(info.numChunks() == numChunks);
+      } else {
+        Assert.assertTrue(numChunks - 1 <= info.numChunks() && info.numChunks() <= numChunks);
+      }
     } finally {
       clean();
     }
