@@ -84,20 +84,29 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     graph.setJobType(JobType.BATCH)
     if (flinkCluster != null) {
       flinkCluster.close()
-      flinkCluster = null
-      System.gc()
     }
+    flinkCluster = null
+    System.gc()
     val miniClusterConfiguration =
       (new MiniClusterConfiguration.Builder).setConfiguration(configuration).build()
-    flinkCluster = new MiniCluster(miniClusterConfiguration)
-    flinkCluster.start()
+    try {
+      flinkCluster = new MiniCluster(miniClusterConfiguration)
+      flinkCluster.start()
 
-    val jobGraph: JobGraph = StreamingJobGraphGenerator.createJobGraph(graph)
-    val jobID = flinkCluster.submitJob(jobGraph).get.getJobID
-    val jobResult = flinkCluster.requestJobResult(jobID).get
-    if (jobResult.getSerializedThrowable.isPresent)
-      throw new AssertionError(jobResult.getSerializedThrowable.get)
-    checkFlushingFileLength()
+      val jobGraph: JobGraph = StreamingJobGraphGenerator.createJobGraph(graph)
+      val jobID = flinkCluster.submitJob(jobGraph).get.getJobID
+      val jobResult = flinkCluster.requestJobResult(jobID).get
+      if (jobResult.getSerializedThrowable.isPresent)
+        throw new AssertionError(jobResult.getSerializedThrowable.get)
+      checkFlushingFileLength()
+    } finally {
+      if (flinkCluster != null) {
+        flinkCluster.close()
+        flinkCluster = null
+        System.gc()
+      }
+    }
+
   }
 
   private def checkFlushingFileLength(): Unit = {
@@ -135,20 +144,26 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     SplitHelper.runSplitRead(env)
     if (flinkCluster != null) {
       flinkCluster.close()
+    }
+    flinkCluster = null
+    System.gc()
+    val miniClusterConfiguration =
+      (new MiniClusterConfiguration.Builder).setConfiguration(configuration).build()
+    try {
+      flinkCluster = new MiniCluster(miniClusterConfiguration)
+      flinkCluster.start()
+      val graph = env.getStreamGraph
+      graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
+      graph.setJobType(JobType.BATCH)
+      val jobGraph: JobGraph = StreamingJobGraphGenerator.createJobGraph(graph)
+      val jobID = flinkCluster.submitJob(jobGraph).get.getJobID
+      val jobResult = flinkCluster.requestJobResult(jobID).get
+      if (jobResult.getSerializedThrowable.isPresent)
+        throw new AssertionError(jobResult.getSerializedThrowable.get)
+    } finally {
+      flinkCluster.close()
       flinkCluster = null
       System.gc()
     }
-    val miniClusterConfiguration =
-      (new MiniClusterConfiguration.Builder).setConfiguration(configuration).build()
-    flinkCluster = new MiniCluster(miniClusterConfiguration)
-    flinkCluster.start()
-    val graph = env.getStreamGraph
-    graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
-    graph.setJobType(JobType.BATCH)
-    val jobGraph: JobGraph = StreamingJobGraphGenerator.createJobGraph(graph)
-    val jobID = flinkCluster.submitJob(jobGraph).get.getJobID
-    val jobResult = flinkCluster.requestJobResult(jobID).get
-    if (jobResult.getSerializedThrowable.isPresent)
-      throw new AssertionError(jobResult.getSerializedThrowable.get)
   }
 }

@@ -149,8 +149,16 @@ public class CelebornBufferStream {
   public void moveToNextPartitionIfPossible(long endedStreamId) {
     if (currentLocationIndex < locations.length) {
       if (currentLocationIndex > 0) {
-        logger.debug("Get end streamId {}", endedStreamId);
-        cleanStream(endedStreamId);
+        if (endedStreamId == streamId) {
+          logger.debug("Get end streamId {}", endedStreamId);
+          cleanStream(endedStreamId);
+        } else {
+          logger.warn(
+                  "Received unexpected stream end, current stream id {} received ended stream id {}",
+                  this.streamId,
+                  endedStreamId);
+          return;
+        }
       }
       try {
         openStreamInternal();
