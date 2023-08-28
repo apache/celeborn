@@ -103,10 +103,7 @@ public class PartitionFilesSorterSuiteJ {
     originFileLen = channel.size();
     fileInfo.getChunkOffsets().add(originFileLen);
     fileInfo.updateBytesFlushed(originFileLen);
-    logger.info(
-        shuffleFile.getAbsolutePath()
-            + " filelen: "
-            + Utils.bytesToString(originFileLen));
+    logger.info(shuffleFile.getAbsolutePath() + " filelen: " + Utils.bytesToString(originFileLen));
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
@@ -138,9 +135,13 @@ public class PartitionFilesSorterSuiteJ {
           new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
       FileInfo info =
           partitionFilesSorter.getSortedFileInfo(
-              "application-1", originFileName, fileWriter.getFileInfo(), startMapIndex, endMapIndex);
+              "application-1",
+              originFileName,
+              fileWriter.getFileInfo(),
+              startMapIndex,
+              endMapIndex);
       long totalSizeToFetch = 0;
-      for (int i = startMapIndex; i <= endMapIndex; i ++) {
+      for (int i = startMapIndex; i <= endMapIndex; i++) {
         totalSizeToFetch += partitionSize[i];
       }
       long numChunks = totalSizeToFetch / conf.shuffleChunkSize() + 1;
