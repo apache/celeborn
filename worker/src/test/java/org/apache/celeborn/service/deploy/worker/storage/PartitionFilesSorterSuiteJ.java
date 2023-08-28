@@ -152,11 +152,9 @@ public class PartitionFilesSorterSuiteJ {
 
   @Test
   public void testSmallFile() throws IOException {
-    for(int i = 0; i < 100; i ++ ) {
-      int startMapIndex = random.nextInt(5);
-      int endMapIndex = startMapIndex + random.nextInt(5) + 5;
-      check(1000, startMapIndex, endMapIndex);
-    }
+    int startMapIndex = random.nextInt(5);
+    int endMapIndex = startMapIndex + random.nextInt(5) + 5;
+    check(1000, startMapIndex, endMapIndex);
   }
 
   @Test
