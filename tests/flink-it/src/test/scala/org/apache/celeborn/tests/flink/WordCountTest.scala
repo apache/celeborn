@@ -38,7 +38,6 @@ import org.apache.celeborn.service.deploy.worker.Worker
 class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
-  var flinkCluster: MiniCluster = null
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
     val masterConf = Map(
@@ -49,11 +48,6 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   }
   override def afterAll(): Unit = {
     logInfo("all test complete , stop celeborn mini cluster")
-    if (flinkCluster != null) {
-      flinkCluster.close()
-      flinkCluster = null
-      System.gc()
-    }
     shutdownMiniCluster()
   }
 
@@ -83,6 +77,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
     graph.setJobType(JobType.BATCH)
     env.execute(graph)
+    checkFlushingFileLength()
   }
 
   private def checkFlushingFileLength(): Unit = {
