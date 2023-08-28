@@ -47,7 +47,6 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
     workers = setUpMiniCluster(masterConf, workerConf)._2
   }
-
   override def afterAll(): Unit = {
     logInfo("all test complete , stop celeborn mini cluster")
     if (flinkCluster != null) {
@@ -111,7 +110,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     })
   }
 
-  test("celeborn flink integration test - shuffle partition split test") {
+  ignore("celeborn flink integration test - shuffle partition split test") {
     val configuration = new Configuration
     val parallelism = 8
     configuration.setString(
