@@ -190,7 +190,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sorting.add(fileId);
           shuffleSortTaskDeque.put(fileSorter);
         } catch (InterruptedException e) {
-          logger.info("Sorter scheduler thread is interrupted means worker is shutting down.");
+          logger.error("Sorter scheduler thread is interrupted means worker is shutting down.", e);
           throw new IOException(
               "Sort scheduler thread is interrupted means worker is shutting down.", e);
         } catch (IOException e) {
