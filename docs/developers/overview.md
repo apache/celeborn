@@ -107,4 +107,4 @@ When graceful shutdown is turned on, upon shutdown, Celeborn will do the followi
 Then the Worker waits until all `PartitionLocation` flushes data to persistent storage, stores states in local leveldb,
 then stops itself. The process is typically within one minute.
 
-For more details, please refer to [Rolling upgrade](/upgrade)
+For more details, please refer to [Rolling upgrade](/upgrading/#rolling-upgrade)
