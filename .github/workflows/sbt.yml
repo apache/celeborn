@@ -161,6 +161,25 @@ jobs:
           - spark: '3.4'
             scala: '2.13.5'
             java: 17
+          # Spark 3.5
+          - spark: '3.5'
+            scala: '2.12.18'
+            java: 8
+          - spark: '3.5'
+            scala: '2.12.18'
+            java: 11
+          - spark: '3.5'
+            scala: '2.12.18'
+            java: 17
+          - spark: '3.5'
+            scala: '2.13.5'
+            java: 8
+          - spark: '3.5'
+            scala: '2.13.5'
+            java: 11
+          - spark: '3.5'
+            scala: '2.13.5'
+            java: 17
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK ${{ matrix.java }}

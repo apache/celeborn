@@ -443,6 +443,11 @@
       <name>${mavenCentralName}</name>
       <url>${mavenCentralUrl}</url>
     </repository>
+    <repository>
+      <id>apache-release-candidates</id>
+      <name>Apache Release Candidates Repository</name>
+      <url>https://repository.apache.org/content/repositories/staging</url>
+    </repository>
   </repositories>
 
   <pluginRepositories>
@@ -988,6 +993,27 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.4.1</spark.version>
         <zstd-jni.version>1.5.2-5</zstd-jni.version>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>spark-3.5</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
+        <!-- TODO solve compilation error when build spark-3-columnar-shuffle with Spark 3.5 -->
+        <!-- <module>client-spark/spark-3-columnar-shuffle</module> -->
+        <module>client-spark/spark-3-shaded</module>
+        <module>tests/spark-it</module>
+      </modules>
+      <properties>
+        <jackson.version>2.15.2</jackson.version>
+        <jackson.databind.version>2.15.2</jackson.databind.version>
+        <lz4-java.version>1.8.0</lz4-java.version>
+        <scala.version>2.12.18</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <spark.version>3.5.0</spark.version>
+        <zstd-jni.version>1.5.5-4</zstd-jni.version>
       </properties>
     </profile>
 

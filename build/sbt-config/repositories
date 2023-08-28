@@ -32,3 +32,4 @@
   bintray-typesafe-sbt-plugin-releases: https://dl.bintray.com/typesafe/sbt-plugins/, [organization]/[module]/(scala_[scalaVersion]/)(sbt_[sbtVersion]/)[revision]/[type]s/[artifact](-[classifier]).[ext]
   bintray-spark-packages: https://dl.bintray.com/spark-packages/maven/
   typesafe-releases: https://repo.typesafe.com/typesafe/releases/
+  apache-release-candidates: https://repository.apache.org/content/repositories/staging/
