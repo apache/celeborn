@@ -100,6 +100,7 @@ object Dependencies {
   val junitInterface = "com.github.sbt" % "junit-interface" % junitInterfaceVersion
   val junit = "junit" % "junit" % junitVersion
   val mockitoCore = "org.mockito" % "mockito-core" % mockitoVersion
+  val mockitoInline = "org.mockito" % "mockito-inline" % mockitoVersion
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
 }
@@ -139,7 +140,7 @@ object CelebornCommonSettings {
     dependencyOverrides := Seq(
       Dependencies.findbugsJsr305,
       Dependencies.slf4jApi),
-  
+
     // Make sure any tests in any project that uses Spark is configured for running well locally
     Test / javaOptions ++= Seq(
       "-Xmx4g",
@@ -433,6 +434,13 @@ object Spark30 extends SparkClientProjects {
 
   val sparkVersion = "3.0.3"
   val zstdJniVersion = "1.4.4-3"
+
+  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
+
+  override def sparkClientShade: Project = {
+    super.sparkClientShade
+      .dependsOn(super.sparkColumnarShuffle)
+  }
 }
 
 object Spark31 extends SparkClientProjects {
@@ -447,6 +455,13 @@ object Spark31 extends SparkClientProjects {
 
   val sparkVersion = "3.1.3"
   val zstdJniVersion = "1.4.8-1"
+
+  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
+
+  override def sparkClientShade: Project = {
+    super.sparkClientShade
+      .dependsOn(super.sparkColumnarShuffle)
+  }
 }
 
 object Spark32 extends SparkClientProjects {
@@ -461,6 +476,13 @@ object Spark32 extends SparkClientProjects {
 
   val sparkVersion = "3.2.4"
   val zstdJniVersion = "1.5.0-4"
+
+  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
+
+  override def sparkClientShade: Project = {
+    super.sparkClientShade
+      .dependsOn(super.sparkColumnarShuffle)
+  }
 }
 
 object Spark33 extends SparkClientProjects {
@@ -478,6 +500,13 @@ object Spark33 extends SparkClientProjects {
   // val scalaBinaryVersion = "2.12"
   val sparkVersion = "3.3.3"
   val zstdJniVersion = "1.5.2-1"
+
+  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
+
+  override def sparkClientShade: Project = {
+    super.sparkClientShade
+      .dependsOn(super.sparkColumnarShuffle)
+  }
 }
 
 object Spark34 extends SparkClientProjects {
@@ -492,6 +521,13 @@ object Spark34 extends SparkClientProjects {
 
   val sparkVersion = "3.4.1"
   val zstdJniVersion = "1.5.2-5"
+
+  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
+
+  override def sparkClientShade: Project = {
+    super.sparkClientShade
+      .dependsOn(super.sparkColumnarShuffle)
+  }
 }
 
 trait SparkClientProjects {
@@ -540,7 +576,20 @@ trait SparkClientProjects {
         ) ++ commonUnitTestDependencies
       )
   }
-  
+
+  def sparkColumnarShuffle: Project = {
+    Project("celeborn-spark-3-columnar-shuffle", file("client-spark/spark-3-columnar-shuffle"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(sparkClient % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test")
+      .settings(
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+        ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
+      )
+  }
+
   def sparkIt: Project = {
     Project("celeborn-spark-it", file("tests/spark-it"))
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
@@ -751,7 +800,7 @@ trait FlinkClientProjects {
       .dependsOn(flinkClient)
       .settings (
         commonSettings,
-  
+
         (assembly / test) := { },
 
         (assembly / assemblyJarName) := {

@@ -399,6 +399,12 @@
       </dependency>
       <dependency>
         <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
+        <version>${mockito.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
         <artifactId>mockito-scala-scalatest_${scala.binary.version}</artifactId>
         <version>${mockito-scalatest.version}</version>
         <scope>test</scope>
@@ -898,6 +904,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
       </modules>
@@ -916,6 +923,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
       </modules>
@@ -934,6 +942,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
       </modules>
@@ -951,6 +960,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
       </modules>
@@ -968,6 +978,7 @@
       <modules>
         <module>client-spark/common</module>
         <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
       </modules>
