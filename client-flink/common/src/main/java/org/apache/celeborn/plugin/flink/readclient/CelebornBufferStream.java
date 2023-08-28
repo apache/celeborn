@@ -155,16 +155,8 @@ public class CelebornBufferStream {
         currentLocationIndex,
         streamId);
     if (currentLocationIndex.get() > 0) {
-      if (endedStreamId == streamId) {
-        logger.debug("Get end streamId {}", endedStreamId);
-        cleanStream(endedStreamId);
-      } else {
-        logger.warn(
-            "Received unexpected stream end, current stream id {} received ended stream id {}",
-            this.streamId,
-            endedStreamId);
-        return;
-      }
+      logger.debug("Get end streamId {}", endedStreamId);
+      cleanStream(endedStreamId);
     }
     if (currentLocationIndex.get() < locations.length) {
       try {
