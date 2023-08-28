@@ -154,9 +154,9 @@ public class CelebornBufferStream {
           cleanStream(endedStreamId);
         } else {
           logger.warn(
-              "Received unexpected stream end, current stream id {} received ended stream id {}",
-              this.streamId,
-              endedStreamId);
+                  "Received unexpected stream end, current stream id {} received ended stream id {}",
+                  this.streamId,
+                  endedStreamId);
           return;
         }
       }
