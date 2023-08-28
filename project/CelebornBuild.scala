@@ -492,30 +492,6 @@ object Spark34 extends SparkClientProjects {
 
   val sparkVersion = "3.4.1"
   val zstdJniVersion = "1.5.2-5"
-
-  lazy val deps = Seq(
-    // Spark Use `log4j-slf4j2-impl` instead of `log4j-slf4j-impl` in SPARK-40511
-    // to fix the error:
-    // ```
-    //   java.lang.NoSuchMethodError: org.apache.logging.slf4j.Log4jLoggerFactory.<init>(Lorg/apache/logging/slf4j/Log4jMarkerFactory;)V
-    // ```
-    "org.apache.logging.log4j" % "log4j-slf4j2-impl" % "2.19.0" % "test"
-  )
-
-  override def sparkCommon: Project = {
-    super.sparkCommon
-      .settings(libraryDependencies ++= deps)
-  }
-
-  override def sparkClient: Project = {
-    super.sparkClient
-      .settings(libraryDependencies ++= deps)
-  }
-
-  override def sparkIt: Project = {
-    super.sparkIt
-      .settings(libraryDependencies ++= deps)
-  }
 }
 
 trait SparkClientProjects {
