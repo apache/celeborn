@@ -147,6 +147,7 @@ public class CelebornBufferStream {
   }
 
   public void moveToNextPartitionIfPossible(long endedStreamId) {
+    logger.debug("this:{}, moveToNextPartitionIfPossible endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}", this, endedStreamId, currentLocationIndex, streamId);
     if (currentLocationIndex > 0) {
       if (endedStreamId == streamId) {
         logger.debug("Get end streamId {}", endedStreamId);

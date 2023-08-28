@@ -99,6 +99,7 @@ public class RemoteBufferStreamReader extends CreditListener {
     // need set closed first before remove Handler
     closed = true;
     if (bufferStream != null) {
+      logger.debug("bufferStream close");
       bufferStream.close();
     } else {
       logger.warn(
