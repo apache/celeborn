@@ -90,9 +90,16 @@ function sbt_build_server_classpath() {
 }
 
 function check_diff() {
-    echo "start===="
-    cat ${DEP_PR}
-    echo "end===="
+    set +e
+    the_diff=$(diff "${DEP}" "${DEP_PR}")
+    set -e
+    rm -rf "${DEP_PR}"
+    if [[ -n "${the_diff}" ]]; then
+        echo "Dependency List Changed Detected: "
+        echo "${the_diff}"
+        echo "To update the dependency file, run './dev/dependencies.sh --replace'."
+        exit 1
+    fi
 }
 
 function exit_with_usage() {
