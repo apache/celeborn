@@ -22,6 +22,7 @@ on:
   pull_request_target:
     types:
       - edited
+      - ready_for_review
 
 jobs:
   triage:
