@@ -149,11 +149,12 @@ public class CelebornBufferStream {
 
   public void moveToNextPartitionIfPossible(long endedStreamId) {
     logger.debug(
-        "this:{}, moveToNextPartitionIfPossible endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}",
+        "1 this:{}, moveToNextPartitionIfPossible endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
         this,
         endedStreamId,
-        currentLocationIndex,
-        streamId);
+        currentLocationIndex.get(),
+        streamId,
+        locations.length);
     if (currentLocationIndex.get() > 0) {
       logger.debug("Get end streamId {}", endedStreamId);
       cleanStream(endedStreamId);
@@ -162,6 +163,13 @@ public class CelebornBufferStream {
       try {
         openStreamInternal();
         currentLocationIndex.incrementAndGet();
+        logger.debug(
+                "2 this:{}, moveToNextPartitionIfPossible endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
+                this,
+                endedStreamId,
+                currentLocationIndex.get(),
+                streamId,
+                locations.length);
       } catch (Exception e) {
         logger.warn("Failed to open stream and report to flink framework. ", e);
         messageConsumer.accept(new TransportableError(0L, e));
