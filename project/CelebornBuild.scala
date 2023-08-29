@@ -86,7 +86,8 @@ object Dependencies {
   val ratisGrpc = "org.apache.ratis" % "ratis-grpc" % ratisVersion
   val ratisNetty = "org.apache.ratis" % "ratis-netty" % ratisVersion
   val ratisServer = "org.apache.ratis" % "ratis-server" % ratisVersion
-  val ratisShell = "org.apache.ratis" % "ratis-shell" % ratisVersion
+  val ratisShell = "org.apache.ratis" % "ratis-shell" % ratisVersion excludeAll(
+    ExclusionRule("org.slf4j", "slf4j-simple"))
   val roaringBitmap = "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion

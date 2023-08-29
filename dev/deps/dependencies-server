@@ -88,6 +88,5 @@ scala-library/2.12.15//scala-library-2.12.15.jar
 scala-reflect/2.12.15//scala-reflect-2.12.15.jar
 shims/0.9.32//shims-0.9.32.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
-slf4j-simple/2.0.7//slf4j-simple-2.0.7.jar
 snakeyaml/1.33//snakeyaml-1.33.jar
 zstd-jni/1.5.2-1//zstd-jni-1.5.2-1.jar
