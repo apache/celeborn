@@ -1007,8 +1007,6 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
-        <jackson.version>2.15.2</jackson.version>
-        <jackson.databind.version>2.15.2</jackson.databind.version>
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
