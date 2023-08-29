@@ -90,6 +90,7 @@ function sbt_build_server_classpath() {
 function check_diff() {
     set +e
     the_diff=$(diff "${DEP}" "${DEP_PR}")
+    cat ${DEP_PR}
     set -e
     rm -rf "${DEP_PR}"
     if [[ -n "${the_diff}" ]]; then

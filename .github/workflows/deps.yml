@@ -58,7 +58,6 @@ jobs:
         check-latest: false
     - name: SBT Check dependency list
       run: |
-        ./build/sbt -Pspark-3.2 "celeborn-client-spark-3/Runtime/externalDependencyClasspath"
         ./dev/dependencies.sh --sbt --module ${{ matrix.module }} --check
 
   maven:
