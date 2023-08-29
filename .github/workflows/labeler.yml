@@ -21,12 +21,11 @@ name: "Pull Request Labeler"
 on:
 - pull_request_target
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   triage:
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/labeler@v4
