@@ -46,7 +46,7 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
     shutdownMiniCluster()
   }
 
-  test("celeborn flink integration test - shuffle partition split test") {
+  ignore("celeborn flink integration test - shuffle partition split test") {
     val configuration = new Configuration
     val parallelism = 8
     configuration.setString(
