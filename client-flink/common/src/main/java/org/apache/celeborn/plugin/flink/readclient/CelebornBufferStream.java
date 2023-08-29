@@ -162,7 +162,6 @@ public class CelebornBufferStream {
     if (currentLocationIndex.get() < locations.length) {
       try {
         openStreamInternal();
-        currentLocationIndex.incrementAndGet();
         logger.debug(
             "2 this:{}, moveToNextPartitionIfPossible endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
             this,
@@ -182,7 +181,7 @@ public class CelebornBufferStream {
         clientFactory.createClientWithRetry(
             locations[currentLocationIndex.get()].getHost(),
             locations[currentLocationIndex.get()].getFetchPort());
-    String fileName = locations[currentLocationIndex.get()].getFileName();
+    String fileName = locations[currentLocationIndex.getAndIncrement()].getFileName();
     TransportMessage openStream =
         new TransportMessage(
             MessageType.OPEN_STREAM,
