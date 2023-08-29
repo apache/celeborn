@@ -55,7 +55,7 @@ function mvn_build_classpath() {
 }
 
 function sbt_build_client_classpath() {
-  $SBT -P$MODULE "error; clean; export ${SBT_PROJECT}/Runtime/externalDependencyClasspath" | \
+  $SBT -P$MODULE "clean; export ${SBT_PROJECT}/Runtime/externalDependencyClasspath" | \
     tail -1 | \
     tr ":" "\n" | \
     awk -F '/' '{
