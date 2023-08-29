@@ -152,6 +152,8 @@ public class PartitionFilesSorterSuiteJ {
       }
       long numChunks = totalSizeToFetch / conf.shuffleChunkSize() + 1;
       Assert.assertTrue(0 < info.numChunks() && info.numChunks() <= numChunks);
+      long actualTotalChunkSize = info.getLastChunkOffset() - info.getChunkOffsets().get(0);
+      Assert.assertTrue(totalSizeToFetch == actualTotalChunkSize);
     } finally {
       clean();
     }
