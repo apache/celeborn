@@ -56,7 +56,7 @@ function mvn_build_classpath() {
 
 function sbt_build_client_classpath() {
   $SBT -P$MODULE "clean; export ${SBT_PROJECT}/Runtime/externalDependencyClasspath" | \
-    grep -v '^$' | \
+    # TODO:(fchen)
     tail -1 | \
     tr ":" "\n" | \
     awk -F '/' '{
