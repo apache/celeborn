@@ -112,8 +112,9 @@ object CelebornCommonSettings {
   val SCALA_2_12_10 = "2.12.10"
   val SCALA_2_12_15 = "2.12.15"
   val SCALA_2_12_17 = "2.12.17"
+  val SCALA_2_12_18 = "2.12.18"
   val scala213 = "2.13.5"
-  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, scala213)
+  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, SCALA_2_12_18, scala213)
 
   val DEFAULT_SCALA_VERSION = SCALA_2_12_15
 
@@ -241,6 +242,7 @@ object Utils {
     case Some("spark-3.2") => Some(Spark32)
     case Some("spark-3.3") => Some(Spark33)
     case Some("spark-3.4") => Some(Spark34)
+    case Some("spark-3.5") => Some(Spark35)
     case _ => None
   }
 
@@ -528,6 +530,20 @@ object Spark34 extends SparkClientProjects {
     super.sparkClientShade
       .dependsOn(super.sparkColumnarShuffle)
   }
+}
+
+object Spark35 extends SparkClientProjects {
+
+  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectName = "celeborn-client-spark-3"
+  val sparkClientShadedProjectPath = "client-spark/spark-3-shaded"
+  val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
+
+  val lz4JavaVersion = "1.8.0"
+  val sparkProjectScalaVersion = "2.12.18"
+
+  val sparkVersion = "3.5.0"
+  val zstdJniVersion = "1.5.5-4"
 }
 
 trait SparkClientProjects {
