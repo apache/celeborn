@@ -17,11 +17,10 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import org.apache.spark.{InterruptibleIterator, TaskContext}
+import org.apache.spark.{InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.{ShuffleReader, ShuffleReadMetricsReporter}
-import org.apache.spark.sql.execution.UnsafeRowSerializer
-import org.apache.spark.sql.execution.columnar.{CelebornBatchBuilder, CelebornColumnarBatchSerializer}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
@@ -50,21 +49,7 @@ class CelebornShuffleReader[K, C](
 
   override def read(): Iterator[Product2[K, C]] = {
 
-    var serializerInstance = dep.serializer.newInstance()
-    if (conf.columnarShuffleEnabled) {
-      val schema = SparkUtils.getSchema(dep)
-      if (CelebornBatchBuilder.supportsColumnarType(
-          schema)) {
-        val dataSize = SparkUtils.getDataSize(
-          dep.serializer.asInstanceOf[UnsafeRowSerializer])
-        serializerInstance = new CelebornColumnarBatchSerializer(
-          schema,
-          conf.columnarShuffleBatchSize,
-          conf.columnarShuffleDictionaryEnabled,
-          conf.columnarShuffleOffHeapEnabled,
-          dataSize).newInstance()
-      }
-    }
+    val serializerInstance = newSerializerInstance(dep)
 
     // Update the context task metrics for each record read.
     val metricsCallback = new MetricsCallback {
@@ -157,4 +142,9 @@ class CelebornShuffleReader[K, C](
         new InterruptibleIterator[Product2[K, C]](context, resultIter)
     }
   }
+
+  protected def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
+    dep.serializer.newInstance()
+  }
+
 }

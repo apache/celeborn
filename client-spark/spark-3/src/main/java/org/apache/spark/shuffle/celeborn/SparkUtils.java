@@ -17,12 +17,10 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
 
-import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskContext;
@@ -31,14 +29,15 @@ import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.shuffle.ShuffleHandle;
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter;
 import org.apache.spark.shuffle.ShuffleReader;
+import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynFields;
@@ -159,14 +158,66 @@ public class SparkUtils {
     return shuffleReader;
   }
 
-  private static final DynFields.UnboundField<StructType> SCHEMA_FIELD =
-      DynFields.builder().hiddenImpl(ShuffleDependency.class, "schema").defaultAlwaysNull().build();
+  public static final String COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CLASS =
+      "org.apache.spark.shuffle.celeborn.ColumnarHashBasedShuffleWriter";
+  static final DynConstructors.Builder COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CONSTRUCTOR_BUILDER =
+      DynConstructors.builder()
+          .impl(
+              COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CLASS,
+              CelebornShuffleHandle.class,
+              TaskContext.class,
+              CelebornConf.class,
+              ShuffleClient.class,
+              ShuffleWriteMetricsReporter.class,
+              SendBufferPool.class);
 
-  public static StructType getSchema(ShuffleDependency<?, ?, ?> dep) throws IOException {
-    StructType schema = SCHEMA_FIELD.bind(dep).get();
-    if (schema == null) {
-      throw new IOException("Failed to get Schema, columnar shuffle won't work properly.");
-    }
-    return schema;
+  public static <K, V, C> HashBasedShuffleWriter<K, V, C> createColumnarHashBasedShuffleWriter(
+      CelebornShuffleHandle<K, V, C> handle,
+      TaskContext taskContext,
+      CelebornConf conf,
+      ShuffleClient client,
+      ShuffleWriteMetricsReporter metrics,
+      SendBufferPool sendBufferPool) {
+    return COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CONSTRUCTOR_BUILDER
+        .build()
+        .invoke(null, handle, taskContext, conf, client, metrics, sendBufferPool);
+  }
+
+  public static final String COLUMNAR_SHUFFLE_READER_CLASS =
+      "org.apache.spark.shuffle.celeborn.CelebornColumnarShuffleReader";
+  static final DynConstructors.Builder COLUMNAR_SHUFFLE_READER_CONSTRUCTOR_BUILDER =
+      DynConstructors.builder()
+          .impl(
+              COLUMNAR_SHUFFLE_READER_CLASS,
+              CelebornShuffleHandle.class,
+              int.class,
+              int.class,
+              int.class,
+              int.class,
+              TaskContext.class,
+              CelebornConf.class,
+              ShuffleReadMetricsReporter.class);
+
+  public static <K, C> CelebornShuffleReader<K, C> createColumnarShuffleReader(
+      CelebornShuffleHandle<K, ?, C> handle,
+      int startPartition,
+      int endPartition,
+      int startMapIndex,
+      int endMapIndex,
+      TaskContext context,
+      CelebornConf conf,
+      ShuffleReadMetricsReporter metrics) {
+    return COLUMNAR_SHUFFLE_READER_CONSTRUCTOR_BUILDER
+        .build()
+        .invoke(
+            null,
+            handle,
+            startMapIndex,
+            endMapIndex,
+            startPartition,
+            endPartition,
+            context,
+            conf,
+            metrics);
   }
 }

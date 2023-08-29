@@ -47,6 +47,20 @@ public class SparkShuffleManager implements ShuffleManager {
   private static final String LOCAL_SHUFFLE_READER_KEY =
       "spark.sql.adaptive.localShuffleReader.enabled";
 
+  private static final boolean COLUMNAR_SHUFFLE_CLASSES_PRESENT;
+
+  static {
+    boolean present;
+    try {
+      Class.forName(SparkUtils.COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CLASS);
+      Class.forName(SparkUtils.COLUMNAR_SHUFFLE_READER_CLASS);
+      present = true;
+    } catch (ClassNotFoundException e) {
+      present = false;
+    }
+    COLUMNAR_SHUFFLE_CLASSES_PRESENT = present;
+  }
+
   private final SparkConf conf;
   private final Boolean isDriver;
   private final CelebornConf celebornConf;
@@ -217,13 +231,15 @@ public class SparkShuffleManager implements ShuffleManager {
               pushThread,
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
-          return new HashBasedShuffleWriter<>(
-              h,
-              context,
-              celebornConf,
-              shuffleClient,
-              metrics,
-              SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
+          SendBufferPool pool =
+              SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout);
+          if (COLUMNAR_SHUFFLE_CLASSES_PRESENT && celebornConf.columnarShuffleEnabled()) {
+            return SparkUtils.createColumnarHashBasedShuffleWriter(
+                h, context, celebornConf, shuffleClient, metrics, pool);
+          } else {
+            return new HashBasedShuffleWriter<>(
+                h, context, celebornConf, shuffleClient, metrics, pool);
+          }
         } else {
           throw new UnsupportedOperationException(
               "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
@@ -247,17 +263,8 @@ public class SparkShuffleManager implements ShuffleManager {
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
     if (handle instanceof CelebornShuffleHandle) {
-      @SuppressWarnings("unchecked")
-      CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
-      return new CelebornShuffleReader<>(
-          h,
-          startPartition,
-          endPartition,
-          startMapIndex,
-          endMapIndex,
-          context,
-          celebornConf,
-          metrics);
+      return getCelebornShuffleReader(
+          handle, startPartition, endPartition, startMapIndex, endMapIndex, context, metrics);
     }
     return SparkUtils.getReader(
         sortShuffleManager(),
@@ -278,10 +285,8 @@ public class SparkShuffleManager implements ShuffleManager {
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
     if (handle instanceof CelebornShuffleHandle) {
-      @SuppressWarnings("unchecked")
-      CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
-      return new CelebornShuffleReader<>(
-          h, startPartition, endPartition, 0, Integer.MAX_VALUE, context, celebornConf, metrics);
+      return getCelebornShuffleReader(
+          handle, 0, Integer.MAX_VALUE, startPartition, endPartition, context, metrics);
     }
     return SparkUtils.getReader(
         sortShuffleManager(),
@@ -304,17 +309,8 @@ public class SparkShuffleManager implements ShuffleManager {
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
     if (handle instanceof CelebornShuffleHandle) {
-      @SuppressWarnings("unchecked")
-      CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
-      return new CelebornShuffleReader<>(
-          h,
-          startPartition,
-          endPartition,
-          startMapIndex,
-          endMapIndex,
-          context,
-          celebornConf,
-          metrics);
+      return getCelebornShuffleReader(
+          handle, startPartition, endPartition, startMapIndex, endMapIndex, context, metrics);
     }
     return SparkUtils.getReader(
         sortShuffleManager(),
@@ -325,6 +321,38 @@ public class SparkShuffleManager implements ShuffleManager {
         endPartition,
         context,
         metrics);
+  }
+
+  public <K, C> ShuffleReader<K, C> getCelebornShuffleReader(
+      ShuffleHandle handle,
+      int startMapIndex,
+      int endMapIndex,
+      int startPartition,
+      int endPartition,
+      TaskContext context,
+      ShuffleReadMetricsReporter metrics) {
+    CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
+    if (COLUMNAR_SHUFFLE_CLASSES_PRESENT && celebornConf.columnarShuffleEnabled()) {
+      return SparkUtils.createColumnarShuffleReader(
+          h,
+          startPartition,
+          endPartition,
+          startMapIndex,
+          endMapIndex,
+          context,
+          celebornConf,
+          metrics);
+    } else {
+      return new CelebornShuffleReader<>(
+          h,
+          startPartition,
+          endPartition,
+          startMapIndex,
+          endMapIndex,
+          context,
+          celebornConf,
+          metrics);
+    }
   }
 
   private ExecutorService getPusherThread() {
