@@ -1090,6 +1090,19 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
+  def checkWorkersAvailable(): PbCheckWorkersAvailableResponse = {
+    try {
+      masterClient.askSync[PbCheckWorkersAvailableResponse](
+        CheckWorkersAvailable(),
+        classOf[PbCheckWorkersAvailableResponse])
+    } catch {
+      case e: Exception =>
+        val msg = s"AskSync Cluster check workers available for $userIdentifier failed."
+        logError(msg, e)
+        CheckWorkersAvailableResponse(false)
+    }
+  }
+
   // Once a partition is released, it will be never needed anymore
   def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
     commitManager.releasePartitionResource(shuffleId, partitionId)

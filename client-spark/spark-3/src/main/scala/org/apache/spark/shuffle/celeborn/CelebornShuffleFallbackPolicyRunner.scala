@@ -25,7 +25,7 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
-    !checkQuota(lifecycleManager)
+    !checkQuota(lifecycleManager) || !checkWorkersAvailable(lifecycleManager)
   }
 
   /**
@@ -72,5 +72,18 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
         s"Quota exceed for current user ${lifecycleManager.getUserIdentifier}. Because: ${resp.reason}")
     }
     resp.isAvailable
+  }
+
+  /**
+   * If celeborn cluster has no available workers, fallback to external shuffle.
+   *
+   * @return if celeborn cluster has available workers.
+   */
+  def checkWorkersAvailable(lifecycleManager: LifecycleManager): Boolean = {
+    val resp = lifecycleManager.checkWorkersAvailable()
+    if (!resp.getAvailable) {
+      logWarning(s"No workers available for current user ${lifecycleManager.getUserIdentifier}.")
+    }
+    resp.getAvailable
   }
 }
