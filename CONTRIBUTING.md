@@ -36,5 +36,5 @@ There are already some further improvements on the schedule and welcome to conta
 
 ## Guidelines
 ### Adding RPC Messages
-We are in the process of replacing case class wrappers for RPC messages with raw PB. If you are to add new
-RPC messages, please follow raw PB message cases, for example `RegisterWorker` and `RegisterWorkerResponse`.
+When you add new RPC message, it's recommended to follow raw PB message case, for example
+`RegisterWorker` and `RegisterWorkerResponse`. The RPC messages will be unified into raw PB messages eventually.
