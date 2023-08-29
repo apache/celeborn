@@ -56,7 +56,9 @@ function mvn_build_classpath() {
 
 function sbt_build_client_classpath() {
   $SBT -P$MODULE "clean; export ${SBT_PROJECT}/Runtime/externalDependencyClasspath" > /tmp/dependency.out 2>&1
-  cat /tmp/dependency.out
+  tail -1 /tmp/dependency.out
+  cat /tmp/dependency.out | \
+    tail -1
   cat /tmp/dependency.out | \
     tail -1 | \
     tr ":" "\n" | \
