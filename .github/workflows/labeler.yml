@@ -20,7 +20,7 @@
 name: "Pull Request Labeler"
 on:
   schedule:
-    - cron: '30 * * * *'
+    - cron: '0/1 * * * * ? *'
 
 jobs:
   triage:
