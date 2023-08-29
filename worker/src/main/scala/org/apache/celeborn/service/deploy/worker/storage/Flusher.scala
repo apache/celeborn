@@ -169,9 +169,7 @@ private[worker] class LocalFlusher(
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = {
-    logError(s"$this is notified Disk $mountPoint $diskStatus! Stop LocalFlusher.")
-    stopAndCleanFlusher()
-    deviceMonitor.unregisterFlusher(this)
+    logError(s"$this is notified Disk $mountPoint $diskStatus! Won't stop LocalFlusher.")
   }
 
   override def hashCode(): Int = {
@@ -199,7 +197,6 @@ final private[worker] class HdfsFlusher(
   override def toString: String = s"HdfsFlusher@$flusherId"
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
-    stopAndCleanFlusher()
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
   }
 
