@@ -33,3 +33,8 @@ There are already some further improvements on the schedule and welcome to conta
 8. Enhanced K8S support.
 9. Support spilled data.
 10. Locality awareness.
+
+## Guidelines
+### Adding RPC Messages
+We are in the process of replacing case class wrappers for RPC messages with raw PB. If you are to add new
+RPC messages, please follow raw PB message cases, for example `RegisterWorker` and `RegisterWorkerResponse`.
