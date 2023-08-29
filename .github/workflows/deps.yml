@@ -58,7 +58,8 @@ jobs:
         check-latest: false
     - name: SBT Check dependency list
       run: |
-        ./build/sbt -P${{ matrix.module }} "error; clean; export celeborn-client-spark-3/Runtime/externalDependencyClasspath"
+        ./build/sbt -P${{ matrix.module }} "error; clean; export celeborn-client-spark-3/Runtime/externalDependencyClasspath" > /tmp/test.out
+        cat /tmp/test.out
         ./dev/dependencies.sh --sbt --module ${{ matrix.module }} --check
 
   maven:
