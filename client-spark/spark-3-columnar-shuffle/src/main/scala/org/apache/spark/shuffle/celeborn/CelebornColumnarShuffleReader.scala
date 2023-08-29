@@ -27,19 +27,19 @@ import org.apache.celeborn.common.CelebornConf
 
 class CelebornColumnarShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
-    startPartition: Int,
-    endPartition: Int,
     startMapIndex: Int = 0,
     endMapIndex: Int = Int.MaxValue,
+    startPartition: Int,
+    endPartition: Int,
     context: TaskContext,
     conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter)
   extends CelebornShuffleReader[K, C](
     handle,
-    startPartition,
-    endPartition,
     startMapIndex,
     endMapIndex,
+    startPartition,
+    endPartition,
     context,
     conf,
     metrics) {
