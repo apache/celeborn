@@ -5,7 +5,7 @@ Any contributions from the open-source community to improve this project are wel
 This project uses check-style plugins. Run some checks before you create a new pull request.
 
 ```shell
-/dev/reformat
+dev/reformat
 ```
 
 If you have changed configuration, run following command to refresh docs.
