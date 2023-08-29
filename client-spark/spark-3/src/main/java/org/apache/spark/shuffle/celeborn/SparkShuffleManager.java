@@ -264,7 +264,7 @@ public class SparkShuffleManager implements ShuffleManager {
       ShuffleReadMetricsReporter metrics) {
     if (handle instanceof CelebornShuffleHandle) {
       return getCelebornShuffleReader(
-          handle, startPartition, endPartition, startMapIndex, endMapIndex, context, metrics);
+          handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics);
     }
     return SparkUtils.getReader(
         sortShuffleManager(),
@@ -310,7 +310,7 @@ public class SparkShuffleManager implements ShuffleManager {
       ShuffleReadMetricsReporter metrics) {
     if (handle instanceof CelebornShuffleHandle) {
       return getCelebornShuffleReader(
-          handle, startPartition, endPartition, startMapIndex, endMapIndex, context, metrics);
+          handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics);
     }
     return SparkUtils.getReader(
         sortShuffleManager(),
@@ -335,20 +335,20 @@ public class SparkShuffleManager implements ShuffleManager {
     if (COLUMNAR_SHUFFLE_CLASSES_PRESENT && celebornConf.columnarShuffleEnabled()) {
       return SparkUtils.createColumnarShuffleReader(
           h,
-          startPartition,
-          endPartition,
           startMapIndex,
           endMapIndex,
+          startPartition,
+          endPartition,
           context,
           celebornConf,
           metrics);
     } else {
       return new CelebornShuffleReader<>(
           h,
-          startPartition,
-          endPartition,
           startMapIndex,
           endMapIndex,
+          startPartition,
+          endPartition,
           context,
           celebornConf,
           metrics);

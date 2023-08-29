@@ -200,10 +200,10 @@ public class SparkUtils {
 
   public static <K, C> CelebornShuffleReader<K, C> createColumnarShuffleReader(
       CelebornShuffleHandle<K, ?, C> handle,
-      int startPartition,
-      int endPartition,
       int startMapIndex,
       int endMapIndex,
+      int startPartition,
+      int endPartition,
       TaskContext context,
       CelebornConf conf,
       ShuffleReadMetricsReporter metrics) {
