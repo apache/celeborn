@@ -511,10 +511,10 @@ def initialize_jira():
                 fail(msg)
             else:
                 raise e
-    elif JIRA_USERNAME and JIRA_PASSWORD:
-        asf_jira = jira.client.JIRA(jira_server, basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
+    elif ASF_USERNAME and ASF_PASSWORD:
+        asf_jira = jira.client.JIRA(jira_server, basic_auth=(ASF_USERNAME, ASF_PASSWORD))
     else:
-        print("Neither JIRA_ACCESS_TOKEN nor JIRA_USERNAME/JIRA_PASSWORD are set.")
+        print("Neither JIRA_ACCESS_TOKEN nor ASF_USERNAME/ASF_PASSWORD are set.")
         continue_maybe("Continue without jira?")
 
 
