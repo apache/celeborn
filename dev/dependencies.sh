@@ -55,9 +55,10 @@ function mvn_build_classpath() {
 }
 
 function sbt_build_client_classpath() {
-  $SBT -P$MODULE "clean; export ${SBT_PROJECT}/Runtime/externalDependencyClasspath" | \
-    # TODO:(fchen)
-    tail -1 | \
+  PATTERN="$SBT_PROJECT / Runtime / externalDependencyClasspath"
+  $SBT -P$MODULE "clean; export Runtime/externalDependencyClasspath" | \
+    awk -v pat="$PATTERN" '$0 ~ pat { found=1 } found { print }' | \
+    awk 'NR==2' | \
     tr ":" "\n" | \
     awk -F '/' '{
       artifact_id=$(NF-2);
