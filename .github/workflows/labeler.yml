@@ -21,8 +21,7 @@ name: "Pull Request Labeler"
 on:
   pull_request_target:
     types:
-      - edited
-      - ready_for_review
+      - assigned
 
 jobs:
   triage:
