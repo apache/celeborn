@@ -146,7 +146,7 @@ case "$MODULE" in
     MVN_MODULES="client-spark/spark-2"
     SBT_PROJECT="celeborn-client-spark-2"
     ;;
-  "spark-3.0" | "spark-3.1" | "spark-3.2" | "spark-3.3" | "spark-3.4")
+  "spark-3.0" | "spark-3.1" | "spark-3.2" | "spark-3.3" | "spark-3.4" | "spark-3.5")
     MVN_MODULES="client-spark/spark-3"
     SBT_PROJECT="celeborn-client-spark-3"
     ;;
