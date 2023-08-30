@@ -51,7 +51,7 @@ trait ReadWriteTestBase extends AnyFunSuite
     shutdownMiniCluster()
   }
 
-  def testReadWriteByCode(codec: CompressionCodec): Unit = {
+  def testReadWriteByCode(codec: CompressionCodec, readLocalShuffle: Boolean = false): Unit = {
     val APP = "app-1"
 
     val clientConf = new CelebornConf()
@@ -59,6 +59,7 @@ trait ReadWriteTestBase extends AnyFunSuite
       .set(CelebornConf.SHUFFLE_COMPRESSION_CODEC.key, codec.name)
       .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
       .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
+      .set(CelebornConf.READ_LOCAL_SHUFFLE_FILE, readLocalShuffle)
       .set("celeborn.data.io.numConnectionsPerPeer", "1")
     val lifecycleManager = new LifecycleManager(APP, clientConf)
     val shuffleClient = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))

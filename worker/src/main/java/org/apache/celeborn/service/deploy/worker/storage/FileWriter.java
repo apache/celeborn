@@ -41,6 +41,7 @@ import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -282,9 +283,7 @@ public abstract class FileWriter implements DeviceObserver {
         if (channel != null) {
           channel.close();
         }
-        if (fileInfo.isHdfs()) {
-          streamClose.run();
-        }
+        streamClose.run();
       } catch (IOException e) {
         logger.warn("close file writer {} failed", this, e);
       }
