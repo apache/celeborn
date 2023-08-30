@@ -231,8 +231,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
             initialCredit,
             startIndex,
             endIndex,
-            fileInfo,
-            isLegacy)
+            fileInfo)
         case PartitionType.MAPGROUP =>
       }
     } catch {

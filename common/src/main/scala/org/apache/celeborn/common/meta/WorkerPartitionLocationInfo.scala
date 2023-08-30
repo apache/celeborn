@@ -24,7 +24,7 @@ import java.util.function.BiFunction
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
+import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.util.JavaUtils
 
 class WorkerPartitionLocationInfo extends Logging {

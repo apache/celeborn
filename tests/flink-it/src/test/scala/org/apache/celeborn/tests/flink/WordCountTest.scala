@@ -23,14 +23,12 @@ import scala.collection.JavaConverters._
 
 import org.apache.flink.api.common.{ExecutionMode, RuntimeExecutionMode}
 import org.apache.flink.configuration.{Configuration, ExecutionOptions, RestOptions}
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobType}
-import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
+import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.graph.{GlobalStreamExchangeMode, StreamingJobGraphGenerator}
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -89,5 +87,4 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       })
     })
   }
-
 }

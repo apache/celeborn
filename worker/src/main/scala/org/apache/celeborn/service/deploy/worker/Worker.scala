@@ -24,7 +24,6 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
-import scala.util.control.Breaks
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -51,7 +50,7 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource.ACTIVE_CONNECTION_
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
-import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionFileWriter, PartitionFilesSorter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
 
 private[celeborn] class Worker(
     override val conf: CelebornConf,
@@ -632,7 +631,6 @@ private[celeborn] class Worker(
       logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
         s"unreleased PartitionLocation: \n$partitionLocationInfo")
     }
-
   }
 
   def decommissionWorker(): Unit = {
@@ -711,7 +709,6 @@ private[celeborn] class Worker(
 
   @VisibleForTesting
   def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)
-
 }
 
 private[deploy] object Worker extends Logging {

@@ -97,11 +97,6 @@ public class WordCountHelper {
 
     @Override
     public void invoke(Long value, Context context) {
-      //      try {
-      //        Thread.sleep(100 *1000);
-      //      } catch (InterruptedException e) {
-      //        e.printStackTrace();
-      //      }
       assertEquals(wordCount, value);
     }
   }

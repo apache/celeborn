@@ -310,7 +310,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType,
       rangeReadFilter,
       userIdentifier,
-      false)
+      true)
   }
 
   @throws[IOException]

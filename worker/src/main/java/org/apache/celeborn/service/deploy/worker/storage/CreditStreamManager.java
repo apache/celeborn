@@ -80,25 +80,6 @@ public class CreditStreamManager {
       int endSubIndex,
       FileInfo fileInfo)
       throws IOException {
-    return registerStream(
-        notifyStreamHandlerCallback,
-        channel,
-        initialCredit,
-        startSubIndex,
-        endSubIndex,
-        fileInfo,
-        false);
-  }
-
-  public long registerStream(
-      Consumer<Long> notifyStreamHandlerCallback,
-      Channel channel,
-      int initialCredit,
-      int startSubIndex,
-      int endSubIndex,
-      FileInfo fileInfo,
-      boolean isLegacy)
-      throws IOException {
     long streamId = nextStreamId.getAndIncrement();
     logger.debug(
         "Register stream start from {}, streamId: {}, fileInfo: {}",
