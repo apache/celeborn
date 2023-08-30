@@ -150,9 +150,9 @@ public class LocalPartitionReader implements PartitionReader {
     } catch (InterruptedException e) {
       // cancel a task for speculative, ignore this exception
       logger.warn("Read thread is interrupted.", e);
-    } catch (IOException ioe) {
+    } catch (Exception ioe) {
       logger.error("Read thread encountered error.", ioe);
-      exception.set(ioe);
+      exception.set(new CelebornIOException("Read thread encountered error", ioe));
     }
     pendingFetchTask.compareAndSet(true, false);
   }
@@ -162,7 +162,10 @@ public class LocalPartitionReader implements PartitionReader {
     if (inFlight < fetchMaxReqsInFlight) {
       int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
       if (pendingFetchTask.compareAndSet(false, true)) {
-        readLocalShufflePool.submit(() -> doFetchChunks(chunkIndex, toFetch));
+        logger.debug(
+            "Trigger local reader fetch chunk with {} and fetch {} chunks", chunkIndex, toFetch);
+        int currentIndex = chunkIndex;
+        readLocalShufflePool.submit(() -> doFetchChunks(currentIndex, toFetch));
         chunkIndex += toFetch;
       }
     }
