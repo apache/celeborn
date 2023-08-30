@@ -822,6 +822,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleReleasePartitionRequestInterval: Long =
     get(CLIENT_BATCH_HANDLED_RELEASE_PARTITION_INTERVAL)
   def enableReadLocalShuffleFile: Boolean = get(READ_LOCAL_SHUFFLE_FILE)
+  def readLocalShuffleThreads: Int = get(READ_LOCAL_SHUFFLE_THREADS)
 
   // //////////////////////////////////////////////////////
   //                       Worker                        //
@@ -3786,4 +3787,12 @@ object CelebornConf extends Logging {
       .doc("Enable read local shuffle file for clusters that co-deployed with yarn node manager.")
       .booleanConf
       .createWithDefault(false)
+
+  val READ_LOCAL_SHUFFLE_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.client.readLocalShuffleFile.threads")
+      .categories("client")
+      .version("0.3.1")
+      .doc("Threads count for read local shuffle file.")
+      .intConf
+      .createWithDefault(4)
 }

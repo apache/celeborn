@@ -49,11 +49,7 @@ import org.apache.celeborn.common.util.ThreadUtils;
 public class LocalPartitionReader implements PartitionReader {
 
   private static final Logger logger = LoggerFactory.getLogger(LocalPartitionReader.class);
-  private static final ThreadPoolExecutor readLocalShufflePool =
-      ThreadUtils.newDaemonCachedThreadPool(
-          "local-shuffle-reader-thread",
-          Math.max(4, Runtime.getRuntime().availableProcessors()),
-          60);
+  private static volatile ThreadPoolExecutor readLocalShufflePool;
   private final LinkedBlockingQueue<ByteBuf> results;
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
@@ -61,7 +57,7 @@ public class LocalPartitionReader implements PartitionReader {
   private volatile boolean closed = false;
   private final int numChunks;
   private int returnedChunks = 0;
-  private int currentChunkIndex = 0;
+  private int chunkIndex = 0;
   private final FileChannel shuffleChannel;
   private List<Long> chunkOffsets;
   private int endMapIndex;
@@ -75,6 +71,15 @@ public class LocalPartitionReader implements PartitionReader {
       int startMapIndex,
       int endMapIndex)
       throws IOException {
+    if (readLocalShufflePool == null) {
+      synchronized (LocalPartitionReader.class) {
+        if (readLocalShufflePool == null) {
+          readLocalShufflePool =
+              ThreadUtils.newDaemonCachedThreadPool(
+                  "local-shuffle-reader-thread", conf.readLocalShuffleThreads(), 60);
+        }
+      }
+    }
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     this.location = location;
@@ -115,18 +120,15 @@ public class LocalPartitionReader implements PartitionReader {
         location.getStorageInfo().getFilePath(),
         StringUtils.join(chunkOffsets, ","));
 
-    if (hasPendingFetchTask.compareAndSet(false, true)) {
-      readLocalShufflePool.submit(() -> fetchDataTask());
-    }
     ShuffleClient.incrementLocalReadCounter();
   }
 
-  private void fetchDataTask() {
+  private void doFetchChunks(int chunkIndex, int toFetch) {
     try {
-      while (!closed && currentChunkIndex < numChunks && results.size() < fetchMaxReqsInFlight) {
-        long offset = chunkOffsets.get(currentChunkIndex);
-        long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
-        logger.debug("Read {} offset {} length {}", currentChunkIndex, offset, length);
+      for (int i = 0; i < toFetch; i++) {
+        long offset = chunkOffsets.get(chunkIndex + i);
+        long length = chunkOffsets.get(chunkIndex + i + 1) - offset;
+        logger.debug("Read {} offset {} length {}", chunkIndex, offset, length);
         // A chunk must be smaller than INT.MAX_VALUE
         ByteBuffer buffer = ByteBuffer.allocate((int) length);
         if (endMapIndex != Integer.MAX_VALUE) {
@@ -139,25 +141,36 @@ public class LocalPartitionReader implements PartitionReader {
                 new CelebornIOException(
                     "Read local file " + location.getStorageInfo().getFilePath() + " failed"));
           }
-        }
-        buffer.flip();
-        // Avoid resource leak
-        synchronized (this) {
-          if (closed) {
-            results.put(Unpooled.wrappedBuffer(buffer));
+          buffer.flip();
+          // Avoid resource leak
+          synchronized (this) {
+            if (closed) {
+              results.put(Unpooled.wrappedBuffer(buffer));
+              logger.debug("Add index {} to results", chunkIndex + i);
+            }
           }
         }
-        int oldChunkIndex = currentChunkIndex++;
-        logger.debug("Add index {} to results", oldChunkIndex);
       }
     } catch (InterruptedException e) {
-      logger.warn("Read thread is interrupted.", e);
       // cancel a task for speculative, ignore this exception
+      logger.warn("Read thread is interrupted.", e);
     } catch (IOException ioe) {
       logger.error("Read thread encountered error.", ioe);
       exception.set(ioe);
     }
+
     hasPendingFetchTask.compareAndSet(true, false);
+  }
+
+  private void fetchChunks() {
+    final int inFlight = chunkIndex - returnedChunks;
+    if (inFlight < fetchMaxReqsInFlight) {
+      final int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
+      if (hasPendingFetchTask.compareAndSet(false, true)) {
+        readLocalShufflePool.submit(() -> doFetchChunks(chunkIndex, toFetch));
+      }
+      chunkIndex += toFetch;
+    }
   }
 
   @Override
@@ -168,14 +181,15 @@ public class LocalPartitionReader implements PartitionReader {
 
   @Override
   public ByteBuf next() throws IOException, InterruptedException {
+    checkException();
+    if (chunkIndex < numChunks) {
+      fetchChunks();
+    }
     ByteBuf chunk = null;
     try {
-      while (chunk == null && returnedChunks < numChunks) {
+      while (chunk == null) {
         checkException();
         chunk = results.poll(100, TimeUnit.MILLISECONDS);
-        if (hasPendingFetchTask.compareAndSet(false, true)) {
-          readLocalShufflePool.submit(() -> fetchDataTask());
-        }
         logger.debug("Poll result with result size: {}", results.size());
       }
     } catch (InterruptedException e) {
