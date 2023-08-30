@@ -944,7 +944,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       }
 
     if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && fileWriter.asInstanceOf[
-        MapPartitionFileWriter].isSplitEnabled && checkDiskFullAndSplit(
+        MapPartitionFileWriter].getFileInfo.isSplitEnabled && checkDiskFullAndSplit(
         fileWriter,
         isPrimary,
         null,
@@ -1114,7 +1114,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
     logDebug(
-      s"check filelength: ${fileWriter.getFileInfo.getFileLength}, filename:${fileWriter.getFileInfo.getFilePath}")
+      s"IsDiskfull: $diskFull, check filelength: ${fileWriter.getFileInfo.getFileLength}, filename:${fileWriter.getFileInfo.getFilePath}")
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
         (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&

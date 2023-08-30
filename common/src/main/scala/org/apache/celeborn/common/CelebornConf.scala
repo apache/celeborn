@@ -1026,7 +1026,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFlinkResultPartitionSupportFloatingBuffer: Boolean =
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
-  def clientFlinkShufflePartitionSplitEnabled = get(CLIENT_FLINK_SHUFFLE_PARTITION_SPLIT_ENABLED)
+  def clientShufflePartitionSplitEnabled = get(CLIENT_SHUFFLE_PARTITION_SPLIT_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -3800,12 +3800,11 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .createWithDefault("HDD,SSD")
 
-  val CLIENT_FLINK_SHUFFLE_PARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.flink.shuffle.partitionSplit.enabled")
-      .withAlternative("celeborn.shuffle.flink.partitionSplit.enabled")
+  val CLIENT_SHUFFLE_PARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.partitionSplit.enabled")
       .categories("client")
-      .doc("whether to enable shuffle partition split. Old client don't support split compelely, so this value can be set true for new client.")
+      .doc("whether to enable shuffle partition split.")
       .version("0.3.1")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 }

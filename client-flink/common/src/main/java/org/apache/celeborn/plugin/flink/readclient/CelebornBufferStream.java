@@ -132,24 +132,24 @@ public class CelebornBufferStream {
   }
 
   private void cleanStream(long streamId) {
-    mapShuffleClient.getReadClientHandler().removeHandler(streamId);
-    clientFactory.unregisterSupplier(streamId);
-    closeStream(streamId);
-    isOpenSuccess = false;
+    if (isOpenSuccess) {
+      mapShuffleClient.getReadClientHandler().removeHandler(streamId);
+      clientFactory.unregisterSupplier(streamId);
+      closeStream(streamId);
+      isOpenSuccess = false;
+    }
   }
 
   public void close() {
     synchronized (lock) {
-      if (isOpenSuccess) {
-        cleanStream(streamId);
-      }
+      cleanStream(streamId);
       isClosed = true;
     }
   }
 
   public void moveToNextPartitionIfPossible(long endedStreamId) {
     logger.debug(
-        "1 this:{}, moveToNextPartitionIfPossible endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
+        "MoveToNextPartitionIfPossible in this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
         this,
         endedStreamId,
         currentLocationIndex.get(),
@@ -163,7 +163,7 @@ public class CelebornBufferStream {
       try {
         openStreamInternal();
         logger.debug(
-            "2 this:{}, moveToNextPartitionIfPossible endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
+            "MoveToNextPartitionIfPossible after openStream this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
             this,
             endedStreamId,
             currentLocationIndex.get(),

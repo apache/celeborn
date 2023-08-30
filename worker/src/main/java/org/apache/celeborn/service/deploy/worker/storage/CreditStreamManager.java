@@ -121,8 +121,7 @@ public class CreditStreamManager {
                           threadsPerMountPoint,
                           fileInfo,
                           id -> recycleStream(id),
-                          minBuffersToTriggerRead,
-                          isLegacy);
+                          minBuffersToTriggerRead);
                 } catch (IOException e) {
                   exception.set(e);
                   return null;

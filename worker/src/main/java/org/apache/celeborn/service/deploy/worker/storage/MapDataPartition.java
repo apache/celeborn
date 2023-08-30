@@ -61,7 +61,6 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
   private int maxReadBuffers;
   private int minBuffersToTriggerRead;
   private AtomicBoolean hasReadingTask = new AtomicBoolean(false);
-  private boolean isLegacy;
 
   public MapDataPartition(
       int minReadBuffers,
@@ -70,8 +69,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
       int threadsPerMountPoint,
       FileInfo fileInfo,
       Consumer<Long> recycleStream,
-      int minBuffersToTriggerRead,
-      boolean isLegacy)
+      int minBuffersToTriggerRead)
       throws IOException {
     this.recycleStream = recycleStream;
     this.fileInfo = fileInfo;
@@ -80,13 +78,11 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     this.maxReadBuffers = maxReadBuffers;
 
     updateBuffersTarget((this.minReadBuffers + this.maxReadBuffers) / 2 + 1);
-    this.isLegacy = isLegacy;
     logger.debug(
         "read map partition {} with {} {} {} {}",
         fileInfo.getFilePath(),
         bufferQueue.getLocalBuffersTarget(),
-        fileInfo.getBufferSize(),
-        isLegacy);
+        fileInfo.getBufferSize());
 
     this.minBuffersToTriggerRead = minBuffersToTriggerRead;
 
@@ -130,8 +126,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
             fileInfo,
             streamId,
             channel,
-            () -> recycleStream.accept(streamId),
-            isLegacy);
+            () -> recycleStream.accept(streamId));
     readers.put(streamId, mapDataPartitionReader);
   }
 

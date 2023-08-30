@@ -279,7 +279,9 @@ public class RemoteShuffleOutputGate {
         Optional<PartitionLocation> revivePartition =
             flinkShuffleClient.pushDataHandShake(
                 shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
-        if (revivePartition.isPresent()) {
+        // if remainingReviveTimes == 0 and revivePartition.isPresent(), there is no need to send
+        // handshake again
+        if (revivePartition.isPresent() && remainingReviveTimes > 0) {
           LOG.info(
               "Revive at handshake, currentTimes:{}, totalTimes:{} for shuffleId:{}, mapId:{}, attempId:{}, currentRegionIndex:{}, newPartition:{}, oldPartition:{}",
               remainingReviveTimes,

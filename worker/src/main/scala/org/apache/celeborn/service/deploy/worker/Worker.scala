@@ -619,24 +619,15 @@ private[celeborn] class Worker(
     var waitTimes = 0
 
     def waitTime: Long = waitTimes * interval
-    // for mappartition, it should wait that datas of a region are completely received.
-    var isFinished = isRegionFinished
-    while (!partitionLocationInfo.isEmpty && !isFinished && waitTime < timeout) {
+    while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
-      isFinished = isRegionFinished
     }
     if (partitionLocationInfo.isEmpty) {
       logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
     } else {
       logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
         s"unreleased PartitionLocation: \n$partitionLocationInfo")
-    }
-
-    if (isFinished) {
-      logInfo(s"Waiting for all partition regionFinish cost ${waitTime}ms.")
-    } else {
-      logWarning(s"Waiting for all partition regionFinish cost ${waitTime}ms, but some regions are not finished")
     }
 
   }
@@ -718,30 +709,6 @@ private[celeborn] class Worker(
   @VisibleForTesting
   def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)
 
-  def isRegionFinished: Boolean = {
-    var isFinish = true
-    val loop = new Breaks
-    loop.breakable {
-      val partitionLocations =
-        partitionLocationInfo.getPrimaryPartitionLocationsByFiler(l =>
-          shufflePartitionType.get(l) == PartitionType.MAP)
-      logDebug(
-        s"IsRegionFinished the partitions total size before filter : ${partitionLocationInfo.shuffleKeySet.size()}, the partitions toal size after filter${partitionLocations.size}")
-      for (partitonLocationInfo <- partitionLocations) {
-        for ((_, locationMap) <- partitonLocationInfo) {
-          for ((_, location) <- locationMap.asScala) {
-            if (!location.asInstanceOf[WorkingPartition].getFileWriter.asInstanceOf[
-                MapPartitionFileWriter].isRegionFinished) {
-              isFinish = false
-              logDebug(s"primary partitionLocations region is not finished: $location")
-              loop.break()
-            }
-          }
-        }
-      }
-    }
-    isFinish
-  }
 }
 
 private[deploy] object Worker extends Logging {

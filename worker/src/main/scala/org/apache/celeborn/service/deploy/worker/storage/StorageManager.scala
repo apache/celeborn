@@ -352,7 +352,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
         val fileInfo =
-          new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier, partitionType)
+          new FileInfo(
+            new Path(shuffleDir, fileName).toString,
+            userIdentifier,
+            partitionType,
+            splitEnabled)
         val hdfsWriter = partitionType match {
           case PartitionType.MAP => new MapPartitionFileWriter(
               fileInfo,
@@ -362,8 +366,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               deviceMonitor,
               splitThreshold,
               splitMode,
-              rangeReadFilter,
-              splitEnabled)
+              rangeReadFilter)
           case PartitionType.REDUCE => new ReducePartitionFileWriter(
               fileInfo,
               hdfsFlusher.get,
@@ -399,7 +402,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 s"Create shuffle data file ${file.getAbsolutePath} failed!")
             }
           }
-          val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier, partitionType)
+          val fileInfo =
+            new FileInfo(file.getAbsolutePath, userIdentifier, partitionType, splitEnabled)
           fileInfo.setMountPoint(mountPoint)
           val fileWriter = partitionType match {
             case PartitionType.MAP => new MapPartitionFileWriter(
@@ -410,8 +414,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 deviceMonitor,
                 splitThreshold,
                 splitMode,
-                rangeReadFilter,
-                splitEnabled)
+                rangeReadFilter)
             case PartitionType.REDUCE => new ReducePartitionFileWriter(
                 fileInfo,
                 localFlushers.get(mountPoint),

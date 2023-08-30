@@ -48,20 +48,25 @@ public class FileInfo {
   private int numSubpartitions;
 
   private volatile long bytesFlushed;
+  // whether to split is decided by client side.
+  // now it's more useful for mappartition to compatible with old client which can't support split
+  private boolean splitEnabled;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
-    this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE);
+    this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE, true);
   }
 
   public FileInfo(
       String filePath,
       List<Long> chunkOffsets,
       UserIdentifier userIdentifier,
-      PartitionType partitionType) {
+      PartitionType partitionType,
+      boolean splitEnabled) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
     this.partitionType = partitionType;
+    this.splitEnabled = splitEnabled;
   }
 
   public FileInfo(
@@ -71,7 +76,8 @@ public class FileInfo {
       PartitionType partitionType,
       int bufferSize,
       int numSubpartitions,
-      long bytesFlushed) {
+      long bytesFlushed,
+      boolean splitEnabled) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
@@ -79,10 +85,19 @@ public class FileInfo {
     this.bufferSize = bufferSize;
     this.numSubpartitions = numSubpartitions;
     this.bytesFlushed = bytesFlushed;
+    this.splitEnabled = splitEnabled;
   }
 
   public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
-    this(filePath, new ArrayList(Arrays.asList(0L)), userIdentifier, partitionType);
+    this(filePath, new ArrayList(Arrays.asList(0L)), userIdentifier, partitionType, true);
+  }
+
+  public FileInfo(
+      String filePath,
+      UserIdentifier userIdentifier,
+      PartitionType partitionType,
+      boolean splitEnabled) {
+    this(filePath, new ArrayList(Arrays.asList(0L)), userIdentifier, partitionType, splitEnabled);
   }
 
   @VisibleForTesting
@@ -91,7 +106,8 @@ public class FileInfo {
         file.getAbsolutePath(),
         new ArrayList(Arrays.asList(0L)),
         userIdentifier,
-        PartitionType.REDUCE);
+        PartitionType.REDUCE,
+        true);
   }
 
   public synchronized void addChunkOffset(long bytesFlushed) {
@@ -231,5 +247,13 @@ public class FileInfo {
 
   public void setMountPoint(String mountPoint) {
     this.mountPoint = mountPoint;
+  }
+
+  public boolean isSplitEnabled() {
+    return splitEnabled;
+  }
+
+  public void setSplitEnabled(boolean splitEnabled) {
+    this.splitEnabled = splitEnabled;
   }
 }

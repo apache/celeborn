@@ -182,19 +182,4 @@ class WorkerPartitionLocationInfo extends Logging {
        | replica: ${replicaPartitionLocations.asScala}
        |""".stripMargin
   }
-
-  def getPrimaryPartitionLocationsByFiler(f: String => Boolean)
-      : Array[Map[String, ConcurrentHashMap[String, PartitionLocation]]] = {
-    val primary = primaryPartitionLocations.asScala.filterKeys(f)
-    val replica = replicaPartitionLocations.asScala.filterKeys(f)
-    if (primary.size > 0) {
-      if (replica.size > 0) {
-        Array(primary, replica)
-      } else {
-        Array(primary)
-      }
-    }
-    Array()
-  }
-
 }

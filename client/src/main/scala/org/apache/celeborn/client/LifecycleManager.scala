@@ -499,7 +499,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         false)
       return
     }
-    logDebug(s"revive $shuffleId, $mapIds, $partitionIds, $oldEpochs, $oldPartitions, $causes")
+    logDebug(
+      s"[handleRevive] shuffle $shuffleId, $mapIds, $partitionIds, $oldEpochs, $oldPartitions, $causes")
     if (commitManager.isStageEnd(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId stage ended!")
       contextWrapper.reply(
@@ -663,9 +664,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             rangeReadFilter,
             userIdentifier,
             conf.pushDataTimeoutMs,
-            if (getPartitionType(shuffleId) == PartitionType.MAP)
-              conf.clientFlinkShufflePartitionSplitEnabled
-            else true))
+            conf.clientShufflePartitionSplitEnabled))
         if (res.status.equals(StatusCode.SUCCESS)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for shuffleId $shuffleId" +

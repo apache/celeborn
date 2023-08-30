@@ -52,7 +52,6 @@ public final class MapPartitionFileWriter extends FileWriter {
   private long regionStartingOffset;
   private FileChannel indexChannel;
   private volatile boolean isRegionFinished = true;
-  private boolean splitEnabled;
 
   public MapPartitionFileWriter(
       FileInfo fileInfo,
@@ -64,29 +63,6 @@ public final class MapPartitionFileWriter extends FileWriter {
       PartitionSplitMode splitMode,
       boolean rangeReadFilter)
       throws IOException {
-    this(
-        fileInfo,
-        flusher,
-        workerSource,
-        conf,
-        deviceMonitor,
-        splitThreshold,
-        splitMode,
-        rangeReadFilter,
-        false);
-  }
-
-  public MapPartitionFileWriter(
-      FileInfo fileInfo,
-      Flusher flusher,
-      AbstractSource workerSource,
-      CelebornConf conf,
-      DeviceMonitor deviceMonitor,
-      long splitThreshold,
-      PartitionSplitMode splitMode,
-      boolean rangeReadFilter,
-      boolean splitEnabled)
-      throws IOException {
     super(
         fileInfo,
         flusher,
@@ -97,7 +73,6 @@ public final class MapPartitionFileWriter extends FileWriter {
         splitMode,
         PartitionType.MAP,
         rangeReadFilter);
-    this.splitEnabled = splitEnabled;
     if (!fileInfo.isHdfs()) {
       indexChannel = FileChannelUtils.createWritableFileChannel(fileInfo.getIndexPath());
     } else {
@@ -328,9 +303,5 @@ public final class MapPartitionFileWriter extends FileWriter {
 
   public boolean isRegionFinished() {
     return isRegionFinished;
-  }
-
-  public boolean isSplitEnabled() {
-    return splitEnabled;
   }
 }

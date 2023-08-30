@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.StorageManager
+import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, MapPartitionFileWriter, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -288,6 +288,7 @@ private[deploy] class Controller(
                 }
 
                 val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
+                waitMapPartitionRegionFinished(fileWriter, conf.workerShuffleCommitTimeout)
                 val bytes = fileWriter.close()
                 if (bytes > 0L) {
                   if (fileWriter.getStorageInfo == null) {
@@ -324,6 +325,23 @@ private[deploy] class Controller(
     }
 
     future
+  }
+
+  private def waitMapPartitionRegionFinished(fileWriter: FileWriter, waitTimeout: Long): Unit = {
+    if (fileWriter.isInstanceOf[MapPartitionFileWriter]) {
+      val delta = 100
+      var times = 0
+      while (delta * times < waitTimeout) {
+        if (fileWriter.asInstanceOf[MapPartitionFileWriter].isRegionFinished) {
+          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+          return
+        }
+        Thread.sleep(delta)
+        times += 1
+      }
+      logWarning(
+        s"CommitFile faield to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+    }
   }
 
   private def handleCommitFiles(

@@ -94,7 +94,6 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   private AtomicInteger numInUseBuffers = new AtomicInteger(0);
   private boolean isOpen = false;
-  private boolean isLegacy;
 
   public MapDataPartitionReader(
       int startPartitionIndex,
@@ -102,8 +101,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       FileInfo fileInfo,
       long streamId,
       Channel associatedChannel,
-      Runnable recycleStream,
-      Boolean isLegacy) {
+      Runnable recycleStream) {
     this.startPartitionIndex = startPartitionIndex;
     this.endPartitionIndex = endPartitionIndex;
 
@@ -117,7 +115,6 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
     this.fileInfo = fileInfo;
     this.readFinished = false;
-    this.isLegacy = isLegacy;
   }
 
   public void open(FileChannel dataFileChannel, FileChannel indexFileChannel, long indexSize)
@@ -442,7 +439,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
         logger.debug("release reader for stream {}", streamId);
         // old client can't support BufferStreamEnd, so for new client it tells client that this
         // stream is finished.
-        if (!isLegacy && readFinished && buffersToSend.isEmpty())
+        if (fileInfo.isSplitEnabled() && !errorNotified)
           associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
         if (!buffersToSend.isEmpty()) {
           numInUseBuffers.addAndGet(-1 * buffersToSend.size());
