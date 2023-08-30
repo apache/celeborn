@@ -25,4 +25,8 @@ class ClusterReadWriteTestWithZSTD extends ReadWriteTestBase {
     testReadWriteByCode(CompressionCodec.ZSTD)
   }
 
+  test(s"test MiniCluster With ZSTD and local read for spark") {
+    testReadWriteByCode(CompressionCodec.ZSTD, true)
+  }
+
 }

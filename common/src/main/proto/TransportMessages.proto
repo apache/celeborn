@@ -486,7 +486,7 @@ message PbOpenStream {
   int32 startIndex = 3;
   int32 endIndex = 4;
   int32 initialCredit = 5;
-  bool localRead = 6;
+  bool readLocalShuffle = 6;
 }
 
 message PbStreamHandler {

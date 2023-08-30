@@ -19,6 +19,7 @@ package org.apache.celeborn.client;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
@@ -37,10 +38,12 @@ import org.apache.celeborn.common.write.PushState;
  * implementation
  */
 public abstract class ShuffleClient {
+  private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
   private static volatile ShuffleClient _instance;
   private static volatile boolean initialized = false;
   private static volatile FileSystem hdfsFs;
-  private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
+  private static LongAdder totalReadCounter = new LongAdder();
+  private static LongAdder localShuffleReadCounter = new LongAdder();
 
   // for testing
   public static void reset() {
@@ -93,6 +96,23 @@ public abstract class ShuffleClient {
       }
     }
     return hdfsFs;
+  }
+
+  public static void incrementLocalReadCounter() {
+    localShuffleReadCounter.increment();
+    totalReadCounter.increment();
+  }
+
+  public static void incrementTotalReadCounter() {
+    totalReadCounter.increment();
+  }
+
+  public static String getReadCounters() {
+    long totalReadCount = totalReadCounter.longValue();
+    long localReadCount = localShuffleReadCounter.longValue();
+    return String.format(
+        "Current client read %d(local)/%d(total) partitions, local ratio %.2f",
+        localReadCount, totalReadCount, (localReadCount * 1.0d / totalReadCount) * 100);
   }
 
   public abstract void setupLifecycleManagerRef(String host, int port);
