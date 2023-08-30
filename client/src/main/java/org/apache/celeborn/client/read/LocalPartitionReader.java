@@ -23,6 +23,7 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
@@ -59,7 +60,7 @@ public class LocalPartitionReader implements PartitionReader {
   private int chunkIndex = 0;
   private final FileChannel shuffleChannel;
   private List<Long> chunkOffsets;
-  private int endMapIndex;
+  private AtomicBoolean pendingFetchTask = new AtomicBoolean(false);
 
   public LocalPartitionReader(
       CelebornConf conf,
@@ -81,7 +82,6 @@ public class LocalPartitionReader implements PartitionReader {
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     this.location = location;
-    this.endMapIndex = endMapIndex;
     PbStreamHandler streamHandle;
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
     try {
@@ -112,6 +112,9 @@ public class LocalPartitionReader implements PartitionReader {
     chunkOffsets = new ArrayList<>(streamHandle.getChunkOffsetsList());
     numChunks = streamHandle.getNumChunks();
     shuffleChannel = FileChannelUtils.openReadableFileChannel(streamHandle.getFullPath());
+    if (endMapIndex != Integer.MAX_VALUE) {
+      shuffleChannel.position(chunkOffsets.get(0));
+    }
 
     logger.debug(
         "Local partition reader {} offsets:{}",
@@ -129,10 +132,6 @@ public class LocalPartitionReader implements PartitionReader {
         logger.debug("Read {} offset {} length {}", chunkIndex, offset, length);
         // A chunk must be smaller than INT.MAX_VALUE
         ByteBuffer buffer = ByteBuffer.allocate((int) length);
-        if (endMapIndex != Integer.MAX_VALUE) {
-          // skew partition
-          shuffleChannel.position(offset);
-        }
         while (buffer.hasRemaining()) {
           if (-1 == shuffleChannel.read(buffer)) {
             throw new CelebornIOException(
@@ -155,13 +154,16 @@ public class LocalPartitionReader implements PartitionReader {
       logger.error("Read thread encountered error.", ioe);
       exception.set(ioe);
     }
+    pendingFetchTask.compareAndSet(true, false);
   }
 
   private void fetchChunks() {
     int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
       int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
-      readLocalShufflePool.submit(() -> doFetchChunks(chunkIndex, toFetch));
+      if (pendingFetchTask.compareAndSet(false, true)) {
+        readLocalShufflePool.submit(() -> doFetchChunks(chunkIndex, toFetch));
+      }
       chunkIndex += toFetch;
     }
   }
