@@ -25,4 +25,8 @@ class ClusterReadWriteTestWithLZ4 extends ReadWriteTestBase {
     testReadWriteByCode(CompressionCodec.LZ4)
   }
 
+  test(s"test MiniCluster With LZ4 and local read for spark") {
+    testReadWriteByCode(CompressionCodec.LZ4, true)
+  }
+
 }

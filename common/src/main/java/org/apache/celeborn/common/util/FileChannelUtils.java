@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage;
+package org.apache.celeborn.common.util;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;

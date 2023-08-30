@@ -31,6 +31,7 @@ import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -129,6 +130,8 @@ public abstract class CelebornInputStream extends InputStream {
     private final byte[] sizeBuf = new byte[BATCH_HEADER_SIZE];
     private LongAdder skipCount = new LongAdder();
     private final boolean rangeReadFilter;
+    private final boolean enabledReadLocalShuffle;
+    private final String localHostAddress;
 
     private boolean pushReplicateEnabled;
     private boolean fetchExcludeWorkerOnFailureEnabled;
@@ -156,6 +159,8 @@ public abstract class CelebornInputStream extends InputStream {
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
+      this.enabledReadLocalShuffle = conf.enableReadLocalShuffleFile();
+      this.localHostAddress = Utils.localHostName(conf);
       this.pushReplicateEnabled = conf.clientPushReplicateEnabled();
       this.fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
       this.shuffleCompressionEnabled =
@@ -389,20 +394,30 @@ public abstract class CelebornInputStream extends InputStream {
         logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }
 
-      logger.debug("create reader for location {}", location);
+      logger.debug("Create reader for location {}", location);
 
       StorageInfo storageInfo = location.getStorageInfo();
       if (storageInfo.getType() == StorageInfo.Type.HDD
           || storageInfo.getType() == StorageInfo.Type.SSD) {
-        return new WorkerPartitionReader(
-            conf,
-            shuffleKey,
-            location,
-            clientFactory,
-            startMapIndex,
-            endMapIndex,
-            fetchChunkRetryCnt,
-            fetchChunkMaxRetry);
+        logger.debug(
+            "Read local shuffle file enabled {} , {}, {}",
+            enabledReadLocalShuffle,
+            location.getWorker().host(),
+            localHostAddress);
+        if (enabledReadLocalShuffle && location.getWorker().host().equals(localHostAddress)) {
+          return new LocalPartitionReader(
+              conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
+        } else {
+          return new WorkerPartitionReader(
+              conf,
+              shuffleKey,
+              location,
+              clientFactory,
+              startMapIndex,
+              endMapIndex,
+              fetchChunkRetryCnt,
+              fetchChunkMaxRetry);
+        }
       }
       if (storageInfo.getType() == StorageInfo.Type.HDFS) {
         return new DfsPartitionReader(
@@ -483,6 +498,9 @@ public abstract class CelebornInputStream extends InputStream {
         logger.debug("Closing reader");
         currentReader.close();
         currentReader = null;
+      }
+      if (enabledReadLocalShuffle) {
+        logger.info(ShuffleClient.getReadCounters());
       }
     }
 
