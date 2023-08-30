@@ -141,13 +141,21 @@ public class LocalPartitionReader implements PartitionReader {
           }
         }
         buffer.flip();
-        results.put(Unpooled.wrappedBuffer(buffer));
+        // Avoid resource leak
+        synchronized (this) {
+          if (closed) {
+            results.put(Unpooled.wrappedBuffer(buffer));
+          }
+        }
         int oldChunkIndex = currentChunkIndex++;
         logger.debug("Add index {} to results", oldChunkIndex);
       }
-    } catch (Exception e) {
-      logger.warn("Read thread is cancelled.", e);
+    } catch (InterruptedException e) {
+      logger.warn("Read thread is interrupted.", e);
       // cancel a task for speculative, ignore this exception
+    } catch (IOException ioe) {
+      logger.error("Read thread encountered error.", ioe);
+      exception.set(ioe);
     }
     hasPendingFetchTask.compareAndSet(true, false);
   }
@@ -187,16 +195,18 @@ public class LocalPartitionReader implements PartitionReader {
 
   @Override
   public void close() {
-    closed = true;
+    synchronized (this) {
+      closed = true;
+      if (!results.isEmpty()) {
+        results.forEach(ReferenceCounted::release);
+      }
+      results.clear();
+    }
     try {
       shuffleChannel.close();
     } catch (IOException e) {
       logger.warn("Close local shuffle file failed.", e);
     }
-    if (!results.isEmpty()) {
-      results.forEach(ReferenceCounted::release);
-    }
-    results.clear();
   }
 
   @Override
