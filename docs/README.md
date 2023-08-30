@@ -20,7 +20,7 @@ license: |
 ---
 Quick Start
 ===
-This documentation gives a quick start guide for running Apache Spark with Apache Celeborn(Incubating).
+This documentation gives a quick start guide for running Apache Spark/Flink with Apache Celeborn(Incubating).
 
 ### Download Celeborn
 Download the latest Celeborn binary from the [Downloading Page](https://celeborn.apache.org/download/).
@@ -51,7 +51,7 @@ cd $CELEBORN_HOME
 ```
 You should see `Master`'s ip:port in the log:
 ```log
-INFO [main] NettyRpcEnvFactory: Starting RPC Server [MasterSys] on 192.168.2.109:9097
+INFO [main] NettyRpcEnvFactory: Starting RPC Server [MasterSys] on 192.168.2.109:9097 with advisor endpoint 192.168.2.109:9097
 ```
 #### Start Worker
 Use the Master's IP and Port to start Worker:
@@ -63,6 +63,7 @@ You should see the following message in Worker's log:
 ```log
 INFO [main] MasterClient: connect to master 192.168.2.109:9097.
 INFO [main] Worker: Register worker successfully.
+INFO [main] Worker: Worker started.
 ```
 And also the following message in Master's log:
 ```log
@@ -114,4 +115,37 @@ And the following message in Celeborn Worker's log:
 INFO [dispatcher-event-loop-9] Controller: Reserved 10 primary location and 0 replica location for local-1690000152711-0
 INFO [dispatcher-event-loop-8] Controller: Start commitFiles for local-1690000152711-0
 INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success with 10 committed primary partitions, 0 empty primary partitions, 0 failed primary partitions, 0 committed replica partitions, 0 empty replica partitions, 0 failed replica partitions.
+```
+
+## Start Flink with Celeborn
+#### Copy Celeborn Client to Flink's lib
+Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x and Flink 1.17.x, copy the corresponding client jar into Flink's
+`lib/` directory:
+```shell
+cp $CELEBORN_HOME/flink/<Celeborn Client Jar> $FLINK_HOME/lib/
+```
+#### Add Celeborn configuration to Flink's conf
+Set `shuffle-service-factory.class` to Celeborn's ShuffleServiceFactory in Flink configuration file:
+```shell
+cd $FLINK_HOME
+vi conf/flink-conf.yaml
+```
+```properties
+shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
+```
+Then deploy the example word count job to the running cluster:
+```shell
+cd $FLINK_HOME
+
+./bin/flink run -Dexecution.runtime-mode=BATCH examples/streaming/WordCount.jar
+```
+During the Flink Job, you should see the following message in Celeborn Master's log:
+```log
+Master: Offer slots successfully for 1 reducers of local-1690000152711-0 on 1 workers.
+```
+And the following message in Celeborn Worker's log:
+```log
+INFO [dispatcher-event-loop-4] Controller: Reserved 1 primary location and 0 replica location for local-1690000152711-0
+INFO [dispatcher-event-loop-3] Controller: Start commitFiles for local-1690000152711-0
+INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success with 1 committed primary partitions, 0 empty primary partitions, 0 failed primary partitions, 0 committed replica partitions, 0 empty replica partitions, 0 failed replica partitions.
 ```

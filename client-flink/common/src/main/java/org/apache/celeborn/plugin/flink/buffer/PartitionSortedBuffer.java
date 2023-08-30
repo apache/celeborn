@@ -391,8 +391,7 @@ public class PartitionSortedBuffer implements SortBuffer {
 
   @Override
   public void finish() {
-    checkState(
-        !isFinished, "com.alibaba.flink.shuffle.plugin.transfer.SortBuffer is already finished.");
+    checkState(!isFinished, SortBuffer.class.getCanonicalName() + " is already finished.");
 
     isFinished = true;
 
