@@ -114,7 +114,7 @@ public class CelebornShuffleConsumer<K, V>
       ShuffleClientMetrics.class.getDeclaredMethod(
           "create", org.apache.hadoop.mapreduce.TaskAttemptID.class, JobConf.class);
     } catch (Exception e) {
-      // ignore this exception because
+      // ignore this exception because the createMetrics may uses hadoop2
     }
     if (createMethod != null) {
       return (ShuffleClientMetrics) createMethod.invoke(null, taskAttemptID, jobConf);
