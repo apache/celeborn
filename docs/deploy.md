@@ -190,7 +190,7 @@ spark.sql.adaptive.skewJoin.enabled true
 Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
 
 ### Flink Configuration
-TO use Celeborn, following flink configurations should be added.
+To use Celeborn, following flink configurations should be added.
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
