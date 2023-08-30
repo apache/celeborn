@@ -23,7 +23,6 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
@@ -61,7 +60,6 @@ public class LocalPartitionReader implements PartitionReader {
   private final FileChannel shuffleChannel;
   private List<Long> chunkOffsets;
   private int endMapIndex;
-  private AtomicBoolean hasPendingFetchTask = new AtomicBoolean(false);
 
   public LocalPartitionReader(
       CelebornConf conf,
@@ -137,17 +135,16 @@ public class LocalPartitionReader implements PartitionReader {
         }
         while (buffer.hasRemaining()) {
           if (-1 == shuffleChannel.read(buffer)) {
-            exception.set(
-                new CelebornIOException(
-                    "Read local file " + location.getStorageInfo().getFilePath() + " failed"));
+            throw new CelebornIOException(
+                "Read local file " + location.getStorageInfo().getFilePath() + " failed");
           }
-          buffer.flip();
-          // Avoid resource leak
-          synchronized (this) {
-            if (closed) {
-              results.put(Unpooled.wrappedBuffer(buffer));
-              logger.debug("Add index {} to results", chunkIndex + i);
-            }
+        }
+        buffer.flip();
+        // Avoid resource leak
+        synchronized (this) {
+          if (!closed) {
+            results.put(Unpooled.wrappedBuffer(buffer));
+            logger.debug("Add index {} to results", chunkIndex + i);
           }
         }
       }
@@ -158,17 +155,13 @@ public class LocalPartitionReader implements PartitionReader {
       logger.error("Read thread encountered error.", ioe);
       exception.set(ioe);
     }
-
-    hasPendingFetchTask.compareAndSet(true, false);
   }
 
   private void fetchChunks() {
-    final int inFlight = chunkIndex - returnedChunks;
+    int inFlight = chunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
-      final int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
-      if (hasPendingFetchTask.compareAndSet(false, true)) {
-        readLocalShufflePool.submit(() -> doFetchChunks(chunkIndex, toFetch));
-      }
+      int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
+      readLocalShufflePool.submit(() -> doFetchChunks(chunkIndex, toFetch));
       chunkIndex += toFetch;
     }
   }
