@@ -3782,7 +3782,7 @@ object CelebornConf extends Logging {
   val READ_LOCAL_SHUFFLE_FILE: ConfigEntry[Boolean] =
     buildConf("celeborn.client.readLocalShuffleFile.enabled")
       .categories("client")
-      .version("0.3.0")
+      .version("0.3.1")
       .doc("Enable read local shuffle file for clusters that co-deployed with yarn node manager.")
       .booleanConf
       .createWithDefault(false)

@@ -116,19 +116,14 @@ public class LocalPartitionReader implements PartitionReader {
         StringUtils.join(chunkOffsets, ","));
 
     if (hasPendingFetchTask.compareAndSet(false, true)) {
-      Future firstFetchTask = readLocalShufflePool.submit(() -> fetchDataTask());
-      try {
-        firstFetchTask.get();
-      } catch (Exception e) {
-        throw new CelebornIOException("Fetch data for local shuffle reader failed", e);
-      }
+      readLocalShufflePool.submit(() -> fetchDataTask());
     }
     ShuffleClient.incrementLocalReadCounter();
   }
 
   private void fetchDataTask() {
     try {
-      if (!closed && currentChunkIndex < numChunks && results.size() < fetchMaxReqsInFlight) {
+      while (!closed && currentChunkIndex < numChunks && results.size() < fetchMaxReqsInFlight) {
         long offset = chunkOffsets.get(currentChunkIndex);
         long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
         logger.debug("Read {} offset {} length {}", currentChunkIndex, offset, length);
@@ -147,7 +142,8 @@ public class LocalPartitionReader implements PartitionReader {
         }
         buffer.flip();
         results.put(Unpooled.wrappedBuffer(buffer));
-        logger.debug("Add index {} to results", currentChunkIndex++);
+        int oldChunkIndex = currentChunkIndex++;
+        logger.debug("Add index {} to results", oldChunkIndex);
       }
     } catch (Exception e) {
       logger.warn("Read thread is cancelled.", e);

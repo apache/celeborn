@@ -207,7 +207,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
             return replyStreamHandler(
               client,
               request.requestId,
-              0,
+              -1,
               fileInfo.numChunks(),
               isLegacy,
               fileInfo.getChunkOffsets,

@@ -107,7 +107,7 @@ public abstract class ShuffleClient {
     totalReadCounter.increment();
   }
 
-  public static String queryReadCounters() {
+  public static String getReadCounters() {
     long totalReadCount = totalReadCounter.longValue();
     long localReadCount = localShuffleReadCounter.longValue();
     return String.format(

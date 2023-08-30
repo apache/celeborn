@@ -500,7 +500,7 @@ public abstract class CelebornInputStream extends InputStream {
         currentReader = null;
       }
       if (enabledReadLocalShuffle) {
-        logger.info(ShuffleClient.queryReadCounters());
+        logger.info(ShuffleClient.getReadCounters());
       }
     }
 

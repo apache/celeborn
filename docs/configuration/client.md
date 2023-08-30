@@ -61,7 +61,7 @@ license: |
 | celeborn.client.push.takeTaskMaxWaitAttempts | 1 | Max wait times if no task available to push to worker. | 0.3.0 | 
 | celeborn.client.push.takeTaskWaitInterval | 50ms | Wait interval if no task available to push to worker. | 0.3.0 | 
 | celeborn.client.push.timeout | 120s | Timeout for a task to push data rpc message. This value should better be more than twice of `celeborn.<module>.push.timeoutCheck.interval` | 0.3.0 | 
-| celeborn.client.readLocalShuffleFile.enabled | false | Enable read local shuffle file for clusters that co-deployed with yarn node manager. | 0.3.0 | 
+| celeborn.client.readLocalShuffleFile.enabled | false | Enable read local shuffle file for clusters that co-deployed with yarn node manager. | 0.3.1 | 
 | celeborn.client.registerShuffle.maxRetries | 3 | Max retry times for client to register shuffle. | 0.3.0 | 
 | celeborn.client.registerShuffle.retryWait | 3s | Wait time before next retry if register shuffle failed. | 0.3.0 | 
 | celeborn.client.requestCommitFiles.maxRetries | 4 | Max retry times for requestCommitFiles RPC. | 0.3.0 | 
