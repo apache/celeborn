@@ -127,4 +127,7 @@ object WorkerSource {
   val POTENTIAL_CONSUME_SPEED = "PotentialConsumeSpeed"
   val USER_PRODUCE_SPEED = "UserProduceSpeed"
   val WORKER_CONSUME_SPEED = "WorkerConsumeSpeed"
+
+  // active shuffle size
+  val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
 }
