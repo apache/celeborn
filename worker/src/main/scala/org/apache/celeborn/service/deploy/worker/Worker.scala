@@ -298,6 +298,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.READ_BUFFER_ALLOCATED_COUNT) { () =>
     memoryManager.getAllocatedReadBuffers
   }
+  workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_SIZE) { () =>
+    storageManager.getActiveShuffleSize()
+  }
 
   private def highWorkload: Boolean = {
     (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {

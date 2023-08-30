@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.tests.spark
 
-import scala.util.Random
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
@@ -26,11 +24,18 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.protocol.CompressionCodec
 
 class ShuffleFallbackSuite extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
+
+  override def beforeAll(): Unit = {
+    logInfo("test initialized")
+  }
+
+  override def afterAll(): Unit = {
+    logInfo("all test complete")
+  }
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
@@ -46,6 +51,7 @@ class ShuffleFallbackSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - fallback") {
+    setUpMiniCluster(workerNum = 5)
     val sparkConf = new SparkConf().setAppName("celeborn-demo")
       .setMaster("local[2]")
       .set(s"spark.${CelebornConf.SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED.key}", "true")
@@ -57,5 +63,21 @@ class ShuffleFallbackSuite extends AnyFunSuite
       .repartition(100)
     df.collect()
     sparkSession.stop()
+    shutdownMiniCluster()
+  }
+
+  test(s"celeborn spark integration test - fallback with workers unavailable") {
+    setUpMiniCluster(workerNum = 0)
+    val sparkConf = new SparkConf().setAppName("celeborn-demo")
+      .setMaster("local[2]")
+
+    enableCeleborn(sparkConf)
+
+    val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
+    val df = sparkSession.sparkContext.parallelize(1 to 120000, 8)
+      .repartition(100)
+    df.collect()
+    sparkSession.stop()
+    shutdownMiniCluster()
   }
 }

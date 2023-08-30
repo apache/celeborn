@@ -25,14 +25,20 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
 
   def applyAllFallbackPolicy(lifecycleManager: LifecycleManager, numPartitions: Int): Boolean = {
     applyForceFallbackPolicy() || applyShufflePartitionsFallbackPolicy(numPartitions) ||
-    !checkQuota(lifecycleManager)
+    !checkQuota(lifecycleManager) || !checkWorkersAvailable(lifecycleManager)
   }
 
   /**
    * if celeborn.shuffle.forceFallback.enabled is true, fallback to external shuffle
    * @return return celeborn.shuffle.forceFallback.enabled
    */
-  def applyForceFallbackPolicy(): Boolean = conf.shuffleForceFallbackEnabled
+  def applyForceFallbackPolicy(): Boolean = {
+    if (conf.shuffleForceFallbackEnabled) {
+      val conf = CelebornConf.SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED
+      logWarning(s"${conf.alternatives.foldLeft(conf.key)((x, y) => s"$x or $y")} is enabled, which will force fallback.")
+    }
+    conf.shuffleForceFallbackEnabled
+  }
 
   /**
    * if shuffle partitions > celeborn.shuffle.forceFallback.numPartitionsThreshold, fallback to external shuffle
@@ -43,7 +49,7 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
     val confNumPartitions = conf.shuffleForceFallbackPartitionThreshold
     val needFallback = numPartitions >= confNumPartitions
     if (needFallback) {
-      logInfo(s"Shuffle num of partitions: $numPartitions" +
+      logWarning(s"Shuffle num of partitions: $numPartitions" +
         s" is bigger than the limit: $confNumPartitions," +
         s" need fallback to spark shuffle")
     }
@@ -66,5 +72,18 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
         s"Quota exceed for current user ${lifecycleManager.getUserIdentifier}. Because: ${resp.reason}")
     }
     resp.isAvailable
+  }
+
+  /**
+   * If celeborn cluster has no available workers, fallback to external shuffle.
+   *
+   * @return if celeborn cluster has available workers.
+   */
+  def checkWorkersAvailable(lifecycleManager: LifecycleManager): Boolean = {
+    val resp = lifecycleManager.checkWorkersAvailable()
+    if (!resp.getAvailable) {
+      logWarning(s"No workers available for current user ${lifecycleManager.getUserIdentifier}.")
+    }
+    resp.getAvailable
   }
 }

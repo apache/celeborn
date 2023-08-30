@@ -347,6 +347,19 @@ object ControlMessages extends Logging {
       unavailable: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
+  object CheckWorkersAvailable {
+    def apply(): PbCheckWorkersAvailable = {
+      PbCheckWorkersAvailable.newBuilder().build()
+    }
+  }
+
+  object CheckWorkersAvailableResponse {
+    def apply(isAvailable: Boolean): PbCheckWorkersAvailableResponse =
+      PbCheckWorkersAvailableResponse.newBuilder()
+        .setAvailable(isAvailable)
+        .build()
+  }
+
   /**
    * ==========================================
    *         handled by worker
@@ -768,6 +781,12 @@ object ControlMessages extends Logging {
 
     case OneWayMessageResponse =>
       new TransportMessage(MessageType.ONE_WAY_MESSAGE_RESPONSE, null)
+
+    case pb: PbCheckWorkersAvailable =>
+      new TransportMessage(MessageType.CHECK_WORKERS_AVAILABLE, pb.toByteArray)
+
+    case pb: PbCheckWorkersAvailableResponse =>
+      new TransportMessage(MessageType.CHECK_WORKERS_AVAILABLE_RESPONSE, pb.toByteArray)
   }
 
   // TODO change return type to GeneratedMessageV3
@@ -1074,6 +1093,12 @@ object ControlMessages extends Logging {
       case STAGE_END_RESPONSE_VALUE =>
         val pbStageEndResponse = PbStageEndResponse.parseFrom(message.getPayload)
         StageEndResponse(Utils.toStatusCode(pbStageEndResponse.getStatus))
+
+      case CHECK_WORKERS_AVAILABLE_VALUE =>
+        PbCheckWorkersAvailable.parseFrom(message.getPayload)
+
+      case CHECK_WORKERS_AVAILABLE_RESPONSE_VALUE =>
+        PbCheckWorkersAvailableResponse.parseFrom(message.getPayload)
     }
   }
 }

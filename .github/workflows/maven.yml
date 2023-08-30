@@ -94,6 +94,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '3.5'
         exclude:
           # SPARK-33772: Spark supports JDK 17 since 3.3.0
           - java: 17

@@ -255,12 +255,13 @@ public class MemoryManager {
     switch (servingState) {
       case PUSH_PAUSED:
         pausePushDataCounter.increment();
-        logger.info("Trigger action: PAUSE PUSH, RESUME REPLICATE");
         if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
+          logger.info("Trigger action: RESUME REPLICATE");
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
         } else if (lastState == ServingState.NONE_PAUSED) {
+          logger.info("Trigger action: PAUSE PUSH");
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -269,24 +270,26 @@ public class MemoryManager {
         break;
       case PUSH_AND_REPLICATE_PAUSED:
         pausePushDataAndReplicateCounter.increment();
-        logger.info("Trigger action: PAUSE PUSH and REPLICATE");
         if (lastState == ServingState.NONE_PAUSED) {
+          logger.info("Trigger action: PAUSE PUSH");
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
         }
+        logger.info("Trigger action: PAUSE REPLICATE");
         memoryPressureListeners.forEach(
             memoryPressureListener ->
                 memoryPressureListener.onPause(TransportModuleConstants.REPLICATE_MODULE));
         trimAllListeners();
         break;
       case NONE_PAUSED:
-        logger.info("Trigger action: RESUME PUSH and REPLICATE");
         if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
+          logger.info("Trigger action: RESUME REPLICATE");
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
         }
+        logger.info("Trigger action: RESUME PUSH");
         memoryPressureListeners.forEach(
             memoryPressureListener ->
                 memoryPressureListener.onResume(TransportModuleConstants.PUSH_MODULE));

@@ -5,7 +5,7 @@ Any contributions from the open-source community to improve this project are wel
 This project uses check-style plugins. Run some checks before you create a new pull request.
 
 ```shell
-/dev/reformat
+dev/reformat
 ```
 
 If you have changed configuration, run following command to refresh docs.
@@ -33,3 +33,8 @@ There are already some further improvements on the schedule and welcome to conta
 8. Enhanced K8S support.
 9. Support spilled data.
 10. Locality awareness.
+
+## Guidelines
+### Adding RPC Messages
+When you add new RPC message, it's recommended to follow raw PB message case, for example
+`RegisterWorker` and `RegisterWorkerResponse`. The RPC messages will be unified into raw PB messages eventually.

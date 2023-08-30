@@ -57,7 +57,7 @@ details, i.e. the parameters take the following form:
 `celeborn.metrics.conf.[instance|*].sink.[sink_name].[parameter_name]`.
 This example shows a list of Celeborn configuration parameters for a CSV sink:
 ```
-"celeborn.metrics.conf.*.sink.csv.class"="org.apache.celeborn.common.metrics.sink.GraphiteSink"
+"celeborn.metrics.conf.*.sink.csv.class"="org.apache.celeborn.common.metrics.sink.CsvSink"
 "celeborn.metrics.conf.*.sink.csv.period"="1"
 "celeborn.metrics.conf.*.sink.csv.unit"=minutes
 "celeborn.metrics.conf.*.sink.csv.directory"=/tmp/

@@ -130,7 +130,7 @@ public class FileInfo {
     return bytesFlushed;
   }
 
-  public long updateBytesFlushed(int numBytes) {
+  public long updateBytesFlushed(long numBytes) {
     bytesFlushed += numBytes;
     return bytesFlushed;
   }
@@ -247,6 +247,10 @@ public class FileInfo {
 
   public void setMountPoint(String mountPoint) {
     this.mountPoint = mountPoint;
+  }
+
+  public long getBytesFlushed() {
+    return bytesFlushed;
   }
 
   public boolean isSplitEnabled() {

@@ -373,6 +373,9 @@ private[celeborn] class Master(
 
     case CheckQuota(userIdentifier) =>
       executeWithLeaderChecker(context, handleCheckQuota(userIdentifier, context))
+
+    case _: PbCheckWorkersAvailable =>
+      executeWithLeaderChecker(context, handleCheckWorkersAvailable(context))
   }
 
   private def timeoutDeadWorkers() {
@@ -766,6 +769,10 @@ private[celeborn] class Master(
     val (isAvailable, reason) =
       quota.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
     context.reply(CheckQuotaResponse(isAvailable, reason))
+  }
+
+  private def handleCheckWorkersAvailable(context: RpcCallContext): Unit = {
+    context.reply(CheckWorkersAvailableResponse(!workersAvailable().isEmpty))
   }
 
   private def workersAvailable(
