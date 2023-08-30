@@ -30,10 +30,10 @@ import org.apache.celeborn.common.CelebornConf
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
-    startMapIndex: Int = 0,
-    endMapIndex: Int = Int.MaxValue,
     startPartition: Int,
     endPartition: Int,
+    startMapIndex: Int = 0,
+    endMapIndex: Int = Int.MaxValue,
     context: TaskContext,
     conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter)

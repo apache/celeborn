@@ -135,10 +135,10 @@ public class SparkUtils {
   public static <K, C> ShuffleReader<K, C> getReader(
       SortShuffleManager sortShuffleManager,
       ShuffleHandle handle,
-      Integer startMapIndex,
-      Integer endMapIndex,
       Integer startPartition,
       Integer endPartition,
+      Integer startMapIndex,
+      Integer endMapIndex,
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
     ShuffleReader<K, C> shuffleReader =
@@ -200,10 +200,10 @@ public class SparkUtils {
 
   public static <K, C> CelebornShuffleReader<K, C> createColumnarShuffleReader(
       CelebornShuffleHandle<K, ?, C> handle,
-      int startMapIndex,
-      int endMapIndex,
       int startPartition,
       int endPartition,
+      int startMapIndex,
+      int endMapIndex,
       TaskContext context,
       CelebornConf conf,
       ShuffleReadMetricsReporter metrics) {
@@ -212,10 +212,10 @@ public class SparkUtils {
         .invoke(
             null,
             handle,
-            startMapIndex,
-            endMapIndex,
             startPartition,
             endPartition,
+            startMapIndex,
+            endMapIndex,
             context,
             conf,
             metrics);
