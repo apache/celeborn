@@ -232,4 +232,8 @@ public class FileInfo {
   public void setMountPoint(String mountPoint) {
     this.mountPoint = mountPoint;
   }
+
+  public long getBytesFlushed() {
+    return bytesFlushed;
+  }
 }
