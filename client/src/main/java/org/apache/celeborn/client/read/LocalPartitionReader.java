@@ -152,7 +152,11 @@ public class LocalPartitionReader implements PartitionReader {
       logger.warn("Read thread is interrupted.", e);
     } catch (Exception ioe) {
       logger.error("Read thread encountered error.", ioe);
-      exception.set(new CelebornIOException("Read thread encountered error", ioe));
+      if (ioe instanceof CelebornIOException) {
+        exception.set((IOException) ioe);
+      } else {
+        exception.set(new CelebornIOException("Read thread encountered error", ioe));
+      }
     }
     pendingFetchTask.compareAndSet(true, false);
   }
