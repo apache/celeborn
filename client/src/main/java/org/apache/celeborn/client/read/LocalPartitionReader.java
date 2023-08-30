@@ -163,8 +163,8 @@ public class LocalPartitionReader implements PartitionReader {
       int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
       if (pendingFetchTask.compareAndSet(false, true)) {
         readLocalShufflePool.submit(() -> doFetchChunks(chunkIndex, toFetch));
+        chunkIndex += toFetch;
       }
-      chunkIndex += toFetch;
     }
   }
 

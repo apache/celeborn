@@ -204,7 +204,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
             s"$endIndex get file info $fileInfo from client channel " +
             s"${NettyUtils.getRemoteAddress(client.getChannel)}")
           if (readLocalShuffle) {
-            return replyStreamHandler(
+            replyStreamHandler(
               client,
               request.requestId,
               -1,
@@ -212,8 +212,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               isLegacy,
               fileInfo.getChunkOffsets,
               fileInfo.getFilePath)
-          }
-          if (fileInfo.isHdfs) {
+          } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, request.requestId, 0, 0, isLegacy)
           } else {
             val buffers = new FileManagedBuffers(fileInfo, transportConf)
