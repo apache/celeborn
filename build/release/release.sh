@@ -96,6 +96,48 @@ upload_svn_staging() {
   echo "Celeborn tarballs uploaded"
 }
 
+upload_nexus_staging() {
+  echo "Deploying celeborn-client-spark-2-shaded_2.11"
+  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,spark-2.4 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-spark-2-shaded_2.11 -am
+  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,spark-2.4 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-spark-2-shaded_2.11
+
+  echo "Deploying celeborn-client-spark-3-shaded_2.12"
+  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,spark-3.3 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-spark-3-shaded_2.12 -am
+  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,spark-3.3 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-spark-3-shaded_2.12
+
+  echo "Deploying celeborn-client-flink-1.14-shaded_2.12"
+  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,flink-1.14 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-flink-1.14-shaded_2.12 -am
+  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.14 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-flink-1.14-shaded_2.12
+
+  echo "Deploying celeborn-client-flink-1.15-shaded_2.12"
+  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,flink-1.15 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-flink-1.15-shaded_2.12 -am
+  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.15 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-flink-1.15-shaded_2.12
+
+  echo "Deploying celeborn-client-flink-1.17-shaded_2.12"
+  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,flink-1.17 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-flink-1.17-shaded_2.12 -am
+  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.17 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-flink-1.17-shaded_2.12
+}
+
 finalize_svn() {
   echo "Moving Celeborn tarballs to the release directory"
   svn mv --username "${ASF_USERNAME}" --password "${ASF_PASSWORD}" --no-auth-cache \
@@ -107,6 +149,7 @@ finalize_svn() {
 if [[ "$1" == "publish" ]]; then
   package
   upload_svn_staging
+  upload_nexus_staging
   exit 0
 fi
 
