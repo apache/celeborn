@@ -114,7 +114,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     if (value == null) {
       String msg = param + " is null";
       logger.error(msg);
-      throw new IOException(msg);
+      throw new CelebornIOException(msg);
     }
   }
 

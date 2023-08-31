@@ -247,17 +247,21 @@ if [ "$RELEASE" == "true" ]; then
 else
   ## build release package on demand
   build_service $@
+  echo "build client with $@"
   if [[ $@ != *"spark"* && $@ != *"flink"* && $@ != *"mr"* ]]; then
       echo "Skip building client."
-  elif [[ $@ == *"spark"* && $@ != *"flink"* ]]; then
+  elif [[ ( $@ == *"spark"* && $@ != *"flink"* ) && ( $@ == *"spark"* && $@ != *"mr"* ) ]]; then
+    echo "build spark clients"
     build_spark_client $@
-  elif [[ $@ == *"flink"* && $@ != *"spark"* ]]; then
+  elif [[ ( $@ == *"flink"* && $@ != *"spark"* ) && ( $@ == *"flink"* && $@ != *"mr"* ) ]]; then
+    echo "build flink clients"
     build_flink_client $@
-  elif [[ $@ == *"mr"* ]]; then
+  elif [[ ( $@ == *"mr"* && $@ != *"flink" ) && ( $@ == *"mr"* && $@ != *"spark"* ) ]]; then
+    echo "build mr clients"
     build_mr_client $@
   else
     echo "Error: unsupported build options: $@"
-    echo "       currently we do not support compiling Spark and Flink clients at the same time."
+    echo "       currently we do not support compiling Spark and Flink and MR clients at the same time."
     exit -1
   fi
 fi

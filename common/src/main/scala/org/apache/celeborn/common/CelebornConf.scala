@@ -3722,6 +3722,7 @@ object CelebornConf extends Logging {
       .version("0.4.0")
       .doc("Max size for a push data sent from mr client.")
       .bytesConf(ByteUnit.BYTE)
+      .checkValue(nVal => nVal < 2147483548, "Max size for a push data should be less than 2GB-20.")
       .createWithDefaultString("32m")
 
   val ACTIVE_STORAGE_TYPES: ConfigEntry[String] =
