@@ -292,7 +292,7 @@ public abstract class FileWriter implements DeviceObserver {
 
       // unregister from DeviceMonitor
       if (!fileInfo.isHdfs()) {
-        logger.debug("file info {} register from device monitor", fileInfo);
+        logger.debug("file info {} unregister from device monitor", fileInfo);
         deviceMonitor.unregisterFileWriter(this);
       }
     }
