@@ -19,10 +19,10 @@ package org.apache.celeborn.service.deploy.cluster
 
 import org.apache.celeborn.common.protocol.CompressionCodec
 
-class ClusterReadWriteTestWithZSTD extends ReadWriteTestBase {
+class LocalReadWriteTestWithLZ4 extends ReadWriteTestBase {
 
-  test(s"test MiniCluster With ZSTD") {
-    testReadWriteByCode(CompressionCodec.ZSTD)
+  test(s"test MiniCluster With LZ4 and local read for spark") {
+    testReadWriteByCode(CompressionCodec.LZ4, true)
   }
 
 }
