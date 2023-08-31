@@ -3824,5 +3824,5 @@ object CelebornConf extends Logging {
       .doc("whether to enable shuffle partition split.")
       .version("0.3.1")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 }
