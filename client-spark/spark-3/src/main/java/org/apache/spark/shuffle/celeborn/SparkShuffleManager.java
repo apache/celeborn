@@ -269,10 +269,10 @@ public class SparkShuffleManager implements ShuffleManager {
     return SparkUtils.getReader(
         sortShuffleManager(),
         handle,
-        startMapIndex,
-        endMapIndex,
         startPartition,
         endPartition,
+        startMapIndex,
+        endMapIndex,
         context,
         metrics);
   }
@@ -286,15 +286,15 @@ public class SparkShuffleManager implements ShuffleManager {
       ShuffleReadMetricsReporter metrics) {
     if (handle instanceof CelebornShuffleHandle) {
       return getCelebornShuffleReader(
-          handle, 0, Integer.MAX_VALUE, startPartition, endPartition, context, metrics);
+          handle, startPartition, endPartition, 0, Integer.MAX_VALUE, context, metrics);
     }
     return SparkUtils.getReader(
         sortShuffleManager(),
         handle,
-        0,
-        Integer.MAX_VALUE,
         startPartition,
         endPartition,
+        0,
+        Integer.MAX_VALUE,
         context,
         metrics);
   }
@@ -325,10 +325,10 @@ public class SparkShuffleManager implements ShuffleManager {
 
   public <K, C> ShuffleReader<K, C> getCelebornShuffleReader(
       ShuffleHandle handle,
-      int startMapIndex,
-      int endMapIndex,
       int startPartition,
       int endPartition,
+      int startMapIndex,
+      int endMapIndex,
       TaskContext context,
       ShuffleReadMetricsReporter metrics) {
     CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
