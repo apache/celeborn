@@ -56,19 +56,41 @@ function mvn_build_classpath() {
 
 function sbt_build_client_classpath() {
   PATTERN="$SBT_PROJECT / Runtime / externalDependencyClasspath"
-  $SBT -P$MODULE "clean; export Runtime/externalDependencyClasspath" | \
-    awk -v pat="$PATTERN" '$0 ~ pat { found=1 } found { print }' | \
-    awk 'NR==2' | \
-    tr ":" "\n" | \
-    awk -F '/' '{
-      artifact_id=$(NF-2);
-      version=$(NF-1);
-      jar_name=$NF;
-      classifier_start_index=length(artifact_id"-"version"-") + 1;
-      classifier_end_index=index(jar_name, ".jar") - 1;
-      classifier=substr(jar_name, classifier_start_index, classifier_end_index - classifier_start_index + 1);
-      print artifact_id"/"version"/"classifier"/"jar_name
-    }' | sort -u >> "${DEP_PR}"
+  deps=$(
+    $SBT -P$MODULE "clean; export Runtime/externalDependencyClasspath" | \
+      awk -v pat="$PATTERN" '$0 ~ pat { found=1 } found { print }' | \
+      awk 'NR==2' | \
+      tr ":" "\n"
+  )
+  deps1=$(echo "$deps" | grep -v ".sbt")
+  deps2=$(echo "$deps" | grep ".sbt")
+  result1=$(
+    echo "$deps1" | \
+      awk -F '/' '{
+        artifact_id=$(NF-2);
+        version=$(NF-1);
+        jar_name=$NF;
+        classifier_start_index=length(artifact_id"-"version"-") + 1;
+        classifier_end_index=index(jar_name, ".jar") - 1;
+        classifier=substr(jar_name, classifier_start_index, classifier_end_index - classifier_start_index + 1);
+        print artifact_id"/"version"/"classifier"/"jar_name
+      }'
+  )
+  # TODO: a temporary workaround for parsing the dependency in the directory `.sbt`,
+  # need to migrate this to the SBT plugin.
+  version_pattern="scala-([0-9]+\.[0-9]+\.[0-9]+)"
+  file_pattern="/([^/]+)\.jar"
+  result2=()
+  while IFS= read -r line; do
+    echo "$line"
+    [[ $line =~ $version_pattern ]] && version_info="${BASH_REMATCH[1]}";
+    [[ $line =~ $file_pattern ]] && file_name="${BASH_REMATCH[1]}";
+    result2+=("$file_name/$version_info//$file_name-$version_info.jar")
+  done <<< "$deps2"
+
+  result=("${result1[@]}" "${result2[@]}")
+
+  echo "${result[@]}" | tr ' ' '\n' | sort -u >> "${DEP_PR}"
 }
 
 function sbt_build_server_classpath() {
