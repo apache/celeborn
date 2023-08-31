@@ -63,8 +63,10 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.max-parallelism",
       "" + parallelism)
+    configuration.setString("restart-strategy.type", "fixed-delay")
+    configuration.setString("restart-strategy.fixed-delay.attempts", "10")
     configuration.setString(CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key, "10k")
-    //configuration.setString(CelebornConf.CLIENT_SHUFFLE_PARTITION_SPLIT_ENABLED.key, "true")
+    configuration.setString(CelebornConf.CLIENT_SHUFFLE_PARTITION_SPLIT_ENABLED.key, "true")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(parallelism)
