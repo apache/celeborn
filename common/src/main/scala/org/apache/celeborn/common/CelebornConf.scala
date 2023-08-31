@@ -3821,7 +3821,7 @@ object CelebornConf extends Logging {
   val CLIENT_SHUFFLE_PARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.partitionSplit.enabled")
       .categories("client")
-      .doc("whether to enable shuffle partition split.")
+      .doc("whether to enable shuffle partition split. Currently, this only applies to MapPartition.")
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
