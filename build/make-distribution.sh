@@ -219,6 +219,10 @@ function build_flink_client {
 }
 
 function build_mr_client {
+  VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
+        | grep -v "INFO" \
+        | grep -v "WARNING" \
+        | tail -n 1)
   HADOOP_VERSION=$("$MVN" help:evaluate -Dexpression=hadoop.version $@ 2>/dev/null \
       | grep -v "INFO" \
       | grep -v "WARNING" \
