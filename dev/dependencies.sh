@@ -63,7 +63,7 @@ function sbt_build_client_classpath() {
       tr ":" "\n"
   )
   deps1=$(echo "$deps" | grep -v ".sbt")
-  deps2=$(echo "$deps" | grep ".sbt")
+  deps2=$(echo "$deps" | grep ".sbt" || true)
   result1=$(
     echo "$deps1" | \
       awk -F '/' '{
@@ -82,10 +82,11 @@ function sbt_build_client_classpath() {
   file_pattern="/([^/]+)\.jar"
   result2=()
   while IFS= read -r line; do
-    echo "$line"
-    [[ $line =~ $version_pattern ]] && version_info="${BASH_REMATCH[1]}";
-    [[ $line =~ $file_pattern ]] && file_name="${BASH_REMATCH[1]}";
-    result2+=("$file_name/$version_info//$file_name-$version_info.jar")
+    if [[ -n "$line" ]]; then
+      [[ $line =~ $version_pattern ]] && version_info="${BASH_REMATCH[1]}";
+      [[ $line =~ $file_pattern ]] && file_name="${BASH_REMATCH[1]}";
+      result2+=("$file_name/$version_info//$file_name-$version_info.jar")
+    fi
   done <<< "$deps2"
 
   result=("${result1[@]}" "${result2[@]}")
