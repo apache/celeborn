@@ -54,7 +54,7 @@ celeborn.worker.commitFiles.threads 128
 celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
-celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -86,6 +86,8 @@ celeborn.metrics.enabled true
 celeborn.worker.flusher.buffer.size 256k
 
 # If Celeborn workers have local disks and HDFS. Following configs should be added.
+# Celeborn will use local disks until local disk become unavailable to gain the best performance.
+# Increase Celeborn's off-heap memory if Celeborn write to HDFS.
 # If Celeborn workers have local disks, use following config.
 # Disk type is HDD by default.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
@@ -99,7 +101,7 @@ celeborn.worker.commitFiles.threads 128
 celeborn.master.slot.assign.policy roundrobin
 celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
-celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
@@ -154,6 +156,9 @@ Copy $CELEBORN_HOME/spark/*.jar to $SPARK_HOME/jars/
 ### Spark Configuration
 To use Celeborn, following spark configurations should be added.
 ```properties
+# Shuffle manager class name changed in 0.3.0:
+#    before 0.3.0: org.apache.spark.shuffle.celeborn.RssShuffleManager
+#    since 0.3.0: org.apache.spark.shuffle.celeborn.SparkShuffleManager
 spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
 # must use kryo serializer because java serializer do not support relocation
 spark.serializer org.apache.spark.serializer.KryoSerializer
@@ -163,21 +168,21 @@ spark.celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
 spark.shuffle.service.enabled false
 
 # options: hash, sort
-# Hash shuffle writer use (partition count) * (celeborn.client.push.buffer.max.size) * (spark.executor.cores) memory.
-# Sort shuffle writer use less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
+# Hash shuffle writer use (partition count) * (celeborn.push.buffer.max.size) * (spark.executor.cores) memory.
+# Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
 spark.celeborn.client.spark.shuffle.writer hash
 
-# we recommend set spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
+# We recommend setting spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
 # If you have only one worker, this setting must be false 
 # If your Celeborn is using HDFS, it's recommended to set this setting to false
 spark.celeborn.client.push.replicate.enabled true
 
 # Support for Spark AQE only tested under Spark 3
-# we recommend set localShuffleReader to false to get better performance of Celeborn
+# we recommend setting localShuffleReader to false to get better performance of Celeborn
 spark.sql.adaptive.localShuffleReader.enabled false
 
 # If Celeborn is using HDFS
-spark.celeborn.worker.storage.hdfs.dir hdfs://<namenode>/celeborn
+spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
@@ -196,14 +201,14 @@ celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
 celeborn.client.shuffle.batchHandleReleasePartition.enabled: true
 celeborn.client.push.maxReqsInFlight: 128
 
-# network connections between peers
+# Network connections between peers
 celeborn.data.io.numConnectionsPerPeer: 16
 # threads number may vary according to your cluster but do not set to 1
 celeborn.data.io.threads: 32
 celeborn.client.shuffle.batchHandleCommitPartition.threads: 32
 celeborn.rpc.dispatcher.numThreads: 32
 
-# floating buffers may need to change `taskmanager.network.memory.fraction` and `taskmanager.network.memory.max`
+# Floating buffers may need to change `taskmanager.network.memory.fraction` and `taskmanager.network.memory.max`
 taskmanager.network.memory.floating-buffers-per-gate: 4096
 taskmanager.network.memory.buffers-per-channel: 0
 taskmanager.memory.task.off-heap.size: 512m

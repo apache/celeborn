@@ -116,7 +116,7 @@ celeborn.worker.flusher.buffer.size 256k
 
 # If Celeborn workers have local disks and HDFS. Following configs should be added.
 # If Celeborn workers have local disks, use following config.
-# Disk type is HDD by defaut.
+# Disk type is HDD by default.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 
 # If Celeborn workers don't have local disks. You can use HDFS.
@@ -163,7 +163,7 @@ celeborn.worker.flusher.buffer.size 256k
 # Celeborn will use local disks until local disk become unavailable to gain the best performance.
 # Increase Celeborn's off-heap memory if Celeborn write to HDFS.
 # If Celeborn workers have local disks, use following config.
-# Disk type is HDD by defaut.
+# Disk type is HDD by default.
 celeborn.worker.storage.dirs /mnt/disk1:disktype=SSD,/mnt/disk2:disktype=SSD
 
 # If Celeborn workers don't have local disks. You can use HDFS.
