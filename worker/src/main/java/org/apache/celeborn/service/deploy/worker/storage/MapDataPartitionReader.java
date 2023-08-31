@@ -409,6 +409,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     synchronized (lock) {
       readFinished = true;
     }
+
     logger.debug("Closed read for stream {}", this.streamId);
   }
 

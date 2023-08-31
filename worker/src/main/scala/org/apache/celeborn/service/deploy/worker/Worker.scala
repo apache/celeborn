@@ -621,6 +621,7 @@ private[celeborn] class Worker(
     var waitTimes = 0
 
     def waitTime: Long = waitTimes * interval
+
     while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1

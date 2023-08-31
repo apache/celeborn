@@ -36,6 +36,7 @@ import org.apache.celeborn.service.deploy.worker.Worker
 class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
+
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
     val masterConf = Map(
@@ -44,6 +45,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
     workers = setUpMiniCluster(masterConf, workerConf)._2
   }
+
   override def afterAll(): Unit = {
     logInfo("all test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
