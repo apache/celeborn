@@ -94,7 +94,7 @@ object PbSerDeUtils {
       pbFileInfo.getBufferSize,
       pbFileInfo.getNumSubpartitions,
       pbFileInfo.getBytesFlushed,
-      pbFileInfo.getSplitEnabled)
+      pbFileInfo.getMapPartitionSplitEnabled)
 
   def toPbFileInfo(fileInfo: FileInfo): PbFileInfo =
     PbFileInfo.newBuilder
@@ -105,7 +105,7 @@ object PbSerDeUtils {
       .setBufferSize(fileInfo.getBufferSize)
       .setNumSubpartitions(fileInfo.getNumSubpartitions)
       .setBytesFlushed(fileInfo.getFileLength)
-      .setSplitEnabled(fileInfo.isSplitEnabled)
+      .setMapPartitionSplitEnabled(fileInfo.isMapPartitionSplitEnabled)
       .build
 
   @throws[InvalidProtocolBufferException]

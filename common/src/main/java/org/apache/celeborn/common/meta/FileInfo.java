@@ -50,7 +50,7 @@ public class FileInfo {
   private volatile long bytesFlushed;
   // whether to split is decided by client side.
   // now it's more useful for mappartition to compatible with old client which can't support split
-  private boolean splitEnabled;
+  private boolean mapPartitionSplitEnabled;
 
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE, true);
@@ -61,12 +61,12 @@ public class FileInfo {
       List<Long> chunkOffsets,
       UserIdentifier userIdentifier,
       PartitionType partitionType,
-      boolean splitEnabled) {
+      boolean mapPartitionSplitEnabled) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
     this.partitionType = partitionType;
-    this.splitEnabled = splitEnabled;
+    this.mapPartitionSplitEnabled = mapPartitionSplitEnabled;
   }
 
   public FileInfo(
@@ -77,7 +77,7 @@ public class FileInfo {
       int bufferSize,
       int numSubpartitions,
       long bytesFlushed,
-      boolean splitEnabled) {
+      boolean mapPartitionSplitEnabled) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
@@ -85,7 +85,7 @@ public class FileInfo {
     this.bufferSize = bufferSize;
     this.numSubpartitions = numSubpartitions;
     this.bytesFlushed = bytesFlushed;
-    this.splitEnabled = splitEnabled;
+    this.mapPartitionSplitEnabled = mapPartitionSplitEnabled;
   }
 
   public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
@@ -96,8 +96,13 @@ public class FileInfo {
       String filePath,
       UserIdentifier userIdentifier,
       PartitionType partitionType,
-      boolean splitEnabled) {
-    this(filePath, new ArrayList(Arrays.asList(0L)), userIdentifier, partitionType, splitEnabled);
+      boolean mapPartitionSplitEnabled) {
+    this(
+        filePath,
+        new ArrayList(Arrays.asList(0L)),
+        userIdentifier,
+        partitionType,
+        mapPartitionSplitEnabled);
   }
 
   @VisibleForTesting
@@ -253,11 +258,11 @@ public class FileInfo {
     return bytesFlushed;
   }
 
-  public boolean isSplitEnabled() {
-    return splitEnabled;
+  public boolean isMapPartitionSplitEnabled() {
+    return mapPartitionSplitEnabled;
   }
 
-  public void setSplitEnabled(boolean splitEnabled) {
-    this.splitEnabled = splitEnabled;
+  public void setMapPartitionSplitEnabled(boolean mapPartitionSplitEnabled) {
+    this.mapPartitionSplitEnabled = mapPartitionSplitEnabled;
   }
 }

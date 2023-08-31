@@ -937,16 +937,16 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
     // This should before return exception to make current push request revive and retry.
-    val isSplitEnabled = fileWriter.asInstanceOf[
-      MapPartitionFileWriter].getFileInfo.isSplitEnabled
+    val isMapPartitionSplitEnabled = fileWriter.asInstanceOf[
+      MapPartitionFileWriter].getFileInfo.isMapPartitionSplitEnabled
 
-    if (shutdown.get() && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && isSplitEnabled) {
+    if (shutdown.get() && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && isMapPartitionSplitEnabled) {
       logInfo(s"$messageType return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
       callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
       return
     }
 
-    if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && isSplitEnabled && checkDiskFullAndSplit(
+    if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && isMapPartitionSplitEnabled && checkDiskFullAndSplit(
         fileWriter,
         isPrimary,
         null,
