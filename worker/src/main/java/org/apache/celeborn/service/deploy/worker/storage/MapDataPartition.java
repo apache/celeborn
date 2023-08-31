@@ -80,7 +80,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
     updateBuffersTarget((this.minReadBuffers + this.maxReadBuffers) / 2 + 1);
     logger.debug(
-        "Read map partition {} with {} {}",
+        "read map partition {} with {} {}",
         fileInfo.getFilePath(),
         bufferQueue.getLocalBuffersTarget(),
         fileInfo.getBufferSize());
