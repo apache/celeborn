@@ -89,7 +89,7 @@ license: |
 | celeborn.client.shuffle.expired.checkInterval | 60s | Interval for client to check expired shuffles. | 0.3.0 | 
 | celeborn.client.shuffle.manager.port | 0 | Port used by the LifecycleManager on the Driver. | 0.3.0 | 
 | celeborn.client.shuffle.partition.type | REDUCE | Type of shuffle's partition. | 0.3.0 | 
-| celeborn.client.shuffle.partitionSplit.enabled | true | whether to enable shuffle partition split. | 0.3.1 | 
+| celeborn.client.shuffle.partitionSplit.enabled | false | whether to enable shuffle partition split. | 0.3.1 | 
 | celeborn.client.shuffle.partitionSplit.mode | SOFT | soft: the shuffle file size might be larger than split threshold. hard: the shuffle file size will be limited to split threshold. | 0.3.0 | 
 | celeborn.client.shuffle.partitionSplit.threshold | 1G | Shuffle file size threshold, if file size exceeds this, trigger split. | 0.3.0 | 
 | celeborn.client.shuffle.rangeReadFilter.enabled | false | If a spark application have skewed partition, this value can set to true to improve performance. | 0.2.0 | 
