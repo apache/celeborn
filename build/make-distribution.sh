@@ -252,21 +252,30 @@ else
   ## build release package on demand
   build_service $@
   echo "build client with $@"
-  if [[ $@ != *"spark"* && $@ != *"flink"* && $@ != *"mr"* ]]; then
-      echo "Skip building client."
-  elif [[ ( $@ == *"spark"* && $@ != *"flink"* ) && ( $@ == *"spark"* && $@ != *"mr"* ) ]]; then
+  ENGINE_COUNT=0
+  ENGINES=("spark" "flink" "mr")
+  for single_engine in ${ENGINES[@]}
+  do
+    echo $single_engine
+    if [[ $@ == *"${single_engine}"* ]];then
+      ENGINE_COUNT=`expr ${ENGINE_COUNT} + 1`
+    fi
+  done
+  if [[ ${ENGINE_COUNT} -eq 0  ]]; then
+    echo "Skip building client."
+  elif [[ ${ENGINE_COUNT} -ge 2 ]]; then
+    echo "Error: unsupported build options: $@"
+    echo "       currently we do not support compiling different engine clients at the same time."
+    exit -1
+  elif [[  $@ == *"spark"* ]]; then
     echo "build spark clients"
     build_spark_client $@
-  elif [[ ( $@ == *"flink"* && $@ != *"spark"* ) && ( $@ == *"flink"* && $@ != *"mr"* ) ]]; then
+  elif [[  $@ == *"flink"* ]]; then
     echo "build flink clients"
     build_flink_client $@
-  elif [[ ( $@ == *"mr"* && $@ != *"flink" ) && ( $@ == *"mr"* && $@ != *"spark"* ) ]]; then
+  elif [[  $@ == *"mr"* ]]; then
     echo "build mr clients"
     build_mr_client $@
-  else
-    echo "Error: unsupported build options: $@"
-    echo "       currently we do not support compiling Spark and Flink and MR clients at the same time."
-    exit -1
   fi
 fi
 

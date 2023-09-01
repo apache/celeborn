@@ -18,9 +18,6 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
 import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.mapreduce.task.reduce.Shuffle.ShuffleError;
@@ -32,6 +29,8 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.reflect.DynConstructors;
+import org.apache.celeborn.reflect.DynMethods;
 import org.apache.celeborn.util.HadoopUtils;
 
 public class CelebornShuffleConsumer<K, V>
@@ -47,7 +46,6 @@ public class CelebornShuffleConsumer<K, V>
   private Reporter reporter;
   private ShuffleClientMetrics metrics;
   private Task reduceTask;
-
   private ShuffleClient shuffleClient;
 
   @Override
@@ -106,25 +104,24 @@ public class CelebornShuffleConsumer<K, V>
 
   private ShuffleClientMetrics createMetrics(
       org.apache.hadoop.mapreduce.TaskAttemptID taskAttemptID, JobConf jobConf)
-      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
-          IllegalAccessException {
+      throws NoSuchMethodException {
     // for hadoop 3
-    Method createMethod = null;
     try {
-      ShuffleClientMetrics.class.getDeclaredMethod(
-          "create", org.apache.hadoop.mapreduce.TaskAttemptID.class, JobConf.class);
+      DynMethods.builder("create")
+          .impl(
+              ShuffleClientMetrics.class,
+              org.apache.hadoop.mapreduce.TaskAttemptID.class,
+              JobConf.class)
+          .buildStaticChecked()
+          .invoke(taskAttemptID, jobConf);
     } catch (Exception e) {
-      // ignore this exception because the createMetrics may uses hadoop2
-    }
-    if (createMethod != null) {
-      return (ShuffleClientMetrics) createMethod.invoke(null, taskAttemptID, jobConf);
+      // ignore this exception because the createMetrics might use hadoop2
     }
     // for hadoop 2
-    Constructor constructor =
-        ShuffleClientMetrics.class.getDeclaredConstructor(
-            org.apache.hadoop.mapreduce.TaskAttemptID.class, JobConf.class);
-    constructor.setAccessible(true);
-    return (ShuffleClientMetrics) constructor.newInstance(taskAttemptID, jobConf);
+    return DynConstructors.builder(ShuffleClientMetrics.class)
+        .hiddenImpl(new Class[] {org.apache.hadoop.mapreduce.TaskAttemptID.class, JobConf.class})
+        .buildChecked()
+        .invoke(null, taskAttemptID, jobConf);
   }
 
   @Override

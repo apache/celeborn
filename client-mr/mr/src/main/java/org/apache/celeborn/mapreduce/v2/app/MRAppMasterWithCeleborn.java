@@ -110,12 +110,14 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     }
   }
 
-  private static void validateInputParam(String value, String param) throws IOException {
+  private static String getSysEnvAndValidateInputParam(String envName) throws IOException {
+    String value = System.getenv(ApplicationConstants.Environment.CONTAINER_ID.name());
     if (value == null) {
-      String msg = param + " is null";
+      String msg = envName + " is null";
       logger.error(msg);
       throw new CelebornIOException(msg);
     }
+    return value;
   }
 
   public static void main(String[] args) {
@@ -123,17 +125,16 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     rmAppConf.addResource(new Path(MRJobConfig.JOB_CONF_FILE));
     try {
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
-      String containerIdStr = System.getenv(ApplicationConstants.Environment.CONTAINER_ID.name());
-      validateInputParam(containerIdStr, ApplicationConstants.Environment.CONTAINER_ID.name());
-      String nodeHostString = System.getenv(ApplicationConstants.Environment.NM_HOST.name());
-      validateInputParam(nodeHostString, ApplicationConstants.Environment.NM_HOST.name());
-      String nodePortString = System.getenv(ApplicationConstants.Environment.NM_PORT.name());
-      validateInputParam(nodePortString, ApplicationConstants.Environment.NM_PORT.name());
+      String containerIdStr =
+          getSysEnvAndValidateInputParam(ApplicationConstants.Environment.CONTAINER_ID.name());
+      String nodeHostString =
+          getSysEnvAndValidateInputParam(ApplicationConstants.Environment.NM_HOST.name());
+      String nodePortString =
+          getSysEnvAndValidateInputParam(ApplicationConstants.Environment.NM_PORT.name());
       String nodeHttpPortString =
-          System.getenv(ApplicationConstants.Environment.NM_HTTP_PORT.name());
-      validateInputParam(nodeHttpPortString, ApplicationConstants.Environment.NM_HTTP_PORT.name());
+          getSysEnvAndValidateInputParam(ApplicationConstants.Environment.NM_HTTP_PORT.name());
       String appSubmitTimeStr = System.getenv("APP_SUBMIT_TIME_ENV");
-      validateInputParam(appSubmitTimeStr, "APP_SUBMIT_TIME_ENV");
+      getSysEnvAndValidateInputParam("APP_SUBMIT_TIME_ENV");
       ContainerId containerId = ContainerId.fromString(containerIdStr);
       ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
       if (applicationAttemptId != null) {
