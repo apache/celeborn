@@ -301,6 +301,29 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier): FileWriter = {
+    createWriter(
+      appId,
+      shuffleId,
+      location,
+      splitThreshold,
+      splitMode,
+      partitionType,
+      rangeReadFilter,
+      userIdentifier,
+      true)
+  }
+
+  @throws[IOException]
+  def createWriter(
+      appId: String,
+      shuffleId: Int,
+      location: PartitionLocation,
+      splitThreshold: Long,
+      splitMode: PartitionSplitMode,
+      partitionType: PartitionType,
+      rangeReadFilter: Boolean,
+      userIdentifier: UserIdentifier,
+      partitionSplitEnabled: Boolean): FileWriter = {
     if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage) {
       throw new IOException("No available working dirs!")
     }
@@ -328,7 +351,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
         val fileInfo =
-          new FileInfo(new Path(shuffleDir, fileName).toString, userIdentifier, partitionType)
+          new FileInfo(
+            new Path(shuffleDir, fileName).toString,
+            userIdentifier,
+            partitionType,
+            partitionSplitEnabled)
         val hdfsWriter = partitionType match {
           case PartitionType.MAP => new MapPartitionFileWriter(
               fileInfo,
@@ -374,7 +401,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 s"Create shuffle data file ${file.getAbsolutePath} failed!")
             }
           }
-          val fileInfo = new FileInfo(file.getAbsolutePath, userIdentifier, partitionType)
+          val fileInfo =
+            new FileInfo(
+              file.getAbsolutePath,
+              userIdentifier,
+              partitionType,
+              partitionSplitEnabled)
           fileInfo.setMountPoint(mountPoint)
           val fileWriter = partitionType match {
             case PartitionType.MAP => new MapPartitionFileWriter(

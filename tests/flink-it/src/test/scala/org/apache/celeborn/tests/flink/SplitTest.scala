@@ -17,48 +17,42 @@
 
 package org.apache.celeborn.tests.flink
 
-import java.io.File
-
-import scala.collection.JavaConverters._
-
 import org.apache.flink.api.common.{ExecutionMode, RuntimeExecutionMode}
 import org.apache.flink.configuration.{Configuration, ExecutionOptions, RestOptions}
-import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
 
-class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
+class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
-
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
     val masterConf = Map(
       "celeborn.master.host" -> "localhost",
       "celeborn.master.port" -> "9097")
-    val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
+    val workerConf = Map(
+      "celeborn.master.endpoints" -> "localhost:9097",
+      CelebornConf.WORKER_FLUSHER_BUFFER_SIZE.key -> "10k")
     workers = setUpMiniCluster(masterConf, workerConf)._2
   }
-
   override def afterAll(): Unit = {
     logInfo("all test complete , stop celeborn mini cluster")
     shutdownMiniCluster()
   }
 
-  test("celeborn flink integration test - word count") {
-    // set up execution environment
+  test("celeborn flink integration test - shuffle partition split test") {
     val configuration = new Configuration
     val parallelism = 8
     configuration.setString(
       "shuffle-service-factory.class",
       "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
-    configuration.setString("celeborn.master.endpoints", "localhost:9097")
+    configuration.setString(CelebornConf.MASTER_ENDPOINTS.key, "localhost:9097")
     configuration.setString("execution.batch-shuffle-mode", "ALL_EXCHANGES_BLOCKING")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")
@@ -66,30 +60,19 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString(
       "execution.batch.adaptive.auto-parallelism.min-parallelism",
       "" + parallelism)
+    configuration.setString(
+      "execution.batch.adaptive.auto-parallelism.max-parallelism",
+      "" + parallelism)
     configuration.setString("restart-strategy.type", "fixed-delay")
     configuration.setString("restart-strategy.fixed-delay.attempts", "50")
     configuration.setString("restart-strategy.fixed-delay.delay", "5s")
+    configuration.setString(CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key, "10k")
+    configuration.setString(CelebornConf.CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED.key, "true")
     val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration)
     env.getConfig.setExecutionMode(ExecutionMode.BATCH)
     env.getConfig.setParallelism(parallelism)
-    env.disableOperatorChaining()
-    // make parameters available in the web interface
-    WordCountHelper.execute(env, parallelism)
-
-    val graph = env.getStreamGraph
-    graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING)
-    graph.setJobType(JobType.BATCH)
-    env.execute(graph)
-    checkFlushingFileLength()
+    SplitHelper.runSplitRead(env)
+    env.execute("split test")
   }
 
-  private def checkFlushingFileLength(): Unit = {
-    workers.map(worker => {
-      worker.storageManager.workingDirWriters.values().asScala.map(writers => {
-        writers.forEach((fileName, fileWriter) => {
-          assert(new File(fileName).length() == fileWriter.getFileInfo.getFileLength)
-        })
-      })
-    })
-  }
 }

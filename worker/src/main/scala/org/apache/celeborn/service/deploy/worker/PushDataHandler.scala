@@ -803,14 +803,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         callback,
         wrappedCallback)) return
 
-    // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
-    // This should before return exception to make current push request revive and retry.
-    if (shutdown.get()) {
-      logInfo(s"Push data return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-      return
-    }
-
     val fileWriter =
       getFileWriterAndCheck(pushData.`type`(), location, isPrimary, callback) match {
         case (true, _) => return
@@ -860,7 +852,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val msg = Message.decode(rpcRequest.body().nioByteBuffer())
     val requestId = rpcRequest.requestId
     val (mode, shuffleKey, partitionUniqueId, checkSplit) = msg match {
-      case p: PushDataHandShake => (p.mode, p.shuffleKey, p.partitionUniqueId, false)
+      case p: PushDataHandShake => (p.mode, p.shuffleKey, p.partitionUniqueId, true)
       case rs: RegionStart => (rs.mode, rs.shuffleKey, rs.partitionUniqueId, true)
       case rf: RegionFinish => (rf.mode, rf.shuffleKey, rf.partitionUniqueId, false)
     }
@@ -869,7 +861,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       rpcRequest,
       requestId,
       () =>
-        handleRpcRequestCore(
+        handleMapPartitionRpcRequestCore(
           mode,
           msg,
           shuffleKey,
@@ -883,7 +875,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
   }
 
-  private def handleRpcRequestCore(
+  private def handleMapPartitionRpcRequestCore(
       mode: Byte,
       message: Message,
       shuffleKey: String,
@@ -943,7 +935,22 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         case (false, f: FileWriter) => f
       }
 
-    if (checkSplit && checkDiskFullAndSplit(fileWriter, isPrimary, null, callback)) return
+    // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
+    // This should before return exception to make current push request revive and retry.
+    val isPartitionSplitEnabled = fileWriter.asInstanceOf[
+      MapPartitionFileWriter].getFileInfo.isPartitionSplitEnabled
+
+    if (shutdown.get() && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled) {
+      logInfo(s"$messageType return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
+      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      return
+    }
+
+    if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled && checkDiskFullAndSplit(
+        fileWriter,
+        isPrimary,
+        null,
+        callback)) return
 
     try {
       messageType match {
@@ -1108,6 +1115,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       softSplit: AtomicBoolean,
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
+    logDebug(
+      s"CheckDiskFullAndSplit in diskfull: $diskFull, partitionSplitMinimumSize: $partitionSplitMinimumSize, splitThreshold: ${fileWriter.getSplitThreshold()}, filelength: ${fileWriter.getFileInfo.getFileLength}, filename:${fileWriter.getFileInfo.getFilePath}")
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
         (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
@@ -1115,6 +1124,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         softSplit.set(true)
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+        logDebug(
+          s"CheckDiskFullAndSplit hardsplit diskfull: $diskFull, partitionSplitMinimumSize: $partitionSplitMinimumSize, splitThreshold: ${fileWriter.getSplitThreshold()}, filelength: ${fileWriter.getFileInfo.getFileLength}, filename:${fileWriter.getFileInfo.getFilePath}")
         return true
       }
     }
