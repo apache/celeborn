@@ -288,7 +288,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
       serializedKV[writePos] = (byte) b;
       writePos++;
     } else {
-      logger.warn("Sort push memory high ,write pos {} max size {}", writePos, maxIOBufferSize);
+      logger.warn("Sort push memory high, write pos {} max size {}", writePos, maxIOBufferSize);
       throw new IOException("Sort pusher memory exhausted.");
     }
   }
