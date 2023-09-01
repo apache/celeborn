@@ -19,6 +19,7 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -26,43 +27,44 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 
 public class CelebornBufferStream {
-
   private static Logger logger = LoggerFactory.getLogger(CelebornBufferStream.class);
-  private CelebornConf conf;
   private FlinkTransportClientFactory clientFactory;
   private String shuffleKey;
   private PartitionLocation[] locations;
   private int subIndexStart;
   private int subIndexEnd;
   private TransportClient client;
-  private int currentLocationIndex = 0;
+  private AtomicInteger currentLocationIndex = new AtomicInteger(0);
   private long streamId = 0;
   private FlinkShuffleClientImpl mapShuffleClient;
   private boolean isClosed;
   private boolean isOpenSuccess;
   private Object lock = new Object();
+  private Supplier<ByteBuf> bufferSupplier;
+  private int initialCredit;
+  private Consumer<RequestMessage> messageConsumer;
 
   public CelebornBufferStream() {}
 
   public CelebornBufferStream(
       FlinkShuffleClientImpl mapShuffleClient,
-      CelebornConf conf,
       FlinkTransportClientFactory dataClientFactory,
       String shuffleKey,
       PartitionLocation[] locations,
       int subIndexStart,
       int subIndexEnd) {
     this.mapShuffleClient = mapShuffleClient;
-    this.conf = conf;
     this.clientFactory = dataClientFactory;
     this.shuffleKey = shuffleKey;
     this.locations = locations;
@@ -71,56 +73,13 @@ public class CelebornBufferStream {
   }
 
   public void open(
-      Supplier<ByteBuf> supplier, int initialCredit, Consumer<RequestMessage> messageConsumer)
-      throws IOException, InterruptedException {
-    this.client =
-        clientFactory.createClientWithRetry(
-            locations[currentLocationIndex].getHost(),
-            locations[currentLocationIndex].getFetchPort());
-    String fileName = locations[currentLocationIndex].getFileName();
-    OpenStreamWithCredit openBufferStream =
-        new OpenStreamWithCredit(shuffleKey, fileName, subIndexStart, subIndexEnd, initialCredit);
-    client.sendRpc(
-        openBufferStream.toByteBuffer(),
-        new RpcResponseCallback() {
-
-          @Override
-          public void onSuccess(ByteBuffer response) {
-            StreamHandle streamHandle = (StreamHandle) Message.decode(response);
-            CelebornBufferStream.this.streamId = streamHandle.streamId;
-            synchronized (lock) {
-              if (!isClosed) {
-                clientFactory.registerSupplier(CelebornBufferStream.this.streamId, supplier);
-                mapShuffleClient
-                    .getReadClientHandler()
-                    .registerHandler(streamId, messageConsumer, client);
-                isOpenSuccess = true;
-                logger.debug(
-                    "open stream success from remote:{}, stream id:{}, fileName: {}",
-                    client.getSocketAddress(),
-                    streamId,
-                    fileName);
-              } else {
-                logger.debug(
-                    "open stream success from remote:{}, but stream reader is already closed, stream id:{}, fileName: {}",
-                    client.getSocketAddress(),
-                    streamId,
-                    fileName);
-                closeStream();
-              }
-            }
-          }
-
-          @Override
-          public void onFailure(Throwable e) {
-            logger.error(
-                "Open file {} stream for {} error from {}",
-                fileName,
-                shuffleKey,
-                NettyUtils.getRemoteAddress(client.getChannel()));
-            messageConsumer.accept(new TransportableError(streamId, e));
-          }
-        });
+      Supplier<ByteBuf> bufferSupplier,
+      int initialCredit,
+      Consumer<RequestMessage> messageConsumer) {
+    this.bufferSupplier = bufferSupplier;
+    this.initialCredit = initialCredit;
+    this.messageConsumer = messageConsumer;
+    moveToNextPartitionIfPossible(0);
   }
 
   public void addCredit(ReadAddCredit addCredit) {
@@ -150,7 +109,6 @@ public class CelebornBufferStream {
 
   public static CelebornBufferStream create(
       FlinkShuffleClientImpl client,
-      CelebornConf conf,
       FlinkTransportClientFactory dataClientFactory,
       String shuffleKey,
       PartitionLocation[] locations,
@@ -160,28 +118,133 @@ public class CelebornBufferStream {
       return empty();
     } else {
       return new CelebornBufferStream(
-          client, conf, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
+          client, dataClientFactory, shuffleKey, locations, subIndexStart, subIndexEnd);
     }
   }
 
   private static final CelebornBufferStream EMPTY_CELEBORN_BUFFER_STREAM =
       new CelebornBufferStream();
 
-  private void closeStream() {
+  private void closeStream(long streamId) {
     if (client != null && client.isActive()) {
       client.getChannel().writeAndFlush(new BufferStreamEnd(streamId));
     }
   }
 
+  private void cleanStream(long streamId) {
+    if (isOpenSuccess) {
+      mapShuffleClient.getReadClientHandler().removeHandler(streamId);
+      clientFactory.unregisterSupplier(streamId);
+      closeStream(streamId);
+      isOpenSuccess = false;
+    }
+  }
+
   public void close() {
     synchronized (lock) {
-      if (isOpenSuccess) {
-        mapShuffleClient.getReadClientHandler().removeHandler(getStreamId());
-        clientFactory.unregisterSupplier(this.getStreamId());
-        closeStream();
-      }
+      cleanStream(streamId);
       isClosed = true;
     }
+  }
+
+  public void moveToNextPartitionIfPossible(long endedStreamId) {
+    logger.debug(
+        "MoveToNextPartitionIfPossible in this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
+        this,
+        endedStreamId,
+        currentLocationIndex.get(),
+        streamId,
+        locations.length);
+    if (currentLocationIndex.get() > 0) {
+      logger.debug("Get end streamId {}", endedStreamId);
+      cleanStream(endedStreamId);
+    }
+    if (currentLocationIndex.get() < locations.length) {
+      try {
+        openStreamInternal();
+        logger.debug(
+            "MoveToNextPartitionIfPossible after openStream this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
+            this,
+            endedStreamId,
+            currentLocationIndex.get(),
+            streamId,
+            locations.length);
+      } catch (Exception e) {
+        logger.warn("Failed to open stream and report to flink framework. ", e);
+        messageConsumer.accept(new TransportableError(0L, e));
+      }
+    }
+  }
+
+  private void openStreamInternal() throws IOException, InterruptedException {
+    this.client =
+        clientFactory.createClientWithRetry(
+            locations[currentLocationIndex.get()].getHost(),
+            locations[currentLocationIndex.get()].getFetchPort());
+    String fileName = locations[currentLocationIndex.getAndIncrement()].getFileName();
+    TransportMessage openStream =
+        new TransportMessage(
+            MessageType.OPEN_STREAM,
+            PbOpenStream.newBuilder()
+                .setShuffleKey(shuffleKey)
+                .setFileName(fileName)
+                .setStartIndex(subIndexStart)
+                .setEndIndex(subIndexEnd)
+                .setInitialCredit(initialCredit)
+                .build()
+                .toByteArray());
+    client.sendRpc(
+        openStream.toByteBuffer(),
+        new RpcResponseCallback() {
+
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            try {
+              PbStreamHandler pbStreamHandler =
+                  TransportMessage.fromByteBuffer(response).getParsedPayload();
+              CelebornBufferStream.this.streamId = pbStreamHandler.getStreamId();
+              synchronized (lock) {
+                if (!isClosed) {
+                  clientFactory.registerSupplier(
+                      CelebornBufferStream.this.streamId, bufferSupplier);
+                  mapShuffleClient
+                      .getReadClientHandler()
+                      .registerHandler(streamId, messageConsumer, client);
+                  isOpenSuccess = true;
+                  logger.debug(
+                      "open stream success from remote:{}, stream id:{}, fileName: {}",
+                      client.getSocketAddress(),
+                      streamId,
+                      fileName);
+                } else {
+                  logger.debug(
+                      "open stream success from remote:{}, but stream reader is already closed, stream id:{}, fileName: {}",
+                      client.getSocketAddress(),
+                      streamId,
+                      fileName);
+                  closeStream(streamId);
+                }
+              }
+            } catch (Exception e) {
+              logger.error(
+                  "Open file {} stream for {} error from {}",
+                  fileName,
+                  shuffleKey,
+                  NettyUtils.getRemoteAddress(client.getChannel()));
+              messageConsumer.accept(new TransportableError(streamId, e));
+            }
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            logger.error(
+                "Open file {} stream for {} error from {}",
+                fileName,
+                shuffleKey,
+                NettyUtils.getRemoteAddress(client.getChannel()));
+            messageConsumer.accept(new TransportableError(streamId, e));
+          }
+        });
   }
 
   public TransportClient getClient() {

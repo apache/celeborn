@@ -79,7 +79,9 @@ public class RemoteShuffleOutputGate {
   private int lifecycleManagerPort;
   private long lifecycleManagerTimestamp;
   private UserIdentifier userIdentifier;
-  private boolean isFirstHandShake = true;
+  private boolean isRegisterShuffle = false;
+  private int maxReviveTimes;
+  private boolean hasSentHandshake = false;
 
   /**
    * @param shuffleDesc Describes shuffle meta and shuffle worker address.
@@ -114,6 +116,7 @@ public class RemoteShuffleOutputGate {
     this.lifecycleManagerTimestamp =
         shuffleDesc.getShuffleResource().getLifecycleManagerTimestamp();
     this.flinkShuffleClient = getShuffleClient();
+    this.maxReviveTimes = celebornConf.clientPushMaxReviveTimes();
   }
 
   /** Initialize transportation gate. */
@@ -144,31 +147,10 @@ public class RemoteShuffleOutputGate {
    * @param isBroadcast Whether it's a broadcast region.
    */
   public void regionStart(boolean isBroadcast) {
-    Optional<PartitionLocation> newPartitionLoc;
     try {
-      if (isFirstHandShake) {
-        handshake(true);
-        isFirstHandShake = false;
-        LOG.debug(
-            "shuffleId: {}, location: {}, send firstHandShake: {}, isBroadcast: {}",
-            shuffleId,
-            partitionLocation.getUniqueId(),
-            true,
-            isBroadcast);
-      }
-
-      newPartitionLoc =
-          flinkShuffleClient.regionStart(
-              shuffleId, mapId, attemptId, partitionLocation, currentRegionIndex, isBroadcast);
-      // revived
-      if (newPartitionLoc.isPresent()) {
-        partitionLocation = newPartitionLoc.get();
-        // send handshake again
-        handshake(false);
-        // send regionstart again
-        flinkShuffleClient.regionStart(
-            shuffleId, mapId, attemptId, newPartitionLoc.get(), currentRegionIndex, isBroadcast);
-      }
+      registerShuffle();
+      handshake();
+      regionStartWithRevive(isBroadcast);
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
     }
@@ -240,18 +222,86 @@ public class RemoteShuffleOutputGate {
     }
   }
 
-  public void handshake(boolean isFirstHandShake) throws IOException {
-    if (isFirstHandShake) {
+  public void registerShuffle() throws IOException {
+    if (!isRegisterShuffle) {
       partitionLocation =
           flinkShuffleClient.registerMapPartitionTask(
               shuffleId, numMappers, mapId, attemptId, partitionId);
       Utils.checkNotNull(partitionLocation);
 
       currentRegionIndex = 0;
+      isRegisterShuffle = true;
     }
+  }
+
+  public void regionStartWithRevive(boolean isBroadcast) {
     try {
-      flinkShuffleClient.pushDataHandShake(
-          shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
+      int remainingReviveTimes = maxReviveTimes;
+      boolean hasSentRegionStart = false;
+      while (remainingReviveTimes-- > 0 && !hasSentRegionStart) {
+        Optional<PartitionLocation> revivePartition =
+            flinkShuffleClient.regionStart(
+                shuffleId, mapId, attemptId, partitionLocation, currentRegionIndex, isBroadcast);
+        if (revivePartition.isPresent()) {
+          LOG.info(
+              "Revive at regionStart, currentTimes:{}, totalTimes:{} for shuffleId:{}, mapId:{}, attempId:{}, currentRegionIndex:{}, isBroadcast:{}, newPartition:{}, oldPartition:{}",
+              remainingReviveTimes,
+              maxReviveTimes,
+              shuffleId,
+              mapId,
+              attemptId,
+              currentRegionIndex,
+              isBroadcast,
+              revivePartition,
+              partitionLocation);
+          partitionLocation = revivePartition.get();
+          hasSentRegionStart = false;
+          // For every revive partition, handshake should be sent firstly
+          hasSentHandshake = false;
+          handshake();
+        } else {
+          hasSentRegionStart = true;
+        }
+      }
+      if (remainingReviveTimes == 0 && !hasSentRegionStart) {
+        throw new RuntimeException(
+            "After retry " + maxReviveTimes + " times, still failed to send regionStart");
+      }
+    } catch (IOException e) {
+      Utils.rethrowAsRuntimeException(e);
+    }
+  }
+
+  public void handshake() {
+    try {
+      int remainingReviveTimes = maxReviveTimes;
+      while (remainingReviveTimes-- > 0 && !hasSentHandshake) {
+        Optional<PartitionLocation> revivePartition =
+            flinkShuffleClient.pushDataHandShake(
+                shuffleId, mapId, attemptId, numSubs, bufferSize, partitionLocation);
+        // if remainingReviveTimes == 0 and revivePartition.isPresent(), there is no need to send
+        // handshake again
+        if (revivePartition.isPresent() && remainingReviveTimes > 0) {
+          LOG.info(
+              "Revive at handshake, currentTimes:{}, totalTimes:{} for shuffleId:{}, mapId:{}, attempId:{}, currentRegionIndex:{}, newPartition:{}, oldPartition:{}",
+              remainingReviveTimes,
+              maxReviveTimes,
+              shuffleId,
+              mapId,
+              attemptId,
+              currentRegionIndex,
+              revivePartition,
+              partitionLocation);
+          partitionLocation = revivePartition.get();
+          hasSentHandshake = false;
+        } else {
+          hasSentHandshake = true;
+        }
+      }
+      if (remainingReviveTimes == 0 && !hasSentHandshake) {
+        throw new RuntimeException(
+            "After retry " + maxReviveTimes + " times, still failed to send handshake");
+      }
     } catch (IOException e) {
       Utils.rethrowAsRuntimeException(e);
     }

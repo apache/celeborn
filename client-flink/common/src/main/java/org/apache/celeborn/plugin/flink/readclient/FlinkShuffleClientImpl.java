@@ -148,12 +148,19 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
+      PartitionLocation[] partitionLocations =
+          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
+      Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
+      logger.debug(
+          "readBufferedPartition shuffleKey:{} partitionid:{} partitionLocation:{}",
+          shuffleKey,
+          partitionId,
+          partitionLocations);
       return CelebornBufferStream.create(
           this,
-          conf,
           flinkTransportClientFactory,
           shuffleKey,
-          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]),
+          partitionLocations,
           subPartitionIndexStart,
           subPartitionIndexEnd);
     }
@@ -305,7 +312,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     return currentClient.get(mapKey);
   }
 
-  public void pushDataHandShake(
+  public Optional<PartitionLocation> pushDataHandShake(
       int shuffleId,
       int mapId,
       int attemptId,
@@ -315,12 +322,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
-    sendMessageInternal(
-        shuffleId,
-        mapId,
-        attemptId,
-        location,
-        pushState,
+    return retrySendMessage(
         () -> {
           String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
           logger.info(
@@ -338,8 +340,20 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                   attemptId,
                   numPartitions,
                   bufferSize);
-          client.sendRpcSync(handShake.toByteBuffer(), conf.pushDataTimeoutMs());
-          return null;
+          ByteBuffer pushDataHandShakeResponse;
+          try {
+            pushDataHandShakeResponse =
+                client.sendRpcSync(handShake.toByteBuffer(), conf.pushDataTimeoutMs());
+          } catch (IOException e) {
+            // ioexeption revive
+            return revive(shuffleId, mapId, attemptId, location);
+          }
+          if (pushDataHandShakeResponse.hasRemaining()
+              && pushDataHandShakeResponse.get() == StatusCode.HARD_SPLIT.getValue()) {
+            // if split then revive
+            return revive(shuffleId, mapId, attemptId, location);
+          }
+          return Optional.empty();
         });
   }
 
@@ -353,12 +367,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
-    return sendMessageInternal(
-        shuffleId,
-        mapId,
-        attemptId,
-        location,
-        pushState,
+    return retrySendMessage(
         () -> {
           String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
           logger.info(
@@ -377,61 +386,69 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                   attemptId,
                   currentRegionIdx,
                   isBroadcast);
-          ByteBuffer regionStartResponse =
-              client.sendRpcSync(regionStart.toByteBuffer(), conf.pushDataTimeoutMs());
+          ByteBuffer regionStartResponse;
+          try {
+            regionStartResponse =
+                client.sendRpcSync(regionStart.toByteBuffer(), conf.pushDataTimeoutMs());
+          } catch (IOException e) {
+            // ioexeption revive
+            return revive(shuffleId, mapId, attemptId, location);
+          }
+
           if (regionStartResponse.hasRemaining()
               && regionStartResponse.get() == StatusCode.HARD_SPLIT.getValue()) {
             // if split then revive
-            Set<Integer> mapIds = new HashSet<>();
-            mapIds.add(mapId);
-            List<ReviveRequest> requests = new ArrayList<>();
-            ReviveRequest req =
-                new ReviveRequest(
-                    shuffleId,
-                    mapId,
-                    attemptId,
-                    location.getId(),
-                    location.getEpoch(),
-                    location,
-                    StatusCode.HARD_SPLIT);
-            requests.add(req);
-            PbChangeLocationResponse response =
-                lifecycleManagerRef.askSync(
-                    ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
-                    conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
-                    ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
-            // per partitionKey only serve single PartitionLocation in Client Cache.
-            PbChangeLocationPartitionInfo partitionInfo = response.getPartitionInfo(0);
-            StatusCode respStatus = Utils.toStatusCode(partitionInfo.getStatus());
-            if (StatusCode.SUCCESS.equals(respStatus)) {
-              return Optional.of(
-                  PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition()));
-            } else {
-              // throw exception
-              logger.error(
-                  "Exception raised while reviving for shuffle {} map {} attemptId {} partition {} epoch {}.",
-                  shuffleId,
-                  mapId,
-                  attemptId,
-                  location.getId(),
-                  location.getEpoch());
-              throw new CelebornIOException("RegionStart revive failed");
-            }
+            return revive(shuffleId, mapId, attemptId, location);
           }
           return Optional.empty();
         });
+  }
+
+  public Optional<PartitionLocation> revive(
+      int shuffleId, int mapId, int attemptId, PartitionLocation location)
+      throws CelebornIOException {
+    Set<Integer> mapIds = new HashSet<>();
+    mapIds.add(mapId);
+    List<ReviveRequest> requests = new ArrayList<>();
+    ReviveRequest req =
+        new ReviveRequest(
+            shuffleId,
+            mapId,
+            attemptId,
+            location.getId(),
+            location.getEpoch(),
+            location,
+            StatusCode.HARD_SPLIT);
+    requests.add(req);
+    PbChangeLocationResponse response =
+        lifecycleManagerRef.askSync(
+            ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
+            conf.clientRpcRequestPartitionLocationRpcAskTimeout(),
+            ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
+    // per partitionKey only serve single PartitionLocation in Client Cache.
+    PbChangeLocationPartitionInfo partitionInfo = response.getPartitionInfo(0);
+    StatusCode respStatus = Utils.toStatusCode(partitionInfo.getStatus());
+    if (StatusCode.SUCCESS.equals(respStatus)) {
+      logger.debug("revive new partition:{}", partitionInfo.getPartition());
+      return Optional.of(PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition()));
+    } else {
+      // throw exception
+      logger.error(
+          "Exception raised while reviving for shuffle {} map {} attemptId {} partition {} epoch {}.",
+          shuffleId,
+          mapId,
+          attemptId,
+          location.getId(),
+          location.getEpoch());
+      throw new CelebornIOException("RegionStart revive failed");
+    }
   }
 
   public void regionFinish(int shuffleId, int mapId, int attemptId, PartitionLocation location)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
-    sendMessageInternal(
-        shuffleId,
-        mapId,
-        attemptId,
-        location,
-        pushState,
+    retrySendMessage(
         () -> {
           final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
           logger.info(
@@ -447,31 +464,6 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           client.sendRpcSync(regionFinish.toByteBuffer(), conf.pushDataTimeoutMs());
           return null;
         });
-  }
-
-  private <R> R sendMessageInternal(
-      int shuffleId,
-      int mapId,
-      int attemptId,
-      PartitionLocation location,
-      PushState pushState,
-      ThrowingExceptionSupplier<R, Exception> supplier)
-      throws IOException {
-    int batchId = 0;
-    try {
-      // mapKey
-      final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-      pushState = getPushState(mapKey);
-
-      // add inFlight requests
-      batchId = pushState.nextBatchId();
-      pushState.addBatch(batchId, location.hostAndPushPort());
-      return retrySendMessage(supplier);
-    } finally {
-      if (pushState != null) {
-        pushState.removeBatch(batchId, location.hostAndPushPort());
-      }
-    }
   }
 
   @FunctionalInterface

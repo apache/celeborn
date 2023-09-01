@@ -1028,6 +1028,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFlinkResultPartitionSupportFloatingBuffer: Boolean =
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
+  def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -3816,4 +3817,13 @@ object CelebornConf extends Logging {
       .doc("Threads count for read local shuffle file.")
       .intConf
       .createWithDefault(4)
+
+  val CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.mapPartition.split.enabled")
+      .categories("client")
+      .doc(
+        "whether to enable shuffle partition split. Currently, this only applies to MapPartition.")
+      .version("0.3.1")
+      .booleanConf
+      .createWithDefault(false)
 }

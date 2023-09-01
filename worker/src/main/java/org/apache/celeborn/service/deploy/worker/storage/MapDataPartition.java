@@ -79,7 +79,6 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     this.maxReadBuffers = maxReadBuffers;
 
     updateBuffersTarget((this.minReadBuffers + this.maxReadBuffers) / 2 + 1);
-
     logger.debug(
         "read map partition {} with {} {} {}",
         fileInfo.getFilePath(),

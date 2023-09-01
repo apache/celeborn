@@ -52,6 +52,7 @@ public final class MapPartitionFileWriter extends FileWriter {
   private long totalBytes;
   private long regionStartingOffset;
   private FileChannel indexChannel;
+  private volatile boolean isRegionFinished = true;
 
   public MapPartitionFileWriter(
       FileInfo fileInfo,
@@ -120,8 +121,8 @@ public final class MapPartitionFileWriter extends FileWriter {
     long length = data.readableBytes();
     totalBytes += length;
     numSubpartitionBytes[partitionId] += length;
-
     super.write(data);
+    isRegionFinished = false;
   }
 
   @Override
@@ -235,6 +236,7 @@ public final class MapPartitionFileWriter extends FileWriter {
 
     regionStartingOffset = totalBytes;
     Arrays.fill(numSubpartitionBytes, 0);
+    isRegionFinished = true;
   }
 
   private synchronized void destroyIndex() {
@@ -300,5 +302,9 @@ public final class MapPartitionFileWriter extends FileWriter {
     buffer.order(ByteOrder.BIG_ENDIAN);
 
     return buffer;
+  }
+
+  public boolean isRegionFinished() {
+    return isRegionFinished;
   }
 }

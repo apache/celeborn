@@ -20,6 +20,9 @@ package org.apache.celeborn.service.deploy.cluster
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 
+import scala.collection.mutable
+import scala.util.control.Breaks
+
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.Assert
 import org.scalatest.BeforeAndAfterAll
@@ -64,8 +67,10 @@ trait ReadWriteTestBase extends AnyFunSuite
     val lifecycleManager = new LifecycleManager(APP, clientConf)
     val shuffleClient = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
     shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
-
-    val STR1 = RandomStringUtils.random(1024)
+    val dataPrefix = Array("000000", "111111", "222222", "333333")
+    val dataPrefixMap = new mutable.HashMap[String, String]
+    val STR1 = dataPrefix(0) + RandomStringUtils.random(1024)
+    dataPrefixMap.put(dataPrefix(0), STR1)
     val DATA1 = STR1.getBytes(StandardCharsets.UTF_8)
     val OFFSET1 = 0
     val LENGTH1 = DATA1.length
@@ -73,19 +78,22 @@ trait ReadWriteTestBase extends AnyFunSuite
     val dataSize1 = shuffleClient.pushData(1, 0, 0, 0, DATA1, OFFSET1, LENGTH1, 1, 1)
     logInfo(s"push data data size $dataSize1")
 
-    val STR2 = RandomStringUtils.random(32 * 1024)
+    val STR2 = dataPrefix(1) + RandomStringUtils.random(32 * 1024)
+    dataPrefixMap.put(dataPrefix(1), STR2)
     val DATA2 = STR2.getBytes(StandardCharsets.UTF_8)
     val OFFSET2 = 0
     val LENGTH2 = DATA2.length
     val dataSize2 = shuffleClient.pushData(1, 0, 0, 0, DATA2, OFFSET2, LENGTH2, 1, 1)
     logInfo("push data data size " + dataSize2)
 
-    val STR3 = RandomStringUtils.random(32 * 1024)
+    val STR3 = dataPrefix(2) + RandomStringUtils.random(32 * 1024)
+    dataPrefixMap.put(dataPrefix(2), STR3)
     val DATA3 = STR3.getBytes(StandardCharsets.UTF_8)
     val LENGTH3 = DATA3.length
     shuffleClient.mergeData(1, 0, 0, 0, DATA3, 0, LENGTH3, 1, 1)
 
-    val STR4 = RandomStringUtils.random(16 * 1024)
+    val STR4 = dataPrefix(3) + RandomStringUtils.random(16 * 1024)
+    dataPrefixMap.put(dataPrefix(3), STR4)
     val DATA4 = STR4.getBytes(StandardCharsets.UTF_8)
     val LENGTH4 = DATA4.length
     shuffleClient.mergeData(1, 0, 0, 0, DATA4, 0, LENGTH4, 1, 1)
@@ -104,9 +112,12 @@ trait ReadWriteTestBase extends AnyFunSuite
     }
 
     val readBytes = outputStream.toByteArray
+    val readStringMap = getReadStringMap(readBytes, dataPrefix, dataPrefixMap)
+
     Assert.assertEquals(LENGTH1 + LENGTH2 + LENGTH3 + LENGTH4, readBytes.length)
-    val targetArr = Array.concat(DATA1, DATA2, DATA3, DATA4)
-    Assert.assertArrayEquals(targetArr, readBytes)
+    for ((prefix, data) <- readStringMap) {
+      Assert.assertEquals(dataPrefixMap.get(prefix).get, data)
+    }
 
     Thread.sleep(5000L)
     shuffleClient.shutdown()
@@ -114,4 +125,28 @@ trait ReadWriteTestBase extends AnyFunSuite
 
   }
 
+  def getReadStringMap(
+      readBytes: Array[Byte],
+      dataPrefix: Array[String],
+      dataPrefixMap: mutable.HashMap[String, String]): mutable.HashMap[String, String] = {
+    var readString = new String(readBytes, StandardCharsets.UTF_8)
+    val prefixStringMap = new mutable.HashMap[String, String]
+    val loop = new Breaks;
+    for (i <- 0 to 4) {
+      loop.breakable {
+        for (prefix <- dataPrefix) {
+          if (readString.startsWith(prefix)) {
+            val subString = readString.substring(0, dataPrefixMap.get(prefix).get.length)
+            prefixStringMap.put(prefix, subString)
+            println(
+              s"readString before: ${readString.length}, ${dataPrefixMap.get(prefix).get.length}")
+            readString = readString.substring(dataPrefixMap.get(prefix).get.length)
+            println(s"readString after: ${readString.length}")
+            loop.break()
+          }
+        }
+      }
+    }
+    prefixStringMap
+  }
 }

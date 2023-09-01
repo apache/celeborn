@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.ReadAddCredit;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
@@ -74,13 +75,15 @@ public class RemoteBufferStreamReader extends CreditListener {
             backlogReceived(((BacklogAnnouncement) requestMessage).getBacklog());
           } else if (requestMessage instanceof TransportableError) {
             errorReceived(((TransportableError) requestMessage).getErrorMessage());
+          } else if (requestMessage instanceof BufferStreamEnd) {
+            onStreamEnd((BufferStreamEnd) requestMessage);
           }
         };
   }
 
   public void open(int initialCredit) {
     try {
-      this.bufferStream =
+      bufferStream =
           client.readBufferedPartition(
               shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
       bufferStream.open(
@@ -95,7 +98,8 @@ public class RemoteBufferStreamReader extends CreditListener {
   public void close() {
     // need set closed first before remove Handler
     closed = true;
-    if (this.bufferStream != null) {
+    if (bufferStream != null) {
+      logger.debug("Close bufferStream currentStreamId:{}", bufferStream.getStreamId());
       bufferStream.close();
     } else {
       logger.warn(
@@ -111,7 +115,7 @@ public class RemoteBufferStreamReader extends CreditListener {
 
   public void notifyAvailableCredits(int numCredits) {
     if (!closed) {
-      ReadAddCredit addCredit = new ReadAddCredit(this.bufferStream.getStreamId(), numCredits);
+      ReadAddCredit addCredit = new ReadAddCredit(bufferStream.getStreamId(), numCredits);
       bufferStream.addCredit(addCredit);
     }
   }
@@ -145,5 +149,11 @@ public class RemoteBufferStreamReader extends CreditListener {
         readData.getStreamId(),
         readData.getFlinkBuffer().readableBytes());
     dataListener.accept(readData.getFlinkBuffer());
+  }
+
+  public void onStreamEnd(BufferStreamEnd streamEnd) {
+    long streamId = streamEnd.getStreamId();
+    logger.debug("Buffer stream reader get stream end for {}", streamId);
+    bufferStream.moveToNextPartitionIfPossible(streamId);
   }
 }
