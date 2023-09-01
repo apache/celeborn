@@ -349,8 +349,7 @@ message PbReserveSlots {
   bool rangeReadFilter = 8;
   PbUserIdentifier userIdentifier = 9;
   int64 pushDataTimeout = 10;
-  // now just used for mappartition
-  bool mapPartitionSplitEnabled = 11;
+  bool partitionSplitEnabled = 11;
 }
 
 message PbReserveSlotsResponse {
@@ -433,7 +432,7 @@ message PbFileInfo {
   int32 bufferSize = 5;
   int32 numSubpartitions = 6;
   int64 bytesFlushed = 7;
-  bool mapPartitionSplitEnabled = 8;
+  bool partitionSplitEnabled = 8;
 }
 
 message PbFileInfoMap {
