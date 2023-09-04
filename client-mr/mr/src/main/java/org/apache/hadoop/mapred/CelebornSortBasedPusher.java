@@ -144,7 +144,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
             // limit max size of pushdata to avoid possible memory issue in Celeborn worker
             // data layout
             // pushdata header (16) + pushDataLen(4) +
-            // [keyLen(4)+valLen(4)+serializedRecord(x)][...]
+            // [varKeyLen+varValLen+serializedRecord(x)][...]
             sendSortedBuffersPartition(partition, localKVs, partitionKVTotalLen);
             localKVs.clear();
             partitionKVTotalLen = 0;
@@ -314,8 +314,6 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
           mapId,
           attempt,
           numMappers);
-      // make sure that all data has been pushed
-      shuffleClient.prepareForMergeData(0, mapId, attempt);
       shuffleClient.mapperEnd(0, mapId, attempt, numMappers);
     } catch (IOException e) {
       logger.error("Mapper end failed, data lost", e);
