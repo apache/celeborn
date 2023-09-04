@@ -287,7 +287,7 @@ public final class ShutdownHookManager {
   }
 
   public void updateTimeout(long timeout) {
-    hooks.forEach((hook) -> hook.setTimeout(timeout));
+    hooks.forEach(hook -> hook.setTimeout(timeout));
   }
 
   /**
