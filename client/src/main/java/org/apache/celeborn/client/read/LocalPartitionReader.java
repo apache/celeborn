@@ -58,7 +58,9 @@ public class LocalPartitionReader implements PartitionReader {
   private final int numChunks;
   private int returnedChunks = 0;
   private int chunkIndex = 0;
-  private final FileChannel shuffleChannel;
+  private String fullPath;
+  private boolean mapRangeRead = false;
+  private FileChannel shuffleChannel;
   private List<Long> chunkOffsets;
   private AtomicBoolean pendingFetchTask = new AtomicBoolean(false);
 
@@ -111,10 +113,8 @@ public class LocalPartitionReader implements PartitionReader {
 
     chunkOffsets = new ArrayList<>(streamHandle.getChunkOffsetsList());
     numChunks = streamHandle.getNumChunks();
-    shuffleChannel = FileChannelUtils.openReadableFileChannel(streamHandle.getFullPath());
-    if (endMapIndex != Integer.MAX_VALUE) {
-      shuffleChannel.position(chunkOffsets.get(0));
-    }
+    fullPath = streamHandle.getFullPath();
+    mapRangeRead = (endMapIndex != Integer.MAX_VALUE);
 
     logger.debug(
         "Local partition reader {} offsets:{}",
@@ -126,6 +126,12 @@ public class LocalPartitionReader implements PartitionReader {
 
   private void doFetchChunks(int chunkIndex, int toFetch) {
     try {
+      if (shuffleChannel == null) {
+        shuffleChannel = FileChannelUtils.openReadableFileChannel(fullPath);
+        if (mapRangeRead) {
+          shuffleChannel.position(chunkOffsets.get(0));
+        }
+      }
       for (int i = 0; i < toFetch; i++) {
         long offset = chunkOffsets.get(chunkIndex + i);
         long length = chunkOffsets.get(chunkIndex + i + 1) - offset;
@@ -219,7 +225,9 @@ public class LocalPartitionReader implements PartitionReader {
       results.clear();
     }
     try {
-      shuffleChannel.close();
+      if (shuffleChannel != null) {
+        shuffleChannel.close();
+      }
     } catch (IOException e) {
       logger.warn("Close local shuffle file failed.", e);
     }

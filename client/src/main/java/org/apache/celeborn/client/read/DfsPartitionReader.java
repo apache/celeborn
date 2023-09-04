@@ -53,6 +53,7 @@ public class DfsPartitionReader implements PartitionReader {
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private volatile boolean closed = false;
   private Thread fetchThread;
+  private boolean fetchThreadStarted;
   private FSDataInputStream hdfsInputStream;
   private int numChunks = 0;
   private int returnedChunks = 0;
@@ -168,7 +169,6 @@ public class DfsPartitionReader implements PartitionReader {
               logger.error("thread {} failed with exception {}", t, e);
             }
           });
-      fetchThread.start();
       logger.debug("Start dfs read on location {}", location);
       ShuffleClient.incrementTotalReadCounter();
     }
@@ -218,6 +218,10 @@ public class DfsPartitionReader implements PartitionReader {
   @Override
   public ByteBuf next() throws IOException, InterruptedException {
     ByteBuf chunk = null;
+    if (!fetchThreadStarted) {
+      fetchThreadStarted = true;
+      fetchThread.start();
+    }
     try {
       while (chunk == null) {
         checkException();

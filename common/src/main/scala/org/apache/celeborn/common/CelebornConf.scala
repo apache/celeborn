@@ -825,6 +825,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_BATCH_HANDLED_RELEASE_PARTITION_INTERVAL)
   def enableReadLocalShuffleFile: Boolean = get(READ_LOCAL_SHUFFLE_FILE)
   def readLocalShuffleThreads: Int = get(READ_LOCAL_SHUFFLE_THREADS)
+  def readStreamCreatorPoolThreads: Int = get(READ_STREAM_CREATOR_POOL_THREADS)
 
   // //////////////////////////////////////////////////////
   //                       Worker                        //
@@ -3817,6 +3818,14 @@ object CelebornConf extends Logging {
       .doc("Threads count for read local shuffle file.")
       .intConf
       .createWithDefault(4)
+
+  val READ_STREAM_CREATOR_POOL_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.client.streamCreatorPool.threads")
+      .categories("client")
+      .version("0.3.1")
+      .doc("Threads count for streamCreatorPool in CelebornShuffleReader.")
+      .intConf
+      .createWithDefault(32)
 
   val CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.mapPartition.split.enabled")
