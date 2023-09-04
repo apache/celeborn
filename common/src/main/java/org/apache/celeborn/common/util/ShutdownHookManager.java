@@ -52,6 +52,8 @@ import org.apache.celeborn.common.CelebornConf;
  */
 public final class ShutdownHookManager {
 
+  private static final Logger logger = LoggerFactory.getLogger(ShutdownHookManager.class);
+
   private static final ShutdownHookManager MGR = new ShutdownHookManager();
 
   private static final Logger LOG = LoggerFactory.getLogger(ShutdownHookManager.class);
@@ -105,6 +107,7 @@ public final class ShutdownHookManager {
     for (HookEntry entry : MGR.getShutdownHooksInOrder()) {
       Future<?> future = EXECUTOR.submit(entry.getHook());
       try {
+        logger.info("timeout {}, time unit {}", entry.getTimeout(), entry.getTimeUnit());
         future.get(entry.getTimeout(), entry.getTimeUnit());
       } catch (TimeoutException ex) {
         timeouts++;
@@ -165,7 +168,7 @@ public final class ShutdownHookManager {
   static class HookEntry {
     private final Runnable hook;
     private final int priority;
-    private final long timeout;
+    private long timeout;
     private final TimeUnit unit;
 
     HookEntry(Runnable hook, int priority) {
@@ -205,6 +208,10 @@ public final class ShutdownHookManager {
 
     long getTimeout() {
       return timeout;
+    }
+
+    public void setTimeout(long timeout) {
+      this.timeout = timeout;
     }
 
     TimeUnit getTimeUnit() {
@@ -277,6 +284,10 @@ public final class ShutdownHookManager {
       throw new IllegalStateException("Shutdown in progress, cannot add a " + "shutdownHook");
     }
     hooks.add(new HookEntry(shutdownHook, priority, timeout, unit));
+  }
+
+  public void updateTimeout(long timeout) {
+    hooks.forEach((hook) -> hook.setTimeout(timeout));
   }
 
   /**

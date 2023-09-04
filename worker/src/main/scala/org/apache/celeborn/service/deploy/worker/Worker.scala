@@ -581,6 +581,7 @@ private[celeborn] class Worker(
     exitType match {
       case "DECOMMISSION" =>
         exitKind = CelebornExitKind.WORKER_DECOMMISSION
+        ShutdownHookManager.get().updateTimeout(conf.workerDecommissionForceExitTimeout)
       case "GRACEFUL" =>
         exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
       case "IMMEDIATELY" =>
