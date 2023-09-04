@@ -72,7 +72,7 @@ class CelebornShuffleReader[K, C](
       CelebornShuffleReader.synchronized {
         if (streamCreatorPool == null) {
           streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool(
-            "create-stream-thread",
+            "celeborn-create-stream-thread",
             conf.readStreamCreatorPoolThreads,
             60);
         }
@@ -96,6 +96,9 @@ class CelebornShuffleReader[K, C](
               case e: IOException =>
                 logInfo("Exception caught when readPartition!")
                 exceptionRef.compareAndSet(null, e)
+              case e: Exception =>
+                logInfo("Non IOException caught when readPartition!", e)
+                exceptionRef.compareAndSet(null, new CelebornIOException(e))
             }
           }
         }

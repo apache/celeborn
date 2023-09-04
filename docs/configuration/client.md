@@ -22,6 +22,7 @@ license: |
 | celeborn.client.application.heartbeatInterval | 10s | Interval for client to send heartbeat message to master. | 0.3.0 | 
 | celeborn.client.closeIdleConnections | true | Whether client will close idle connections. | 0.3.0 | 
 | celeborn.client.commitFiles.ignoreExcludedWorker | false | When true, LifecycleManager will skip workers which are in the excluded list. | 0.3.0 | 
+| celeborn.client.eagerlyCreateInputStream.threads | 32 | Threads count for streamCreatorPool in CelebornShuffleReader. | 0.3.1 | 
 | celeborn.client.excludePeerWorkerOnFailure.enabled | true | When true, Celeborn will exclude partition's peer worker on failure when push data to replica failed. | 0.3.0 | 
 | celeborn.client.excludedWorker.expireTimeout | 180s | Timeout time for LifecycleManager to clear reserved excluded worker. Default to be 1.5 * `celeborn.master.heartbeat.worker.timeout`to cover worker heartbeat timeout check period | 0.3.0 | 
 | celeborn.client.fetch.dfsReadChunkSize | 8m | Max chunk size for DfsPartitionReader. | 0.3.1 | 
@@ -100,7 +101,6 @@ license: |
 | celeborn.client.spark.shuffle.forceFallback.enabled | false | Whether force fallback shuffle to Spark's default. | 0.3.0 | 
 | celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold | 2147483647 | Celeborn will only accept shuffle of partition number lower than this configuration value. | 0.3.0 | 
 | celeborn.client.spark.shuffle.writer | HASH | Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine when memory pressure is high or shuffle partition count is huge. | 0.3.0 | 
-| celeborn.client.streamCreatorPool.threads | 32 | Threads count for streamCreatorPool in CelebornShuffleReader. | 0.3.1 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 | 
 <!--end-include-->

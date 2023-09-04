@@ -32,6 +32,7 @@ import org.apache.spark.util.collection.ExternalSorter
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.util.ThreadUtils
 
 class CelebornShuffleReader[K, C](
@@ -74,7 +75,7 @@ class CelebornShuffleReader[K, C](
       CelebornShuffleReader.synchronized {
         if (streamCreatorPool == null) {
           streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool(
-            "create-stream-thread",
+            "celeborn-create-stream-thread",
             conf.readStreamCreatorPoolThreads,
             60);
         }
@@ -96,8 +97,11 @@ class CelebornShuffleReader[K, C](
               streams.put(partitionId, inputStream)
             } catch {
               case e: IOException =>
-                logInfo("Exception caught when readPartition!")
+                logInfo("Exception caught when readPartition!", e)
                 exceptionRef.compareAndSet(null, e)
+              case e: Exception =>
+                logInfo("Non IOException caught when readPartition!", e)
+                exceptionRef.compareAndSet(null, new CelebornIOException(e))
             }
           }
         }
