@@ -32,6 +32,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.util.ThreadUtils
 
 class CelebornShuffleReader[K, C](
