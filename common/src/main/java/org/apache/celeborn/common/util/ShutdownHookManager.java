@@ -169,7 +169,7 @@ public final class ShutdownHookManager {
     private final Runnable hook;
     private final int priority;
     private long timeout;
-    private final TimeUnit unit;
+    private TimeUnit unit;
 
     HookEntry(Runnable hook, int priority) {
       this(hook, priority, getShutdownTimeout(new CelebornConf()), TIME_UNIT_DEFAULT);
@@ -210,8 +210,9 @@ public final class ShutdownHookManager {
       return timeout;
     }
 
-    public void setTimeout(long timeout) {
+    public void setTimeout(long timeout, TimeUnit unit) {
       this.timeout = timeout;
+      this.unit = unit;
     }
 
     TimeUnit getTimeUnit() {
@@ -286,8 +287,8 @@ public final class ShutdownHookManager {
     hooks.add(new HookEntry(shutdownHook, priority, timeout, unit));
   }
 
-  public void updateTimeout(long timeout) {
-    hooks.forEach(hook -> hook.setTimeout(timeout));
+  public void updateTimeout(long timeout, TimeUnit unit) {
+    hooks.forEach(hook -> hook.setTimeout(timeout, unit));
   }
 
   /**
