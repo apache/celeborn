@@ -216,8 +216,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
    */
   private int writeVLong(byte[] data, int offset, long dataInt) {
     if (dataInt >= -112L && dataInt <= 127L) {
-      data[offset] = (byte) ((int) dataInt);
-      offset++;
+      data[offset++] = (byte) ((int) dataInt);
       return offset;
     }
 
@@ -233,16 +232,14 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
       len--;
     }
 
-    data[offset] = (byte) len;
-    offset++;
+    data[offset++] = (byte) len;
 
     len = len < -120 ? -(len + 120) : -(len + 112);
 
     for (int idx = len; idx != 0; --idx) {
       int shiftBits = (idx - 1) * 8;
       long mask = 0xFFL << shiftBits;
-      data[offset] = ((byte) ((int) ((dataInt & mask) >> shiftBits)));
-      offset++;
+      data[offset++] = ((byte) ((int) ((dataInt & mask) >> shiftBits)));
     }
     return offset;
   }
