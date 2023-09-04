@@ -97,7 +97,7 @@ class CelebornShuffleReader[K, C](
               case e: IOException =>
                 logInfo("Exception caught when readPartition!")
                 exceptionRef.compareAndSet(null, e)
-              case e: Exception =>
+              case e: Throwable =>
                 logInfo("Non IOException caught when readPartition!", e)
                 exceptionRef.compareAndSet(null, new CelebornIOException(e))
             }
