@@ -111,7 +111,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
   }
 
   private static String getSysEnvAndValidateInputParam(String envName) throws IOException {
-    String value = System.getenv(ApplicationConstants.Environment.CONTAINER_ID.name());
+    String value = System.getenv(envName);
     if (value == null) {
       String msg = envName + " is null";
       logger.error(msg);
