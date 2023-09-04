@@ -107,7 +107,10 @@ public final class ShutdownHookManager {
     for (HookEntry entry : MGR.getShutdownHooksInOrder()) {
       Future<?> future = EXECUTOR.submit(entry.getHook());
       try {
-        logger.info("timeout {}, time unit {}", entry.getTimeout(), entry.getTimeUnit());
+        logger.info(
+            "timeout {}",
+            Utils.msDurationToString(
+                entry.getTimeUnit().convert(entry.getTimeout(), TimeUnit.MILLISECONDS)));
         future.get(entry.getTimeout(), entry.getTimeUnit());
       } catch (TimeoutException ex) {
         timeouts++;
