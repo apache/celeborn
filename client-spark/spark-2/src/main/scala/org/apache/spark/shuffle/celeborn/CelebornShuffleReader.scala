@@ -17,9 +17,14 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import java.io.IOException
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
+import java.util.concurrent.atomic.AtomicReference
+
 import org.apache.spark.{InterruptibleIterator, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.ShuffleReader
+import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
@@ -27,6 +32,8 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornIOException
+import org.apache.celeborn.common.util.ThreadUtils
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
@@ -39,12 +46,14 @@ class CelebornShuffleReader[K, C](
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
-  private val essShuffleClient = ShuffleClient.get(
+  private val shuffleClient = ShuffleClient.get(
     handle.appUniqueId,
     handle.lifecycleManagerHost,
     handle.lifecycleManagerPort,
     conf,
     handle.userIdentifier)
+
+  private val exceptionRef = new AtomicReference[IOException]
 
   override def read(): Iterator[Product2[K, C]] = {
 
@@ -60,15 +69,54 @@ class CelebornShuffleReader[K, C](
         readMetrics.incFetchWaitTime(time)
     }
 
+    if (streamCreatorPool == null) {
+      CelebornShuffleReader.synchronized {
+        if (streamCreatorPool == null) {
+          streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool(
+            "celeborn-create-stream-thread",
+            conf.readStreamCreatorPoolThreads,
+            60);
+        }
+      }
+    }
+
+    val streams = new ConcurrentHashMap[Integer, CelebornInputStream]()
+    (startPartition until endPartition).map(partitionId => {
+      streamCreatorPool.submit(new Runnable {
+        override def run(): Unit = {
+          if (exceptionRef.get() == null) {
+            try {
+              val inputStream = shuffleClient.readPartition(
+                handle.shuffleId,
+                partitionId,
+                context.attemptNumber(),
+                startMapIndex,
+                endMapIndex)
+              streams.put(partitionId, inputStream)
+            } catch {
+              case e: IOException =>
+                logInfo("Exception caught when readPartition!")
+                exceptionRef.compareAndSet(null, e)
+              case e: Throwable =>
+                logInfo("Non IOException caught when readPartition!", e)
+                exceptionRef.compareAndSet(null, new CelebornIOException(e))
+            }
+          }
+        }
+      })
+    })
+
     val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
       if (handle.numMaps > 0) {
         val start = System.currentTimeMillis()
-        val inputStream = essShuffleClient.readPartition(
-          handle.shuffleId,
-          partitionId,
-          context.attemptNumber(),
-          startMapIndex,
-          endMapIndex)
+        var inputStream: CelebornInputStream = streams.get(partitionId)
+        while (inputStream == null) {
+          if (exceptionRef.get() != null) {
+            throw exceptionRef.get()
+          }
+          Thread.sleep(50)
+          inputStream = streams.get(partitionId)
+        }
         metricsCallback.incReadTime(System.currentTimeMillis() - start)
         inputStream.setCallback(metricsCallback)
         // ensure inputStream is closed when task completes
@@ -134,4 +182,8 @@ class CelebornShuffleReader[K, C](
         new InterruptibleIterator[Product2[K, C]](context, resultIter)
     }
   }
+}
+
+object CelebornShuffleReader {
+  var streamCreatorPool: ThreadPoolExecutor = null
 }
