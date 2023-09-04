@@ -3820,7 +3820,7 @@ object CelebornConf extends Logging {
       .createWithDefault(4)
 
   val READ_STREAM_CREATOR_POOL_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.client.streamCreatorPool.threads")
+    buildConf("celeborn.client.eagerlyCreateInputStream.threads")
       .categories("client")
       .version("0.3.1")
       .doc("Threads count for streamCreatorPool in CelebornShuffleReader.")
