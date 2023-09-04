@@ -114,7 +114,7 @@ public class LocalPartitionReader implements PartitionReader {
     chunkOffsets = new ArrayList<>(streamHandle.getChunkOffsetsList());
     numChunks = streamHandle.getNumChunks();
     fullPath = streamHandle.getFullPath();
-    mapRangeRead = (endMapIndex != Integer.MAX_VALUE);
+    mapRangeRead = endMapIndex != Integer.MAX_VALUE;
 
     logger.debug(
         "Local partition reader {} offsets:{}",
