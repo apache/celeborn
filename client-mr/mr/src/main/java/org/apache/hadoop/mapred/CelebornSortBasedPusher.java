@@ -178,16 +178,16 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     for (SerializedKV kv : localKVs) {
       int recordLen = kv.kLen + kv.vLen;
       // write key len
-      pkvsPos = writeDataInt(pkvs, pkvsPos, kv.kLen);
+      pkvsPos = writeVLong(pkvs, pkvsPos, kv.kLen);
       // write value len
-      pkvsPos = writeDataInt(pkvs, pkvsPos, kv.vLen);
+      pkvsPos = writeVLong(pkvs, pkvsPos, kv.vLen);
       // write serialized record
       System.arraycopy(serializedKV, kv.offset, pkvs, pkvsPos, recordLen);
       pkvsPos += recordLen;
     }
     // finally write -1 two times
-    pkvsPos = writeDataInt(pkvs, pkvsPos, -1);
-    writeDataInt(pkvs, pkvsPos, -1);
+    pkvsPos = writeVLong(pkvs, pkvsPos, -1);
+    writeVLong(pkvs, pkvsPos, -1);
     int compressedSize =
         shuffleClient.pushData(
             0,
@@ -210,31 +210,39 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     }
   }
 
-  private int writeDataInt(byte[] data, int offset, long dataInt) {
+  /**
+   * Write variable length int to array Modified from
+   * org.apache.hadoop.io.WritableUtils#writeVLong(java.io.DataOutput, long)
+   */
+  private int writeVLong(byte[] data, int offset, long dataInt) {
     if (dataInt >= -112L && dataInt <= 127L) {
       data[offset] = (byte) ((int) dataInt);
       offset++;
-    } else {
-      int len = -112;
-      if (dataInt < 0L) {
-        dataInt = ~dataInt;
-        len = -120;
-      }
+      return offset;
+    }
 
-      for (long tmp = dataInt; tmp != 0L; --len) {
-        tmp >>= 8;
-      }
+    int len = -112;
+    if (dataInt < 0L) {
+      dataInt ^= -1L;
+      len = -120;
+    }
 
-      data[offset] = (byte) len;
+    long tmp = dataInt;
+    while (tmp != 0) {
+      tmp = tmp >> 8;
+      len--;
+    }
+
+    data[offset] = (byte) len;
+    offset++;
+
+    len = len < -120 ? -(len + 120) : -(len + 112);
+
+    for (int idx = len; idx != 0; --idx) {
+      int shiftBits = (idx - 1) * 8;
+      long mask = 0xFFL << shiftBits;
+      data[offset] = ((byte) ((int) ((dataInt & mask) >> shiftBits)));
       offset++;
-      len = len < -120 ? -(len + 120) : -(len + 112);
-
-      for (int idx = len; idx != 0; --idx) {
-        int shiftBits = (idx - 1) * 8;
-        long mask = 255L << shiftBits;
-        data[offset] = ((byte) ((int) ((dataInt & mask) >> shiftBits)));
-        offset++;
-      }
     }
     return offset;
   }
