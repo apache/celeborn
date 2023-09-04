@@ -107,7 +107,7 @@ public class CelebornShuffleConsumer<K, V>
       throws NoSuchMethodException {
     // for hadoop 3
     try {
-      DynMethods.builder("create")
+      return DynMethods.builder("create")
           .impl(
               ShuffleClientMetrics.class,
               org.apache.hadoop.mapreduce.TaskAttemptID.class,
