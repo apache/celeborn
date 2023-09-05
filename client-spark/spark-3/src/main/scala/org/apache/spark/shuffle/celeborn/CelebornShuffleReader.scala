@@ -131,7 +131,7 @@ class CelebornShuffleReader[K, C](
       serializerInstance.deserializeStream(_).asKeyValueIterator)
 
     val iterWithUpdatedRecordsRead =
-      if (GlutenColumnarBatchSerdeHelper.isGlutenSerde(serializerInstance.getClass.getName)) {
+      if (GlutenColumnarBatchSerdeHelper.isGlutenDep(dep.getClass.getName)) {
         GlutenColumnarBatchSerdeHelper.withUpdatedRecordsRead(recordIter, metrics)
       } else {
         recordIter.map { record =>

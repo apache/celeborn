@@ -25,12 +25,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  */
 object GlutenColumnarBatchSerdeHelper {
 
-  def isGlutenSerde(serdeName: String): Boolean = {
+  def isGlutenDep(serdeName: String): Boolean = {
     // scalastyle:off
     // see Gluten
-    // https://github.com/oap-project/gluten/blob/main/gluten-celeborn/src/main/scala/org/apache/spark/shuffle/CelebornColumnarBatchSerializer.scala
+    // https://github.com/oap-project/gluten/blob/main/gluten-core/src/main/scala/org/apache/spark/shuffle/ColumnarShuffleDependency.scala
     // scalastyle:on
-    "org.apache.spark.shuffle.CelebornColumnarBatchSerializer".equals(serdeName)
+    "org.apache.spark.shuffle.ColumnarShuffleDependency".equals(serdeName)
   }
 
   def withUpdatedRecordsRead(
