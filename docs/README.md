@@ -137,7 +137,7 @@ Then deploy the example word count job to the running cluster:
 ```shell
 cd $FLINK_HOME
 
-./bin/flink run  ./examples/streaming/WordCount.jar --execution-mode BATCH
+./bin/flink run ./examples/streaming/WordCount.jar --execution-mode BATCH
 ```
 During the Flink Job, you should see the following message in Celeborn Master's log:
 ```log
