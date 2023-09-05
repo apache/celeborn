@@ -149,12 +149,12 @@ public class CelebornShuffleFetcher<K, V> {
     try {
       mapOutput = merger.reserve(mapId, shuffleData.length, 0);
     } catch (IOException ioe) {
-      // kill this reduce attempt
       ioErrs.increment(1);
       throw ioe;
     }
     if (mapOutput == null) {
-      logger.info("Celeborn fetcher returned status WAIT ...");
+      logger.info(
+          "Celeborn fetcher returned status wait because reserve buffer for shuffle get null");
       hasPendingData = true;
       return false;
     }

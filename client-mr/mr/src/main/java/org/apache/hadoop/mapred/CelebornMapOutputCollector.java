@@ -60,12 +60,16 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
     String lcHost = celebornAppendConf.get(HadoopUtils.MR_CELEBORN_LC_HOST);
     int lcPort = Integer.parseInt(celebornAppendConf.get(HadoopUtils.MR_CELEBORN_LC_PORT));
     String applicationAttemptId = celebornAppendConf.get(HadoopUtils.MR_CELEBORN_APPLICATION_ID);
-    logger.info("Mapper initialized with celeborn {} {} {}", lcHost, lcPort, applicationAttemptId);
+    logger.info(
+        "Mapper initialized with celeborn {} {} {} {}",
+        lcHost,
+        lcPort,
+        applicationAttemptId,
+        IOBufferSize);
     UserIdentifier userIdentifier =
         new UserIdentifier(
             celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName());
 
-    logger.info(JobContext.IO_SORT_MB + ": " + IOBufferSize);
     final float spiller = jobConf.getFloat(JobContext.MAP_SORT_SPILL_PERCENT, (float) 0.8);
     int pushSize = (int) ((IOBufferSize << 20) * spiller);
 

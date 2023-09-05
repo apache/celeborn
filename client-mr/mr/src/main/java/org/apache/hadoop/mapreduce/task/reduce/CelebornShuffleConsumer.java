@@ -153,7 +153,7 @@ public class CelebornShuffleConsumer<K, V>
       throw new ShuffleError("Error while doing final merge ", e);
     }
 
-    logger.info("In reduce: " + reduceId + ", Celeborn mr client read shuffle data complete");
+    logger.info("In reduce: {} Celeborn mr client read shuffle data complete", reduceId);
 
     return kvIter;
   }
