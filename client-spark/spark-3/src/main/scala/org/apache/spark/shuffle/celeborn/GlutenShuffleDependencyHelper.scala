@@ -23,7 +23,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 /**
  * A helper class to be compatible with Gluten Celeborn.
  */
-object GlutenColumnarDependencyHelper {
+object GlutenShuffleDependencyHelper {
 
   def isGlutenDep(depName: String): Boolean = {
     // scalastyle:off
