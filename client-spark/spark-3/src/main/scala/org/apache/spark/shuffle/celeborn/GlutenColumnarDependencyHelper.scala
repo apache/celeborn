@@ -23,14 +23,14 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 /**
  * A helper class to be compatible with Gluten Celeborn.
  */
-object GlutenColumnarBatchSerdeHelper {
+object GlutenColumnarDependencyHelper {
 
-  def isGlutenDep(serdeName: String): Boolean = {
+  def isGlutenDep(depName: String): Boolean = {
     // scalastyle:off
     // see Gluten
     // https://github.com/oap-project/gluten/blob/main/gluten-core/src/main/scala/org/apache/spark/shuffle/ColumnarShuffleDependency.scala
     // scalastyle:on
-    "org.apache.spark.shuffle.ColumnarShuffleDependency".equals(serdeName)
+    "org.apache.spark.shuffle.ColumnarShuffleDependency".equals(depName)
   }
 
   def withUpdatedRecordsRead(
