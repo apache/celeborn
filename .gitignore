@@ -16,7 +16,9 @@
 .ensime_lucene
 .flattened-pom.xml
 .generated-mima*
-.idea/
+.idea/*
+!.idea/vcs.xml
+!.idea/icon.png
 .idea_modules/
 .project
 .pydevproject
