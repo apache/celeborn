@@ -95,7 +95,7 @@ class CelebornShuffleReader[K, C](
               streams.put(partitionId, inputStream)
             } catch {
               case e: IOException =>
-                logError(s"Exception caught when readPartition $partitionId!",e)
+                logError(s"Exception caught when readPartition $partitionId!", e)
                 exceptionRef.compareAndSet(null, e)
               case e: Throwable =>
                 logError(s"Non IOException caught when readPartition $partitionId!", e)
