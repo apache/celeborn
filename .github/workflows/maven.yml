@@ -95,6 +95,9 @@ jobs:
           - '3.3'
           - '3.4'
           - '3.5'
+        shuffle-plugin-class:
+          - 'org.apache.spark.shuffle.sort.io.LocalDiskShuffleDataIO'
+          - 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
         exclude:
           # SPARK-33772: Spark supports JDK 17 since 3.3.0
           - java: 17
@@ -119,7 +122,7 @@ jobs:
         PROFILES="-Pgoogle-mirror,spark-${{ matrix.spark }}"
         TEST_MODULES="client-spark/common,client-spark/spark-${SPARK_MAJOR_VERSION},client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it"
         build/mvn $PROFILES -pl $TEST_MODULES -am clean install -DskipTests
-        build/mvn $PROFILES -pl $TEST_MODULES test
+        build/mvn $PROFILES -pl $TEST_MODULES -Dspark.shuffle.sort.io.plugin.class=${{ matrix.shuffle-plugin-class }} test
     - name: Upload test log
       if: failure()
       uses: actions/upload-artifact@v3

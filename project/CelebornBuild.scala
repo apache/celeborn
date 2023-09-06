@@ -178,6 +178,11 @@ object CelebornCommonSettings {
       "-Xmx4g"
     ),
 
+    Test / javaOptions ++= Seq(
+      "-Dspark.shuffle.sort.io.plugin.class="
+        + sys.props.getOrElse("spark.shuffle.plugin.class", "org.apache.spark.shuffle.sort.io.LocalDiskShuffleDataIO"),
+    ),
+
     Test / envVars += ("IS_TESTING", "1")
   )
 
