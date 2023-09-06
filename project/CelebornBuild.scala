@@ -437,12 +437,7 @@ object Spark30 extends SparkClientProjects {
   val sparkVersion = "3.0.3"
   val zstdJniVersion = "1.4.4-3"
 
-  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
-
-  override def sparkClientShade: Project = {
-    super.sparkClientShade
-      .dependsOn(super.sparkColumnarShuffle)
-  }
+  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark31 extends SparkClientProjects {
@@ -458,12 +453,7 @@ object Spark31 extends SparkClientProjects {
   val sparkVersion = "3.1.3"
   val zstdJniVersion = "1.4.8-1"
 
-  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
-
-  override def sparkClientShade: Project = {
-    super.sparkClientShade
-      .dependsOn(super.sparkColumnarShuffle)
-  }
+  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark32 extends SparkClientProjects {
@@ -479,12 +469,7 @@ object Spark32 extends SparkClientProjects {
   val sparkVersion = "3.2.4"
   val zstdJniVersion = "1.5.0-4"
 
-  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
-
-  override def sparkClientShade: Project = {
-    super.sparkClientShade
-      .dependsOn(super.sparkColumnarShuffle)
-  }
+  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark33 extends SparkClientProjects {
@@ -503,12 +488,7 @@ object Spark33 extends SparkClientProjects {
   val sparkVersion = "3.3.3"
   val zstdJniVersion = "1.5.2-1"
 
-  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
-
-  override def sparkClientShade: Project = {
-    super.sparkClientShade
-      .dependsOn(super.sparkColumnarShuffle)
-  }
+  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark34 extends SparkClientProjects {
@@ -524,12 +504,7 @@ object Spark34 extends SparkClientProjects {
   val sparkVersion = "3.4.1"
   val zstdJniVersion = "1.5.2-5"
 
-  override def modules: Seq[Project] = super.modules :+ sparkColumnarShuffle
-
-  override def sparkClientShade: Project = {
-    super.sparkClientShade
-      .dependsOn(super.sparkColumnarShuffle)
-  }
+  override val includeColumnarShuffle: Boolean = true
 }
 
 object Spark35 extends SparkClientProjects {
@@ -558,11 +533,23 @@ trait SparkClientProjects {
   val sparkVersion: String
   val zstdJniVersion: String
 
-  def modules: Seq[Project] = Seq(sparkCommon, sparkClient, sparkIt, sparkGroup, sparkClientShade)
+  val includeColumnarShuffle: Boolean = false
+
+  def modules: Seq[Project] = {
+    val seq = Seq(sparkCommon, sparkClient, sparkIt, sparkGroup, sparkClientShade)
+    if (includeColumnarShuffle) seq :+ sparkColumnarShuffle else seq
+  }
 
   // for test only, don't use this group for any other projects
-  lazy val sparkGroup = (project withId "celeborn-spark-group")
-    .aggregate(sparkCommon, sparkClient, sparkIt)
+  lazy val sparkGroup = {
+    val p = (project withId "celeborn-spark-group")
+      .aggregate(sparkCommon, sparkClient, sparkIt)
+    if (includeColumnarShuffle) {
+      p.aggregate(sparkColumnarShuffle)
+    } else {
+      p
+    }
+  }
 
   def sparkCommon: Project = {
     Project("celeborn-spark-common", file("client-spark/common"))
@@ -626,7 +613,7 @@ trait SparkClientProjects {
   }
 
   def sparkClientShade: Project = {
-    Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
+    val p = Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
       .dependsOn(sparkClient)
       .settings (
         commonSettings,
@@ -678,6 +665,11 @@ trait SparkClientProjects {
           case _ => MergeStrategy.first
         }
       )
+    if (includeColumnarShuffle) {
+        p.dependsOn(sparkColumnarShuffle)
+    } else {
+        p
+    }
   }
 }
 
