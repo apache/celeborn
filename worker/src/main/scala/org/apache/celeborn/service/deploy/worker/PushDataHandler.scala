@@ -1116,7 +1116,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
     logDebug(
-      s"CheckDiskFullAndSplit in diskfull: $diskFull, partitionSplitMinimumSize: $partitionSplitMinimumSize, splitThreshold: ${fileWriter.getSplitThreshold()}, filelength: ${fileWriter.getFileInfo.getFileLength}, filename:${fileWriter.getFileInfo.getFilePath}")
+      s"CheckDiskFullAndSplit in diskFull: $diskFull, partitionSplitMinimumSize: $partitionSplitMinimumSize," +
+        s"splitThreshold: ${fileWriter.getSplitThreshold()}, fileLength: ${fileWriter.getFileInfo.getFileLength}," +
+        s"fileName:${fileWriter.getFileInfo.getFilePath}")
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
         (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
@@ -1125,7 +1127,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         logDebug(
-          s"CheckDiskFullAndSplit hardsplit diskfull: $diskFull, partitionSplitMinimumSize: $partitionSplitMinimumSize, splitThreshold: ${fileWriter.getSplitThreshold()}, filelength: ${fileWriter.getFileInfo.getFileLength}, filename:${fileWriter.getFileInfo.getFilePath}")
+          s"CheckDiskFullAndSplit hardSplit diskFull: $diskFull, partitionSplitMinimumSize: $partitionSplitMinimumSize," +
+            s"splitThreshold: ${fileWriter.getSplitThreshold()}, fileLength: ${fileWriter.getFileInfo.getFileLength}," +
+            s"fileName:${fileWriter.getFileInfo.getFilePath}")
         return true
       }
     }
