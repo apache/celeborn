@@ -199,7 +199,7 @@ class MapPartitionCommitHandler(
       recordWorkerFailure(commitFailedWorkers)
     }
 
-    inProcessingPartitionIds.remove(partitionId)
+//     inProcessingPartitionIds.remove(partitionId)
     if (dataCommitSuccess) {
       val resultPartitions =
         shuffleSucceedPartitionIds.computeIfAbsent(
