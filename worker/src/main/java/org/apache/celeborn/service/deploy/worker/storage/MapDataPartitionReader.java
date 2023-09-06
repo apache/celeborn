@@ -71,7 +71,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
 
   /** Whether all the data has been successfully read or not. */
   @GuardedBy("lock")
-  private boolean readFinished;
+  private volatile boolean readFinished;
 
   /** Whether this partition reader has been released or not. */
   @GuardedBy("lock")
@@ -162,12 +162,13 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       addBuffer(buffer, bufferRecycler);
       ++numDataBuffers;
     }
-    if (numDataBuffers > 0) {
-      notifyBacklog(numDataBuffers);
-    }
 
     if (!hasRemaining) {
       closeReader();
+    }
+
+    if (numDataBuffers > 0) {
+      notifyBacklog(numDataBuffers);
     }
   }
 

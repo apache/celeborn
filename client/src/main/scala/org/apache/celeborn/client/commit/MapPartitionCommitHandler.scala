@@ -74,7 +74,7 @@ class MapPartitionCommitHandler(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo): mutable.Set[PartitionLocation] = {
     shuffleCommittedInfo.unhandledPartitionLocations.asScala.filterNot { partitionLocation =>
-      shuffleCommittedInfo.handledPartitionLocations.contains(partitionLocation) &&
+      shuffleCommittedInfo.handledPartitionLocations.contains(partitionLocation) ||
       isPartitionInProcess(shuffleId, partitionLocation.getId)
     }
   }
