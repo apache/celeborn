@@ -940,13 +940,15 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val isPartitionSplitEnabled = fileWriter.asInstanceOf[
       MapPartitionFileWriter].getFileInfo.isPartitionSplitEnabled
 
-    if (shutdown.get() && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled) {
+    if (shutdown.get() && (messageType == Type.REGION_START || messageType ==
+        Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled) {
       logInfo(s"$messageType return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
       callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
       return
     }
 
-    if (checkSplit && (messageType == Type.REGION_START || messageType == Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled && checkDiskFullAndSplit(
+    if (checkSplit && (messageType == Type.REGION_START || messageType ==
+        Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled && checkDiskFullAndSplit(
         fileWriter,
         isPrimary,
         null,
@@ -1116,9 +1118,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
     logDebug(
-      s"CheckDiskFullAndSplit in diskFull: $diskFull, partitionSplitMinimumSize: $partitionSplitMinimumSize," +
-        s"splitThreshold: ${fileWriter.getSplitThreshold()}, fileLength: ${fileWriter.getFileInfo.getFileLength}," +
-        s"fileName:${fileWriter.getFileInfo.getFilePath}")
+      s"""
+         |CheckDiskFullAndSplit in
+         |diskFull:$diskFull,
+         |partitionSplitMinimumSize: $partitionSplitMinimumSize,
+         |splitThreshold:${fileWriter.getSplitThreshold()},
+         |fileLength:${fileWriter.getFileInfo.getFileLength}
+         |fileName:${fileWriter.getFileInfo.getFilePath}
+         |""".stripMargin)
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
         (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
@@ -1127,9 +1134,14 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         logDebug(
-          s"CheckDiskFullAndSplit hardSplit diskFull: $diskFull, partitionSplitMinimumSize: $partitionSplitMinimumSize," +
-            s"splitThreshold: ${fileWriter.getSplitThreshold()}, fileLength: ${fileWriter.getFileInfo.getFileLength}," +
-            s"fileName:${fileWriter.getFileInfo.getFilePath}")
+          s"""
+             |CheckDiskFullAndSplit hardSplit
+             |diskFull:$diskFull,
+             |partitionSplitMinimumSize:$partitionSplitMinimumSize,
+             |splitThreshold:${fileWriter.getSplitThreshold()},
+             |fileLength:${fileWriter.getFileInfo.getFileLength},
+             |fileName:${fileWriter.getFileInfo.getFilePath}
+             |""".stripMargin)
         return true
       }
     }
