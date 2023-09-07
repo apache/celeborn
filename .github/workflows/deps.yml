@@ -1,0 +1,92 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Dependency
+
+on:
+  pull_request:
+    branches:
+      - main
+      - branch-*
+    paths:
+      - '**/pom.xml'
+      - 'project/**'
+      - '.github/workflows/deps.yml'
+
+concurrency:
+  group: deps-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  sbt:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - 'server'
+          - 'spark-2.4'
+          - 'spark-3.0'
+          - 'spark-3.1'
+          - 'spark-3.2'
+          - 'spark-3.3'
+          - 'spark-3.4'
+          - 'spark-3.5'
+          - 'flink-1.14'
+          - 'flink-1.15'
+          - 'flink-1.17'
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup JDK 8
+      uses: actions/setup-java@v2
+      with:
+        distribution: zulu
+        java-version: 8
+        check-latest: false
+    - name: SBT Check dependency list
+      run: |
+        ./dev/dependencies.sh --sbt --module ${{ matrix.module }} --check
+
+  maven:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - 'server'
+          - 'spark-2.4'
+          - 'spark-3.0'
+          - 'spark-3.1'
+          - 'spark-3.2'
+          - 'spark-3.3'
+          - 'spark-3.4'
+          - 'spark-3.5'
+          - 'flink-1.14'
+          - 'flink-1.15'
+          - 'flink-1.17'
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup JDK 8
+      uses: actions/setup-java@v2
+      with:
+        distribution: zulu
+        java-version: 8
+        cache: maven
+        check-latest: false
+    - name: Maven Check dependency list
+      run: |
+        ./dev/dependencies.sh --module ${{ matrix.module }} --check
