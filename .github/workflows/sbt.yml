@@ -93,6 +93,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        shuffle-plugin-class:
+          - 'org.apache.spark.shuffle.sort.io.LocalDiskShuffleDataIO'
+          - 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
         include:
           # Spark 3.0
           - spark: '3.0'
@@ -190,7 +193,7 @@ jobs:
         check-latest: false
     - name: Test with SBT
       run: |
-        build/sbt -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
+        build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
     - name: Upload test log
       if: failure()
       uses: actions/upload-artifact@v3
