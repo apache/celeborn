@@ -26,7 +26,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.ipc.CallerContext;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapreduce.Cluster;
 import org.apache.hadoop.mapreduce.JobSubmissionFiles;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.v2.app.MRAppMaster;
@@ -80,7 +79,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
 
   void writeLifecycleManagerConfToTask(JobConf conf, JobConf lmConf) throws CelebornIOException {
     try {
-      FileSystem fs = new Cluster(conf).getFileSystem();
+      FileSystem fs = FileSystem.get(conf);
       String jobDirStr = conf.get(MRJobConfig.MAPREDUCE_JOB_DIR);
       Path celebornConfPath = new Path(jobDirStr, HadoopUtils.MR_CELEBORN_CONF);
 
@@ -104,7 +103,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
       String sizes = conf.get(MRJobConfig.CACHE_FILES_SIZES);
       conf.set(
           MRJobConfig.CACHE_FILES_SIZES, sizes == null ? String.valueOf(size) : size + "," + sizes);
-    } catch (InterruptedException | IOException e) {
+    } catch (IOException e) {
       logger.error("Upload extra conf exception", e);
       throw new CelebornIOException("Upload extra conf exception ", e);
     }
