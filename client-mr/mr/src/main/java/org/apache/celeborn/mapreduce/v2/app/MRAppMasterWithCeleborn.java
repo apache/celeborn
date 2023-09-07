@@ -66,32 +66,32 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
       CelebornConf conf = HadoopUtils.fromYarnConf(jobConf);
       LifecycleManager lifecycleManager =
           new LifecycleManager(applicationAttemptId.toString(), conf);
-      String lcHost = lifecycleManager.getHost();
-      int lcPort = lifecycleManager.getPort();
-      logger.info("RMAppMaster initialized with {} {} {}", lcHost, lcPort, applicationAttemptId);
-      JobConf lcConf = new JobConf();
-      lcConf.clear();
-      lcConf.set(HadoopUtils.MR_CELEBORN_LC_HOST, lcHost);
-      lcConf.set(HadoopUtils.MR_CELEBORN_LC_PORT, lcPort + "");
-      lcConf.set(HadoopUtils.MR_CELEBORN_APPLICATION_ID, applicationAttemptId.toString());
-      writeLifecycleManagerConfToTask(jobConf, lcConf);
+      String lmHost = lifecycleManager.getHost();
+      int lmPort = lifecycleManager.getPort();
+      logger.info("RMAppMaster initialized with {} {} {}", lmHost, lmPort, applicationAttemptId);
+      JobConf lmConf = new JobConf();
+      lmConf.clear();
+      lmConf.set(HadoopUtils.MR_CELEBORN_LM_HOST, lmHost);
+      lmConf.set(HadoopUtils.MR_CELEBORN_LM_PORT, lmPort + "");
+      lmConf.set(HadoopUtils.MR_CELEBORN_APPLICATION_ID, applicationAttemptId.toString());
+      writeLifecycleManagerConfToTask(jobConf, lmConf);
     }
   }
 
-  void writeLifecycleManagerConfToTask(JobConf conf, JobConf lcConf) throws CelebornIOException {
+  void writeLifecycleManagerConfToTask(JobConf conf, JobConf lmConf) throws CelebornIOException {
     try {
       FileSystem fs = new Cluster(conf).getFileSystem();
       String jobDirStr = conf.get(MRJobConfig.MAPREDUCE_JOB_DIR);
-      Path celebornExtraConf = new Path(jobDirStr, HadoopUtils.MR_CELEBORN_CONF);
+      Path celebornConfPath = new Path(jobDirStr, HadoopUtils.MR_CELEBORN_CONF);
 
       try (FSDataOutputStream out =
           FileSystem.create(
-              fs, celebornExtraConf, new FsPermission(JobSubmissionFiles.JOB_FILE_PERMISSION))) {
-        lcConf.writeXml(out);
+              fs, celebornConfPath, new FsPermission(JobSubmissionFiles.JOB_FILE_PERMISSION))) {
+        lmConf.writeXml(out);
       }
-      FileStatus status = fs.getFileStatus(celebornExtraConf);
+      FileStatus status = fs.getFileStatus(celebornConfPath);
       long currentTs = status.getModificationTime();
-      String uri = fs.getUri() + Path.SEPARATOR + celebornExtraConf.toUri();
+      String uri = fs.getUri() + Path.SEPARATOR + celebornConfPath.toUri();
       String files = conf.get(MRJobConfig.CACHE_FILES);
       conf.set(MRJobConfig.CACHE_FILES, files == null ? uri : uri + "," + files);
       String ts = conf.get(MRJobConfig.CACHE_FILE_TIMESTAMPS);
@@ -110,7 +110,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     }
   }
 
-  private static String getSysEnvAndValidateInputParam(String envName) throws IOException {
+  private static String ensureGetSysEnv(String envName) throws IOException {
     String value = System.getenv(envName);
     if (value == null) {
       String msg = envName + " is null";
@@ -125,22 +125,17 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     rmAppConf.addResource(new Path(MRJobConfig.JOB_CONF_FILE));
     try {
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
-      String containerIdStr =
-          getSysEnvAndValidateInputParam(ApplicationConstants.Environment.CONTAINER_ID.name());
-      String nodeHostString =
-          getSysEnvAndValidateInputParam(ApplicationConstants.Environment.NM_HOST.name());
-      String nodePortString =
-          getSysEnvAndValidateInputParam(ApplicationConstants.Environment.NM_PORT.name());
+      String containerIdStr = ensureGetSysEnv(ApplicationConstants.Environment.CONTAINER_ID.name());
+      String nodeHostString = ensureGetSysEnv(ApplicationConstants.Environment.NM_HOST.name());
+      String nodePortString = ensureGetSysEnv(ApplicationConstants.Environment.NM_PORT.name());
       String nodeHttpPortString =
-          getSysEnvAndValidateInputParam(ApplicationConstants.Environment.NM_HTTP_PORT.name());
-      String appSubmitTimeStr = System.getenv("APP_SUBMIT_TIME_ENV");
-      getSysEnvAndValidateInputParam("APP_SUBMIT_TIME_ENV");
+          ensureGetSysEnv(ApplicationConstants.Environment.NM_HTTP_PORT.name());
+      String appSubmitTimeStr = ensureGetSysEnv("APP_SUBMIT_TIME_ENV");
       ContainerId containerId = ContainerId.fromString(containerIdStr);
       ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
       if (applicationAttemptId != null) {
         CallerContext.setCurrent(
-            (new CallerContext.Builder(
-                    "mr_app_master_with_celeborn_" + applicationAttemptId.toString()))
+            (new CallerContext.Builder("mr_app_master_with_celeborn_" + applicationAttemptId))
                 .build());
       }
 

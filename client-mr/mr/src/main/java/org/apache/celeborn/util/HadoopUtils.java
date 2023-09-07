@@ -25,8 +25,8 @@ import org.apache.celeborn.common.CelebornConf;
 
 public class HadoopUtils {
   public static final String MR_CELEBORN_CONF = "celeborn.xml";
-  public static final String MR_CELEBORN_LC_HOST = "celeborn.lifecycleManager.host";
-  public static final String MR_CELEBORN_LC_PORT = "celeborn.lifecycleManager.port";
+  public static final String MR_CELEBORN_LM_HOST = "celeborn.lifecycleManager.host";
+  public static final String MR_CELEBORN_LM_PORT = "celeborn.lifecycleManager.port";
   public static final String MR_CELEBORN_APPLICATION_ID = "celeborn.applicationId";
 
   public static CelebornConf fromYarnConf(JobConf conf) {

@@ -68,38 +68,34 @@ public class CelebornShuffleConsumer<K, V>
     reduceTask = context.getReduceTask();
 
     String appId = celebornJobConf.get(HadoopUtils.MR_CELEBORN_APPLICATION_ID);
-    String lcHost = celebornJobConf.get(HadoopUtils.MR_CELEBORN_LC_HOST);
-    int lcPort = Integer.parseInt(celebornJobConf.get(HadoopUtils.MR_CELEBORN_LC_PORT));
-    logger.info("Reducer initialized with celeborn {} {} {}", appId, lcHost, lcPort);
+    String lmHost = celebornJobConf.get(HadoopUtils.MR_CELEBORN_LM_HOST);
+    int lmPort = Integer.parseInt(celebornJobConf.get(HadoopUtils.MR_CELEBORN_LM_PORT));
+    logger.info("Reducer initialized with celeborn {} {} {}", appId, lmHost, lmPort);
     CelebornConf celebornConf = HadoopUtils.fromYarnConf(mrJobConf);
     shuffleClient =
         ShuffleClient.get(
             appId,
-            lcHost,
-            lcPort,
+            lmHost,
+            lmPort,
             celebornConf,
             new UserIdentifier(
                 celebornConf.quotaUserSpecificTenant(), celebornConf.quotaUserSpecificUserName()));
-    this.merger = createMergeManager(context);
-  }
-
-  // Merge mapOutput and spill in local disks if necessary
-  protected MergeManager<K, V> createMergeManager(ShuffleConsumerPlugin.Context context) {
-    return new MergeManagerImpl<K, V>(
-        reduceId,
-        mrJobConf,
-        context.getLocalFS(),
-        context.getLocalDirAllocator(),
-        reporter,
-        context.getCodec(),
-        context.getCombinerClass(),
-        context.getCombineCollector(),
-        context.getSpilledRecordsCounter(),
-        context.getReduceCombineInputCounter(),
-        context.getMergedMapOutputsCounter(),
-        this,
-        context.getMergePhase(),
-        context.getMapOutputFile());
+    this.merger =
+        new MergeManagerImpl<>(
+            reduceId,
+            mrJobConf,
+            context.getLocalFS(),
+            context.getLocalDirAllocator(),
+            reporter,
+            context.getCodec(),
+            context.getCombinerClass(),
+            context.getCombineCollector(),
+            context.getSpilledRecordsCounter(),
+            context.getReduceCombineInputCounter(),
+            context.getMergedMapOutputsCounter(),
+            this,
+            context.getMergePhase(),
+            context.getMapOutputFile());
   }
 
   private ShuffleClientMetrics createMetrics(
@@ -125,7 +121,7 @@ public class CelebornShuffleConsumer<K, V>
   }
 
   @Override
-  public RawKeyValueIterator run() throws IOException, InterruptedException {
+  public RawKeyValueIterator run() throws IOException {
     logger.info(
         "In reduce:{}, Celeborn mr client start to read shuffle data."
             + " Create inputstream with params: shuffleId 0 reduceId:{} attemptId:{}",
@@ -145,8 +141,7 @@ public class CelebornShuffleConsumer<K, V>
     taskStatus.setPhase(TaskStatus.Phase.SORT);
     reduceTask.statusUpdate(umbilical);
 
-    // Finish the on-going merges...
-    RawKeyValueIterator kvIter = null;
+    RawKeyValueIterator kvIter;
     try {
       kvIter = merger.close();
     } catch (Throwable e) {

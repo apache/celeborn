@@ -53,17 +53,16 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
     if ((IOBufferSize & 0x7FF) != IOBufferSize) {
       throw new IOException("Invalid \"" + JobContext.IO_SORT_MB + "\": " + IOBufferSize);
     }
-    jobConf.getNumReduceTasks();
 
     CelebornConf celebornConf = HadoopUtils.fromYarnConf(jobConf);
     JobConf celebornAppendConf = new JobConf(HadoopUtils.MR_CELEBORN_CONF);
-    String lcHost = celebornAppendConf.get(HadoopUtils.MR_CELEBORN_LC_HOST);
-    int lcPort = Integer.parseInt(celebornAppendConf.get(HadoopUtils.MR_CELEBORN_LC_PORT));
+    String lmHost = celebornAppendConf.get(HadoopUtils.MR_CELEBORN_LM_HOST);
+    int lmPort = Integer.parseInt(celebornAppendConf.get(HadoopUtils.MR_CELEBORN_LM_PORT));
     String applicationAttemptId = celebornAppendConf.get(HadoopUtils.MR_CELEBORN_APPLICATION_ID);
     logger.info(
         "Mapper initialized with celeborn {} {} {} {}",
-        lcHost,
-        lcPort,
+        lmHost,
+        lmPort,
         applicationAttemptId,
         IOBufferSize);
     UserIdentifier userIdentifier =
@@ -89,7 +88,7 @@ public class CelebornMapOutputCollector<K extends Object, V extends Object>
             jobConf.getOutputKeyComparator(),
             reporter.getCounter(TaskCounter.MAP_OUTPUT_BYTES),
             reporter.getCounter(TaskCounter.MAP_OUTPUT_RECORDS),
-            ShuffleClient.get(applicationAttemptId, lcHost, lcPort, celebornConf, userIdentifier),
+            ShuffleClient.get(applicationAttemptId, lmHost, lmPort, celebornConf, userIdentifier),
             celebornConf);
   }
 

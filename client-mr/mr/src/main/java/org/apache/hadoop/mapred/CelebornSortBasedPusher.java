@@ -48,7 +48,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   private final AtomicReference<Exception> exception = new AtomicReference<>();
   private final Counters.Counter mapOutputByteCounter;
   private final Counters.Counter mapOutputRecordCounter;
-  private final Map<Integer, List<SerializedKV>> currentSerializedKVs;
+  private final Map<Integer, List<SerializedKV>> partitionedKVs;
   private int writePos;
   private byte[] serializedKV;
   private final int maxPushDataSize;
@@ -79,7 +79,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     this.mapOutputRecordCounter = mapOutputRecordCounter;
     this.comparator = comparator;
     this.shuffleClient = shuffleClient;
-    currentSerializedKVs = new HashMap<>();
+    partitionedKVs = new HashMap<>();
     serializedKV = new byte[maxIOBufferSize];
     maxPushDataSize = (int) celebornConf.clientMrMaxPushData();
     logger.info(
@@ -111,10 +111,8 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
               Utils.bytesToString(spillIOBufferSize),
               Utils.bytesToString(maxIOBufferSize));
         }
-        synchronized (this) {
-          sortKVs();
-          sendKVAndUpdateWritePos();
-        }
+        sortKVs();
+        sendKVAndUpdateWritePos();
       }
       int dataLen = insertRecordInternal(key, value, partition);
       if (logger.isDebugEnabled()) {
@@ -129,35 +127,36 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   }
 
   private void sendKVAndUpdateWritePos() throws IOException {
-    for (Map.Entry<Integer, List<SerializedKV>> partitionKVEntry :
-        currentSerializedKVs.entrySet()) {
-      List<SerializedKV> kvs = partitionKVEntry.getValue();
-      synchronized (kvs) {
-        int partition = partitionKVEntry.getKey();
-        List<SerializedKV> localKVs = new ArrayList<>();
-        int partitionKVTotalLen = 0;
-        // process buffers for specific partition
-        for (SerializedKV kv : kvs) {
-          partitionKVTotalLen += kv.kLen + kv.vLen;
-          localKVs.add(kv);
-          if (partitionKVTotalLen > maxPushDataSize) {
-            // limit max size of pushdata to avoid possible memory issue in Celeborn worker
-            // data layout
-            // pushdata header (16) + pushDataLen(4) +
-            // [varKeyLen+varValLen+serializedRecord(x)][...]
-            sendSortedBuffersPartition(partition, localKVs, partitionKVTotalLen);
-            localKVs.clear();
-            partitionKVTotalLen = 0;
-          }
-        }
-        if (!localKVs.isEmpty()) {
+    Iterator<Map.Entry<Integer, List<SerializedKV>>> entryIter =
+        partitionedKVs.entrySet().iterator();
+    while (entryIter.hasNext()) {
+      Map.Entry<Integer, List<SerializedKV>> entry = entryIter.next();
+      entryIter.remove();
+      int partition = entry.getKey();
+      List<SerializedKV> kvs = entry.getValue();
+      List<SerializedKV> localKVs = new ArrayList<>();
+      int partitionKVTotalLen = 0;
+      // process buffers for specific partition
+      for (SerializedKV kv : kvs) {
+        partitionKVTotalLen += kv.kLen + kv.vLen;
+        localKVs.add(kv);
+        if (partitionKVTotalLen > maxPushDataSize) {
+          // limit max size of pushdata to avoid possible memory issue in Celeborn worker
+          // data layout
+          // pushdata header (16) + pushDataLen(4) +
+          // [varKeyLen+varValLen+serializedRecord(x)][...]
           sendSortedBuffersPartition(partition, localKVs, partitionKVTotalLen);
+          localKVs.clear();
+          partitionKVTotalLen = 0;
         }
-        kvs.clear();
       }
+      if (!localKVs.isEmpty()) {
+        sendSortedBuffersPartition(partition, localKVs, partitionKVTotalLen);
+      }
+      kvs.clear();
     }
     // all data sent
-    currentSerializedKVs.clear();
+    partitionedKVs.clear();
     writePos = 0;
   }
 
@@ -190,6 +189,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     writeVLong(pkvs, pkvsPos, -1);
     int compressedSize =
         shuffleClient.pushData(
+            // there is only 1 shuffle for a mr application
             0,
             mapId,
             attempt,
@@ -245,8 +245,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   }
 
   private void sortKVs() {
-    for (Map.Entry<Integer, List<SerializedKV>> partitionKVEntry :
-        currentSerializedKVs.entrySet()) {
+    for (Map.Entry<Integer, List<SerializedKV>> partitionKVEntry : partitionedKVs.entrySet()) {
       partitionKVEntry
           .getValue()
           .sort(
@@ -258,17 +257,15 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
 
   private int insertRecordInternal(K key, V value, int partition) throws IOException {
     int offset = writePos;
-    int keyLen = writePos;
-    int valLen = 0;
+    int keyLen;
+    int valLen;
     kSer.serialize(key);
     keyLen = writePos - offset;
     vSer.serialize(value);
     valLen = writePos - keyLen - offset;
     List<SerializedKV> serializedKVs =
-        currentSerializedKVs.computeIfAbsent(partition, v -> new ArrayList<>());
-    synchronized (serializedKVs) {
-      serializedKVs.add(new SerializedKV(offset, keyLen, valLen));
-    }
+        partitionedKVs.computeIfAbsent(partition, v -> new ArrayList<>());
+    serializedKVs.add(new SerializedKV(offset, keyLen, valLen));
     if (logger.isDebugEnabled()) {
       logger.debug(
           "Pusher insert into buffer partition:{} offset:{} keyLen:{} valueLen:{} size:{}",
@@ -276,7 +273,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
           offset,
           keyLen,
           valLen,
-          currentSerializedKVs.size());
+          partitionedKVs.size());
     }
     return keyLen + valLen;
   }
@@ -301,10 +298,8 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   public void flush() {
     logger.info("Sort based pusher called flush");
     try {
-      synchronized (this) {
-        sortKVs();
-        sendKVAndUpdateWritePos();
-      }
+      sortKVs();
+      sendKVAndUpdateWritePos();
     } catch (IOException e) {
       exception.compareAndSet(null, e);
     }
@@ -323,7 +318,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     } catch (IOException e) {
       logger.error("Mapper end failed, data lost", e);
     }
-    currentSerializedKVs.clear();
+    partitionedKVs.clear();
     serializedKV = null;
   }
 

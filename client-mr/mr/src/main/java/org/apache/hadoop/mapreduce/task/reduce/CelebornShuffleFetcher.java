@@ -105,7 +105,6 @@ public class CelebornShuffleFetcher<K, V> {
     int blockLen = Platform.getInt(header, Platform.BYTE_ARRAY_OFFSET);
     inputShuffleSize += blockLen;
     byte[] shuffleData = new byte[blockLen];
-    count = 0;
     count = celebornInputStream.read(shuffleData);
     while (count != shuffleData.length) {
       count += celebornInputStream.read(shuffleData, count, blockLen - count);
@@ -207,9 +206,9 @@ public class CelebornShuffleFetcher<K, V> {
 
   private void updateStatus() {
     progress.set(
-        (float) celebornInputStream.readPartitions() / celebornInputStream.totalPartitionsToRead());
+        (float) celebornInputStream.partitionsRead() / celebornInputStream.totalPartitionsToRead());
     String statusString =
-        celebornInputStream.readPartitions()
+        celebornInputStream.partitionsRead()
             + " / "
             + celebornInputStream.totalPartitionsToRead()
             + " copied.";
@@ -217,7 +216,7 @@ public class CelebornShuffleFetcher<K, V> {
 
     progress.setStatus(
         "copy("
-            + celebornInputStream.readPartitions()
+            + celebornInputStream.partitionsRead()
             + " of "
             + celebornInputStream.totalPartitionsToRead());
   }

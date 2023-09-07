@@ -100,14 +100,14 @@ public abstract class CelebornInputStream extends InputStream {
         }
 
         @Override
-        public int readPartitions() {
+        public int partitionsRead() {
           return 0;
         }
       };
 
   public abstract int totalPartitionsToRead();
 
-  public abstract int readPartitions();
+  public abstract int partitionsRead();
 
   private static final class CelebornInputStreamImpl extends CelebornInputStream {
     private static final Random RAND = new Random();
@@ -595,7 +595,7 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     @Override
-    public int readPartitions() {
+    public int partitionsRead() {
       return fileIndex;
     }
   }
