@@ -90,6 +90,7 @@ object WorkerSource {
   val REPLICA_REGION_START_TIME = "ReplicaRegionStartTime"
   val PRIMARY_REGION_FINISH_TIME = "PrimaryRegionFinishTime"
   val REPLICA_REGION_FINISH_TIME = "ReplicaRegionFinishTime"
+  val PAUSE_PUSH_DATA_TIME = "PausePushDataTime"
 
   // flush
   val TAKE_BUFFER_TIME = "TakeBufferTime"

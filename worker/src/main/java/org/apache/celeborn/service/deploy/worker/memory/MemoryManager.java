@@ -65,7 +65,9 @@ public class MemoryManager {
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
+  private final LongAdder pausePushDataTime = new LongAdder();
   private ServingState servingState = ServingState.NONE_PAUSED;
+  private long pauseStartTime = -1L;
   private volatile boolean isPaused = false;
 
   // For credit stream
@@ -262,6 +264,7 @@ public class MemoryManager {
                   memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
         } else if (lastState == ServingState.NONE_PAUSED) {
           logger.info("Trigger action: PAUSE PUSH");
+          pauseStartTime = System.currentTimeMillis();
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -272,6 +275,7 @@ public class MemoryManager {
         pausePushDataAndReplicateCounter.increment();
         if (lastState == ServingState.NONE_PAUSED) {
           logger.info("Trigger action: PAUSE PUSH");
+          pauseStartTime = System.currentTimeMillis();
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -283,6 +287,8 @@ public class MemoryManager {
         trimAllListeners();
         break;
       case NONE_PAUSED:
+        long pauseSpendMills = System.currentTimeMillis() - pauseStartTime;
+        pausePushDataTime.add(pauseSpendMills);
         if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
           logger.info("Trigger action: RESUME REPLICATE");
           memoryPressureListeners.forEach(
@@ -387,6 +393,10 @@ public class MemoryManager {
 
   public int dispatchRequestsLength() {
     return readBufferDispatcher.requestsLength();
+  }
+
+  public long getPausePushDataTime() {
+    return pausePushDataTime.sum();
   }
 
   public void addReadBufferTargetChangeListener(ReadBufferTargetChangeListener listener) {
