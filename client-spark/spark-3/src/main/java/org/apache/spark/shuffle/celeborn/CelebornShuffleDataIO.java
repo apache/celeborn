@@ -55,14 +55,14 @@ public class CelebornShuffleDataIO implements ShuffleDataIO {
 
 class CelebornShuffleDriverComponents extends LocalDiskShuffleDriverComponents {
 
-  private final boolean support;
+  private final boolean supportsReliableStorage;
 
   public CelebornShuffleDriverComponents(CelebornConf celebornConf) {
-    this.support = !celebornConf.shuffleForceFallbackEnabled();
+    this.supportsReliableStorage = !celebornConf.shuffleForceFallbackEnabled();
   }
 
   // Omitting @Override annotation to avoid compile error before Spark 3.5.0
   public boolean supportsReliableStorage() {
-    return support;
+    return supportsReliableStorage;
   }
 }
