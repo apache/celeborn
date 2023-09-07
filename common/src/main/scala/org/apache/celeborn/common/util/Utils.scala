@@ -25,7 +25,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.util
-import java.util.{ArrayList, List, Locale, Properties, Random, UUID}
+import java.util.{Locale, Properties, Random, UUID}
 import java.util.concurrent.{Callable, ThreadPoolExecutor, TimeoutException, TimeUnit}
 
 import scala.annotation.tailrec
@@ -38,7 +38,6 @@ import scala.util.control.{ControlThrowable, NonFatal}
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
-import org.apache.hadoop.fs.{FSDataInputStream, Path}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
