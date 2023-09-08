@@ -26,7 +26,7 @@ ENV PATH=/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 
 RUN set -ex && \
     apt-get update && \
-    apt-get install -y bash tini busybox bind9-utils telnet net-tools procps krb5-user dnsutils && \
+    apt-get install -y bash tini busybox bind9-utils telnet net-tools procps krb5-user dnsutils libjemalloc-dev && \
     ln -snf /bin/bash /bin/sh && \
     rm -rf /var/cache/apt/* && \
     mkdir /opt/busybox && \
