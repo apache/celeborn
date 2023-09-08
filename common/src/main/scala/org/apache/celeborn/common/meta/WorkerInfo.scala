@@ -237,7 +237,7 @@ class WorkerInfo(
        |ReplicatePort: $replicatePort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
-       |HeartbeatElapsedSeconds: ${TimeUnit.MICROSECONDS.toSeconds(
+       |HeartbeatElapsedSeconds: ${TimeUnit.MILLISECONDS.toSeconds(
       System.currentTimeMillis() - lastHeartbeat)}
        |Disks: $diskInfosString
        |UserResourceConsumption: $userResourceConsumptionString
