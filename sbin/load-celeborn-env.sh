@@ -79,7 +79,7 @@ maybe_enable_jemalloc() {
     elif [ -f "$JEMALLOC_FALLBACK" ]; then
       export LD_PRELOAD=$LD_PRELOAD:$JEMALLOC_FALLBACK
     else
-      if [ "$JEMALLOC_PATH" = "$JEMALLOC_FALLBACK" ]; then
+      if [ "$JEMALLOC_PATH" == "$JEMALLOC_FALLBACK" ]; then
         MSG_PATH=$JEMALLOC_PATH
       else
         MSG_PATH="$JEMALLOC_PATH and $JEMALLOC_FALLBACK"
