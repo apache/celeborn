@@ -97,7 +97,8 @@ public class ReadBufferDispatcher extends Thread {
           }
         }
         long end = System.nanoTime();
-        logger.debug("process read buffer request using {}", (end - start) / 1000_000);
+        logger.debug(
+            "process read buffer request using {} ms", TimeUnit.NANOSECONDS.toMillis(end - start));
         request.getBufferListener().notifyBuffers(buffers, null);
       } else {
         // Free buffer pool memory to main direct memory when dispatcher is idle.
