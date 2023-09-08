@@ -106,6 +106,17 @@ jobs:
             spark: '3.1'
           - java: 17
             spark: '3.2'
+          # ShuffleDriverComponents#supportsReliableStorage was introduced in 3.5.0
+          - shuffle-plugin-class: 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
+            spark: '3.0'
+          - shuffle-plugin-class: 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
+            spark: '3.1'
+          - shuffle-plugin-class: 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
+            spark: '3.2'
+          - shuffle-plugin-class: 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
+            spark: '3.3'
+          - shuffle-plugin-class: 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
+            spark: '3.4'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK ${{ matrix.java }}
