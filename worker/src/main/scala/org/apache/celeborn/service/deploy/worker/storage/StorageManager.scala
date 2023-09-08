@@ -596,10 +596,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private def cleanupExpiredAppDirs(): Unit = {
     val diskInfoAndAppDirs = disksSnapshot()
       .filter(_.status != DiskStatus.IO_HANG)
-      .map(diskInfo =>
-        (
-          diskInfo,
-          diskInfo.dirs.filter(_.exists).flatMap(_.listFiles())))
+      .map { case diskInfo =>
+        (diskInfo, diskInfo.dirs.filter(_.exists).flatMap(_.listFiles()))
+      }
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
 
     diskInfoAndAppDirs.foreach { case (diskInfo, appDirs) =>
