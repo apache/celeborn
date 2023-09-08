@@ -73,7 +73,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
           String.format(
               "Insufficient network memory per input gate, please increase %s to at " + "least %s.",
               CelebornConf.CLIENT_MEMORY_PER_INPUT_GATE().key(),
-              celebornConf.clientFlinkMemoryPerInputGate()));
+              celebornConf.clientFlinkMemoryPerInputGateMin()));
     }
 
     this.numBuffersPerGate = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
