@@ -18,8 +18,8 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.plugin.flink.utils.Utils;
+import java.io.IOException;
+
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -30,7 +30,8 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create RemoteShuffleInputGate. */
 public abstract class AbstractRemoteShuffleInputGateFactory {
