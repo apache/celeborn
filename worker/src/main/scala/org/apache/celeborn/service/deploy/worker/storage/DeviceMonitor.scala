@@ -85,12 +85,12 @@ class LocalDeviceMonitor(
       .groupBy(_.deviceInfo)
       .foreach { case (deviceInfo: DeviceInfo, diskInfos: List[DiskInfo]) =>
         val deviceLabel = Map("device" -> deviceInfo.name)
-        def usage = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
+        def usage: DeviceMonitor.DiskUsageInfo = DeviceMonitor.getDiskUsageInfos(diskInfos.head)
         workerSource.addGauge(WorkerSource.DEVICE_OS_TOTAL_CAPACITY, deviceLabel) { () =>
-          usage(usage.length - 5).toLong
+          usage.totalSpace
         }
         workerSource.addGauge(WorkerSource.DEVICE_OS_FREE_CAPACITY, deviceLabel) { () =>
-          usage(usage.length - 3).toLong
+          usage.freeSpace
         }
         workerSource.addGauge(WorkerSource.DEVICE_CELEBORN_TOTAL_CAPACITY, deviceLabel) { () =>
           diskInfos.map(_.configuredUsableSpace).sum
@@ -222,9 +222,16 @@ object DeviceMonitor extends Logging {
     }
   }
 
+  case class DiskUsageInfo(totalSpace: Long, freeSpace: Long, usedSpace: Long, usedPercent: Int)
+
   // unit is byte
-  def getDiskUsageInfos(diskInfo: DiskInfo): Array[String] = {
-    runCommand(s"df -B1 ${diskInfo.mountPoint}").trim.split("[ \t]+")
+  def getDiskUsageInfos(diskInfo: DiskInfo): DiskUsageInfo = {
+    val dirFile = new File(diskInfo.mountPoint)
+    val totalSpace = dirFile.getTotalSpace
+    val freeSpace = dirFile.getFreeSpace
+    val usedSpace = totalSpace - freeSpace
+    val usedPercent = (usedSpace * 100.0 / totalSpace).toInt
+    DiskUsageInfo(totalSpace, freeSpace, usedSpace, usedPercent)
   }
 
   /**
@@ -237,16 +244,13 @@ object DeviceMonitor extends Logging {
   def highDiskUsage(conf: CelebornConf, diskInfo: DiskInfo): Boolean = {
     tryWithTimeoutAndCallback({
       val usage = getDiskUsageInfos(diskInfo)
-      val totalSpace = usage(usage.length - 5)
-      val freeSpace = usage(usage.length - 3)
-      val used_percent = usage(usage.length - 2)
       // assume no single device capacity exceeds 1EB in this era
       val highDiskUsage =
-        freeSpace.toLong < conf.workerDiskReserveSize || diskInfo.actualUsableSpace <= 0
+        usage.freeSpace < conf.workerDiskReserveSize || diskInfo.actualUsableSpace <= 0
       if (highDiskUsage) {
         logWarning(s"${diskInfo.mountPoint} usage is above threshold." +
-          s" Disk usage(Report by OS):{total:${Utils.bytesToString(totalSpace.toLong)}," +
-          s" free:${Utils.bytesToString(freeSpace.toLong)}, used_percent:$used_percent} " +
+          s" Disk usage(Report by OS):{total:${Utils.bytesToString(usage.totalSpace)}," +
+          s" free:${Utils.bytesToString(usage.freeSpace)}, used_percent:${usage.usedPercent}} " +
           s"usage(Report by Celeborn):{" +
           s"total:${Utils.bytesToString(diskInfo.configuredUsableSpace)}" +
           s" free:${Utils.bytesToString(diskInfo.actualUsableSpace)} }")
