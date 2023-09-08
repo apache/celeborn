@@ -602,18 +602,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           diskInfo.dirs.filter(_.exists).flatMap(_.listFiles())))
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
 
-    diskInfoAndAppDirs.foreach(diskAndDir => {
-      val diskInfo = diskAndDir._1
-      val appDirs = diskAndDir._2
-      appDirs.foreach(appDir => {
+    diskInfoAndAppDirs.foreach { case (diskInfo, appDirs) =>
+      appDirs.foreach { appDir =>
         // Don't delete shuffleKey's data that exist correct shuffle file info.
         if (!appIds.contains(appDir.getName)) {
           val threadPool = diskOperators.get(diskInfo.mountPoint)
           deleteDirectory(appDir, threadPool)
           logInfo(s"Delete expired app dir $appDir.")
         }
-      })
-    })
+      }
+    }
   }
 
   private def deleteDirectory(dir: File, threadPool: ThreadPoolExecutor): Unit = {
