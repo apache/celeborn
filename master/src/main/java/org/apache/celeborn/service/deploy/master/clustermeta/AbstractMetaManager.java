@@ -43,6 +43,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -162,8 +163,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     appDiskUsageMetric.update(estimatedAppDiskUsage);
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
+    long healthyDiskNum =
+        disks.values().stream().filter(s -> s.status().equals(DiskStatus.HEALTHY)).count();
     if (!excludedWorkers.contains(worker)
-        && ((disks.isEmpty() && !conf.hasHDFSStorage()) || highWorkload)) {
+        && (((disks.isEmpty() || healthyDiskNum <= 0) && !conf.hasHDFSStorage()) || highWorkload)) {
       LOG.debug("Worker: {} num total slots is 0, add to excluded list", worker);
       excludedWorkers.add(worker);
     } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage()) && !highWorkload) {
