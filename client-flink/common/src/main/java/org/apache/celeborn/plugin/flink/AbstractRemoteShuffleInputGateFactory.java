@@ -18,8 +18,8 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import java.io.IOException;
-
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.plugin.flink.utils.Utils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -30,8 +30,7 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.plugin.flink.utils.Utils;
+import java.io.IOException;
 
 /** Factory class to create RemoteShuffleInputGate. */
 public abstract class AbstractRemoteShuffleInputGateFactory {
@@ -73,7 +72,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
           String.format(
               "Insufficient network memory per input gate, please increase %s to at " + "least %s.",
               CelebornConf.CLIENT_MEMORY_PER_INPUT_GATE().key(),
-              celebornConf.clientFlinkMemoryPerInputGate()));
+              celebornConf.clientFlinkMemoryPerInputGateMin()));
     }
 
     this.numBuffersPerGate = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
