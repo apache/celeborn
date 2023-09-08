@@ -75,9 +75,9 @@ maybe_enable_jemalloc() {
     JEMALLOC_PATH="/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so"
     JEMALLOC_FALLBACK="/usr/lib/x86_64-linux-gnu/libjemalloc.so"
     if [ -f "$JEMALLOC_PATH" ]; then
-      export LD_PRELOAD=$LD_PRELOAD:$JEMALLOC_PATH
+      export LD_PRELOAD="$LD_PRELOAD:$JEMALLOC_PATH"
     elif [ -f "$JEMALLOC_FALLBACK" ]; then
-      export LD_PRELOAD=$LD_PRELOAD:$JEMALLOC_FALLBACK
+      export LD_PRELOAD="$LD_PRELOAD:$JEMALLOC_FALLBACK"
     else
       if [ "$JEMALLOC_PATH" == "$JEMALLOC_FALLBACK" ]; then
         MSG_PATH="$JEMALLOC_PATH"
