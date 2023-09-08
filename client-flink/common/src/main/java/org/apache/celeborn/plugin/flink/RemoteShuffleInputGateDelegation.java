@@ -22,6 +22,7 @@ import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -301,7 +302,8 @@ public class RemoteShuffleInputGateDelegation {
     // 'pollNext' and fire handshake to remote. This mechanism is to avoid bookkeeping remote
     // reading resource before task start processing data from input gate.
 
-    LOG.info("Set up read gate by {} ms.", (System.nanoTime() - startTime) / 1000_000);
+    LOG.info(
+        "Set up read gate by {} ms.", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
   }
 
   private void tryRequestBuffers() {
