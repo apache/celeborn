@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.base.Preconditions;
@@ -160,7 +161,8 @@ public class TransportClientFactory implements Closeable {
     // Multiple threads might race here to create new connections. Keep only one of them active.
     final long preResolveHost = System.nanoTime();
     final InetSocketAddress resolvedAddress = new InetSocketAddress(remoteHost, remotePort);
-    final long hostResolveTimeMs = (System.nanoTime() - preResolveHost) / 1000000;
+    final long hostResolveTimeMs =
+        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - preResolveHost);
     if (hostResolveTimeMs > 2000) {
       logger.warn("DNS resolution for {} took {} ms", resolvedAddress, hostResolveTimeMs);
     } else {

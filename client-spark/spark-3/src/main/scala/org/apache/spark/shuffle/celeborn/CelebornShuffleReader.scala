@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
-import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 import org.apache.spark.{InterruptibleIterator, TaskContext}
@@ -125,7 +125,7 @@ class CelebornShuffleReader[K, C](
 
     val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
       if (handle.numMappers > 0) {
-        val start = System.currentTimeMillis()
+        val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
@@ -134,7 +134,8 @@ class CelebornShuffleReader[K, C](
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
         }
-        metricsCallback.incReadTime(System.currentTimeMillis() - start)
+        metricsCallback.incReadTime(
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
         inputStream.setCallback(metricsCallback)
         // ensure inputStream is closed when task completes
         context.addTaskCompletionListener[Unit](_ => inputStream.close())

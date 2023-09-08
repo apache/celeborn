@@ -18,7 +18,7 @@
 package org.apache.celeborn.client.commit
 
 import java.util
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
@@ -239,7 +239,7 @@ abstract class CommitHandler(
 
     logInfo(s"Shuffle $shuffleId " +
       s"commit files complete. File count ${shuffleCommittedInfo.currentShuffleFileCount.sum()} " +
-      s"using ${(System.nanoTime() - commitFileStartTime) / 1000000} ms")
+      s"using ${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - commitFileStartTime)} ms")
 
     CommitResult(primaryPartMap, replicaPartMap, commitFilesFailedWorkers)
   }

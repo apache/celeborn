@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.meta
 
 import java.util
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
@@ -236,7 +237,8 @@ class WorkerInfo(
        |ReplicatePort: $replicatePort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
-       |HeartbeatElapsedSeconds: ${(System.currentTimeMillis() - lastHeartbeat) / 1000}
+       |HeartbeatElapsedSeconds: ${TimeUnit.MILLISECONDS.toSeconds(
+      System.currentTimeMillis() - lastHeartbeat)}
        |Disks: $diskInfosString
        |UserResourceConsumption: $userResourceConsumptionString
        |WorkerRef: $endpoint

@@ -1554,7 +1554,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           logger.info(
               "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
               shuffleId,
-              (System.nanoTime() - getReducerFileGroupStartTime) / 1000_000,
+              TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
               response.fileGroup().size());
           return new ReduceFileGroups(
               response.fileGroup(), response.attempts(), response.partitionIds());

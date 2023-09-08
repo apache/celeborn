@@ -22,6 +22,7 @@ import static org.apache.celeborn.plugin.flink.utils.Utils.checkArgument;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -106,7 +107,7 @@ public class BufferUtils {
         }
 
         Thread.sleep(10);
-        if ((System.nanoTime() - startTime) > 3L * 60 * 1000_000_000) {
+        if ((System.nanoTime() - startTime) > TimeUnit.MINUTES.toNanos(3)) {
           throw new IOException("Could not allocate the required number of buffers in 3 minutes.");
         }
       }
