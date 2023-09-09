@@ -727,8 +727,8 @@ private[deploy] object Worker extends Logging {
       conf.set(MASTER_ENDPOINTS.key, RpcAddress.fromCelebornURL(master).hostPort)
     }
 
-    val worker = new Worker(conf, workerArgs)
     try {
+      val worker = new Worker(conf, workerArgs)
       worker.initialize()
     } catch {
       case e: Throwable =>
