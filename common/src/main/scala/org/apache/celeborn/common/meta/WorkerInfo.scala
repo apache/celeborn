@@ -43,9 +43,9 @@ class WorkerInfo(
   val diskInfos =
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos) else null
   val userResourceConsumption =
-    if (_userResourceConsumption != null)
+    if (_userResourceConsumption != null) {
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
-    else null
+    } else null
   var endpoint: RpcEndpointRef = null
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {

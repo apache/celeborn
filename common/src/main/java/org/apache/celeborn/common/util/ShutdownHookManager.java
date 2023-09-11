@@ -61,6 +61,8 @@ public final class ShutdownHookManager {
   /** Minimum shutdown timeout: {@value} millisecond(s). */
   public static final long TIMEOUT_MINIMUM = 1000;
 
+  private static final int DEFAULT_SHUTDOWN_PRIORITY = 100;
+
   /** The default time unit used: seconds. */
   public static final TimeUnit TIME_UNIT_DEFAULT = TimeUnit.MILLISECONDS;
 
@@ -251,6 +253,16 @@ public final class ShutdownHookManager {
           }
         });
     return list;
+  }
+
+  /**
+   * Adds a shutdownHook with default priority 100, the higher the priority the earlier will run.
+   * ShutdownHooks with same priority run in a non-deterministic order.
+   *
+   * @param shutdownHook shutdownHook <code>Runnable</code>
+   */
+  public void addShutdownHook(Runnable shutdownHook) {
+    addShutdownHook(shutdownHook, DEFAULT_SHUTDOWN_PRIORITY);
   }
 
   /**

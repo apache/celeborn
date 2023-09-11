@@ -30,7 +30,7 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 case class ChangePartitionRequest(
     context: RequestLocationCallContext,
@@ -296,7 +296,8 @@ class ChangePartitionManager(
             .distinct.filter(_ != null)
           if (locations.nonEmpty) {
             val changes = locations.map { partition =>
-              s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
+              s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} " +
+                s"to ${partition.getEpoch})"
             }.mkString("[", ", ", "]")
             logInfo(s"[Update partition] success for " +
               s"shuffle $shuffleId, succeed partitions: " +

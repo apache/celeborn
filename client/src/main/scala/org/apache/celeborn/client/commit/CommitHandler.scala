@@ -133,7 +133,8 @@ abstract class CommitHandler(
   }
 
   /**
-   * when someone calls tryFinalCommit, the function will return true if there is no one ever do final commit before,
+   * when someone calls tryFinalCommit, the function will return true
+   * if there is no one ever do final commit before,
    * otherwise it will return false.
    *
    * @return
@@ -147,8 +148,9 @@ abstract class CommitHandler(
   }
 
   /**
-   * Only Reduce partition mode supports cache all file groups for reducer. Map partition doesn't guarantee that all
-   * partitions are complete by the time the method is called, as downstream tasks may start early before all tasks
+   * Only Reduce partition mode supports cache all file groups for reducer.
+   * Map partition doesn't guarantee that all partitions are complete by the time
+   * the method is called, as downstream tasks may start early before all tasks
    * are completed.So map partition may need refresh reducer file group if needed.
    */
   def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit
@@ -159,7 +161,8 @@ abstract class CommitHandler(
 
   /**
    * For reduce partition if shuffle registered and corresponding map finished, reply true.
-   * For map partition would always return false, as one mapper attempt finished don't mean mapper ended.
+   * For map partition would always return false,
+   * as one mapper attempt finished don't mean mapper ended.
    */
   def isMapperEnded(shuffleId: Int, mapId: Int): Boolean = false
 
@@ -281,7 +284,8 @@ abstract class CommitHandler(
 
         res.status match {
           case StatusCode.SUCCESS => // do nothing
-          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED =>
+          case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED |
+              StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED =>
             logInfo(s"Request $commitFiles return ${res.status} for " +
               s"${Utils.makeShuffleKey(applicationId, shuffleId)}")
             if (res.status != StatusCode.WORKER_EXCLUDED) {
@@ -420,7 +424,8 @@ abstract class CommitHandler(
         case e: Throwable =>
           retryTimes += 1
           logError(
-            s"AskSync CommitFiles for ${message.shuffleId} failed (attempt $retryTimes/$maxRetries).",
+            s"AskSync CommitFiles for ${message.shuffleId} failed " +
+              s"(attempt $retryTimes/$maxRetries).",
             e)
       }
     }
@@ -463,7 +468,8 @@ abstract class CommitHandler(
         val msg = failedBothPartitionIdsToWorker.map {
           case (partitionUniqueId, (primaryWorker, replicaWorker)) =>
             s"Lost partition $partitionUniqueId " +
-              s"in primary worker [${primaryWorker.readableAddress()}] and replica worker [$replicaWorker]"
+              s"in primary worker [${primaryWorker.readableAddress()}] " +
+              s"and replica worker [$replicaWorker]"
         }.mkString("\n")
         logError(
           s"""

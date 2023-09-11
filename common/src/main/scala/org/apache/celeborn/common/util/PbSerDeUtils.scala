@@ -85,7 +85,7 @@ object PbSerDeUtils {
   def fromPbFileInfo(pbFileInfo: PbFileInfo): FileInfo =
     fromPbFileInfo(pbFileInfo, fromPbUserIdentifier(pbFileInfo.getUserIdentifier))
 
-  def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) =
+  def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier): FileInfo =
     new FileInfo(
       pbFileInfo.getFilePath,
       pbFileInfo.getChunkOffsetsList,
@@ -148,11 +148,12 @@ object PbSerDeUtils {
       .setName(userIdentifier.name)
       .build
 
-  def fromPbResourceConsumption(pbResourceConsumption: PbResourceConsumption) = ResourceConsumption(
-    pbResourceConsumption.getDiskBytesWritten,
-    pbResourceConsumption.getDiskFileCount,
-    pbResourceConsumption.getHdfsBytesWritten,
-    pbResourceConsumption.getHdfsFileCount)
+  def fromPbResourceConsumption(pbResourceConsumption: PbResourceConsumption): ResourceConsumption =
+    ResourceConsumption(
+      pbResourceConsumption.getDiskBytesWritten,
+      pbResourceConsumption.getDiskFileCount,
+      pbResourceConsumption.getHdfsBytesWritten,
+      pbResourceConsumption.getHdfsFileCount)
 
   def toPbResourceConsumption(resourceConsumption: ResourceConsumption): PbResourceConsumption =
     PbResourceConsumption.newBuilder

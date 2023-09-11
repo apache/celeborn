@@ -85,7 +85,8 @@ class ReleasePartitionManager(
                               lifecycleManager.destroySlotsWithRetry(
                                 shuffleId,
                                 destroyResource)
-                              logTrace(s"Destroyed partition resource for shuffle $shuffleId $destroyResource")
+                              logTrace("Destroyed partition resource for shuffle " +
+                                s"$shuffleId $destroyResource")
                             }
                         }
                       }

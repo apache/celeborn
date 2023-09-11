@@ -680,8 +680,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       }
       retryTimes += 1
       if (retryTimes < conf.workerCheckFileCleanMaxRetries) {
-        logInfo(s"Working directory's files have not been cleaned up completely, " +
-          s"will start ${retryTimes + 1}th attempt after ${workerCheckFileCleanTimeout} milliseconds.")
+        logInfo("Working directory's files have not been cleaned up completely, " +
+          s"will start ${retryTimes + 1}th attempt after $workerCheckFileCleanTimeout " +
+          "milliseconds.")
       }
       Thread.sleep(workerCheckFileCleanTimeout)
     }
@@ -735,7 +736,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               } catch {
                 case t: Throwable =>
                   logError(
-                    s"FileWrite of $writer faces unexpected exception when flush on memory pressure.",
+                    s"FileWrite of $writer faces unexpected exception " +
+                      "when flush on memory pressure.",
                     t)
               }
             } else {
@@ -783,7 +785,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         Paths.get(diskInfo.mountPoint)).getUsableSpace
       val workingDirUsableSpace =
         Math.min(diskInfo.configuredUsableSpace - totalUsage, fileSystemReportedUsableSpace)
-      logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} totalUsage:$totalUsage")
+      logDebug(s"updateDiskInfos  workingDirUsableSpace:$workingDirUsableSpace " +
+        s"filemeta:$fileSystemReportedUsableSpace conf:${diskInfo.configuredUsableSpace} " +
+        s"totalUsage:$totalUsage")
       diskInfo.setUsableSpace(workingDirUsableSpace)
       diskInfo.updateFlushTime()
       diskInfo.updateFetchTime()

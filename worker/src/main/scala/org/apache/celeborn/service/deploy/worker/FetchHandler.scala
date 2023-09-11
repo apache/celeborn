@@ -221,11 +221,11 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               shuffleKey,
               buffers,
               fetchTimeMetrics)
-            if (fileInfo.numChunks() == 0)
+            if (fileInfo.numChunks() == 0) {
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
-            else logDebug(
+            } else logDebug(
               s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
@@ -291,10 +291,12 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       fileName: String,
       ioe: IOException): Unit = {
     // if open stream rpc failed, this IOException actually should be FileNotFoundException
-    // we wrapper this IOException(Other place may have other exception like FileCorruptException) unify to
-    // PartitionUnRetryableException for reader can give up this partition and choose to regenerate the partition data
+    // we wrapper this IOException(Other place may have other exception like FileCorruptException)
+    // unify to PartitionUnRetryableException for reader can give up this partition and
+    // choose to regenerate the partition data
     logError(
-      s"Read file: $fileName with shuffleKey: $shuffleKey error from ${NettyUtils.getRemoteAddress(client.getChannel)}",
+      s"Read file: $fileName with shuffleKey: $shuffleKey error " +
+        s"from ${NettyUtils.getRemoteAddress(client.getChannel)}",
       ioe)
     client.getChannel.writeAndFlush(new RpcFailure(
       requestId,

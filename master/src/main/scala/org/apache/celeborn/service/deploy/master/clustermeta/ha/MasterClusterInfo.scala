@@ -55,13 +55,15 @@ object MasterClusterInfo extends Logging {
         }
     }
 
-    if (localNodes.isEmpty)
+    if (localNodes.isEmpty) {
       throw new IllegalArgumentException("Can not found local node")
+    }
 
     if (localNodes.length > 1) {
       val nodesAddr = localNodes.map(_.ratisEndpoint).mkString(",")
       throw new IllegalArgumentException(
-        s"Detecting multi Ratis instances[$nodesAddr] in single node, please specific ${HA_MASTER_NODE_ID.key}.")
+        s"Detecting multi Ratis instances[$nodesAddr] in single node, please specific " +
+          s"${HA_MASTER_NODE_ID.key}.")
     }
 
     MasterClusterInfo(localNodes.head, peerNodes.toList.asJava)

@@ -40,9 +40,10 @@ import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNet
 import org.apache.celeborn.common.util.JavaUtils
 
 /**
- * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition contains all data
- * produced by all upstream MapTasks, and data in a Reduce Partition would only be consumed by one ReduceTask. If the
- * ReduceTask has multiple inputs, each will be a ReducePartition
+ * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition
+ * contains all data produced by all upstream MapTasks, and data in a Reduce Partition would only
+ * be consumed by one ReduceTask. If the ReduceTask has multiple inputs,
+ * each will be a ReducePartition
  *
  * @see [[org.apache.celeborn.common.protocol.PartitionType.REDUCE]]
  */
@@ -205,7 +206,8 @@ class ReducePartitionCommitHandler(
   }
 
   /**
-   * For reduce partition shuffle type If shuffle registered and corresponding map finished, reply true.
+   * For reduce partition shuffle type If shuffle registered and corresponding map finished,
+   * reply true.
    * For map partition shuffle type always return false
    * reduce partition type
    *

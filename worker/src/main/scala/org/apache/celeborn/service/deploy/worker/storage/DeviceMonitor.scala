@@ -121,10 +121,12 @@ class LocalDeviceMonitor(
               }
               val nonCriticalErrorSum = device.nonCriticalErrors.values().asScala.map(_.size).sum
               if (nonCriticalErrorSum > device.notifyErrorThreshold) {
-                logError(s"Device ${device.deviceInfo.name} has accumulated $nonCriticalErrorSum non-critical " +
-                  s"error within the past ${Utils.msDurationToString(device.notifyErrorExpireTimeout)} , its sum has " +
-                  s"exceed the threshold (${device.notifyErrorThreshold}), device monitor will notify error to " +
-                  s"observed device.")
+                logError(s"Device ${device.deviceInfo.name} has accumulated " +
+                  s"$nonCriticalErrorSum non-critical " +
+                  s"error within the past " +
+                  s"${Utils.msDurationToString(device.notifyErrorExpireTimeout)} , its sum has " +
+                  s"exceed the threshold (${device.notifyErrorThreshold}), " +
+                  s"device monitor will notify error to observed device.")
                 val mountPoints = device.diskInfos.values().asScala.map(_.mountPoint).toList
                 device.notifyObserversOnError(mountPoints, DiskStatus.CRITICAL_ERROR)
               } else {

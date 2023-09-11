@@ -333,14 +333,16 @@ private[deploy] class Controller(
       var times = 0
       while (delta * times < waitTimeout) {
         if (fileWriter.asInstanceOf[MapPartitionFileWriter].isRegionFinished) {
-          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+          logDebug("CommitFile succeed to waitMapPartitionRegionFinished " +
+            s"${fileWriter.getFile.getAbsolutePath}")
           return
         }
         Thread.sleep(delta)
         times += 1
       }
       logWarning(
-        s"CommitFile faield to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+        "CommitFile faield to waitMapPartitionRegionFinished " +
+          s"${fileWriter.getFile.getAbsolutePath}")
     }
   }
 
@@ -357,9 +359,9 @@ private[deploy] class Controller(
     }
 
     // Reply SHUFFLE_NOT_REGISTERED if shuffleKey does not exist AND the shuffle is not committed.
-    // Say the first CommitFiles-epoch request succeeds in Worker and removed from partitionLocationInfo,
-    // but for some reason the client thinks it's failed, the client will trigger again, so we should
-    // check whether the CommitFiles-epoch is already committed here.
+    // Say the first CommitFiles-epoch request succeeds in Worker and removed from
+    // partitionLocationInfo, but for some reason the client thinks it's failed, the client will
+    // trigger again, so we should check whether the CommitFiles-epoch is already committed here.
     if (!partitionLocationInfo.containsShuffle(shuffleKey) && !alreadyCommitted(
         shuffleKey,
         epoch)) {

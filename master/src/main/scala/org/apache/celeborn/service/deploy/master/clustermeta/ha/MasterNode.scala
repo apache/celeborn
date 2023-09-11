@@ -98,9 +98,10 @@ object MasterNode extends Logging {
             e)
       }
     }
-    if (socketAddr.isUnresolved)
+    if (socketAddr.isUnresolved) {
       logError(s"Address of $host:$port couldn't be resolved. " +
         s"Proceeding with unresolved host to create Ratis ring.")
+    }
 
     socketAddr
   }

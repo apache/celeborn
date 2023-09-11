@@ -108,6 +108,7 @@
     <maven.plugin.spotless.version>2.24.1</maven.plugin.spotless.version>
     <maven.plugin.surefire.version>3.0.0-M7</maven.plugin.surefire.version>
     <maven.plugin.silencer.version>1.7.13</maven.plugin.silencer.version>
+    <maven.plugin.scalastyle.version>1.0.0</maven.plugin.scalastyle.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <testJarPhase>prepare-package</testJarPhase>
@@ -850,6 +851,31 @@
           </executions>
         </plugin>
 
+        <plugin>
+          <groupId>org.scalastyle</groupId>
+          <artifactId>scalastyle-maven-plugin</artifactId>
+          <version>${maven.plugin.scalastyle.version}</version>
+          <configuration>
+            <verbose>false</verbose>
+            <failOnViolation>true</failOnViolation>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <failOnWarning>false</failOnWarning>
+            <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
+            <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
+            <configLocation>scalastyle-config.xml</configLocation>
+            <outputFile>${project.build.directory}/scalastyle-output.xml</outputFile>
+            <outputEncoding>UTF-8</outputEncoding>
+            <skip>false</skip>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
       </plugins>
     </pluginManagement>
 
@@ -892,6 +918,11 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.scalastyle</groupId>
+        <artifactId>scalastyle-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>

@@ -138,10 +138,12 @@ trait ReadWriteTestBase extends AnyFunSuite
           if (readString.startsWith(prefix)) {
             val subString = readString.substring(0, dataPrefixMap.get(prefix).get.length)
             prefixStringMap.put(prefix, subString)
+            // scalastyle:off println
             println(
               s"readString before: ${readString.length}, ${dataPrefixMap.get(prefix).get.length}")
             readString = readString.substring(dataPrefixMap.get(prefix).get.length)
             println(s"readString after: ${readString.length}")
+            // scalastyle:on println
             loop.break()
           }
         }

@@ -35,13 +35,15 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
   def applyForceFallbackPolicy(): Boolean = {
     if (conf.shuffleForceFallbackEnabled) {
       val conf = CelebornConf.SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED
-      logWarning(s"${conf.alternatives.foldLeft(conf.key)((x, y) => s"$x or $y")} is enabled, which will force fallback.")
+      logWarning(s"${conf.alternatives.foldLeft(conf.key)((x, y) => s"$x or $y")} " +
+        "is enabled, which will force fallback.")
     }
     conf.shuffleForceFallbackEnabled
   }
 
   /**
-   * if shuffle partitions > celeborn.shuffle.forceFallback.numPartitionsThreshold, fallback to external shuffle
+   * if shuffle partitions > celeborn.shuffle.forceFallback.numPartitionsThreshold,
+   * fallback to external shuffle
    * @param numPartitions shuffle partitions
    * @return return if shuffle partitions bigger than limit
    */
@@ -69,7 +71,8 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
     val resp = lifecycleManager.checkQuota()
     if (!resp.isAvailable) {
       logWarning(
-        s"Quota exceed for current user ${lifecycleManager.getUserIdentifier}. Because: ${resp.reason}")
+        s"Quota exceed for current user ${lifecycleManager.getUserIdentifier}. " +
+          s"Because: ${resp.reason}")
     }
     resp.isAvailable
   }

@@ -106,8 +106,9 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                     shuffleCommittedInfo.synchronized {
                       workerToRequests =
                         commitHandler.batchUnhandledRequests(shuffleId, shuffleCommittedInfo)
-                      // when batch commit thread starts to commit these requests, we should increment inFlightNum,
-                      // then stage/partition end would be able to recognize all requests are over.
+                      // when batch commit thread starts to commit these requests,
+                      // we should increment inFlightNum, then stage/partition end would be able to
+                      // recognize all requests are over.
                       commitHandler.incrementInFlightNum(shuffleCommittedInfo, workerToRequests)
                     }
 
@@ -232,7 +233,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       cause: Option[StatusCode]): Unit = {
     // If a partition location is null, then the cause will be PUSH_DATA_FAIL_NON_CRITICAL_CAUSE.
     // So here is no need to check partition location is null or not.
-    if (batchHandleCommitPartitionEnabled && cause.isDefined && cause.get == StatusCode.HARD_SPLIT) {
+    if (batchHandleCommitPartitionEnabled && cause.isDefined &&
+      cause.get == StatusCode.HARD_SPLIT) {
       val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
       shuffleCommittedInfo.synchronized {
         shuffleCommittedInfo.unhandledPartitionLocations.add(partitionLocation)

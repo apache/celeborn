@@ -95,7 +95,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   case class RegisterCallContext(context: RpcCallContext, partitionId: Int = -1) {
-    def reply(response: PbRegisterShuffleResponse) = {
+    def reply(response: PbRegisterShuffleResponse): Unit = {
       context.reply(response)
     }
   }
@@ -321,7 +321,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             .asScala
             .flatMap(_.getAllPrimaryLocationsWithMinEpoch().asScala)
             .filter(p =>
-              (partitionType == PartitionType.REDUCE && p.getEpoch == 0) || (partitionType == PartitionType.MAP && p.getId == partitionId))
+              (partitionType == PartitionType.REDUCE && p.getEpoch == 0) ||
+                (partitionType == PartitionType.MAP && p.getId == partitionId))
             .toArray
           partitionType match {
             case PartitionType.MAP => processMapTaskReply(
@@ -439,7 +440,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-    // If newly allocated from primary and can setup endpoint success, LifecycleManager should remove worker from
+    // If newly allocated from primary and can setup endpoint success,
+    // LifecycleManager should remove worker from
     // the excluded worker list to improve the accuracy of the list.
     workerStatusTracker.removeFromExcludedWorkers(candidatesWorkers)
 
@@ -500,7 +502,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       return
     }
     logDebug(
-      s"[handleRevive] shuffle $shuffleId, $mapIds, $partitionIds, $oldEpochs, $oldPartitions, $causes")
+      s"[handleRevive] shuffle $shuffleId, $mapIds, $partitionIds, $oldEpochs, " +
+        s"$oldPartitions, $causes")
     if (commitManager.isStageEnd(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId stage ended!")
       contextWrapper.reply(
@@ -513,8 +516,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     mapIds.asScala.foreach { mapId =>
       if (commitManager.isMapperEnded(shuffleId, mapId)) {
-        logWarning(s"[handleRevive] Mapper ended, mapId $mapId, ended attemptId ${commitManager.getMapperAttempts(
-          shuffleId)(mapId)}, shuffleId $shuffleId")
+        logWarning(s"[handleRevive] Mapper ended, mapId $mapId, ended attemptId " +
+          s"${commitManager.getMapperAttempts(
+            shuffleId)(mapId)}, shuffleId $shuffleId")
         contextWrapper.markMapperEnd(mapId)
       }
     }
@@ -664,9 +668,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             rangeReadFilter,
             userIdentifier,
             conf.pushDataTimeoutMs,
-            if (getPartitionType(shuffleId) == PartitionType.MAP)
+            if (getPartitionType(shuffleId) == PartitionType.MAP) {
               conf.clientShuffleMapPartitionSplitEnabled
-            else true))
+            } else true))
         if (res.status.equals(StatusCode.SUCCESS)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for shuffleId $shuffleId" +
@@ -719,13 +723,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   WORKER_EP)
               } else {
                 logInfo(
-                  s"${destroyWorkerInfo.toUniqueId()} is unavailable, set destroyWorkerInfo to null")
+                  s"${destroyWorkerInfo.toUniqueId()} is unavailable, " +
+                    s"set destroyWorkerInfo to null")
                 destroyWorkerInfo = null
               }
             } catch {
               case t: Throwable =>
                 logError(
-                  s"Init rpc client failed for $shuffleId on ${destroyWorkerInfo.readableAddress()} during release peer partition.",
+                  s"Init rpc client failed for $shuffleId on " +
+                    s"${destroyWorkerInfo.readableAddress()} during release peer partition.",
                   t)
                 destroyWorkerInfo = null
             }
@@ -819,7 +825,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       if (reserveFailedWorkers.isEmpty) {
         success = true
       } else {
-        // Should remove failed workers from candidates during retry to avoid reallocate in failed workers.
+        // Should remove failed workers from candidates during retry to avoid
+        // reallocate in failed workers.
         candidates.removeAll(reserveFailedWorkers)
         // Find out all failed partition locations and remove failed worker's partition location
         // from slots.

@@ -24,7 +24,6 @@ import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.Random
 
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -76,8 +75,8 @@ private[celeborn] class Master(
         case ioe: IOException =>
           if (ioe.getCause.isInstanceOf[BindException]) {
             val msg = s"HA port ${sys.getRatisServer.getRaftPort} of Ratis Server is occupied, " +
-              s"Master process will stop. Please refer to configuration doc to modify the HA port " +
-              s"in config file for each node."
+              "Master process will stop. Please refer to configuration doc to modify " +
+              "the HA port in config file for each node."
             logError(msg, ioe)
             System.exit(1)
           } else {
@@ -137,7 +136,8 @@ private[celeborn] class Master(
         executeWithLeaderChecker(
           null, {
             statusSystem.handleUpdatePartitionSize()
-            logInfo(s"Cluster estimate partition size ${Utils.bytesToString(statusSystem.estimatedPartitionSize)}")
+            logInfo("Cluster estimate partition size " +
+              s"${Utils.bytesToString(statusSystem.estimatedPartitionSize)}")
           })
       }
     },

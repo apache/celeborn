@@ -31,11 +31,11 @@ class ShufflePartitionLocationInfo {
   private val replicaPartitionLocations = new PartitionInfo
   implicit val partitionOrdering: Ordering[PartitionLocation] = Ordering.by(_.getEpoch)
 
-  def addPrimaryPartitions(primaryLocations: util.List[PartitionLocation]) = {
+  def addPrimaryPartitions(primaryLocations: util.List[PartitionLocation]): Unit = {
     addPartitions(primaryPartitionLocations, primaryLocations)
   }
 
-  def addReplicaPartitions(replicaLocations: util.List[PartitionLocation]) = {
+  def addReplicaPartitions(replicaLocations: util.List[PartitionLocation]): Unit = {
     addPartitions(replicaPartitionLocations, replicaLocations)
   }
 

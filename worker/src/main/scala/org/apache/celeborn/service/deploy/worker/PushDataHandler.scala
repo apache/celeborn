@@ -175,7 +175,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     if (location == null) {
       val (mapId, attemptId) = getMapAttempt(body)
       // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
-      // A shuffle can trigger multiple CommitFiles requests, for reasons like: HARD_SPLIT happens, StageEnd.
+      // A shuffle can trigger multiple CommitFiles requests,
+      // for reasons like: HARD_SPLIT happens, StageEnd.
       // If MapperAttempts but the value is -1 for the mapId(-1 means the map has not yet finished),
       // it's probably because commitFiles for HARD_SPLIT happens.
       if (shuffleMapperAttempts.containsKey(shuffleKey)) {
@@ -201,7 +202,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         } else {
           logWarning(s"While handle PushData, Partition location wasn't found for " +
-            s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId, uniqueId ${pushData.partitionUniqueId}).")
+            s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId, " +
+            s"uniqueId ${pushData.partitionUniqueId}).")
           callbackWithTimer.onFailure(
             new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
         }
@@ -240,7 +242,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     if (fileWriter.isClosed) {
       logWarning(
-        s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
+        s"[handlePushData] FileWriter is already closed! " +
+          s"File path ${fileWriter.getFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return;
@@ -262,7 +265,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             pushData.body().release()
             workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
             logError(
-              s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
+              s"PushData replication failed caused by unavailable peer " +
+                s"for partitionLocation: $location")
             callbackWithTimer.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
             return
@@ -277,10 +281,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 resp.flip()
                 callbackWithTimer.onSuccess(resp)
               } else if (softSplit.get()) {
-                // TODO Currently if the worker is in soft split status, given the guess that the client
+                // TODO Currently if the worker is in soft split status,
+                //  given the guess that the client
                 // will fast stop pushing data to the worker, we won't return congest status. But
-                // in the long term, especially if this issue could frequently happen, we may need to return
-                // congest&softSplit status together
+                // in the long term, especially if this issue could frequently happen,
+                // we may need to return congest&softSplit status together
                 callbackWithTimer.onSuccess(
                   ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
               } else {
@@ -334,7 +339,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
               logError(
-                s"PushData replication failed during connecting peer for partitionLocation: $location",
+                "PushData replication failed during connecting peer " +
+                  s"for partitionLocation: $location",
                 e)
               callbackWithTimer.onFailure(
                 new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
@@ -386,7 +392,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         // TODO just info log for ended attempt
         logError(
           s"[handlePushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, " +
+            s"error message: ${e.getMessage}")
       case e: Exception =>
         logError("Exception encountered when write.", e)
     }
@@ -446,9 +453,10 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       if (loc == null) {
         val (mapId, attemptId) = getMapAttempt(body)
         // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
-        // A shuffle can trigger multiple CommitFiles requests, for reasons like: HARD_SPLIT happens, StageEnd.
-        // If MapperAttempts but the value is -1 for the mapId(-1 means the map has not yet finished),
-        // it's probably because commitFiles for HARD_SPLIT happens.
+        // A shuffle can trigger multiple CommitFiles requests,
+        // for reasons like: HARD_SPLIT happens, StageEnd.
+        // If MapperAttempts but the value is -1 for the mapId(-1 means the map has not yet
+        // finished), it's probably because commitFiles for HARD_SPLIT happens.
         if (shuffleMapperAttempts.containsKey(shuffleKey)) {
           if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
             logInfo(s"Receive push merged data from speculative " +
@@ -500,7 +508,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
         }
       logError(
-        s"While handling PushMergedData, throw $cause, fileWriter $fileWriterWithException has exception.",
+        s"While handling PushMergedData, throw $cause, fileWriter $fileWriterWithException " +
+          s"has exception.",
         fileWriterWithException.getException)
       workerSource.incCounter(WorkerSource.WRITE_DATA_FAIL_COUNT)
       callbackWithTimer.onFailure(new CelebornIOException(cause))
@@ -511,7 +520,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     val closedFileWriter = fileWriters.find(_.isClosed)
     if (closedFileWriter.isDefined) {
       logWarning(
-        s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getFileInfo.getFilePath}")
+        "[handlePushMergedData] FileWriter is already closed! " +
+          s"File path ${closedFileWriter.get.getFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriters.foreach(_.decrementPendingWrites())
       return
@@ -534,7 +544,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             pushMergedData.body().release()
             workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
             logError(
-              s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
+              "PushMergedData replication failed caused by unavailable peer " +
+                s"for partitionLocation: $location")
             callbackWithTimer.onFailure(
               new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
             return
@@ -605,7 +616,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
               logError(
-                s"PushMergedData replication failed during connecting peer for partitionLocation: $location",
+                "PushMergedData replication failed during connecting peer " +
+                  s"for partitionLocation: $location",
                 e)
               callbackWithTimer.onFailure(
                 new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
@@ -668,8 +680,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             } else -1
           // TODO just info log for ended attempt
           logError(
-            s"[handlePushMergedData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-              s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+            s"[handlePushMergedData] Append data failed for task(shuffle $shuffleKey, " +
+              s"map $mapId, attempt $attemptId), caused by AlreadyClosedException, " +
+              s"endedAttempt $endedAttempt, error message: ${e.getMessage}")
         case e: Exception =>
           logError("Exception encountered when write.", e)
       }
@@ -678,7 +691,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   /**
-   * returns an array of FileWriters from partition locations along with an optional index for any FileWriter that
+   * returns an array of FileWriters from partition locations along with
+   * an optional index for any FileWriter that
    * encountered an exception.
    */
   private def getFileWriters(
@@ -801,7 +815,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         null,
         location,
         callback,
-        wrappedCallback)) return
+        wrappedCallback)) {
+      return
+    }
 
     val fileWriter =
       getFileWriterAndCheck(pushData.`type`(), location, isPrimary, callback) match {
@@ -815,7 +831,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     if (fileWriter.isClosed) {
       logWarning(
-        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
+        "[handleMapPartitionPushData] FileWriter is already closed! " +
+          s"File path ${fileWriter.getFileInfo.getFilePath}")
       callback.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return;
@@ -841,8 +858,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
           } else -1
         // TODO just info log for ended attempt
         logError(
-          s"[handleMapPartitionPushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+          s"[handleMapPartitionPushData] Append data failed for task(shuffle " +
+            s"$shuffleKey, map $mapId, attempt $attemptId), caused by AlreadyClosedException, " +
+            s"endedAttempt $endedAttempt, error message: ${e.getMessage}")
       case e: Exception =>
         logError("Exception encountered when write.", e)
     }
@@ -927,7 +945,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         null,
         location,
         callback,
-        wrappedCallback)) return
+        wrappedCallback)) {
+      return
+    }
 
     val fileWriter =
       getFileWriterAndCheck(messageType, location, isPrimary, callback) match {
@@ -952,7 +972,9 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         fileWriter,
         isPrimary,
         null,
-        callback)) return
+        callback)) {
+      return
+    }
 
     try {
       messageType match {
@@ -1045,7 +1067,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       wrappedCallback: RpcResponseCallback): Boolean = {
     if (location == null) {
       val msg =
-        s"Partition location wasn't found for task(shuffle $shuffleKey, uniqueId $partitionUniqueId)."
+        s"Partition location wasn't found for task(shuffle $shuffleKey, " +
+          s"uniqueId $partitionUniqueId)."
       logWarning(s"[handle$messageType] $msg")
       messageType match {
         case Type.PUSH_MERGED_DATA => callback.onFailure(new CelebornIOException(msg))
@@ -1126,7 +1149,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
          |fileLength:${fileWriter.getFileInfo.getFileLength}
          |fileName:${fileWriter.getFileInfo.getFilePath}
          |""".stripMargin)
-    if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
+    if (workerPartitionSplitEnabled &&
+      ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
         (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
         (fileWriter.getFileInfo.getFileLength < partitionSplitMaximumSize)) {

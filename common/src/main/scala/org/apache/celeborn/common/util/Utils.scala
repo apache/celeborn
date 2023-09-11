@@ -278,8 +278,9 @@ object Utils extends Logging {
               } else {
                 s"${e.getMessage}: Service$serviceString failed after " +
                   s"$maxRetries retries (starting from $startPort)! Consider explicitly setting " +
-                  s"the appropriate port for the service$serviceString (for example spark.ui.port " +
-                  s"for SparkUI) to an available port or increasing spark.port.maxRetries."
+                  s"the appropriate port for the service$serviceString " +
+                  s"(for example spark.ui.port for SparkUI) to an available port " +
+                  s"or increasing spark.port.maxRetries."
               }
             val exception = new BindException(exceptionMessage)
             // restore original stack trace
@@ -767,11 +768,9 @@ object Utils extends Logging {
       root: String = System.getProperty("java.io.tmpdir"),
       namePrefix: String = "celeborn"): File = {
     val dir = createDirectory(root, namePrefix)
-    Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
-      override def run(): Unit = {
-        if (dir != null) {
-          JavaUtils.deleteRecursively(dir)
-        }
+    ShutdownHookManager.get().addShutdownHook(new Thread(() => {
+      if (dir != null) {
+        JavaUtils.deleteRecursively(dir)
       }
     }))
     dir

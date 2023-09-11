@@ -45,7 +45,8 @@ class MemoryManagerSuite extends CelebornFunSuite {
         MemoryManager.initialize(conf);
       }
     assert(
-      caught.getMessage == s"Invalid config, ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE.key}(0.85) " +
+      caught.getMessage == s"Invalid config, " +
+        s"${WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE.key}(0.85) " +
         s"should be greater than ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE.key}(0.95)")
   }
 

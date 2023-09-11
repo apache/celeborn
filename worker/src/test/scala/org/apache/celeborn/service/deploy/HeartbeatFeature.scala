@@ -55,8 +55,9 @@ trait HeartbeatFeature extends MiniClusterFeature {
         assertFunc(clientPush, clientFetch)
       }
     } finally {
-      if (master != null && workers != null)
+      if (master != null && workers != null) {
         shutdownMiniCluster()
+      }
     }
   }
 
@@ -75,7 +76,8 @@ trait HeartbeatFeature extends MiniClusterFeature {
 
   def testHeartbeatFromWorker2Client(dataClientFactory: TransportClientFactory): Unit = {
     val (workerConf, _) = getTestHeartbeatFromWorker2ClientConf
-    // client <- worker:default client do not send heartbeat to worker, and worker sends hearbeat to client
+    // client <- worker:default client do not send heartbeat to worker,
+    // and worker sends hearbeat to client
     // client active: after connection timeout, the channel still be active
     testCore(
       workerConf,
@@ -104,7 +106,8 @@ trait HeartbeatFeature extends MiniClusterFeature {
       : Unit = {
     val (workerConf, _) = getTestHeartbeatFromWorker2ClientWithNoHeartbeatConf
 
-    // client <- worker:default client do not send heartbeat to worker, and worker sends hearbeat to client
+    // client <- worker:default client do not send heartbeat to worker,
+    // and worker sends hearbeat to client
     // client active: after connection timeout, the channel still be active
     testCore(
       workerConf,
@@ -136,9 +139,12 @@ trait HeartbeatFeature extends MiniClusterFeature {
       : Unit = {
     val (workerConf, _) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf
 
-    // client <- worker:default client do not send heartbeat to worker, and worker sends hearbeat to client
-    // client inactive: after client connection timeout, client still be active(because worker send heartbeat to client);
-    // but after worker connectionTimeout, worker will close the channel, then client will be inactive
+    // client <- worker:default client do not send heartbeat to worker,
+    // and worker sends hearbeat to client
+    // client inactive: after client connection timeout, client still be active
+    // (because worker send heartbeat to client);
+    // but after worker connectionTimeout, worker will close the channel,
+    // then client will be inactive
     testCore(
       workerConf,
       dataClientFactory,

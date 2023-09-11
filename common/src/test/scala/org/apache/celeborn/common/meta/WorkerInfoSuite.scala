@@ -43,7 +43,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
       block()
     }
     val block = () => {
+      // scalastyle:off println
       println("inside")
+      // scalastyle:on println
     }
     run(block)
   }
@@ -275,6 +277,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |UserResourceConsumption: empty
            |WorkerRef: null
            |""".stripMargin
+      // scalastyle:off line.size.limit
       val exp4 =
         s"""
            |Host: h4
@@ -291,8 +294,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |UserResourceConsumption: $placeholder
            |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1)
            |WorkerRef: null
-           |""".stripMargin;
-
+           |""".stripMargin
+      // scalastyle:off line.size.limit
       assertEquals(exp1, worker1.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
       assertEquals(exp2, worker2.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
       assertEquals(exp3, worker3.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))

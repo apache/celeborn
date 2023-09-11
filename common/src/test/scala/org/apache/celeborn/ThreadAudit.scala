@@ -63,9 +63,10 @@ trait ThreadAudit extends Logging {
     "rpc-server.*",
 
     /**
-     * During [[org.apache.celeborn.common.network.TransportContext]] construction a separate event loop could
-     * be created for handling ChunkFetchRequest.
-     * Calling [[org.apache.celeborn.common.network.TransportContext#close]] will shut down the thread pool
+     * During [[org.apache.celeborn.common.network.TransportContext]] construction
+     * a separate event loop could be created for handling ChunkFetchRequest.
+     * Calling [[org.apache.celeborn.common.network.TransportContext#close]]
+     * will shut down the thread pool
      * of this event group asynchronously. In each case proper stopping is checked manually.
      */
     "shuffle-chunk-fetch-handler.*",

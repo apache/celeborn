@@ -42,7 +42,9 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     for (i <- 1 to 60) {
       snapShot.updateAppDiskUsage(s"app-${i}", rand.nextInt(100000000) + 1)
     }
+    // scalastyle:off println
     println(snapShot.toString)
+    // scalastyle:on println
   }
 
   test("test snapshot ordering with duplicate entries") {
@@ -55,7 +57,10 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
       snapShot.updateAppDiskUsage(s"app-${i}", rand.nextInt(100000000) + 1000000000)
     }
 
+    // scalastyle:off println
     println(snapShot.toString)
+    // scalastyle:on println
+
   }
 
   test("test app usage snapshot") {
@@ -74,7 +79,9 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     map1.put("app5", 132456)
     map1.put("app6", 6535635)
     usageMetric.update(map1)
+    // scalastyle:off println
     println(usageMetric.summary())
+    // scalastyle:on println
     Thread.sleep(2000)
 
     map1.clear()
@@ -85,7 +92,9 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     map1.put("app5", 4534)
     map1.put("app6", 5357)
     usageMetric.update(map1)
+    // scalastyle:off println
     println(usageMetric.summary())
+    // scalastyle:on println
     Thread.sleep(2000)
 
     map1.clear()
@@ -96,8 +105,12 @@ class AppDiskUsageMetricSuite extends AnyFunSuite
     map1.put("app5", 45367)
     map1.put("app6", 64345)
     usageMetric.update(map1)
+    // scalastyle:off println
     println(usageMetric.summary())
+    // scalastyle:on println
     Thread.sleep(2500)
+    // scalastyle:off println
     println(usageMetric.summary())
+    // scalastyle:on println
   }
 }

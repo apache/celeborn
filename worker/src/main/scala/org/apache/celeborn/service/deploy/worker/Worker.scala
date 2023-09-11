@@ -90,7 +90,8 @@ private[celeborn] class Worker(
     try {
       val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
       if (!recoverRoot.exists()) {
-        logInfo(s"Recover root path ${conf.workerGracefulShutdownRecoverPath} does not exists, create it first.")
+        logInfo(s"Recover root path ${conf.workerGracefulShutdownRecoverPath} " +
+          "does not exists, create it first.")
         recoverRoot.mkdirs()
       }
     } catch {
@@ -114,7 +115,8 @@ private[celeborn] class Worker(
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
 
   if (conf.workerCongestionControlEnabled) {
-    if (conf.workerCongestionControlLowWatermark.isEmpty || conf.workerCongestionControlHighWatermark.isEmpty) {
+    if (conf.workerCongestionControlLowWatermark.isEmpty ||
+      conf.workerCongestionControlHighWatermark.isEmpty) {
       throw new IllegalArgumentException("High watermark and low watermark must be set" +
         " when enabling rate limit")
     }
@@ -203,7 +205,8 @@ private[celeborn] class Worker(
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
 
-  // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
+  // need to ensure storageManager has recovered fileinfos data if
+  // enable graceful shutdown before retrieve consumption
   val userResourceConsumption: ConcurrentHashMap[UserIdentifier, ResourceConsumption] =
     JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](
       storageManager.userResourceConsumptionSnapshot().asJava)
@@ -481,7 +484,8 @@ private[celeborn] class Worker(
         } catch {
           case throwable: Throwable =>
             logWarning(
-              s"Register worker to master failed, will retry after ${Utils.msDurationToString(interval)}",
+              "Register worker to master failed, will retry after " +
+                s"${Utils.msDurationToString(interval)}",
               throwable)
             exception = throwable
             null
@@ -615,7 +619,8 @@ private[celeborn] class Worker(
     } catch {
       case e: Throwable =>
         logError(
-          s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+          "Fail report to master, need wait PartitionLocation auto release: " +
+            s"\n$partitionLocationInfo",
           e)
     }
     shutdown.set(true)
@@ -685,7 +690,8 @@ private[celeborn] class Worker(
     } catch {
       case e: Throwable =>
         logError(
-          s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
+          s"Fail report to master, need wait PartitionLocation auto release: " +
+            s"\n$partitionLocationInfo",
           e)
     }
     shutdown.set(true)

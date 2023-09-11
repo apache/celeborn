@@ -35,6 +35,7 @@ class CelebornColumnarBatchCodeGenBuild {
   def create(schema: StructType, batchSize: Int): CelebornBatchBuilder = {
     val ctx = newCodeGenContext()
     val codes = genCode(schema, batchSize)
+    // scalastyle:off line.size.limit
     val codeBody =
       s"""
          |
@@ -76,7 +77,7 @@ class CelebornColumnarBatchCodeGenBuild {
          |  }
          |}
        """.stripMargin
-
+    // scalastyle:on line.size.limit
     val code = CodeFormatter.stripOverlappingComments(
       new CodeAndComment(codeBody, ctx.getPlaceHolderToComments()))
 

@@ -29,6 +29,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.config.ConfigEntry
 import org.apache.celeborn.common.util.Utils
 
+// scalastyle:off line.size.limit
 /**
  * End-to-end test cases for configuration documentation.
  *
@@ -44,6 +45,7 @@ import org.apache.celeborn.common.util.Utils
  *   UPDATE=1 build/mvn clean test -pl common -am -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite
  * }}}
  */
+// scalastyle:on line.size.limit
 class ConfigurationSuite extends AnyFunSuite {
 
   val confEntries: Seq[ConfigEntry[_]] = CelebornConf.confEntries.values.asScala.toSeq

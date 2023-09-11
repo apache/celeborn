@@ -41,9 +41,9 @@ import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.Utils
 
 /**
- * This commit handler is for MapPartition ShuffleType, which means that a Map Partition contains all data produced
- * by an upstream MapTask, and data in a Map Partition may be consumed by multiple ReduceTasks. If the upstream MapTask
- * has multiple outputs, each will be a Map Partition.
+ * This commit handler is for MapPartition ShuffleType, which means that a Map Partition contains
+ * all data produced by an upstream MapTask, and data in a Map Partition may be consumed by
+ * multiple ReduceTasks. If the upstream MapTask has multiple outputs, each will be a Map Partition.
  *
  * @see [[org.apache.celeborn.common.protocol.PartitionType.MAP]]
  */
@@ -104,7 +104,8 @@ class MapPartitionCommitHandler(
   }
 
   override def getMapperAttempts(shuffleId: Int): Array[Int] = {
-    // map partition now return empty mapper attempts array as map partition don't prevent other mapper commit file
+    // map partition now return empty mapper attempts array as map partition don't prevent
+    // other mapper commit file
     // even the same mapper id with another attemptId success in lifecycle manager.
     Array.empty
   }

@@ -111,7 +111,8 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
   }
 }
 
-// This metric collects approximate value because worker won't report all app disk usage value for reducing memory pressure. .
+// This metric collects approximate value because worker won't report all app disk usage value
+// for reducing memory pressure.
 class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
   val usageCount = conf.metricsAppTopDiskUsageCount
   val snapshotCount = conf.metricsAppTopDiskUsageWindowSize
