@@ -8,6 +8,7 @@
 *.swp
 *~
 .DS_Store
+.bsp
 .cache
 .classpath
 .ensime
@@ -24,6 +25,8 @@
 .settings
 /lib/
 build/apache-maven*
+build/sbt-launch-*.jar
+build/sbt-config/repositories-local
 cache
 checkpoint
 conf/*.cmd
@@ -45,6 +48,7 @@ lint-r-report.log
 log/
 logs/
 out/
+project/**
 project/boot/
 project/build/target/
 project/plugins/lib_managed/
