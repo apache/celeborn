@@ -390,7 +390,6 @@ class DeviceMonitorSuite extends AnyFunSuite {
       when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk4"))).thenReturn(dfBOut4)
       when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk5"))).thenReturn(dfBOut5)
 
-
       deviceMonitor2.init()
 
       val metrics1 = workerSource2.gauges().filter(
