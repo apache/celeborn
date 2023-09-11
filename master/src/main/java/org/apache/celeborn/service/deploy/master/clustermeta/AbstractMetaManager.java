@@ -192,9 +192,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {
         workers.add(workerInfo);
-        shutdownWorkers.remove(workerInfo);
-        lostWorkers.remove(workerInfo);
       }
+      shutdownWorkers.remove(workerInfo);
+      lostWorkers.remove(workerInfo);
+      excludedWorkers.remove(workerInfo);
     }
   }
 
