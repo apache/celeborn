@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOException}
 import java.nio.charset.Charset
+import java.nio.file.{Files, Paths}
 import java.util
 import java.util.concurrent.TimeUnit
 
@@ -226,9 +227,9 @@ object DeviceMonitor extends Logging {
 
   // unit is byte
   def getDiskUsageInfos(diskInfo: DiskInfo): DiskUsageInfo = {
-    val dirFile = new File(diskInfo.mountPoint)
+    val dirFile = Files.getFileStore(Paths.get(diskInfo.mountPoint))
     val totalSpace = dirFile.getTotalSpace
-    val freeSpace = dirFile.getFreeSpace
+    val freeSpace = dirFile.getUsableSpace
     val usedSpace = totalSpace - freeSpace
     val usedPercent = (usedSpace * 100.0 / totalSpace).toInt
     DiskUsageInfo(totalSpace, freeSpace, usedSpace, usedPercent)
