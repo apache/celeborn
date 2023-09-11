@@ -49,5 +49,6 @@ RUN chown -R celeborn:celeborn ${CELEBORN_HOME} && \
     chmod a+x ${CELEBORN_HOME}/sbin/*
 
 USER celeborn
+WORKDIR /opt/celeborn
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
