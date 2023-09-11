@@ -526,7 +526,9 @@ private[celeborn] class Master(
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
+      // TODO: remove `WorkerRemove` because we have improve register logic to cover `WorkerRemove`
       statusSystem.handleWorkerRemove(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
+      val newRequestId = MasterClient.genRequestId()
       statusSystem.handleRegisterWorker(
         host,
         rpcPort,
@@ -535,7 +537,7 @@ private[celeborn] class Master(
         replicatePort,
         disks,
         userResourceConsumption,
-        requestId)
+        newRequestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
