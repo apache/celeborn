@@ -648,14 +648,12 @@ object Utils extends Logging {
   }
 
   private def readProcessStdout(process: Process): String = {
-    val stream = process.getInputStream
-    val sb = new StringBuilder
-    var res = stream.read()
-    while (res != -1) {
-      sb.append(res.toChar)
-      res = stream.read()
+    val source = Source.fromInputStream(process.getInputStream)
+    try {
+      source.mkString
+    } finally {
+      source.close()
     }
-    sb.toString()
   }
 
   def runCommand(cmd: String): String = {
