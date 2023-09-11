@@ -26,7 +26,6 @@
 # - CELEBORN_PREFER_JEMALLOC, to enable jemalloc memory allocator
 # - CELEBORN_JEMALLOC_PATH, to set jemalloc library path
 
-
 # Example:
 # CELEBORN_MASTER_MEMORY=2g
 # CELEBORN_WORKER_MEMORY=2g
