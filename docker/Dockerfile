@@ -22,6 +22,7 @@ ARG celeborn_uid=10006
 ARG celeborn_gid=10006
 
 ENV CELEBORN_HOME=/opt/celeborn
+ENV CELEBORN_PREFER_JEMALLOC=true
 ENV PATH=/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/busybox:${CELEBORN_HOME}/sbin:${CELEBORN_HOME}/bin
 
 RUN set -ex && \
