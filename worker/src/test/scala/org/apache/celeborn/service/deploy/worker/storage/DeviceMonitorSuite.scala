@@ -377,17 +377,19 @@ class DeviceMonitorSuite extends AnyFunSuite {
   }
 
   test("monitor device usage metrics") {
-    withObjectMocked[org.apache.celeborn.common.util.Utils.type] {
-      when(Utils.runCommand(dfBCmd1)).thenReturn(dfBOut1)
-      when(Utils.runCommand(dfBCmd2)).thenReturn(dfBOut2)
-      when(Utils.runCommand(dfBCmd3)).thenReturn(dfBOut3)
-      when(Utils.runCommand(dfBCmd4)).thenReturn(dfBOut4)
-      when(Utils.runCommand(dfBCmd5)).thenReturn(dfBOut5)
-      val dfBOut6 =
-        """
-          |Filesystem     1B-blocks            Used          Available Use% Mounted on
-          |/dev/vda   1395864371200    130996502528      1264867868672   9% /mnt/disk1
-          |""".stripMargin
+
+    withObjectMocked[org.apache.celeborn.service.deploy.worker.storage.DeviceMonitor.type] {
+      val dfBOut1 = DeviceMonitor.DiskUsageInfo(1395864371200L, 1293858897920L, 102005473280L, 7)
+      val dfBOut2 = DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
+      val dfBOut3 = DeviceMonitor.DiskUsageInfo(1395864371200L, 1293858897920L, 102005473280L, 7)
+      val dfBOut4 = DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
+      val dfBOut5 = DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk1"))).thenReturn(dfBOut1)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk2"))).thenReturn(dfBOut2)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk3"))).thenReturn(dfBOut3)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk4"))).thenReturn(dfBOut4)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk5"))).thenReturn(dfBOut5)
+
 
       deviceMonitor2.init()
 
@@ -422,7 +424,8 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals("vdb", metrics4.last.labels("device"))
       assertEquals(1024L * 3, metrics4.last.gauge.getValue)
 
-      when(Utils.runCommand(dfBCmd1)).thenReturn(dfBOut6)
+      val dfBOut6 = DeviceMonitor.DiskUsageInfo(1395864371200L, 1264867868672L, 130996502528L, 9)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk1"))).thenReturn(dfBOut6)
       assertEquals(1264867868672L, metrics2.head.gauge.getValue)
     }
   }
