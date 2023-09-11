@@ -69,10 +69,11 @@ if [ "$CELEBORN_PID_DIR" = "" ]; then
   export CELEBORN_PID_DIR="${CELEBORN_HOME}/pids"
 fi
 
-# jemalloc memory allocator is enabled by default, you may set DISABLE_JEMALLOC to true in celeborn-env.sh if it's not as you wish.
+# The jemalloc memory allocator is disabled by default, but in the docker environment, jemalloc is enabled by default.
+# You can set CELEBORN_PREFER_JEMALLOC to true in celeborn-env.sh and configure the path to jemalloc via CELEBORN_JEMALLOC_PATH.
 maybe_enable_jemalloc() {
-  if [ "${DISABLE_JEMALLOC:-false}" == "false" ]; then
-    JEMALLOC_PATH="/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so"
+  if [ "${CELEBORN_PREFER_JEMALLOC:-false}" == "true" ]; then
+    JEMALLOC_PATH="${CELEBORN_JEMALLOC_PATH:-/usr/lib/$(uname -m)-linux-gnu/libjemalloc.so}"
     JEMALLOC_FALLBACK="/usr/lib/x86_64-linux-gnu/libjemalloc.so"
     if [ -f "$JEMALLOC_PATH" ]; then
       export LD_PRELOAD="$LD_PRELOAD:$JEMALLOC_PATH"

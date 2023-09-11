@@ -23,6 +23,8 @@
 # - CELEBORN_WORKER_JAVA_OPTS
 # - CELEBORN_PID_DIR
 # - CELEBORN_LOG_DIR
+# - CELEBORN_PREFER_JEMALLOC, to enable jemalloc memory allocator
+# - CELEBORN_JEMALLOC_PATH, to set jemalloc library path
 
 # Example:
 # CELEBORN_MASTER_MEMORY=2g
@@ -32,4 +34,5 @@
 # CELEBORN_MASTER_JAVA_OPTS="-XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced"
 # CELEBORN_PID_DIR="$CELEBORN_HOME/pids"
 # CELEBORN_LOG_DIR="$CELEBORN_HOME/logs"
-# DISABLE_JEMALLOC="false"
+# CELEBORN_PREFER_JEMALLOC="true"
+# CELEBORN_JEMALLOC_PATH="/path/to/libjemalloc.so"
