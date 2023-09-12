@@ -76,7 +76,7 @@ spec:
       initContainers:
       {{- $dirs := .Values.volumes.master }}
       {{- if eq "hostPath" (index $dirs 0).type }}
-      - name: chown-celeborn-master-volume
+      - name: chown-{{ $.Release.Name }}-master-volume
         image: alpine:3.18
         imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
         securityContext:
@@ -86,7 +86,7 @@ spec:
         - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
         - {{ (index $dirs 0).mountPath }}
         volumeMounts:
-          - name: celeborn-master-vol-0
+          - name: {{ $.Release.Name }}-master-vol-0
             mountPath: {{ (index $dirs 0).mountPath }}
       {{- end }}
       containers:
