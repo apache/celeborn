@@ -70,9 +70,8 @@ public class MemoryManager {
   private ServingState servingState = ServingState.NONE_PAUSED;
   private long pauseStartTime = -1L;
   private long pausePushDataTime = 0L;
+  private int trimCounter = 0;
   private volatile boolean isPaused = false;
-  private final AtomicInteger trimCounter = new AtomicInteger(0);
-
   // For credit stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
   private long readBufferThreshold = 0;
@@ -252,14 +251,14 @@ public class MemoryManager {
     servingState = currentServingState();
     if (lastState == servingState) {
       if (servingState != ServingState.NONE_PAUSED) {
+        logger.debug("Trigger action: TRIM");
+        trimCounter += 1;
         // force to append pause spent time even we are in pause state
-        if (trimCounter.incrementAndGet() >= forceAppendPauseSpentTimeThreshold) {
+        if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
           logger.debug(
-              "Trigger action: TRIM for {} times, force to append pause spent time.",
-              trimCounter.get());
+              "Trigger action: TRIM for {} times, force to append pause spent time.", trimCounter);
           appendPauseSpentTime();
         }
-        logger.debug("Trigger action: TRIM");
         trimAllListeners();
       }
       return;
@@ -415,7 +414,7 @@ public class MemoryManager {
     pausePushDataTime += nextPauseStartTime - pauseStartTime;
     pauseStartTime = nextPauseStartTime;
     // reset
-    trimCounter.set(0);
+    trimCounter = 0;
   }
 
   public void addReadBufferTargetChangeListener(ReadBufferTargetChangeListener listener) {
