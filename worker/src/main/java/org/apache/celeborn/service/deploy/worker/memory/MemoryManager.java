@@ -48,6 +48,7 @@ public class MemoryManager {
   private final long pauseReplicateThreshold;
   private final long resumeThreshold;
   private final long maxSortMemory;
+  private final int forceAppendPauseSpentTimeThreshold;
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService =
@@ -66,8 +67,10 @@ public class MemoryManager {
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private ServingState servingState = ServingState.NONE_PAUSED;
+  private long pauseStartTime = -1L;
+  private long pausePushDataTime = 0L;
+  private int trimCounter = 0;
   private volatile boolean isPaused = false;
-
   // For credit stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
   private long readBufferThreshold = 0;
@@ -111,6 +114,7 @@ public class MemoryManager {
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
+    forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
 
     maxDirectorMemory =
         DynMethods.builder("maxDirectMemory")
@@ -247,6 +251,13 @@ public class MemoryManager {
     if (lastState == servingState) {
       if (servingState != ServingState.NONE_PAUSED) {
         logger.debug("Trigger action: TRIM");
+        trimCounter += 1;
+        // force to append pause spent time even we are in pause state
+        if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
+          logger.debug(
+              "Trigger action: TRIM for {} times, force to append pause spent time.", trimCounter);
+          appendPauseSpentTime();
+        }
         trimAllListeners();
       }
       return;
@@ -262,6 +273,7 @@ public class MemoryManager {
                   memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
         } else if (lastState == ServingState.NONE_PAUSED) {
           logger.info("Trigger action: PAUSE PUSH");
+          pauseStartTime = System.currentTimeMillis();
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -272,6 +284,7 @@ public class MemoryManager {
         pausePushDataAndReplicateCounter.increment();
         if (lastState == ServingState.NONE_PAUSED) {
           logger.info("Trigger action: PAUSE PUSH");
+          pauseStartTime = System.currentTimeMillis();
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -283,6 +296,8 @@ public class MemoryManager {
         trimAllListeners();
         break;
       case NONE_PAUSED:
+        // resume from paused mode, append pause spent time
+        appendPauseSpentTime();
         if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
           logger.info("Trigger action: RESUME REPLICATE");
           memoryPressureListeners.forEach(
@@ -387,6 +402,18 @@ public class MemoryManager {
 
   public int dispatchRequestsLength() {
     return readBufferDispatcher.requestsLength();
+  }
+
+  public long getPausePushDataTime() {
+    return pausePushDataTime;
+  }
+
+  private void appendPauseSpentTime() {
+    long nextPauseStartTime = System.currentTimeMillis();
+    pausePushDataTime += nextPauseStartTime - pauseStartTime;
+    pauseStartTime = nextPauseStartTime;
+    // reset
+    trimCounter = 0;
   }
 
   public void addReadBufferTargetChangeListener(ReadBufferTargetChangeListener listener) {
