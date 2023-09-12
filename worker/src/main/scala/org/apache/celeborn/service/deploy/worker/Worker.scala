@@ -300,6 +300,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_SIZE) { () =>
     storageManager.getActiveShuffleSize()
   }
+  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_TIME) { () =>
+    memoryManager.getPausePushDataTime
+  }
 
   private def highWorkload: Boolean = {
     (memoryManager.currentServingState, conf.workerActiveConnectionMax) match {

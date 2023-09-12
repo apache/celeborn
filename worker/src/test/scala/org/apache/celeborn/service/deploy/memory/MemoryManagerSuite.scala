@@ -131,6 +131,9 @@ class MemoryManagerSuite extends CelebornFunSuite {
       assert(!pushListener.isPause)
       assert(!replicateListener.isPause)
     }
+    // [CELEBORN-882] Test record pause push time
+    assert(memoryManager.getPausePushDataTime.longValue() > 0)
+    val lastPauseTime = memoryManager.getPausePushDataTime.longValue()
 
     // NONE PAUSED -> PAUSE PUSH AND REPLICATE
     memoryCounter.set(replicateThreshold + 1);
@@ -145,6 +148,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
       assert(!pushListener.isPause)
       assert(!replicateListener.isPause)
     }
+    assert(memoryManager.getPausePushDataTime.longValue() > lastPauseTime)
   }
 
   class MockMemoryPressureListener(
