@@ -67,9 +67,9 @@ public class MemoryManager {
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
-  private final LongAdder pausePushDataTime = new LongAdder();
   private ServingState servingState = ServingState.NONE_PAUSED;
   private long pauseStartTime = -1L;
+  private long pausePushDataTime = 0L;
   private volatile boolean isPaused = false;
   private final AtomicInteger trimCounter = new AtomicInteger(0);
 
@@ -256,7 +256,7 @@ public class MemoryManager {
         if (trimCounter.incrementAndGet() >= forceAppendPauseSpentTimeThreshold) {
           logger.debug(
               "Trigger action: TRIM for {} times, force to append pause spent time.",
-              trimCounter.incrementAndGet());
+              trimCounter.get());
           appendPauseSpentTime();
         }
         logger.debug("Trigger action: TRIM");
@@ -407,12 +407,12 @@ public class MemoryManager {
   }
 
   public long getPausePushDataTime() {
-    return pausePushDataTime.sum();
+    return pausePushDataTime;
   }
 
   private void appendPauseSpentTime() {
     long nextPauseStartTime = System.currentTimeMillis();
-    pausePushDataTime.add(nextPauseStartTime - pauseStartTime);
+    pausePushDataTime += nextPauseStartTime - pauseStartTime;
     pauseStartTime = nextPauseStartTime;
     // reset
     trimCounter.set(0);

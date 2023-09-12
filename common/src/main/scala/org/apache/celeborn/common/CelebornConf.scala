@@ -677,7 +677,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
   def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
   def metricsWorkerForceAppendPauseSpentTimeThreshold: Int =
-    get(METRICS_WORKER_PAUSE_SPENT_TINE_FORCE_APPEND_THRESHOLD)
+    get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -3611,7 +3611,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("10min")
 
-  val METRICS_WORKER_PAUSE_SPENT_TINE_FORCE_APPEND_THRESHOLD: ConfigEntry[Int] =
+  val METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.metrics.worker.pauseSpentTime.forceAppend.threshold")
       .categories("metrics")
       .doc("Force append worker pause spent time even if worker still in pause serving state." +
