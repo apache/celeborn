@@ -25,7 +25,6 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
       app.kubernetes.io/role: master
       {{- include "celeborn.selectorLabels" . | nindent 6 }}
   serviceName: {{ .Release.Name }}-master-svc
