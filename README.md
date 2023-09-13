@@ -63,8 +63,8 @@ General package layout:
     ├── master-jars                     
     ├── worker-jars                     
     ├── spark          // Spark client jars if spark profiles are activated
-    ├── flink          // flink client jars if flink profiles are activated
-    ├── mr             // mr client jars if hadoop profiles are activated
+    ├── flink          // Flink client jars if flink profiles are activated
+    ├── mr             // MapReduce client jars if mr profile is activated
     └── sbin
 ```
 
