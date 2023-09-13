@@ -68,9 +68,6 @@
 
     <!-- use hadoop-3 as default  -->
     <hadoop.version>3.2.4</hadoop.version>
-    <hadoop-client-api.artifact>hadoop-client-api</hadoop-client-api.artifact>
-    <hadoop-client-runtime.artifact>hadoop-client-runtime</hadoop-client-runtime.artifact>
-    <hadoop-client-minicluster.artifact>hadoop-client-minicluster</hadoop-client-minicluster.artifact>
 
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
@@ -380,12 +377,12 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
-        <artifactId>${hadoop-client-api.artifact}</artifactId>
+        <artifactId>hadoop-client-api</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
-        <artifactId>${hadoop-client-runtime.artifact}</artifactId>
+        <artifactId>hadoop-client-runtime</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
       <dependency>
@@ -1094,16 +1091,6 @@
         <flink.clients.artifact>flink-clients</flink.clients.artifact>
         <flink.scala.artifact>flink-scala_${scala.binary.version}</flink.scala.artifact>
         <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>hadoop-2</id>
-      <properties>
-        <hadoop.version>2.8.4</hadoop.version>
-        <hadoop-client-api.artifact>hadoop-client</hadoop-client-api.artifact>
-        <hadoop-client-runtime.artifact>hadoop-yarn-api</hadoop-client-runtime.artifact>
-        <hadoop-client-minicluster.artifact>hadoop-client</hadoop-client-minicluster.artifact>
       </properties>
     </profile>
 

@@ -223,11 +223,7 @@ function build_mr_client {
         | grep -v "INFO" \
         | grep -v "WARNING" \
         | tail -n 1)
-  HADOOP_VERSION=$("$MVN" help:evaluate -Dexpression=hadoop.version $@ 2>/dev/null \
-      | grep -v "INFO" \
-      | grep -v "WARNING" \
-      | tail -n 1)
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-mr-shaded-${HADOOP_VERSION} -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-mr-shaded-${SCALA_VERSION} -am $@)
 
     # Actually build the jar
     echo -e "\nBuilding with..."
@@ -237,7 +233,7 @@ function build_mr_client {
 
     ## flink spark client jars
     mkdir -p "$DIST_DIR/mr"
-    cp "$PROJECT_DIR"/client-mr/mr-shaded/target/celeborn-client-mr-shaded-${HADOOP_VERSION}-$VERSION.jar "$DIST_DIR/mr/"
+    cp "$PROJECT_DIR"/client-mr/mr-shaded/target/celeborn-client-mr-shaded-${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/mr/"
 }
 
 if [ "$RELEASE" == "true" ]; then

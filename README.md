@@ -46,7 +46,7 @@ Celeborn worker's slot count decreases when a partition is allocated and increme
 
 Build Celeborn
 ```shell
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pflink-1.14/-Pflink-1.15/-Pflink-1.17/-Phadoop-2,mr/-Pmr
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pflink-1.14/-Pflink-1.15/-Pflink-1.17/-Pmr
 ```
 
 package apache-celeborn-${project.version}-bin.tgz will be generated.
