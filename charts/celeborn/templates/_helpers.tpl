@@ -61,7 +61,8 @@ Common labels
 {{- define "celeborn.labels" -}}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{ include "celeborn.selectorLabels" . }}
-app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/tag: {{ .Values.image.tag }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
