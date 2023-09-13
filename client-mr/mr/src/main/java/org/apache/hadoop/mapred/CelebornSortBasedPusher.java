@@ -34,7 +34,7 @@ import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.Utils;
 
 public class CelebornSortBasedPusher<K, V> extends OutputStream {
-  final Logger logger = LoggerFactory.getLogger(CelebornSortBasedPusher.class);
+  private final Logger logger = LoggerFactory.getLogger(CelebornSortBasedPusher.class);
   private final int mapId;
   private final int attempt;
   private final int numMappers;

@@ -77,7 +77,8 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     }
   }
 
-  void writeLifecycleManagerConfToTask(JobConf conf, JobConf lmConf) throws CelebornIOException {
+  private void writeLifecycleManagerConfToTask(JobConf conf, JobConf lmConf)
+      throws CelebornIOException {
     try {
       FileSystem fs = FileSystem.get(conf);
       String jobDirStr = conf.get(MRJobConfig.MAPREDUCE_JOB_DIR);
