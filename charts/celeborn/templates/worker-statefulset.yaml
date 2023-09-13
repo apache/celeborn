@@ -67,6 +67,9 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if or .Values.priorityClass.worker.name .Values.priorityClass.worker.create }}
+      priorityClassName: {{ .Values.priorityClass.worker.name | default (printf "%s-worker-priority" (.Release.Name)) }}
+      {{- end }}
       {{- with .Values.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
