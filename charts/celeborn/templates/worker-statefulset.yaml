@@ -114,11 +114,9 @@ spec:
             name: metrics
             protocol: TCP
         volumeMounts:
-          {{- if .Values.configmap }}
           - mountPath: /opt/celeborn/conf
             name: {{ include "celeborn.fullname" . }}-volume
             readOnly: true
-          {{- end }}
           {{- range $index, $volume := .Values.volumes.worker }}
           - name: {{ $.Release.Name }}-worker-vol-{{ $index }}
             mountPath: {{ .mountPath }}
