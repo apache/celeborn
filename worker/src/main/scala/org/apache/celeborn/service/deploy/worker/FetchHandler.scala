@@ -419,7 +419,10 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     chunkStreamManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
-    partitionsSorter.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    // maybe null when running unit test.
+    if (partitionsSorter != null) {
+      partitionsSorter.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    }
   }
 
   def setPartitionsSorter(partitionFilesSorter: PartitionFilesSorter): Unit = {
