@@ -57,6 +57,7 @@ object Dependencies {
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
   val snakeyamlVersion = "1.33"
+  val rocksdbJniVersion = "8.5.3"
   
   // Versions for proto
   val protocVersion = "3.19.2"
@@ -95,6 +96,7 @@ object Dependencies {
   val slf4jJclOverSlf4j = "org.slf4j" % "jcl-over-slf4j" % slf4jVersion
   val snakeyaml = "org.yaml" % "snakeyaml" % snakeyamlVersion
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
+  val rocksdbJni = "org.rocksdb" % "rocksdbjni" % rocksdbJniVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -403,6 +405,7 @@ object CelebornWorker {
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
         Dependencies.leveldbJniAll,
+        Dependencies.rocksdbJni,
         Dependencies.roaringBitmap,
         Dependencies.scalatestMockito % "test"
       ) ++ commonUnitTestDependencies
