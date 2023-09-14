@@ -66,6 +66,8 @@ object ControlMessages extends Logging {
 
   case object CheckForApplicationTimeOut extends Message
 
+  case object CheckForWorkerUnavailableInfoTimeout extends Message
+
   case object CheckForHDFSExpiredDirsTimeout extends Message
 
   case object RemoveExpiredShuffle extends Message
@@ -359,6 +361,10 @@ object ControlMessages extends Logging {
         .setAvailable(isAvailable)
         .build()
   }
+
+  case class RemoveWorkersUnavailableInfo(
+      unavailable: util.List[WorkerInfo],
+      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   /**
    * ==========================================
@@ -682,6 +688,15 @@ object ControlMessages extends Logging {
         .setRequestId(requestId).build().toByteArray
       new TransportMessage(MessageType.REPORT_WORKER_FAILURE, payload)
 
+    case RemoveWorkersUnavailableInfo(unavailableWorkers, requestId) =>
+      val payload = PbRemoveWorkersUnavailableInfo.newBuilder()
+        .addAllWorkerInfo(unavailableWorkers.asScala.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        }
+          .toList.asJava)
+        .setRequestId(requestId).build().toByteArray
+      new TransportMessage(MessageType.REMOVE_WORKERS_UNAVAILABLE_INFO, payload)
+
     case pb: PbRegisterWorkerResponse =>
       new TransportMessage(MessageType.REGISTER_WORKER_RESPONSE, pb.toByteArray)
 
@@ -986,6 +1001,14 @@ object ControlMessages extends Logging {
           new util.ArrayList[WorkerInfo](pbReportWorkerUnavailable.getUnavailableList
             .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbReportWorkerUnavailable.getRequestId)
+
+      case REMOVE_WORKERS_UNAVAILABLE_INFO_VALUE =>
+        val pbRemoveWorkersUnavailableInfo =
+          PbRemoveWorkersUnavailableInfo.parseFrom(message.getPayload)
+        RemoveWorkersUnavailableInfo(
+          new util.ArrayList[WorkerInfo](pbRemoveWorkersUnavailableInfo.getWorkerInfoList
+            .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
+          pbRemoveWorkersUnavailableInfo.getRequestId)
 
       case REGISTER_WORKER_RESPONSE_VALUE =>
         PbRegisterWorkerResponse.parseFrom(message.getPayload)

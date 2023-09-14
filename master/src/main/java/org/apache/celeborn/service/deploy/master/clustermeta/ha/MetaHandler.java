@@ -228,6 +228,14 @@ public class MetaHandler {
           metaSystem.updatePartitionSize();
           break;
 
+        case RemoveWorkersUnavailableInfo:
+          List<ResourceProtos.WorkerAddress> unavailableList =
+              request.getRemoveWorkersUnavailableInfoRequest().getUnavailableList();
+          List<WorkerInfo> unavailableWorkers =
+              unavailableList.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
+          metaSystem.removeWorkersUnavailableInfoMeta(unavailableWorkers);
+          break;
+
         default:
           throw new IOException("Can not parse this command!" + request);
       }

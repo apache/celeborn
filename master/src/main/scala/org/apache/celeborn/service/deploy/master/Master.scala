@@ -94,12 +94,15 @@ private[celeborn] class Master(
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
+  private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForHDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
   private val nonEagerHandler = ThreadUtils.newDaemonCachedThreadPool("master-noneager-handler", 64)
 
   // Config constants
   private val workerHeartbeatTimeoutMs = conf.workerHeartbeatTimeout
   private val appHeartbeatTimeoutMs = conf.appHeartbeatTimeoutMs
+  private val workerUnavailableInfoExpireTimeoutMs = conf.workerUnavailableInfoExpireTimeout
+
   private val hdfsExpireDirsTimeoutMS = conf.hdfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
 
@@ -191,6 +194,16 @@ private[celeborn] class Master(
       appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
 
+    checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          self.send(CheckForWorkerUnavailableInfoTimeout)
+        }
+      },
+      0,
+      workerUnavailableInfoExpireTimeoutMs / 2,
+      TimeUnit.MILLISECONDS)
+
     if (hasHDFSStorage) {
       checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
         new Runnable {
@@ -209,6 +222,9 @@ private[celeborn] class Master(
     logInfo("Stopping Celeborn Master.")
     if (checkForWorkerTimeOutTask != null) {
       checkForWorkerTimeOutTask.cancel(true)
+    }
+    if (checkForUnavailableWorkerTimeOutTask != null) {
+      checkForUnavailableWorkerTimeOutTask.cancel(true)
     }
     if (checkForApplicationTimeOutTask != null) {
       checkForApplicationTimeOutTask.cancel(true)
@@ -238,6 +254,8 @@ private[celeborn] class Master(
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>
       executeWithLeaderChecker(null, timeoutDeadWorkers())
+    case CheckForWorkerUnavailableInfoTimeout =>
+      executeWithLeaderChecker(null, timeoutWorkerUnavailableInfos())
     case CheckForApplicationTimeOut =>
       executeWithLeaderChecker(null, timeoutDeadApplications())
     case CheckForHDFSExpiredDirsTimeout =>
@@ -253,6 +271,10 @@ private[celeborn] class Master(
       executeWithLeaderChecker(
         null,
         handleWorkerLost(null, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
+    case RemoveWorkersUnavailableInfo(unavailableWorkers, requestId) =>
+      executeWithLeaderChecker(
+        null,
+        handleRemoveWorkersUnavailableInfos(unavailableWorkers, requestId))
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -400,6 +422,25 @@ private[celeborn] class Master(
           MasterClient.genRequestId()))
       }
       ind += 1
+    }
+  }
+
+  private def timeoutWorkerUnavailableInfos(): Unit = {
+    val currentTime = System.currentTimeMillis()
+    // Need increase timeout deadline to avoid long time leader election period
+    if (HAHelper.getWorkerTimeoutDeadline(statusSystem) > currentTime) {
+      return
+    }
+
+    val unavailableInfoTimeoutWorkers = lostWorkersSnapshot.asScala.filter {
+      case (_, lostTime) => currentTime - lostTime > workerUnavailableInfoExpireTimeoutMs
+    }.keySet.toList.asJava
+
+    if (!unavailableInfoTimeoutWorkers.isEmpty) {
+      logDebug(s"Remove unavailable info for workers: $unavailableInfoTimeoutWorkers")
+      self.send(RemoveWorkersUnavailableInfo(
+        unavailableInfoTimeoutWorkers,
+        MasterClient.genRequestId()));
     }
   }
 
@@ -724,6 +765,12 @@ private[celeborn] class Master(
     } else {
       context.reply(OneWayMessageResponse)
     }
+  }
+
+  private def handleRemoveWorkersUnavailableInfos(
+      unavailableWorkers: util.List[WorkerInfo],
+      requestId: String): Unit = {
+    statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId);
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
