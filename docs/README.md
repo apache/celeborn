@@ -192,7 +192,7 @@ Modify `${HADOOP_CONF_DIR}/mapred-site.xml`
     </property>
 </configuration>
 ```
-Then you can run a word count to check weather your configs are correct.
+Then you can run a word count to check whether your configs are correct.
 ```shell
 cd $HADOOP_HOME
 hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-3.2.1.jar wordcount /sometext /someoutput
