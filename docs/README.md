@@ -180,7 +180,7 @@ Modify `${HADOOP_CONF_DIR}/mapred-site.xml`
     <property>
         <name>mapreduce.celeborn.master.endpoints</name>
         <!-- Replace placeholder to the real master address       -->
-        <value>placeholder:9097</value>
+        <value>placeholder</value>
     </property>
     <property>
         <name>mapreduce.job.map.output.collector.class</name>
