@@ -165,74 +165,87 @@ run_command() {
 
 }
 
-case $option in
-
-  (start)
+start_celeborn() {
     run_command class "$@"
-    ;;
+}
 
-  (stop)
-
+stop_celeborn() {
     if [ -f $pid ]; then
       TARGET_ID="$(cat "$pid")"
       if [[ $(ps -p "$TARGET_ID" -o comm=) =~ "java" ]] || [[ $(ps -p "$TARGET_ID" -o comm=) =~ "jboot" ]]; then
         echo "stopping $command"
-        kill "$TARGET_ID" && rm -f "$pid"
+        kill "$TARGET_ID"
+        wait_time=0
+        # keep same with `celeborn.worker.graceful.shutdown.timeout`
+        wait_timeout=600
+        while [[ $(ps -p "$TARGET_ID" -o comm=) != "" && $wait_time -lt $wait_timeout ]];
+        do
+          sleep 1
+          ((wait_time++))
+          echo "waiting for server shutdown, wait for ${wait_time}s"
+        done
+
+        if [[ $(ps -p "$TARGET_ID" -o comm=) == "" ]]; then
+          rm -f "$pid"
+        else
+          echo "Failed to stop server after ${wait_timeout}s, try 'kill -9 ${TARGET_ID}' forcefully"
+          kill -9 "${TARGET_ID}"
+          for i in {1..20}
+          do
+            sleep 0.5
+            if [[ $(ps -p "$TARGET_ID" -o comm=) == "" ]]; then
+              rm -f "$pid"
+              break
+            fi
+          done
+
+          if [ -f ${pid} ]; then
+            echo "Failed to stop server forcefully after 10 seconds"
+            exit 1
+          fi
+        fi
       else
         echo "no $command to stop"
       fi
     else
       echo "no $command to stop"
     fi
-    ;;
+}
 
-  (restart)
-
+check_celeborn(){
     if [ -f $pid ]; then
       TARGET_ID="$(cat "$pid")"
       if [[ $(ps -p "$TARGET_ID" -o comm=) =~ "java" ]] || [[ $(ps -p "$TARGET_ID" -o comm=) =~ "jboot" ]]; then
-        echo "stopping $command"
-        kill "$TARGET_ID" && rm -f "$pid"
-        wait_time=0
-        # keep same with `celeborn.worker.graceful.shutdown.timeout`
-        wait_timeout=600
-        while [[ $(ps -p "$TARGET_ID" -o comm=) != "" && $wait_time -lt $wait_timeout ]];
-        do
-          sleep 1s
-          ((wait_time++))
-          echo "waiting for server shutdown, wait for ${wait_time}s"
-        done
-        if [[ $(ps -p "$TARGET_ID" -o comm=) == "" ]]; then
-          run_command class "$@"
-        else
-          echo "stopping $command failed."
-        fi
-      else
-        rm -f "$pid"
-        echo "no $command to stop, directly start"
-        run_command class "$@"
-      fi
-    else
-      echo "no $command to stop, directly start"
-      run_command class "$@"
-    fi
-    ;;
-
-  (status)
-
-    if [ -f $pid ]; then
-      TARGET_ID="$(cat "$pid")"
-      if [[ $(ps -p "$TARGET_ID" -o comm=) =~ "java" ]] || [[ $(ps -p "$TARGET_ID" -o comm=) =~ "jboot" ]]; then
-        echo $command is running.
+        echo "$command is running."
         exit 0
       else
-        echo $pid file is present but $command not running
+        echo "$pid file is present but $command not running"
         exit 1
       fi
     else
-      echo $command not running.
+      echo "$command not running."
       exit 2
     fi
+}
+
+case $option in
+
+  (start)
+    start_celeborn "$@"
+    ;;
+
+  (stop)
+    stop_celeborn
+    ;;
+
+  (restart)
+    echo "Restarting Celeborn"
+    stop_celeborn
+    start_celeborn "$@"
+    ;;
+
+  (status)
+    check_celeborn
     ;;
 
   (*)
