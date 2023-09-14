@@ -150,8 +150,8 @@ INFO [dispatcher-event-loop-3] Controller: Start commitFiles for local-169000015
 INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success with 1 committed primary partitions, 0 empty primary partitions, 0 failed primary partitions, 0 committed replica partitions, 0 empty replica partitions, 0 failed replica partitions.
 ```
 
-## start MapReduce With Celeborn
-### Add Celeborn client jar to MapReduce classpath
+## Start MapReduce With Celeborn
+### Add Celeborn client jar to MapReduce's classpath
 1.Add $CELEBORN_HOME/mr/*.jar to `mapreduce.application.classpath` and `yarn.application.classpath`.
 2.Restart your yarn cluster.
 ### Add Celeborn configurations to MapReduce's conf
@@ -165,7 +165,7 @@ Modify `${HADOOP_CONF_DIR}/yarn-site.xml`
 
     <property>
         <name>yarn.app.mapreduce.am.command-opts</name>
-        <!--  Append  'org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn' to this setting  -->
+        <!-- Append 'org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn' to this setting  -->
         <value>org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn</value>
     </property>
 </configuration>
