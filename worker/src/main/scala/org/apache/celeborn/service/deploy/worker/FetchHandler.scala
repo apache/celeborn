@@ -421,4 +421,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     chunkStreamManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
     partitionsSorter.cleanupExpiredShuffleKey(expiredShuffleKeys)
   }
+
+  def setPartitionsSorter(partitionFilesSorter: PartitionFilesSorter): Unit = {
+    this.partitionsSorter = partitionFilesSorter
+  }
 }

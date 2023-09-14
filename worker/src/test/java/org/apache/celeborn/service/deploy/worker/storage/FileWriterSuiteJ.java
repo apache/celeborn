@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.worker.storage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -136,7 +137,7 @@ public class FileWriterSuiteJ {
     MemoryManager.initialize(conf);
   }
 
-  public static void setupChunkServer(FileInfo info) {
+  public static void setupChunkServer(FileInfo info) throws IOException {
     FetchHandler handler =
         new FetchHandler(transConf.getCelebornConf(), transConf) {
           @Override
@@ -159,6 +160,11 @@ public class FileWriterSuiteJ {
             return true;
           }
         };
+    PartitionFilesSorter sorter = mock(PartitionFilesSorter.class);
+    Mockito.doReturn(info)
+        .when(sorter)
+        .getSortedFileInfo(anyString(), anyString(), eq(info), anyInt(), anyInt());
+    handler.setPartitionsSorter(sorter);
     TransportContext context = new TransportContext(transConf, handler);
     server = context.createServer();
 
@@ -211,9 +217,9 @@ public class FileWriterSuiteJ {
 
   private void setUpConn(TransportClient client) throws IOException, CelebornException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
-    PbStreamHandler streamHandle = TransportMessage.fromByteBuffer(resp).getParsedPayload();
-    streamId = streamHandle.getStreamId();
-    numChunks = streamHandle.getNumChunks();
+    PbStreamHandler streamHandler = TransportMessage.fromByteBuffer(resp).getParsedPayload();
+    streamId = streamHandler.getStreamId();
+    numChunks = streamHandler.getNumChunks();
   }
 
   private FetchResult fetchChunks(TransportClient client, List<Integer> chunkIndices)
