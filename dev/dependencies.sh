@@ -37,8 +37,8 @@ DEP_PR=""
 DEP=""
 
 function mvn_build_classpath() {
-  $MVN clean install -DskipTests -am -pl $MVN_MODULES
-  $MVN dependency:build-classpath -am -pl $MVN_MODULES | \
+  $MVN -P$MODULE clean install -DskipTests -am -pl $MVN_MODULES
+  $MVN -P$MODULE dependency:build-classpath -am -pl $MVN_MODULES | \
     grep -v "INFO\|WARN" | \
     grep -v "Downloading from" | \
     # This will skip the first two lines
