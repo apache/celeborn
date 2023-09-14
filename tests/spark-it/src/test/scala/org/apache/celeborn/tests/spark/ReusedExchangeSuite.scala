@@ -77,5 +77,6 @@ class ReusedExchangeSuite extends AnyFunSuite
         |select distinct * from v1
         |""".stripMargin)
       .collect()
+    spark.stop
   }
 }
