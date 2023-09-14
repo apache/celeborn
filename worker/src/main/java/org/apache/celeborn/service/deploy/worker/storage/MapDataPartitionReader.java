@@ -31,6 +31,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
+import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -446,21 +447,20 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
         logger.debug("release reader for stream {}", streamId);
         // old client can't support BufferStreamEnd, so for new client it tells client that this
         // stream is finished.
-        if (fileInfo.isPartitionSplitEnabled() && !errorNotified) {
-          TransportMessage bufferStreamEnd =
-              new TransportMessage(
-                  MessageType.BUFFER_STREAM_END,
-                  PbBufferStreamEnd.newBuilder()
-                      .setClientType(PbBufferStreamEnd.Type.Flink)
-                      .setStreamId(streamId)
-                      .build()
-                      .toByteArray());
-          RpcRequest request =
+        if (fileInfo.isPartitionSplitEnabled() && !errorNotified)
+//          associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
+          associatedChannel.writeAndFlush(
               new RpcRequest(
                   TransportClient.requestId(),
-                  new NioManagedBuffer(bufferStreamEnd.toByteBuffer()));
-          associatedChannel.writeAndFlush(request);
-        }
+                  new NioManagedBuffer(
+                      new TransportMessage(
+                          MessageType.BUFFER_STREAM_END,
+                          PbBufferStreamEnd.newBuilder()
+                              .setClientType(PbBufferStreamEnd.Type.Flink)
+                              .setStreamId(streamId)
+                              .build()
+                              .toByteArray())
+                          .toByteBuffer())));
         if (!buffersToSend.isEmpty()) {
           numInUseBuffers.addAndGet(-1 * buffersToSend.size());
           buffersToSend.forEach(RecyclableBuffer::recycle);

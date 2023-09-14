@@ -19,6 +19,7 @@ package org.apache.celeborn.common.network.protocol;
 
 import io.netty.buffer.ByteBuf;
 
+@Deprecated
 public class BufferStreamEnd extends RequestMessage {
   private long streamId;
 

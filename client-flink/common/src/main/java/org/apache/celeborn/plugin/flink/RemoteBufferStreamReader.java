@@ -16,6 +16,8 @@
  */
 package org.apache.celeborn.plugin.flink;
 
+import static org.apache.celeborn.common.protocol.MessageType.*;
+
 import java.io.IOException;
 import java.util.function.Consumer;
 
@@ -23,11 +25,14 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.ReadAddCredit;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
@@ -76,7 +81,20 @@ public class RemoteBufferStreamReader extends CreditListener {
           } else if (requestMessage instanceof TransportableError) {
             errorReceived(((TransportableError) requestMessage).getErrorMessage());
           } else if (requestMessage instanceof BufferStreamEnd) {
-            onStreamEnd((BufferStreamEnd) requestMessage);
+            onStreamEnd(((BufferStreamEnd) requestMessage).getStreamId());
+          } else if (requestMessage instanceof RpcRequest) {
+            try {
+              TransportMessage transportMessage =
+                  TransportMessage.fromByteBuffer(requestMessage.body().nioByteBuffer());
+              switch (transportMessage.getMessageTypeValue()) {
+                case BUFFER_STREAM_END_VALUE:
+                  onStreamEnd(
+                      ((PbBufferStreamEnd) transportMessage.getParsedPayload()).getStreamId());
+                  break;
+              }
+            } catch (IOException e) {
+              logger.warn("Failed to consume RpcRequest message {}. ", requestMessage, e);
+            }
           }
         };
   }
@@ -151,8 +169,7 @@ public class RemoteBufferStreamReader extends CreditListener {
     dataListener.accept(readData.getFlinkBuffer());
   }
 
-  public void onStreamEnd(BufferStreamEnd streamEnd) {
-    long streamId = streamEnd.getStreamId();
+  public void onStreamEnd(long streamId) {
     logger.debug("Buffer stream reader get stream end for {}", streamId);
     bufferStream.moveToNextPartitionIfPossible(streamId);
   }
