@@ -149,3 +149,61 @@ INFO [dispatcher-event-loop-4] Controller: Reserved 1 primary location and 0 rep
 INFO [dispatcher-event-loop-3] Controller: Start commitFiles for local-1690000152711-0
 INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success with 1 committed primary partitions, 0 empty primary partitions, 0 failed primary partitions, 0 committed replica partitions, 0 empty replica partitions, 0 failed replica partitions.
 ```
+
+## start MapReduce With Celeborn
+### Add Celeborn client jar to MapReduce classpath
+1.Add $CELEBORN_HOME/mr/*.jar to `mapreduce.application.classpath` and `yarn.application.classpath`.
+2.Restart your yarn cluster.
+### Add Celeborn configurations to MapReduce's conf
+Modify `${HADOOP_CONF_DIR}/yarn-site.xml`
+```xml
+<configuration>
+    <property>
+        <name>yarn.app.mapreduce.am.job.recovery.enable</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>yarn.app.mapreduce.am.command-opts</name>
+        <!--  Append  'org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn' to this setting  -->
+        <value>org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn</value>
+    </property>
+</configuration>
+```
+Modify `${HADOOP_CONF_DIR}/mapred-site.xml`
+```xml
+<configuration>
+    <property>
+        <name>mapreduce.job.reduce.slowstart.completedmaps</name>
+        <value>1</value>
+    </property>
+    <property>
+        <name>mapreduce.celeborn.master.endpoints</name>
+        <!-- Replace placeholder to the real master address       -->
+        <value>placeholder:9097</value>
+    </property>
+    <property>
+        <name>mapreduce.job.map.output.collector.class</name>
+        <value>org.apache.hadoop.mapred.CelebornMapOutputCollector</value>
+    </property>
+    <property>
+        <name>mapreduce.job.reduce.shuffle.consumer.plugin.class</name>
+        <value>org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer</value>
+    </property>
+</configuration>
+```
+Then you can run a word count to check weather your configs are correct.
+```shell
+cd $HADOOP_HOME
+hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-3.2.1.jar wordcount /sometext /someoutput
+```
+During the MapReduce Job, you should see the following message in Celeborn Master's log:
+```log
+Master: Offer slots successfully for 1 reducers of application_1694674023293_0003-0 on 1 workers.
+```
+And the following message in Celeborn Worker's log:
+```log
+INFO [dispatcher-event-loop-4] Controller: Reserved 1 primary location and 0 replica location for application_1694674023293_0003-0
+INFO [dispatcher-event-loop-3] Controller: Start commitFiles for application_1694674023293_0003-0
+INFO [async-reply] Controller: CommitFiles for application_1694674023293_0003-0 success with 1 committed primary partitions, 0 empty primary partitions, 0 failed primary partitions, 0 committed replica partitions, 0 empty replica partitions, 0 failed replica partitions.
+```
