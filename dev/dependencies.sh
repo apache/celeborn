@@ -37,10 +37,11 @@ DEP_PR=""
 DEP=""
 
 function mvn_build_classpath() {
-  $MVN -P$MODULE clean install -DskipTests -am -pl $MVN_MODULES
-  $MVN -P$MODULE dependency:build-classpath -am -pl $MVN_MODULES | \
+  $MVN clean install -DskipTests -am -pl $MVN_MODULES
+  $MVN dependency:build-classpath -am -pl $MVN_MODULES | \
     grep -v "INFO\|WARN" | \
-    # This will skip the first two lines 
+    grep -v "Downloading from" | \
+    # This will skip the first two lines
     tail -n +3 | \
     tr ":" "\n" | \
     awk -F '/' '{
@@ -186,6 +187,7 @@ case "$MODULE" in
     SBT_PROJECT="celeborn-client-flink-1_17"
     ;;
   *)
+    MODULE="server"
     MVN_MODULES="worker,master"
     ;;
 esac
