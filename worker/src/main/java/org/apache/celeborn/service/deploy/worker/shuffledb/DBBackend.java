@@ -15,24 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker;
+package org.apache.celeborn.service.deploy.worker.shuffledb;
 
-import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
-import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
+/**
+ * The enum `DBBackend` use to specify a disk-based store used in shuffle service local db. Support
+ * the use of LevelDB and RocksDB.
+ *
+ * <p>Note: code copied from Apache Spark.
+ */
+public enum DBBackend {
+  LEVELDB(".ldb"),
+  ROCKSDB(".rdb");
 
-public abstract class ShuffleRecoverHelper {
-  protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
-  protected StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
+  private final String fileSuffix;
 
-  protected byte[] dbShuffleKey(String shuffleKey) {
-    return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
+  DBBackend(String fileSuffix) {
+    this.fileSuffix = fileSuffix;
   }
 
-  protected String parseDbShuffleKey(String s) {
-    if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
-      throw new IllegalArgumentException("Expected a string starting with " + SHUFFLE_KEY_PREFIX);
-    }
-    return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
+  public String fileName(String prefix) {
+    return prefix + fileSuffix;
+  }
+
+  public static DBBackend byName(String value) {
+    return DBBackend.valueOf(value.toUpperCase(Locale.ROOT));
   }
 }

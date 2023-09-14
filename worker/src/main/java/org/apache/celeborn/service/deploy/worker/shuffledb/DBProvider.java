@@ -15,24 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker;
+package org.apache.celeborn.service.deploy.worker.shuffledb;
 
-import java.nio.charset.StandardCharsets;
+import java.io.File;
+import java.io.IOException;
 
-import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
-
-public abstract class ShuffleRecoverHelper {
-  protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
-  protected StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
-
-  protected byte[] dbShuffleKey(String shuffleKey) {
-    return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
-  }
-
-  protected String parseDbShuffleKey(String s) {
-    if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
-      throw new IllegalArgumentException("Expected a string starting with " + SHUFFLE_KEY_PREFIX);
+/** Note: code copied from Apache Spark. */
+public class DBProvider {
+  public static DB initDB(DBBackend dbBackend, File dbFile, StoreVersion version)
+      throws IOException {
+    if (dbFile != null) {
+      switch (dbBackend) {
+        case LEVELDB:
+          org.iq80.leveldb.DB levelDB = LevelDBProvider.initLevelDB(dbFile, version);
+          return levelDB != null ? new LevelDB(levelDB) : null;
+        case ROCKSDB:
+          org.rocksdb.RocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version);
+          return rocksDB != null ? new RocksDB(rocksDB) : null;
+        default:
+          throw new IllegalArgumentException("Unsupported DBBackend: " + dbBackend);
+      }
     }
-    return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
+    return null;
   }
 }
