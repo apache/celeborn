@@ -138,6 +138,22 @@ resources: {}
   #    cpu: 100m
   #    memory: 128Mi
 
+# priorityClass used for Celeborn pods
+priorityClass:
+  master:
+    # Specifies whether a priorityClass should be created
+    create: false
+    # Specifies priorityClass name to be used (created if `create: true`)
+    name: ~
+    # half of system-cluster-critical by default
+    value: 1000000000
+
+  worker:
+    create: false
+    name: ~
+    # celeborn master minus 1000
+    value: 999999000
+
 podAnnotations: {}
 
 affinity:
