@@ -164,11 +164,6 @@ public class WorkerPartitionReader implements PartitionReader {
     closeStream();
   }
 
-  @Override
-  public PartitionLocation getLocation() {
-    return location;
-  }
-
   private void closeStream() {
     if (client != null && client.isActive()) {
       TransportMessage bufferStreamEnd =
@@ -181,6 +176,11 @@ public class WorkerPartitionReader implements PartitionReader {
                   .toByteArray());
       client.sendRpc(bufferStreamEnd.toByteBuffer());
     }
+  }
+
+  @Override
+  public PartitionLocation getLocation() {
+    return location;
   }
 
   private void fetchChunks() throws IOException, InterruptedException {
