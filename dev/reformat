@@ -24,3 +24,4 @@ ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.15
 ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.17
 ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-2.4
 ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.3
+${PROJECT_DIR}/build/mvn spotless:apply -Pmr

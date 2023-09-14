@@ -708,6 +708,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeReplicaOnFailureEnabled: Boolean =
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
+  def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -3803,6 +3804,15 @@ object CelebornConf extends Logging {
       .doc("Whether to support floating buffer for result partitions.")
       .booleanConf
       .createWithDefault(true)
+
+  val CLIENT_MR_PUSH_DATA_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.client.mr.pushData.max")
+      .categories("client")
+      .version("0.4.0")
+      .doc("Max size for a push data sent from mr client.")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(nVal => nVal < 2147483548, "Max size for a push data should be less than 2GB-20.")
+      .createWithDefaultString("32m")
 
   val ACTIVE_STORAGE_TYPES: ConfigEntry[String] =
     buildConf("celeborn.storage.activeTypes")

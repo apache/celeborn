@@ -64,8 +64,10 @@
     <maven.version>3.8.8</maven.version>
 
     <flink.version>1.14.6</flink.version>
-    <hadoop.version>3.2.4</hadoop.version>
     <spark.version>3.3.2</spark.version>
+
+    <!-- use hadoop-3 as default  -->
+    <hadoop.version>3.2.4</hadoop.version>
 
     <codahale.metrics.version>3.2.6</codahale.metrics.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
@@ -368,6 +370,16 @@
         <version>${zstd-jni.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.roaringbitmap</groupId>
+        <artifactId>RoaringBitmap</artifactId>
+        <version>${roaringbitmap.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>${snakeyaml.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-client-api</artifactId>
         <version>${hadoop.version}</version>
@@ -378,15 +390,21 @@
         <version>${hadoop.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.roaringbitmap</groupId>
-        <artifactId>RoaringBitmap</artifactId>
-        <version>${roaringbitmap.version}</version>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-mapreduce-client-app</artifactId>
+        <version>${hadoop.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
-      <dependency>
-        <groupId>org.yaml</groupId>
-        <artifactId>snakeyaml</artifactId>
-        <version>${snakeyaml.version}</version>
-      </dependency>
+
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
@@ -1105,6 +1123,14 @@
     </profile>
 
     <profile>
+      <id>mr</id>
+      <modules>
+        <module>client-mr/mr</module>
+        <module>client-mr/mr-shaded</module>
+      </modules>
+    </profile>
+
+    <profile>
       <id>google-mirror</id>
       <properties>
         <mavenCentralId>gcs-maven-central-mirror</mavenCentralId>
@@ -1126,7 +1152,6 @@
               <execution>
                 <id>source-release-assembly</id>
                 <phase>none</phase>
-
               </execution>
             </executions>
           </plugin>

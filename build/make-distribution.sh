@@ -218,6 +218,24 @@ function build_flink_client {
   cp "$PROJECT_DIR"/client-flink/flink-$FLINK_BINARY_VERSION-shaded/target/celeborn-client-flink-${FLINK_BINARY_VERSION}-shaded_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/flink/"
 }
 
+function build_mr_client {
+  VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
+        | grep -v "INFO" \
+        | grep -v "WARNING" \
+        | tail -n 1)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-mr-shaded_${SCALA_VERSION} -am $@)
+
+    # Actually build the jar
+    echo -e "\nBuilding with..."
+    echo -e "\$ ${BUILD_COMMAND[@]}\n"
+
+    "${BUILD_COMMAND[@]}"
+
+    ## flink spark client jars
+    mkdir -p "$DIST_DIR/mr"
+    cp "$PROJECT_DIR"/client-mr/mr-shaded/target/celeborn-client-mr-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/mr/"
+}
+
 if [ "$RELEASE" == "true" ]; then
   build_service
   build_spark_client -Pspark-2.4
@@ -225,19 +243,35 @@ if [ "$RELEASE" == "true" ]; then
   build_flink_client -Pflink-1.14
   build_flink_client -Pflink-1.15
   build_flink_client -Pflink-1.17
+  build_mr_client mr
 else
   ## build release package on demand
   build_service $@
-  if [[ $@ != *"spark"* && $@ != *"flink"* ]]; then
-      echo "Skip building client."
-  elif [[ $@ == *"spark"* && $@ != *"flink"* ]]; then
-    build_spark_client $@
-  elif [[ $@ == *"flink"* && $@ != *"spark"* ]]; then
-    build_flink_client $@
-  else
+  echo "build client with $@"
+  ENGINE_COUNT=0
+  ENGINES=("spark" "flink" "mr")
+  for single_engine in ${ENGINES[@]}
+  do
+    echo $single_engine
+    if [[ $@ == *"${single_engine}"* ]];then
+      ENGINE_COUNT=`expr ${ENGINE_COUNT} + 1`
+    fi
+  done
+  if [[ ${ENGINE_COUNT} -eq 0  ]]; then
+    echo "Skip building client."
+  elif [[ ${ENGINE_COUNT} -ge 2 ]]; then
     echo "Error: unsupported build options: $@"
-    echo "       currently we do not support compiling Spark and Flink clients at the same time."
+    echo "       currently we do not support compiling different engine clients at the same time."
     exit -1
+  elif [[  $@ == *"spark"* ]]; then
+    echo "build spark clients"
+    build_spark_client $@
+  elif [[  $@ == *"flink"* ]]; then
+    echo "build flink clients"
+    build_flink_client $@
+  elif [[  $@ == *"mr"* ]]; then
+    echo "build mr clients"
+    build_mr_client $@
   fi
 fi
 
