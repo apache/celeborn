@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# Stops the celeborn master on the machine this script is executed on.
+# Get the celeborn master status on the machine this script is executed on.
 
 if [ -z "${CELEBORN_HOME}" ]; then
   export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
