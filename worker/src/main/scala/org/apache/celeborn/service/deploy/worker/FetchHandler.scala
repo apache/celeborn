@@ -17,16 +17,17 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.{lang, util}
 import java.io.{FileNotFoundException, IOException}
 import java.lang.Runtime
 import java.nio.charset.StandardCharsets
-import java.{lang, util}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.util.concurrent.{Future, GenericFutureListener}
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.internal.Logging
@@ -92,7 +93,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       case r: OpenStream =>
         // TODO:(fchen)
         throw new UnsupportedOperationException()
-        handleOpenStream(client,
+        handleOpenStream(
+          client,
           new String(r.shuffleKey, StandardCharsets.UTF_8),
           new String(r.fileName, StandardCharsets.UTF_8),
           r.startMapIndex,
@@ -100,11 +102,13 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           initialCredit = 0,
           rpcRequestId = -1,
           isLegacy = true,
-          readLocalShuffle = false) // legacy [[OpenStream]] doesn't support read local shuffle
+          readLocalShuffle = false
+        ) // legacy [[OpenStream]] doesn't support read local shuffle
       case r: OpenStreamWithCredit =>
         // TODO:(fchen)
         throw new UnsupportedOperationException()
-        handleOpenStream(client,
+        handleOpenStream(
+          client,
           new String(r.shuffleKey, StandardCharsets.UTF_8),
           new String(r.fileName, StandardCharsets.UTF_8),
           r.startIndex,
@@ -112,13 +116,14 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           r.initialCredit,
           rpcRequestId = -1,
           isLegacy = true,
-          readLocalShuffle = false) // legacy [[OpenStreamWithCredit]] doesn't support read local shuffle
+          readLocalShuffle = false
+        ) // legacy [[OpenStreamWithCredit]] doesn't support read local shuffle
       case r: ReadAddCredit =>
         handleReadAddCredit(r)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
-          handleRpcRequest(client, r)
+        handleRpcRequest(client, r)
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
     }

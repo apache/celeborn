@@ -20,8 +20,6 @@ package org.apache.celeborn.plugin.flink.network;
 import static org.apache.celeborn.common.protocol.MessageType.*;
 
 import java.io.IOException;
-import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
-import org.apache.celeborn.common.network.protocol.TransportMessage;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -33,8 +31,10 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
 
