@@ -23,9 +23,8 @@ import java.util
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-
 import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.asScalaBufferConverter
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Throwables
