@@ -36,11 +36,16 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.FileCorruptedException;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
+import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
-import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.ReadData;
+import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -441,8 +446,21 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
         logger.debug("release reader for stream {}", streamId);
         // old client can't support BufferStreamEnd, so for new client it tells client that this
         // stream is finished.
-        if (fileInfo.isPartitionSplitEnabled() && !errorNotified)
-          associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
+        if (fileInfo.isPartitionSplitEnabled() && !errorNotified) {
+          TransportMessage bufferStreamEnd =
+              new TransportMessage(
+                  MessageType.BUFFER_STREAM_END,
+                  PbBufferStreamEnd.newBuilder()
+                      .setClientType(PbBufferStreamEnd.Type.Flink)
+                      .setStreamId(streamId)
+                      .build()
+                      .toByteArray());
+          RpcRequest request =
+              new RpcRequest(
+                  TransportClient.requestId(),
+                  new NioManagedBuffer(bufferStreamEnd.toByteBuffer()));
+          associatedChannel.writeAndFlush(request);
+        }
         if (!buffersToSend.isEmpty()) {
           numInUseBuffers.addAndGet(-1 * buffersToSend.size());
           buffersToSend.forEach(RecyclableBuffer::recycle);

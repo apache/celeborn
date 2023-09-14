@@ -127,7 +127,15 @@ public class CelebornBufferStream {
 
   private void closeStream(long streamId) {
     if (client != null && client.isActive()) {
-      client.getChannel().writeAndFlush(new BufferStreamEnd(streamId));
+      TransportMessage bufferStreamEnd =
+          new TransportMessage(
+              MessageType.BUFFER_STREAM_END,
+              PbBufferStreamEnd.newBuilder()
+                  .setClientType(PbBufferStreamEnd.Type.Flink)
+                  .setStreamId(streamId)
+                  .build()
+                  .toByteArray());
+      client.sendRpc(bufferStreamEnd.toByteBuffer());
     }
   }
 
