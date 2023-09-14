@@ -93,10 +93,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
-  //  private final Thread originFileCleanerThread;
-
-  //  private ScheduledExecutorService cleaner =
-  //      ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-file-scheduler");
 
   public PartitionFilesSorter(
       MemoryManager memoryManager,
