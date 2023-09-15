@@ -34,6 +34,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -156,7 +157,7 @@ public class FetchHandlerSuiteJ {
       // total write: 32 * 50 * 256k = 400m
       fileInfo = prepare(32);
       EmbeddedChannel channel = new EmbeddedChannel();
-      TransportClient client = new TransportClient(channel, null);
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
       FetchHandler fetchHandler = mockFetchHandler(fileInfo);
 
       PbStreamHandler streamHandler =
@@ -175,7 +176,7 @@ public class FetchHandlerSuiteJ {
       // total write size: 32 * 50 * 256k = 400m
       fileInfo = prepare(32);
       EmbeddedChannel channel = new EmbeddedChannel();
-      TransportClient client = new TransportClient(channel, null);
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
       FetchHandler fetchHandler = mockFetchHandler(fileInfo);
 
       PbStreamHandler streamHandler =
@@ -194,7 +195,7 @@ public class FetchHandlerSuiteJ {
       // total write size: 32 * 50 * 256k = 400m
       fileInfo = prepare(32);
       EmbeddedChannel channel = new EmbeddedChannel();
-      TransportClient client = new TransportClient(channel, null);
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
       FetchHandler fetchHandler = mockFetchHandler(fileInfo);
 
       PbStreamHandler rangeReadStreamHandler =
@@ -216,7 +217,7 @@ public class FetchHandlerSuiteJ {
       // total write size: 32 * 50 * 256k = 400m
       fileInfo = prepare(32);
       EmbeddedChannel channel = new EmbeddedChannel();
-      TransportClient client = new TransportClient(channel, null);
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
       FetchHandler fetchHandler = mockFetchHandler(fileInfo);
 
       PbStreamHandler nonRangeReadstreamHandler =

@@ -75,9 +75,7 @@ public class TransportClient implements Closeable {
 
   public TransportClient(Channel channel, TransportResponseHandler handler) {
     this.channel = Preconditions.checkNotNull(channel);
-    // TODO:(fchen) revert
-    //    this.handler = Preconditions.checkNotNull(handler);
-    this.handler = handler;
+    this.handler = Preconditions.checkNotNull(handler);
     this.timedOut = false;
   }
 
