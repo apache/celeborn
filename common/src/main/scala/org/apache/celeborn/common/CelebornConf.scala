@@ -2406,7 +2406,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Intervals between device monitor to check disk.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("30s")
 
   val WORKER_DISK_MONITOR_SYS_BLOCK_DIR: ConfigEntry[String] =
     buildConf("celeborn.worker.monitor.disk.sys.block.dir")
