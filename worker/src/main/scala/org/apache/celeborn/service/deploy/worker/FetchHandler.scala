@@ -205,7 +205,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               fileInfo.getChunkOffsets,
               fileInfo.getFilePath)
           } else if (fileInfo.isHdfs) {
-            replyStreamHandler(client, rpcRequestId, 0, 0, isLegacy)
+            replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
           } else {
             val buffers = new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
