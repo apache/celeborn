@@ -292,6 +292,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       case PbBufferStreamEnd.Type.Flink =>
         creditStreamManager.notifyStreamEndByClient(req.getStreamId)
       case _ =>
+        logError(s"Received a PbBufferStreamEnd message with unknown type ${req.getClientType}")
     }
   }
 
@@ -334,7 +335,6 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
                   s"Sending ChunkFetchSuccess operation succeeded, chunk ${req.streamChunkSlice}")
               }
             } else {
-              future.cause().printStackTrace()
               logError(
                 s"Sending ChunkFetchSuccess operation failed, chunk ${req.streamChunkSlice}",
                 future.cause())
