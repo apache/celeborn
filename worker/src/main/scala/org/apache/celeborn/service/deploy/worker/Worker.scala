@@ -80,12 +80,16 @@ private[celeborn] class Worker(
   val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = conf.workerGracefulShutdown
   private var exitKind = CelebornExitKind.EXIT_IMMEDIATELY
-  assert(
-    !gracefulShutdown || (gracefulShutdown &&
-      conf.workerRpcPort > 0 && conf.workerFetchPort > 0 &&
-      conf.workerPushPort > 0 && conf.workerReplicatePort > 0),
-    "If enable graceful shutdown, the worker should use stable server port.")
   if (gracefulShutdown) {
+    val checkPortMap = Map(
+      WORKER_RPC_PORT -> conf.workerRpcPort,
+      WORKER_FETCH_PORT -> conf.workerFetchPort,
+      WORKER_PUSH_PORT -> conf.workerPushPort,
+      WORKER_REPLICATE_PORT -> conf.workerReplicatePort)
+    assert(
+      !checkPortMap.values.exists(_ == 0),
+      "If enable graceful shutdown, the worker should use non-zero port. " +
+        s"${checkPortMap.map { case (k, v) => k.key + "=" + v }.mkString(", ")}")
     exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
     try {
       val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
