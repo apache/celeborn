@@ -1582,7 +1582,7 @@ object CelebornConf extends Logging {
   val WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.workerUnavailableInfo.expireTimeout")
       .categories("master")
-      .version("0.3.0")
+      .version("0.3.2")
       .doc("Worker unavailable info would be cleared when the retention period is expired")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1800s")
