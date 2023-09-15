@@ -2607,6 +2607,8 @@ object CelebornConf extends Logging {
       .doc("Specifies a disk-based store used in local db. LEVELDB or ROCKSDB.")
       .version("0.4.0")
       .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("LEVELDB", "ROCKSDB"))
       .createWithDefault("LEVELDB")
 
   val WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
