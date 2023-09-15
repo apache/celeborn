@@ -39,8 +39,9 @@ DEP=""
 function mvn_build_classpath() {
   $MVN -P$MODULE clean install -DskipTests -am -pl $MVN_MODULES
   $MVN -P$MODULE dependency:build-classpath -am -pl $MVN_MODULES | \
-    grep -v "INFO\|WARN" | \
-    grep -v "Downloading from" | \
+    grep -A1 "Dependencies classpath:" | \
+    grep -v "^--$" | \
+    grep -v "Dependencies classpath:" | \
     # This will skip the first two lines
     tail -n +3 | \
     tr ":" "\n" | \
