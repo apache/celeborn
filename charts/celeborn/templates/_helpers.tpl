@@ -53,6 +53,7 @@ Selector labels
 {{- define "celeborn.selectorLabels" -}}
 app.kubernetes.io/name: {{ .Chart.Name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/tag: {{ .Values.image.tag }}
 {{- end }}
 
 {{/*
@@ -62,7 +63,6 @@ Common labels
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{ include "celeborn.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-app.kubernetes.io/tag: {{ .Values.image.tag }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
