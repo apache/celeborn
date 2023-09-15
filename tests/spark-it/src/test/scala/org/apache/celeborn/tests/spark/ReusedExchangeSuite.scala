@@ -68,9 +68,9 @@ class ReusedExchangeSuite extends AnyFunSuite
 
     spark.sql(
       """
-        |SELECT DISTINCT * FROM v1 WHERE v3 IS NOT NULL
+        |SELECT * FROM v1 WHERE v3 IS NOT NULL
         |UNION
-        |SELECT DISTINCT * FROM v1
+        |SELECT * FROM v1
         |""".stripMargin)
       .collect()
     spark.stop
