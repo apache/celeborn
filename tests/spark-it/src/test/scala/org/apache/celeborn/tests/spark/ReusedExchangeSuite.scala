@@ -34,20 +34,16 @@ class ReusedExchangeSuite extends AnyFunSuite
     ShuffleClient.reset()
   }
 
-  private def enableCeleborn(conf: SparkConf) = {
-    conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
-      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
-      .set(s"spark.${CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key}", "10MB")
-  }
-
   test("ReusedExchange end to end test") {
-    val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
+    val sparkConf = new SparkConf().setAppName("celeborn-test").setMaster("local[2]")
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
+      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "100")
       .set("spark.sql.adaptive.advisoryPartitionSizeInBytes", "100")
     //    spark.sql("set spark.sql.adaptive.localShuffleReader.enabled=false")
     val spark = SparkSession.builder()
-      .config(enableCeleborn(sparkConf))
+      .config(sparkConf)
       .getOrCreate()
     spark.range(0, 1000, 1, 10)
       .selectExpr("id as k1", "id as v1")
@@ -63,18 +59,18 @@ class ReusedExchangeSuite extends AnyFunSuite
 
     spark.sql(
       """
-        |select *
-        | from ta
-        |left join tb on ta.k1 = tb.k21
-        |left join tc on tb.k22 = tc.k3
+        |SELECT *
+        |FROM ta
+        |LEFT JOIN tb ON ta.k1 = tb.k21
+        |LEFT JOIN tc ON tb.k22 = tc.k3
         |""".stripMargin)
       .createOrReplaceTempView("v1")
 
     spark.sql(
       """
-        |select distinct * from v1 where v3 is not null
-        |union
-        |select distinct * from v1
+        |SELECT DISTINCT * FROM v1 WHERE v3 IS NOT NULL
+        |UNION
+        |SELECT DISTINCT * FROM v1
         |""".stripMargin)
       .collect()
     spark.stop
