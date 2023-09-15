@@ -19,7 +19,11 @@ package org.apache.celeborn.service.deploy.worker.shuffledb;
 
 import java.nio.charset.StandardCharsets;
 
-/** Used to identify the version of data stored in local shuffle state DB. */
+/**
+ * Used to identify the version of data stored in local shuffle state DB.
+ *
+ * <p>Note: code copied from Apache Spark.
+ */
 public class StoreVersion {
 
   public static final byte[] KEY = "StoreVersion".getBytes(StandardCharsets.UTF_8);

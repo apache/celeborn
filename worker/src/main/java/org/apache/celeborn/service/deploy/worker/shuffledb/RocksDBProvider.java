@@ -28,7 +28,11 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.util.PbSerDeUtils;
 
-/** RocksDB utility class available in the network package. */
+/**
+ * RocksDB utility class available in the network package.
+ *
+ * <p>Note: code copied from Apache Spark.
+ */
 public class RocksDBProvider {
 
   static {
