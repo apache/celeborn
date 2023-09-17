@@ -362,9 +362,15 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  case class RemoveWorkersUnavailableInfo(
-      unavailable: util.List[WorkerInfo],
-      override var requestId: String = ZERO_UUID) extends MasterRequestMessage
+  object RemoveWorkersUnavailableInfo {
+    def apply(unavailable: util.List[WorkerInfo],
+              requestId: String): PbRemoveWorkersUnavailableInfo =
+      PbRemoveWorkersUnavailableInfo.newBuilder()
+        .setRequestId(requestId)
+        .addAllWorkerInfo(unavailable.asScala.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)}.toList.asJava)
+        .build()
+  }
 
   /**
    * ==========================================
@@ -688,14 +694,8 @@ object ControlMessages extends Logging {
         .setRequestId(requestId).build().toByteArray
       new TransportMessage(MessageType.REPORT_WORKER_FAILURE, payload)
 
-    case RemoveWorkersUnavailableInfo(unavailableWorkers, requestId) =>
-      val payload = PbRemoveWorkersUnavailableInfo.newBuilder()
-        .addAllWorkerInfo(unavailableWorkers.asScala.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
-        }
-          .toList.asJava)
-        .setRequestId(requestId).build().toByteArray
-      new TransportMessage(MessageType.REMOVE_WORKERS_UNAVAILABLE_INFO, payload)
+    case pb: PbRemoveWorkersUnavailableInfo =>
+      new TransportMessage(MessageType.REMOVE_WORKERS_UNAVAILABLE_INFO, pb.toByteArray)
 
     case pb: PbRegisterWorkerResponse =>
       new TransportMessage(MessageType.REGISTER_WORKER_RESPONSE, pb.toByteArray)
@@ -1003,12 +1003,7 @@ object ControlMessages extends Logging {
           pbReportWorkerUnavailable.getRequestId)
 
       case REMOVE_WORKERS_UNAVAILABLE_INFO_VALUE =>
-        val pbRemoveWorkersUnavailableInfo =
-          PbRemoveWorkersUnavailableInfo.parseFrom(message.getPayload)
-        RemoveWorkersUnavailableInfo(
-          new util.ArrayList[WorkerInfo](pbRemoveWorkersUnavailableInfo.getWorkerInfoList
-            .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
-          pbRemoveWorkersUnavailableInfo.getRequestId)
+        PbRemoveWorkersUnavailableInfo.parseFrom(message.getPayload)
 
       case REGISTER_WORKER_RESPONSE_VALUE =>
         PbRegisterWorkerResponse.parseFrom(message.getPayload)

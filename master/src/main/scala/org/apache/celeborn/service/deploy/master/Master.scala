@@ -271,10 +271,12 @@ private[celeborn] class Master(
       executeWithLeaderChecker(
         null,
         handleWorkerLost(null, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
-    case RemoveWorkersUnavailableInfo(unavailableWorkers, requestId) =>
+    case pb: PbRemoveWorkersUnavailableInfo =>
+      val unavailableWorkers = new util.ArrayList[WorkerInfo](pb.getWorkerInfoList
+        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
       executeWithLeaderChecker(
         null,
-        handleRemoveWorkersUnavailableInfos(unavailableWorkers, requestId))
+        handleRemoveWorkersUnavailableInfos(unavailableWorkers, pb.getRequestId))
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
