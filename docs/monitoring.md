@@ -296,6 +296,7 @@ API path listed as below:
 | /workerInfo           | List worker information of the service. It will list all registered workers 's information.                 |
 | /lostWorkers          | List all lost workers of the master.                                                                        |
 | /excludedWorkers      | List all excluded workers of the master.                                                                    |
+| /shutdownWorkers      | List all shutdown workers of the master.                                                                    |
 | /threadDump           | List the current thread dump of the master.                                                                 |
 | /hostnames            | List all running application's LifecycleManager's hostnames of the cluster.                                 |
 | /applications         | List all running application's ids of the cluster.                                                          |
