@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.{FSDataInputStream, Path}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.PORT_MAX_RETRY
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, WorkerInfo}
@@ -274,13 +275,12 @@ object Utils extends Logging {
                 s"${e.getMessage}: Service$serviceString failed after " +
                   s"$maxRetries retries (on a random free port)! " +
                   s"Consider explicitly setting the appropriate binding address for " +
-                  s"the service$serviceString (for example spark.driver.bindAddress " +
-                  s"for SparkDriver) to the correct binding address."
+                  s"the service$serviceString to the correct binding address."
               } else {
                 s"${e.getMessage}: Service$serviceString failed after " +
                   s"$maxRetries retries (starting from $startPort)! Consider explicitly setting " +
-                  s"the appropriate port for the service$serviceString (for example spark.ui.port " +
-                  s"for SparkUI) to an available port or increasing spark.port.maxRetries."
+                  s"the appropriate port for the service$serviceString to an available port " +
+                  s"or increasing ${PORT_MAX_RETRY.key}."
               }
             val exception = new BindException(exceptionMessage)
             // restore original stack trace
