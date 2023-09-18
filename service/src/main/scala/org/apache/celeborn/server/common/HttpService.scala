@@ -80,13 +80,13 @@ abstract class HttpService extends Service with Logging {
       }
     httpServer = new HttpServer(
       serviceName,
-      prometheusHost(),
-      prometheusPort(),
+      httpServiceHost(),
+      httpServicePort(),
       new HttpServerInitializer(handlers))
     httpServer.start()
   }
 
-  private def prometheusHost(): String = {
+  private def httpServiceHost(): String = {
     serviceName match {
       case Service.MASTER =>
         conf.masterHttpServiceHost
@@ -95,7 +95,7 @@ abstract class HttpService extends Service with Logging {
     }
   }
 
-  private def prometheusPort(): Int = {
+  private def httpServicePort(): Int = {
     serviceName match {
       case Service.MASTER =>
         conf.masterHttpServicePort
