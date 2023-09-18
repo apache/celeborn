@@ -28,6 +28,10 @@ license: |
 
 - Since 0.4.0, Celeborn won't support `org.apache.spark.shuffle.celeborn.RssShuffleManager`.
 
+## Upgrading from 0.3.1 to 0.3.2
+
+- Since 0.3.2, Celeborn changed the default value of `celeborn.worker.monitor.disk.check.interval` from `60` to `30`.
+
 ## Upgrading from 0.3.0 to 0.3.1
 
 - Since 0.3.1, Celeborn changed the default value of `celeborn.worker.directMemoryRatioToResume` from `0.5` to `0.7`.
