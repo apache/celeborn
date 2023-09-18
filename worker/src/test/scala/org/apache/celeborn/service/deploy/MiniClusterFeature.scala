@@ -30,8 +30,8 @@ import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 trait MiniClusterFeature extends Logging {
-  val workerPrometheusPort = new AtomicInteger(12378)
-  val masterPrometheusPort = new AtomicInteger(22378)
+  val masterHttpServicePort = new AtomicInteger(22378)
+  val workerHttpServicePort = new AtomicInteger(12378)
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
 
@@ -51,9 +51,9 @@ trait MiniClusterFeature extends Logging {
   private def createMaster(map: Map[String, String] = null): Master = {
     val conf = new CelebornConf()
     conf.set(CelebornConf.METRICS_ENABLED.key, "false")
-    val prometheusPort = masterPrometheusPort.getAndIncrement()
-    conf.set(CelebornConf.MASTER_HTTP_SERVICE_PORT.key, s"$prometheusPort")
-    logInfo(s"set celeborn.master.metrics.prometheus.port to $prometheusPort")
+    val httpServicePort = masterHttpServicePort.getAndIncrement()
+    conf.set(CelebornConf.MASTER_HTTP_SERVICE_PORT.key, s"$httpServicePort")
+    logInfo(s"set ${CelebornConf.MASTER_HTTP_SERVICE_PORT.key} to $httpServicePort")
     if (map != null) {
       map.foreach(m => conf.set(m._1, m._2))
     }
@@ -74,7 +74,7 @@ trait MiniClusterFeature extends Logging {
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
     conf.set(
       CelebornConf.WORKER_HTTP_SERVICE_PORT.key,
-      s"${workerPrometheusPort.incrementAndGet()}")
+      s"${workerHttpServicePort.incrementAndGet()}")
     conf.set("celeborn.fetch.io.threads", "4")
     conf.set("celeborn.push.io.threads", "4")
     if (map != null) {
