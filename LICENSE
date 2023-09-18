@@ -211,4 +211,3 @@ Apache Software Foundation License 2.0
 --------------------------------------
 
 common/src/main/java/org/apache/celeborn/common/network/util/LimitedInputStream.java
-worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/*
