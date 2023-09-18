@@ -2125,7 +2125,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.http.service.port")
       .withAlternative("celeborn.metrics.worker.prometheus.port")
       .withAlternative("celeborn.worker.metrics.prometheus.port")
-      .categories("metrics")
+      .categories("worker")
       .doc("Worker's http service port.")
       .version("0.4.0")
       .intConf

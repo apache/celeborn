@@ -110,7 +110,7 @@ spec:
         resources:
           {{- toYaml .Values.resources.worker | nindent 12 }}
         ports:
-          - containerPort: {{ get .Values.celeborn "celeborn.worker.metrics.prometheus.port" | default 9096 }}
+          - containerPort: {{ get .Values.celeborn "celeborn.worker.http.service.port" | default 9096 }}
             name: metrics
             protocol: TCP
         volumeMounts:
