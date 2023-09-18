@@ -188,21 +188,8 @@ stop_celeborn() {
         if [[ $(ps -p "$TARGET_ID" -o comm=) == "" ]]; then
           rm -f "$pid"
         else
-          echo "Failed to stop server after ${wait_timeout}s, try 'kill -9 ${TARGET_ID}' forcefully"
-          kill -9 "${TARGET_ID}"
-          for i in {1..20}
-          do
-            sleep 0.5
-            if [[ $(ps -p "$TARGET_ID" -o comm=) == "" ]]; then
-              rm -f "$pid"
-              break
-            fi
-          done
-
-          if [ -f ${pid} ]; then
-            echo "Failed to stop server forcefully after 10 seconds"
-            exit 1
-          fi
+          echo "Failed to stop server(pid=$TARGET_ID) after ${wait_timeout}s"
+          exit 1
         fi
       else
         echo "no $command to stop"
