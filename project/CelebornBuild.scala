@@ -396,6 +396,11 @@ object CelebornWorker {
     .dependsOn(CelebornMaster.master % "test->compile")
     .settings (
       commonSettings,
+      excludeDependencies ++= Seq(
+        // ratis-common/ratis-client are the transitive dependencies from celeborn-common
+        ExclusionRule("org.apache.ratis", "ratis-common"),
+        ExclusionRule("org.apache.ratis", "ratis-client")
+      ),
       libraryDependencies ++= Seq(
         Dependencies.guava,
         Dependencies.commonsIo,
