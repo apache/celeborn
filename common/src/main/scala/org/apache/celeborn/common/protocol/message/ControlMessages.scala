@@ -66,6 +66,8 @@ object ControlMessages extends Logging {
 
   case object CheckForApplicationTimeOut extends Message
 
+  case object CheckForWorkerUnavailableInfoTimeout extends Message
+
   case object CheckForHDFSExpiredDirsTimeout extends Message
 
   case object RemoveExpiredShuffle extends Message
@@ -357,6 +359,18 @@ object ControlMessages extends Logging {
     def apply(isAvailable: Boolean): PbCheckWorkersAvailableResponse =
       PbCheckWorkersAvailableResponse.newBuilder()
         .setAvailable(isAvailable)
+        .build()
+  }
+
+  object RemoveWorkersUnavailableInfo {
+    def apply(
+        unavailable: util.List[WorkerInfo],
+        requestId: String): PbRemoveWorkersUnavailableInfo =
+      PbRemoveWorkersUnavailableInfo.newBuilder()
+        .setRequestId(requestId)
+        .addAllWorkerInfo(unavailable.asScala.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        }.toList.asJava)
         .build()
   }
 
@@ -682,6 +696,9 @@ object ControlMessages extends Logging {
         .setRequestId(requestId).build().toByteArray
       new TransportMessage(MessageType.REPORT_WORKER_FAILURE, payload)
 
+    case pb: PbRemoveWorkersUnavailableInfo =>
+      new TransportMessage(MessageType.REMOVE_WORKERS_UNAVAILABLE_INFO, pb.toByteArray)
+
     case pb: PbRegisterWorkerResponse =>
       new TransportMessage(MessageType.REGISTER_WORKER_RESPONSE, pb.toByteArray)
 
@@ -986,6 +1003,9 @@ object ControlMessages extends Logging {
           new util.ArrayList[WorkerInfo](pbReportWorkerUnavailable.getUnavailableList
             .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbReportWorkerUnavailable.getRequestId)
+
+      case REMOVE_WORKERS_UNAVAILABLE_INFO_VALUE =>
+        PbRemoveWorkersUnavailableInfo.parseFrom(message.getPayload)
 
       case REGISTER_WORKER_RESPONSE_VALUE =>
         PbRegisterWorkerResponse.parseFrom(message.getPayload)

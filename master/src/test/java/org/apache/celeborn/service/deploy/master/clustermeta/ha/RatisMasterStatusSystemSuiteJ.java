@@ -908,6 +908,79 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
+  public void testHandleRemoveWorkersUnavailableInfo() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+
+    WorkerInfo workerInfo1 =
+        new WorkerInfo(
+            HOSTNAME1,
+            RPCPORT1,
+            PUSHPORT1,
+            FETCHPORT1,
+            REPLICATEPORT1,
+            disks1,
+            userResourceConsumption1);
+
+    List<WorkerInfo> unavailableWorkers = new ArrayList<>();
+    unavailableWorkers.add(workerInfo1);
+
+    statusSystem.handleWorkerLost(
+        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
+    statusSystem.handleReportWorkerUnavailable(unavailableWorkers, getNewReqeustId());
+
+    Thread.sleep(3000L);
+    Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
+
+    Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.shutdownWorkers.size());
+
+    Assert.assertEquals(1, STATUSSYSTEM1.lostWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.lostWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.lostWorkers.size());
+
+    statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, getNewReqeustId());
+    Thread.sleep(3000L);
+
+    Assert.assertEquals(0, STATUSSYSTEM1.shutdownWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.shutdownWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.shutdownWorkers.size());
+
+    Assert.assertEquals(0, STATUSSYSTEM1.lostWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM2.lostWorkers.size());
+    Assert.assertEquals(0, STATUSSYSTEM3.lostWorkers.size());
+  }
+
+  @Test
   public void testHandleUpdatePartitionSize() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);

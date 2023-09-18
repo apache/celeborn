@@ -135,6 +135,17 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     excludedWorkers.remove(worker);
   }
 
+  public void removeWorkersUnavailableInfoMeta(List<WorkerInfo> unavailableWorkers) {
+    synchronized (workers) {
+      for (WorkerInfo workerInfo : unavailableWorkers) {
+        if (lostWorkers.containsKey(workerInfo)) {
+          lostWorkers.remove(workerInfo);
+          shutdownWorkers.remove(workerInfo);
+        }
+      }
+    }
+  }
+
   public void updateWorkerHeartbeatMeta(
       String host,
       int rpcPort,

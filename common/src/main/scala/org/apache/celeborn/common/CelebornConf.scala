@@ -640,6 +640,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
   def workerHeartbeatTimeout: Long = get(WORKER_HEARTBEAT_TIMEOUT)
+  def workerUnavailableInfoExpireTimeout: Long = get(WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT)
+
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int =
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
@@ -1577,6 +1579,14 @@ object CelebornConf extends Logging {
       .doc("Worker heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.workerUnavailableInfo.expireTimeout")
+      .categories("master")
+      .version("0.3.2")
+      .doc("Worker unavailable info would be cleared when the retention period is expired")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1800s")
 
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
