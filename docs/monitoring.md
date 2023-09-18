@@ -269,10 +269,10 @@ an easy way to create new visualizations and monitoring tools for Celeborn and
 also easy for users to get the running status of the service. The REST API is available for
 both master and worker. The endpoints are mounted at `host:port`. For example,
 for the master, they would typically be accessible
-at `http://<master-http-service-host>:<master-http-service-port><path>`, and
-for the worker, at `http://<worker-http-service-host>:<worker-http-service-port><path>`.
+at `http://<master-http-host>:<master-http-port><path>`, and
+for the worker, at `http://<worker-http-host>:<worker-http-port><path>`.
 
-The configuration of `<master-http-service-host>`, `<master-http-service-port>`, `<worker-http-service-host>`, `<worker-http-service-port>` as below:
+The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-host>`, `<worker-http--port>` as below:
 
 | Key                       | Default | Description         | Since |
 |---------------------------|---------|---------------------|-------|
