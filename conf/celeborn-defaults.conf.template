@@ -25,14 +25,14 @@ celeborn.push.io.numConnectionsPerPeer           2
 celeborn.worker.push.io.threads                  8
 
 celeborn.metrics.enabled                         true
-celeborn.metrics.master.prometheus.port          9098
-celeborn.metrics.worker.prometheus.port          9096
 
 celeborn.worker.storage.dirs                     /mnt/disk1,/mnt/disk2,/mnt/disk3,/mnt/disk4,/mnt/disk5,/mnt/disk6,/mnt/disk7,/mnt/disk8,/mnt/disk9,/mnt/disk10
+celeborn.worker.http.service.port                9096
 
 celeborn.master.endpoints                        clb-1:9097,clb-2:9098,clb-3:9099
+celeborn.master.http.service.port                9098
 
-celeborn.master.ha.enabled                              true
+celeborn.master.ha.enabled                       true
 celeborn.master.ha.node.1.host                   clb-1
 celeborn.master.ha.node.1.port                   9097
 celeborn.master.ha.node.1.ratis.port             9872

@@ -89,18 +89,18 @@ abstract class HttpService extends Service with Logging {
   private def prometheusHost(): String = {
     serviceName match {
       case Service.MASTER =>
-        conf.masterPrometheusMetricHost
+        conf.masterHttpServiceHost
       case Service.WORKER =>
-        conf.workerPrometheusMetricHost
+        conf.workerHttpServiceHost
     }
   }
 
   private def prometheusPort(): Int = {
     serviceName match {
       case Service.MASTER =>
-        conf.masterPrometheusMetricPort
+        conf.masterHttpServicePort
       case Service.WORKER =>
-        conf.workerPrometheusMetricPort
+        conf.workerHttpServicePort
     }
   }
 
