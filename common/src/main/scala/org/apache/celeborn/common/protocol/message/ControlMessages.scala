@@ -363,12 +363,14 @@ object ControlMessages extends Logging {
   }
 
   object RemoveWorkersUnavailableInfo {
-    def apply(unavailable: util.List[WorkerInfo],
-              requestId: String): PbRemoveWorkersUnavailableInfo =
+    def apply(
+        unavailable: util.List[WorkerInfo],
+        requestId: String): PbRemoveWorkersUnavailableInfo =
       PbRemoveWorkersUnavailableInfo.newBuilder()
         .setRequestId(requestId)
         .addAllWorkerInfo(unavailable.asScala.map { workerInfo =>
-          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)}.toList.asJava)
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        }.toList.asJava)
         .build()
   }
 
