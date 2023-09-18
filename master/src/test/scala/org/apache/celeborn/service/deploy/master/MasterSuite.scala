@@ -41,8 +41,8 @@ class MasterSuite extends AnyFunSuite
     conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, getTmpDir())
     conf.set(CelebornConf.METRICS_ENABLED.key, "true")
-    conf.set(CelebornConf.MASTER_HTTP_SERVICE_HOST.key, "127.0.0.1")
-    conf.set(CelebornConf.MASTER_HTTP_SERVICE_PORT.key, "11112")
+    conf.set(CelebornConf.MASTER_HTTP_HOST.key, "127.0.0.1")
+    conf.set(CelebornConf.MASTER_HTTP_PORT.key, "11112")
 
     val args = Array("-h", "localhost", "-p", "9097")
 

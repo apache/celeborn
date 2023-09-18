@@ -540,12 +540,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def masterHost: String = get(MASTER_HOST).replace("<localhost>", Utils.localHostName(this))
 
-  def masterHttpServiceHost: String =
-    get(MASTER_HTTP_SERVICE_HOST).replace("<localhost>", Utils.localHostName(this))
+  def masterHttpHost: String =
+    get(MASTER_HTTP_HOST).replace("<localhost>", Utils.localHostName(this))
 
   def masterPort: Int = get(MASTER_PORT)
 
-  def masterHttpServicePort: Int = get(MASTER_HTTP_SERVICE_PORT)
+  def masterHttpPort: Int = get(MASTER_HTTP_PORT)
 
   def haEnabled: Boolean = get(HA_ENABLED)
 
@@ -629,9 +629,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Worker                         //
   // //////////////////////////////////////////////////////
-  def workerHttpServiceHost: String =
-    get(WORKER_HTTP_SERVICE_HOST).replace("<localhost>", Utils.localHostName(this))
-  def workerHttpServicePort: Int = get(WORKER_HTTP_SERVICE_PORT)
+  def workerHttpHost: String =
+    get(WORKER_HTTP_HOST).replace("<localhost>", Utils.localHostName(this))
+  def workerHttpPort: Int = get(WORKER_HTTP_PORT)
   def workerRpcPort: Int = get(WORKER_RPC_PORT)
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
@@ -1602,13 +1602,13 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefaultString("<localhost>")
 
-  val MASTER_HTTP_SERVICE_HOST: ConfigEntry[String] =
-    buildConf("celeborn.master.http.service.host")
+  val MASTER_HTTP_HOST: ConfigEntry[String] =
+    buildConf("celeborn.master.http.host")
       .withAlternative("celeborn.metrics.master.prometheus.host")
       .withAlternative("celeborn.master.metrics.prometheus.host")
       .categories("master")
       .version("0.4.0")
-      .doc("Master's http service host.")
+      .doc("Master's http host.")
       .stringConf
       .createWithDefaultString("<localhost>")
 
@@ -1621,13 +1621,13 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9097)
 
-  val MASTER_HTTP_SERVICE_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.master.http.service.port")
+  val MASTER_HTTP_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.http.port")
       .withAlternative("celeborn.metrics.master.prometheus.port")
       .withAlternative("celeborn.master.metrics.prometheus.port")
       .categories("master")
       .version("0.4.0")
-      .doc("Master's http service port.")
+      .doc("Master's http port.")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(9098)
@@ -2111,22 +2111,22 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1000ms")
 
-  val WORKER_HTTP_SERVICE_HOST: ConfigEntry[String] =
-    buildConf("celeborn.worker.http.service.host")
+  val WORKER_HTTP_HOST: ConfigEntry[String] =
+    buildConf("celeborn.worker.http.host")
       .withAlternative("celeborn.metrics.worker.prometheus.host")
       .withAlternative("celeborn.worker.metrics.prometheus.host")
       .categories("worker")
-      .doc("Worker's http service host.")
+      .doc("Worker's http host.")
       .version("0.4.0")
       .stringConf
       .createWithDefault("<localhost>")
 
-  val WORKER_HTTP_SERVICE_PORT: ConfigEntry[Int] =
-    buildConf("celeborn.worker.http.service.port")
+  val WORKER_HTTP_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.http.port")
       .withAlternative("celeborn.metrics.worker.prometheus.port")
       .withAlternative("celeborn.worker.metrics.prometheus.port")
       .categories("worker")
-      .doc("Worker's http service port.")
+      .doc("Worker's http port.")
       .version("0.4.0")
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")

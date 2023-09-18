@@ -274,12 +274,12 @@ for the worker, at `http://<worker-http-service-host>:<worker-http-service-port>
 
 The configuration of `<master-http-service-host>`, `<master-http-service-port>`, `<worker-http-service-host>`, `<worker-http-service-port>` as below:
 
-| Key                               | Default | Description                 | Since |
-|-----------------------------------|---------|-----------------------------|-------|
-| celeborn.master.http.service.host | 0.0.0.0 | Master's http service host. | 0.4.0 |
-| celeborn.master.http.service.port | 9098    | Master's http service port. | 0.4.0 |
-| celeborn.worker.http.service.host | 0.0.0.0 | Worker's http service host. | 0.4.0 |
-| celeborn.worker.http.service.port | 9096    | Worker's http service port. | 0.4.0 |
+| Key                       | Default | Description         | Since |
+|---------------------------|---------|---------------------|-------|
+| celeborn.master.http.host | 0.0.0.0 | Master's http host. | 0.4.0 |
+| celeborn.master.http.port | 9098    | Master's http port. | 0.4.0 |
+| celeborn.worker.http.host | 0.0.0.0 | Worker's http host. | 0.4.0 |
+| celeborn.worker.http.port | 9096    | Worker's http port. | 0.4.0 |
 
 ### Available API providers
 

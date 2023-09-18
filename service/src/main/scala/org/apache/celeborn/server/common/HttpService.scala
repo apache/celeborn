@@ -80,27 +80,27 @@ abstract class HttpService extends Service with Logging {
       }
     httpServer = new HttpServer(
       serviceName,
-      httpServiceHost(),
-      httpServicePort(),
+      httpHost(),
+      httpPort(),
       new HttpServerInitializer(handlers))
     httpServer.start()
   }
 
-  private def httpServiceHost(): String = {
+  private def httpHost(): String = {
     serviceName match {
       case Service.MASTER =>
-        conf.masterHttpServiceHost
+        conf.masterHttpHost
       case Service.WORKER =>
-        conf.workerHttpServiceHost
+        conf.workerHttpHost
     }
   }
 
-  private def httpServicePort(): Int = {
+  private def httpPort(): Int = {
     serviceName match {
       case Service.MASTER =>
-        conf.masterHttpServicePort
+        conf.masterHttpPort
       case Service.WORKER =>
-        conf.workerHttpServicePort
+        conf.workerHttpPort
     }
   }
 

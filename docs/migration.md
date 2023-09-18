@@ -32,12 +32,12 @@ license: |
 
 - Since 0.4.0, Celeborn has changed the names of the prometheus master and worker configuration as shown in the table below:
 
-    | Key Before v0.4.0                         | Key After v0.4.0                    |
-    |-------------------------------------------|-------------------------------------|
-    | `celeborn.metrics.master.prometheus.host` | `celeborn.master.http.service.host` |
-    | `celeborn.metrics.master.prometheus.port` | `celeborn.master.http.service.port` |
-    | `celeborn.metrics.worker.prometheus.host` | `celeborn.worker.http.service.host` |
-    | `celeborn.metrics.worker.prometheus.port` | `celeborn.worker.http.service.port` |
+    | Key Before v0.4.0                         | Key After v0.4.0            |
+    |-------------------------------------------|-----------------------------|
+    | `celeborn.metrics.master.prometheus.host` | `celeborn.master.http.host` |
+    | `celeborn.metrics.master.prometheus.port` | `celeborn.master.http.port` |
+    | `celeborn.metrics.worker.prometheus.host` | `celeborn.worker.http.host` |
+    | `celeborn.metrics.worker.prometheus.port` | `celeborn.worker.http.port` |
 
 ## Upgrading from 0.3.1 to 0.3.2
 

@@ -55,8 +55,8 @@ volumes:
 celeborn:
   celeborn.master.ha.enabled: false
   celeborn.metrics.enabled: false
-  celeborn.master.http.service.port: 9098
-  celeborn.worker.http.service.port: 9096
+  celeborn.master.http.port: 9098
+  celeborn.worker.http.port: 9096
   celeborn.worker.monitor.disk.enabled: false
   celeborn.shuffle.chunk.size: 8m
   celeborn.rpc.io.serverThreads: 64
