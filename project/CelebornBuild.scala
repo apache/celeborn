@@ -392,8 +392,8 @@ object CelebornWorker {
   lazy val worker = Project("celeborn-worker", file("worker"))
     .dependsOn(CelebornService.service)
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
-    .dependsOn(CelebornClient.client % "test->test;compile->compile")
-    .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+    .dependsOn(CelebornClient.client % "test->compile")
+    .dependsOn(CelebornMaster.master % "test->compile")
     .settings (
       commonSettings,
       libraryDependencies ++= Seq(
