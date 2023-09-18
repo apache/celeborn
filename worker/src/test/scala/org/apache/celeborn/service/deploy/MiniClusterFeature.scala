@@ -72,7 +72,9 @@ trait MiniClusterFeature extends Logging {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, createTmpDir())
     conf.set(CelebornConf.WORKER_DISK_MONITOR_ENABLED.key, "false")
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
-    conf.set(CelebornConf.WORKER_HTTP_SERVICE_PORT.key, s"${workerPrometheusPort.incrementAndGet()}")
+    conf.set(
+      CelebornConf.WORKER_HTTP_SERVICE_PORT.key,
+      s"${workerPrometheusPort.incrementAndGet()}")
     conf.set("celeborn.fetch.io.threads", "4")
     conf.set("celeborn.push.io.threads", "4")
     if (map != null) {
