@@ -267,20 +267,20 @@ function sbt_build_service {
 
   $SBT "celeborn-master/copyJars;celeborn-worker/copyJars"
 
-  # mkdir -p "$DIST_DIR/jars"
+  mkdir -p "$DIST_DIR/jars"
   mkdir -p "$DIST_DIR/master-jars"
   mkdir -p "$DIST_DIR/worker-jars"
 
-  mv "$PROJECT_DIR"/jars "$DIST_DIR/jars"
-
   ## Copy master jars
   cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
-  for jar in $(ls "$DIST_DIR/jars"); do
+  cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/master/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/master-jars; ln -snf "../jars/$jar" .)
   done
   ## Copy worker jars
   cp "$PROJECT_DIR"/worker/target/scala-$SCALA_VERSION/celeborn-worker_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/worker-jars/"
-  for jar in $(ls "$DIST_DIR/jars"); do
+  cp "$PROJECT_DIR"/worker/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/worker/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/worker-jars; ln -snf "../jars/$jar" .)
   done
 }
