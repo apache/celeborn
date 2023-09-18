@@ -34,6 +34,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -189,6 +190,25 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
+  public void testLegacyOpenStream() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      // total write size: 32 * 50 * 256k = 400m
+      fileInfo = prepare(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+
+      PbStreamHandler streamHandler =
+          legacyOpenStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
+
+      fetchChunkAndCheck(client, channel, fetchHandler, streamHandler);
+    } finally {
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
   public void testReadSortFileOnceOriginBeDeleted() throws IOException {
     FileInfo fileInfo = null;
     try {
@@ -235,6 +255,31 @@ public class FetchHandlerSuiteJ {
     }
   }
 
+  @Test
+  public void tt() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      // total write size: 32 * 50 * 256k = 400m
+      fileInfo = prepare(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+
+      PbStreamHandler rangeReadStreamHandler =
+          openStreamAndCheck(client, channel, fetchHandler, 5, 10);
+      PbStreamHandler nonRangeReadstreamHandler =
+          openStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
+      fetchChunkAndCheck(client, channel, fetchHandler, nonRangeReadstreamHandler);
+      fetchChunkAndCheck(client, channel, fetchHandler, rangeReadStreamHandler);
+
+      // non-range fetch finished.
+      bufferStreamEnd(client, fetchHandler, nonRangeReadstreamHandler.getStreamId());
+      checkOriginFileBeDeleted(fileInfo);
+    } finally {
+      cleanup(fileInfo);
+    }
+  }
+
   private FetchHandler mockFetchHandler(FileInfo fileInfo) {
     TransportConf transportConf =
         Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, 4);
@@ -259,6 +304,16 @@ public class FetchHandlerSuiteJ {
   private final String fileName = "dummyFileName";
   private final long dummyRequestId = 0;
 
+  private PbStreamHandler legacyOpenStreamAndCheck(
+      TransportClient client,
+      EmbeddedChannel channel,
+      FetchHandler fetchHandler,
+      int startIndex,
+      int endIndex)
+      throws IOException {
+    return openStreamAndCheck(client, channel, fetchHandler, startIndex, endIndex, true);
+  }
+
   private PbStreamHandler openStreamAndCheck(
       TransportClient client,
       EmbeddedChannel channel,
@@ -266,18 +321,35 @@ public class FetchHandlerSuiteJ {
       int startIndex,
       int endIndex)
       throws IOException {
-    TransportMessage openStreamMsg =
-        new TransportMessage(
-            MessageType.OPEN_STREAM,
-            PbOpenStream.newBuilder()
-                .setShuffleKey(shuffleKey)
-                .setFileName(fileName)
-                .setStartIndex(startIndex)
-                .setEndIndex(endIndex)
-                .build()
-                .toByteArray());
+    return openStreamAndCheck(client, channel, fetchHandler, startIndex, endIndex, false);
+  }
+
+  private PbStreamHandler openStreamAndCheck(
+      TransportClient client,
+      EmbeddedChannel channel,
+      FetchHandler fetchHandler,
+      int startIndex,
+      int endIndex,
+      boolean legacy)
+      throws IOException {
+    ByteBuffer openStreamByteBuffer = null;
+    if (legacy) {
+      openStreamByteBuffer = new OpenStream(shuffleKey, fileName, startIndex, endIndex).toByteBuffer();
+    } else {
+      openStreamByteBuffer =
+          new TransportMessage(
+              MessageType.OPEN_STREAM,
+              PbOpenStream.newBuilder()
+                  .setShuffleKey(shuffleKey)
+                  .setFileName(fileName)
+                  .setStartIndex(startIndex)
+                  .setEndIndex(endIndex)
+                  .build()
+                  .toByteArray())
+              .toByteBuffer();
+    }
     fetchHandler.receive(
-        client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamMsg.toByteBuffer())));
+        client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)));
     RpcResponse result = channel.readOutbound();
     PbStreamHandler streamHandler =
         TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
