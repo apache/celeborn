@@ -405,8 +405,8 @@ object CelebornWorker {
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
         Dependencies.leveldbJniAll,
-        Dependencies.rocksdbJni,
         Dependencies.roaringBitmap,
+        Dependencies.rocksdbJni,
         Dependencies.scalatestMockito % "test"
       ) ++ commonUnitTestDependencies
     )
