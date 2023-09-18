@@ -75,6 +75,7 @@ enum MessageType {
   STREAM_HANDLER = 52;
   CHECK_WORKERS_AVAILABLE = 53;
   CHECK_WORKERS_AVAILABLE_RESPONSE = 54;
+  REMOVE_WORKERS_UNAVAILABLE_INFO = 55;
 }
 
 message PbStorageInfo {
@@ -402,6 +403,11 @@ message PbDestroyWorkerSlotsResponse {
 }
 
 message PbCheckForWorkerTimeout {
+}
+
+message PbRemoveWorkersUnavailableInfo {
+  repeated PbWorkerInfo workerInfo = 1;
+  string requestId = 2;
 }
 
 message PbWorkerLost {

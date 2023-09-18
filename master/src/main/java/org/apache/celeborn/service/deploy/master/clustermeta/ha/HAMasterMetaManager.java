@@ -187,6 +187,27 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleRemoveWorkersUnavailableInfo(
+      List<WorkerInfo> unavailableWorkers, String requestId) {
+    try {
+      List<ResourceProtos.WorkerAddress> addrs =
+          unavailableWorkers.stream().map(MetaUtil::infoToAddr).collect(Collectors.toList());
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.RemoveWorkersUnavailableInfo)
+              .setRequestId(requestId)
+              .setRemoveWorkersUnavailableInfoRequest(
+                  ResourceProtos.RemoveWorkersUnavailableInfoRequest.newBuilder()
+                      .addAllUnavailable(addrs)
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle remove workers unavailable info failed!", e);
+      throw e;
+    }
+  }
+
+  @Override
   public void handleWorkerHeartbeat(
       String host,
       int rpcPort,

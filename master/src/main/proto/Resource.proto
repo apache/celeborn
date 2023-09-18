@@ -35,6 +35,7 @@ enum Type {
   ReportWorkerUnavailable = 20;
   UpdatePartitionSize = 21;
   WorkerRemove = 22;
+  RemoveWorkersUnavailableInfo = 23;
 }
 
 message ResourceRequest {
@@ -53,6 +54,7 @@ message ResourceRequest {
   optional RegisterWorkerRequest registerWorkerRequest = 17;
   optional ReportWorkerUnavailableRequest reportWorkerUnavailableRequest = 18;
   optional WorkerRemoveRequest workerRemoveRequest = 19;
+  optional RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest = 20;
 }
 
 message DiskInfo {
@@ -135,6 +137,10 @@ message RegisterWorkerRequest {
 }
 
 message ReportWorkerUnavailableRequest {
+  repeated WorkerAddress unavailable = 1;
+}
+
+message RemoveWorkersUnavailableInfoRequest {
   repeated WorkerAddress unavailable = 1;
 }
 
