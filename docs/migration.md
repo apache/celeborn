@@ -30,6 +30,19 @@ license: |
 
 - Since 0.4.0, Celeborn changed the default value of `celeborn.<module>.io.numConnectionsPerPeer` from `2` to `1`.
 
+- Since 0.4.0, Celeborn has changed the names of the prometheus master and worker configuration as shown in the table below:
+
+    | Key Before v0.4.0                         | Key After v0.4.0                    |
+    |-------------------------------------------|-------------------------------------|
+    | `celeborn.metrics.master.prometheus.host` | `celeborn.master.http.service.host` |
+    | `celeborn.metrics.master.prometheus.port` | `celeborn.master.http.service.port` |
+    | `celeborn.metrics.worker.prometheus.host` | `celeborn.worker.http.service.host` |
+    | `celeborn.metrics.worker.prometheus.port` | `celeborn.worker.http.service.port` |
+
+## Upgrading from 0.3.1 to 0.3.2
+
+- Since 0.3.2, Celeborn changed the default value of `celeborn.worker.monitor.disk.check.interval` from `60` to `30`.
+
 ## Upgrading from 0.3.0 to 0.3.1
 
 - Since 0.3.1, Celeborn changed the default value of `celeborn.worker.directMemoryRatioToResume` from `0.5` to `0.7`.
