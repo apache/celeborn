@@ -31,7 +31,6 @@ import scala.concurrent.duration._
 import io.netty.buffer.PooledByteBufAllocator
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
-import org.iq80.leveldb.{DB, WriteOptions}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
@@ -45,6 +44,7 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
+import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
@@ -177,7 +177,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   // shuffleKey -> (fileName -> file info)
   private val fileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
-  private val RECOVERY_FILE_NAME = "recovery.ldb"
+  private val RECOVERY_FILE_NAME_PREFIX = "recovery"
+  private var RECOVERY_FILE_NAME = "recovery.ldb"
   private var db: DB = null
   private var saveCommittedFileInfosExecutor: ScheduledExecutorService = _
   private val saveCommittedFileInfoBySyncMethod =
@@ -190,8 +191,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val workerGracefulShutdown = conf.workerGracefulShutdown
   if (workerGracefulShutdown) {
     try {
+      val dbBackend = DBBackend.byName(conf.workerGracefulShutdownRecoverDbBackend)
+      RECOVERY_FILE_NAME = dbBackend.fileName(RECOVERY_FILE_NAME_PREFIX)
       val recoverFile = new File(conf.workerGracefulShutdownRecoverPath, RECOVERY_FILE_NAME)
-      this.db = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION)
+      this.db = DBProvider.initDB(dbBackend, recoverFile, CURRENT_VERSION)
       reloadAndCleanFileInfos(this.db)
     } catch {
       case e: Exception =>
@@ -212,7 +215,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               db.put(
                 dbShuffleKey(shuffleKey),
                 PbSerDeUtils.toPbFileInfoMap(files),
-                new WriteOptions().sync(saveCommittedFileInfoBySyncMethod))
+                saveCommittedFileInfoBySyncMethod)
             }
           }
         }
@@ -260,16 +263,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def saveAllCommittedFileInfosToDB(): Unit = {
     // save committed fileinfo to DB should be done within the time of saveCommittedFileInfoInterval
     saveCommittedFileInfosExecutor.awaitTermination(saveCommittedFileInfoInterval, MILLISECONDS)
-    // graceful shutdown might be timed out, persist all committed fileinfos to levelDB
+    // graceful shutdown might be timed out, persist all committed fileinfos to DB
     // final flush write through
     committedFileInfos.asScala.foreach { case (shuffleKey, files) =>
       try {
+        // K8s container might gone
         db.put(
           dbShuffleKey(shuffleKey),
           PbSerDeUtils.toPbFileInfoMap(files),
-          // K8s container might gone
-          new WriteOptions().sync(true))
-        logDebug(s"Update FileInfos into DB: ${shuffleKey} -> ${files}")
+          true)
+        logDebug(s"Update FileInfos into DB: $shuffleKey -> $files")
       } catch {
         case exception: Exception =>
           logError(s"Update FileInfos into DB: ${shuffleKey} failed.", exception)
@@ -696,7 +699,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           db.close()
         } catch {
           case exception: Exception =>
-            logError("Store recover data to LevelDB failed.", exception)
+            logError("Store recover data to DB failed.", exception)
         }
       } else {
         if (db != null) {

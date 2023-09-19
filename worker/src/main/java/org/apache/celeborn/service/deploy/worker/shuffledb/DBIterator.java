@@ -15,24 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker;
+package org.apache.celeborn.service.deploy.worker.shuffledb;
 
-import java.nio.charset.StandardCharsets;
+import java.io.Closeable;
+import java.util.Iterator;
+import java.util.Map;
 
-import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
+/** Note: code copied from Apache Spark. */
+public interface DBIterator extends Iterator<Map.Entry<byte[], byte[]>>, Closeable {
 
-public abstract class ShuffleRecoverHelper {
-  protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
-  protected StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
+  /** Position at the first entry in the source whose `key` is at target. */
+  void seek(byte[] key);
 
-  protected byte[] dbShuffleKey(String shuffleKey) {
-    return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
-  }
-
-  protected String parseDbShuffleKey(String s) {
-    if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
-      throw new IllegalArgumentException("Expected a string starting with " + SHUFFLE_KEY_PREFIX);
-    }
-    return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
+  default void remove() {
+    throw new UnsupportedOperationException();
   }
 }

@@ -647,6 +647,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
+  def partitionSorterLazyRemovalOfOriginalFilesEnabled: Boolean =
+    get(PARTITION_SORTER_LAZY_REMOVAL_OF_ORIGINAL_FILES_ENABLED)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
   def partitionSorterReservedMemoryPerPartition: Long =
     get(WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
@@ -932,6 +934,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerGracefulShutdownCheckSlotsFinishedTimeoutMs: Long =
     get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
   def workerGracefulShutdownRecoverPath: String = get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH)
+  def workerGracefulShutdownRecoverDbBackend: String =
+    get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_DB_BACKEND)
   def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
     get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
@@ -2207,6 +2211,21 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
+  val PARTITION_SORTER_LAZY_REMOVAL_OF_ORIGINAL_FILES_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.sortPartition.lazyRemovalOfOriginalFiles.enabled")
+      .categories("worker")
+      .doc("When set to false, the PartitionSorter immediately removes the original file once " +
+        "its partition has been successfully sorted. It is important to note that this behavior " +
+        "may result in a potential issue with the ReusedExchange operation when it triggers both " +
+        "non-range and range fetch requests simultaneously. see CELEBORN-980 for more details." +
+        "When set to true, the PartitionSorter will retain the original unsorted file. However, " +
+        "it's essential to be aware that enabling this option may lead to an increase in storage " +
+        "space usage during the range fetch phase, as both the original and sorted files will be " +
+        "retained until the shuffle is finished.")
+      .version("0.3.2")
+      .booleanConf
+      .createWithDefault(true)
+
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.timeout")
       .withAlternative("celeborn.worker.partitionSorter.sort.timeout")
@@ -2603,11 +2622,21 @@ object CelebornConf extends Logging {
   val WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverPath")
       .categories("worker")
-      .doc("The path to store levelDB.")
+      .doc("The path to store DB.")
       .version("0.2.0")
       .stringConf
       .transform(_.replace("<tmp>", System.getProperty("java.io.tmpdir")))
       .createWithDefault(s"<tmp>/recover")
+
+  val WORKER_GRACEFUL_SHUTDOWN_RECOVER_DB_BACKEND: ConfigEntry[String] =
+    buildConf("celeborn.worker.graceful.shutdown.recoverDbBackend")
+      .categories("worker")
+      .doc("Specifies a disk-based store used in local db. LEVELDB or ROCKSDB.")
+      .version("0.4.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("LEVELDB", "ROCKSDB"))
+      .createWithDefault("LEVELDB")
 
   val WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout")

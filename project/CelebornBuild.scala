@@ -53,11 +53,12 @@ object Dependencies {
   val nettyVersion = "4.1.93.Final"
   val ratisVersion = "2.5.1"
   val roaringBitmapVersion = "0.9.32"
+  val rocksdbJniVersion = "8.5.3"
   val scalatestMockitoVersion = "1.17.14"
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
   val snakeyamlVersion = "1.33"
-  
+
   // Versions for proto
   val protocVersion = "3.19.2"
   val protoVersion = "3.19.2"
@@ -89,6 +90,7 @@ object Dependencies {
   val ratisShell = "org.apache.ratis" % "ratis-shell" % ratisVersion excludeAll(
     ExclusionRule("org.slf4j", "slf4j-simple"))
   val roaringBitmap = "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion
+  val rocksdbJni = "org.rocksdb" % "rocksdbjni" % rocksdbJniVersion
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
@@ -404,6 +406,7 @@ object CelebornWorker {
         Dependencies.log4jSlf4jImpl,
         Dependencies.leveldbJniAll,
         Dependencies.roaringBitmap,
+        Dependencies.rocksdbJni,
         Dependencies.scalatestMockito % "test"
       ) ++ commonUnitTestDependencies
     )
