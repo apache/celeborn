@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,12 +16,10 @@
 # limitations under the License.
 #
 
-set -x
+# Get the celeborn master status on the machine this script is executed on.
 
-PROJECT_DIR="$(cd "`dirname "$0"`/.."; pwd)"
-${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.14
-${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.15
-${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.17
-${PROJECT_DIR}/build/mvn spotless:apply -Pspark-2.4
-${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.3
-${PROJECT_DIR}/build/mvn spotless:apply -Pmr
+if [ -z "${CELEBORN_HOME}" ]; then
+  export CELEBORN_HOME="$(cd "`dirname "$0"`"/..; pwd)"
+fi
+
+"${CELEBORN_HOME}/sbin/celeborn-daemon.sh" status org.apache.celeborn.service.deploy.master.Master 1

@@ -26,7 +26,7 @@ import io.netty.buffer.ByteBuf
 
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
@@ -1105,9 +1105,12 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     if (fileWriter.flusher.isInstanceOf[HdfsFlusher]) {
       return false
     }
-    val diskFull = workerInfo.diskInfos
+    val diskInfo = workerInfo.diskInfos
       .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
-      .actualUsableSpace < diskReserveSize
+
+    val diskFull = diskInfo.status.equals(
+      DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace < diskReserveSize
+
     diskFull
   }
 

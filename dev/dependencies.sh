@@ -39,9 +39,10 @@ DEP=""
 function mvn_build_classpath() {
   $MVN -P$MODULE clean install -DskipTests -am -pl $MVN_MODULES
   $MVN -P$MODULE dependency:build-classpath -am -pl $MVN_MODULES | \
-    grep -v "INFO\|WARN" | \
-    # This will skip the first two lines 
-    tail -n +3 | \
+    grep -A1 "Dependencies classpath:" | \
+    grep -v "^--$" | \
+    grep -v "Dependencies classpath:" | \
+    grep -v '^$' | \
     tr ":" "\n" | \
     awk -F '/' '{
       artifact_id=$(NF-2);
@@ -186,6 +187,7 @@ case "$MODULE" in
     SBT_PROJECT="celeborn-client-flink-1_17"
     ;;
   *)
+    MODULE="server"
     MVN_MODULES="worker,master"
     ;;
 esac

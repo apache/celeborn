@@ -640,6 +640,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCheckFileCleanMaxRetries: Int = get(WORKER_CHECK_FILE_CLEAN_MAX_RETRIES)
   def workerCheckFileCleanTimeout: Long = get(WORKER_CHECK_FILE_CLEAN_TIMEOUT)
   def workerHeartbeatTimeout: Long = get(WORKER_HEARTBEAT_TIMEOUT)
+  def workerUnavailableInfoExpireTimeout: Long = get(WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT)
+
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int =
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
@@ -708,6 +710,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeReplicaOnFailureEnabled: Boolean =
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
+  def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Compression                   //
@@ -1577,6 +1580,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
+  val WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.workerUnavailableInfo.expireTimeout")
+      .categories("master")
+      .version("0.3.2")
+      .doc("Worker unavailable info would be cleared when the retention period is expired")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1800s")
+
   val MASTER_HOST: ConfigEntry[String] =
     buildConf("celeborn.master.host")
       .categories("master")
@@ -2405,7 +2416,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Intervals between device monitor to check disk.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("30s")
 
   val WORKER_DISK_MONITOR_SYS_BLOCK_DIR: ConfigEntry[String] =
     buildConf("celeborn.worker.monitor.disk.sys.block.dir")
@@ -3803,6 +3814,15 @@ object CelebornConf extends Logging {
       .doc("Whether to support floating buffer for result partitions.")
       .booleanConf
       .createWithDefault(true)
+
+  val CLIENT_MR_PUSH_DATA_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.client.mr.pushData.max")
+      .categories("client")
+      .version("0.4.0")
+      .doc("Max size for a push data sent from mr client.")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(nVal => nVal < 2147483548, "Max size for a push data should be less than 2GB-20.")
+      .createWithDefaultString("32m")
 
   val ACTIVE_STORAGE_TYPES: ConfigEntry[String] =
     buildConf("celeborn.storage.activeTypes")

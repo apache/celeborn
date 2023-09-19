@@ -94,7 +94,21 @@ public abstract class CelebornInputStream extends InputStream {
 
         @Override
         public void setCallback(MetricsCallback callback) {}
+
+        @Override
+        public int totalPartitionsToRead() {
+          return 0;
+        }
+
+        @Override
+        public int partitionsRead() {
+          return 0;
+        }
       };
+
+  public abstract int totalPartitionsToRead();
+
+  public abstract int partitionsRead();
 
   private static final class CelebornInputStreamImpl extends CelebornInputStream {
     private static final Random RAND = new Random();
@@ -591,6 +605,16 @@ public abstract class CelebornInputStream extends InputStream {
         callback.incReadTime(System.currentTimeMillis() - startTime);
       }
       return hasData;
+    }
+
+    @Override
+    public int totalPartitionsToRead() {
+      return locations.length;
+    }
+
+    @Override
+    public int partitionsRead() {
+      return fileIndex;
     }
   }
 }

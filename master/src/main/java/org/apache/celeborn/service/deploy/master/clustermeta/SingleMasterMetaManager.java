@@ -82,6 +82,12 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleRemoveWorkersUnavailableInfo(
+      List<WorkerInfo> unavailableWorkers, String requestId) {
+    removeWorkersUnavailableInfoMeta(unavailableWorkers);
+  }
+
+  @Override
   public void handleWorkerHeartbeat(
       String host,
       int rpcPort,
