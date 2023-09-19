@@ -725,9 +725,9 @@ private[celeborn] class Master(
       try {
         hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       } catch {
-        case e: Exception => 
+        case e: Exception =>
           logError("Celeborn initialize HDFS failed.", e)
-          return
+          throw e
       }
     }
     val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)

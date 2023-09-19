@@ -135,7 +135,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       try {
         StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       } catch {
-        case e: Exception => logError("Celeborn initialize HDFS failed.", e)
+        case e: Exception =>
+          logError("Celeborn initialize HDFS failed.", e)
+          throw e
       }
       (
         Some(new HdfsFlusher(
