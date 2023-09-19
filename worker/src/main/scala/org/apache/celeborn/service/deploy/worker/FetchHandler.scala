@@ -301,13 +301,13 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   }
 
   def handleEndStreamFromClient(req: PbBufferStreamEnd): Unit = {
-    req.getClientType match {
-      case PbBufferStreamEnd.Type.Spark =>
+    req.getStreamType match {
+      case PbBufferStreamEnd.Type.ChunkStream =>
         chunkStreamManager.unregisterStream(req.getStreamId)
-      case PbBufferStreamEnd.Type.Flink =>
+      case PbBufferStreamEnd.Type.CreditStream =>
         creditStreamManager.notifyStreamEndByClient(req.getStreamId)
       case _ =>
-        logError(s"Received a PbBufferStreamEnd message with unknown type ${req.getClientType}")
+        logError(s"Received a PbBufferStreamEnd message with unknown type ${req.getStreamType}")
     }
   }
 

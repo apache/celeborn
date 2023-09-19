@@ -133,7 +133,7 @@ public class CelebornBufferStream {
           new TransportMessage(
               MessageType.BUFFER_STREAM_END,
               PbBufferStreamEnd.newBuilder()
-                  .setClientType(PbBufferStreamEnd.Type.Flink)
+                  .setStreamType(PbBufferStreamEnd.Type.CreditStream)
                   .setStreamId(streamId)
                   .build()
                   .toByteArray());

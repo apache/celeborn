@@ -241,7 +241,7 @@ public class LocalPartitionReader implements PartitionReader {
           new TransportMessage(
               MessageType.BUFFER_STREAM_END,
               PbBufferStreamEnd.newBuilder()
-                  .setClientType(PbBufferStreamEnd.Type.Spark)
+                  .setStreamType(PbBufferStreamEnd.Type.ChunkStream)
                   .setStreamId(streamHandler.getStreamId())
                   .build()
                   .toByteArray());

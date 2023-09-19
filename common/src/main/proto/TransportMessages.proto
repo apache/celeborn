@@ -504,9 +504,9 @@ message PbStreamHandler {
 
 message PbBufferStreamEnd {
   enum Type {
-    Spark = 0;
-    Flink = 1;
+    ChunkStream = 0;
+    CreditStream = 1;
   }
-  Type clientType = 1;
+  Type streamType = 1;
   int64 streamId = 2;
 }

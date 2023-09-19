@@ -385,7 +385,7 @@ public class FetchHandlerSuiteJ {
             MessageType.BUFFER_STREAM_END,
             PbBufferStreamEnd.newBuilder()
                 .setStreamId(streamId)
-                .setClientType(PbBufferStreamEnd.Type.Spark)
+                .setStreamType(PbBufferStreamEnd.Type.ChunkStream)
                 .build()
                 .toByteArray());
     fetchHandler.receive(
