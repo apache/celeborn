@@ -932,6 +932,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerGracefulShutdownCheckSlotsFinishedTimeoutMs: Long =
     get(WORKER_CHECK_SLOTS_FINISHED_TIMEOUT)
   def workerGracefulShutdownRecoverPath: String = get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH)
+  def workerGracefulShutdownRecoverDbBackend: String =
+    get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_DB_BACKEND)
   def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
     get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
@@ -2603,11 +2605,21 @@ object CelebornConf extends Logging {
   val WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverPath")
       .categories("worker")
-      .doc("The path to store levelDB.")
+      .doc("The path to store DB.")
       .version("0.2.0")
       .stringConf
       .transform(_.replace("<tmp>", System.getProperty("java.io.tmpdir")))
       .createWithDefault(s"<tmp>/recover")
+
+  val WORKER_GRACEFUL_SHUTDOWN_RECOVER_DB_BACKEND: ConfigEntry[String] =
+    buildConf("celeborn.worker.graceful.shutdown.recoverDbBackend")
+      .categories("worker")
+      .doc("Specifies a disk-based store used in local db. LEVELDB or ROCKSDB.")
+      .version("0.4.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("LEVELDB", "ROCKSDB"))
+      .createWithDefault("LEVELDB")
 
   val WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout")

@@ -41,8 +41,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
-import org.iq80.leveldb.DB;
-import org.iq80.leveldb.DBIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,17 +51,20 @@ import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
-import org.apache.celeborn.service.deploy.worker.LevelDBProvider;
 import org.apache.celeborn.service.deploy.worker.ShuffleRecoverHelper;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+import org.apache.celeborn.service.deploy.worker.shuffledb.DB;
+import org.apache.celeborn.service.deploy.worker.shuffledb.DBBackend;
+import org.apache.celeborn.service.deploy.worker.shuffledb.DBIterator;
+import org.apache.celeborn.service.deploy.worker.shuffledb.DBProvider;
+import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
 
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
 
-  private static final LevelDBProvider.StoreVersion CURRENT_VERSION =
-      new LevelDBProvider.StoreVersion(1, 0);
-  private static final String RECOVERY_SORTED_FILES_FILE_NAME = "sortedFiles.ldb";
+  private static final StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
+  private static final String RECOVERY_SORTED_FILES_FILE_NAME_PREFIX = "sortedFiles";
   private File recoverFile;
   private volatile boolean shutdown = false;
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
@@ -104,11 +105,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     if (gracefulShutdown) {
       try {
         String recoverPath = conf.workerGracefulShutdownRecoverPath();
-        this.recoverFile = new File(recoverPath, RECOVERY_SORTED_FILES_FILE_NAME);
-        this.sortedFilesDb = LevelDBProvider.initLevelDB(recoverFile, CURRENT_VERSION);
+        DBBackend dbBackend = DBBackend.byName(conf.workerGracefulShutdownRecoverDbBackend());
+        String recoverySortedFilesFileName =
+            dbBackend.fileName(RECOVERY_SORTED_FILES_FILE_NAME_PREFIX);
+        this.recoverFile = new File(recoverPath, recoverySortedFilesFileName);
+        this.sortedFilesDb = DBProvider.initDB(dbBackend, recoverFile, CURRENT_VERSION);
         reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);
       } catch (Exception e) {
-        logger.error("Failed to reload LevelDB for sorted shuffle files from: " + recoverFile, e);
+        logger.error("Failed to reload DB for sorted shuffle files from: " + recoverFile, e);
         this.sortedFilesDb = null;
       }
     } else {
@@ -260,7 +264,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           updateSortedShuffleFilesInDB();
           sortedFilesDb.close();
         } catch (IOException e) {
-          logger.error("Store recover data to LevelDB failed.", e);
+          logger.error("Store recover data to DB failed.", e);
         }
       }
       long end = System.currentTimeMillis();
@@ -273,7 +277,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sortedFilesDb.close();
           recoverFile.delete();
         } catch (IOException e) {
-          logger.error("Clean LevelDB failed.", e);
+          logger.error("Clean DB failed.", e);
         }
       }
     }

@@ -15,24 +15,41 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker;
+package org.apache.celeborn.service.deploy.worker.shuffledb;
 
 import java.nio.charset.StandardCharsets;
 
-import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
+/**
+ * Used to identify the version of data stored in local shuffle state DB.
+ *
+ * <p>Note: code copied from Apache Spark.
+ */
+public class StoreVersion {
 
-public abstract class ShuffleRecoverHelper {
-  protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
-  protected StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
+  public static final byte[] KEY = "StoreVersion".getBytes(StandardCharsets.UTF_8);
 
-  protected byte[] dbShuffleKey(String shuffleKey) {
-    return (SHUFFLE_KEY_PREFIX + ";" + shuffleKey).getBytes(StandardCharsets.UTF_8);
+  public final int major;
+  public final int minor;
+
+  public StoreVersion(int major, int minor) {
+    this.major = major;
+    this.minor = minor;
   }
 
-  protected String parseDbShuffleKey(String s) {
-    if (!s.startsWith(SHUFFLE_KEY_PREFIX)) {
-      throw new IllegalArgumentException("Expected a string starting with " + SHUFFLE_KEY_PREFIX);
-    }
-    return s.substring(SHUFFLE_KEY_PREFIX.length() + 1);
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+
+    StoreVersion that = (StoreVersion) o;
+
+    return major == that.major && minor == that.minor;
+  }
+
+  @Override
+  public int hashCode() {
+    int result = major;
+    result = 31 * result + minor;
+    return result;
   }
 }

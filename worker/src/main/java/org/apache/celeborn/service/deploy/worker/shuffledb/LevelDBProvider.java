@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker;
+package org.apache.celeborn.service.deploy.worker.shuffledb;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 import org.fusesource.leveldbjni.JniDBFactory;
@@ -34,13 +33,14 @@ import org.apache.celeborn.common.util.PbSerDeUtils;
 /**
  * LevelDB utility class available in the network package.
  *
- * <p>Note: code copied from Apache Spark's LevelDBProvider.
+ * <p>Note: code copied from Apache Spark.
  */
 public class LevelDBProvider {
   private static final Logger logger = LoggerFactory.getLogger(LevelDBProvider.class);
 
-  public static DB initLevelDB(File dbFile, StoreVersion version) throws IOException {
-    DB tmpDb = null;
+  public static org.iq80.leveldb.DB initLevelDB(File dbFile, StoreVersion version)
+      throws IOException {
+    org.iq80.leveldb.DB tmpDb = null;
     if (dbFile != null) {
       Options options = new Options();
       options.createIfMissing(false);
@@ -49,12 +49,12 @@ public class LevelDBProvider {
         tmpDb = JniDBFactory.factory.open(dbFile, options);
       } catch (NativeDB.DBException e) {
         if (e.isNotFound() || e.getMessage().contains(" does not exist ")) {
-          logger.info("Creating recover database at " + dbFile);
+          logger.info("Creating state database at " + dbFile);
           options.createIfMissing(true);
           try {
             tmpDb = JniDBFactory.factory.open(dbFile, options);
           } catch (NativeDB.DBException dbExc) {
-            throw new IOException("Unable to create recover store", dbExc);
+            throw new IOException("Unable to create state store", dbExc);
           }
         } else {
           // the leveldb file seems to be corrupt somehow.  Lets just blow it away and create a new
@@ -78,7 +78,7 @@ public class LevelDBProvider {
           try {
             tmpDb = JniDBFactory.factory.open(dbFile, options);
           } catch (NativeDB.DBException dbExc) {
-            throw new IOException("Unable to create recover store", dbExc);
+            throw new IOException("Unable to create state store", dbExc);
           }
         }
       }
@@ -123,35 +123,5 @@ public class LevelDBProvider {
 
   public static void storeVersion(DB db, StoreVersion version) throws IOException {
     db.put(StoreVersion.KEY, PbSerDeUtils.toPbStoreVersion(version.major, version.minor));
-  }
-
-  public static class StoreVersion {
-
-    static final byte[] KEY = "StoreVersion".getBytes(StandardCharsets.UTF_8);
-
-    public final int major;
-    public final int minor;
-
-    public StoreVersion(int major, int minor) {
-      this.major = major;
-      this.minor = minor;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-
-      StoreVersion that = (StoreVersion) o;
-
-      return major == that.major && minor == that.minor;
-    }
-
-    @Override
-    public int hashCode() {
-      int result = major;
-      result = 31 * result + minor;
-      return result;
-    }
   }
 }
