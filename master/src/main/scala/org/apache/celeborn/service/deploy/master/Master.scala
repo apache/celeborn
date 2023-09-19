@@ -722,7 +722,13 @@ private[celeborn] class Master(
 
   private def checkAndCleanExpiredAppDirsOnHDFS(expiredDir: String = ""): Unit = {
     if (hadoopFs == null) {
-      hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
+      try {
+        hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
+      } catch {
+        case e: Exception => 
+          logError("Celeborn initialize HDFS failed.", e)
+          return
+      }
     }
     val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
     if (hadoopFs.exists(hdfsWorkPath)) {
