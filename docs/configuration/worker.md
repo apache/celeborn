@@ -92,6 +92,7 @@ license: |
 | celeborn.worker.shuffle.partitionSplit.enabled | true | enable the partition split on worker side | 0.3.0 | 
 | celeborn.worker.shuffle.partitionSplit.max | 2g | Specify the maximum partition size for splitting, and ensure that individual partition files are always smaller than this limit. | 0.3.0 | 
 | celeborn.worker.shuffle.partitionSplit.min | 1m | Min size for a partition to split | 0.3.0 | 
+| celeborn.worker.sortPartition.lazyRemovalOfOriginalFiles.enabled | true | When set to false, the PartitionSorter immediately removes the original file once its partition has been successfully sorted. It is important to note that this behavior may result in a potential issue with the ReusedExchange operation when it triggers both non-range and range fetch requests simultaneously. see CELEBORN-980 for more details.When set to true, the PartitionSorter will retain the original unsorted file. However, it's essential to be aware that enabling this option may lead to an increase in storage space usage during the range fetch phase, as both the original and sorted files will be retained until the shuffle is finished. | 0.3.2 | 
 | celeborn.worker.sortPartition.reservedMemoryPerPartition | 1mb | Reserved memory when sorting a shuffle file off-heap. | 0.3.0 | 
 | celeborn.worker.sortPartition.threads | &lt;undefined&gt; | PartitionSorter's thread counts. It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.3.0 | 
 | celeborn.worker.sortPartition.timeout | 220s | Timeout for a shuffle file to sort. | 0.3.0 | 
