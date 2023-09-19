@@ -32,7 +32,7 @@ function exit_with_usage {
   echo "make-distribution.sh - tool for making binary distributions of Celeborn"
   echo ""
   echo "usage:"
-  cl_options="[--name <custom_name>] [--release] [--mvn <mvn-command>]"
+  cl_options="[--name <custom_name>] [--release] [--sbt-enabled] [--mvn <mvn-command>]"
   echo "make-distribution.sh $cl_options <maven build options>"
   echo ""
   exit 1
@@ -285,9 +285,51 @@ function sbt_build_service {
   done
 }
 
+function sbt_build_client {
+  PROFILE="$1"
+  # get the client shaded project
+  CLIENT_PROJECT=$("$SBT" "$PROFILE" projects | grep shaded | awk '{print$2}')
+  # get the shaded jar file path
+  ASSEMBLY_OUTPUT_PATH=$("$SBT" "$PROFILE" "show $CLIENT_PROJECT/assembly/assemblyOutputPath" | awk '/\[info\]/{ver=$2} END{print ver}')
+  # build the shaded jar
+  $SBT $PROFILE "clean;$CLIENT_PROJECT/assembly"
+
+  PROFILE_PREFIX=$(echo "$PROFILE" | cut -d'-' -f2)
+  CLIENT_SUB_DIR="${PROFILE_PREFIX:1}"
+  mkdir -p "$DIST_DIR/$CLIENT_SUB_DIR"
+  cp "$ASSEMBLY_OUTPUT_PATH" "$DIST_DIR/$CLIENT_SUB_DIR/"
+}
+
 
 if [ "$SBT_ENABLED" == "true" ]; then
   sbt_build_service
+  if [ "$RELEASE" == "true" ]; then
+    sbt_build_client -Pspark-2.4
+    sbt_build_client -Pspark-3.4
+    sbt_build_client -Pflink-1.14
+    sbt_build_client -Pflink-1.15
+    sbt_build_client -Pflink-1.17
+  else
+    echo "build client with $@"
+    ENGINE_COUNT=0
+    ENGINES=("spark" "flink" "mr")
+    for single_engine in ${ENGINES[@]}
+    do
+      echo $single_engine
+      if [[ $@ == *"${single_engine}"* ]];then
+        ENGINE_COUNT=`expr ${ENGINE_COUNT} + 1`
+      fi
+    done
+    if [[ ${ENGINE_COUNT} -eq 0  ]]; then
+      echo "Skip building client."
+    elif [[ ${ENGINE_COUNT} -ge 2 ]]; then
+      echo "Error: unsupported build options: $@"
+      echo "       currently we do not support compiling different engine clients at the same time."
+      exit -1
+    else
+      sbt_build_client $@
+    fi
+  fi
 else
   if [ "$RELEASE" == "true" ]; then
     build_service
