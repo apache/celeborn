@@ -21,6 +21,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
@@ -39,6 +42,10 @@ public class FileInfo {
   private final String filePath;
   private final PartitionType partitionType;
   private final UserIdentifier userIdentifier;
+
+  private final AtomicBoolean sorted = new AtomicBoolean(false);
+
+  private final Set<Long> streams = ConcurrentHashMap.newKeySet();
 
   // members for ReducePartition
   private final List<Long> chunkOffsets;
