@@ -186,6 +186,10 @@ case "$MODULE" in
     MVN_MODULES="client-flink/flink-1.17"
     SBT_PROJECT="celeborn-client-flink-1_17"
     ;;
+  "mr")
+    MVN_MODULES="client-mr/mr"
+    SBT_PROJECT="celeborn-client-mr"
+    ;;
   *)
     MODULE="server"
     MVN_MODULES="worker,master"
