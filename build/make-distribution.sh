@@ -302,7 +302,7 @@ function sbt_build_client {
 
 
 if [ "$SBT_ENABLED" == "true" ]; then
-  sbt_build_service
+  sbt_build_service "$@"
   if [ "$RELEASE" == "true" ]; then
     sbt_build_client -Pspark-2.4
     sbt_build_client -Pspark-3.4
