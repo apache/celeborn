@@ -896,8 +896,7 @@ object MRClientProjects {
         libraryDependencies ++= Seq(
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
-          Dependencies.hadoopMapreduceClientApp,
-          "org.lz4" % "lz4-java" % "1.7.1"
+          Dependencies.hadoopMapreduceClientApp
         ) ++ commonUnitTestDependencies
       )
   }
