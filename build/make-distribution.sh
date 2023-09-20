@@ -25,12 +25,14 @@ DIST_DIR="$PROJECT_DIR/dist"
 NAME="bin"
 RELEASE="false"
 MVN="$PROJECT_DIR/build/mvn"
+SBT="$PROJECT_DIR/build/sbt"
+SBT_ENABLED="false"
 
 function exit_with_usage {
   echo "make-distribution.sh - tool for making binary distributions of Celeborn"
   echo ""
   echo "usage:"
-  cl_options="[--name <custom_name>] [--release] [--mvn <mvn-command>]"
+  cl_options="[--name <custom_name>] [--release] [--sbt-enabled] [--mvn <mvn-command>]"
   echo "make-distribution.sh $cl_options <maven build options>"
   echo ""
   exit 1
@@ -49,6 +51,9 @@ while (( "$#" )); do
       ;;
     --release)
       RELEASE="true"
+      ;;
+    --sbt-enabled)
+      SBT_ENABLED="true"
       ;;
     --help)
       exit_with_usage
@@ -236,42 +241,133 @@ function build_mr_client {
     cp "$PROJECT_DIR"/client-mr/mr-shaded/target/celeborn-client-mr-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/mr/"
 }
 
-if [ "$RELEASE" == "true" ]; then
-  build_service
-  build_spark_client -Pspark-2.4
-  build_spark_client -Pspark-3.4
-  build_flink_client -Pflink-1.14
-  build_flink_client -Pflink-1.15
-  build_flink_client -Pflink-1.17
-  build_mr_client mr
-else
-  ## build release package on demand
-  build_service $@
-  echo "build client with $@"
-  ENGINE_COUNT=0
-  ENGINES=("spark" "flink" "mr")
-  for single_engine in ${ENGINES[@]}
-  do
-    echo $single_engine
-    if [[ $@ == *"${single_engine}"* ]];then
-      ENGINE_COUNT=`expr ${ENGINE_COUNT} + 1`
-    fi
+
+#########################
+#     sbt functions     #
+#########################
+
+function sbt_build_service {
+  VERSION=$("$SBT" "Show / version" | awk '/\[info\]/{ver=$2} END{print ver}')
+
+  SCALA_VERSION=$("$SBT" "Show / scalaBinaryVersion" | awk '/\[info\]/{ver=$2} END{print ver}')
+
+  echo "Celeborn version is $VERSION"
+  echo "Making apache-celeborn-$VERSION-$NAME.tgz"
+
+  echo "Celeborn $VERSION$GITREVSTRING" > "$DIST_DIR/RELEASE"
+  echo "Build flags: $@" >> "$DIST_DIR/RELEASE"
+
+  BUILD_COMMAND=("$SBT" clean package $@)
+
+  # Actually build the jar
+  echo -e "\nBuilding with..."
+  echo -e "\$ ${BUILD_COMMAND[@]}\n"
+
+  "${BUILD_COMMAND[@]}"
+
+  $SBT "celeborn-master/copyJars;celeborn-worker/copyJars"
+
+  mkdir -p "$DIST_DIR/jars"
+  mkdir -p "$DIST_DIR/master-jars"
+  mkdir -p "$DIST_DIR/worker-jars"
+
+  ## Copy master jars
+  cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
+  cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/master/target/scala-$SCALA_VERSION/jars"); do
+    (cd $DIST_DIR/master-jars; ln -snf "../jars/$jar" .)
   done
-  if [[ ${ENGINE_COUNT} -eq 0  ]]; then
-    echo "Skip building client."
-  elif [[ ${ENGINE_COUNT} -ge 2 ]]; then
-    echo "Error: unsupported build options: $@"
-    echo "       currently we do not support compiling different engine clients at the same time."
-    exit -1
-  elif [[  $@ == *"spark"* ]]; then
-    echo "build spark clients"
-    build_spark_client $@
-  elif [[  $@ == *"flink"* ]]; then
-    echo "build flink clients"
-    build_flink_client $@
-  elif [[  $@ == *"mr"* ]]; then
-    echo "build mr clients"
-    build_mr_client $@
+  ## Copy worker jars
+  cp "$PROJECT_DIR"/worker/target/scala-$SCALA_VERSION/celeborn-worker_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/worker-jars/"
+  cp "$PROJECT_DIR"/worker/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/worker/target/scala-$SCALA_VERSION/jars"); do
+    (cd $DIST_DIR/worker-jars; ln -snf "../jars/$jar" .)
+  done
+}
+
+function sbt_build_client {
+  PROFILE="$1"
+  # get the client shaded project
+  CLIENT_PROJECT=$("$SBT" "$PROFILE" projects | grep shaded | awk '{print$2}')
+  # get the shaded jar file path
+  ASSEMBLY_OUTPUT_PATH=$("$SBT" "$PROFILE" "show $CLIENT_PROJECT/assembly/assemblyOutputPath" | awk '/\[info\]/{ver=$2} END{print ver}')
+  # build the shaded jar
+  $SBT $PROFILE "clean;$CLIENT_PROJECT/assembly"
+
+  PROFILE_PREFIX=$(echo "$PROFILE" | cut -d'-' -f2)
+  CLIENT_SUB_DIR="${PROFILE_PREFIX:1}"
+  mkdir -p "$DIST_DIR/$CLIENT_SUB_DIR"
+  cp "$ASSEMBLY_OUTPUT_PATH" "$DIST_DIR/$CLIENT_SUB_DIR/"
+}
+
+
+if [ "$SBT_ENABLED" == "true" ]; then
+  sbt_build_service "$@"
+  if [ "$RELEASE" == "true" ]; then
+    sbt_build_client -Pspark-2.4
+    sbt_build_client -Pspark-3.4
+    sbt_build_client -Pflink-1.14
+    sbt_build_client -Pflink-1.15
+    sbt_build_client -Pflink-1.17
+  else
+    echo "build client with $@"
+    ENGINE_COUNT=0
+    ENGINES=("spark" "flink" "mr")
+    for single_engine in ${ENGINES[@]}
+    do
+      echo $single_engine
+      if [[ $@ == *"${single_engine}"* ]];then
+        ENGINE_COUNT=`expr ${ENGINE_COUNT} + 1`
+      fi
+    done
+    if [[ ${ENGINE_COUNT} -eq 0  ]]; then
+      echo "Skip building client."
+    elif [[ ${ENGINE_COUNT} -ge 2 ]]; then
+      echo "Error: unsupported build options: $@"
+      echo "       currently we do not support compiling different engine clients at the same time."
+      exit -1
+    else
+      sbt_build_client $@
+    fi
+  fi
+else
+  if [ "$RELEASE" == "true" ]; then
+    build_service
+    build_spark_client -Pspark-2.4
+    build_spark_client -Pspark-3.4
+    build_flink_client -Pflink-1.14
+    build_flink_client -Pflink-1.15
+    build_flink_client -Pflink-1.17
+    build_mr_client mr
+  else
+    ## build release package on demand
+    build_service $@
+    echo "build client with $@"
+    ENGINE_COUNT=0
+    ENGINES=("spark" "flink" "mr")
+    for single_engine in ${ENGINES[@]}
+    do
+      echo $single_engine
+      if [[ $@ == *"${single_engine}"* ]];then
+        ENGINE_COUNT=`expr ${ENGINE_COUNT} + 1`
+      fi
+    done
+    if [[ ${ENGINE_COUNT} -eq 0  ]]; then
+      echo "Skip building client."
+    elif [[ ${ENGINE_COUNT} -ge 2 ]]; then
+      echo "Error: unsupported build options: $@"
+      echo "       currently we do not support compiling different engine clients at the same time."
+      exit -1
+    elif [[  $@ == *"spark"* ]]; then
+      echo "build spark clients"
+      build_spark_client $@
+    elif [[  $@ == *"flink"* ]]; then
+      echo "build flink clients"
+      build_flink_client $@
+    elif [[  $@ == *"mr"* ]]; then
+      echo "build mr clients"
+      build_mr_client $@
+    fi
   fi
 fi
 

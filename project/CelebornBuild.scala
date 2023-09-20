@@ -394,10 +394,15 @@ object CelebornWorker {
   lazy val worker = Project("celeborn-worker", file("worker"))
     .dependsOn(CelebornService.service)
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
-    .dependsOn(CelebornClient.client % "test->test;compile->compile")
-    .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+    .dependsOn(CelebornClient.client % "test->compile")
+    .dependsOn(CelebornMaster.master % "test->compile")
     .settings (
       commonSettings,
+      excludeDependencies ++= Seq(
+        // ratis-common/ratis-client are the transitive dependencies from celeborn-common
+        ExclusionRule("org.apache.ratis", "ratis-common"),
+        ExclusionRule("org.apache.ratis", "ratis-client")
+      ),
       libraryDependencies ++= Seq(
         Dependencies.guava,
         Dependencies.commonsIo,
