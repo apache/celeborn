@@ -890,14 +890,14 @@ object MRClientProjects {
 
   def mrClient: Project = {
     Project("celeborn-client-mr", file("client-mr/mr"))
-      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
-      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .dependsOn(CelebornCommon.common, CelebornClient.client)
       .settings(
         commonSettings,
         libraryDependencies ++= Seq(
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
-          Dependencies.hadoopMapreduceClientApp
+          Dependencies.hadoopMapreduceClientApp,
+          "org.lz4" % "lz4-java" % "1.7.1"
         ) ++ commonUnitTestDependencies
       )
   }
@@ -918,8 +918,8 @@ object MRClientProjects {
 
         (assembly / logLevel) := Level.Info,
 
-        // Exclude `scala-library` from assembly.
-        (assembly / assemblyPackageScala / assembleArtifact) := false,
+        // include `scala-library` from assembly.
+        (assembly / assemblyPackageScala / assembleArtifact) := true,
 
         (assembly / assemblyExcludedJars) := {
           val cp = (assembly / fullClasspath).value
@@ -930,7 +930,9 @@ object MRClientProjects {
               name.startsWith("guava-") ||
               name.startsWith("netty-") ||
               name.startsWith("commons-lang3-") ||
-              name.startsWith("RoaringBitmap-"))
+              name.startsWith("RoaringBitmap-") ||
+              name.startsWith("lz4-java-") ||
+              name.startsWith("scala-library-"))
           }
         },
 
