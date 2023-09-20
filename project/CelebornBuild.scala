@@ -71,6 +71,7 @@ object Dependencies {
   val guava = "com.google.guava" % "guava" % guavaVersion
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
+  val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
@@ -212,7 +213,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornClient.client,
       CelebornService.service,
       CelebornWorker.worker,
-      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules
+      CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules
   }
   
   // ThisBuild / parallelExecution := false
@@ -266,6 +267,15 @@ object Utils {
   }
 
   lazy val maybeFlinkClientModules: Seq[Project] = flinkClientProjects.map(_.modules).getOrElse(Seq.empty)
+
+  val MR_VERSION = profiles.filter(_.startsWith("mr")).headOption
+
+  lazy val mrClientProjects = MR_VERSION match {
+    case Some("mr") => Some(MRClientProjects)
+    case _ => None
+  }
+
+  lazy val maybeMRClientModules: Seq[Project] = mrClientProjects.map(_.modules).getOrElse(Seq.empty)
 
   def defaultScalaVersion(): String = {
     // 1. Inherit the scala version of the spark project
@@ -870,5 +880,84 @@ trait FlinkClientProjects {
           case _ => MergeStrategy.first
         }
       )
+  }
+}
+
+////////////////////////////////////////////////////////
+//                   MR Client                        //
+////////////////////////////////////////////////////////
+object MRClientProjects {
+
+  def mrClient: Project = {
+    Project("celeborn-client-mr", file("client-mr/mr"))
+      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .settings(
+        commonSettings,
+        libraryDependencies ++= Seq(
+          Dependencies.hadoopClientApi,
+          Dependencies.hadoopClientRuntime,
+          Dependencies.hadoopMapreduceClientApp
+        ) ++ commonUnitTestDependencies
+      )
+  }
+
+  def mrClientShade: Project = {
+    Project("celeborn-client-mr-shaded", file("client-mr/mr-shaded"))
+      .dependsOn(mrClient)
+      .settings(
+        commonSettings,
+
+        // align final shaded jar name with maven.
+        (assembly / assemblyJarName) := {
+          val extension = artifact.value.extension
+          s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.$extension"
+        },
+
+        (assembly / test) := {},
+
+        (assembly / logLevel) := Level.Info,
+
+        // Exclude `scala-library` from assembly.
+        (assembly / assemblyPackageScala / assembleArtifact) := false,
+
+        (assembly / assemblyExcludedJars) := {
+          val cp = (assembly / fullClasspath).value
+          cp filter { v =>
+            val name = v.data.getName
+            !(name.startsWith("celeborn-") ||
+              name.startsWith("protobuf-java-") ||
+              name.startsWith("guava-") ||
+              name.startsWith("netty-") ||
+              name.startsWith("commons-lang3-") ||
+              name.startsWith("RoaringBitmap-"))
+          }
+        },
+
+        (assembly / assemblyShadeRules) := Seq(
+          ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
+          ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
+          ShadeRule.rename("io.netty.**" -> "org.apache.celeborn.shaded.io.netty.@1").inAll,
+          ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
+          ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
+        ),
+
+        (assembly / assemblyMergeStrategy) := {
+          case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          // Drop all proto files that are not needed as artifacts of the build.
+          case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
+          case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
+          // Drop netty jnilib
+          case m if m.toLowerCase(Locale.ROOT).endsWith(".jnilib") => MergeStrategy.discard
+          // rename netty native lib
+          case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so")
+          case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so")
+          case _ => MergeStrategy.first
+        }
+      )
+  }
+
+  def modules: Seq[Project] = {
+    Seq(mrClient, mrClientShade)
   }
 }
