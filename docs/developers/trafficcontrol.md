@@ -47,7 +47,7 @@ time force flush to release memory.
 - `Pause Replicate` watermark (defaults to 0.95). If used direct memory ratio exceeds this, `Worker` will pause
   receiving both data from `ShuffleClient` and replica data from primary `Worker`, and force flush buffered
   data into file.
-- `Resume` watermark (defaults to 0.5). When either `Pause Receive` or `Pause Replicate` is triggered, to resume
+- `Resume` watermark (defaults to 0.7). When either `Pause Receive` or `Pause Replicate` is triggered, to resume
   receiving data from `ShuffleClient`, the used direct memory ratio should decrease under this watermark.
 
 `Worker` high-frequently checks used direct memory ratio, and triggers `Pause Receive`, `Pause Replicate` and `Resume`
