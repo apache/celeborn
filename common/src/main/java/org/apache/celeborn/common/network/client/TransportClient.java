@@ -170,6 +170,12 @@ public class TransportClient implements Closeable {
     return requestId;
   }
 
+  /**
+   * Sends an opaque message to the RpcHandler on the server-side. No reply is expected for the
+   * message, and no delivery guarantees are made.
+   *
+   * @param message The message to send.
+   */
   public void sendRpc(ByteBuffer message) {
     if (logger.isTraceEnabled()) {
       logger.trace("Sending RPC to {}", NettyUtils.getRemoteAddress(channel));

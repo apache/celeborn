@@ -44,6 +44,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 
@@ -241,7 +242,7 @@ public class LocalPartitionReader implements PartitionReader {
           new TransportMessage(
               MessageType.BUFFER_STREAM_END,
               PbBufferStreamEnd.newBuilder()
-                  .setStreamType(PbBufferStreamEnd.Type.ChunkStream)
+                  .setStreamType(StreamType.ChunkStream)
                   .setStreamId(streamHandler.getStreamId())
                   .build()
                   .toByteArray());

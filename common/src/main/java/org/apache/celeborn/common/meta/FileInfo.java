@@ -43,8 +43,15 @@ public class FileInfo {
   private final PartitionType partitionType;
   private final UserIdentifier userIdentifier;
 
+  /**
+   * A flag used to indicate whether this FileInfo is sorted or not. Currently, it is only set for
+   * unsorted FileInfo instances.
+   */
   private final AtomicBoolean sorted = new AtomicBoolean(false);
 
+  /**
+   *  The set of stream IDs that are fetching this FileInfo.
+   */
   private final Set<Long> streams = ConcurrentHashMap.newKeySet();
 
   // members for ReducePartition

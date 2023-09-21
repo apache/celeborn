@@ -61,6 +61,7 @@ import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -354,7 +355,7 @@ public class FetchHandlerSuiteJ {
             MessageType.BUFFER_STREAM_END,
             PbBufferStreamEnd.newBuilder()
                 .setStreamId(streamId)
-                .setStreamType(PbBufferStreamEnd.Type.ChunkStream)
+                .setStreamType(StreamType.ChunkStream)
                 .build()
                 .toByteArray());
     fetchHandler.receive(

@@ -79,6 +79,11 @@ enum MessageType {
   BUFFER_STREAM_END = 56;
 }
 
+enum StreamType {
+  ChunkStream = 0;
+  CreditStream = 1;
+}
+
 message PbStorageInfo {
   int32 type = 1;
   string mountPoint = 2;
@@ -503,10 +508,6 @@ message PbStreamHandler {
 }
 
 message PbBufferStreamEnd {
-  enum Type {
-    ChunkStream = 0;
-    CreditStream = 1;
-  }
-  Type streamType = 1;
+  StreamType streamType = 1;
   int64 streamId = 2;
 }

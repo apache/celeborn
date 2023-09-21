@@ -17,10 +17,9 @@
 
 package org.apache.celeborn.service.deploy.worker
 
-import java.{lang, util}
 import java.io.{FileNotFoundException, IOException}
-import java.lang.Runtime
 import java.nio.charset.StandardCharsets
+import java.util
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
@@ -38,7 +37,7 @@ import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbOpenStream, PbStreamHandler}
+import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbOpenStream, PbStreamHandler, StreamType}
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
@@ -316,10 +315,10 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
 
   def handleEndStreamFromClient(req: PbBufferStreamEnd): Unit = {
     req.getStreamType match {
-      case PbBufferStreamEnd.Type.ChunkStream =>
+      case StreamType.ChunkStream =>
         val (shuffleKey, fileName) = chunkStreamManager.getShuffleKeyAndFileName(req.getStreamId)
         getRawFileInfo(shuffleKey, fileName).closeStream(req.getStreamId)
-      case PbBufferStreamEnd.Type.CreditStream =>
+      case StreamType.CreditStream =>
         creditStreamManager.notifyStreamEndByClient(req.getStreamId)
       case _ =>
         logError(s"Received a PbBufferStreamEnd message with unknown type ${req.getStreamType}")

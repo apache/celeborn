@@ -37,6 +37,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 
 public class CelebornBufferStream {
@@ -133,7 +134,7 @@ public class CelebornBufferStream {
           new TransportMessage(
               MessageType.BUFFER_STREAM_END,
               PbBufferStreamEnd.newBuilder()
-                  .setStreamType(PbBufferStreamEnd.Type.CreditStream)
+                  .setStreamType(StreamType.CreditStream)
                   .setStreamId(streamId)
                   .build()
                   .toByteArray());
