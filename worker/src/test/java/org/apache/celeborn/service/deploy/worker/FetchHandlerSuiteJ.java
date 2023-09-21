@@ -34,7 +34,9 @@ import java.util.Random;
 import java.util.UUID;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
+import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -199,10 +201,8 @@ public class FetchHandlerSuiteJ {
       TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
       FetchHandler fetchHandler = mockFetchHandler(fileInfo);
 
-      PbStreamHandler streamHandler =
-          legacyOpenStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
+      legacyOpenStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
 
-      fetchChunkAndCheck(client, channel, fetchHandler, streamHandler);
     } finally {
       cleanup(fileInfo);
     }
@@ -279,50 +279,44 @@ public class FetchHandlerSuiteJ {
   private final String fileName = "dummyFileName";
   private final long dummyRequestId = 0;
 
-  private PbStreamHandler legacyOpenStreamAndCheck(
+  @Deprecated
+  private void legacyOpenStreamAndCheck(
       TransportClient client,
       EmbeddedChannel channel,
       FetchHandler fetchHandler,
       int startIndex,
       int endIndex)
       throws IOException {
-    return openStreamAndCheck(client, channel, fetchHandler, startIndex, endIndex, true);
-  }
-
-  private PbStreamHandler openStreamAndCheck(
-      TransportClient client,
-      EmbeddedChannel channel,
-      FetchHandler fetchHandler,
-      int startIndex,
-      int endIndex)
-      throws IOException {
-    return openStreamAndCheck(client, channel, fetchHandler, startIndex, endIndex, false);
-  }
-
-  private PbStreamHandler openStreamAndCheck(
-      TransportClient client,
-      EmbeddedChannel channel,
-      FetchHandler fetchHandler,
-      int startIndex,
-      int endIndex,
-      boolean legacy)
-      throws IOException {
-    ByteBuffer openStreamByteBuffer = null;
-    if (legacy) {
-      openStreamByteBuffer = new OpenStream(shuffleKey, fileName, startIndex, endIndex).toByteBuffer();
+    ByteBuffer openStreamByteBuffer =
+        new OpenStream(shuffleKey, fileName, startIndex, endIndex).toByteBuffer();
+    fetchHandler.receive(
+        client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)));
+    RpcResponse result = channel.readOutbound();
+    StreamHandle streamHandler = (StreamHandle) Message.decode(result.body().nioByteBuffer());
+    if (endIndex == Integer.MAX_VALUE) {
+      assertEquals(50, streamHandler.numChunks);
     } else {
-      openStreamByteBuffer =
-          new TransportMessage(
-              MessageType.OPEN_STREAM,
-              PbOpenStream.newBuilder()
-                  .setShuffleKey(shuffleKey)
-                  .setFileName(fileName)
-                  .setStartIndex(startIndex)
-                  .setEndIndex(endIndex)
-                  .build()
-                  .toByteArray())
-              .toByteBuffer();
+      assertEquals(endIndex - startIndex, streamHandler.numChunks);
     }
+  }
+
+  private PbStreamHandler openStreamAndCheck(
+      TransportClient client,
+      EmbeddedChannel channel,
+      FetchHandler fetchHandler,
+      int startIndex,
+      int endIndex)
+      throws IOException {
+    ByteBuffer openStreamByteBuffer = new TransportMessage(
+        MessageType.OPEN_STREAM,
+        PbOpenStream.newBuilder()
+            .setShuffleKey(shuffleKey)
+            .setFileName(fileName)
+            .setStartIndex(startIndex)
+            .setEndIndex(endIndex)
+            .build()
+            .toByteArray())
+        .toByteBuffer();
     fetchHandler.receive(
         client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)));
     RpcResponse result = channel.readOutbound();

@@ -27,9 +27,9 @@ import java.util.function.Consumer
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.util.concurrent.{Future, GenericFutureListener}
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
+import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
@@ -103,10 +103,14 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
 
   private def handleRpcRequest(client: TransportClient, rpcRequest: RpcRequest): Unit = {
     try {
-      val message = TransportMessage.fromByteBuffer(rpcRequest.body().nioByteBuffer())
-        .getParsedPayload[GeneratedMessageV3]
-      if (message == null) {
-        return handleLegacyRpcMessage(client, rpcRequest)
+      var message: GeneratedMessageV3 = null
+      try {
+        message = TransportMessage.fromByteBuffer(rpcRequest.body().nioByteBuffer())
+          .getParsedPayload[GeneratedMessageV3]
+      } catch {
+        case exception: CelebornIOException =>
+          logWarning("handle request with legacy RPCs", exception)
+          return handleLegacyRpcMessage(client, rpcRequest)
       }
       message match {
         case openStream: PbOpenStream =>
