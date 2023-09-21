@@ -180,8 +180,7 @@ private[celeborn] class Worker(
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
     fetchHandler = new FetchHandler(conf, transportConf)
-    partitionsSorter =
-      new PartitionFilesSorter(memoryManager, fetchHandler.chunkStreamManager, conf, workerSource)
+    partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
     val transportContext: TransportContext =
       new TransportContext(
         transportConf,

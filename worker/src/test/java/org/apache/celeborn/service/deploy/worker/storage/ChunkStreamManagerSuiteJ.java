@@ -39,10 +39,10 @@ public class ChunkStreamManagerSuiteJ {
     FileManagedBuffers buffers3 = Mockito.mock(FileManagedBuffers.class);
     FileManagedBuffers buffers4 = Mockito.mock(FileManagedBuffers.class);
 
-    manager.registerStream("shuffleKey1", buffers, null);
-    manager.registerStream("shuffleKey1", buffers2, null);
-    manager.registerStream("shuffleKey2", buffers3, null);
-    long stream3 = manager.registerStream("shuffleKey3", buffers4, null);
+    manager.registerStream("shuffleKey1", buffers, "shuffleFile1", null);
+    manager.registerStream("shuffleKey1", buffers2, "shuffleFile1", null);
+    manager.registerStream("shuffleKey2", buffers3, "shuffleFile2", null);
+    long stream3 = manager.registerStream("shuffleKey3", buffers4, "shuffleFile3", null);
     Assert.assertEquals(4, manager.numStreamStates());
     Assert.assertEquals(manager.numStreamStates(), manager.numShuffleSteams());
 

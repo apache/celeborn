@@ -89,7 +89,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private boolean gracefulShutdown;
   private long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
-  private MemoryManager memoryManager;
 
   protected final AbstractSource source;
 
@@ -98,7 +97,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public PartitionFilesSorter(
       MemoryManager memoryManager,
-      ChunkStreamManager chunkStreamManager,
       CelebornConf conf,
       AbstractSource source) {
     this.lazyRemovalOfOriginalFilesEnabled =
@@ -109,8 +107,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.source = source;
-    this.memoryManager = memoryManager;
-    this.cleaner = new PartitionFilesCleaner(chunkStreamManager);
+    this.cleaner = new PartitionFilesCleaner();
     this.gracefulShutdown = conf.workerGracefulShutdown();
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
@@ -519,7 +516,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String fileId;
     private final String shuffleKey;
     private final boolean isHdfs;
-    private final long startTimestamp;
+    private final FileInfo originalFileInfo;
 
     private FSDataInputStream hdfsOriginInput = null;
     private FSDataOutputStream hdfsSortedOutput = null;
@@ -527,6 +524,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private FileChannel sortedFileChannel = null;
 
     FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
+      this.originalFileInfo = fileInfo;
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
       this.isHdfs = fileInfo.isHdfs();
@@ -534,7 +532,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
       this.indexFilePath = Utils.getIndexFilePath(originFilePath);
-      this.startTimestamp = System.currentTimeMillis();
       if (!isHdfs) {
         File sortedFile = new File(this.sortedFilePath);
         if (sortedFile.exists()) {
@@ -611,6 +608,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
         cleaner.add(this);
+        originalFileInfo.setSorted();
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
         logger.error(
@@ -629,8 +627,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       return shuffleKey;
     }
 
-    public long getStartTimestamp() {
-      return startTimestamp;
+    public FileInfo getOriginalFileInfo() {
+      return originalFileInfo;
     }
 
     private void initializeFiles() throws IOException {
@@ -730,7 +728,7 @@ class PartitionFilesCleaner {
   private final Lock lock = new ReentrantLock();
   private final Condition notEmpty = lock.newCondition();
 
-  PartitionFilesCleaner(ChunkStreamManager chunkStreamManager) {
+  PartitionFilesCleaner() {
     Thread cleaner =
         new Thread(
             () -> {
@@ -743,28 +741,8 @@ class PartitionFilesCleaner {
                   Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
                   while (it.hasNext()) {
                     PartitionFilesSorter.FileSorter sorter = it.next();
-                    boolean streamFetchFinished = true;
-                    Set<Long> streamIds =
-                        chunkStreamManager.shuffleStreamIds.get(sorter.getShuffleKey());
-
-                    if (streamIds != null) {
-                      for (long streamId : streamIds) {
-                        ChunkStreamManager.StreamRegisterState registerState =
-                            chunkStreamManager.streamRegisterStates.get(streamId);
-                        if (registerState != null) {
-                          boolean hasOriginalFileFetcher =
-                              !registerState.isRangeRead()
-                                  // TODO:(fchen)
-                                  // && registerState.isReadBufferFromOriginalFile()
-                                  && registerState.isRegisterBefore(sorter.getStartTimestamp());
-                          if (hasOriginalFileFetcher) {
-                            streamFetchFinished = false;
-                          }
-                        }
-                      }
-                    }
                     try {
-                      if (streamFetchFinished) {
+                      if (sorter.getOriginalFileInfo().isStreamsEmpty()) {
                         sorter.deleteOriginFiles();
                         queue.remove(sorter);
                       }

@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import scala.Tuple2;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -44,53 +46,23 @@ public class ChunkStreamManager {
   private final AtomicLong nextStreamId;
   // StreamId -> StreamState
   protected final ConcurrentHashMap<Long, StreamState> streams;
-  // StreamId -> StreamRegisterState
-  protected final ConcurrentHashMap<Long, StreamRegisterState> streamRegisterStates;
   // ShuffleKey -> StreamId
   protected final ConcurrentHashMap<String, Set<Long>> shuffleStreamIds;
 
-  protected static class StreamRegisterState {
-    final long streamId;
-    final String shuffleKey;
-    final String fileName;
-    final int startIndex;
-    final int endIndex;
-    final long registerTimestamp;
-
-    StreamRegisterState(
-        long streamId, String shuffleKey, String fileName, int startIndex, int endIndex) {
-      this.streamId = streamId;
-      this.shuffleKey = shuffleKey;
-      this.fileName = fileName;
-      this.startIndex = startIndex;
-      this.endIndex = endIndex;
-      this.registerTimestamp = System.currentTimeMillis();
-    }
-
-    public boolean isRangeRead() {
-      return endIndex != Integer.MAX_VALUE;
-    }
-
-    public boolean isRegisterBefore(Long thatTimestamp) {
-      return this.registerTimestamp <= thatTimestamp;
-    }
-
-    public boolean isReadBufferFromOriginalFile() {
-      return !fileName.endsWith(".sorted");
-    }
-  }
   /** State of a single stream. */
   protected static class StreamState {
     final FileManagedBuffers buffers;
     final String shuffleKey;
+    final String fileName;
     final TimeWindow fetchTimeMetric;
 
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
-    StreamState(String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
+    StreamState(String shuffleKey, FileManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
       this.buffers = Preconditions.checkNotNull(buffers);
       this.shuffleKey = shuffleKey;
+      this.fileName = fileName;
       this.fetchTimeMetric = fetchTimeMetric;
     }
   }
@@ -100,7 +72,6 @@ public class ChunkStreamManager {
     // This does not need to be globally unique, only unique to this class.
     nextStreamId = new AtomicLong((long) new Random().nextInt(Integer.MAX_VALUE) * 1000);
     streams = JavaUtils.newConcurrentHashMap();
-    streamRegisterStates = JavaUtils.newConcurrentHashMap();
     shuffleStreamIds = JavaUtils.newConcurrentHashMap();
   }
 
@@ -179,14 +150,14 @@ public class ChunkStreamManager {
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
   public long registerStream(
-      String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
+      String shuffleKey, FileManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
-    return registerStream(myStreamId, shuffleKey, buffers, fetchTimeMetric);
+    return registerStream(myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric);
   }
 
   public long registerStream(
-      long streamId, String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
-    streams.put(streamId, new StreamState(shuffleKey, buffers, fetchTimeMetric));
+      long streamId, String shuffleKey, FileManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
+    streams.put(streamId, new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric));
     shuffleStreamIds.compute(
         shuffleKey,
         (key, value) -> {
@@ -200,24 +171,8 @@ public class ChunkStreamManager {
     return streamId;
   }
 
-  public long registeringStream(String shuffleKey, String fileName, int startIndex, int endIndex) {
-    long streamId = nextStreamId.getAndIncrement();
-    streamRegisterStates.put(
-        streamId, new StreamRegisterState(streamId, shuffleKey, fileName, startIndex, endIndex));
-    shuffleStreamIds.compute(
-        shuffleKey,
-        (key, value) -> {
-          if (value == null) {
-            value = ConcurrentHashMap.newKeySet();
-          }
-          value.add(streamId);
-          return value;
-        });
-    return streamId;
-  }
-
-  public void unregisterStream(long streamId) {
-    streamRegisterStates.remove(streamId);
+  public long nextStreamId() {
+    return nextStreamId.getAndIncrement();
   }
 
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
@@ -227,9 +182,13 @@ public class ChunkStreamManager {
       // normally expiredStreamIds set will be empty as streamId will be removed when be fully read
       if (expiredStreamIds != null && !expiredStreamIds.isEmpty()) {
         streams.keySet().removeAll(expiredStreamIds);
-        streamRegisterStates.keySet().removeAll(expiredShuffleKeys);
       }
     }
+  }
+
+  public Tuple2<String, String> getShuffleKeyAndFileName(long streamId) {
+    StreamState state = streams.get(streamId);
+    return new Tuple2<>(state.shuffleKey, state.fileName);
   }
 
   @VisibleForTesting

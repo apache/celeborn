@@ -272,4 +272,33 @@ public class FileInfo {
   public void setPartitionSplitEnabled(boolean partitionSplitEnabled) {
     this.partitionSplitEnabled = partitionSplitEnabled;
   }
+
+  public void setSorted() {
+    synchronized (sorted) {
+      sorted.set(true);
+    }
+  }
+
+  public boolean addStream(long streamId) {
+    synchronized (sorted) {
+      if (sorted.get()) {
+        return false;
+      } else {
+        streams.add(streamId);
+        return true;
+      }
+    }
+  }
+
+  public void closeStream(long streamId) {
+    synchronized (sorted) {
+      streams.remove(streamId);
+    }
+  }
+
+  public boolean isStreamsEmpty() {
+    synchronized (sorted) {
+      return streams.isEmpty();
+    }
+  }
 }

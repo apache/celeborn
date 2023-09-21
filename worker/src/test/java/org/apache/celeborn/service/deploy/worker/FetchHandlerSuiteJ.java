@@ -209,7 +209,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testReadSortFileOnceOriginBeDeleted() throws IOException {
+  public void testReadSortFileOnceOriginalFileBeDeleted() throws IOException {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -231,7 +231,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testDoNotDeleteOriginFileWhenNonRangeReadWorkInProgress() throws IOException {
+  public void testDoNotDeleteOriginalFileWhenNonRangeReadWorkInProgress() throws IOException {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -244,31 +244,6 @@ public class FetchHandlerSuiteJ {
           openStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
       PbStreamHandler rangeReadStreamHandler =
           openStreamAndCheck(client, channel, fetchHandler, 5, 10);
-      fetchChunkAndCheck(client, channel, fetchHandler, nonRangeReadstreamHandler);
-      fetchChunkAndCheck(client, channel, fetchHandler, rangeReadStreamHandler);
-
-      // non-range fetch finished.
-      bufferStreamEnd(client, fetchHandler, nonRangeReadstreamHandler.getStreamId());
-      checkOriginFileBeDeleted(fileInfo);
-    } finally {
-      cleanup(fileInfo);
-    }
-  }
-
-  @Test
-  public void tt() throws IOException {
-    FileInfo fileInfo = null;
-    try {
-      // total write size: 32 * 50 * 256k = 400m
-      fileInfo = prepare(32);
-      EmbeddedChannel channel = new EmbeddedChannel();
-      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
-      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
-
-      PbStreamHandler rangeReadStreamHandler =
-          openStreamAndCheck(client, channel, fetchHandler, 5, 10);
-      PbStreamHandler nonRangeReadstreamHandler =
-          openStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
       fetchChunkAndCheck(client, channel, fetchHandler, nonRangeReadstreamHandler);
       fetchChunkAndCheck(client, channel, fetchHandler, rangeReadStreamHandler);
 
@@ -288,7 +263,7 @@ public class FetchHandlerSuiteJ {
     WorkerSource workerSource = mock(WorkerSource.class);
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(
-            MemoryManager.instance(), fetchHandler0.chunkStreamManager(), conf, workerSource);
+            MemoryManager.instance(), conf, workerSource);
 
     StorageManager storageManager = mock(StorageManager.class);
     Mockito.doReturn(storageManager).when(worker).storageManager();

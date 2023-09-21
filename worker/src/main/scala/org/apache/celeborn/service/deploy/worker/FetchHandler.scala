@@ -184,14 +184,22 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       fileInfo.getPartitionType match {
         case PartitionType.REDUCE =>
-          val streamId =
-            chunkStreamManager.registeringStream(shuffleKey, fileName, startIndex, endIndex)
+          val streamId = chunkStreamManager.nextStreamId()
           fileInfo = partitionsSorter.getSortedFileInfo(
             shuffleKey,
             fileName,
             fileInfo,
             startIndex,
             endIndex)
+          // non-range openStream request
+          if (endIndex == Int.MaxValue && !fileInfo.addStream(streamId)) {
+            fileInfo = partitionsSorter.getSortedFileInfo(
+              shuffleKey,
+              fileName,
+              fileInfo,
+              startIndex,
+              endIndex)
+          }
           logDebug(s"Received chunk fetch request $shuffleKey $fileName $startIndex " +
             s"$endIndex get file info $fileInfo from client channel " +
             s"${NettyUtils.getRemoteAddress(client.getChannel)}")
@@ -213,6 +221,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               streamId,
               shuffleKey,
               buffers,
+              fileName,
               fetchTimeMetrics)
             if (fileInfo.numChunks() == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
@@ -303,7 +312,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   def handleEndStreamFromClient(req: PbBufferStreamEnd): Unit = {
     req.getStreamType match {
       case PbBufferStreamEnd.Type.ChunkStream =>
-        chunkStreamManager.unregisterStream(req.getStreamId)
+        val (shuffleKey, fileName) = chunkStreamManager.getShuffleKeyAndFileName(req.getStreamId)
+        getRawFileInfo(shuffleKey, fileName).closeStream(req.getStreamId)
       case PbBufferStreamEnd.Type.CreditStream =>
         creditStreamManager.notifyStreamEndByClient(req.getStreamId)
       case _ =>
