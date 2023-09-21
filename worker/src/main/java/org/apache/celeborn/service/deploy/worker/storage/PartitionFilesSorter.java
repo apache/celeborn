@@ -171,19 +171,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFilesSize.get();
   }
 
-  /**
-   * For non-range requests:
-   *   1. If the sorted file is not generated, it returns the original unsorted FileInfo.
-   *   2. If the sorted file is generated, it returns the sorted FileInfo.
-   *
-   * For range requests:
-   *   1. If the sorted file is not generated, it adds the FileSorter task to the sorting queue and
-   *      synchronously waits for the sorted FileInfo.
-   *   2. If the FileSorter task is already in the sorting queue but the sorted file has not been
-   *      generated, it awaits until a timeout occurs (default 220 seconds).
-   *   3. If the sorted file is generated, it returns the sorted FileInfo.
-   */
- public FileInfo getSortedFileInfo(
+  // For non-range requests:
+  //   1. If the sorted file is not generated, it returns the original unsorted FileInfo.
+  //   2. If the sorted file is generated, it returns the sorted FileInfo.
+  //
+  // For range requests:
+  //   1. If the sorted file is not generated, it adds the FileSorter task to the sorting queue and
+  //      synchronously waits for the sorted FileInfo.
+  //   2. If the FileSorter task is already in the sorting queue but the sorted file has not been
+  //      generated, it awaits until a timeout occurs (default 220 seconds).
+  //   3. If the sorted file is generated, it returns the sorted FileInfo.
+  public FileInfo getSortedFileInfo(
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     String fileId = shuffleKey + "-" + fileName;
