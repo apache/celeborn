@@ -49,9 +49,7 @@ public class FileInfo {
    */
   private final AtomicBoolean sorted = new AtomicBoolean(false);
 
-  /**
-   *  The set of stream IDs that are fetching this FileInfo.
-   */
+  /** The set of stream IDs that are fetching this FileInfo. */
   private final Set<Long> streams = ConcurrentHashMap.newKeySet();
 
   // members for ReducePartition
