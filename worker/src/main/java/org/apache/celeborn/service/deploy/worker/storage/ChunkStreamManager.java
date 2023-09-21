@@ -59,7 +59,11 @@ public class ChunkStreamManager {
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
-    StreamState(String shuffleKey, FileManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
+    StreamState(
+        String shuffleKey,
+        FileManagedBuffers buffers,
+        String fileName,
+        TimeWindow fetchTimeMetric) {
       this.buffers = Preconditions.checkNotNull(buffers);
       this.shuffleKey = shuffleKey;
       this.fileName = fileName;
@@ -156,7 +160,11 @@ public class ChunkStreamManager {
   }
 
   public long registerStream(
-      long streamId, String shuffleKey, FileManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
+      long streamId,
+      String shuffleKey,
+      FileManagedBuffers buffers,
+      String fileName,
+      TimeWindow fetchTimeMetric) {
     streams.put(streamId, new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric));
     shuffleStreamIds.compute(
         shuffleKey,

@@ -96,9 +96,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final Thread fileSorterSchedulerThread;
 
   public PartitionFilesSorter(
-      MemoryManager memoryManager,
-      CelebornConf conf,
-      AbstractSource source) {
+      MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     this.lazyRemovalOfOriginalFilesEnabled =
         conf.partitionSorterLazyRemovalOfOriginalFilesEnabled();
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();

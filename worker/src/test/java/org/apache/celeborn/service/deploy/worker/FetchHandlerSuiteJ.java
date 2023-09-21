@@ -34,9 +34,6 @@ import java.util.Random;
 import java.util.UUID;
 
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OpenStream;
-import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -52,9 +49,12 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.ChunkFetchRequest;
 import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
+import org.apache.celeborn.common.network.protocol.Message;
+import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.RpcResponse;
 import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
+import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.MessageType;
@@ -262,8 +262,7 @@ public class FetchHandlerSuiteJ {
     Worker worker = mock(Worker.class);
     WorkerSource workerSource = mock(WorkerSource.class);
     PartitionFilesSorter partitionFilesSorter =
-        new PartitionFilesSorter(
-            MemoryManager.instance(), conf, workerSource);
+        new PartitionFilesSorter(MemoryManager.instance(), conf, workerSource);
 
     StorageManager storageManager = mock(StorageManager.class);
     Mockito.doReturn(storageManager).when(worker).storageManager();
@@ -307,16 +306,17 @@ public class FetchHandlerSuiteJ {
       int startIndex,
       int endIndex)
       throws IOException {
-    ByteBuffer openStreamByteBuffer = new TransportMessage(
-        MessageType.OPEN_STREAM,
-        PbOpenStream.newBuilder()
-            .setShuffleKey(shuffleKey)
-            .setFileName(fileName)
-            .setStartIndex(startIndex)
-            .setEndIndex(endIndex)
-            .build()
-            .toByteArray())
-        .toByteBuffer();
+    ByteBuffer openStreamByteBuffer =
+        new TransportMessage(
+                MessageType.OPEN_STREAM,
+                PbOpenStream.newBuilder()
+                    .setShuffleKey(shuffleKey)
+                    .setFileName(fileName)
+                    .setStartIndex(startIndex)
+                    .setEndIndex(endIndex)
+                    .build()
+                    .toByteArray())
+            .toByteBuffer();
     fetchHandler.receive(
         client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)));
     RpcResponse result = channel.readOutbound();
