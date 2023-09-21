@@ -110,7 +110,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           .getParsedPayload[GeneratedMessageV3]
       } catch {
         case exception: CelebornIOException =>
-          logWarning("handle request with legacy RPCs", exception)
+          logWarning("Handle request with legacy RPCs", exception)
           return handleLegacyRpcMessage(client, rpcRequest)
       }
       message match {
@@ -169,7 +169,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       }
     } catch {
       case e: Exception =>
-        logError("catch an error when handle legacy rpc message.", e)
+        logError("Catch an error when handle legacy rpc message.", e)
     }
 
   }
