@@ -1024,6 +1024,10 @@ object Utils extends Logging {
     path.matches(COMPATIBLE_HDFS_REGEX)
   }
 
+  def isSortedPath(path: String): Boolean = {
+    path.endsWith(SORTED_SUFFIX)
+  }
+
   def getSortedFilePath(path: String): String = {
     path + SORTED_SUFFIX
   }

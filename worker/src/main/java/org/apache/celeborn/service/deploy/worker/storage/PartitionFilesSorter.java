@@ -171,7 +171,19 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFilesSize.get();
   }
 
-  public FileInfo getSortedFileInfo(
+  /**
+   * For non-range requests:
+   *   1. If the sorted file is not generated, it returns the original unsorted FileInfo.
+   *   2. If the sorted file is generated, it returns the sorted FileInfo.
+   *
+   * For range requests:
+   *   1. If the sorted file is not generated, it adds the FileSorter task to the sorting queue and
+   *      synchronously waits for the sorted FileInfo.
+   *   2. If the FileSorter task is already in the sorting queue but the sorted file has not been
+   *      generated, it awaits until a timeout occurs (default 220 seconds).
+   *   3. If the sorted file is generated, it returns the sorted FileInfo.
+   */
+ public FileInfo getSortedFileInfo(
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     String fileId = shuffleKey + "-" + fileName;
@@ -514,7 +526,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String fileId;
     private final String shuffleKey;
     private final boolean isHdfs;
-    private final FileInfo originalFileInfo;
+    private final FileInfo originFileInfo;
 
     private FSDataInputStream hdfsOriginInput = null;
     private FSDataOutputStream hdfsSortedOutput = null;
@@ -522,7 +534,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private FileChannel sortedFileChannel = null;
 
     FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
-      this.originalFileInfo = fileInfo;
+      this.originFileInfo = fileInfo;
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
       this.isHdfs = fileInfo.isHdfs();
@@ -606,7 +618,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
         cleaner.add(this);
-        originalFileInfo.setSorted();
+        originFileInfo.setSorted();
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
         logger.error(
@@ -625,8 +637,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       return shuffleKey;
     }
 
-    public FileInfo getOriginalFileInfo() {
-      return originalFileInfo;
+    public FileInfo getOriginFileInfo() {
+      return originFileInfo;
     }
 
     private void initializeFiles() throws IOException {
@@ -740,7 +752,7 @@ class PartitionFilesCleaner {
                   while (it.hasNext()) {
                     PartitionFilesSorter.FileSorter sorter = it.next();
                     try {
-                      if (sorter.getOriginalFileInfo().isStreamsEmpty()) {
+                      if (sorter.getOriginFileInfo().isStreamsEmpty()) {
                         sorter.deleteOriginFiles();
                         queue.remove(sorter);
                       }

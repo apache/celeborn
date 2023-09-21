@@ -197,12 +197,15 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
             endIndex)
           // non-range openStream request
           if (endIndex == Int.MaxValue && !fileInfo.addStream(streamId)) {
+            // This branch is entered when the original unsorted file has been deleted by another
+            // range's openStream request. retry fetching the sorted FileInfo.
             fileInfo = partitionsSorter.getSortedFileInfo(
               shuffleKey,
               fileName,
               fileInfo,
               startIndex,
               endIndex)
+            assert(Utils.isSortedPath(fileInfo.getFilePath))
           }
           logDebug(s"Received chunk fetch request $shuffleKey $fileName $startIndex " +
             s"$endIndex get file info $fileInfo from client channel " +
