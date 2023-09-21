@@ -931,6 +931,7 @@ object MRClientProjects {
               name.startsWith("commons-lang3-") ||
               name.startsWith("RoaringBitmap-") ||
               name.startsWith("lz4-java-") ||
+              name.startsWith("zstd-jni-") ||
               name.startsWith("scala-library-"))
           }
         },
