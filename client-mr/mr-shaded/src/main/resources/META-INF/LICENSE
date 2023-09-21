@@ -241,6 +241,9 @@ io.netty:netty-transport-native-kqueue
 io.netty:netty-resolver-dns-native-macos
 com.google.guava:guava
 org.roaringbitmap:RoaringBitmap
+org.lz4:lz4-java
+io.netty:netty
+org.scala-lang:scala-library
 
 
 BSD 3-clause
