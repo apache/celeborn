@@ -20,6 +20,7 @@ package org.apache.celeborn.common.network.protocol;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
+@Deprecated
 public final class RegionFinish extends RequestMessage {
 
   // 0 for primary, 1 for replica, see PartitionLocation.Mode
