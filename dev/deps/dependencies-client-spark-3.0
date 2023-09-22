@@ -66,10 +66,10 @@ netty-transport-sctp/4.1.93.Final//netty-transport-sctp-4.1.93.Final.jar
 netty-transport-udt/4.1.93.Final//netty-transport-udt-4.1.93.Final.jar
 netty-transport/4.1.93.Final//netty-transport-4.1.93.Final.jar
 protobuf-java/3.19.2//protobuf-java-3.19.2.jar
-ratis-client/2.5.1//ratis-client-2.5.1.jar
-ratis-common/2.5.1//ratis-common-2.5.1.jar
-ratis-proto/2.5.1//ratis-proto-2.5.1.jar
-ratis-thirdparty-misc/1.0.4//ratis-thirdparty-misc-1.0.4.jar
+ratis-client/2.4.1//ratis-client-2.4.1.jar
+ratis-common/2.4.1//ratis-common-2.4.1.jar
+ratis-proto/2.4.1//ratis-proto-2.4.1.jar
+ratis-thirdparty-misc/1.0.3//ratis-thirdparty-misc-1.0.3.jar
 scala-library/2.12.10//scala-library-2.12.10.jar
 scala-reflect/2.12.10//scala-reflect-2.12.10.jar
 shims/0.9.32//shims-0.9.32.jar
