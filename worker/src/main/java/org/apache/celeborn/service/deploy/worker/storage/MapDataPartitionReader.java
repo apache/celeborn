@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
+import static org.apache.celeborn.common.network.client.TransportClient.requestId;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -36,11 +38,15 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.FileCorruptedException;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
-import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.ReadData;
+import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -442,7 +448,17 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
         // old client can't support BufferStreamEnd, so for new client it tells client that this
         // stream is finished.
         if (fileInfo.isPartitionSplitEnabled() && !errorNotified)
-          associatedChannel.writeAndFlush(new BufferStreamEnd(streamId));
+          associatedChannel.writeAndFlush(
+              new RpcRequest(
+                  requestId(),
+                  new NioManagedBuffer(
+                      new TransportMessage(
+                              MessageType.BUFFER_STREAM_END,
+                              PbBufferStreamEnd.newBuilder()
+                                  .setStreamId(streamId)
+                                  .build()
+                                  .toByteArray())
+                          .toByteBuffer())));
         if (!buffersToSend.isEmpty()) {
           numInUseBuffers.addAndGet(-1 * buffersToSend.size());
           buffersToSend.forEach(RecyclableBuffer::recycle);

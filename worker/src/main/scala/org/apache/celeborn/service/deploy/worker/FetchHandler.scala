@@ -26,6 +26,7 @@ import java.util.function.Consumer
 import scala.collection.JavaConverters.asScalaBufferConverter
 
 import com.google.common.base.Throwables
+import com.google.protobuf.GeneratedMessageV3
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import org.apache.celeborn.common.CelebornConf
@@ -38,7 +39,7 @@ import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbOpenStream, PbStreamHandler}
+import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbOpenStream, PbReadAddCredit, PbStreamHandler}
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
@@ -90,72 +91,30 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
       case r: BufferStreamEnd =>
-        handleEndStreamFromClient(r)
+        handleEndStreamFromClient(r.getStreamId)
       case r: ReadAddCredit =>
-        handleReadAddCredit(r)
+        handleReadAddCredit(r.getCredit, r.getStreamId)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
-        // process PbOpenStream RPC
         var streamShuffleKey: String = null
-        var streamFileName: String = null
         try {
-          val pbMsg = TransportMessage.fromByteBuffer(r.body().nioByteBuffer())
-          val pbOpenStream = pbMsg.getParsedPayload[PbOpenStream]
-          val (shuffleKey, fileName, startIndex, endIndex, initialCredit, readLocalShuffle) =
-            (
-              pbOpenStream.getShuffleKey,
-              pbOpenStream.getFileName,
-              pbOpenStream.getStartIndex,
-              pbOpenStream.getEndIndex,
-              pbOpenStream.getInitialCredit,
-              pbOpenStream.getReadLocalShuffle)
-          streamShuffleKey = shuffleKey
-          streamFileName = fileName
-          workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
-          handleOpenStreamInternal(
-            client,
-            shuffleKey,
-            fileName,
-            startIndex,
-            endIndex,
-            initialCredit,
-            r,
-            false,
-            readLocalShuffle)
-        } catch {
-          case _: Exception =>
-            // process legacy OpenStream RPCs
-            logDebug("Open stream with legacy RPCs")
-            try {
-              val decodedMsg = Message.decode(r.body().nioByteBuffer())
-              val (shuffleKey, fileName) =
-                if (decodedMsg.`type`() == Type.OPEN_STREAM) {
-                  val openStream = decodedMsg.asInstanceOf[OpenStream]
-                  (
-                    new String(openStream.shuffleKey, StandardCharsets.UTF_8),
-                    new String(openStream.fileName, StandardCharsets.UTF_8))
-                } else {
-                  val openStreamWithCredit = decodedMsg.asInstanceOf[OpenStreamWithCredit]
-                  (
-                    new String(openStreamWithCredit.shuffleKey, StandardCharsets.UTF_8),
-                    new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
-                }
+          val pbMsg = TransportMessage.fromByteBuffer(
+            r.body().nioByteBuffer()).getParsedPayload.asInstanceOf[GeneratedMessageV3]
+          pbMsg match {
+            case pb: PbBufferStreamEnd => handleEndStreamFromClient(pb.getStreamId)
+            case pb: PbReadAddCredit => handleReadAddCredit(pb.getCredit, pb.getStreamId)
+            case pb: PbOpenStream =>
+              val (shuffleKey, fileName, startIndex, endIndex, initialCredit, readLocalShuffle) =
+                (
+                  pb.getShuffleKey,
+                  pb.getFileName,
+                  pb.getStartIndex,
+                  pb.getEndIndex,
+                  pb.getInitialCredit,
+                  pb.getReadLocalShuffle)
               streamShuffleKey = shuffleKey
-              streamFileName = fileName
-              var startIndex = 0
-              var endIndex = 0
-              var initialCredit = 0
-              getRawFileInfo(shuffleKey, fileName).getPartitionType match {
-                case PartitionType.REDUCE =>
-                  startIndex = decodedMsg.asInstanceOf[OpenStream].startMapIndex
-                  endIndex = decodedMsg.asInstanceOf[OpenStream].endMapIndex
-                case PartitionType.MAP =>
-                  initialCredit = decodedMsg.asInstanceOf[OpenStreamWithCredit].initialCredit
-                  startIndex = decodedMsg.asInstanceOf[OpenStreamWithCredit].startIndex
-                  endIndex = decodedMsg.asInstanceOf[OpenStreamWithCredit].endIndex
-                case PartitionType.MAPGROUP =>
-              }
+              workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
               handleOpenStreamInternal(
                 client,
                 shuffleKey,
@@ -164,14 +123,63 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
                 endIndex,
                 initialCredit,
                 r,
-                true)
-            } catch {
-              case e: IOException =>
-                handleRpcIOException(client, r.requestId, streamShuffleKey, streamFileName, e)
+                false,
+                readLocalShuffle)
+          }
+        } catch {
+          case _: Exception =>
+            logDebug("Legacy RPCs")
+            val decodedMsg = Message.decode(r.body().nioByteBuffer())
+            val msgType = decodedMsg.`type`()
+            if (msgType == Type.OPEN_STREAM || msgType == Type.OPEN_STREAM_WITH_CREDIT) {
+              var streamFileName: String = null
+              try {
+                val (shuffleKey, fileName) =
+                  if (msgType == Type.OPEN_STREAM) {
+                    val openStream = decodedMsg.asInstanceOf[OpenStream]
+                    (
+                      new String(openStream.shuffleKey, StandardCharsets.UTF_8),
+                      new String(openStream.fileName, StandardCharsets.UTF_8))
+                  } else {
+                    val openStreamWithCredit = decodedMsg.asInstanceOf[OpenStreamWithCredit]
+                    (
+                      new String(openStreamWithCredit.shuffleKey, StandardCharsets.UTF_8),
+                      new String(openStreamWithCredit.fileName, StandardCharsets.UTF_8))
+                  }
+                streamShuffleKey = shuffleKey
+                streamFileName = fileName
+                var startIndex = 0
+                var endIndex = 0
+                var initialCredit = 0
+                getRawFileInfo(shuffleKey, fileName).getPartitionType match {
+                  case PartitionType.REDUCE =>
+                    startIndex = decodedMsg.asInstanceOf[OpenStream].startMapIndex
+                    endIndex = decodedMsg.asInstanceOf[OpenStream].endMapIndex
+                  case PartitionType.MAP =>
+                    initialCredit = decodedMsg.asInstanceOf[OpenStreamWithCredit].initialCredit
+                    startIndex = decodedMsg.asInstanceOf[OpenStreamWithCredit].startIndex
+                    endIndex = decodedMsg.asInstanceOf[OpenStreamWithCredit].endIndex
+                  case PartitionType.MAPGROUP =>
+                }
+                handleOpenStreamInternal(
+                  client,
+                  shuffleKey,
+                  fileName,
+                  startIndex,
+                  endIndex,
+                  initialCredit,
+                  r,
+                  true)
+              } catch {
+                case e: IOException =>
+                  handleRpcIOException(client, r.requestId, streamShuffleKey, streamFileName, e)
+              }
             }
         } finally {
           r.body().release()
-          workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
+          if (streamShuffleKey != null) {
+            workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, streamShuffleKey)
+          }
         }
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
@@ -296,17 +304,24 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     logError(
       s"Read file: $fileName with shuffleKey: $shuffleKey error from ${NettyUtils.getRemoteAddress(client.getChannel)}",
       ioe)
+    handleRpcException(client, requestId, ioe)
+  }
+
+  private def handleRpcException(
+      client: TransportClient,
+      requestId: Long,
+      ioe: IOException): Unit = {
     client.getChannel.writeAndFlush(new RpcFailure(
       requestId,
       Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))))
   }
 
-  def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {
-    creditStreamManager.notifyStreamEndByClient(req.getStreamId)
+  def handleEndStreamFromClient(streamId: Long): Unit = {
+    creditStreamManager.notifyStreamEndByClient(streamId)
   }
 
-  def handleReadAddCredit(req: ReadAddCredit): Unit = {
-    creditStreamManager.addCredit(req.getCredit, req.getStreamId)
+  def handleReadAddCredit(credit: Int, streamId: Long): Unit = {
+    creditStreamManager.addCredit(credit, streamId)
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
