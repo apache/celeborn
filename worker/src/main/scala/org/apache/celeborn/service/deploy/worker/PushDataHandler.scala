@@ -22,6 +22,7 @@ import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import com.google.common.base.Throwables
+import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
 
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
@@ -30,10 +31,11 @@ import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo, WorkerPartitionL
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
-import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse}
+import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse, TransportMessage}
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbRegionFinish, PbRegionStart}
+import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.Utils
@@ -798,10 +800,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         pushData.`type`(),
         shuffleKey,
         pushData.partitionUniqueId,
-        null,
         location,
-        callback,
-        wrappedCallback)) return
+        callback)) return
 
     val fileWriter =
       getFileWriterAndCheck(pushData.`type`(), location, isPrimary, callback) match {
@@ -849,45 +849,120 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   }
 
   private def handleRpcRequest(client: TransportClient, rpcRequest: RpcRequest): Unit = {
-    val msg = Message.decode(rpcRequest.body().nioByteBuffer())
     val requestId = rpcRequest.requestId
-    val (mode, shuffleKey, partitionUniqueId, checkSplit) = msg match {
-      case p: PushDataHandShake => (p.mode, p.shuffleKey, p.partitionUniqueId, true)
-      case rs: RegionStart => (rs.mode, rs.shuffleKey, rs.partitionUniqueId, true)
-      case rf: RegionFinish => (rf.mode, rf.shuffleKey, rf.partitionUniqueId, false)
-    }
+    val (pbMsg, msg, isLegacy, messageType, mode, shuffleKey, partitionUniqueId, checkSplit) =
+      mapPartitionRpcRequest(rpcRequest)
     handleCore(
       client,
       rpcRequest,
       requestId,
       () =>
         handleMapPartitionRpcRequestCore(
-          mode,
+          requestId,
+          pbMsg,
           msg,
+          isLegacy,
+          messageType,
+          mode,
           shuffleKey,
           partitionUniqueId,
-          requestId,
           checkSplit,
           new SimpleRpcResponseCallback(
             client,
             requestId,
             shuffleKey)))
+  }
 
+  private def mapPartitionRpcRequest(rpcRequest: RpcRequest)
+      : Tuple8[GeneratedMessageV3, Message, Boolean, Type, Mode, String, String, Boolean] = {
+    try {
+      val msg = TransportMessage.fromByteBuffer(
+        rpcRequest.body().nioByteBuffer()).getParsedPayload.asInstanceOf[GeneratedMessageV3]
+      msg match {
+        case p: PbPushDataHandShake =>
+          (
+            msg,
+            null,
+            false,
+            Type.PUSH_DATA_HAND_SHAKE,
+            p.getMode,
+            p.getShuffleKey,
+            p.getPartitionUniqueId,
+            true)
+        case rs: PbRegionStart =>
+          (
+            msg,
+            null,
+            false,
+            Type.REGION_START,
+            rs.getMode,
+            rs.getShuffleKey,
+            rs.getPartitionUniqueId,
+            true)
+        case rf: PbRegionFinish =>
+          (
+            msg,
+            null,
+            false,
+            Type.REGION_FINISH,
+            rf.getMode,
+            rf.getShuffleKey,
+            rf.getPartitionUniqueId,
+            false)
+      }
+    } catch {
+      case _: Exception =>
+        val msg = Message.decode(rpcRequest.body().nioByteBuffer())
+        msg match {
+          case p: PushDataHandShake =>
+            (
+              null,
+              msg,
+              true,
+              Type.PUSH_DATA_HAND_SHAKE,
+              Mode.forNumber(p.mode),
+              p.shuffleKey,
+              p.partitionUniqueId,
+              true)
+          case rs: RegionStart =>
+            (
+              null,
+              msg,
+              true,
+              Type.REGION_START,
+              Mode.forNumber(rs.mode),
+              rs.shuffleKey,
+              rs.partitionUniqueId,
+              true)
+          case rf: RegionFinish =>
+            (
+              null,
+              msg,
+              true,
+              Type.REGION_FINISH,
+              Mode.forNumber(rf.mode),
+              rf.shuffleKey,
+              rf.partitionUniqueId,
+              false)
+        }
+    }
   }
 
   private def handleMapPartitionRpcRequestCore(
-      mode: Byte,
-      message: Message,
+      requestId: Long,
+      pbMsg: GeneratedMessageV3,
+      msg: Message,
+      isLegacy: Boolean,
+      messageType: Message.Type,
+      mode: Mode,
       shuffleKey: String,
       partitionUniqueId: String,
-      requestId: Long,
       checkSplit: Boolean,
       callback: RpcResponseCallback): Unit = {
-    val isPrimary = PartitionLocation.getMode(mode) == PartitionLocation.Mode.PRIMARY
-    val messageType = message.`type`()
     log.debug(
       s"requestId:$requestId, pushdata rpc:$messageType, mode:$mode, shuffleKey:$shuffleKey, " +
         s"partitionUniqueId:$partitionUniqueId")
+    val isPrimary = mode == Mode.Primary
     val (workerSourcePrimary, workerSourceReplica) =
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
@@ -924,10 +999,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         messageType,
         shuffleKey,
         partitionUniqueId,
-        null,
         location,
-        callback,
-        wrappedCallback)) return
+        callback)) return
 
     val fileWriter =
       getFileWriterAndCheck(messageType, location, isPrimary, callback) match {
@@ -957,13 +1030,31 @@ class PushDataHandler extends BaseMessageHandler with Logging {
     try {
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
+          val (numPartitions, bufferSize) =
+            if (isLegacy)
+              (
+                msg.asInstanceOf[PushDataHandShake].numPartitions,
+                msg.asInstanceOf[PushDataHandShake].bufferSize)
+            else
+              (
+                pbMsg.asInstanceOf[PbPushDataHandShake].getNumPartitions,
+                pbMsg.asInstanceOf[PbPushDataHandShake].getBufferSize)
           fileWriter.asInstanceOf[MapPartitionFileWriter].pushDataHandShake(
-            message.asInstanceOf[PushDataHandShake].numPartitions,
-            message.asInstanceOf[PushDataHandShake].bufferSize)
+            numPartitions,
+            bufferSize)
         case Type.REGION_START =>
+          val (currentRegionIndex, isBroadcast) =
+            if (isLegacy)
+              (
+                msg.asInstanceOf[RegionStart].currentRegionIndex,
+                msg.asInstanceOf[RegionStart].isBroadcast)
+            else
+              (
+                pbMsg.asInstanceOf[PbRegionStart].getCurrentRegionIndex,
+                Boolean.box(pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast))
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionStart(
-            message.asInstanceOf[RegionStart].currentRegionIndex,
-            message.asInstanceOf[RegionStart].isBroadcast)
+            currentRegionIndex,
+            isBroadcast)
         case Type.REGION_FINISH =>
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionFinish()
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
@@ -1039,10 +1130,8 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       messageType: Message.Type,
       shuffleKey: String,
       partitionUniqueId: String,
-      body: ByteBuf,
       location: PartitionLocation,
-      callback: RpcResponseCallback,
-      wrappedCallback: RpcResponseCallback): Boolean = {
+      callback: RpcResponseCallback): Boolean = {
     if (location == null) {
       val msg =
         s"Partition location wasn't found for task(shuffle $shuffleKey, uniqueId $partitionUniqueId)."

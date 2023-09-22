@@ -44,13 +44,16 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.PushData;
-import org.apache.celeborn.common.network.protocol.PushDataHandShake;
-import org.apache.celeborn.common.network.protocol.RegionFinish;
-import org.apache.celeborn.common.network.protocol.RegionStart;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbChangeLocationPartitionInfo;
 import org.apache.celeborn.common.protocol.PbChangeLocationResponse;
+import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode;
+import org.apache.celeborn.common.protocol.PbPushDataHandShake;
+import org.apache.celeborn.common.protocol.PbRegionFinish;
+import org.apache.celeborn.common.protocol.PbRegionStart;
 import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
@@ -332,18 +335,23 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               location.getUniqueId());
           logger.debug("PushDataHandShake location {}", location);
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
-          PushDataHandShake handShake =
-              new PushDataHandShake(
-                  PRIMARY_MODE,
-                  shuffleKey,
-                  location.getUniqueId(),
-                  attemptId,
-                  numPartitions,
-                  bufferSize);
           ByteBuffer pushDataHandShakeResponse;
           try {
             pushDataHandShakeResponse =
-                client.sendRpcSync(handShake.toByteBuffer(), conf.pushDataTimeoutMs());
+                client.sendRpcSync(
+                    new TransportMessage(
+                            MessageType.PUSH_DATA_HAND_SHAKE,
+                            PbPushDataHandShake.newBuilder()
+                                .setMode(Mode.forNumber(PRIMARY_MODE))
+                                .setShuffleKey(shuffleKey)
+                                .setPartitionUniqueId(location.getUniqueId())
+                                .setAttemptId(attemptId)
+                                .setNumPartitions(numPartitions)
+                                .setBufferSize(bufferSize)
+                                .build()
+                                .toByteArray())
+                        .toByteBuffer(),
+                    conf.pushDataTimeoutMs());
           } catch (IOException e) {
             // ioexeption revive
             return revive(shuffleId, mapId, attemptId, location);
@@ -378,18 +386,23 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               location.getUniqueId());
           logger.debug("RegionStart  for location {}.", location.toString());
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
-          RegionStart regionStart =
-              new RegionStart(
-                  PRIMARY_MODE,
-                  shuffleKey,
-                  location.getUniqueId(),
-                  attemptId,
-                  currentRegionIdx,
-                  isBroadcast);
           ByteBuffer regionStartResponse;
           try {
             regionStartResponse =
-                client.sendRpcSync(regionStart.toByteBuffer(), conf.pushDataTimeoutMs());
+                client.sendRpcSync(
+                    new TransportMessage(
+                            MessageType.REGION_START,
+                            PbRegionStart.newBuilder()
+                                .setMode(Mode.forNumber(PRIMARY_MODE))
+                                .setShuffleKey(shuffleKey)
+                                .setPartitionUniqueId(location.getUniqueId())
+                                .setAttemptId(attemptId)
+                                .setCurrentRegionIndex(currentRegionIdx)
+                                .setIsBroadcast(isBroadcast)
+                                .build()
+                                .toByteArray())
+                        .toByteBuffer(),
+                    conf.pushDataTimeoutMs());
           } catch (IOException e) {
             // ioexeption revive
             return revive(shuffleId, mapId, attemptId, location);
@@ -459,9 +472,18 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               location.getUniqueId());
           logger.debug("RegionFinish for location {}.", location);
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
-          RegionFinish regionFinish =
-              new RegionFinish(PRIMARY_MODE, shuffleKey, location.getUniqueId(), attemptId);
-          client.sendRpcSync(regionFinish.toByteBuffer(), conf.pushDataTimeoutMs());
+          client.sendRpcSync(
+              new TransportMessage(
+                      MessageType.REGION_FINISH,
+                      PbRegionFinish.newBuilder()
+                          .setMode(Mode.forNumber(PRIMARY_MODE))
+                          .setShuffleKey(shuffleKey)
+                          .setPartitionUniqueId(location.getUniqueId())
+                          .setAttemptId(attemptId)
+                          .build()
+                          .toByteArray())
+                  .toByteBuffer(),
+              conf.pushDataTimeoutMs());
           return null;
         });
   }
