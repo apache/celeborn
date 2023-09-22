@@ -17,7 +17,15 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+<<<<<<< HEAD
 import static org.apache.celeborn.common.protocol.MessageType.*;
+=======
+import static org.apache.celeborn.common.protocol.MessageType.OPEN_STREAM_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.PUSH_DATA_HAND_SHAKE_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.REGION_FINISH_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.REGION_START_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.STREAM_HANDLER_VALUE;
+>>>>>>> apache/main
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -31,6 +39,9 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbPushDataHandShake;
+import org.apache.celeborn.common.protocol.PbRegionFinish;
+import org.apache.celeborn.common.protocol.PbRegionStart;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 
 public class TransportMessage implements Serializable {
@@ -64,6 +75,12 @@ public class TransportMessage implements Serializable {
         return (T) PbOpenStream.parseFrom(payload);
       case STREAM_HANDLER_VALUE:
         return (T) PbStreamHandler.parseFrom(payload);
+      case PUSH_DATA_HAND_SHAKE_VALUE:
+        return (T) PbPushDataHandShake.parseFrom(payload);
+      case REGION_START_VALUE:
+        return (T) PbRegionStart.parseFrom(payload);
+      case REGION_FINISH_VALUE:
+        return (T) PbRegionFinish.parseFrom(payload);
       case BUFFER_STREAM_END_VALUE:
         return (T) PbBufferStreamEnd.parseFrom(payload);
       default:

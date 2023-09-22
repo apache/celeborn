@@ -48,5 +48,8 @@ jobs:
           check-latest: false
       - run: |
           build/mvn spotless:check -Pgoogle-mirror,flink-1.14
+          build/mvn spotless:check -Pgoogle-mirror,flink-1.15
+          build/mvn spotless:check -Pgoogle-mirror,flink-1.17
           build/mvn spotless:check -Pgoogle-mirror,spark-2.4
           build/mvn spotless:check -Pgoogle-mirror,spark-3.3
+          build/mvn spotless:check -Pgoogle-mirror,mr
