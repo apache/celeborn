@@ -17,15 +17,7 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-<<<<<<< HEAD
 import static org.apache.celeborn.common.protocol.MessageType.*;
-=======
-import static org.apache.celeborn.common.protocol.MessageType.OPEN_STREAM_VALUE;
-import static org.apache.celeborn.common.protocol.MessageType.PUSH_DATA_HAND_SHAKE_VALUE;
-import static org.apache.celeborn.common.protocol.MessageType.REGION_FINISH_VALUE;
-import static org.apache.celeborn.common.protocol.MessageType.REGION_START_VALUE;
-import static org.apache.celeborn.common.protocol.MessageType.STREAM_HANDLER_VALUE;
->>>>>>> apache/main
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
