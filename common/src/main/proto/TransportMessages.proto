@@ -76,6 +76,9 @@ enum MessageType {
   CHECK_WORKERS_AVAILABLE = 53;
   CHECK_WORKERS_AVAILABLE_RESPONSE = 54;
   REMOVE_WORKERS_UNAVAILABLE_INFO = 55;
+  PUSH_DATA_HAND_SHAKE = 56;
+  REGION_START = 57;
+  REGION_FINISH = 58;
 }
 
 message PbStorageInfo {
@@ -499,4 +502,29 @@ message PbStreamHandler {
   int32 numChunks = 2;
   repeated int64 chunkOffsets = 3 ;
   string fullPath = 4;
+}
+
+message PbPushDataHandShake {
+  PbPartitionLocation.Mode mode = 1;
+  string shuffleKey = 2;
+  string partitionUniqueId = 3;
+  int32 attemptId = 4;
+  int32 numPartitions = 5;
+  int32 bufferSize = 6;
+}
+
+message PbRegionStart {
+  PbPartitionLocation.Mode mode = 1;
+  string shuffleKey = 2;
+  string partitionUniqueId = 3;
+  int32 attemptId = 4;
+  int32 currentRegionIndex = 5;
+  bool isBroadcast = 6;
+}
+
+message PbRegionFinish {
+  PbPartitionLocation.Mode mode = 1;
+  string shuffleKey = 2;
+  string partitionUniqueId = 3;
+  int32 attemptId = 4;
 }
