@@ -25,7 +25,7 @@ import scala.concurrent.duration.DurationInt
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
@@ -35,6 +35,8 @@ class ApplicationHeartbeater(
     masterClient: MasterClient,
     shuffleMetrics: () => (Long, Long),
     workerStatusTracker: WorkerStatusTracker) extends Logging {
+
+  private var stopped = false
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -96,8 +98,29 @@ class ApplicationHeartbeater(
     }
   }
 
+  private def unregisterApplication(): Unit = {
+    try {
+      // Then unregister Application
+      logInfo(s"Unregister Application when $appId shutdown")
+      masterClient.askSync[ApplicationLostResponse](
+        ApplicationLost(appId),
+        classOf[ApplicationLostResponse])
+    } catch {
+      case e: Exception =>
+        logWarning("AskSync unRegisterApplication failed.", e)
+    }
+  }
+
   def stop(): Unit = {
-    appHeartbeat.cancel(true)
-    ThreadUtils.shutdown(appHeartbeatHandlerThread, 800.millis)
+    stopped.synchronized {
+      if (!stopped) {
+        // Stop appHeartbeat first
+        logInfo(s"Stop Application heartbeat $appId")
+        appHeartbeat.cancel(true)
+        ThreadUtils.shutdown(appHeartbeatHandlerThread, 800.millis)
+        stopped = true
+        unregisterApplication()
+      }
+    }
   }
 }
