@@ -446,7 +446,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           deviceMonitor.registerFileWriter(fileWriter)
           val map = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
           map.put(fileInfo.getFilePath, fileWriter)
-          fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
           location.getStorageInfo.setMountPoint(mountPoint)
           logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
           return fileWriter
