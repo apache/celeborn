@@ -46,6 +46,7 @@ import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -454,6 +455,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
                       new TransportMessage(
                               MessageType.BUFFER_STREAM_END,
                               PbBufferStreamEnd.newBuilder()
+                                  .setStreamType(StreamType.CreditStream)
                                   .setStreamId(streamId)
                                   .build()
                                   .toByteArray())

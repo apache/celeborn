@@ -76,7 +76,7 @@ public class RemoteBufferStreamReader extends CreditListener {
           } else if (requestMessage instanceof TransportableError) {
             errorReceived(((TransportableError) requestMessage).getErrorMessage());
           } else if (requestMessage instanceof BufferStreamEnd) {
-            onStreamEnd(((BufferStreamEnd) requestMessage).getStreamId());
+            onStreamEnd((BufferStreamEnd) requestMessage);
           }
         };
   }
