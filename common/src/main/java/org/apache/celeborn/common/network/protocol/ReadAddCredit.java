@@ -20,6 +20,7 @@ import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
 
+@Deprecated
 public class ReadAddCredit extends RequestMessage {
   private long streamId;
   private int credit;

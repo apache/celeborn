@@ -17,6 +17,10 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
+import static org.apache.celeborn.common.protocol.MessageType.BACKLOG_ANNOUNCEMENT_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.BUFFER_STREAM_END_VALUE;
+
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -28,6 +32,7 @@ import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -66,31 +71,42 @@ public class ReadClientHandler extends BaseMessageHandler {
 
   @Override
   public void receive(TransportClient client, RequestMessage msg) {
-    long streamId = 0;
     switch (msg.type()) {
       case READ_DATA:
         ReadData readData = (ReadData) msg;
-        streamId = readData.getStreamId();
-        processMessageInternal(streamId, readData);
+        processMessageInternal(readData.getStreamId(), readData);
         break;
       case BACKLOG_ANNOUNCEMENT:
         BacklogAnnouncement backlogAnnouncement = (BacklogAnnouncement) msg;
-        streamId = backlogAnnouncement.getStreamId();
-        processMessageInternal(streamId, backlogAnnouncement);
+        processMessageInternal(backlogAnnouncement.getStreamId(), backlogAnnouncement);
         break;
       case TRANSPORTABLE_ERROR:
         TransportableError transportableError = ((TransportableError) msg);
-        streamId = transportableError.getStreamId();
         logger.warn(
             "Received TransportableError from worker {} with content {}",
             client.getSocketAddress().toString(),
             transportableError.getErrorMessage());
-        processMessageInternal(streamId, transportableError);
+        processMessageInternal(transportableError.getStreamId(), transportableError);
         break;
       case BUFFER_STREAM_END:
         BufferStreamEnd streamEnd = (BufferStreamEnd) msg;
-        logger.debug("Received streamend for {}", streamEnd.getStreamId());
         processMessageInternal(streamEnd.getStreamId(), streamEnd);
+        break;
+      case RPC_REQUEST:
+        try {
+          TransportMessage transportMessage =
+              TransportMessage.fromByteBuffer(msg.body().nioByteBuffer());
+          switch (transportMessage.getMessageTypeValue()) {
+            case BACKLOG_ANNOUNCEMENT_VALUE:
+              receive(client, BacklogAnnouncement.fromProto(transportMessage.getParsedPayload()));
+              break;
+            case BUFFER_STREAM_END_VALUE:
+              receive(client, BufferStreamEnd.fromProto(transportMessage.getParsedPayload()));
+              break;
+          }
+        } catch (IOException e) {
+          logger.warn("Failed to process RpcRequest message {}. ", msg, e);
+        }
         break;
       case ONE_WAY_MESSAGE:
         // ignore it.

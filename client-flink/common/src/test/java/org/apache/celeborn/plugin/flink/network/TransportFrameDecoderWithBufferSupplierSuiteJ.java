@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
+import static org.apache.celeborn.common.network.client.TransportClient.requestId;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +33,13 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
+import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.ReadData;
+import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
 import org.apache.celeborn.common.util.JavaUtils;
 
 public class TransportFrameDecoderWithBufferSupplierSuiteJ {
@@ -57,10 +63,10 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
         new TransportFrameDecoderWithBufferSupplier(supplier);
     ChannelHandlerContext context = Mockito.mock(ChannelHandlerContext.class);
 
-    BacklogAnnouncement announcement = new BacklogAnnouncement(0, 0);
+    RpcRequest announcement = createBacklogAnnouncement(0, 0);
     ReadData unUsedReadData = new ReadData(1, generateData(1024));
     ReadData readData = new ReadData(2, generateData(1024));
-    BacklogAnnouncement announcement1 = new BacklogAnnouncement(0, 0);
+    RpcRequest announcement1 = createBacklogAnnouncement(0, 0);
     ReadData unUsedReadData1 = new ReadData(1, generateData(1024));
     ReadData readData1 = new ReadData(2, generateData(8));
 
@@ -100,6 +106,20 @@ public class TransportFrameDecoderWithBufferSupplierSuiteJ {
     Assert.assertEquals(buffers.get(4).nioBuffer(), readData.body().nioByteBuffer());
     Assert.assertEquals(buffers.get(5).nioBuffer(), readData1.body().nioByteBuffer());
     Assert.assertEquals(buffers.size(), 6);
+  }
+
+  public RpcRequest createBacklogAnnouncement(long streamId, int backlog) {
+    return new RpcRequest(
+        requestId(),
+        new NioManagedBuffer(
+            new TransportMessage(
+                    MessageType.BACKLOG_ANNOUNCEMENT,
+                    PbBacklogAnnouncement.newBuilder()
+                        .setStreamId(streamId)
+                        .setBacklog(backlog)
+                        .build()
+                        .toByteArray())
+                .toByteBuffer()));
   }
 
   public ByteBuf encodeMessage(Message in, ByteBuf byteBuf) throws IOException {

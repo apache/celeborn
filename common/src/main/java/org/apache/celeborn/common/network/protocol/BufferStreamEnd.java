@@ -19,6 +19,8 @@ package org.apache.celeborn.common.network.protocol;
 
 import io.netty.buffer.ByteBuf;
 
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+
 public class BufferStreamEnd extends RequestMessage {
   private long streamId;
 
@@ -48,5 +50,9 @@ public class BufferStreamEnd extends RequestMessage {
 
   public long getStreamId() {
     return streamId;
+  }
+
+  public static BufferStreamEnd fromProto(PbBufferStreamEnd pb) {
+    return new BufferStreamEnd(pb.getStreamId());
   }
 }
