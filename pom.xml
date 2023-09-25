@@ -951,24 +951,24 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client</artifactId>
           <version>${hadoop.version}</version>
-	  <exclusions>
-	    <exclusion>
+          <exclusions>
+            <exclusion>
               <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-annotations</artifactId>
-	    </exclusion>
-	    <exclusion>
+            </exclusion>
+            <exclusion>
               <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-yarn-client</artifactId>
-	    </exclusion>
-	    <exclusion>
+            </exclusion>
+            <exclusion>
               <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-yarn-registry</artifactId>
-	    </exclusion>
-	    <exclusion>
+            </exclusion>
+            <exclusion>
               <groupId>org.apache.hadoop</groupId>
               <artifactId>hadoop-yarn-server-common</artifactId>
-	    </exclusion>
-	  </exclusions>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>
