@@ -34,7 +34,6 @@ import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
-import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
 

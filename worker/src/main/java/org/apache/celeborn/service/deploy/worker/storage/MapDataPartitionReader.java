@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
-import static org.apache.celeborn.common.network.client.TransportClient.requestId;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -48,7 +46,6 @@ import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
-import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -449,7 +446,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
         logger.debug("release reader for stream {}", streamId);
         // old client can't support BufferStreamEnd, so for new client it tells client that this
         // stream is finished.
-         if (fileInfo.isPartitionSplitEnabled() && !errorNotified)
+        if (fileInfo.isPartitionSplitEnabled() && !errorNotified)
           associatedChannel.writeAndFlush(
               new RpcRequest(
                   TransportClient.requestId(),
