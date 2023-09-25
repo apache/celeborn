@@ -17,8 +17,11 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+import static org.apache.celeborn.common.protocol.MessageType.BACKLOG_ANNOUNCEMENT_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.BUFFER_STREAM_END_VALUE;
 import static org.apache.celeborn.common.protocol.MessageType.OPEN_STREAM_VALUE;
 import static org.apache.celeborn.common.protocol.MessageType.PUSH_DATA_HAND_SHAKE_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.READ_ADD_CREDIT_VALUE;
 import static org.apache.celeborn.common.protocol.MessageType.REGION_FINISH_VALUE;
 import static org.apache.celeborn.common.protocol.MessageType.REGION_START_VALUE;
 import static org.apache.celeborn.common.protocol.MessageType.STREAM_HANDLER_VALUE;
@@ -33,8 +36,11 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbPushDataHandShake;
+import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbRegionFinish;
 import org.apache.celeborn.common.protocol.PbRegionStart;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
@@ -76,6 +82,12 @@ public class TransportMessage implements Serializable {
         return (T) PbRegionStart.parseFrom(payload);
       case REGION_FINISH_VALUE:
         return (T) PbRegionFinish.parseFrom(payload);
+      case BACKLOG_ANNOUNCEMENT_VALUE:
+        return (T) PbBacklogAnnouncement.parseFrom(payload);
+      case BUFFER_STREAM_END_VALUE:
+        return (T) PbBufferStreamEnd.parseFrom(payload);
+      case READ_ADD_CREDIT_VALUE:
+        return (T) PbReadAddCredit.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }

@@ -79,6 +79,9 @@ enum MessageType {
   PUSH_DATA_HAND_SHAKE = 56;
   REGION_START = 57;
   REGION_FINISH = 58;
+  BACKLOG_ANNOUNCEMENT = 59;
+  BUFFER_STREAM_END = 60;
+  READ_ADD_CREDIT = 61;
 }
 
 message PbStorageInfo {
@@ -498,9 +501,9 @@ message PbOpenStream {
 }
 
 message PbStreamHandler {
-  int64 streamId = 1 ;
+  int64 streamId = 1;
   int32 numChunks = 2;
-  repeated int64 chunkOffsets = 3 ;
+  repeated int64 chunkOffsets = 3;
   string fullPath = 4;
 }
 
@@ -527,4 +530,18 @@ message PbRegionFinish {
   string shuffleKey = 2;
   string partitionUniqueId = 3;
   int32 attemptId = 4;
+}
+
+message PbBacklogAnnouncement {
+  int64 streamId = 1;
+  int32 backlog = 2;
+}
+
+message PbBufferStreamEnd {
+  int64 streamId = 1;
+}
+
+message PbReadAddCredit {
+  int64 streamId = 1;
+  int32 credit = 2;
 }
