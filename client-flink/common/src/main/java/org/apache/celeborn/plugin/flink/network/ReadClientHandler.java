@@ -17,7 +17,8 @@
 
 package org.apache.celeborn.plugin.flink.network;
 
-import static org.apache.celeborn.common.protocol.MessageType.*;
+import static org.apache.celeborn.common.protocol.MessageType.BACKLOG_ANNOUNCEMENT_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.BUFFER_STREAM_END_VALUE;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

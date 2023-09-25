@@ -37,7 +37,7 @@ import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbOpenStream, PbStreamHandler, StreamType}
+import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
@@ -126,6 +126,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
             openStream.getReadLocalShuffle)
         case bufferStreamEnd: PbBufferStreamEnd =>
           handleEndStreamFromClient(bufferStreamEnd)
+        case readAddCredit: PbReadAddCredit =>
+          handleReadAddCredit(readAddCredit.getCredit, readAddCredit.getStreamId)
         case message: GeneratedMessageV3 =>
           logError(s"Unknown message $message")
       }
