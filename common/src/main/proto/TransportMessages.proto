@@ -76,6 +76,9 @@ enum MessageType {
   CHECK_WORKERS_AVAILABLE = 53;
   CHECK_WORKERS_AVAILABLE_RESPONSE = 54;
   REMOVE_WORKERS_UNAVAILABLE_INFO = 55;
+  BACKLOG_ANNOUNCEMENT = 59;
+  BUFFER_STREAM_END = 60;
+  READ_ADD_CREDIT = 61;
 }
 
 message PbStorageInfo {
@@ -505,8 +508,22 @@ message PbOpenStream {
 }
 
 message PbStreamHandler {
-  int64 streamId = 1 ;
+  int64 streamId = 1;
   int32 numChunks = 2;
-  repeated int64 chunkOffsets = 3 ;
+  repeated int64 chunkOffsets = 3;
   string fullPath = 4;
+}
+
+message PbBacklogAnnouncement {
+  int64 streamId = 1;
+  int32 backlog = 2;
+}
+
+message PbBufferStreamEnd {
+  int64 streamId = 1;
+}
+
+message PbReadAddCredit {
+  int64 streamId = 1;
+  int32 credit = 2;
 }
