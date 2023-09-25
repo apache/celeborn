@@ -355,13 +355,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (dirs.isEmpty) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
         val fileInfo =
           new FileInfo(
             new Path(shuffleDir, fileName).toString,
             userIdentifier,
             partitionType,
             partitionSplitEnabled)
+        fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
+        FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
         val hdfsWriter = partitionType match {
           case PartitionType.MAP => new MapPartitionFileWriter(
               fileInfo,
@@ -387,7 +388,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           hdfsWriter.setStorageManager(this)
           hdfsWriter.setShuffleKey(shuffleKey)
         }
-        fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         hdfsWriters.put(fileInfo.getFilePath, hdfsWriter)
         return hdfsWriter
       } else {
@@ -396,6 +396,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
         val file = new File(shuffleDir, fileName)
         try {
+          val fileInfo =
+            new FileInfo(
+              file.getAbsolutePath,
+              userIdentifier,
+              partitionType,
+              partitionSplitEnabled)
+          fileInfo.setMountPoint(mountPoint)
+          fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
           shuffleDir.mkdirs()
           if (file.exists()) {
             throw new FileAlreadyExistsException(
@@ -407,13 +415,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
                 s"Create shuffle data file ${file.getAbsolutePath} failed!")
             }
           }
-          val fileInfo =
-            new FileInfo(
-              file.getAbsolutePath,
-              userIdentifier,
-              partitionType,
-              partitionSplitEnabled)
-          fileInfo.setMountPoint(mountPoint)
           val fileWriter = partitionType match {
             case PartitionType.MAP => new MapPartitionFileWriter(
                 fileInfo,
@@ -442,7 +443,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           deviceMonitor.registerFileWriter(fileWriter)
           val map = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
           map.put(fileInfo.getFilePath, fileWriter)
-          fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
           location.getStorageInfo.setMountPoint(mountPoint)
           logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
           return fileWriter
