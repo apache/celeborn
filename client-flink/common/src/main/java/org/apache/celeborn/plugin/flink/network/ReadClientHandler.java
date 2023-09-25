@@ -90,7 +90,6 @@ public class ReadClientHandler extends BaseMessageHandler {
         break;
       case BUFFER_STREAM_END:
         BufferStreamEnd streamEnd = (BufferStreamEnd) msg;
-        logger.debug("Received streamend for {}", streamEnd.getStreamId());
         processMessageInternal(streamEnd.getStreamId(), streamEnd);
         break;
       case RPC_REQUEST:
@@ -98,10 +97,11 @@ public class ReadClientHandler extends BaseMessageHandler {
           TransportMessage transportMessage =
               TransportMessage.fromByteBuffer(msg.body().nioByteBuffer());
           switch (transportMessage.getMessageTypeValue()) {
+            case BACKLOG_ANNOUNCEMENT_VALUE:
+              receive(client, BacklogAnnouncement.fromProto(transportMessage.getParsedPayload()));
+              break;
             case BUFFER_STREAM_END_VALUE:
-              PbBufferStreamEnd pbBufferStreamEnd = transportMessage.getParsedPayload();
-              logger.debug("Received PbBufferStreamEnd for {}", pbBufferStreamEnd.getStreamId());
-              processMessageInternal(pbBufferStreamEnd.getStreamId(), msg);
+              receive(client, BufferStreamEnd.fromProto(transportMessage.getParsedPayload()));
               break;
           }
         } catch (IOException e) {

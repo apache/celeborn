@@ -27,13 +27,13 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
-import org.apache.celeborn.common.network.protocol.ReadAddCredit;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.plugin.flink.buffer.CreditListener;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
@@ -133,8 +133,11 @@ public class RemoteBufferStreamReader extends CreditListener {
 
   public void notifyAvailableCredits(int numCredits) {
     if (!closed) {
-      ReadAddCredit addCredit = new ReadAddCredit(bufferStream.getStreamId(), numCredits);
-      bufferStream.addCredit(addCredit);
+      bufferStream.addCredit(
+          PbReadAddCredit.newBuilder()
+              .setStreamId(bufferStream.getStreamId())
+              .setCredit(numCredits)
+              .build());
     }
   }
 

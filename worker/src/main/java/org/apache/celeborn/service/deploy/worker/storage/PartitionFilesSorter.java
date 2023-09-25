@@ -82,7 +82,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final AtomicInteger sortedFileCount = new AtomicInteger();
   private final AtomicLong sortedFilesSize = new AtomicLong();
-  protected final boolean lazyRemovalOfOriginalFilesEnabled;
+  protected final boolean eagerlyRemoveOriginalFilesEnabled;
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
   protected final long reservedMemoryPerPartition;
@@ -97,8 +97,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
-    this.lazyRemovalOfOriginalFilesEnabled =
-        conf.partitionSorterLazyRemovalOfOriginalFilesEnabled();
+    this.eagerlyRemoveOriginalFilesEnabled =
+        conf.partitionSorterEagerlyRemoveOriginalFilesEnabled();
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();

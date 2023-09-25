@@ -31,11 +31,15 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
@@ -85,21 +89,25 @@ public class CelebornBufferStream {
     moveToNextPartitionIfPossible(0);
   }
 
-  public void addCredit(ReadAddCredit addCredit) {
-    this.client
-        .getChannel()
-        .writeAndFlush(addCredit)
-        .addListener(
-            future -> {
-              if (future.isSuccess()) {
-                // Send ReadAddCredit do not expect response.
-              } else {
-                logger.warn(
-                    "Send ReadAddCredit to {} failed, detail {}",
-                    this.client.getSocketAddress().toString(),
-                    future.cause());
-              }
-            });
+  public void addCredit(PbReadAddCredit pbReadAddCredit) {
+    this.client.sendRpc(
+        new TransportMessage(MessageType.READ_ADD_CREDIT, pbReadAddCredit.toByteArray())
+            .toByteBuffer(),
+        new RpcResponseCallback() {
+
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            // Send PbReadAddCredit do not expect response.
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            logger.warn(
+                "Send PbReadAddCredit to {} failed, detail {}",
+                NettyUtils.getRemoteAddress(client.getChannel()),
+                e.getCause());
+          }
+        });
   }
 
   public static CelebornBufferStream empty() {
@@ -130,15 +138,11 @@ public class CelebornBufferStream {
 
   private void closeStream(long streamId) {
     if (client != null && client.isActive()) {
-      TransportMessage bufferStreamEnd =
+      client.sendRpc(
           new TransportMessage(
-              MessageType.BUFFER_STREAM_END,
-              PbBufferStreamEnd.newBuilder()
-                  .setStreamType(StreamType.CreditStream)
-                  .setStreamId(streamId)
-                  .build()
-                  .toByteArray());
-      client.sendRpc(bufferStreamEnd.toByteBuffer());
+                  MessageType.BUFFER_STREAM_END,
+                  PbBufferStreamEnd.newBuilder().setStreamId(streamId).build().toByteArray())
+              .toByteBuffer());
     }
   }
 

@@ -89,9 +89,9 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
       case r: BufferStreamEnd =>
-        handleEndStreamFromClient(r)
+        handleEndStreamFromClient(r.getStreamId)
       case r: ReadAddCredit =>
-        handleReadAddCredit(r)
+        handleReadAddCredit(r.getCredit, r.getStreamId)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r)
       case r: RpcRequest =>
@@ -307,13 +307,20 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     logError(
       s"Read file: $fileName with shuffleKey: $shuffleKey error from ${NettyUtils.getRemoteAddress(client.getChannel)}",
       ioe)
+    handleRpcException(client, requestId, ioe)
+  }
+
+  private def handleRpcException(
+      client: TransportClient,
+      requestId: Long,
+      ioe: IOException): Unit = {
     client.getChannel.writeAndFlush(new RpcFailure(
       requestId,
       Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))))
   }
 
-  def handleEndStreamFromClient(req: BufferStreamEnd): Unit = {
-    creditStreamManager.notifyStreamEndByClient(req.getStreamId)
+  def handleEndStreamFromClient(streamId: Long): Unit = {
+    creditStreamManager.notifyStreamEndByClient(streamId)
   }
 
   def handleEndStreamFromClient(req: PbBufferStreamEnd): Unit = {
@@ -328,8 +335,8 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     }
   }
 
-  def handleReadAddCredit(req: ReadAddCredit): Unit = {
-    creditStreamManager.addCredit(req.getCredit, req.getStreamId)
+  def handleReadAddCredit(credit: Int, streamId: Long): Unit = {
+    creditStreamManager.addCredit(credit, streamId)
   }
 
   def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
