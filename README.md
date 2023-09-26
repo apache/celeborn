@@ -256,6 +256,10 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
 spark.sql.adaptive.skewJoin.enabled true
+
+# Declare shuffle data is reliably stored so that shuffle data won't be re-computed when the executor is lost.
+# Required Spark version >= 3.5.0
+spark.shuffle.sort.io.plugin.class org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO
 ```
 
 ### Deploy Flink client
