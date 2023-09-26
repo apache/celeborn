@@ -169,11 +169,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       } else {
         partitionLocationInfo.getReplicaLocation(shuffleKey, pushData.partitionUniqueId)
       }
-
-    // Fetch real batchId from body will add more cost and no meaning for replicate.
-    val doReplicate = location != null && location.hasPeer && isPrimary
-    val softSplit = new AtomicBoolean(false)
-
     if (location == null) {
       val (mapId, attemptId) = getMapAttempt(body)
       // MapperAttempts for a shuffle exists after any CommitFiles request succeeds.
@@ -202,7 +197,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         } else {
-          logWarning(s"While handle PushData, Partition location wasn't found for " +
+          logWarning(s"While handling PushData, Partition location wasn't found for " +
             s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId, uniqueId ${pushData.partitionUniqueId}).")
           callbackWithTimer.onFailure(
             new CelebornIOException(StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND))
@@ -236,18 +231,21 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
+    val softSplit = new AtomicBoolean(false)
     if (checkDiskFullAndSplit(fileWriter, isPrimary, softSplit, callbackWithTimer)) return
 
     fileWriter.incrementPendingWrites()
 
     if (fileWriter.isClosed) {
       logWarning(
-        s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
+        s"[handlePushData] FileWriter has already been closed! File path ${fileWriter.getFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return;
     }
 
+    // Fetch real batchId from body will add more cost and no meaning for replicate.
+    val doReplicate = location != null && location.hasPeer && isPrimary
     // for primary, send data to replica
     if (doReplicate) {
       pushData.body().retain()
@@ -436,11 +434,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       } else {
         partitionLocationInfo.getReplicaLocations(shuffleKey, pushMergedData.partitionUniqueIds)
       }
-
-    // Fetch real batchId from body will add more cost and no meaning for replicate.
-    val doReplicate =
-      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.hasPeer && isPrimary
-
     // find FileWriters responsible for the data
     var index = 0
     while (index < partitionIdToLocations.length) {
@@ -492,7 +485,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       return
     }
 
-    val (fileWriters, exceptionFileWriterIndexOpt) = getFileWriters(partitionIdToLocations)
+    var (fileWriters, exceptionFileWriterIndexOpt) = getFileWriters(partitionIdToLocations)
     if (exceptionFileWriterIndexOpt.isDefined) {
       val fileWriterWithException = fileWriters(exceptionFileWriterIndexOpt.get)
       val cause =
@@ -508,17 +501,26 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       callbackWithTimer.onFailure(new CelebornIOException(cause))
       return
     }
+
+    val softSplit = new AtomicBoolean(false)
+    // PushMergedData should also check disk usage and trigger split.
+    fileWriters =
+      fileWriters.filter(!checkDiskFullAndSplit(_, isPrimary, softSplit, callbackWithTimer))
+
     fileWriters.foreach(_.incrementPendingWrites())
 
     val closedFileWriter = fileWriters.find(_.isClosed)
     if (closedFileWriter.isDefined) {
       logWarning(
-        s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getFileInfo.getFilePath}")
+        s"[handlePushMergedData] FileWriter has already been closed! File path ${closedFileWriter.get.getFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriters.foreach(_.decrementPendingWrites())
       return
     }
 
+    // Fetch real batchId from body will add more cost and no meaning for replicate.
+    val doReplicate =
+      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.hasPeer && isPrimary
     // for primary, send data to replica
     if (doReplicate) {
       pushMergedData.body().retain()
@@ -551,6 +553,13 @@ class PushDataHandler extends BaseMessageHandler with Logging {
                 resp.put(response)
                 resp.flip()
                 callbackWithTimer.onSuccess(resp)
+              } else if (softSplit.get()) {
+                // TODO Currently if the worker is in soft split status, given the guess that the client
+                // will fast stop pushing merge data to the worker, we won't return congest status. But
+                // in the long term, especially if this issue could frequently happen, we may need to return
+                // congest&softSplit status together
+                callbackWithTimer.onSuccess(
+                  ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
               } else {
                 Option(CongestionController.instance()) match {
                   case Some(congestionController) if fileWriters.nonEmpty =>
@@ -815,7 +824,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
 
     if (fileWriter.isClosed) {
       logWarning(
-        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.getFilePath}")
+        s"[handleMapPartitionPushData] FileWriter has already been closed! File path ${fileWriter.getFileInfo.getFilePath}")
       callback.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return;
