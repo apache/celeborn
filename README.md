@@ -257,7 +257,7 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 spark.sql.adaptive.enabled true
 spark.sql.adaptive.skewJoin.enabled true
 
-# Declare shuffle data is reliably stored so that shuffle data won't be re-computed when the executor is lost.
+# Use Celeborn with Spark Dynamic Resource Allocation.
 # Required Spark version >= 3.5.0
 spark.shuffle.sort.io.plugin.class org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO
 ```
@@ -306,7 +306,10 @@ Masters and works can be deployed on the same node but should not deploy multipl
 See more detail in [CONFIGURATIONS](https://celeborn.apache.org/docs/latest/configuration/)
 
 ### Support Spark Dynamic Allocation
-We provide a patch to enable users to use Spark with both Dynamic Resource Allocation(DRA) and Celeborn.
+For Spark versions >= 3.5.0, Celeborn can be used with Dynamic Resource Allocation(DRA) 
+when `spark.shuffle.sort.io.plugin.class` is set to `org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO`.
+
+For Spark versions < 3.5.0, we provide a patch to enable users to use Spark with DRA and Celeborn.
 - For Spark 2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).
 - For Spark 3.0-3.3 check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3.patch).
 - For Spark 3.4 check [Spark3.4 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_4.patch).
