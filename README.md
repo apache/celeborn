@@ -256,6 +256,10 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
 spark.sql.adaptive.skewJoin.enabled true
+
+# Support Spark Dynamic Resource Allocation
+# Required Spark version >= 3.5.0
+spark.shuffle.sort.io.plugin.class org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO
 ```
 
 ### Deploy Flink client
@@ -302,7 +306,12 @@ Masters and works can be deployed on the same node but should not deploy multipl
 See more detail in [CONFIGURATIONS](https://celeborn.apache.org/docs/latest/configuration/)
 
 ### Support Spark Dynamic Allocation
-We provide a patch to enable users to use Spark with both Dynamic Resource Allocation(DRA) and Celeborn.
+For Spark versions >= 3.5.0, Celeborn can be used with Dynamic Resource Allocation(DRA) 
+when `spark.shuffle.sort.io.plugin.class` is set to `org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO`.
+Check [SPARK-42689](https://issues.apache.org/jira/browse/SPARK-42689) and [CELEBORN-911](https://issues.apache.org/jira/browse/CELEBORN-911)
+for more details.
+
+For Spark versions < 3.5.0, we provide a patch to enable users to use Spark with DRA and Celeborn.
 - For Spark 2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).
 - For Spark 3.0-3.3 check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3.patch).
 - For Spark 3.4 check [Spark3.4 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_4.patch).
