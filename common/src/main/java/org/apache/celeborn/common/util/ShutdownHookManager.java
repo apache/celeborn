@@ -116,14 +116,10 @@ public final class ShutdownHookManager {
         timeouts++;
         future.cancel(true);
         LOG.warn(
-            String.format(
-                "ShutdownHook '%s' timeout, %s", entry.getHook().getClass().getSimpleName(), ex),
-            ex);
+            "ShutdownHook '{}' timeout, {}", entry.getHook().getClass().getSimpleName(), ex, ex);
       } catch (Throwable ex) {
         LOG.warn(
-            String.format(
-                "ShutdownHook '%s' failed, %s", entry.getHook().getClass().getSimpleName(), ex),
-            ex);
+            "ShutdownHook '{}' failed, {}", entry.getHook().getClass().getSimpleName(), ex, ex);
       }
     }
     return timeouts;

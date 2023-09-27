@@ -74,7 +74,7 @@ public class MetaHandler {
           throw new IOException("Can not parse this command!" + request);
       }
     } catch (IOException e) {
-      LOG.warn(String.format("Handle meta read request %s failed!", cmdType), e);
+      LOG.warn("Handle meta read request {} failed!", cmdType, e);
       responseBuilder.setSuccess(false);
       responseBuilder.setStatus(ResourceProtos.Status.INTERNAL_ERROR);
       if (e.getMessage() != null) {
@@ -241,7 +241,7 @@ public class MetaHandler {
       }
       responseBuilder.setStatus(ResourceProtos.Status.OK);
     } catch (IOException e) {
-      LOG.warn(String.format("Handle meta write request %s failed!", cmdType), e);
+      LOG.warn("Handle meta write request {} failed!", cmdType, e);
       responseBuilder.setSuccess(false);
       responseBuilder.setStatus(ResourceProtos.Status.INTERNAL_ERROR);
       if (e.getMessage() != null) {
