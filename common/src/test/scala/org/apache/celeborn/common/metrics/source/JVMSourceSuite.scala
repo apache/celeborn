@@ -28,7 +28,7 @@ class JVMSourceSuite extends CelebornFunSuite {
   val JVM_METRIC_PREFIX = "jvm"
   val JVM_MEMORY_PREFIX = "jvm.memory"
 
-  test("Test handleMetricName") {
+  test("Test handleJVMMetricName") {
 
     val jvmSource = new JVMSource(new CelebornConf(), "test")
 
