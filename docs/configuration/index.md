@@ -128,19 +128,21 @@ end="<!--end-include-->"
 
 Recommend configuring in `conf/celeborn-env.sh`.
 
-| Key                              | Default                                         | Description |
-|----------------------------------|-------------------------------------------------|-------------|
-| `CELEBORN_HOME`                  | ``$(cd "`dirname "$0"`"/..; pwd)``              |             |
-| `CELEBORN_CONF_DIR`              | `${CELEBORN_CONF_DIR:-"${CELEBORN_HOME}/conf"}` |             |
-| `CELEBORN_MASTER_MEMORY`         | 1 GB                                            |             |
-| `CELEBORN_WORKER_MEMORY`         | 1 GB                                            |             |
-| `CELEBORN_WORKER_OFFHEAP_MEMORY` | 1 GB                                            |             |
-| `CELEBORN_MASTER_JAVA_OPTS`      |                                                 |             |
-| `CELEBORN_WORKER_JAVA_OPTS`      |                                                 |             |
-| `CELEBORN_PID_DIR`               | `${CELEBORN_HOME}/pids`                         |             |
-| `CELEBORN_LOG_DIR`               | `${CELEBORN_HOME}/logs`                         |             |
-| `CELEBORN_SSH_OPTS`              | `-o StrictHostKeyChecking=no`                   |             |
-| `CELEBORN_SLEEP`                 |                                                 |             |
+| Key                              | Default                                         | Description                                            |
+|----------------------------------|-------------------------------------------------|--------------------------------------------------------|
+| `CELEBORN_HOME`                  | ``$(cd "`dirname "$0"`"/..; pwd)``              |                                                        |
+| `CELEBORN_CONF_DIR`              | `${CELEBORN_CONF_DIR:-"${CELEBORN_HOME}/conf"}` |                                                        |
+| `CELEBORN_MASTER_MEMORY`         | 1 GB                                            |                                                        |
+| `CELEBORN_WORKER_MEMORY`         | 1 GB                                            |                                                        |
+| `CELEBORN_WORKER_OFFHEAP_MEMORY` | 1 GB                                            |                                                        |
+| `CELEBORN_MASTER_JAVA_OPTS`      |                                                 |                                                        |
+| `CELEBORN_WORKER_JAVA_OPTS`      |                                                 |                                                        |
+| `CELEBORN_PID_DIR`               | `${CELEBORN_HOME}/pids`                         |                                                        |
+| `CELEBORN_LOG_DIR`               | `${CELEBORN_HOME}/logs`                         |                                                        |
+| `CELEBORN_SSH_OPTS`              | `-o StrictHostKeyChecking=no`                   |                                                        |
+| `CELEBORN_SLEEP`                 |                                                 | Waiting time for `start-all` and `stop-all` operations |
+| `CELEBORN_PREFER_JEMALLOC`       |                                                 | set `true` to enable enable jemalloc memory allocator  |
+| `CELEBORN_JEMALLOC_PATH`         |                                                 | jemalloc library path                                  |
 
 ## Tuning
 
