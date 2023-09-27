@@ -141,7 +141,7 @@ Recommend configuring in `conf/celeborn-env.sh`.
 | `CELEBORN_LOG_DIR`               | `${CELEBORN_HOME}/logs`                         |                                                        |
 | `CELEBORN_SSH_OPTS`              | `-o StrictHostKeyChecking=no`                   |                                                        |
 | `CELEBORN_SLEEP`                 |                                                 | Waiting time for `start-all` and `stop-all` operations |
-| `CELEBORN_PREFER_JEMALLOC`       |                                                 | set `true` to enable enable jemalloc memory allocator  |
+| `CELEBORN_PREFER_JEMALLOC`       |                                                 | set `true` to enable jemalloc memory allocator         |
 | `CELEBORN_JEMALLOC_PATH`         |                                                 | jemalloc library path                                  |
 
 ## Tuning
