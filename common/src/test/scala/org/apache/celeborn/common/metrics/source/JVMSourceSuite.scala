@@ -43,8 +43,10 @@ class JVMSourceSuite extends CelebornFunSuite {
 
     val memoryMetric1 = "total.init"
     val memoryMetrics = "pools.G1-Eden-Space.init"
-    val memoryResult1 = jvmSource.handleJVMMetricName(memoryMetric1, poolNames, JVM_MEMORY_PREFIX, "")
-    val memoryResult2 = jvmSource.handleJVMMetricName(memoryMetrics, poolNames, JVM_MEMORY_PREFIX, "")
+    val memoryResult1 =
+      jvmSource.handleJVMMetricName(memoryMetric1, poolNames, JVM_MEMORY_PREFIX, "")
+    val memoryResult2 =
+      jvmSource.handleJVMMetricName(memoryMetrics, poolNames, JVM_MEMORY_PREFIX, "")
     assert(memoryResult1._1 == "jvm.memory.total.init")
     assert(memoryResult1._2 == Map.empty[String, String])
     assert(memoryResult2._1 == "jvm.memory.pools.init")
