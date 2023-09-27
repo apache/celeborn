@@ -27,7 +27,7 @@ Download the latest Celeborn binary from the [Downloading Page](https://celeborn
 Decompress the binary and set `$CELEBORN_HOME`
 ```shell
 tar -C <DST_DIR> -zxvf apache-celeborn-<VERSION>-bin.tgz
-export $CELEBORN_HOME=<Decompressed path>
+export CELEBORN_HOME=<Decompressed path>
 ```
 
 ## Configure Logging and Storage
