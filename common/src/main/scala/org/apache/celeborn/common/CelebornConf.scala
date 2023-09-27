@@ -1369,7 +1369,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Number of concurrent connections between two nodes.")
       .intConf
-      .createWithDefault(2)
+      .createWithDefault(1)
 
   val NETWORK_IO_BACKLOG: ConfigEntry[Int] =
     buildConf("celeborn.<module>.io.backLog")
