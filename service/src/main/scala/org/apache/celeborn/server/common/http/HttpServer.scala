@@ -50,9 +50,10 @@ class HttpServer(
       .channel(classOf[NioServerSocketChannel])
       .childHandler(channelInitializer)
 
-    bindFuture = bootstrap.bind(new InetSocketAddress(host, port)).sync
+    val address = new InetSocketAddress(host, port)
+    bindFuture = bootstrap.bind(address).sync
     bindFuture.syncUninterruptibly()
-    logInfo(s"$role: HttpServer started on port $port.")
+    logInfo(s"$role: HttpServer started on ${address.getHostString} with port $port.")
     isStarted = true
   }
 
