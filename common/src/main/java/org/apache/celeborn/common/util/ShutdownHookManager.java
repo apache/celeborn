@@ -115,19 +115,9 @@ public final class ShutdownHookManager {
       } catch (TimeoutException ex) {
         timeouts++;
         future.cancel(true);
-        LOG.warn(
-            "ShutdownHook '"
-                + entry.getHook().getClass().getSimpleName()
-                + "' timeout, "
-                + ex.toString(),
-            ex);
+        LOG.warn("ShutdownHook '{}' timeout", entry.getHook().getClass().getSimpleName(), ex);
       } catch (Throwable ex) {
-        LOG.warn(
-            "ShutdownHook '"
-                + entry.getHook().getClass().getSimpleName()
-                + "' failed, "
-                + ex.toString(),
-            ex);
+        LOG.warn("ShutdownHook '{}' failed", entry.getHook().getClass().getSimpleName(), ex);
       }
     }
     return timeouts;
@@ -144,13 +134,13 @@ public final class ShutdownHookManager {
       long shutdownTimeout = getShutdownTimeout(conf);
       if (!EXECUTOR.awaitTermination(shutdownTimeout, TIME_UNIT_DEFAULT)) {
         // timeout waiting for the
-        LOG.error("ShutdownHookManger shutdown forcefully after" + " {} seconds.", shutdownTimeout);
+        LOG.error("ShutdownHookManger shutdown forcefully after {} seconds.", shutdownTimeout);
         EXECUTOR.shutdownNow();
       }
       LOG.debug("ShutdownHookManger completed shutdown.");
     } catch (InterruptedException ex) {
       // interrupted.
-      LOG.error("ShutdownHookManger interrupted while waiting for " + "termination.", ex);
+      LOG.error("ShutdownHookManger interrupted while waiting for termination.", ex);
       EXECUTOR.shutdownNow();
       Thread.currentThread().interrupt();
     }

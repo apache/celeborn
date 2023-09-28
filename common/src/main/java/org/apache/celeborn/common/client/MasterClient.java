@@ -137,7 +137,7 @@ public class MasterClient {
           .requestId_(encodeRequestId(UUID.randomUUID().toString(), nextCallId()));
     }
 
-    LOG.debug("Send rpc message " + message);
+    LOG.debug("Send rpc message {}", message);
     RpcEndpointRef endpointRef = null;
     // Use AtomicInteger or Integer or any Object which holds an int value is ok, we just need to
     // transfer an object to get the change of the current index of master addresses.
