@@ -53,7 +53,7 @@ class HttpServer(
     val address = new InetSocketAddress(host, port)
     bindFuture = bootstrap.bind(address).sync
     bindFuture.syncUninterruptibly()
-    logInfo(s"$role: HttpServer started on ${address.getHostString} with port $port.")
+    logInfo(s"$role: HttpServer started on ${address.getHostString}:$port.")
     isStarted = true
   }
 
