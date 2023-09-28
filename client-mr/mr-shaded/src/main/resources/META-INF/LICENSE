@@ -235,10 +235,8 @@ io.netty:netty-transport-sctp
 io.netty:netty-transport-udt
 io.netty:netty-transport-classes-epoll
 io.netty:netty-transport-classes-kqueue
-io.netty:netty-resolver-dns-classes-macos
 io.netty:netty-transport-native-epoll
 io.netty:netty-transport-native-kqueue
-io.netty:netty-resolver-dns-native-macos
 com.google.guava:guava
 org.roaringbitmap:RoaringBitmap
 org.lz4:lz4-java
