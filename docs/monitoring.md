@@ -291,6 +291,7 @@ API path listed as below:
 |-----------------------|-------------------------------------------------------------------------------------------------------------|
 | /metrics/prometheus   | List the metrics data in prometheus format of the master.                                                   |
 | /conf                 | List the conf setting of the master.                                                                        |
+| /masterGroupInfo      | List master group information of the service. It will list all master's LEADER, FOLLOWER information.       |
 | /workerInfo           | List worker information of the service. It will list all registered workers 's information.                 |
 | /lostWorkers          | List all lost workers of the master.                                                                        |
 | /excludedWorkers      | List all excluded workers of the master.                                                                    |

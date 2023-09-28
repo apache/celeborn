@@ -65,6 +65,8 @@ class HttpRequestHandler(
     path match {
       case "/conf" =>
         service.getConf
+      case "/masterGroupInfo" if service.serviceName == Service.MASTER =>
+        service.getMasterGroupInfo
       case "/workerInfo" =>
         service.getWorkerInfo
       case "/lostWorkers" if service.serviceName == Service.MASTER =>

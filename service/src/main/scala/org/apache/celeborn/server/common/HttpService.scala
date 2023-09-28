@@ -41,6 +41,8 @@ abstract class HttpService extends Service with Logging {
     sb.toString()
   }
 
+  def getMasterGroupInfo: String = throw new UnsupportedOperationException()
+
   def getWorkerInfo: String
 
   def getLostWorkers: String = throw new UnsupportedOperationException()
