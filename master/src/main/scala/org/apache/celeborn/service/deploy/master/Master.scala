@@ -28,6 +28,8 @@ import scala.collection.mutable
 import scala.util.Random
 
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.ratis.proto.RaftProtos
+import org.apache.ratis.proto.RaftProtos.RaftPeerRole
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
@@ -840,6 +842,13 @@ private[celeborn] class Master(
     }.asJava
   }
 
+  override def getMasterGroupInfo: String = {
+    val sb = new StringBuilder
+    sb.append("====================== Master Group INFO ==============================\n")
+    sb.append(getMasterGroupInfoInternal())
+    sb.toString()
+  }
+
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Workers Info in Master =========================\n")
@@ -938,6 +947,40 @@ private[celeborn] class Master(
         1
       }
     isActive
+  }
+
+  private def getMasterGroupInfoInternal(): String = {
+    if (conf.haEnabled) {
+      val sb = new StringBuilder
+      val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
+      sb.append(s"group id: ${groupInfo.getGroup.getGroupId.getUuid}\n")
+
+      def getLeader(roleInfo: RaftProtos.RoleInfoProto): RaftProtos.RaftPeerProto = {
+        if (roleInfo == null) {
+          return null
+        }
+        if (roleInfo.getRole == RaftPeerRole.LEADER) {
+          return roleInfo.getSelf
+        }
+        val followerInfo = roleInfo.getFollowerInfo
+        if (followerInfo == null) {
+          return null
+        }
+        followerInfo.getLeaderInfo.getId
+      }
+
+      val leader = getLeader(groupInfo.getRoleInfoProto)
+      if (leader == null) {
+        sb.append("leader not found\n")
+      } else {
+        sb.append(s"leader info: ${leader.getId.toStringUtf8}(${leader.getAddress})\n\n")
+      }
+      sb.append(groupInfo.getCommitInfos)
+      sb.append("\n")
+      sb.toString()
+    } else {
+      "HA is not enabled"
+    }
   }
 
   override def initialize(): Unit = {

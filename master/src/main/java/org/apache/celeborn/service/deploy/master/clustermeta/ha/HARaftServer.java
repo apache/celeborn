@@ -483,7 +483,7 @@ public class HARaftServer {
     }
   }
 
-  private GroupInfoReply getGroupInfo() throws IOException {
+  public GroupInfoReply getGroupInfo() throws IOException {
     GroupInfoRequest groupInfoRequest =
         new GroupInfoRequest(clientId, raftPeerId, RAFT_GROUP_ID, nextCallId());
     return server.getGroupInfo(groupInfoRequest);
