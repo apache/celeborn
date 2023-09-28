@@ -227,7 +227,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       jobShuffleIds.clear();
       lifecycleManager.stop();
     } catch (Exception e) {
-      LOG.warn("Encounter exception when shutdown: " + e.getMessage(), e);
+      LOG.warn("Encounter exception when shutdown: {}", e.getMessage(), e);
     }
 
     ThreadUtils.shutdownExecutors(10, executor);

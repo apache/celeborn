@@ -93,7 +93,7 @@ public class RemoteShuffleMasterTest {
     ShuffleResourceDescriptor mapPartitionShuffleDescriptor =
         shuffleResource.getMapPartitionShuffleDescriptor();
 
-    LOG.info("remoteShuffleDescriptor:", remoteShuffleDescriptor);
+    LOG.info("remoteShuffleDescriptor:{}", remoteShuffleDescriptor);
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getShuffleId());
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getPartitionId());
     Assert.assertEquals(0, mapPartitionShuffleDescriptor.getAttemptId());
