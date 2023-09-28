@@ -961,7 +961,13 @@ private[deploy] object Master extends Logging {
   def main(args: Array[String]): Unit = {
     val conf = new CelebornConf()
     val masterArgs = new MasterArguments(args, conf)
-    val master = new Master(conf, masterArgs)
-    master.initialize()
+    try {
+      val master = new Master(conf, masterArgs)
+      master.initialize()
+    } catch {
+      case e: Throwable =>
+        logError("Initialize master failed.", e)
+        System.exit(-1)
+    }
   }
 }
