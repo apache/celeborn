@@ -1584,7 +1584,7 @@ object CelebornConf extends Logging {
   val WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.workerUnavailableInfo.expireTimeout")
       .categories("master")
-      .version("0.3.2")
+      .version("0.3.1")
       .doc("Worker unavailable info would be cleared when the retention period is expired")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1800s")
@@ -2220,7 +2220,7 @@ object CelebornConf extends Logging {
         "the range fetch phase, as both the original and sorted files will be retained until the " +
         "shuffle is finished. Note that the default value is configured as 'false' as a " +
         "temporary workaround for CELEBORN-980. see CELEBORN-980 for more details.")
-      .version("0.3.2")
+      .version("0.3.1")
       .internal
       .booleanConf
       .createWithDefault(false)
