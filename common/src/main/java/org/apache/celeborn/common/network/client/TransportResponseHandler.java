@@ -96,15 +96,17 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               ThreadUtils.newDaemonThreadPoolScheduledExecutor(
                   "push-timeout-checker", conf.pushDataTimeoutCheckerThreads());
         }
-        if (checkFetchTimeout) {
-          if (fetchTimeoutChecker == null) {
-            fetchTimeoutChecker =
-                ThreadUtils.newDaemonThreadPoolScheduledExecutor(
-                    "fetch-timeout-checker", conf.fetchDataTimeoutCheckerThreads());
-          }
+      }
+
+      if (checkFetchTimeout) {
+        if (fetchTimeoutChecker == null) {
+          fetchTimeoutChecker =
+              ThreadUtils.newDaemonThreadPoolScheduledExecutor(
+                  "fetch-timeout-checker", conf.fetchDataTimeoutCheckerThreads());
         }
       }
     }
+
     if (checkPushTimeout) {
       pushCheckerScheduleFuture =
           pushTimeoutChecker.scheduleAtFixedRate(
