@@ -96,31 +96,29 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
               ThreadUtils.newDaemonThreadPoolScheduledExecutor(
                   "push-timeout-checker", conf.pushDataTimeoutCheckerThreads());
         }
-        if (checkFetchTimeout) {
-          if (fetchTimeoutChecker == null) {
-            fetchTimeoutChecker =
-                ThreadUtils.newDaemonThreadPoolScheduledExecutor(
-                    "fetch-timeout-checker", conf.fetchDataTimeoutCheckerThreads());
-          }
-        }
-      }
-    }
-    if (checkPushTimeout) {
-      pushCheckerScheduleFuture =
-          pushTimeoutChecker.scheduleAtFixedRate(
-              () -> failExpiredPushRequest(),
-              pushTimeoutCheckerInterval,
-              pushTimeoutCheckerInterval,
-              TimeUnit.MILLISECONDS);
-    }
 
-    if (checkFetchTimeout) {
-      fetchCheckerScheduleFuture =
-          fetchTimeoutChecker.scheduleAtFixedRate(
-              () -> failExpiredFetchRequest(),
-              fetchTimeoutCheckerInterval,
-              fetchTimeoutCheckerInterval,
-              TimeUnit.MILLISECONDS);
+        pushCheckerScheduleFuture =
+            pushTimeoutChecker.scheduleAtFixedRate(
+                () -> failExpiredPushRequest(),
+                pushTimeoutCheckerInterval,
+                pushTimeoutCheckerInterval,
+                TimeUnit.MILLISECONDS);
+      }
+
+      if (checkFetchTimeout) {
+        if (fetchTimeoutChecker == null) {
+          fetchTimeoutChecker =
+              ThreadUtils.newDaemonThreadPoolScheduledExecutor(
+                  "fetch-timeout-checker", conf.fetchDataTimeoutCheckerThreads());
+        }
+
+        fetchCheckerScheduleFuture =
+            fetchTimeoutChecker.scheduleAtFixedRate(
+                () -> failExpiredFetchRequest(),
+                fetchTimeoutCheckerInterval,
+                fetchTimeoutCheckerInterval,
+                TimeUnit.MILLISECONDS);
+      }
     }
   }
 
