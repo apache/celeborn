@@ -47,6 +47,7 @@ spark.celeborn.master.endpoints clb-master:9097
 spark.celeborn.client.push.replicate.enabled true
 
 spark.celeborn.client.spark.shuffle.writer hash
+# This is not necessary for Spark 3.1 or newer
 spark.shuffle.service.enabled false
 spark.sql.adaptive.localShuffleReader.enabled false
 
