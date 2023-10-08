@@ -234,6 +234,7 @@ spark.serializer org.apache.spark.serializer.KryoSerializer
 
 # celeborn master
 spark.celeborn.master.endpoints clb-1:9097,clb-2:9097,clb-3:9097
+# This is not necessary if your Spark external shuffle service is Spark 3.1 or newer
 spark.shuffle.service.enabled false
 
 # options: hash, sort
