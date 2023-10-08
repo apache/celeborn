@@ -309,6 +309,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
     sbt_build_client -Pflink-1.14
     sbt_build_client -Pflink-1.15
     sbt_build_client -Pflink-1.17
+    sbt_build_client -Pmr
   else
     echo "build client with $@"
     ENGINE_COUNT=0

@@ -81,6 +81,7 @@
               <include>org.apache.commons:commons-lang3</include>
               <include>org.scala-lang:scala-library</include>
               <include>org.lz4:lz4-java</include>
+              <include>com.github.luben:zstd-jni</include>
               <include>org.roaringbitmap:RoaringBitmap</include>
             </includes>
           </artifactSet>
