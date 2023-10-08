@@ -346,15 +346,3 @@ If you meet any questions, feel free to file a 🔗[Jira Ticket](https://issues.
 
 This is an active open-source project. We are always open to developers who want to use the system or contribute to it. 
 See more detail in [Contributing](CONTRIBUTING.md).
-
-## NOTICE
-If you need to fully restart a Celeborn cluster in HA mode,
-you must clean ratis meta storage first
-because ratis meta will store expired states of the last running cluster.
-
-Here are some instructions:
-1. Stop all workers.
-2. Stop all masters.
-3. Clean all master's ratis meta storage directory(celeborn.master.ha.ratis.raft.server.storage.dir).
-4. Start all masters.
-5. Start all workers.
