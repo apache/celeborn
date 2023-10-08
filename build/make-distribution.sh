@@ -339,7 +339,7 @@ else
     build_flink_client -Pflink-1.14
     build_flink_client -Pflink-1.15
     build_flink_client -Pflink-1.17
-    build_mr_client mr
+    build_mr_client -Pmr
   else
     ## build release package on demand
     build_service $@
