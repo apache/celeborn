@@ -38,13 +38,13 @@ import org.apache.celeborn.common.exception.FileCorruptedException;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.TransportClient;
-import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
 import org.apache.celeborn.common.network.protocol.ReadData;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ExceptionUtils;
@@ -370,7 +370,18 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   private void notifyBacklog(int backlog) {
     logger.debug("stream manager stream id {} backlog:{}", streamId, backlog);
     associatedChannel
-        .writeAndFlush(new BacklogAnnouncement(streamId, backlog))
+        .writeAndFlush(
+            new RpcRequest(
+                TransportClient.requestId(),
+                new NioManagedBuffer(
+                    new TransportMessage(
+                            MessageType.BACKLOG_ANNOUNCEMENT,
+                            PbBacklogAnnouncement.newBuilder()
+                                .setStreamId(streamId)
+                                .setBacklog(backlog)
+                                .build()
+                                .toByteArray())
+                        .toByteBuffer())))
         .addListener(
             future -> {
               if (!future.isSuccess()) {
