@@ -45,6 +45,7 @@ import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
+import org.apache.celeborn.common.util.ThreadExceptionHandler;
 import org.apache.celeborn.common.util.Utils;
 
 public class DfsPartitionReader implements PartitionReader {
@@ -166,13 +167,7 @@ public class DfsPartitionReader implements PartitionReader {
                 logger.debug("fetch {} is done.", location.getStorageInfo().getFilePath());
               },
               "Dfs-fetch-thread" + location.getStorageInfo().getFilePath());
-      fetchThread.setUncaughtExceptionHandler(
-          new Thread.UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-              logger.error("thread {} failed with exception {}", t, e);
-            }
-          });
+      fetchThread.setUncaughtExceptionHandler(new ThreadExceptionHandler(fetchThread.getName()));
       logger.debug("Start dfs read on location {}", location);
       ShuffleClient.incrementTotalReadCounter();
     }
