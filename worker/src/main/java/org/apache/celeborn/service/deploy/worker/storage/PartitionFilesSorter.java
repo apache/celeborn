@@ -105,7 +105,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.source = source;
-    this.cleaner = new PartitionFilesCleaner();
+    this.cleaner = new PartitionFilesCleaner(this);
     this.gracefulShutdown = conf.workerGracefulShutdown();
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
@@ -171,25 +171,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFilesSize.get();
   }
 
-  // For non-range requests:
-  //   1. If the sorted file is not generated, it returns the original unsorted FileInfo.
-  //   2. If the sorted file is generated, it returns the sorted FileInfo.
-  //
-  // For range requests:
-  //   1. If the sorted file is not generated, it adds the FileSorter task to the sorting queue and
-  //      synchronously waits for the sorted FileInfo.
-  //   2. If the FileSorter task is already in the sorting queue but the sorted file has not been
-  //      generated, it awaits until a timeout occurs (default 220 seconds).
-  //   3. If the sorted file is generated, it returns the sorted FileInfo.
+  // return the sorted FileInfo.
+  // 1. If the sorted file is not generated, it adds the FileSorter task to the sorting queue and
+  //    synchronously waits for the sorted FileInfo.
+  // 2. If the FileSorter task is already in the sorting queue but the sorted file has not been
+  //    generated, it awaits until a timeout occurs (default 220 seconds).
+  // 3. If the sorted file is generated, it returns the sorted FileInfo.
   public FileInfo getSortedFileInfo(
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     String fileId = shuffleKey + "-" + fileName;
     UserIdentifier userIdentifier = fileInfo.getUserIdentifier();
-    // not a range read and the sorted file not generate now
-    if (endMapIndex == Integer.MAX_VALUE && !sortedShuffleFiles.containsKey(shuffleKey)) {
-      return fileInfo;
-    }
     Set<String> sorted =
         sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
     Set<String> sorting =
@@ -292,6 +284,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     } else {
       fileSorterSchedulerThread.interrupt();
       fileSorterExecutors.shutdownNow();
+      cleaner.close();
       if (sortedFilesDb != null) {
         try {
           sortedFilesDb.close();
@@ -615,8 +608,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
-        cleaner.add(this);
         originFileInfo.setSorted();
+        cleaner.add(this);
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
         logger.error(
@@ -726,6 +719,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
     cleaner.cleanupExpiredShuffleKey(expiredShuffleKeys);
   }
+
+  public boolean isShutdown() {
+    return shutdown;
+  }
 }
 
 class PartitionFilesCleaner {
@@ -735,36 +732,37 @@ class PartitionFilesCleaner {
       new LinkedBlockingQueue<>();
   private final Lock lock = new ReentrantLock();
   private final Condition notEmpty = lock.newCondition();
+  private final Thread cleaner;
 
-  PartitionFilesCleaner() {
-    Thread cleaner =
+  PartitionFilesCleaner(PartitionFilesSorter partitionFilesSorter) {
+    cleaner =
         new Thread(
             () -> {
-              while (true) {
-                try {
-                  lock.lockInterruptibly();
-                  while (queue.isEmpty()) {
-                    notEmpty.await(500, TimeUnit.MILLISECONDS);
-                  }
-                  Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
-                  while (it.hasNext()) {
-                    PartitionFilesSorter.FileSorter sorter = it.next();
-                    try {
-                      if (sorter.getOriginFileInfo().isStreamsEmpty()) {
-                        sorter.deleteOriginFiles();
-                        queue.remove(sorter);
-                      }
-                    } catch (IOException e) {
-                      logger.error("catch IOException when delete origin files", e);
+              try {
+                while (!partitionFilesSorter.isShutdown()) {
+                  try {
+                    lock.lockInterruptibly();
+                    while (queue.isEmpty()) {
+                      notEmpty.await(500, TimeUnit.MILLISECONDS);
                     }
+                    Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
+                    while (it.hasNext()) {
+                      PartitionFilesSorter.FileSorter sorter = it.next();
+                      try {
+                        if (sorter.getOriginFileInfo().isStreamsEmpty()) {
+                          sorter.deleteOriginFiles();
+                          queue.remove(sorter);
+                        }
+                      } catch (IOException e) {
+                        logger.error("catch IOException when delete origin files", e);
+                      }
+                    }
+                  } finally {
+                    lock.unlock();
                   }
-                } catch (InterruptedException e) {
-                  logger.error(
-                      "partition file cleaner thread interrupted while wait new sorter.", e);
-                  throw new RuntimeException(e);
-                } finally {
-                  lock.unlock();
                 }
+              } catch (InterruptedException e) {
+                logger.warn("partition file cleaner thread interrupted while wait new sorter.", e);
               }
             });
     cleaner.setName("partition-files-cleaner");
@@ -772,9 +770,14 @@ class PartitionFilesCleaner {
     cleaner.start();
   }
 
-  public void add(PartitionFilesSorter.FileSorter fileSorter) {
-    queue.add(fileSorter);
-    notEmpty.signal();
+  public void add(PartitionFilesSorter.FileSorter fileSorter) throws InterruptedException {
+    lock.lockInterruptibly();
+    try {
+      queue.add(fileSorter);
+      notEmpty.signal();
+    } finally {
+      lock.unlock();
+    }
   }
 
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
@@ -785,5 +788,10 @@ class PartitionFilesCleaner {
         queue.remove(sorter);
       }
     }
+  }
+
+  public void close() {
+    queue.clear();
+    cleaner.interrupt();
   }
 }
