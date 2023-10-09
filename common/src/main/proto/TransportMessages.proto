@@ -84,6 +84,11 @@ enum MessageType {
   READ_ADD_CREDIT = 61;
 }
 
+enum StreamType {
+  ChunkStream = 0;
+  CreditStream = 1;
+}
+
 message PbStorageInfo {
   int32 type = 1;
   string mountPoint = 2;
@@ -538,7 +543,8 @@ message PbBacklogAnnouncement {
 }
 
 message PbBufferStreamEnd {
-  int64 streamId = 1;
+  StreamType streamType = 1;
+  int64 streamId = 2;
 }
 
 message PbReadAddCredit {

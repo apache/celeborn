@@ -41,8 +41,10 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 
@@ -63,6 +65,8 @@ public class LocalPartitionReader implements PartitionReader {
   private FileChannel shuffleChannel;
   private List<Long> chunkOffsets;
   private AtomicBoolean pendingFetchTask = new AtomicBoolean(false);
+  private PbStreamHandler streamHandler;
+  private TransportClient client;
 
   public LocalPartitionReader(
       CelebornConf conf,
@@ -84,11 +88,9 @@ public class LocalPartitionReader implements PartitionReader {
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     this.location = location;
-    PbStreamHandler streamHandle;
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
     try {
-      TransportClient client =
-          clientFactory.createClient(location.getHost(), location.getFetchPort(), 0);
+      client = clientFactory.createClient(location.getHost(), location.getFetchPort(), 0);
       TransportMessage openStreamMsg =
           new TransportMessage(
               MessageType.OPEN_STREAM,
@@ -101,7 +103,7 @@ public class LocalPartitionReader implements PartitionReader {
                   .build()
                   .toByteArray());
       ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
-      streamHandle = TransportMessage.fromByteBuffer(response).getParsedPayload();
+      streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
     } catch (IOException | InterruptedException e) {
       throw new IOException(
           "Read shuffle file from local file failed, partition location: "
@@ -111,9 +113,9 @@ public class LocalPartitionReader implements PartitionReader {
           e);
     }
 
-    chunkOffsets = new ArrayList<>(streamHandle.getChunkOffsetsList());
-    numChunks = streamHandle.getNumChunks();
-    fullPath = streamHandle.getFullPath();
+    chunkOffsets = new ArrayList<>(streamHandler.getChunkOffsetsList());
+    numChunks = streamHandler.getNumChunks();
+    fullPath = streamHandler.getFullPath();
     mapRangeRead = endMapIndex != Integer.MAX_VALUE;
 
     logger.debug(
@@ -230,6 +232,21 @@ public class LocalPartitionReader implements PartitionReader {
       }
     } catch (IOException e) {
       logger.warn("Close local shuffle file failed.", e);
+    }
+    closeStream();
+  }
+
+  private void closeStream() {
+    if (client != null && client.isActive()) {
+      TransportMessage bufferStreamEnd =
+          new TransportMessage(
+              MessageType.BUFFER_STREAM_END,
+              PbBufferStreamEnd.newBuilder()
+                  .setStreamType(StreamType.ChunkStream)
+                  .setStreamId(streamHandler.getStreamId())
+                  .build()
+                  .toByteArray());
+      client.sendRpc(bufferStreamEnd.toByteBuffer());
     }
   }
 

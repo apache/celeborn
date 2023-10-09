@@ -21,6 +21,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
@@ -39,6 +42,15 @@ public class FileInfo {
   private final String filePath;
   private final PartitionType partitionType;
   private final UserIdentifier userIdentifier;
+
+  /**
+   * A flag used to indicate whether this FileInfo is sorted or not. Currently, it is only set for
+   * unsorted FileInfo instances.
+   */
+  private final AtomicBoolean sorted = new AtomicBoolean(false);
+
+  /** The set of stream IDs that are fetching this FileInfo. */
+  private final Set<Long> streams = ConcurrentHashMap.newKeySet();
 
   // members for ReducePartition
   private final List<Long> chunkOffsets;
@@ -264,5 +276,34 @@ public class FileInfo {
 
   public void setPartitionSplitEnabled(boolean partitionSplitEnabled) {
     this.partitionSplitEnabled = partitionSplitEnabled;
+  }
+
+  public void setSorted() {
+    synchronized (sorted) {
+      sorted.set(true);
+    }
+  }
+
+  public boolean addStream(long streamId) {
+    synchronized (sorted) {
+      if (sorted.get()) {
+        return false;
+      } else {
+        streams.add(streamId);
+        return true;
+      }
+    }
+  }
+
+  public void closeStream(long streamId) {
+    synchronized (sorted) {
+      streams.remove(streamId);
+    }
+  }
+
+  public boolean isStreamsEmpty() {
+    synchronized (sorted) {
+      return streams.isEmpty();
+    }
   }
 }

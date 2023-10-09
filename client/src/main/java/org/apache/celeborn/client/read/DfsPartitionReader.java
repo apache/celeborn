@@ -40,7 +40,10 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -58,6 +61,8 @@ public class DfsPartitionReader implements PartitionReader {
   private int numChunks = 0;
   private int returnedChunks = 0;
   private int currentChunkIndex = 0;
+  private TransportClient client;
+  private PbStreamHandler streamHandler;
 
   public DfsPartitionReader(
       CelebornConf conf,
@@ -77,8 +82,7 @@ public class DfsPartitionReader implements PartitionReader {
     if (endMapIndex != Integer.MAX_VALUE) {
       long fetchTimeoutMs = conf.clientFetchTimeoutMs();
       try {
-        TransportClient client =
-            clientFactory.createClient(location.getHost(), location.getFetchPort());
+        client = clientFactory.createClient(location.getHost(), location.getFetchPort());
         TransportMessage openStream =
             new TransportMessage(
                 MessageType.OPEN_STREAM,
@@ -90,7 +94,7 @@ public class DfsPartitionReader implements PartitionReader {
                     .build()
                     .toByteArray());
         ByteBuffer response = client.sendRpcSync(openStream.toByteBuffer(), fetchTimeoutMs);
-        TransportMessage.fromByteBuffer(response).getParsedPayload();
+        streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
         // Parse this message to ensure sort is done.
       } catch (IOException | InterruptedException e) {
         throw new IOException(
@@ -258,6 +262,21 @@ public class DfsPartitionReader implements PartitionReader {
       results.forEach(ReferenceCounted::release);
     }
     results.clear();
+    closeStream();
+  }
+
+  private void closeStream() {
+    if (client != null && client.isActive()) {
+      TransportMessage bufferStreamEnd =
+          new TransportMessage(
+              MessageType.BUFFER_STREAM_END,
+              PbBufferStreamEnd.newBuilder()
+                  .setStreamType(StreamType.ChunkStream)
+                  .setStreamId(streamHandler.getStreamId())
+                  .build()
+                  .toByteArray());
+      client.sendRpc(bufferStreamEnd.toByteBuffer());
+    }
   }
 
   @Override

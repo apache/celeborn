@@ -108,4 +108,5 @@ class SkewJoinSuite extends AnyFunSuite
       }
     }
   }
+
 }

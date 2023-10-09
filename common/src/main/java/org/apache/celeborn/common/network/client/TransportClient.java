@@ -171,19 +171,18 @@ public class TransportClient implements Closeable {
   }
 
   /**
-   * Sends an opaque message to the RpcHandler on the server-side.
+   * Sends an opaque message to the RpcHandler on the server-side. No reply is expected for the
+   * message, and no delivery guarantees are made.
    *
    * @param message The message to send.
-   * @return The RPC's id.
    */
-  public long sendRpc(ByteBuffer message) {
+  public void sendRpc(ByteBuffer message) {
     if (logger.isTraceEnabled()) {
       logger.trace("Sending RPC to {}", NettyUtils.getRemoteAddress(channel));
     }
 
     long requestId = requestId();
     channel.writeAndFlush(new RpcRequest(requestId, new NioManagedBuffer(message)));
-    return requestId;
   }
 
   public ChannelFuture pushData(

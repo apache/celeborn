@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 
+@Deprecated
 public class BufferStreamEnd extends RequestMessage {
   private long streamId;
 
