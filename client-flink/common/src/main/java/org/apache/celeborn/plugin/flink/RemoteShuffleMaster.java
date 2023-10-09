@@ -22,19 +22,27 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.shuffle.*;
+import org.apache.flink.runtime.shuffle.JobShuffleContext;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ProducerDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
+import org.apache.flink.runtime.shuffle.TaskInputsOutputsDescriptor;
+import org.apache.flink.util.ExecutorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
-import org.apache.celeborn.plugin.flink.utils.ThreadUtils;
 
 public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescriptor> {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMaster.class);
@@ -47,9 +55,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private ShuffleResourceTracker shuffleResourceTracker;
   private final ScheduledThreadPoolExecutor executor =
       new ScheduledThreadPoolExecutor(
-          1,
-          ThreadUtils.createFactoryWithDefaultExceptionHandler(
-              "remote-shuffle-master-executor", LOG));
+          1, ThreadUtils.namedThreadFactory("remote-shuffle-master-executor"));
   private final ResultPartitionAdapter resultPartitionDelegation;
   private final long lifecycleManagerTimestamp;
 
@@ -230,6 +236,6 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
       LOG.warn("Encounter exception when shutdown: {}", e.getMessage(), e);
     }
 
-    ThreadUtils.shutdownExecutors(10, executor);
+    ExecutorUtils.gracefulShutdown(10, TimeUnit.SECONDS, executor);
   }
 }
