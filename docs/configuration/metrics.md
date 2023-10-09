@@ -29,7 +29,7 @@ license: |
 | celeborn.metrics.extraLabels |  | If default metric labels are not enough, extra metric labels can be customized. Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1` | 0.3.0 | 
 | celeborn.metrics.master.prometheus.host | &lt;localhost&gt; | Master's Prometheus host. | 0.3.0 | 
 | celeborn.metrics.master.prometheus.port | 9098 | Master's Prometheus port. | 0.3.0 | 
-| celeborn.metrics.prometheus.path | /metrics/prometheus | URI context path of prometheus metrics HTTP server |  | 
+| celeborn.metrics.prometheus.path | /metrics/prometheus | URI context path of prometheus metrics HTTP server | 0.4.0 | 
 | celeborn.metrics.sample.rate | 1.0 | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 | 
 | celeborn.metrics.timer.slidingWindow.size | 4096 | The sliding window size of timer metric. | 0.2.0 | 
 | celeborn.metrics.worker.pauseSpentTime.forceAppend.threshold | 10 | Force append worker pause spent time even if worker still in pause serving state.Help user can find worker pause spent time increase, when worker always been pause state. |  | 
