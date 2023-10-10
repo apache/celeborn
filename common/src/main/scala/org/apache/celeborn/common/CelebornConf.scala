@@ -609,6 +609,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
   def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
+  def haMasterRatisClientRpcTimeout: Long = get(HA_MASTER_RATIS_CLIENT_RPC_TIMEOUT)
+  def haMasterRatisClientRpcWatchTimeout: Long = get(HA_MASTER_RATIS_CLIENT_RPC_WATCH_TIMEOUT)
   def haMasterRatisFirstElectionTimeoutMin: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN)
   def haMasterRatisFristElectionTimeoutMax: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX)
   def haMasterRatisNotificationNoLeaderTimeout: Long =
@@ -620,6 +622,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisSnapshotAutoTriggerThreshold: Long =
     get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
   def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
+  def haRatisCustomConfigs: JMap[String, String] = {
+    settings.asScala.filter(_._1.startsWith("celeborn.ratis")).toMap.asJava
+  }
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -1765,7 +1770,7 @@ object CelebornConf extends Logging {
       .categories("ha")
       .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("3s")
+      .createWithDefaultString("45s")
 
   val HA_MASTER_RATIS_RPC_TIMEOUT_MAX: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.raft.server.rpc.timeout.max")
@@ -1774,7 +1779,23 @@ object CelebornConf extends Logging {
       .categories("ha")
       .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("5s")
+      .createWithDefaultString("60s")
+
+  val HA_MASTER_RATIS_CLIENT_RPC_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.ratis.raft.client.rpc.timeout")
+      .internal
+      .categories("ha")
+      .version("0.3.2")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("45s")
+
+  val HA_MASTER_RATIS_CLIENT_RPC_WATCH_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.ratis.raft.client.rpc.watch.timeout")
+      .internal
+      .categories("ha")
+      .version("0.3.2")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("60s")
 
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.first.election.timeout.min")
