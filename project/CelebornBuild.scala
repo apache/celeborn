@@ -690,6 +690,11 @@ trait SparkClientProjects {
   
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
+          case m if m == "META-INF/LICENSE.txt" => MergeStrategy.discard
+          case m if m == "META-INF/NOTICE.txt" => MergeStrategy.discard
+          case m if m == "LICENSE.txt" => MergeStrategy.discard
+          case m if m == "NOTICE.txt" => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
           case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
@@ -881,6 +886,11 @@ trait FlinkClientProjects {
   
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
+          case m if m == "META-INF/LICENSE.txt" => MergeStrategy.discard
+          case m if m == "META-INF/NOTICE.txt" => MergeStrategy.discard
+          case m if m == "LICENSE.txt" => MergeStrategy.discard
+          case m if m == "NOTICE.txt" => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
           case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
