@@ -112,7 +112,7 @@ public abstract class FileWriter implements DeviceObserver {
       this.flusherBufferSize = conf.workerFlusherBufferSize();
       channel = FileChannelUtils.createWritableFileChannel(fileInfo.getFilePath());
     } else {
-      this.flusherBufferSize = conf.workerHdfsFlusterBufferSize();
+      this.flusherBufferSize = conf.workerHdfsFlusherBufferSize();
       // We open the stream and close immediately because HDFS output stream will
       // create a DataStreamer that is a thread.
       // If we reuse HDFS output stream, we will exhaust the memory soon.

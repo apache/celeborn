@@ -945,7 +945,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Flusher                        //
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
-  def workerHdfsFlusterBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
+  def workerHdfsFlusherBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
   def workerWriterCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def workerHddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def workerSsdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
@@ -2281,7 +2281,7 @@ object CelebornConf extends Logging {
   val WORKER_FLUSHER_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.threads")
       .categories("worker")
-      .doc("Flusher's thread count per disk for unkown-type disks.")
+      .doc("Flusher's thread count per disk for unknown-type disks.")
       .version("0.2.0")
       .intConf
       .createWithDefault(16)
