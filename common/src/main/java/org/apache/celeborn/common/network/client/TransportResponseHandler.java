@@ -109,7 +109,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
     if (checkPushTimeout) {
       pushCheckerScheduleFuture =
-          pushTimeoutChecker.scheduleAtFixedRate(
+          pushTimeoutChecker.scheduleWithFixedDelay(
               () -> failExpiredPushRequest(),
               pushTimeoutCheckerInterval,
               pushTimeoutCheckerInterval,
@@ -118,7 +118,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
 
     if (checkFetchTimeout) {
       fetchCheckerScheduleFuture =
-          fetchTimeoutChecker.scheduleAtFixedRate(
+          fetchTimeoutChecker.scheduleWithFixedDelay(
               () -> failExpiredFetchRequest(),
               fetchTimeoutCheckerInterval,
               fetchTimeoutCheckerInterval,
