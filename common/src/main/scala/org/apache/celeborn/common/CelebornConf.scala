@@ -3664,7 +3664,7 @@ object CelebornConf extends Logging {
   val METRICS_PROMETHEUS_PATH: ConfigEntry[String] =
     buildConf("celeborn.metrics.prometheus.path")
       .categories("metrics")
-      .doc("URI context path of prometheus metrics HTTP server")
+      .doc("URI context path of prometheus metrics HTTP server.")
       .version("0.4.0")
       .stringConf
       .checkValue(path => path.startsWith("/"), "Context path must start with '/'")

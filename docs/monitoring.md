@@ -289,7 +289,7 @@ API path listed as below:
 
 | Path                  | Meaning                                                                                                     |
 |-----------------------|-------------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus   | List the metrics data in prometheus format of the master.                                                   |
+| /metrics/prometheus   | List the metrics data in prometheus format of the master.(Configure `celeborn.metrics.prometheus.path`)     |
 | /conf                 | List the conf setting of the master.                                                                        |
 | /masterGroupInfo      | List master group information of the service. It will list all master's LEADER, FOLLOWER information.       |
 | /workerInfo           | List worker information of the service. It will list all registered workers 's information.                 |
@@ -306,7 +306,7 @@ API path listed as below:
 
 | Path                       | Meaning                                                                                                  |
 |----------------------------|----------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus        | List the metrics data in prometheus format of the worker.                                                |
+| /metrics/prometheus        | List the metrics data in prometheus format of the worker.(Configure `celeborn.metrics.prometheus.path`)  |
 | /conf                      | List the conf setting of the worker.                                                                     |
 | /workerInfo                | List the worker information of the worker.                                                               |
 | /threadDump                | List the current thread dump of the worker.                                                              |
