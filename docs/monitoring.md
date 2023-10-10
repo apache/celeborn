@@ -287,33 +287,33 @@ API path listed as below:
 
 #### Master
 
-| Path                  | Meaning                                                                                                     |
-|-----------------------|-------------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus   | List the metrics data in prometheus format of the master.(Configure `celeborn.metrics.prometheus.path`)     |
-| /conf                 | List the conf setting of the master.                                                                        |
-| /masterGroupInfo      | List master group information of the service. It will list all master's LEADER, FOLLOWER information.       |
-| /workerInfo           | List worker information of the service. It will list all registered workers 's information.                 |
-| /lostWorkers          | List all lost workers of the master.                                                                        |
-| /excludedWorkers      | List all excluded workers of the master.                                                                    |
-| /shutdownWorkers      | List all shutdown workers of the master.                                                                    |
-| /threadDump           | List the current thread dump of the master.                                                                 |
-| /hostnames            | List all running application's LifecycleManager's hostnames of the cluster.                                 |
-| /applications         | List all running application's ids of the cluster.                                                          |
-| /shuffles             | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.      |
-| /listTopDiskUsedApps  | List the top disk usage application ids. It will return the top disk usage application ids for the cluster. |
+| Path                  | Meaning                                                                                                                             |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| /metrics/prometheus   | List the metrics data in prometheus format of the master.(The url path is defined by configure `celeborn.metrics.prometheus.path`.) |
+| /conf                 | List the conf setting of the master.                                                                                                |
+| /masterGroupInfo      | List master group information of the service. It will list all master's LEADER, FOLLOWER information.                               |
+| /workerInfo           | List worker information of the service. It will list all registered workers 's information.                                         |
+| /lostWorkers          | List all lost workers of the master.                                                                                                |
+| /excludedWorkers      | List all excluded workers of the master.                                                                                            |
+| /shutdownWorkers      | List all shutdown workers of the master.                                                                                            |
+| /threadDump           | List the current thread dump of the master.                                                                                         |
+| /hostnames            | List all running application's LifecycleManager's hostnames of the cluster.                                                         |
+| /applications         | List all running application's ids of the cluster.                                                                                  |
+| /shuffles             | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.                              |
+| /listTopDiskUsedApps  | List the top disk usage application ids. It will return the top disk usage application ids for the cluster.                         |
 
 #### Worker
 
-| Path                       | Meaning                                                                                                  |
-|----------------------------|----------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus        | List the metrics data in prometheus format of the worker.(Configure `celeborn.metrics.prometheus.path`)  |
-| /conf                      | List the conf setting of the worker.                                                                     |
-| /workerInfo                | List the worker information of the worker.                                                               |
-| /threadDump                | List the current thread dump of the worker.                                                              |
-| /shuffles                  | List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker. |
-| /listTopDiskUsedApps       | List the top disk usage application ids. It only return application ids running in that worker.          |
-| /listPartitionLocationInfo | List all the living PartitionLocation information in that worker.                                        |
-| /unavailablePeers          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.       |
-| /isShutdown                | Show if the worker is during the process of shutdown.                                                    |
-| /isRegistered              | Show if the worker is registered to the master success.                                                  |
-| /exit?type=${TYPE}         | Trigger this worker to exit. Legal `type`s are 'DECOMMISSION‘, 'GRACEFUL' and 'IMMEDIATELY'              |
+| Path                       | Meaning                                                                                                                             |
+|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| /metrics/prometheus        | List the metrics data in prometheus format of the worker.(The url path is defined by configure `celeborn.metrics.prometheus.path`.) |
+| /conf                      | List the conf setting of the worker.                                                                                                |
+| /workerInfo                | List the worker information of the worker.                                                                                          |
+| /threadDump                | List the current thread dump of the worker.                                                                                         |
+| /shuffles                  | List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker.                            |
+| /listTopDiskUsedApps       | List the top disk usage application ids. It only return application ids running in that worker.                                     |
+| /listPartitionLocationInfo | List all the living PartitionLocation information in that worker.                                                                   |
+| /unavailablePeers          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.                                  |
+| /isShutdown                | Show if the worker is during the process of shutdown.                                                                               |
+| /isRegistered              | Show if the worker is registered to the master success.                                                                             |
+| /exit?type=${TYPE}         | Trigger this worker to exit. Legal `type`s are 'DECOMMISSION‘, 'GRACEFUL' and 'IMMEDIATELY'                                         |
