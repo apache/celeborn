@@ -922,7 +922,7 @@ private[celeborn] class Master(
   override def listTopDiskUseApps: String = {
     val sb = new StringBuilder
     sb.append("================== Top Disk Usage Applications =======================\n")
-    sb.append(statusSystem.appDiskUsageMetric.summary)
+    sb.append(statusSystem.appDiskUsageMetric.summary())
     sb.toString()
   }
 

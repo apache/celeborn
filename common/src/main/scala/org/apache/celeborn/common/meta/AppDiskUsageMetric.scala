@@ -30,7 +30,7 @@ import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 case class AppDiskUsage(var appId: String, var estimatedUsage: Long) {
   override def toString: String =
-    s"Application ${appId} used approximate ${Utils.bytesToString(estimatedUsage)} "
+    s"Application $appId used approximate ${Utils.bytesToString(estimatedUsage)} "
 }
 
 class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializable {
@@ -81,7 +81,7 @@ class AppDiskUsageSnapShot(val topItemCount: Int) extends Logging with Serializa
 
   def restoreFromSnapshot(array: Array[AppDiskUsage]): Unit = {
     // Restored snapshots only contains values not null
-    for (i <- 0 until (topItemCount)) {
+    for (i <- 0 until topItemCount) {
       if (i < array.length) {
         topNItems(i) = array(i)
       } else {
@@ -137,14 +137,12 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
   }
 
   logExecutor.scheduleAtFixedRate(
-    new Runnable {
-      override def run(): Unit = {
-        if (currentSnapShot.get() != null) {
-          currentSnapShot.get().commit()
-        }
-        currentSnapShot.set(getNewSnapShot())
-        logInfo(s"App Disk Usage Top${usageCount} Report ${summary()}")
+    () => {
+      if (currentSnapShot.get() != null) {
+        currentSnapShot.get().commit()
       }
+      currentSnapShot.set(getNewSnapShot())
+      logInfo(s"App Disk Usage Top$usageCount Report ${summary()}")
     },
     60,
     interval,
@@ -161,7 +159,7 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
   def summary(): String = {
     val stringBuilder = new StringBuilder()
     for (i <- 0 until snapshotCount) {
-      if (snapShots(i) != null) {
+      if (snapShots(i) != null && snapShots(i).topNItems.length != 0) {
         stringBuilder.append(snapShots(i))
         stringBuilder.append("    \n")
       }
@@ -171,7 +169,7 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
 
   def restoreFromSnapshot(array: Array[AppDiskUsageSnapShot]): Unit = {
     // Restored snapshots only contains values not null
-    for (i <- 0 until (snapshotCount)) {
+    for (i <- 0 until snapshotCount) {
       if (i < array.length) {
         snapShots(i) = array(i)
       } else {
