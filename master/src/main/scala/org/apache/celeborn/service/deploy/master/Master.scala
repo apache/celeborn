@@ -616,14 +616,21 @@ private[celeborn] class Master(
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     var availableWorkers = workersAvailable()
-    Collections.shuffle(availableWorkers)
+    val numAvailableWorkers = availableWorkers.size()
     val numWorkers = Math.min(
       Math.max(
         if (requestSlots.shouldReplicate) 2 else 1,
         if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers
         else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
-      availableWorkers.size())
-    availableWorkers = availableWorkers.subList(0, numWorkers)
+      numAvailableWorkers)
+    val startIndex = Random.nextInt(availableWorkers.size())
+    availableWorkers =
+      availableWorkers.subList(startIndex, Math.min(numAvailableWorkers, startIndex + numWorkers))
+    if (startIndex + numWorkers > numAvailableWorkers) {
+      availableWorkers.addAll(availableWorkers.subList(
+        0,
+        startIndex + numWorkers - numAvailableWorkers))
+    }
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
