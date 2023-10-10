@@ -76,8 +76,6 @@ object Dependencies {
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
   val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(
-    ExclusionRule("org.apache.commons", "commons-compress"),
-    ExclusionRule("commons-logging", "commons-logging"),
     ExclusionRule("com.google.guava", "guava"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
@@ -155,6 +153,8 @@ object CelebornCommonSettings {
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
 
     dependencyOverrides := Seq(
+      Dependencies.commonsCompress,
+      Dependencies.commonsLogging,
       Dependencies.findbugsJsr305,
       Dependencies.slf4jApi),
 
@@ -906,8 +906,6 @@ object MRClientProjects {
       .settings(
         commonSettings,
         libraryDependencies ++= Seq(
-          Dependencies.commonsCompress,
-          Dependencies.commonsLogging,
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
           Dependencies.hadoopMapreduceClientApp
