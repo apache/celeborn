@@ -55,8 +55,8 @@ trait SparkTestBase extends AnyFunSuite
     sparkConf.set("spark.shuffle.useOldFetchProtocol", "true")
     sparkConf.set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "false")
     sparkConf.set("spark.shuffle.service.enabled", "false")
-    sparkConf.set(SQLConf.SKEW_JOIN_ENABLED.key, "false")
-    sparkConf.set(SQLConf.LOCAL_SHUFFLE_READER_ENABLED.key, "false")
+    sparkConf.set("spark.sql.adaptive.skewJoin.enabled", "false")
+    sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
     sparkConf.set(s"spark.${MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
     sparkConf.set(s"spark.${SPARK_SHUFFLE_WRITER_MODE.key}", mode.toString)
     sparkConf
