@@ -21,6 +21,7 @@ import scala.util.Random
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -52,10 +53,10 @@ trait SparkTestBase extends AnyFunSuite
       "spark.shuffle.manager",
       "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
     sparkConf.set("spark.shuffle.useOldFetchProtocol", "true")
-    sparkConf.set("spark.sql.adaptive.enabled", "false")
+    sparkConf.set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "false")
     sparkConf.set("spark.shuffle.service.enabled", "false")
-    sparkConf.set("spark.sql.adaptive.skewJoin.enabled", "false")
-    sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
+    sparkConf.set(SQLConf.SKEW_JOIN_ENABLED.key, "false")
+    sparkConf.set(SQLConf.LOCAL_SHUFFLE_READER_ENABLED.key, "false")
     sparkConf.set(s"spark.${MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
     sparkConf.set(s"spark.${SPARK_SHUFFLE_WRITER_MODE.key}", mode.toString)
     sparkConf

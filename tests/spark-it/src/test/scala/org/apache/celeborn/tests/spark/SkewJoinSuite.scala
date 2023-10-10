@@ -21,6 +21,7 @@ import scala.util.Random
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -50,14 +51,14 @@ class SkewJoinSuite extends AnyFunSuite
     test(s"celeborn spark integration test - skew join - $codec") {
       val sparkConf = new SparkConf().setAppName("celeborn-demo")
         .setMaster("local[2]")
-        .set("spark.sql.adaptive.enabled", "true")
-        .set("spark.sql.adaptive.skewJoin.enabled", "true")
-        .set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "16MB")
-        .set("spark.sql.adaptive.advisoryPartitionSizeInBytes", "12MB")
+        .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "true")
+        .set(SQLConf.SKEW_JOIN_ENABLED.key, "true")
+        .set(SQLConf.SKEW_JOIN_SKEWED_PARTITION_THRESHOLD.key, "16MB")
+        .set(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key, "12MB")
         .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
-        .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-        .set("spark.sql.parquet.compression.codec", "gzip")
+        .set(SQLConf.ADAPTIVE_AUTO_BROADCASTJOIN_THRESHOLD.key, "-1")
+        .set(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, "-1")
+        .set(SQLConf.PARQUET_COMPRESSION.key, "gzip")
         .set(s"spark.${CelebornConf.SHUFFLE_COMPRESSION_CODEC.key}", codec.name)
         .set(s"spark.${CelebornConf.SHUFFLE_RANGE_READ_FILTER_ENABLED.key}", "true")
 
