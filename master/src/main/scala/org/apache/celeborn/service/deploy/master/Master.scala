@@ -624,10 +624,12 @@ private[celeborn] class Master(
         else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
       numAvailableWorkers)
     val startIndex = Random.nextInt(availableWorkers.size())
-    availableWorkers =
-      availableWorkers.subList(startIndex, Math.min(numAvailableWorkers, startIndex + numWorkers))
+    val selectedWorkers = new util.ArrayList[WorkerInfo](numWorkers)
+    selectedWorkers.addAll(availableWorkers.subList(
+      startIndex,
+      Math.min(numAvailableWorkers, startIndex + numWorkers)))
     if (startIndex + numWorkers > numAvailableWorkers) {
-      availableWorkers.addAll(availableWorkers.subList(
+      selectedWorkers.addAll(availableWorkers.subList(
         0,
         startIndex + numWorkers - numAvailableWorkers))
     }
@@ -637,7 +639,7 @@ private[celeborn] class Master(
         statusSystem.workers.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !hasHDFSStorage) {
             SlotsAllocator.offerSlotsLoadAware(
-              availableWorkers,
+              selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
@@ -648,7 +650,7 @@ private[celeborn] class Master(
               loadAwareFetchTimeWeight)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
-              availableWorkers,
+              selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware)
