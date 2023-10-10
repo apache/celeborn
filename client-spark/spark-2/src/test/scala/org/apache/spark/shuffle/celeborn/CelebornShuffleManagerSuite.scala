@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.internal.SQLConf
 import org.junit
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
@@ -38,7 +39,7 @@ class SparkShuffleManagerSuite extends Logging {
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.shuffle.useOldFetchProtocol", "true")
-      .set("spark.sql.adaptive.enabled", "true")
+      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "true")
       .setAppName("test")
     val sc = new SparkContext(conf)
     // scalastyle:off println
@@ -58,7 +59,7 @@ class SparkShuffleManagerSuite extends Logging {
       .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.shuffle.useOldFetchProtocol", "true")
-      .set("spark.sql.adaptive.enabled", "false")
+      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "false")
       .setAppName("test")
     val sc = new SparkContext(conf)
     // scalastyle:off println
