@@ -137,12 +137,14 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
   }
 
   logExecutor.scheduleAtFixedRate(
-    () => {
-      if (currentSnapShot.get() != null) {
-        currentSnapShot.get().commit()
+    new Runnable {
+      override def run(): Unit = {
+        if (currentSnapShot.get() != null) {
+          currentSnapShot.get().commit()
+        }
+        currentSnapShot.set(getNewSnapShot())
+        logInfo(s"App Disk Usage Top$usageCount Report ${summary()}")
       }
-      currentSnapShot.set(getNewSnapShot())
-      logInfo(s"App Disk Usage Top$usageCount Report ${summary()}")
     },
     60,
     interval,
