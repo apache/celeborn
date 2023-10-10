@@ -84,7 +84,7 @@ public class SparkShuffleManager implements ShuffleManager {
       logger.warn(
           "Detected {} (default is true) is enabled, it's highly recommended to disable it when "
               + "use Celeborn as Remote Shuffle Service to avoid performance degradation.",
-              SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key());
+          SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key());
     }
     this.conf = conf;
     this.isDriver = isDriver;
