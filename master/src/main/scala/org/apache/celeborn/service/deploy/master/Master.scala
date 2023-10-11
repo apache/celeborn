@@ -20,11 +20,10 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.Random
 
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -164,7 +163,30 @@ private[celeborn] class Master(
   }
   masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
   masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
+  masterSource.addGauge(MasterSource.RUNNING_APPLICATION_COUNT) { () =>
+    statusSystem.appHeartbeatTime.size
+  }
   masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
+  masterSource.addGauge(MasterSource.PARTITION_WRITTEN) { () =>
+    statusSystem.workers.parallelStream()
+      .mapToLong(new ToLongFunction[WorkerInfo]() {
+        override def applyAsLong(value: WorkerInfo): Long =
+          value.userResourceConsumption.values().parallelStream()
+            .mapToLong(new ToLongFunction[ResourceConsumption]() {
+              override def applyAsLong(value: ResourceConsumption): Long = value.diskBytesWritten
+            }).sum()
+      }).sum()
+  }
+  masterSource.addGauge(MasterSource.PARTITION_FILE_COUNT) { () =>
+    statusSystem.workers.parallelStream()
+      .mapToLong(new ToLongFunction[WorkerInfo]() {
+        override def applyAsLong(value: WorkerInfo): Long =
+          value.userResourceConsumption.values().parallelStream()
+            .mapToLong(new ToLongFunction[ResourceConsumption]() {
+              override def applyAsLong(value: ResourceConsumption): Long = value.diskFileCount
+            }).sum()
+      }).sum()
+  }
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
   metricsSystem.registerSource(resourceConsumptionSource)
