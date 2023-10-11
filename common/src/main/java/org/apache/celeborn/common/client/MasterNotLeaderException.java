@@ -19,22 +19,29 @@ package org.apache.celeborn.common.client;
 
 import java.io.IOException;
 
+import javax.annotation.Nullable;
+
+import org.apache.commons.lang3.StringUtils;
+
 public class MasterNotLeaderException extends IOException {
 
-  private final String currentPeer;
+  private static final long serialVersionUID = -2552475565785098271L;
+
   private final String leaderPeer;
 
   public static final String LEADER_NOT_PRESENTED = "leader is not present";
 
-  public MasterNotLeaderException(String currentPeer, String suggestedLeaderPeer) {
+  public MasterNotLeaderException(
+      String currentPeer, String suggestedLeaderPeer, @Nullable Throwable cause) {
     super(
-        "Master:"
-            + currentPeer
-            + " is not the leader. Suggested leader is"
-            + " Master:"
-            + suggestedLeaderPeer
-            + ".");
-    this.currentPeer = currentPeer;
+        String.format(
+            "Master:%s is not the leader. Suggested leader is Master:%s.%s",
+            currentPeer,
+            suggestedLeaderPeer,
+            cause == null
+                ? StringUtils.EMPTY
+                : String.format(" Exception:%s.", cause.getMessage())),
+        cause);
     this.leaderPeer = suggestedLeaderPeer;
   }
 
