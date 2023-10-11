@@ -55,11 +55,14 @@ public class HAHelper {
           context.sendFailure(
               new MasterNotLeaderException(
                   ratisServer.getRpcEndpoint(),
-                  ratisServer.getCachedLeaderPeerRpcEndpoint().get()));
+                  ratisServer.getCachedLeaderPeerRpcEndpoint().get(),
+                  cause));
         } else {
           context.sendFailure(
               new MasterNotLeaderException(
-                  ratisServer.getRpcEndpoint(), MasterNotLeaderException.LEADER_NOT_PRESENTED));
+                  ratisServer.getRpcEndpoint(),
+                  MasterNotLeaderException.LEADER_NOT_PRESENTED,
+                  cause));
         }
       } else {
         context.sendFailure(new CelebornIOException(cause.getMessage(), cause));
