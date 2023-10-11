@@ -615,7 +615,7 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
-    var availableWorkers = workersAvailable()
+    val availableWorkers = workersAvailable()
     val numAvailableWorkers = availableWorkers.size()
     val numWorkers = Math.min(
       Math.max(
