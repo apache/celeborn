@@ -623,7 +623,7 @@ private[celeborn] class Master(
         if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers
         else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
       numAvailableWorkers)
-    val startIndex = Random.nextInt(availableWorkers.size())
+    val startIndex = Random.nextInt(numAvailableWorkers)
     val selectedWorkers = new util.ArrayList[WorkerInfo](numWorkers)
     selectedWorkers.addAll(availableWorkers.subList(
       startIndex,
