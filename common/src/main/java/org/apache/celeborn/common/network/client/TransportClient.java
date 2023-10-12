@@ -35,7 +35,6 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -132,8 +131,7 @@ public class TransportClient implements Closeable {
         new StdChannelListener(streamChunkSlice) {
           @Override
           protected void handleFailure(String errorMsg, Throwable cause) {
-            handler.removeFetchRequest(streamChunkSlice);
-            callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
+            handler.handleFetchFailure(streamChunkSlice, errorMsg, cause);
           }
         };
 
@@ -361,8 +359,7 @@ public class TransportClient implements Closeable {
 
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
-      handler.removeRpcRequest(rpcRequestId);
-      callback.onFailure(new IOException(errorMsg, cause));
+      handler.handleRpcFailure(rpcRequestId, errorMsg, cause);
     }
   }
 
@@ -393,8 +390,7 @@ public class TransportClient implements Closeable {
 
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
-      handler.removePushRequest(pushRequestId);
-      callback.onFailure(new CelebornIOException(errorMsg, cause));
+      handler.handlePushFailure(pushRequestId, errorMsg, cause);
     }
   }
 }
