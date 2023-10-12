@@ -77,7 +77,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     if (gauge.getValue.isInstanceOf[Number]) {
       namedGauges.add(NamedGauge(name, gauge, labels ++ staticLabels))
     } else {
-      logWarning(s"Add gauge $name failed, the value type ${gauge.getValue.getClass} is not a number")
+      logWarning(
+        s"Add gauge $name failed, the value type ${gauge.getValue.getClass} is not a number")
     }
   }
 
