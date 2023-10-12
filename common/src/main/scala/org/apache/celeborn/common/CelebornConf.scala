@@ -1787,7 +1787,7 @@ object CelebornConf extends Logging {
       .categories("ha")
       .version("0.3.2")
       .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("30s")
+      .createWithDefaultString("10s")
 
   val HA_MASTER_RATIS_CLIENT_RPC_WATCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.raft.client.rpc.watch.timeout")
@@ -1795,7 +1795,7 @@ object CelebornConf extends Logging {
       .categories("ha")
       .version("0.3.2")
       .timeConf(TimeUnit.SECONDS)
-      .createWithDefaultString("45s")
+      .createWithDefaultString("20s")
 
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.first.election.timeout.min")
