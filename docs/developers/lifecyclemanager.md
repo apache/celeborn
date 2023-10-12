@@ -107,7 +107,7 @@ memory, through GetReducerFileGroup request
 Upon receiving the request, `LifecycleManager` responds the cached mapping or indicates data lost.
 
 ## Heartbeat to Master
-`LifecycleManager` periodically sends heartbeat to `Master`, piggybacking the following infomation:
+`LifecycleManager` periodically sends heartbeat to `Master`, piggybacking the following information:
 
 - Bytes and files written by the application, used to calculate estimated partition size, see
   [Here](../../developers/master#maintain-active-shuffles)

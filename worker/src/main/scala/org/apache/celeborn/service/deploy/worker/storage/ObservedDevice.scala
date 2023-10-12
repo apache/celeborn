@@ -124,13 +124,13 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
       false
     } else {
       var statsSource: Source = null
-      var infligtSource: Source = null
+      var inflightSource: Source = null
 
       try {
         statsSource = Source.fromFile(statFile)
-        infligtSource = Source.fromFile(inFlightFile)
+        inflightSource = Source.fromFile(inFlightFile)
         val stats = statsSource.getLines().next().trim.split("[ \t]+", -1)
-        val inflight = infligtSource.getLines().next().trim.split("[ \t]+", -1)
+        val inflight = inflightSource.getLines().next().trim.split("[ \t]+", -1)
         val readComplete = stats(0).toLong
         val writeComplete = stats(4).toLong
         val readInflight = inflight(0).toLong
@@ -172,8 +172,8 @@ class ObservedDevice(val deviceInfo: DeviceInfo, conf: CelebornConf, workerSourc
         if (statsSource != null) {
           statsSource.close()
         }
-        if (infligtSource != null) {
-          infligtSource.close()
+        if (inflightSource != null) {
+          inflightSource.close()
         }
       }
     }
