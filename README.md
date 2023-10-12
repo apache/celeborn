@@ -41,8 +41,8 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1.Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4, Flink 1.14/1.15/1.17 and Hadoop MapReduce 2/3.
-2.Celeborn tested under Java 8 environment.
+1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4, Flink 1.14/1.15/1.17 and Hadoop MapReduce 2/3.
+2. Celeborn tested under Scala 2.11/2.12 and Java 8/11/17 environment.
 
 Build Celeborn
 ```shell
@@ -50,6 +50,20 @@ Build Celeborn
 ```
 
 package apache-celeborn-${project.version}-bin.tgz will be generated.
+
+> **_NOTE:_** The following table indicates the compatibility of Celeborn Spark and Flink clients with different versions of Spark and Flink for various Java and Scala versions.
+
+|                | Java 8/Scala 2.11 | Java 8/Scala 2.12 | Java 11/Scala 2.12 | Java 17/Scala 2.12 |
+|----------------|-------------------|-------------------|--------------------|--------------------|
+| Spark 2.4      | &#10004;          | &#x274C;          | &#x274C;           | &#x274C;           |
+| Spark 3.0      | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
+| Spark 3.1      | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
+| Spark 3.2      | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
+| Spark 3.3      | &#x274C;          | &#10004;          | &#10004;           | &#10004;           |
+| Spark 3.4      | &#x274C;          | &#10004;          | &#10004;           | &#10004;           |
+| Flink 1.14     | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
+| Flink 1.15     | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
+| Flink 1.17     | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           |
 
 ### Package Details
 Build procedure will create a compressed package.
