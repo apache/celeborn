@@ -173,14 +173,11 @@ class CelebornShuffleReader[K, C](
     }
 
     val iterWithUpdatedRecordsRead =
-      if (GlutenShuffleDependencyHelper.isGlutenDep(dep.getClass.getName)) {
-        GlutenShuffleDependencyHelper.withUpdatedRecordsRead(recordIter, metrics)
-      } else {
-        recordIter.map { record =>
-          metrics.incRecordsRead(1)
-          record
-        }
+      recordIter.map { record =>
+        metrics.incRecordsRead(1)
+        record
       }
+
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
       iterWithUpdatedRecordsRead,
       context.taskMetrics().mergeShuffleReadMetrics())
