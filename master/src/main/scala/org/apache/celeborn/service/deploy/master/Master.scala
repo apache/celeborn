@@ -906,7 +906,7 @@ private[celeborn] class Master(
 
   override def getApplicationList: String = {
     val sb = new StringBuilder
-    sb.append("================= LifecycleManager Hostname List ======================\n")
+    sb.append("================= LifecycleManager Application List ======================\n")
     statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
       sb.append(s"${appId.padTo(40, " ").mkString}${dateFmt.format(time)}\n")
     }
@@ -925,7 +925,7 @@ private[celeborn] class Master(
   override def listTopDiskUseApps: String = {
     val sb = new StringBuilder
     sb.append("================== Top Disk Usage Applications =======================\n")
-    sb.append(statusSystem.appDiskUsageMetric.summary)
+    sb.append(statusSystem.appDiskUsageMetric.summary())
     sb.toString()
   }
 
