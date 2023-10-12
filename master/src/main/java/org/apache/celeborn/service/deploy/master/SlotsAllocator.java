@@ -203,39 +203,39 @@ public class SlotsAllocator {
     Iterator<Integer> iter = partitionIdList.iterator();
     outer:
     while (iter.hasNext()) {
-      int nextPrimayInd = primaryIndex;
+      int nextPrimaryInd = primaryIndex;
 
       int partitionId = iter.next();
       StorageInfo storageInfo = new StorageInfo();
       if (restrictions != null) {
-        while (!haveUsableSlots(restrictions, workers, nextPrimayInd)) {
-          nextPrimayInd = (nextPrimayInd + 1) % workers.size();
-          if (nextPrimayInd == primaryIndex) {
+        while (!haveUsableSlots(restrictions, workers, nextPrimaryInd)) {
+          nextPrimaryInd = (nextPrimaryInd + 1) % workers.size();
+          if (nextPrimaryInd == primaryIndex) {
             break outer;
           }
         }
         storageInfo =
-            getStorageInfo(workers, nextPrimayInd, restrictions, workerDiskIndexForPrimary);
+            getStorageInfo(workers, nextPrimaryInd, restrictions, workerDiskIndexForPrimary);
       }
       PartitionLocation primaryPartition =
-          createLocation(partitionId, workers.get(nextPrimayInd), null, storageInfo, true);
+          createLocation(partitionId, workers.get(nextPrimaryInd), null, storageInfo, true);
 
       if (shouldReplicate) {
-        int nextReplicaInd = (nextPrimayInd + 1) % workers.size();
+        int nextReplicaInd = (nextPrimaryInd + 1) % workers.size();
         if (restrictions != null) {
           while (!haveUsableSlots(restrictions, workers, nextReplicaInd)
-              || !satisfyRackAware(shouldRackAware, workers, nextPrimayInd, nextReplicaInd)) {
+              || !satisfyRackAware(shouldRackAware, workers, nextPrimaryInd, nextReplicaInd)) {
             nextReplicaInd = (nextReplicaInd + 1) % workers.size();
-            if (nextReplicaInd == nextPrimayInd) {
+            if (nextReplicaInd == nextPrimaryInd) {
               break outer;
             }
           }
           storageInfo =
               getStorageInfo(workers, nextReplicaInd, restrictions, workerDiskIndexForReplica);
         } else if (shouldRackAware) {
-          while (!satisfyRackAware(true, workers, nextPrimayInd, nextReplicaInd)) {
+          while (!satisfyRackAware(true, workers, nextPrimaryInd, nextReplicaInd)) {
             nextReplicaInd = (nextReplicaInd + 1) % workers.size();
-            if (nextReplicaInd == nextPrimayInd) {
+            if (nextReplicaInd == nextPrimaryInd) {
               break outer;
             }
           }
@@ -253,9 +253,9 @@ public class SlotsAllocator {
 
       Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
           slots.computeIfAbsent(
-              workers.get(nextPrimayInd), v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+              workers.get(nextPrimaryInd), v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
       locations._1.add(primaryPartition);
-      primaryIndex = (nextPrimayInd + 1) % workers.size();
+      primaryIndex = (nextPrimaryInd + 1) % workers.size();
       iter.remove();
     }
     return partitionIdList;

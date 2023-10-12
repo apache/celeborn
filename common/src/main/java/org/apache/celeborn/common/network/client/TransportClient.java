@@ -299,7 +299,7 @@ public class TransportClient implements Closeable {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-        .add("remoteAdress", channel.remoteAddress())
+        .add("remoteAddress", channel.remoteAddress())
         .add("isActive", isActive())
         .toString();
   }

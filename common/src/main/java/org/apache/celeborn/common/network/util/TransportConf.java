@@ -150,7 +150,7 @@ public class TransportConf {
     return celebornConf.fetchDataTimeoutCheckInterval(module);
   }
 
-  public long clientHearbeatInterval() {
+  public long clientHeartbeatInterval() {
     return celebornConf.clientHeartbeatInterval(module);
   }
 }
