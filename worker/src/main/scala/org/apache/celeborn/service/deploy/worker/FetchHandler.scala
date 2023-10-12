@@ -37,7 +37,7 @@ import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
+import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
@@ -93,7 +93,7 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       case r: ReadAddCredit =>
         handleReadAddCredit(r.getCredit, r.getStreamId)
       case r: ChunkFetchRequest =>
-        handleChunkFetchRequest(client, r)
+        handleChunkFetchRequest(client, r.streamChunkSlice, r)
       case r: RpcRequest =>
         handleRpcRequest(client, r)
       case unknown: RequestMessage =>
@@ -125,9 +125,14 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
             isLegacy = false,
             openStream.getReadLocalShuffle)
         case bufferStreamEnd: PbBufferStreamEnd =>
-          handleEndStreamFromClient(bufferStreamEnd)
+          handleEndStreamFromClient(bufferStreamEnd.getStreamId, bufferStreamEnd.getStreamType)
         case readAddCredit: PbReadAddCredit =>
           handleReadAddCredit(readAddCredit.getCredit, readAddCredit.getStreamId)
+        case chunkFetchRequest: PbChunkFetchRequest =>
+          handleChunkFetchRequest(
+            client,
+            StreamChunkSlice.fromProto(chunkFetchRequest.getStreamChunkSlice),
+            rpcRequest)
         case message: GeneratedMessageV3 =>
           logError(s"Unknown message $message")
       }
@@ -318,18 +323,18 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
   }
 
   def handleEndStreamFromClient(streamId: Long): Unit = {
-    creditStreamManager.notifyStreamEndByClient(streamId)
+    handleEndStreamFromClient(streamId, StreamType.CreditStream)
   }
 
-  def handleEndStreamFromClient(req: PbBufferStreamEnd): Unit = {
-    req.getStreamType match {
+  def handleEndStreamFromClient(streamId: Long, streamType: StreamType): Unit = {
+    streamType match {
       case StreamType.ChunkStream =>
-        val (shuffleKey, fileName) = chunkStreamManager.getShuffleKeyAndFileName(req.getStreamId)
-        getRawFileInfo(shuffleKey, fileName).closeStream(req.getStreamId)
+        val (shuffleKey, fileName) = chunkStreamManager.getShuffleKeyAndFileName(streamId)
+        getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
       case StreamType.CreditStream =>
-        creditStreamManager.notifyStreamEndByClient(req.getStreamId)
+        creditStreamManager.notifyStreamEndByClient(streamId)
       case _ =>
-        logError(s"Received a PbBufferStreamEnd message with unknown type ${req.getStreamType}")
+        logError(s"Received a PbBufferStreamEnd message with unknown type $streamType")
     }
   }
 
@@ -337,9 +342,12 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     creditStreamManager.addCredit(credit, streamId)
   }
 
-  def handleChunkFetchRequest(client: TransportClient, req: ChunkFetchRequest): Unit = {
+  def handleChunkFetchRequest(
+      client: TransportClient,
+      streamChunkSlice: StreamChunkSlice,
+      req: RequestMessage): Unit = {
     logDebug(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
-      s" to fetch block ${req.streamChunkSlice}")
+      s" to fetch block $streamChunkSlice")
 
     maxChunkBeingTransferred.foreach { threshold =>
       val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred // take high cpu usage
@@ -348,35 +356,35 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
           s"$chunksBeingTransferred exceeds ${MAX_CHUNKS_BEING_TRANSFERRED.key} " +
           s"${Utils.bytesToString(threshold)}."
         logError(message)
-        client.getChannel.writeAndFlush(new ChunkFetchFailure(req.streamChunkSlice, message))
+        client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
         return
       }
     }
 
     workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
-    val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(req.streamChunkSlice.streamId)
+    val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(streamChunkSlice.streamId)
     val fetchBeginTime = System.nanoTime()
     try {
       val buf = chunkStreamManager.getChunk(
-        req.streamChunkSlice.streamId,
-        req.streamChunkSlice.chunkIndex,
-        req.streamChunkSlice.offset,
-        req.streamChunkSlice.len)
-      chunkStreamManager.chunkBeingSent(req.streamChunkSlice.streamId)
-      client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
+        streamChunkSlice.streamId,
+        streamChunkSlice.chunkIndex,
+        streamChunkSlice.offset,
+        streamChunkSlice.len)
+      chunkStreamManager.chunkBeingSent(streamChunkSlice.streamId)
+      client.getChannel.writeAndFlush(new ChunkFetchSuccess(streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
           override def operationComplete(future: Future[_ >: Void]): Unit = {
-            if (future.isSuccess()) {
+            if (future.isSuccess) {
               if (log.isDebugEnabled) {
                 logDebug(
-                  s"Sending ChunkFetchSuccess operation succeeded, chunk ${req.streamChunkSlice}")
+                  s"Sending ChunkFetchSuccess operation succeeded, chunk $streamChunkSlice")
               }
             } else {
               logError(
-                s"Sending ChunkFetchSuccess operation failed, chunk ${req.streamChunkSlice}",
+                s"Sending ChunkFetchSuccess operation failed, chunk $streamChunkSlice",
                 future.cause())
             }
-            chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
+            chunkStreamManager.chunkSent(streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
             }
@@ -386,11 +394,11 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     } catch {
       case e: Exception =>
         logError(
-          s"Error opening block ${req.streamChunkSlice} for request from " +
+          s"Error opening block $streamChunkSlice for request from " +
             NettyUtils.getRemoteAddress(client.getChannel),
           e)
         client.getChannel.writeAndFlush(new ChunkFetchFailure(
-          req.streamChunkSlice,
+          streamChunkSlice,
           Throwables.getStackTraceAsString(e)))
         workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
     }

@@ -31,12 +31,15 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbPushDataHandShake;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbRegionFinish;
 import org.apache.celeborn.common.protocol.PbRegionStart;
+import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.PbTransportableError;
 
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
@@ -81,6 +84,12 @@ public class TransportMessage implements Serializable {
         return (T) PbBufferStreamEnd.parseFrom(payload);
       case READ_ADD_CREDIT_VALUE:
         return (T) PbReadAddCredit.parseFrom(payload);
+      case STREAM_CHUNK_SLICE_VALUE:
+        return (T) PbStreamChunkSlice.parseFrom(payload);
+      case CHUNK_FETCH_REQUEST_VALUE:
+        return (T) PbChunkFetchRequest.parseFrom(payload);
+      case TRANSPORTABLE_ERROR_VALUE:
+        return (T) PbTransportableError.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }

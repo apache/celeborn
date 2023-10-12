@@ -47,19 +47,19 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
-import org.apache.celeborn.common.network.protocol.ChunkFetchRequest;
 import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.RpcResponse;
-import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
@@ -339,8 +339,21 @@ public class FetchHandlerSuiteJ {
     for (int chunkIndex = 0; chunkIndex < streamHandler.getNumChunks(); chunkIndex++) {
       fetchHandler.receive(
           client,
-          new ChunkFetchRequest(
-              new StreamChunkSlice(streamHandler.getStreamId(), chunkIndex, 0, Integer.MAX_VALUE)));
+          new RpcRequest(
+              TransportClient.requestId(),
+              new NioManagedBuffer(
+                  new TransportMessage(
+                          MessageType.CHUNK_FETCH_REQUEST,
+                          PbChunkFetchRequest.newBuilder()
+                              .setStreamChunkSlice(
+                                  PbStreamChunkSlice.newBuilder()
+                                      .setStreamId(streamHandler.getStreamId())
+                                      .setChunkIndex(chunkIndex)
+                                      .setOffset(0)
+                                      .setLen(Integer.MAX_VALUE))
+                              .build()
+                              .toByteArray())
+                      .toByteBuffer())));
       ChunkFetchSuccess chunkFetchSuccess = channel.readOutbound();
       chunkFetchSuccess.body().retain();
       // chunk size 8m

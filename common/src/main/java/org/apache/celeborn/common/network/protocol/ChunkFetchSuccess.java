@@ -22,9 +22,10 @@ import io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
+import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 
 /**
- * Response to {@link ChunkFetchRequest} when a chunk exists and has been successfully fetched.
+ * Response to {@link PbChunkFetchRequest} when a chunk exists and has been successfully fetched.
  *
  * <p>Note that the server-side encoding of this message does NOT include the buffer itself, as this
  * may be written by Netty in a more efficient manner (i.e., zero-copy write). Similarly, the

@@ -37,8 +37,15 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
-import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.network.protocol.OneWayMessage;
+import org.apache.celeborn.common.network.protocol.PushData;
+import org.apache.celeborn.common.network.protocol.PushMergedData;
+import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.write.PushRequestInfo;
 
@@ -142,7 +149,19 @@ public class TransportClient implements Closeable {
     handler.addFetchRequest(streamChunkSlice, info);
 
     ChannelFuture channelFuture =
-        channel.writeAndFlush(new ChunkFetchRequest(streamChunkSlice)).addListener(listener);
+        channel
+            .writeAndFlush(
+                new RpcRequest(
+                    TransportClient.requestId(),
+                    new NioManagedBuffer(
+                        new TransportMessage(
+                                MessageType.CHUNK_FETCH_REQUEST,
+                                PbChunkFetchRequest.newBuilder()
+                                    .setStreamChunkSlice(streamChunkSlice.toProto())
+                                    .build()
+                                    .toByteArray())
+                            .toByteBuffer())))
+            .addListener(listener);
     info.setChannelFuture(channelFuture);
   }
 

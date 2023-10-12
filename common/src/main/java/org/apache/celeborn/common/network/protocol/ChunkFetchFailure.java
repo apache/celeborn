@@ -20,7 +20,9 @@ package org.apache.celeborn.common.network.protocol;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
-/** Response to {@link ChunkFetchRequest} when there is an error fetching the chunk. */
+import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
+
+/** Response to {@link PbChunkFetchRequest} when there is an error fetching the chunk. */
 public final class ChunkFetchFailure extends ResponseMessage {
   public final StreamChunkSlice streamChunkSlice;
   public final String errorString;

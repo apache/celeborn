@@ -20,6 +20,8 @@ package org.apache.celeborn.common.network.protocol;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
+import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
+
 /** Encapsulates a request for a particular chunk of a stream. */
 public final class StreamChunkSlice implements Encodable {
   public final long streamId;
@@ -89,5 +91,18 @@ public final class StreamChunkSlice implements Encodable {
         .add("offset", offset)
         .add("len", len)
         .toString();
+  }
+
+  public PbStreamChunkSlice toProto() {
+    return PbStreamChunkSlice.newBuilder()
+        .setStreamId(streamId)
+        .setChunkIndex(chunkIndex)
+        .setOffset(offset)
+        .setLen(len)
+        .build();
+  }
+
+  public static StreamChunkSlice fromProto(PbStreamChunkSlice pb) {
+    return new StreamChunkSlice(pb.getStreamId(), pb.getChunkIndex(), pb.getOffset(), pb.getLen());
   }
 }

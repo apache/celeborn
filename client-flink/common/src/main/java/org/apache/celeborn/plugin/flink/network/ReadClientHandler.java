@@ -19,6 +19,7 @@ package org.apache.celeborn.plugin.flink.network;
 
 import static org.apache.celeborn.common.protocol.MessageType.BACKLOG_ANNOUNCEMENT_VALUE;
 import static org.apache.celeborn.common.protocol.MessageType.BUFFER_STREAM_END_VALUE;
+import static org.apache.celeborn.common.protocol.MessageType.TRANSPORTABLE_ERROR_VALUE;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -102,6 +103,9 @@ public class ReadClientHandler extends BaseMessageHandler {
               break;
             case BUFFER_STREAM_END_VALUE:
               receive(client, BufferStreamEnd.fromProto(transportMessage.getParsedPayload()));
+              break;
+            case TRANSPORTABLE_ERROR_VALUE:
+              receive(client, TransportableError.fromProto(transportMessage.getParsedPayload()));
               break;
           }
         } catch (IOException e) {
