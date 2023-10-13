@@ -153,6 +153,8 @@ public abstract class CelebornInputStream extends InputStream {
     private long fetchExcludedWorkerExpireTimeout;
     private final ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
+    private boolean containLocalRead = false;
+
     CelebornInputStreamImpl(
         CelebornConf conf,
         TransportClientFactory clientFactory,
@@ -402,44 +404,39 @@ public abstract class CelebornInputStream extends InputStream {
         throws IOException, InterruptedException {
       if (!location.hasPeer()) {
         logger.debug("Partition {} has only one partition replica.", location);
-      }
-      if (location.hasPeer() && attemptNumber % 2 == 1) {
+      } else if (attemptNumber % 2 == 1) {
         location = location.getPeer();
         logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
       }
-
       logger.debug("Create reader for location {}", location);
 
       StorageInfo storageInfo = location.getStorageInfo();
-      if (storageInfo.getType() == StorageInfo.Type.HDD
-          || storageInfo.getType() == StorageInfo.Type.SSD) {
-        logger.debug(
-            "Read local shuffle file enabled {} , {}, {}",
-            enabledReadLocalShuffle,
-            location.getWorker().host(),
-            localHostAddress);
-        if (enabledReadLocalShuffle && location.getWorker().host().equals(localHostAddress)) {
-          return new LocalPartitionReader(
+      switch (storageInfo.getType()) {
+        case HDD:
+        case SSD:
+          if (enabledReadLocalShuffle && location.getWorker().host().equals(localHostAddress)) {
+            logger.debug("Read local shuffle file {}", localHostAddress);
+            containLocalRead = true;
+            return new LocalPartitionReader(
+                conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
+          } else {
+            return new WorkerPartitionReader(
+                conf,
+                shuffleKey,
+                location,
+                clientFactory,
+                startMapIndex,
+                endMapIndex,
+                fetchChunkRetryCnt,
+                fetchChunkMaxRetry);
+          }
+        case HDFS:
+          return new DfsPartitionReader(
               conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
-        } else {
-          return new WorkerPartitionReader(
-              conf,
-              shuffleKey,
-              location,
-              clientFactory,
-              startMapIndex,
-              endMapIndex,
-              fetchChunkRetryCnt,
-              fetchChunkMaxRetry);
-        }
+        default:
+          throw new CelebornIOException(
+              String.format("Unknown storage info %s to read location %s", storageInfo, location));
       }
-      if (storageInfo.getType() == StorageInfo.Type.HDFS) {
-        return new DfsPartitionReader(
-            conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
-      }
-
-      throw new CelebornIOException(
-          "Unknown storage info " + storageInfo + " to read location " + location);
     }
 
     public void setCallback(MetricsCallback callback) {
@@ -513,8 +510,8 @@ public abstract class CelebornInputStream extends InputStream {
         currentReader.close();
         currentReader = null;
       }
-      if (enabledReadLocalShuffle) {
-        logger.info(ShuffleClient.getReadCounters());
+      if (containLocalRead) {
+        ShuffleClient.printReadStats(logger);
       }
     }
 
