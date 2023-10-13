@@ -54,9 +54,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private final TransportConf conf;
   private final Channel channel;
 
-  private final Map<StreamChunkSlice, FetchRequestInfo> outstandingFetches;
+  private final ConcurrentHashMap<StreamChunkSlice, FetchRequestInfo> outstandingFetches;
 
-  private final Map<Long, RpcResponseCallback> outstandingRpcs;
+  private final ConcurrentHashMap<Long, RpcResponseCallback> outstandingRpcs;
   private final ConcurrentHashMap<Long, PushRequestInfo> outstandingPushes;
 
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
@@ -132,7 +132,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     while (iter.hasNext()) {
       Map.Entry<Long, PushRequestInfo> entry = iter.next();
       if (entry.getValue().dueTime <= currentTime) {
-        PushRequestInfo info = outstandingPushes.remove(entry.getKey());
+        PushRequestInfo info = removePushRequest(entry.getKey());
         if (info != null) {
           if (info.channelFuture != null) {
             info.channelFuture.cancel(true);
@@ -158,7 +158,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     while (iter.hasNext()) {
       Map.Entry<StreamChunkSlice, FetchRequestInfo> entry = iter.next();
       if (entry.getValue().dueTime <= currentTime) {
-        FetchRequestInfo info = outstandingFetches.remove(entry.getKey());
+        FetchRequestInfo info = removeFetchRequest(entry.getKey());
         if (info != null) {
           if (info.channelFuture != null) {
             info.channelFuture.cancel(true);
@@ -186,8 +186,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     outstandingFetches.put(streamChunkSlice, info);
   }
 
-  public void removeFetchRequest(StreamChunkSlice streamChunkSlice) {
-    outstandingFetches.remove(streamChunkSlice);
+  public FetchRequestInfo removeFetchRequest(StreamChunkSlice streamChunkSlice) {
+    return outstandingFetches.remove(streamChunkSlice);
   }
 
   public void addRpcRequest(long requestId, RpcResponseCallback callback) {
@@ -198,8 +198,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     outstandingRpcs.put(requestId, callback);
   }
 
-  public void removeRpcRequest(long requestId) {
-    outstandingRpcs.remove(requestId);
+  public RpcResponseCallback removeRpcRequest(long requestId) {
+    return outstandingRpcs.remove(requestId);
   }
 
   public void addPushRequest(long requestId, PushRequestInfo info) {
@@ -210,8 +210,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     outstandingPushes.put(requestId, info);
   }
 
-  public void removePushRequest(long requestId) {
-    outstandingPushes.remove(requestId);
+  public PushRequestInfo removePushRequest(long requestId) {
+    return outstandingPushes.remove(requestId);
   }
 
   /**
@@ -219,32 +219,44 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
    * exception or pre-mature connection termination.
    */
   private void failOutstandingRequests(Throwable cause) {
-    for (Map.Entry<StreamChunkSlice, FetchRequestInfo> entry : outstandingFetches.entrySet()) {
+    Iterator<StreamChunkSlice> fetchRequestIter = outstandingFetches.keySet().iterator();
+    while (fetchRequestIter.hasNext()) {
       try {
-        entry.getValue().callback.onFailure(entry.getKey().chunkIndex, cause);
+        StreamChunkSlice slice = fetchRequestIter.next();
+        FetchRequestInfo info = removeFetchRequest(slice);
+        if (info != null) {
+          info.callback.onFailure(slice.chunkIndex, cause);
+        }
       } catch (Exception e) {
         logger.warn("ChunkReceivedCallback.onFailure throws exception", e);
       }
     }
-    for (Map.Entry<Long, RpcResponseCallback> entry : outstandingRpcs.entrySet()) {
+
+    Iterator<Long> rpcRequestIter = outstandingRpcs.keySet().iterator();
+    while (rpcRequestIter.hasNext()) {
       try {
-        entry.getValue().onFailure(cause);
-      } catch (Exception e) {
-        logger.warn("RpcResponseCallback.onFailure throws exception", e);
-      }
-    }
-    for (Map.Entry<Long, PushRequestInfo> entry : outstandingPushes.entrySet()) {
-      try {
-        entry.getValue().callback.onFailure(cause);
+        long requestId = rpcRequestIter.next();
+        RpcResponseCallback callback = removeRpcRequest(requestId);
+        if (callback != null) {
+          callback.onFailure(cause);
+        }
       } catch (Exception e) {
         logger.warn("RpcResponseCallback.onFailure throws exception", e);
       }
     }
 
-    // It's OK if new fetches appear, as they will fail immediately.
-    outstandingFetches.clear();
-    outstandingRpcs.clear();
-    outstandingPushes.clear();
+    Iterator<Long> pushRequestIter = outstandingPushes.keySet().iterator();
+    while (pushRequestIter.hasNext()) {
+      try {
+        long requestId = pushRequestIter.next();
+        PushRequestInfo info = removePushRequest(requestId);
+        if (info != null) {
+          info.callback.onFailure(cause);
+        }
+      } catch (Exception e) {
+        logger.warn("RpcResponseCallback.onFailure throws exception", e);
+      }
+    }
   }
 
   @Override
@@ -302,7 +314,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     if (message instanceof ChunkFetchSuccess) {
       ChunkFetchSuccess resp = (ChunkFetchSuccess) message;
       logger.debug("Chunk {} fetch succeeded", resp.streamChunkSlice);
-      FetchRequestInfo info = outstandingFetches.remove(resp.streamChunkSlice);
+      FetchRequestInfo info = removeFetchRequest(resp.streamChunkSlice);
       if (info == null) {
         logger.warn(
             "Ignoring response for block {} from {} since it is not outstanding",
@@ -320,7 +332,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       ChunkFetchFailure resp = (ChunkFetchFailure) message;
       logger.error(
           "chunk {} fetch failed, errorMessage {}", resp.streamChunkSlice, resp.errorString);
-      FetchRequestInfo info = outstandingFetches.remove(resp.streamChunkSlice);
+      FetchRequestInfo info = removeFetchRequest(resp.streamChunkSlice);
       if (info == null) {
         logger.warn(
             "Ignoring response for block {} from {} ({}) since it is not outstanding",
@@ -336,9 +348,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;
-      PushRequestInfo info = outstandingPushes.remove(resp.requestId);
+      PushRequestInfo info = removePushRequest(resp.requestId);
       if (info == null) {
-        RpcResponseCallback listener = outstandingRpcs.remove(resp.requestId);
+        RpcResponseCallback listener = removeRpcRequest(resp.requestId);
         if (listener == null) {
           logger.warn(
               "Ignoring response for RPC {} from {} ({} bytes) since it is not outstanding",
@@ -362,9 +374,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       }
     } else if (message instanceof RpcFailure) {
       RpcFailure resp = (RpcFailure) message;
-      PushRequestInfo info = outstandingPushes.remove(resp.requestId);
+      PushRequestInfo info = removePushRequest(resp.requestId);
       if (info == null) {
-        RpcResponseCallback listener = outstandingRpcs.remove(resp.requestId);
+        RpcResponseCallback listener = removeRpcRequest(resp.requestId);
         if (listener == null) {
           logger.warn(
               "Ignoring response for RPC {} from {} ({}) since it is not outstanding",
@@ -395,5 +407,52 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   /** Updates the time of the last request to the current system time. */
   public void updateTimeOfLastRequest() {
     timeOfLastRequestNs.set(System.nanoTime());
+  }
+
+  public void handleRpcFailure(long rpcRequestId, String errorMsg, Throwable cause) {
+    RpcResponseCallback callback = removeRpcRequest(rpcRequestId);
+    if (callback != null) {
+      callback.onFailure(new CelebornIOException(errorMsg, cause));
+    } else {
+      logger.warn(
+          "RpcResponseCallback {} not found/already addressed when listener handles rpc request failure",
+          rpcRequestId);
+    }
+  }
+
+  public void handlePushFailure(long pushRequestId, String errorMsg, Throwable cause) {
+    PushRequestInfo info = removePushRequest(pushRequestId);
+    if (info != null) {
+      RpcResponseCallback callback = info.callback;
+      if (callback != null) {
+        callback.onFailure(new CelebornIOException(errorMsg, cause));
+      } else {
+        logger.warn(
+            "PushRequestInfo {} callback is null when handle push request failure", pushRequestId);
+      }
+    } else {
+      logger.warn(
+          "PushRequestInfo {} not found/already addressed when listener handles push request failure",
+          pushRequestId);
+    }
+  }
+
+  public void handleFetchFailure(
+      StreamChunkSlice streamChunkSlice, String errorMsg, Throwable cause) {
+    FetchRequestInfo info = removeFetchRequest(streamChunkSlice);
+    if (info != null) {
+      ChunkReceivedCallback callback = info.callback;
+      if (callback != null) {
+        callback.onFailure(streamChunkSlice.chunkIndex, new IOException(errorMsg, cause));
+      } else {
+        logger.warn(
+            "FetchRequestInfo ({}) callback is null when listener handles fetch request failure",
+            streamChunkSlice);
+      }
+    } else {
+      logger.warn(
+          "FetchRequestInfo ({}) not found/already addressed when listener handles fetch request failure",
+          streamChunkSlice);
+    }
   }
 }
