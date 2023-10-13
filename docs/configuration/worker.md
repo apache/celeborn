@@ -34,7 +34,7 @@ license: |
 | celeborn.worker.congestionControl.low.watermark | &lt;undefined&gt; | Will stop congest users if the total pending bytes of disk buffer is lower than this configuration | 0.3.0 | 
 | celeborn.worker.congestionControl.sample.time.window | 10s | The worker holds a time sliding list to calculate users' produce/consume rate | 0.3.0 | 
 | celeborn.worker.congestionControl.user.inactive.interval | 10min | How long will consider this user is inactive if it doesn't send data | 0.3.0 | 
-| celeborn.worker.decommission.checkInterval | 30s | The wait interval of checking whether all the shuffle expired during worker decomission | 0.4.0 | 
+| celeborn.worker.decommission.checkInterval | 30s | The wait interval of checking whether all the shuffle expired during worker decommission | 0.4.0 | 
 | celeborn.worker.decommission.forceExitTimeout | 6h | The wait time of waiting for all the shuffle expire during worker decommission. | 0.4.0 | 
 | celeborn.worker.directMemoryRatioForMemoryShuffleStorage | 0.0 | Max ratio of direct memory to store shuffle data | 0.2.0 | 
 | celeborn.worker.directMemoryRatioForReadBuffer | 0.1 | Max ratio of direct memory for read buffer | 0.2.0 | 
@@ -51,7 +51,7 @@ license: |
 | celeborn.worker.flusher.hdfs.threads | 8 | Flusher's thread count used for write data to HDFS. | 0.2.0 | 
 | celeborn.worker.flusher.shutdownTimeout | 3s | Timeout for a flusher to shutdown. | 0.2.0 | 
 | celeborn.worker.flusher.ssd.threads | 16 | Flusher's thread count per disk used for write data to SSD disks. | 0.2.0 | 
-| celeborn.worker.flusher.threads | 16 | Flusher's thread count per disk for unkown-type disks. | 0.2.0 | 
+| celeborn.worker.flusher.threads | 16 | Flusher's thread count per disk for unknown-type disks. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | 1s | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout | 480s | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.enabled | false | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 | 

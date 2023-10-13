@@ -28,6 +28,7 @@ import scala.util.control.NonFatal
 import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
 
 import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.internal.Logging
 
 object ThreadUtils {
 
@@ -44,8 +45,23 @@ object ThreadUtils {
   /**
    * Create a thread factory that names threads with a prefix and also sets the threads to daemon.
    */
-  def namedThreadFactory(prefix: String): ThreadFactory = {
-    new ThreadFactoryBuilder().setDaemon(true).setNameFormat(prefix + "-%d").build()
+  def namedThreadFactory(threadNamePrefix: String): ThreadFactory = {
+    new ThreadFactoryBuilder()
+      .setDaemon(true)
+      .setNameFormat(s"$threadNamePrefix-%d")
+      .setUncaughtExceptionHandler(new ThreadExceptionHandler(threadNamePrefix))
+      .build()
+  }
+
+  /**
+   * Create a thread factory that names threads with thread name and also sets the threads to daemon.
+   */
+  def namedSingleThreadFactory(threadName: String): ThreadFactory = {
+    new ThreadFactoryBuilder()
+      .setDaemon(true)
+      .setNameFormat(threadName)
+      .setUncaughtExceptionHandler(new ThreadExceptionHandler(threadName))
+      .build()
   }
 
   /**
@@ -53,8 +69,7 @@ object ThreadUtils {
    * unique, sequentially assigned integer.
    */
   def newDaemonCachedThreadPool(prefix: String): ThreadPoolExecutor = {
-    val threadFactory = namedThreadFactory(prefix)
-    Executors.newCachedThreadPool(threadFactory).asInstanceOf[ThreadPoolExecutor]
+    Executors.newCachedThreadPool(namedThreadFactory(prefix)).asInstanceOf[ThreadPoolExecutor]
   }
 
   /**
@@ -65,14 +80,13 @@ object ThreadUtils {
       prefix: String,
       maxThreadNumber: Int,
       keepAliveSeconds: Int = 60): ThreadPoolExecutor = {
-    val threadFactory = namedThreadFactory(prefix)
     val threadPool = new ThreadPoolExecutor(
       maxThreadNumber, // corePoolSize: the max number of threads to create before queuing the tasks
       maxThreadNumber, // maximumPoolSize: because we use LinkedBlockingDeque, this one is not used
       keepAliveSeconds,
       TimeUnit.SECONDS,
       new LinkedBlockingQueue[Runnable],
-      threadFactory)
+      namedThreadFactory(prefix))
     threadPool.allowCoreThreadTimeOut(true)
     threadPool
   }
@@ -82,24 +96,22 @@ object ThreadUtils {
    * unique, sequentially assigned integer.
    */
   def newDaemonFixedThreadPool(nThreads: Int, prefix: String): ThreadPoolExecutor = {
-    val threadFactory = namedThreadFactory(prefix)
-    Executors.newFixedThreadPool(nThreads, threadFactory).asInstanceOf[ThreadPoolExecutor]
+    Executors.newFixedThreadPool(nThreads, namedThreadFactory(prefix))
+      .asInstanceOf[ThreadPoolExecutor]
   }
 
   /**
    * Wrapper over newSingleThreadExecutor.
    */
   def newDaemonSingleThreadExecutor(threadName: String): ExecutorService = {
-    val threadFactory = new ThreadFactoryBuilder().setDaemon(true).setNameFormat(threadName).build()
-    Executors.newSingleThreadExecutor(threadFactory)
+    Executors.newSingleThreadExecutor(namedSingleThreadFactory(threadName))
   }
 
   /**
    * Wrapper over ScheduledThreadPoolExecutor.
    */
   def newDaemonSingleThreadScheduledExecutor(threadName: String): ScheduledExecutorService = {
-    val threadFactory = new ThreadFactoryBuilder().setDaemon(true).setNameFormat(threadName).build()
-    val executor = new ScheduledThreadPoolExecutor(1, threadFactory)
+    val executor = new ScheduledThreadPoolExecutor(1, namedSingleThreadFactory(threadName))
     // By default, a cancelled task is not automatically removed from the work queue until its delay
     // elapses. We have to enable it manually.
     executor.setRemoveOnCancelPolicy(true)
@@ -112,11 +124,7 @@ object ThreadUtils {
   def newDaemonThreadPoolScheduledExecutor(
       threadNamePrefix: String,
       numThreads: Int): ScheduledExecutorService = {
-    val threadFactory = new ThreadFactoryBuilder()
-      .setDaemon(true)
-      .setNameFormat(s"$threadNamePrefix-%d")
-      .build()
-    val executor = new ScheduledThreadPoolExecutor(numThreads, threadFactory)
+    val executor = new ScheduledThreadPoolExecutor(numThreads, namedThreadFactory(threadNamePrefix))
     // By default, a cancelled task is not automatically removed from the work queue until its delay
     // elapses. We have to enable it manually.
     executor.setRemoveOnCancelPolicy(true)
@@ -298,4 +306,11 @@ object ThreadUtils {
       pool.shutdownNow()
     }
   }
+}
+
+class ThreadExceptionHandler(executorService: String)
+  extends Thread.UncaughtExceptionHandler with Logging {
+
+  override def uncaughtException(t: Thread, e: Throwable): Unit =
+    logError(s"Uncaught exception in executor service $executorService, thread $t", e)
 }

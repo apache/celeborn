@@ -18,9 +18,9 @@
 package org.apache.celeborn.service.deploy.master.network
 
 import java.io.{File, FileWriter}
+import java.nio.charset.StandardCharsets
 
 import com.google.common.io.Files
-import org.apache.commons.io.Charsets
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY}
 import org.apache.hadoop.net.{Node, TableMapping}
 import org.junit.Assert.assertEquals
@@ -63,7 +63,7 @@ class CelebornRackResolverSuite extends AnyFunSuite {
     val hostName5 = "1.2.3.8"
     val hostName6 = "1.2.3.9"
     val mapFile: File = File.createTempFile(getClass.getSimpleName + ".testResolve2", ".txt")
-    Files.asCharSink(mapFile, Charsets.UTF_8).write(
+    Files.asCharSink(mapFile, StandardCharsets.UTF_8).write(
       s"""
          |$hostName1 /default/rack1
          |$hostName2 /default/rack1

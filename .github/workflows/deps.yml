@@ -50,6 +50,7 @@ jobs:
           - 'flink-1.14'
           - 'flink-1.15'
           - 'flink-1.17'
+          - 'mr'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK 8
@@ -79,6 +80,7 @@ jobs:
           - 'flink-1.14'
           - 'flink-1.15'
           - 'flink-1.17'
+          - 'mr'
     steps:
     - uses: actions/checkout@v2
     - name: Setup JDK 8

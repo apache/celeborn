@@ -42,7 +42,7 @@ off-heap-memory = bufferSize * estimatedTasks * 2 + network memory
 For example, if a Celeborn worker has 10 storage directories or disks and the buffer size is set to 256 KiB.
 The necessary off-heap memory is 10 GiB.
 
-Network memory will be consumed when netty reads from a TPC channel, there will need some extra
+Network memory will be consumed when netty reads from a TCP channel, there will need some extra
 memory. Empirically, Celeborn worker off-heap memory should be set to `(numDirs  * bufferSize * 1.2)`.
 
 ## All Configurations

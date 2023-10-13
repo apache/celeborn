@@ -32,6 +32,7 @@ import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.METRICS_PROMETHEUS_PATH
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -58,7 +59,7 @@ private[celeborn] class Master(
   override def serviceName: String = Service.MASTER
 
   override val metricsSystem: MetricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, MetricsSystem.SERVLET_PATH)
+    MetricsSystem.createMetricsSystem(serviceName, conf, conf.get(METRICS_PROMETHEUS_PATH))
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,
@@ -903,7 +904,7 @@ private[celeborn] class Master(
 
   override def getApplicationList: String = {
     val sb = new StringBuilder
-    sb.append("================= LifecycleManager Hostname List ======================\n")
+    sb.append("================= LifecycleManager Application List ======================\n")
     statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
       sb.append(s"${appId.padTo(40, " ").mkString}${dateFmt.format(time)}\n")
     }
@@ -922,7 +923,7 @@ private[celeborn] class Master(
   override def listTopDiskUseApps: String = {
     val sb = new StringBuilder
     sb.append("================== Top Disk Usage Applications =======================\n")
-    sb.append(statusSystem.appDiskUsageMetric.summary)
+    sb.append(statusSystem.appDiskUsageMetric.summary())
     sb.toString()
   }
 

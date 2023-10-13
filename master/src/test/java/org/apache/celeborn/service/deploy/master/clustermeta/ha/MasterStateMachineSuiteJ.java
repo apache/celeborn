@@ -295,6 +295,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get().topNItems().length);
     Assert.assertEquals(
         originCurrentSnapshot, masterStatusSystem.appDiskUsageMetric.currentSnapShot().get());
-    Assert.assertEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
+    Assert.assertArrayEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
   }
 }

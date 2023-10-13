@@ -615,7 +615,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
   def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
   def haMasterRatisFirstElectionTimeoutMin: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN)
-  def haMasterRatisFristElectionTimeoutMax: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX)
+  def haMasterRatisFirstElectionTimeoutMax: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX)
   def haMasterRatisNotificationNoLeaderTimeout: Long =
     get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
   def haMasterRatisRpcSlownessTimeout: Long = get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
@@ -950,7 +950,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Flusher                        //
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
-  def workerHdfsFlusterBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
+  def workerHdfsFlusherBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
   def workerWriterCloseTimeoutMs: Long = get(WORKER_WRITER_CLOSE_TIMEOUT)
   def workerHddFlusherThreads: Int = get(WORKER_FLUSHER_HDD_THREADS)
   def workerSsdFlusherThreads: Int = get(WORKER_FLUSHER_SSD_THREADS)
@@ -2328,7 +2328,7 @@ object CelebornConf extends Logging {
   val WORKER_FLUSHER_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.threads")
       .categories("worker")
-      .doc("Flusher's thread count per disk for unkown-type disks.")
+      .doc("Flusher's thread count per disk for unknown-type disks.")
       .version("0.2.0")
       .intConf
       .createWithDefault(16)
@@ -2617,7 +2617,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.decommission.checkInterval")
       .categories("worker")
       .doc(
-        "The wait interval of checking whether all the shuffle expired during worker decomission")
+        "The wait interval of checking whether all the shuffle expired during worker decommission")
       .version("0.4.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
@@ -3666,6 +3666,15 @@ object CelebornConf extends Logging {
         "Help user can find worker pause spent time increase, when worker always been pause state.")
       .intConf
       .createWithDefault(10)
+
+  val METRICS_PROMETHEUS_PATH: ConfigEntry[String] =
+    buildConf("celeborn.metrics.prometheus.path")
+      .categories("metrics")
+      .doc("URI context path of prometheus metrics HTTP server.")
+      .version("0.4.0")
+      .stringConf
+      .checkValue(path => path.startsWith("/"), "Context path must start with '/'")
+      .createWithDefault("/metrics/prometheus")
 
   val QUOTA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.quota.enabled")

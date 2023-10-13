@@ -36,8 +36,10 @@ object Dependencies {
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
   
   // Dependent library versions
+  val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.13.0"
+  val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.12.0"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "14.0.1"
@@ -63,16 +65,23 @@ object Dependencies {
   val protocVersion = "3.19.2"
   val protoVersion = "3.19.2"
   
+  val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
     ExclusionRule("net.java.dev.jna", "jna"))
   val commonsIo = "commons-io" % "commons-io" % commonsIoVersion
   val commonsLang3 = "org.apache.commons" % "commons-lang3" % commonsLang3Version
+  val commonsLogging = "commons-logging" % "commons-logging" % commonsLoggingVersion
   val findbugsJsr305 = "com.google.code.findbugs" % "jsr305" % findbugsVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
-  val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll (
-    ExclusionRule("com.google.guava", "guava"))
+  val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(
+    ExclusionRule("com.google.guava", "guava"),
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
+    ExclusionRule("jline", "jline"),
+    ExclusionRule("log4j", "log4j"),
+    ExclusionRule("org.slf4j", "slf4j-log4j12"))
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
@@ -144,6 +153,8 @@ object CelebornCommonSettings {
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
 
     dependencyOverrides := Seq(
+      Dependencies.commonsCompress,
+      Dependencies.commonsLogging,
       Dependencies.findbugsJsr305,
       Dependencies.slf4jApi),
 
