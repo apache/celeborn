@@ -102,11 +102,16 @@ class DeviceMonitorSuite extends AnyFunSuite {
       |/dev/vdb   1932735283200     97710505984      1835024777216   6% /mnt/disk5
       |""".stripMargin
 
-  val dfBOut1DiskUsageInfo = DeviceMonitor.DiskUsageInfo(1395864371200L, 1293858897920L, 102005473280L, 7)
-  val dfBOut2DiskUsageInfo = DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
-  val dfBOut3DiskUsageInfo = DeviceMonitor.DiskUsageInfo(1395864371200L, 1293858897920L, 102005473280L, 7)
-  val dfBOut4DiskUsageInfo = DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
-  val dfBOut5DiskUsageInfo = DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
+  val dfBOut1DiskUsageInfo =
+    DeviceMonitor.DiskUsageInfo(1395864371200L, 1293858897920L, 102005473280L, 7)
+  val dfBOut2DiskUsageInfo =
+    DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
+  val dfBOut3DiskUsageInfo =
+    DeviceMonitor.DiskUsageInfo(1395864371200L, 1293858897920L, 102005473280L, 7)
+  val dfBOut4DiskUsageInfo =
+    DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
+  val dfBOut5DiskUsageInfo =
+    DeviceMonitor.DiskUsageInfo(1932735283200L, 1835024777216L, 97710505984L, 6)
 
   val dirs = new jArrayList[File]()
   val workingDir1 = ListBuffer[File](new File("/mnt/disk1/data1"))
@@ -173,8 +178,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
         when(Utils.runCommand(dfCmd)) thenReturn dfOut
         when(Utils.runCommand(lsCmd)) thenReturn lsOut
 
-        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk1"))).thenReturn(dfBOut1DiskUsageInfo)
-        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk2"))).thenReturn(dfBOut2DiskUsageInfo)
+        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk1"))).thenReturn(
+          dfBOut1DiskUsageInfo)
+        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk2"))).thenReturn(
+          dfBOut2DiskUsageInfo)
 
         deviceMonitor.init()
 
@@ -216,8 +223,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
         when(Utils.runCommand(dfCmd)) thenReturn dfOut
         when(Utils.runCommand(lsCmd)) thenReturn lsOut
 
-        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk1"))).thenReturn(dfBOut1DiskUsageInfo)
-        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk2"))).thenReturn(dfBOut2DiskUsageInfo)
+        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk1"))).thenReturn(
+          dfBOut1DiskUsageInfo)
+        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk2"))).thenReturn(
+          dfBOut2DiskUsageInfo)
 
         deviceMonitor.init()
 
@@ -370,8 +379,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
         when(Utils.runCommand(dfCmd)) thenReturn dfOut
         when(Utils.runCommand(lsCmd)) thenReturn lsOut
 
-        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk1"))).thenReturn(dfBOut1DiskUsageInfo)
-        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk2"))).thenReturn(dfBOut2DiskUsageInfo)
+        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk1"))).thenReturn(
+          dfBOut1DiskUsageInfo)
+        when(DeviceMonitor.getDiskUsageInfos(diskInfos.get("/mnt/disk2"))).thenReturn(
+          dfBOut2DiskUsageInfo)
 
         deviceMonitor.init()
 
@@ -400,11 +411,16 @@ class DeviceMonitorSuite extends AnyFunSuite {
   test("monitor device usage metrics") {
 
     withObjectMocked[org.apache.celeborn.service.deploy.worker.storage.DeviceMonitor.type] {
-      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk1"))).thenReturn(dfBOut1DiskUsageInfo)
-      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk2"))).thenReturn(dfBOut2DiskUsageInfo)
-      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk3"))).thenReturn(dfBOut3DiskUsageInfo)
-      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk4"))).thenReturn(dfBOut4DiskUsageInfo)
-      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk5"))).thenReturn(dfBOut5DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk1"))).thenReturn(
+        dfBOut1DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk2"))).thenReturn(
+        dfBOut2DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk3"))).thenReturn(
+        dfBOut3DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk4"))).thenReturn(
+        dfBOut4DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk5"))).thenReturn(
+        dfBOut5DiskUsageInfo)
 
       deviceMonitor2.init()
 
@@ -439,8 +455,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals("vdb", metrics4.last.labels("device"))
       assertEquals(1024L * 3, metrics4.last.gauge.getValue)
 
-      val dfBOut6DiskUsageInfo = DeviceMonitor.DiskUsageInfo(1395864371200L, 1264867868672L, 130996502528L, 9)
-      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk1"))).thenReturn(dfBOut6DiskUsageInfo)
+      val dfBOut6DiskUsageInfo =
+        DeviceMonitor.DiskUsageInfo(1395864371200L, 1264867868672L, 130996502528L, 9)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk1"))).thenReturn(
+        dfBOut6DiskUsageInfo)
       assertEquals(1264867868672L, metrics2.head.gauge.getValue)
     }
   }
