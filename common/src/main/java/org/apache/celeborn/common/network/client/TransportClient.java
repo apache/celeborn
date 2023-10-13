@@ -160,7 +160,7 @@ public class TransportClient implements Closeable {
     long requestId = requestId();
     handler.addRpcRequest(requestId, callback);
 
-    RpcChannelListener listener = new RpcChannelListener(requestId, callback);
+    RpcChannelListener listener = new RpcChannelListener(requestId);
     channel
         .writeAndFlush(new RpcRequest(requestId, new NioManagedBuffer(message)))
         .addListener(listener);
@@ -202,7 +202,7 @@ public class TransportClient implements Closeable {
     PushRequestInfo info = new PushRequestInfo(dueTime, callback);
     handler.addPushRequest(requestId, info);
     pushData.requestId = requestId;
-    PushChannelListener listener = new PushChannelListener(requestId, callback, rpcSendoutCallback);
+    PushChannelListener listener = new PushChannelListener(requestId, rpcSendoutCallback);
     ChannelFuture channelFuture = channel.writeAndFlush(pushData).addListener(listener);
     info.setChannelFuture(channelFuture);
     return channelFuture;
@@ -220,7 +220,7 @@ public class TransportClient implements Closeable {
     handler.addPushRequest(requestId, info);
     pushMergedData.requestId = requestId;
 
-    PushChannelListener listener = new PushChannelListener(requestId, callback);
+    PushChannelListener listener = new PushChannelListener(requestId);
     ChannelFuture channelFuture = channel.writeAndFlush(pushMergedData).addListener(listener);
     info.setChannelFuture(channelFuture);
     return channelFuture;
@@ -349,12 +349,10 @@ public class TransportClient implements Closeable {
 
   private class RpcChannelListener extends StdChannelListener {
     final long rpcRequestId;
-    final RpcResponseCallback callback;
 
-    RpcChannelListener(long rpcRequestId, RpcResponseCallback callback) {
+    RpcChannelListener(long rpcRequestId) {
       super("RPC " + rpcRequestId);
       this.rpcRequestId = rpcRequestId;
-      this.callback = callback;
     }
 
     @Override
@@ -365,18 +363,15 @@ public class TransportClient implements Closeable {
 
   private class PushChannelListener extends StdChannelListener {
     final long pushRequestId;
-    final RpcResponseCallback callback;
     Runnable rpcSendOutCallback;
 
-    PushChannelListener(long pushRequestId, RpcResponseCallback callback) {
-      this(pushRequestId, callback, null);
+    PushChannelListener(long pushRequestId) {
+      this(pushRequestId, null);
     }
 
-    PushChannelListener(
-        long pushRequestId, RpcResponseCallback callback, Runnable rpcSendOutCallback) {
+    PushChannelListener(long pushRequestId, Runnable rpcSendOutCallback) {
       super("PUSH " + pushRequestId);
       this.pushRequestId = pushRequestId;
-      this.callback = callback;
       this.rpcSendOutCallback = rpcSendOutCallback;
     }
 
