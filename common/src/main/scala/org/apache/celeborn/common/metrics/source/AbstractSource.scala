@@ -73,7 +73,13 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       name: String,
       labels: Map[String, String],
       gauge: Gauge[T]): Unit = {
-    namedGauges.add(NamedGauge(name, gauge, labels ++ staticLabels))
+    // filter out non-number type gauges
+    if (gauge.getValue.isInstanceOf[Number]) {
+      namedGauges.add(NamedGauge(name, gauge, labels ++ staticLabels))
+    } else {
+      logWarning(
+        s"Add gauge $name failed, the value type ${gauge.getValue.getClass} is not a number")
+    }
   }
 
   def addGauge[T](
