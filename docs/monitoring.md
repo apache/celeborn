@@ -269,17 +269,17 @@ an easy way to create new visualizations and monitoring tools for Celeborn and
 also easy for users to get the running status of the service. The REST API is available for
 both master and worker. The endpoints are mounted at `host:port`. For example,
 for the master, they would typically be accessible
-at `http://<master-prometheus-host>:<master-prometheus-port><path>`, and
-for the worker, at `http://<worker-prometheus-host>:<worker-prometheus-port><path>`.
+at `http://<master-http-host>:<master-http-port><path>`, and
+for the worker, at `http://<worker-http-host>:<worker-http-port><path>`.
 
-The configuration of `<master-prometheus-host>`, `<master-prometheus-port>`, `<worker-prometheus-host>`, `<worker-prometheus-port>` as below:
+The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-host>`, `<worker-http--port>` as below:
 
-| Key                                     | Default | Description                | Since |
-|-----------------------------------------|---------|----------------------------|-------|
-| celeborn.metrics.master.prometheus.host | 0.0.0.0 | Master's Prometheus host.  | 0.2.0 |
-| celeborn.metrics.master.prometheus.port | 9098    | Master's Prometheus port.  | 0.2.0 |
-| celeborn.metrics.worker.prometheus.host | 0.0.0.0 | Worker's Prometheus host.  | 0.2.0 |
-| celeborn.metrics.worker.prometheus.port | 9096    | Worker's Prometheus port.  | 0.2.0 |
+| Key                       | Default | Description         | Since |
+|---------------------------|---------|---------------------|-------|
+| celeborn.master.http.host | 0.0.0.0 | Master's http host. | 0.4.0 |
+| celeborn.master.http.port | 9098    | Master's http port. | 0.4.0 |
+| celeborn.worker.http.host | 0.0.0.0 | Worker's http host. | 0.4.0 |
+| celeborn.worker.http.port | 9096    | Worker's http port. | 0.4.0 |
 
 ### Available API providers
 
