@@ -35,7 +35,6 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -132,8 +131,7 @@ public class TransportClient implements Closeable {
         new StdChannelListener(streamChunkSlice) {
           @Override
           protected void handleFailure(String errorMsg, Throwable cause) {
-            handler.removeFetchRequest(streamChunkSlice);
-            callback.onFailure(chunkIndex, new IOException(errorMsg, cause));
+            handler.handleFetchFailure(streamChunkSlice, errorMsg, cause);
           }
         };
 
@@ -162,7 +160,7 @@ public class TransportClient implements Closeable {
     long requestId = requestId();
     handler.addRpcRequest(requestId, callback);
 
-    RpcChannelListener listener = new RpcChannelListener(requestId, callback);
+    RpcChannelListener listener = new RpcChannelListener(requestId);
     channel
         .writeAndFlush(new RpcRequest(requestId, new NioManagedBuffer(message)))
         .addListener(listener);
@@ -205,7 +203,7 @@ public class TransportClient implements Closeable {
     PushRequestInfo info = new PushRequestInfo(dueTime, callback);
     handler.addPushRequest(requestId, info);
     pushData.requestId = requestId;
-    PushChannelListener listener = new PushChannelListener(requestId, callback, rpcSendoutCallback);
+    PushChannelListener listener = new PushChannelListener(requestId, rpcSendoutCallback);
     ChannelFuture channelFuture = channel.writeAndFlush(pushData).addListener(listener);
     info.setChannelFuture(channelFuture);
     return channelFuture;
@@ -223,7 +221,7 @@ public class TransportClient implements Closeable {
     handler.addPushRequest(requestId, info);
     pushMergedData.requestId = requestId;
 
-    PushChannelListener listener = new PushChannelListener(requestId, callback);
+    PushChannelListener listener = new PushChannelListener(requestId);
     ChannelFuture channelFuture = channel.writeAndFlush(pushMergedData).addListener(listener);
     info.setChannelFuture(channelFuture);
     return channelFuture;
@@ -352,35 +350,29 @@ public class TransportClient implements Closeable {
 
   private class RpcChannelListener extends StdChannelListener {
     final long rpcRequestId;
-    final RpcResponseCallback callback;
 
-    RpcChannelListener(long rpcRequestId, RpcResponseCallback callback) {
+    RpcChannelListener(long rpcRequestId) {
       super("RPC " + rpcRequestId);
       this.rpcRequestId = rpcRequestId;
-      this.callback = callback;
     }
 
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
-      handler.removeRpcRequest(rpcRequestId);
-      callback.onFailure(new IOException(errorMsg, cause));
+      handler.handleRpcFailure(rpcRequestId, errorMsg, cause);
     }
   }
 
   private class PushChannelListener extends StdChannelListener {
     final long pushRequestId;
-    final RpcResponseCallback callback;
     Runnable rpcSendOutCallback;
 
-    PushChannelListener(long pushRequestId, RpcResponseCallback callback) {
-      this(pushRequestId, callback, null);
+    PushChannelListener(long pushRequestId) {
+      this(pushRequestId, null);
     }
 
-    PushChannelListener(
-        long pushRequestId, RpcResponseCallback callback, Runnable rpcSendOutCallback) {
+    PushChannelListener(long pushRequestId, Runnable rpcSendOutCallback) {
       super("PUSH " + pushRequestId);
       this.pushRequestId = pushRequestId;
-      this.callback = callback;
       this.rpcSendOutCallback = rpcSendOutCallback;
     }
 
@@ -394,8 +386,7 @@ public class TransportClient implements Closeable {
 
     @Override
     protected void handleFailure(String errorMsg, Throwable cause) {
-      handler.removePushRequest(pushRequestId);
-      callback.onFailure(new CelebornIOException(errorMsg, cause));
+      handler.handlePushFailure(pushRequestId, errorMsg, cause);
     }
   }
 }
