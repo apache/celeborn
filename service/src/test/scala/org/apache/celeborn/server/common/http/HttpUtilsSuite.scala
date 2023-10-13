@@ -20,6 +20,7 @@ package org.apache.celeborn.server.common.http
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.server.common.Service
 
 class HttpUtilsSuite extends AnyFunSuite with Logging {
 
@@ -27,7 +28,7 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
       uri: String,
       expectPath: String,
       expectParameters: Map[String, String]): Unit = {
-    val (path, parameters) = HttpUtils.parseUrl(uri)
+    val (path, parameters) = HttpUtils.parseUri(uri)
     assert(path == expectPath)
     assert(parameters == expectParameters)
   }
@@ -39,5 +40,38 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
       "/exit?type=decommission&foo=a",
       "/exit",
       Map("TYPE" -> "DECOMMISSION", "FOO" -> "A"))
+  }
+
+  test("CELEBORN-829: Improve response message of invalid HTTP request") {
+    assert(HttpUtils.help(Service.MASTER) ==
+      s"""Available API providers include:
+         |/applications        List all running application's ids of the cluster.
+         |/conf                List the conf setting of the master.
+         |/excludedWorkers     List all excluded workers of the master.
+         |/help                List the available API providers of the master.
+         |/hostnames           List all running application's LifecycleManager's hostnames of the cluster.
+         |/listTopDiskUsedApps List the top disk usage application ids. It will return the top disk usage application ids for the cluster.
+         |/lostWorkers         List all lost workers of the master.
+         |/masterGroupInfo     List master group information of the service. It will list all master's LEADER, FOLLOWER information.
+         |/shuffles            List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.
+         |/shutdownWorkers     List all shutdown workers of the master.
+         |/threadDump          List the current thread dump of the master.
+         |/workerInfo          List worker information of the service. It will list all registered workers 's information.
+         |""".stripMargin)
+    assert(HttpUtils.help(Service.WORKER) ==
+      s"""Available API providers include:
+         |/conf                      List the conf setting of the worker.
+         |/exit                      Trigger this worker to exit. Legal types are 'DECOMMISSION‘, 'GRACEFUL' and 'IMMEDIATELY'
+         |/help                      List the available API providers of the worker.
+         |/isRegistered              Show if the worker is registered to the master success.
+         |/isShutdown                Show if the worker is during the process of shutdown.
+         |/listPartitionLocationInfo List all the living PartitionLocation information in that worker.
+         |/listTopDiskUsedApps       List the top disk usage application ids. It only return application ids running in that worker.
+         |/listTopDiskUsedApps       List the top disk usage application ids. It only return application ids running in that worker.
+         |/shuffles                  List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker.
+         |/threadDump                List the current thread dump of the worker.
+         |/unavailablePeers          List the unavailable peers of the worker, this always means the worker connect to the peer failed.
+         |/workerInfo                List the worker information of the worker.
+         |""".stripMargin)
   }
 }

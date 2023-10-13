@@ -301,6 +301,7 @@ API path listed as below:
 | /applications         | List all running application's ids of the cluster.                                                                                  |
 | /shuffles             | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.                              |
 | /listTopDiskUsedApps  | List the top disk usage application ids. It will return the top disk usage application ids for the cluster.                         |
+| /help                 | List the available API providers of the master.                                                                                     |
 
 #### Worker
 
@@ -317,3 +318,4 @@ API path listed as below:
 | /isShutdown                | Show if the worker is during the process of shutdown.                                                                               |
 | /isRegistered              | Show if the worker is registered to the master success.                                                                             |
 | /exit?type=${TYPE}         | Trigger this worker to exit. Legal `type`s are 'DECOMMISSION‘, 'GRACEFUL' and 'IMMEDIATELY'                                         |
+| /help                      | List the available API providers of the worker.                                                                                     |
