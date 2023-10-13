@@ -107,12 +107,14 @@ public abstract class ShuffleClient {
     totalReadCounter.increment();
   }
 
-  public static String getReadCounters() {
+  public static void printReadStats(Logger logger) {
     long totalReadCount = totalReadCounter.longValue();
     long localReadCount = localShuffleReadCounter.longValue();
-    return String.format(
-        "Current client read %d(local)/%d(total) partitions, local ratio %.2f",
-        localReadCount, totalReadCount, (localReadCount * 1.0d / totalReadCount) * 100);
+    logger.info(
+        "Current client read {}/{} (local/total) partitions, local read ratio {}",
+        localReadCount,
+        totalReadCount,
+        String.format("%.2f", (localReadCount * 1.0d / totalReadCount) * 100));
   }
 
   public abstract void setupLifecycleManagerRef(String host, int port);
