@@ -236,9 +236,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     while (rpcRequestIter.hasNext()) {
       try {
         long requestId = rpcRequestIter.next();
-        RpcResponseCallback listener = removeRpcRequest(requestId);
-        if (listener != null) {
-          listener.onFailure(cause);
+        RpcResponseCallback callback = removeRpcRequest(requestId);
+        if (callback != null) {
+          callback.onFailure(cause);
         }
       } catch (Exception e) {
         logger.warn("RpcResponseCallback.onFailure throws exception", e);
