@@ -146,6 +146,39 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedGauges.asScala.toList
   }
 
+  /**
+   * Gets the named gauge of the metric given the metric name.
+   *
+   * Note: This method is exposed to test the value of the gauge for metric.
+   *
+   * @param name The metric name.
+   * @return The corresponding named gauge.
+   */
+  def getGauge(name: String): NamedGauge[_] = {
+    getGauge(name, Map.empty)
+  }
+
+  /**
+   * Gets the named gauge of the metric given the metric name and labels.
+   *
+   * Note: This method is exposed to test the value of the gauge for metric.
+   *
+   * @param name The metric name.
+   * @param labels The metric labels.
+   * @return The corresponding named gauge.
+   */
+  def getGauge(name: String, labels: Map[String, String] = Map.empty): NamedGauge[_] = {
+    val labelString = MetricLabels.labelString(labels ++ staticLabels)
+    val iter = namedGauges.iterator()
+    while (iter.hasNext) {
+      val namedGauge = iter.next()
+      if (namedGauge.name.equals(name) && namedGauge.labelString.equals(labelString)) {
+        return namedGauge
+      }
+    }
+    null
+  }
+
   protected def histograms(): List[NamedHistogram] = {
     List.empty[NamedHistogram]
   }

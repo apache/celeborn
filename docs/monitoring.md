@@ -189,6 +189,12 @@ These metrics are exposed by Celeborn worker.
     - PotentialConsumeSpeed
     - UserProduceSpeed
     - WorkerConsumeSpeed
+    - OutstandingFetchCount
+        - The count of outstanding fetch request.
+    - OutstandingRpcCount
+        - The count of outstanding rpc request.
+    - OutstandingPushCount
+        - The count of outstanding push request.
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 
