@@ -39,6 +39,9 @@ license: |
     | `celeborn.metrics.worker.prometheus.host` | `celeborn.worker.http.host` |
     | `celeborn.metrics.worker.prometheus.port` | `celeborn.worker.http.port` |
 
+- Since 0.4.0, Celeborn deprecate `celeborn.worker.storage.baseDir.prefix` and `celeborn.worker.storage.baseDir.number`.
+  Please use `celeborn.worker.storage.dirs` instead.
+
 ## Upgrading from 0.3.0 to 0.3.1
 
 - Since 0.3.1, Celeborn changed the default value of `celeborn.worker.directMemoryRatioToResume` from `0.5` to `0.7`.
