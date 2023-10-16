@@ -20,8 +20,28 @@ package org.apache.celeborn.server.common.http
 import java.net.URL
 import java.util.Locale
 
+import org.apache.celeborn.server.common.{HttpService, Service}
+
 object HttpUtils {
-  def parseUrl(uri: String): (String, Map[String, String]) = {
+
+  private val baseEndpoints: List[HttpEndpoint] =
+    List(Conf, WorkerInfo, ThreadDump, Shuffles, ListTopDiskUsedApps, Help)
+  private val masterEndpoints: List[HttpEndpoint] = List(
+    MasterGroupInfo,
+    LostWorkers,
+    ExcludedWorkers,
+    ShutdownWorkers,
+    Hostnames,
+    Applications) ++ baseEndpoints
+  private val workerEndpoints: List[HttpEndpoint] =
+    List(
+      ListPartitionLocationInfo,
+      UnavailablePeers,
+      IsShutdown,
+      IsRegistered,
+      Exit) ++ baseEndpoints
+
+  def parseUri(uri: String): (String, Map[String, String]) = {
     val url = new URL(s"https://127.0.0.1:9000$uri")
     val parameter =
       if (url.getQuery == null) {
@@ -33,5 +53,33 @@ object HttpUtils {
           .map(arr => arr(0).toUpperCase(Locale.ROOT) -> arr(1).toUpperCase(Locale.ROOT)).toMap
       }
     (url.getPath, parameter)
+  }
+
+  def handleRequest(
+      service: HttpService,
+      path: String,
+      parameters: Map[String, String]): String = {
+    endpoints(service.serviceName).find(endpoint => endpoint.path == path).orElse(
+      Some(Invalid)).get.handle(
+      service,
+      parameters)
+  }
+
+  def help(service: String): String = {
+    val sb = new StringBuilder
+    sb.append("Available API providers include:\n")
+    val httpEndpoints: List[HttpEndpoint] = endpoints(service)
+    val maxLength = httpEndpoints.map(_.path.length).max
+    httpEndpoints.sortBy(_.path).foreach(endpoint =>
+      sb.append(
+        s"${endpoint.path.padTo(maxLength, " ").mkString} ${endpoint.description(service)}\n"))
+    sb.toString
+  }
+
+  private def endpoints(service: String): List[HttpEndpoint] = {
+    if (service == Service.MASTER)
+      masterEndpoints
+    else
+      workerEndpoints
   }
 }
