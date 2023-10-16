@@ -1088,7 +1088,14 @@ object CelebornConf extends Logging {
    */
   private val deprecatedConfigs: Map[String, DeprecatedConfig] = {
     val configs = Seq(
-      DeprecatedConfig("none", "1.0", "None"))
+      DeprecatedConfig(
+        "celeborn.worker.storage.baseDir.prefix",
+        "0.4.0",
+        "Please use celeborn.worker.storage.dirs"),
+      DeprecatedConfig(
+        "celeborn.worker.storage.baseDir.number",
+        "0.4.0",
+        "Please use celeborn.worker.storage.dirs"))
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
