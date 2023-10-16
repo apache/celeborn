@@ -57,7 +57,6 @@ class SkewJoinSuite extends AnyFunSuite
         .set("spark.sql.adaptive.advisoryPartitionSizeInBytes", "12MB")
         .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
         .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
-        .set("spark.sql.adaptive.autoBroadcastJoinThreshold", "-1")
         .set(SQLConf.PARQUET_COMPRESSION.key, "gzip")
         .set(s"spark.${CelebornConf.SHUFFLE_COMPRESSION_CODEC.key}", codec.name)
         .set(s"spark.${CelebornConf.SHUFFLE_RANGE_READ_FILTER_ENABLED.key}", "true")
