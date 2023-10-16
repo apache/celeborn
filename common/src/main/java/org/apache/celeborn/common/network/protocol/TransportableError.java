@@ -74,6 +74,6 @@ public class TransportableError extends RequestMessage {
 
   public static TransportableError fromProto(PbTransportableError pb) {
     return new TransportableError(
-        pb.getStreamId(), pb.getErrorMessage().getBytes(StandardCharsets.UTF_8));
+        pb.getStreamId(), pb.getMessage().getBytes(StandardCharsets.UTF_8));
   }
 }

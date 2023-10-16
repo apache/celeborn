@@ -568,5 +568,5 @@ message PbChunkFetchRequest {
 
 message PbTransportableError {
   int64 streamId = 1;
-  string errorMessage = 2;
+  string message = 2;
 }
