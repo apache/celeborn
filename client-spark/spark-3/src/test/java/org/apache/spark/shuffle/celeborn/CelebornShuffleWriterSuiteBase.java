@@ -42,6 +42,7 @@ import org.apache.spark.Partitioner;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
+import org.apache.spark.SparkVersionUtil;
 import org.apache.spark.TaskContext;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.executor.TaskMetrics;
@@ -216,13 +217,14 @@ public abstract class CelebornShuffleWriterSuiteBase {
       throws Exception {
     final boolean useUnsafe = serializer instanceof UnsafeRowSerializer;
 
+    String PartitionIdPassthroughClazz;
+    if (SparkVersionUtil.isGreaterThan(3, 3)) {
+      PartitionIdPassthroughClazz = "org.apache.spark.PartitionIdPassthrough";
+    } else {
+      PartitionIdPassthroughClazz = "org.apache.spark.sql.execution.PartitionIdPassthrough";
+    }
     DynConstructors.Ctor<Partitioner> partitionIdPassthroughCtor =
-        DynConstructors.builder()
-            // for Spark 3.3 and previous
-            .impl("org.apache.spark.sql.execution.PartitionIdPassthrough", int.class)
-            // for Spark 3.4
-            .impl("org.apache.spark.PartitionIdPassthrough", int.class)
-            .build();
+        DynConstructors.builder().impl(PartitionIdPassthroughClazz, int.class).build();
     final Partitioner partitioner =
         useUnsafe
             ? partitionIdPassthroughCtor.newInstance(numPartitions)
