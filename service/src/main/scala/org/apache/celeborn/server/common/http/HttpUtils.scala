@@ -35,7 +35,6 @@ object HttpUtils {
     Applications) ++ baseEndpoints
   private val workerEndpoints: List[HttpEndpoint] =
     List(
-      ListTopDiskUsedApps,
       ListPartitionLocationInfo,
       UnavailablePeers,
       IsShutdown,
@@ -72,7 +71,8 @@ object HttpUtils {
     val httpEndpoints: List[HttpEndpoint] = endpoints(service)
     val maxLength = httpEndpoints.map(_.path.length).max
     httpEndpoints.sortBy(_.path).foreach(endpoint =>
-      sb.append(s"${endpoint.path.padTo(maxLength, " ").mkString} ${endpoint.meaning(service)}\n"))
+      sb.append(
+        s"${endpoint.path.padTo(maxLength, " ").mkString} ${endpoint.description(service)}\n"))
     sb.toString
   }
 

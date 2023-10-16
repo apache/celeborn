@@ -67,7 +67,6 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
          |/isShutdown                Show if the worker is during the process of shutdown.
          |/listPartitionLocationInfo List all the living PartitionLocation information in that worker.
          |/listTopDiskUsedApps       List the top disk usage application ids. It only return application ids running in that worker.
-         |/listTopDiskUsedApps       List the top disk usage application ids. It only return application ids running in that worker.
          |/shuffles                  List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker.
          |/threadDump                List the current thread dump of the worker.
          |/unavailablePeers          List the unavailable peers of the worker, this always means the worker connect to the peer failed.

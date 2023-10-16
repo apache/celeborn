@@ -52,7 +52,7 @@ class HttpRequestHandler(
         if (prometheusHttpRequestHandler != null) {
           prometheusHttpRequestHandler.handleRequest(uri)
         } else {
-          s"${Invalid.meaning(service.serviceName)} ${HttpUtils.help(service.serviceName)}"
+          s"${Invalid.description(service.serviceName)} ${HttpUtils.help(service.serviceName)}"
         }
       case _ => msg
     }

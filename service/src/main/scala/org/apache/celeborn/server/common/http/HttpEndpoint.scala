@@ -25,7 +25,7 @@ import org.apache.celeborn.server.common.{HttpService, Service}
 trait HttpEndpoint {
   def path: String
 
-  def meaning(service: String): String
+  def description(service: String): String
 
   def handle(service: HttpService, parameters: Map[String, String]): String
 }
@@ -33,7 +33,7 @@ trait HttpEndpoint {
 case object Conf extends HttpEndpoint {
   override def path: String = "/conf"
 
-  override def meaning(service: String): String = s"List the conf setting of the $service."
+  override def description(service: String): String = s"List the conf setting of the $service."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.getConf
@@ -42,7 +42,7 @@ case object Conf extends HttpEndpoint {
 case object WorkerInfo extends HttpEndpoint {
   override def path: String = "/workerInfo"
 
-  override def meaning(service: String): String = {
+  override def description(service: String): String = {
     if (service == Service.MASTER)
       "List worker information of the service. It will list all registered workers 's information."
     else "List the worker information of the worker."
@@ -55,7 +55,8 @@ case object WorkerInfo extends HttpEndpoint {
 case object ThreadDump extends HttpEndpoint {
   override def path: String = "/threadDump"
 
-  override def meaning(service: String): String = s"List the current thread dump of the $service."
+  override def description(service: String): String =
+    s"List the current thread dump of the $service."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.getThreadDump
@@ -64,7 +65,7 @@ case object ThreadDump extends HttpEndpoint {
 case object Shuffles extends HttpEndpoint {
   override def path: String = "/shuffles"
 
-  override def meaning(service: String): String = {
+  override def description(service: String): String = {
     if (service == Service.MASTER)
       "List all running shuffle keys of the service. It will return all running shuffle's key of the cluster."
     else
@@ -78,7 +79,7 @@ case object Shuffles extends HttpEndpoint {
 case object ListTopDiskUsedApps extends HttpEndpoint {
   override def path: String = "/listTopDiskUsedApps"
 
-  override def meaning(service: String): String = {
+  override def description(service: String): String = {
     if (service == Service.MASTER)
       "List the top disk usage application ids. It will return the top disk usage application ids for the cluster."
     else
@@ -92,7 +93,7 @@ case object ListTopDiskUsedApps extends HttpEndpoint {
 case object Help extends HttpEndpoint {
   override def path: String = "/help"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     s"List the available API providers of the $service."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
@@ -105,7 +106,7 @@ case object Invalid extends HttpEndpoint {
 
   override def path: String = None.toString
 
-  override def meaning(service: String): String = s"Invalid uri of the $service."
+  override def description(service: String): String = s"Invalid uri of the $service."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String = invalid
 }
@@ -113,7 +114,7 @@ case object Invalid extends HttpEndpoint {
 case object MasterGroupInfo extends HttpEndpoint {
   override def path: String = "/masterGroupInfo"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     "List master group information of the service. It will list all master's LEADER, FOLLOWER information."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
@@ -123,7 +124,7 @@ case object MasterGroupInfo extends HttpEndpoint {
 case object LostWorkers extends HttpEndpoint {
   override def path: String = "/lostWorkers"
 
-  override def meaning(service: String): String = "List all lost workers of the master."
+  override def description(service: String): String = "List all lost workers of the master."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.getLostWorkers
@@ -132,7 +133,7 @@ case object LostWorkers extends HttpEndpoint {
 case object ExcludedWorkers extends HttpEndpoint {
   override def path: String = "/excludedWorkers"
 
-  override def meaning(service: String): String = "List all excluded workers of the master."
+  override def description(service: String): String = "List all excluded workers of the master."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.getExcludedWorkers
@@ -141,7 +142,7 @@ case object ExcludedWorkers extends HttpEndpoint {
 case object ShutdownWorkers extends HttpEndpoint {
   override def path: String = "/shutdownWorkers"
 
-  override def meaning(service: String): String = "List all shutdown workers of the master."
+  override def description(service: String): String = "List all shutdown workers of the master."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.getShutdownWorkers
@@ -150,7 +151,7 @@ case object ShutdownWorkers extends HttpEndpoint {
 case object Hostnames extends HttpEndpoint {
   override def path: String = "/hostnames"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     "List all running application's LifecycleManager's hostnames of the cluster."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
@@ -160,7 +161,7 @@ case object Hostnames extends HttpEndpoint {
 case object Applications extends HttpEndpoint {
   override def path: String = "/applications"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     "List all running application's ids of the cluster."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
@@ -170,7 +171,7 @@ case object Applications extends HttpEndpoint {
 case object ListPartitionLocationInfo extends HttpEndpoint {
   override def path: String = "/listPartitionLocationInfo"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     "List all the living PartitionLocation information in that worker."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
@@ -180,7 +181,7 @@ case object ListPartitionLocationInfo extends HttpEndpoint {
 case object UnavailablePeers extends HttpEndpoint {
   override def path: String = "/unavailablePeers"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     "List the unavailable peers of the worker, this always means the worker connect to the peer failed."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
@@ -190,7 +191,7 @@ case object UnavailablePeers extends HttpEndpoint {
 case object IsShutdown extends HttpEndpoint {
   override def path: String = "/isShutdown"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     "Show if the worker is during the process of shutdown."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
@@ -200,7 +201,7 @@ case object IsShutdown extends HttpEndpoint {
 case object IsRegistered extends HttpEndpoint {
   override def path: String = "/isRegistered"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     "Show if the worker is registered to the master success."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
@@ -210,7 +211,7 @@ case object IsRegistered extends HttpEndpoint {
 case object Exit extends HttpEndpoint {
   override def path: String = "/exit"
 
-  override def meaning(service: String): String =
+  override def description(service: String): String =
     "Trigger this worker to exit. Legal types are 'DECOMMISSION‘, 'GRACEFUL' and 'IMMEDIATELY'"
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
