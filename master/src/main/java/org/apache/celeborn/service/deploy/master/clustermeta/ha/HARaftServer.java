@@ -321,7 +321,7 @@ public class HARaftServer {
     TimeDuration firstElectionTimeoutMin =
         TimeDuration.valueOf(conf.haMasterRatisFirstElectionTimeoutMin(), TimeUnit.SECONDS);
     TimeDuration firstElectionTimeoutMax =
-        TimeDuration.valueOf(conf.haMasterRatisFristElectionTimeoutMax(), TimeUnit.SECONDS);
+        TimeDuration.valueOf(conf.haMasterRatisFirstElectionTimeoutMax(), TimeUnit.SECONDS);
     RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMin(properties, firstElectionTimeoutMin);
     RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMax(properties, firstElectionTimeoutMax);
 

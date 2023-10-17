@@ -34,7 +34,7 @@ license: |
 | celeborn.worker.congestionControl.low.watermark | &lt;undefined&gt; | Will stop congest users if the total pending bytes of disk buffer is lower than this configuration | 0.3.0 | 
 | celeborn.worker.congestionControl.sample.time.window | 10s | The worker holds a time sliding list to calculate users' produce/consume rate | 0.3.0 | 
 | celeborn.worker.congestionControl.user.inactive.interval | 10min | How long will consider this user is inactive if it doesn't send data | 0.3.0 | 
-| celeborn.worker.decommission.checkInterval | 30s | The wait interval of checking whether all the shuffle expired during worker decomission | 0.4.0 | 
+| celeborn.worker.decommission.checkInterval | 30s | The wait interval of checking whether all the shuffle expired during worker decommission | 0.4.0 | 
 | celeborn.worker.decommission.forceExitTimeout | 6h | The wait time of waiting for all the shuffle expire during worker decommission. | 0.4.0 | 
 | celeborn.worker.directMemoryRatioForMemoryShuffleStorage | 0.0 | Max ratio of direct memory to store shuffle data | 0.2.0 | 
 | celeborn.worker.directMemoryRatioForReadBuffer | 0.1 | Max ratio of direct memory for read buffer | 0.2.0 | 
@@ -51,7 +51,7 @@ license: |
 | celeborn.worker.flusher.hdfs.threads | 8 | Flusher's thread count used for write data to HDFS. | 0.2.0 | 
 | celeborn.worker.flusher.shutdownTimeout | 3s | Timeout for a flusher to shutdown. | 0.2.0 | 
 | celeborn.worker.flusher.ssd.threads | 16 | Flusher's thread count per disk used for write data to SSD disks. | 0.2.0 | 
-| celeborn.worker.flusher.threads | 16 | Flusher's thread count per disk for unkown-type disks. | 0.2.0 | 
+| celeborn.worker.flusher.threads | 16 | Flusher's thread count per disk for unknown-type disks. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | 1s | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout | 480s | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. | 0.2.0 | 
 | celeborn.worker.graceful.shutdown.enabled | false | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 | 
@@ -61,6 +61,8 @@ license: |
 | celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval | 5s | Interval for a Celeborn worker to flush committed file infos into Level DB. | 0.3.1 | 
 | celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync | false | Whether to call sync method to save committed file infos into Level DB to handle OS crash. | 0.3.1 | 
 | celeborn.worker.graceful.shutdown.timeout | 600s | The worker's graceful shutdown timeout time. | 0.2.0 | 
+| celeborn.worker.http.host | &lt;localhost&gt; | Worker's http host. | 0.4.0 | 
+| celeborn.worker.http.port | 9096 | Worker's http port. | 0.4.0 | 
 | celeborn.worker.monitor.disk.check.interval | 30s | Intervals between device monitor to check disk. | 0.3.0 | 
 | celeborn.worker.monitor.disk.check.timeout | 30s | Timeout time for worker check device status. | 0.3.0 | 
 | celeborn.worker.monitor.disk.checklist | readwrite,diskusage | Monitor type for disk, available items are: iohang, readwrite and diskusage. | 0.2.0 | 

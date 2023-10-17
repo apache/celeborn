@@ -26,6 +26,8 @@ license: |
 | celeborn.master.heartbeat.application.timeout | 300s | Application heartbeat timeout. | 0.3.0 | 
 | celeborn.master.heartbeat.worker.timeout | 120s | Worker heartbeat timeout. | 0.3.0 | 
 | celeborn.master.host | &lt;localhost&gt; | Hostname for master to bind. | 0.2.0 | 
+| celeborn.master.http.host | &lt;localhost&gt; | Master's http host. | 0.4.0 | 
+| celeborn.master.http.port | 9098 | Master's http port. | 0.4.0 | 
 | celeborn.master.port | 9097 | Port for master to bind. | 0.2.0 | 
 | celeborn.master.slot.assign.extraSlots | 2 | Extra slots number when master assign slots. | 0.3.0 | 
 | celeborn.master.slot.assign.loadAware.diskGroupGradient | 0.1 | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.3.0 | 

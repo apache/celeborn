@@ -25,15 +25,19 @@ import io.netty.util.CharsetUtil
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.sink.PrometheusHttpRequestHandler
-import org.apache.celeborn.server.common.{HttpService, Service}
+import org.apache.celeborn.server.common.HttpService
 
+/**
+ * A handler for the REST API that defines how to handle the HTTP request given a message.
+ *
+ * @param service The service of HTTP server.
+ * @param uri The uri of HTTP request.
+ */
 @Sharable
 class HttpRequestHandler(
     service: HttpService,
     prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
   extends SimpleChannelInboundHandler[FullHttpRequest] with Logging {
-
-  private val INVALID = "invalid"
 
   override def channelReadComplete(ctx: ChannelHandlerContext): Unit = {
     ctx.flush()
@@ -41,13 +45,14 @@ class HttpRequestHandler(
 
   override def channelRead0(ctx: ChannelHandlerContext, req: FullHttpRequest): Unit = {
     val uri = req.uri()
-    val msg = handleRequest(uri)
+    val (path, parameters) = HttpUtils.parseUri(uri)
+    val msg = HttpUtils.handleRequest(service, path, parameters)
     val response = msg match {
-      case INVALID =>
+      case Invalid.invalid =>
         if (prometheusHttpRequestHandler != null) {
           prometheusHttpRequestHandler.handleRequest(uri)
         } else {
-          s"invalid uri ${uri}"
+          s"${Invalid.description(service.serviceName)} ${HttpUtils.help(service.serviceName)}"
         }
       case _ => msg
     }
@@ -56,46 +61,7 @@ class HttpRequestHandler(
       HttpVersion.HTTP_1_1,
       HttpResponseStatus.OK,
       Unpooled.copiedBuffer(response, CharsetUtil.UTF_8))
-    res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html; charset=UTF-8");
-    ctx.writeAndFlush(res).addListener(ChannelFutureListener.CLOSE);
-  }
-
-  def handleRequest(uri: String): String = {
-    val (path, parameters) = HttpUtils.parseUrl(uri)
-    path match {
-      case "/conf" =>
-        service.getConf
-      case "/masterGroupInfo" if service.serviceName == Service.MASTER =>
-        service.getMasterGroupInfo
-      case "/workerInfo" =>
-        service.getWorkerInfo
-      case "/lostWorkers" if service.serviceName == Service.MASTER =>
-        service.getLostWorkers
-      case "/excludedWorkers" if service.serviceName == Service.MASTER =>
-        service.getExcludedWorkers
-      case "/shutdownWorkers" if service.serviceName == Service.MASTER =>
-        service.getShutdownWorkers
-      case "/threadDump" =>
-        service.getThreadDump
-      case "/hostnames" if service.serviceName == Service.MASTER =>
-        service.getHostnameList
-      case "/applications" if service.serviceName == Service.MASTER =>
-        service.getApplicationList
-      case "/shuffles" =>
-        service.getShuffleList
-      case "/listTopDiskUsedApps" =>
-        service.listTopDiskUseApps
-      case "/listPartitionLocationInfo" if service.serviceName == Service.WORKER =>
-        service.listPartitionLocationInfo
-      case "/unavailablePeers" if service.serviceName == Service.WORKER =>
-        service.getUnavailablePeers
-      case "/isShutdown" if service.serviceName == Service.WORKER =>
-        service.isShutdown
-      case "/isRegistered" if service.serviceName == Service.WORKER =>
-        service.isRegistered
-      case "/exit" if service.serviceName == Service.WORKER =>
-        service.exit(parameters.getOrElse("TYPE", ""))
-      case _ => INVALID
-    }
+    res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html; charset=UTF-8")
+    ctx.writeAndFlush(res).addListener(ChannelFutureListener.CLOSE)
   }
 }
