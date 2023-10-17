@@ -2087,10 +2087,10 @@ object CelebornConf extends Logging {
   val WORKER_STORAGE_EXPIRE_DIR_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.storage.expireDirs.timeout")
       .categories("worker")
-      .version("0.3.1")
+      .version("0.3.2")
       .doc(s"The timeout for a expire dirs to be deleted on disk.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("6h")
+      .createWithDefaultString("1h")
 
   val HDFS_DIR: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.hdfs.dir")
