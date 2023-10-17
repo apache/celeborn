@@ -18,7 +18,7 @@ license: |
 
 <!--begin-include-->
 | Key | Default | Description | Since |
-| --- | ------- | ----------- |-------|
+| --- | ------- | ----------- | ----- |
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.master.estimatedPartitionSize.minSize | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.3.0 | 
 | celeborn.shuffle.chunk.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 | 
@@ -103,7 +103,7 @@ license: |
 | celeborn.worker.storage.dirs | &lt;undefined&gt; | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: `dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]` | 0.2.0 | 
 | celeborn.worker.storage.disk.reserve.size | 5G | Celeborn worker reserved space for each disk. | 0.3.0 | 
 | celeborn.worker.storage.workingDir | celeborn-worker/shuffle_data | Worker's working dir path name. | 0.3.0 | 
-| celeborn.worker.storage.expireDirs.timeout | 6h | The timeout for a expire dirs to be deleted on disk. | 0.3.2 |
+| celeborn.worker.storage.expireDirs.timeout | 6h | The timeout for a expire dirs to be deleted on disk. | 0.3.1 |
 | celeborn.worker.writer.close.timeout | 120s | Timeout for a file writer to close | 0.2.0 | 
 | celeborn.worker.writer.create.maxAttempts | 3 | Retry count for a file writer to create if its creation was failed. | 0.2.0 | 
 <!--end-include-->
