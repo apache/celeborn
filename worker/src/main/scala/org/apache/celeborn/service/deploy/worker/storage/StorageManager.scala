@@ -55,6 +55,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val hasHDFSStorage = conf.hasHDFSStorage
 
+  val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
+
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
@@ -227,7 +229,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       saveCommittedFileInfoInterval,
       TimeUnit.MILLISECONDS)
   }
-  cleanupExpiredAppDirs()
+  cleanupExpiredAppDirs(System.currentTimeMillis() - storageExpireDirTimeout)
   if (!checkIfWorkingDirCleaned) {
     logWarning(
       "Worker still has residual files in the working directory before registering with Master, " +
@@ -588,7 +590,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       override def run(): Unit = {
         try {
           // Clean up dirs which it's application is expired.
-          cleanupExpiredAppDirs()
+          cleanupExpiredAppDirs(System.currentTimeMillis() - storageExpireDirTimeout)
         } catch {
           case exception: Exception =>
             logWarning(s"Cleanup expired shuffle data exception: ${exception.getMessage}")
@@ -599,7 +601,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     30,
     TimeUnit.MINUTES)
 
-  private def cleanupExpiredAppDirs(): Unit = {
+  private def cleanupExpiredAppDirs(expireDuration: Long): Unit = {
     val diskInfoAndAppDirs = disksSnapshot()
       .filter(_.status != DiskStatus.IO_HANG)
       .map { case diskInfo =>
@@ -610,7 +612,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     diskInfoAndAppDirs.foreach { case (diskInfo, appDirs) =>
       appDirs.foreach { appDir =>
         // Don't delete shuffleKey's data that exist correct shuffle file info.
-        if (!appIds.contains(appDir.getName)) {
+        if (!appIds.contains(appDir.getName) && appDir.lastModified() < expireDuration) {
           val threadPool = diskOperators.get(diskInfo.mountPoint)
           deleteDirectory(appDir, threadPool)
           logInfo(s"Delete expired app dir $appDir.")
