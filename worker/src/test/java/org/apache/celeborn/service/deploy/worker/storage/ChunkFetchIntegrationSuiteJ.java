@@ -21,6 +21,7 @@ import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
 import static org.junit.Assert.*;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -41,13 +42,14 @@ import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.protocol.ChunkFetchRequest;
 import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 
 public class ChunkFetchIntegrationSuiteJ {
   static final long STREAM_ID = 1;
@@ -106,7 +108,15 @@ public class ChunkFetchIntegrationSuiteJ {
         new BaseMessageHandler() {
           @Override
           public void receive(TransportClient client, RequestMessage msg) {
-            StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
+            PbChunkFetchRequest chunkFetchRequest;
+            try {
+              chunkFetchRequest =
+                  TransportMessage.fromByteBuffer(msg.body().nioByteBuffer()).getParsedPayload();
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+            StreamChunkSlice slice =
+                StreamChunkSlice.fromProto(chunkFetchRequest.getStreamChunkSlice());
             ManagedBuffer buf =
                 chunkStreamManager.getChunk(
                     slice.streamId, slice.chunkIndex, slice.offset, slice.len);

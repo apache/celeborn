@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 
 import io.netty.buffer.ByteBuf;
 
+import org.apache.celeborn.common.protocol.PbTransportableError;
 import org.apache.celeborn.common.util.ExceptionUtils;
 
 public class TransportableError extends RequestMessage {
@@ -69,5 +70,10 @@ public class TransportableError extends RequestMessage {
 
   public String getErrorMessage() {
     return new String(errorMessage, StandardCharsets.UTF_8);
+  }
+
+  public static TransportableError fromProto(PbTransportableError pb) {
+    return new TransportableError(
+        pb.getStreamId(), pb.getMessage().getBytes(StandardCharsets.UTF_8));
   }
 }

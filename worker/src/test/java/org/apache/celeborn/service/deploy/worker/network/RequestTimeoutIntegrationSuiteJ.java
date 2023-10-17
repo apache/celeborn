@@ -39,10 +39,16 @@ import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.protocol.RpcResponse;
+import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 import org.apache.celeborn.service.deploy.worker.storage.ChunkStreamManager;
 
 /**
@@ -196,7 +202,15 @@ public class RequestTimeoutIntegrationSuiteJ {
         new BaseMessageHandler() {
           @Override
           public void receive(TransportClient client, RequestMessage msg) {
-            StreamChunkSlice slice = ((ChunkFetchRequest) msg).streamChunkSlice;
+            PbChunkFetchRequest chunkFetchRequest;
+            try {
+              chunkFetchRequest =
+                  TransportMessage.fromByteBuffer(msg.body().nioByteBuffer()).getParsedPayload();
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+            StreamChunkSlice slice =
+                StreamChunkSlice.fromProto(chunkFetchRequest.getStreamChunkSlice());
             ManagedBuffer buf =
                 manager.getChunk(slice.streamId, slice.chunkIndex, slice.offset, slice.len);
             client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));

@@ -82,6 +82,9 @@ enum MessageType {
   BACKLOG_ANNOUNCEMENT = 59;
   BUFFER_STREAM_END = 60;
   READ_ADD_CREDIT = 61;
+  STREAM_CHUNK_SLICE = 62;
+  CHUNK_FETCH_REQUEST = 63;
+  TRANSPORTABLE_ERROR = 64;
 }
 
 enum StreamType {
@@ -550,4 +553,20 @@ message PbBufferStreamEnd {
 message PbReadAddCredit {
   int64 streamId = 1;
   int32 credit = 2;
+}
+
+message PbStreamChunkSlice {
+  int64 streamId = 1;
+  int32 chunkIndex = 2;
+  int32 offset = 3;
+  int32 len = 4;
+}
+
+message PbChunkFetchRequest {
+  PbStreamChunkSlice streamChunkSlice = 1;
+}
+
+message PbTransportableError {
+  int64 streamId = 1;
+  string message = 2;
 }
