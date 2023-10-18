@@ -64,6 +64,7 @@ public class DfsPartitionReader implements PartitionReader {
   private int currentChunkIndex = 0;
   private TransportClient client;
   private PbStreamHandler streamHandler;
+  private MetricsCallback metricsCallback;
 
   public DfsPartitionReader(
       CelebornConf conf,
@@ -71,12 +72,14 @@ public class DfsPartitionReader implements PartitionReader {
       PartitionLocation location,
       TransportClientFactory clientFactory,
       int startMapIndex,
-      int endMapIndex)
+      int endMapIndex,
+      MetricsCallback metricsCallback)
       throws IOException {
     shuffleChunkSize = conf.dfsReadChunkSize();
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
 
+    this.metricsCallback = metricsCallback;
     this.location = location;
 
     final List<Long> chunkOffsets = new ArrayList<>();
@@ -224,7 +227,9 @@ public class DfsPartitionReader implements PartitionReader {
     try {
       while (chunk == null) {
         checkException();
+        Long startFetchWait = System.currentTimeMillis();
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
+        metricsCallback.incReadTime(System.currentTimeMillis() - startFetchWait);
         logger.debug("poll result with result size: {}", results.size());
       }
     } catch (InterruptedException e) {

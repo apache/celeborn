@@ -108,7 +108,6 @@ class CelebornShuffleReader[K, C](
 
     val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
       if (handle.numMaps > 0) {
-        val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
@@ -117,9 +116,7 @@ class CelebornShuffleReader[K, C](
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
         }
-        metricsCallback.incReadTime(
-          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
-        inputStream.setCallback(metricsCallback)
+        inputStream.init(metricsCallback)
         // ensure inputStream is closed when task completes
         context.addTaskCompletionListener(_ => inputStream.close())
         inputStream
