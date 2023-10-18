@@ -655,8 +655,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
-  def partitionSorterEagerlyRemoveOriginalFilesEnabled: Boolean =
-    get(PARTITION_SORTER_EAGERLY_REMOVE_ORIGINAL_FILES_ENABLED)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
   def partitionSorterReservedMemoryPerPartition: Long =
     get(WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
@@ -2254,23 +2252,6 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
-
-  val PARTITION_SORTER_EAGERLY_REMOVE_ORIGINAL_FILES_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.sortPartition.eagerlyRemoveOriginalFiles.enabled")
-      .categories("worker")
-      .doc("When set to true, the PartitionSorter immediately removes the original file once " +
-        "its partition has been successfully sorted. It is important to note that this behavior " +
-        "may result in a potential issue with the ReusedExchange operation when it triggers both " +
-        "non-range and range fetch requests simultaneously. When set to false, the " +
-        "PartitionSorter will retain the original unsorted file. However, it's essential to be " +
-        "aware that enabling this option may lead to an increase in storage space usage during " +
-        "the range fetch phase, as both the original and sorted files will be retained until the " +
-        "shuffle is finished. Note that the default value is configured as 'false' as a " +
-        "temporary workaround for CELEBORN-980. see CELEBORN-980 for more details.")
-      .version("0.3.1")
-      .internal
-      .booleanConf
-      .createWithDefault(false)
 
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.timeout")
