@@ -61,7 +61,7 @@ public final class ShutdownHookManager {
   /** Minimum shutdown timeout: {@value} millisecond(s). */
   public static final long TIMEOUT_MINIMUM = 1000;
 
-  /** The default time unit used: seconds. */
+  /** The default time unit used: millisecond. */
   public static final TimeUnit TIME_UNIT_DEFAULT = TimeUnit.MILLISECONDS;
 
   private static final ExecutorService EXECUTOR =
@@ -133,13 +133,12 @@ public final class ShutdownHookManager {
       EXECUTOR.shutdown();
       long shutdownTimeout = getShutdownTimeout(conf);
       if (!EXECUTOR.awaitTermination(shutdownTimeout, TIME_UNIT_DEFAULT)) {
-        // timeout waiting for the
-        LOG.error("ShutdownHookManger shutdown forcefully after {} seconds.", shutdownTimeout);
+        // timeout waiting for the executor termination
+        LOG.error("ShutdownHookManger shutdown forcefully after {} ms.", shutdownTimeout);
         EXECUTOR.shutdownNow();
       }
       LOG.debug("ShutdownHookManger completed shutdown.");
     } catch (InterruptedException ex) {
-      // interrupted.
       LOG.error("ShutdownHookManger interrupted while waiting for termination.", ex);
       EXECUTOR.shutdownNow();
       Thread.currentThread().interrupt();
