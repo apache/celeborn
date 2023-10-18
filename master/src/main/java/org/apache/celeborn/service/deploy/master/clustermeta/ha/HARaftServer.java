@@ -32,6 +32,7 @@ import scala.Tuple2;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.RaftConfigKeys;
+import org.apache.ratis.client.RaftClientConfigKeys;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.netty.NettyConfigKeys;
@@ -324,6 +325,14 @@ public class HARaftServer {
     RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMin(properties, firstElectionTimeoutMin);
     RaftServerConfigKeys.Rpc.setFirstElectionTimeoutMax(properties, firstElectionTimeoutMax);
 
+    // Set the rpc client timeout
+    TimeDuration clientRpcTimeout =
+        TimeDuration.valueOf(conf.haMasterRatisClientRpcTimeout(), TimeUnit.SECONDS);
+    TimeDuration clientRpcWatchTimeout =
+        TimeDuration.valueOf(conf.haMasterRatisClientRpcWatchTimeout(), TimeUnit.SECONDS);
+    RaftClientConfigKeys.Rpc.setRequestTimeout(properties, clientRpcTimeout);
+    RaftClientConfigKeys.Rpc.setWatchRequestTimeout(properties, clientRpcWatchTimeout);
+
     // Set the number of maximum cached segments
     RaftServerConfigKeys.Log.setSegmentCacheNumMax(properties, 2);
 
@@ -347,6 +356,10 @@ public class HARaftServer {
 
     long snapshotAutoTriggerThreshold = conf.haMasterRatisSnapshotAutoTriggerThreshold();
     RaftServerConfigKeys.Snapshot.setAutoTriggerThreshold(properties, snapshotAutoTriggerThreshold);
+
+    for (Map.Entry<String, String> ratisEntry : conf.haRatisCustomConfigs().entrySet()) {
+      properties.set(ratisEntry.getKey().replace("celeborn.ratis.", ""), ratisEntry.getValue());
+    }
 
     return properties;
   }
