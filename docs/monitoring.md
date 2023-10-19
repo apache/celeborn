@@ -97,9 +97,14 @@ These metrics are exposed by Celeborn master.
     - LostWorkers
     - ExcludedWorkerCount
     - RegisteredShuffleCount
+    - RunningApplicationCount
     - IsActiveMaster
     - PartitionSize
         - The size of estimated shuffle partition.
+    - PartitionWritten
+        - The active shuffle size.
+    - PartitionFileCount
+        - The active shuffle partition count.
     - OfferSlotsTime
         - The time for masters to handle `RequestSlots` request when registering shuffle.
 

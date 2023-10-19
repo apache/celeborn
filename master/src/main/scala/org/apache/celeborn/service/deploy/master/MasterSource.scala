@@ -41,9 +41,15 @@ object MasterSource {
 
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
 
+  val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
+
   val IS_ACTIVE_MASTER = "IsActiveMaster"
 
   val PARTITION_SIZE = "PartitionSize"
+
+  val PARTITION_WRITTEN = "PartitionWritten"
+
+  val PARTITION_FILE_COUNT = "PartitionFileCount"
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
 }

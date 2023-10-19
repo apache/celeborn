@@ -65,8 +65,11 @@ Here is an example of grafana dashboard importing.
 |:--------------------------------------:|:-----------------:|:---------------------------------------------------------------------------------------------------------------:|
 |              WorkerCount               |      master       |                                          The count of active workers.                                           |
 |          ExcludedWorkerCount           |      master       |                                     The count of workers in excluded list.                                      |
+|        RunningApplicationCount         |      master       |                                The count of running applications in the cluster.                                |
 |             OfferSlotsTime             |      master       |                                            The time of offer slots.                                             |
 |             PartitionSize              |      master       |          The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.           |
+|            PartitionWritten            |      master       |                                            The active shuffle size.                                             |
+|           PartitionFileCount           |      master       |                                       The active shuffle partition count.                                       |
 |         RegisteredShuffleCount         | master and worker |                                  The value means count of registered shuffle.                                   |
 |            CommitFilesTime             |      worker       |                           CommitFiles means flush and close a shuffle partition file.                           |
 |            ReserveSlotsTime            |      worker       |                     ReserveSlots means acquire a disk buffer and record partition location.                     |
