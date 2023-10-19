@@ -27,7 +27,6 @@ import scala.util.control.NonFatal
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.client.RpcResponseCallback
-import org.apache.celeborn.common.protocol.RpcNameConstants
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
