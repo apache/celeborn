@@ -307,6 +307,7 @@ API path listed as below:
 | /applications         | List all running application's ids of the cluster.                                                                                  |
 | /shuffles             | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.                              |
 | /listTopDiskUsedApps  | List the top disk usage application ids. It will return the top disk usage application ids for the cluster.                         |
+| /partitionStatistics  | Statistics of shuffle partitions including the average shuffle size and file count for all partitions written etc.                  |
 | /help                 | List the available API providers of the master.                                                                                     |
 
 #### Worker

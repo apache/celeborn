@@ -53,6 +53,7 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
          |/listTopDiskUsedApps List the top disk usage application ids. It will return the top disk usage application ids for the cluster.
          |/lostWorkers         List all lost workers of the master.
          |/masterGroupInfo     List master group information of the service. It will list all master's LEADER, FOLLOWER information.
+         |/partitionStatistics Statistics of shuffle partitions including the average shuffle size and file count for all partitions written etc.
          |/shuffles            List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.
          |/shutdownWorkers     List all shutdown workers of the master.
          |/threadDump          List the current thread dump of the master.

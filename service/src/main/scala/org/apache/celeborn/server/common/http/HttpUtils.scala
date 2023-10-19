@@ -32,7 +32,8 @@ object HttpUtils {
     ExcludedWorkers,
     ShutdownWorkers,
     Hostnames,
-    Applications) ++ baseEndpoints
+    Applications,
+    PartitionStatistics) ++ baseEndpoints
   private val workerEndpoints: List[HttpEndpoint] =
     List(
       ListPartitionLocationInfo,

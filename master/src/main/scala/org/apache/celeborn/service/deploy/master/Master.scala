@@ -920,6 +920,17 @@ private[celeborn] class Master(
     sb.toString()
   }
 
+  override def getPartitionStatistics: String = {
+    val sb = new StringBuilder
+    sb.append("================= Shuffle Partition Statistics ======================\n")
+    Map(
+      "PartitionTotalWritten" -> statusSystem.partitionTotalWritten.sum(),
+      "PartitionTotalFileCount" -> statusSystem.partitionTotalFileCount.sum())
+      .toSeq.sortBy(_._2)
+      .foreach { case (key, value) => sb.append(s"${key.padTo(30, " ").mkString}$value\n") }
+    sb.toString()
+  }
+
   override def getShuffleList: String = {
     val sb = new StringBuilder
     sb.append("======================= Shuffle Key List ============================\n")

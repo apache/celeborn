@@ -168,6 +168,16 @@ case object Applications extends HttpEndpoint {
     service.getApplicationList
 }
 
+case object PartitionStatistics extends HttpEndpoint {
+  override def path: String = "/partitionStatistics"
+
+  override def description(service: String): String =
+    "Statistics of shuffle partitions including the average shuffle size and file count for all partitions written etc."
+
+  override def handle(service: HttpService, parameters: Map[String, String]): String =
+    service.getPartitionStatistics
+}
+
 case object ListPartitionLocationInfo extends HttpEndpoint {
   override def path: String = "/listPartitionLocationInfo"
 
