@@ -93,7 +93,7 @@ public abstract class CelebornInputStream extends InputStream {
         }
 
         @Override
-        public void init(MetricsCallback callback) throws IOException{}
+        public void init(MetricsCallback callback) throws IOException {}
 
         @Override
         public int totalPartitionsToRead() {
