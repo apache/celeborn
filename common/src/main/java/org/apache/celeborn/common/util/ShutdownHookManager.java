@@ -52,11 +52,9 @@ import org.apache.celeborn.common.CelebornConf;
  */
 public final class ShutdownHookManager {
 
-  private static final Logger logger = LoggerFactory.getLogger(ShutdownHookManager.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ShutdownHookManager.class);
 
   private static final ShutdownHookManager MGR = new ShutdownHookManager();
-
-  private static final Logger LOG = LoggerFactory.getLogger(ShutdownHookManager.class);
 
   /** Minimum shutdown timeout: {@value} millisecond(s). */
   public static final long TIMEOUT_MINIMUM = 1000;
@@ -107,7 +105,7 @@ public final class ShutdownHookManager {
     for (HookEntry entry : MGR.getShutdownHooksInOrder()) {
       Future<?> future = EXECUTOR.submit(entry.getHook());
       try {
-        logger.info(
+        LOG.info(
             "timeout {}",
             Utils.msDurationToString(
                 entry.getTimeUnit().convert(entry.getTimeout(), TimeUnit.MILLISECONDS)));
