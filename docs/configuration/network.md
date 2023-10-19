@@ -44,9 +44,10 @@ license: |
 | celeborn.network.memory.allocator.verbose.metric | false | Weather to enable verbose metric for pooled allocator. | 0.3.0 | 
 | celeborn.network.timeout | 240s | Default timeout for network operations. | 0.2.0 | 
 | celeborn.port.maxRetries | 1 | When port is occupied, we will retry for max retry times. | 0.2.0 | 
+| celeborn.rpc.&lt;role&gt;.dispatcher.threads | &lt;value of celeborn.rpc.dispatcher.threads&gt; | Threads number of message dispatcher event loop for roles |  | 
 | celeborn.rpc.askTimeout | 60s | Timeout for RPC ask operations. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes` | 0.2.0 | 
 | celeborn.rpc.connect.threads | 64 |  | 0.2.0 | 
-| celeborn.rpc.dispatcher.threads | &lt;undefined&gt; | Threads number of message dispatcher event loop | 0.3.0 | 
+| celeborn.rpc.dispatcher.threads | 0 | Threads number of message dispatcher event loop. Default to 0, which is availableCore. | 0.3.0 | 
 | celeborn.rpc.io.threads | &lt;undefined&gt; | Netty IO thread number of NettyRpcEnv to handle RPC request. The default threads number is the number of runtime available processors. | 0.2.0 | 
 | celeborn.rpc.lookupTimeout | 30s | Timeout for RPC lookup operations. | 0.2.0 | 
 | celeborn.shuffle.io.maxChunksBeingTransferred | &lt;undefined&gt; | The max number of chunks allowed to be transferred at the same time on shuffle service. Note that new incoming connections will be closed when the max number is hit. The client will retry according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and `celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure. | 0.2.0 | 

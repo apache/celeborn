@@ -27,16 +27,14 @@ import scala.util.control.NonFatal
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.client.RpcResponseCallback
+import org.apache.celeborn.common.protocol.RpcNameConstants
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 /**
  * A message dispatcher, responsible for routing RPC messages to the appropriate endpoint(s).
- *
- * @param numUsableCores Number of CPU cores allocated to the process, for sizing the thread pool.
- *                       If 0, will consider the available CPUs on the host.
  */
-private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) extends Logging {
+private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
 
   private class EndpointData(
       val name: String,
@@ -62,7 +60,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
 
   def registerRpcEndpoint(name: String, endpoint: RpcEndpoint): NettyRpcEndpointRef = {
     val addr = RpcEndpointAddress(nettyEnv.address, name)
-    val endpointRef = new NettyRpcEndpointRef(nettyEnv.conf, addr, nettyEnv)
+    val endpointRef = new NettyRpcEndpointRef(nettyEnv.celebornConf, addr, nettyEnv)
     synchronized {
       if (stopped) {
         throw new IllegalStateException("RpcEnv has been stopped")
@@ -200,11 +198,14 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, numUsableCores: Int) e
 
   /** Thread pool used for dispatching messages. */
   private val threadpool: ThreadPoolExecutor = {
+    val numUsableCores = nettyEnv.config.numUsableCores
     val availableCores =
       if (numUsableCores > 0) numUsableCores
       else Math.max(16, Runtime.getRuntime.availableProcessors())
-    val numThreads = nettyEnv.conf.rpcDispatcherNumThreads(availableCores)
-    val pool = ThreadUtils.newDaemonFixedThreadPool(numThreads, "dispatcher-event-loop")
+    val role = nettyEnv.config.name.toLowerCase()
+    val numThreads = nettyEnv.celebornConf.rpcDispatcherNumThreads(availableCores, role)
+
+    val pool = ThreadUtils.newDaemonFixedThreadPool(numThreads, "celeborn-dispatcher")
     logInfo(s"Dispatcher numThreads: $numThreads")
     for (i <- 0 until numThreads) {
       pool.execute(new MessageLoop)

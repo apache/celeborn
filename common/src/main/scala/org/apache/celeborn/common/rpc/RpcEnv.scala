@@ -59,9 +59,9 @@ object RpcEnv {
  *
  * [[RpcEnv]] also provides some methods to retrieve [[RpcEndpointRef]]s given name or uri.
  */
-abstract class RpcEnv(conf: CelebornConf) {
+abstract class RpcEnv(config: RpcEnvConfig) {
 
-  private[celeborn] val defaultLookupTimeout = conf.rpcLookupTimeout
+  private[celeborn] val defaultLookupTimeout = config.conf.rpcLookupTimeout
 
   /**
    * Return RpcEndpointRef of the registered [[RpcEndpoint]]. Will be used to implement

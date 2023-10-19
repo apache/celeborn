@@ -44,17 +44,17 @@ import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInst
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, JavaUtils, ThreadUtils, Utils}
 
 class NettyRpcEnv(
-    val conf: CelebornConf,
-    javaSerializerInstance: JavaSerializerInstance,
-    host: String,
-    numUsableCores: Int) extends RpcEnv(conf) with Logging {
+    val config: RpcEnvConfig,
+    javaSerializerInstance: JavaSerializerInstance) extends RpcEnv(config) with Logging {
+
+  val celebornConf = config.conf
 
   private[celeborn] val transportConf = Utils.fromCelebornConf(
-    conf.clone,
+    celebornConf.clone,
     TransportModuleConstants.RPC_MODULE,
-    conf.rpcIoThreads.getOrElse(numUsableCores))
+    celebornConf.rpcIoThreads.getOrElse(config.numUsableCores))
 
-  private val dispatcher: Dispatcher = new Dispatcher(this, numUsableCores)
+  private val dispatcher: Dispatcher = new Dispatcher(this)
 
   private var worker: RpcEndpoint = null
 
@@ -70,7 +70,7 @@ class NettyRpcEnv(
   // to implement non-blocking send/ask.
   private[celeborn] val clientConnectionExecutor = ThreadUtils.newDaemonCachedThreadPool(
     "netty-rpc-connection",
-    conf.rpcConnectThreads)
+    celebornConf.rpcConnectThreads)
 
   @volatile private var server: TransportServer = _
 
@@ -101,7 +101,7 @@ class NettyRpcEnv(
 
   @Nullable
   override lazy val address: RpcAddress = {
-    if (server != null) RpcAddress(host, server.getPort()) else null
+    if (server != null) RpcAddress(config.advertiseAddress, server.getPort()) else null
   }
 
   override def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef = {
@@ -121,9 +121,9 @@ class NettyRpcEnv(
 
   def asyncSetupEndpointRefByURI(uri: String): Future[RpcEndpointRef] = {
     val addr = RpcEndpointAddress(uri)
-    val endpointRef = new NettyRpcEndpointRef(conf, addr, this)
+    val endpointRef = new NettyRpcEndpointRef(celebornConf, addr, this)
     val verifier = new NettyRpcEndpointRef(
-      conf,
+      celebornConf,
       RpcEndpointAddress(addr.rpcAddress, RpcEndpointVerifier.NAME),
       this)
     verifier.ask[Boolean](RpcEndpointVerifier.CheckExistence(endpointRef.name)).flatMap { find =>
@@ -343,17 +343,12 @@ private[celeborn] object NettyRpcEnv extends Logging {
 private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
 
   def create(config: RpcEnvConfig): RpcEnv = {
-    val conf = config.conf
+    val celebornConf = config.conf
     // Use JavaSerializerInstance in multiple threads is safe. However, if we plan to support
     // KryoSerializer in future, we have to use ThreadLocal to store SerializerInstance
     val javaSerializerInstance =
-      new JavaSerializer(conf).newInstance().asInstanceOf[JavaSerializerInstance]
-    val nettyEnv =
-      new NettyRpcEnv(
-        conf,
-        javaSerializerInstance,
-        config.advertiseAddress,
-        config.numUsableCores)
+      new JavaSerializer(celebornConf).newInstance().asInstanceOf[JavaSerializerInstance]
+    val nettyEnv = new NettyRpcEnv(config, javaSerializerInstance)
     val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
       logInfo(s"Starting RPC Server [${config.name}] on ${config.bindAddress}:$actualPort " +
         s"with advisor endpoint ${config.advertiseAddress}:$actualPort")
@@ -361,7 +356,7 @@ private[celeborn] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
       (nettyEnv, nettyEnv.address.port)
     }
     try {
-      Utils.startServiceOnPort(config.port, startNettyRpcEnv, conf, config.name)._1
+      Utils.startServiceOnPort(config.port, startNettyRpcEnv, celebornConf, config.name)._1
     } catch {
       case NonFatal(e) =>
         nettyEnv.shutdown()
@@ -497,7 +492,7 @@ private[celeborn] object RequestMessage {
     try {
       val senderAddress = readRpcAddress(in)
       val endpointAddress = RpcEndpointAddress(readRpcAddress(in), in.readUTF())
-      val ref = new NettyRpcEndpointRef(nettyEnv.conf, endpointAddress, nettyEnv)
+      val ref = new NettyRpcEndpointRef(nettyEnv.config.conf, endpointAddress, nettyEnv)
       ref.client = client
       new RequestMessage(
         senderAddress,

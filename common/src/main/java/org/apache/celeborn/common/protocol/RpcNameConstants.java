@@ -19,18 +19,19 @@ package org.apache.celeborn.common.protocol;
 
 public class RpcNameConstants {
   // For Master
-  public static String MASTER_SYS = "MasterSys";
-
+  public static String MASTER_SYS = "Master";
   // Master Endpoint Name
   public static String MASTER_EP = "MasterEndpoint";
 
   // For Worker
-  public static String WORKER_SYS = "WorkerSys";
-
+  public static String WORKER_SYS = "Worker";
   // Worker Endpoint Name
   public static String WORKER_EP = "WorkerEndpoint";
 
-  // For Driver(SparkShuffleManager)
+  // For LifecycleManager
+  public static String LIFECYCLE_MANAGER_SYS = "LifecycleManager";
   public static String LIFECYCLE_MANAGER_EP = "LifecycleManagerEndpoint";
-  public static String LIFECYCLE_MANAGER_SYS = "LifecycleManagerSys";
+
+  // For Shuffle Client
+  public static String SHUFFLE_CLIENT_SYS = "ShuffleClient";
 }
