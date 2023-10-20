@@ -272,6 +272,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           batchId,
           newLoc);
+      pushDataRpcResponseCallback.updateLatestPartition(newLoc);
       try {
         if (!isPushTargetWorkerExcluded(newLoc, pushDataRpcResponseCallback)) {
           if (!testRetryRevive || remainReviveTimes < 1) {
@@ -281,7 +282,6 @@ public class ShuffleClientImpl extends ShuffleClient {
             String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
             PushData newPushData =
                 new PushData(PRIMARY_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
-            pushDataRpcResponseCallback.updateLatestPartition(newLoc);
             client.pushData(newPushData, pushDataTimeout, pushDataRpcResponseCallback);
           } else {
             throw new RuntimeException(
@@ -633,18 +633,17 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   void excludeWorkerByCause(StatusCode cause, PartitionLocation oldLocation) {
     if (pushExcludeWorkerOnFailureEnabled && oldLocation != null) {
-      if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY) {
-        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY) {
-        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_PRIMARY) {
-        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA) {
-        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA) {
-        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_REPLICA) {
-        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
+      switch (cause) {
+        case PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY:
+        case PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY:
+        case PUSH_DATA_TIMEOUT_PRIMARY:
+          pushExcludedWorkers.add(oldLocation.hostAndPushPort());
+          break;
+        case PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA:
+        case PUSH_DATA_CONNECTION_EXCEPTION_REPLICA:
+        case PUSH_DATA_TIMEOUT_REPLICA:
+          pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
+          break;
       }
     }
   }
@@ -905,10 +904,10 @@ public class ShuffleClientImpl extends ShuffleClient {
             PartitionLocation latest = loc;
 
             @Override
-            public void updateLatestPartition(PartitionLocation latest) {
-              pushState.addBatch(nextBatchId, latest.hostAndPushPort());
+            public void updateLatestPartition(PartitionLocation newloc) {
+              pushState.addBatch(nextBatchId, newloc.hostAndPushPort());
               pushState.removeBatch(nextBatchId, this.latest.hostAndPushPort());
-              this.latest = latest;
+              this.latest = newloc;
             }
 
             @Override
@@ -1003,12 +1002,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void onFailure(Throwable e) {
-              StatusCode cause = getPushDataFailCause(e.getMessage());
-
               if (pushState.exception.get() != null) {
                 return;
               }
-
+              StatusCode cause = getPushDataFailCause(e.getMessage());
               if (remainReviveTimes <= 0) {
                 if (e instanceof CelebornIOException) {
                   callback.onFailure(e);
@@ -1383,11 +1380,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
           @Override
           public void onFailure(Throwable e) {
-            StatusCode cause = getPushDataFailCause(e.getMessage());
-
             if (pushState.exception.get() != null) {
               return;
             }
+            StatusCode cause = getPushDataFailCause(e.getMessage());
             if (remainReviveTimes <= 0) {
               if (e instanceof CelebornIOException) {
                 callback.onFailure(e);
