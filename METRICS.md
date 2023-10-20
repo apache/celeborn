@@ -95,8 +95,8 @@ Here is an example of grafana dashboard importing.
 |               DiskBuffer               |      worker       | Disk buffers are part of netty used memory, means data need to write to disk but haven't been written to disk.  |
 |             PausePushData              |      worker       |                   PausePushData means the count of worker stopped receiving data from client.                   |
 |       PausePushDataAndReplicate        |      worker       |    PausePushDataAndReplicate means the count of worker stopped receiving data from client and other workers.    |
-|           ActiveShuffleSize            |      worker       |                                     The active shuffle size of peer worker.                                     |
-|         ActiveShuffleFileCount         |      worker       |                                  The active shuffle file count of peer worker.                                  |
+|           ActiveShuffleSize            |      worker       |                 The active shuffle size of a worker including master replica and slave replica.                 |
+|         ActiveShuffleFileCount         |      worker       |              The active shuffle file count of a worker including master replica and slave replica.              |
 |         OutstandingFetchCount          |      worker       |                         The count of outstanding fetch request received in peer worker.                         |
 |          OutstandingRpcCount           |      worker       |                          The count of outstanding rpc request received in peer worker.                          |
 |          OutstandingPushCount          |      worker       |                         The count of outstanding push request received in peer worker.                          |

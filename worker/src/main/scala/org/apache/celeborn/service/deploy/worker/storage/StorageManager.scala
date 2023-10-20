@@ -846,7 +846,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def getActiveShuffleFileCount(): Long = {
-    fileInfos.size()
+    fileInfos.asScala.values.map(_.size()).sum
   }
 }
 

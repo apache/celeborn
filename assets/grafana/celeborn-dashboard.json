@@ -1722,7 +1722,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The active shuffle size of peer worker.",
+          "description": "The active shuffle size of a worker including master replica and slave replica.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1841,7 +1841,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "The active shuffle file count of peer worker.",
+          "description": "The active shuffle file count of a worker including master replica and slave replica.",
           "fieldConfig": {
             "defaults": {
               "color": {

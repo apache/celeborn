@@ -195,9 +195,9 @@ These metrics are exposed by Celeborn worker.
     - UserProduceSpeed
     - WorkerConsumeSpeed
     - ActiveShuffleSize
-        - The active shuffle size of peer worker. 
+        - The active shuffle size of a worker including master replica and slave replica.
     - ActiveShuffleFileCount
-        - The active shuffle file count of peer worker.
+        - The active shuffle file count of a worker including master replica and slave replica.
     - OutstandingFetchCount
         - The count of outstanding fetch request.
     - OutstandingRpcCount
