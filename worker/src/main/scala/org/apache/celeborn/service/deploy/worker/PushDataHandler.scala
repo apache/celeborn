@@ -1209,11 +1209,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       softSplit: AtomicBoolean,
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
-    logDebug(
+    logTrace(
       s"""
          |CheckDiskFullAndSplit in
          |diskFull:$diskFull,
-         |partitionSplitMinimumSize: $partitionSplitMinimumSize,
+         |partitionSplitMinimumSize:$partitionSplitMinimumSize,
          |splitThreshold:${fileWriter.getSplitThreshold()},
          |fileLength:${fileWriter.getFileInfo.getFileLength}
          |fileName:${fileWriter.getFileInfo.getFilePath}
@@ -1225,7 +1225,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         softSplit.set(true)
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-        logDebug(
+        logTrace(
           s"""
              |CheckDiskFullAndSplit hardSplit
              |diskFull:$diskFull,
