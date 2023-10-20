@@ -67,6 +67,8 @@ class ChangePartitionManager(
 
   private var batchHandleChangePartition: Option[ScheduledFuture[_]] = _
 
+  private val testRetryRevive = conf.testRetryRevive
+
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
       // noinspection ConvertExpressionToSAM
@@ -204,7 +206,7 @@ class ChangePartitionManager(
     logWarning(s"Batch handle change partition for $changes")
 
     // Exclude all failed workers
-    if (changePartitions.exists(_.causes.isDefined)) {
+    if (changePartitions.exists(_.causes.isDefined) && !testRetryRevive) {
       changePartitions.filter(_.causes.isDefined).foreach { changePartition =>
         lifecycleManager.workerStatusTracker.excludeWorkerFromPartition(
           shuffleId,
