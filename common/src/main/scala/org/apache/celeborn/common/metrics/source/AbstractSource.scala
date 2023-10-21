@@ -412,7 +412,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val sb = new mutable.StringBuilder
     innerMetrics.synchronized {
       while (!innerMetrics.isEmpty) {
-        sb.append(innerMetrics.poll())
+        sb.append(innerMetrics.poll()).append("\n")
       }
       innerMetrics.clear()
     }
