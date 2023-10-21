@@ -39,7 +39,7 @@ class PrometheusServlet(
   }
 
   def getMetricsSnapshot: String = {
-    sources.map(_.getMetrics).mkString
+    sources.map(_.getMetrics).mkString("\n")
   }
 
   override def start(): Unit = {}
