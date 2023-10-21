@@ -43,7 +43,7 @@ public class SparkShuffleManager implements ShuffleManager {
   private static final Logger logger = LoggerFactory.getLogger(SparkShuffleManager.class);
 
   private static final String SORT_SHUFFLE_MANAGER_NAME =
-      "org.apache.spark.shuffle.sort.SortShuffleManager";
+      org.apache.spark.shuffle.sort.SortShuffleManager.class.getName();
 
   private static final boolean COLUMNAR_SHUFFLE_CLASSES_PRESENT;
 
@@ -216,9 +216,8 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier());
-        if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
-          ExecutorService pushThread =
-              celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
+        if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
+            && celebornConf.clientPushSortPipelineEnabled()) {
           return new SortBasedShuffleWriter<>(
               h.dependency(),
               h.numMappers(),
@@ -226,7 +225,7 @@ public class SparkShuffleManager implements ShuffleManager {
               celebornConf,
               shuffleClient,
               metrics,
-              pushThread,
+              getPusherThread(),
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           SendBufferPool pool =
