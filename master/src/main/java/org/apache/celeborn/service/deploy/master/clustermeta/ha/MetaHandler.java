@@ -173,7 +173,6 @@ public class MetaHandler {
               replicatePort,
               diskInfos,
               userResourceConsumption);
-          time = request.getWorkerHeartbeatRequest().getTime();
           metaSystem.updateWorkerHeartbeatMeta(
               host,
               rpcPort,
@@ -183,7 +182,7 @@ public class MetaHandler {
               diskInfos,
               userResourceConsumption,
               estimatedAppDiskUsage,
-              time,
+              request.getWorkerHeartbeatRequest().getTime(),
               highWorkload);
           break;
 
