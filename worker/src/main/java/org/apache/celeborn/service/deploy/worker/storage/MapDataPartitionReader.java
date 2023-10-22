@@ -194,9 +194,9 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   private RecyclableBuffer fetchBufferToSend() {
-    synchronized(lock) {
+    synchronized (lock) {
       if (!buffersToSend.isEmpty() && credits.get() > 0 && !isReleased) {
-	return buffersToSend.poll();
+        return buffersToSend.poll();
       } else {
         return null;
       }
@@ -204,7 +204,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   private int getNumBuffersToSend() {
-    synchronized(lock) {
+    synchronized (lock) {
       return buffersToSend.size();
     }
   }
@@ -239,8 +239,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     }
 
     boolean shouldRecycle = false;
-    synchronized(lock) {
-      if (isReleased) return ;
+    synchronized (lock) {
+      if (isReleased) return;
       if (readFinished && buffersToSend.isEmpty()) {
         shouldRecycle = true;
       }
@@ -376,7 +376,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       return true;
     } catch (Throwable throwable) {
       logger.error("Failed to read partition file.", throwable);
-      synchronized(lock) {
+      synchronized (lock) {
         isReleased = true;
       }
       throw throwable;
@@ -517,7 +517,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   public boolean shouldReadData() {
-    synchronized(lock) {
+    synchronized (lock) {
       return !isReleased && !readFinished;
     }
   }

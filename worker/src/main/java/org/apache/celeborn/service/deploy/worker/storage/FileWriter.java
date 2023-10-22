@@ -153,7 +153,7 @@ public abstract class FileWriter implements DeviceObserver {
   }
 
   protected void flush(boolean finalFlush) throws IOException {
-    synchronized(flushLock) {
+    synchronized (flushLock) {
       // flushBuffer == null here means writer already closed
       if (flushBuffer != null) {
         int numBytes = flushBuffer.readableBytes();
