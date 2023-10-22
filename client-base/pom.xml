@@ -25,9 +25,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>celeborn-client_${scala.binary.version}</artifactId>
+  <artifactId>celeborn-client-base_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Client</name>
+  <name>Celeborn Client Base</name>
 
   <dependencies>
     <dependency>

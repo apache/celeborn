@@ -32,7 +32,7 @@
 
   <modules>
     <module>common</module>
-    <module>client</module>
+    <module>client-base</module>
     <module>service</module>
     <module>master</module>
     <module>worker</module>
