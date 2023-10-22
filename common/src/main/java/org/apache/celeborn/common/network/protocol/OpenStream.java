@@ -81,8 +81,8 @@ public final class OpenStream extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(Arrays.hashCode(shuffleKey), Arrays.hashCode(fileName),
-        startMapIndex, endMapIndex);
+    return Objects.hashCode(
+        Arrays.hashCode(shuffleKey), Arrays.hashCode(fileName), startMapIndex, endMapIndex);
   }
 
   @Override
