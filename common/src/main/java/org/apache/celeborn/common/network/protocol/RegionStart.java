@@ -29,8 +29,8 @@ public final class RegionStart extends RequestMessage {
   public final String shuffleKey;
   public final String partitionUniqueId;
   public final int attemptId;
-  public int currentRegionIndex;
-  public Boolean isBroadcast;
+  public final int currentRegionIndex;
+  public final boolean isBroadcast;
 
   public RegionStart(
       byte mode,
@@ -38,7 +38,7 @@ public final class RegionStart extends RequestMessage {
       String partitionUniqueId,
       int attemptId,
       int currentRegionIndex,
-      Boolean isBroadcast) {
+      boolean isBroadcast) {
     this.mode = mode;
     this.shuffleKey = shuffleKey;
     this.partitionUniqueId = partitionUniqueId;
