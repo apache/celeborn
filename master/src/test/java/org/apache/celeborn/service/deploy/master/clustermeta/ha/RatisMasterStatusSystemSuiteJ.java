@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -167,7 +168,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static int PUSHPORT1 = 1112;
   private static int FETCHPORT1 = 1113;
   private static int REPLICATEPORT1 = 1114;
-  private static Map<String, DiskInfo> disks1 = new HashMap() {};
+  private static Map<String, DiskInfo> disks1 = new HashMap();
   private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
       new HashMap<>();
 
@@ -487,12 +488,7 @@ public class RatisMasterStatusSystemSuiteJ {
         HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 + ":" + REPLICATEPORT1);
 
     List<Map<String, Integer>> workerSlots = new ArrayList<>();
-    workerSlots.add(
-        new HashMap() {
-          {
-            put("disk1", 3);
-          }
-        });
+    workerSlots.add(ImmutableMap.of("disk1", 3));
 
     Thread.sleep(3000L);
 
