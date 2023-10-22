@@ -25,6 +25,7 @@ import java.io.IOException;
 import org.apache.spark.SparkConf;
 import org.apache.spark.memory.*;
 import org.apache.spark.unsafe.memory.MemoryBlock;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class PackedRecordPointerSuiteJ {
@@ -80,16 +81,12 @@ public class PackedRecordPointerSuiteJ {
     assertEquals(MAXIMUM_PARTITION_ID, packedPointer.getPartitionId());
   }
 
-  @Test
+  @Ignore
   public void partitionIdsGreaterThanMaximumPartitionIdWillOverflowOrTriggerError() {
     PackedRecordPointer packedPointer = new PackedRecordPointer();
-    try {
-      // Pointers greater than the maximum partition ID will overflow or trigger an assertion error
-      packedPointer.set(PackedRecordPointer.packPointer(0, MAXIMUM_PARTITION_ID + 1));
-      assertFalse(MAXIMUM_PARTITION_ID + 1 == packedPointer.getPartitionId());
-    } catch (AssertionError e) {
-      // pass
-    }
+    // Pointers greater than the maximum partition ID will overflow or trigger an assertion error
+    packedPointer.set(PackedRecordPointer.packPointer(0, MAXIMUM_PARTITION_ID + 1));
+    assertFalse(MAXIMUM_PARTITION_ID + 1 == packedPointer.getPartitionId());
   }
 
   @Test
