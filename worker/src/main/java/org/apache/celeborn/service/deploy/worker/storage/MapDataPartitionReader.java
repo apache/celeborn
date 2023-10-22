@@ -193,20 +193,30 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     }
   }
 
-  public synchronized void sendData() {
-    while (!buffersToSend.isEmpty() && credits.get() > 0) {
-      RecyclableBuffer wrappedBuffer;
-      synchronized (lock) {
-        if (!isReleased) {
-          wrappedBuffer = buffersToSend.poll();
-        } else {
-          return;
-        }
+  private RecyclableBuffer fetchBufferToSend() {
+    synchronized (lock) {
+      if (!buffersToSend.isEmpty() && credits.get() > 0 && !isReleased) {
+        return buffersToSend.poll();
+      } else {
+        return null;
       }
+    }
+  }
 
-      int backlog = buffersToSend.size();
+  private int getNumBuffersToSend() {
+    synchronized (lock) {
+      return buffersToSend.size();
+    }
+  }
+
+  public synchronized void sendData() {
+    RecyclableBuffer buffer;
+    while (null != (buffer = fetchBufferToSend())) {
+      final RecyclableBuffer wrappedBuffer = buffer;
       int readableBytes = wrappedBuffer.byteBuf.readableBytes();
-      logger.debug("send data start: {}, {}, {}", streamId, readableBytes, backlog);
+      if (logger.isDebugEnabled()) {
+        logger.debug("send data start: {}, {}, {}", streamId, readableBytes, getNumBuffersToSend());
+      }
       ReadData readData = new ReadData(streamId, wrappedBuffer.byteBuf);
       associatedChannel
           .writeAndFlush(readData)
@@ -228,7 +238,15 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       logger.debug("stream {} credit {}", streamId, currentCredit);
     }
 
-    if (readFinished && buffersToSend.isEmpty()) {
+    boolean shouldRecycle = false;
+    synchronized (lock) {
+      if (isReleased) return;
+      if (readFinished && buffersToSend.isEmpty()) {
+        shouldRecycle = true;
+      }
+    }
+
+    if (shouldRecycle) {
       recycle();
     }
   }
@@ -358,7 +376,9 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       return true;
     } catch (Throwable throwable) {
       logger.error("Failed to read partition file.", throwable);
-      isReleased = true;
+      synchronized (lock) {
+        isReleased = true;
+      }
       throw throwable;
     }
   }
@@ -497,6 +517,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   public boolean shouldReadData() {
-    return !isReleased && !readFinished;
+    synchronized (lock) {
+      return !isReleased && !readFinished;
+    }
   }
 }
