@@ -206,6 +206,6 @@ public class ChunkStreamManager {
 
   @VisibleForTesting
   public long numShuffleSteams() {
-    return shuffleStreamIds.values().stream().flatMap(Set::stream).count();
+    return shuffleStreamIds.values().stream().mapToLong(Set::size).sum();
   }
 }
