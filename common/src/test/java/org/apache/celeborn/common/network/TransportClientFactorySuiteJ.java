@@ -62,6 +62,7 @@ public class TransportClientFactorySuiteJ {
    *
    * <p>If concurrent is true, create multiple threads to create clients in parallel.
    */
+  @SuppressWarnings("DoNotCall")
   private void testClientReuse(int maxConnections, boolean concurrent)
       throws IOException, InterruptedException {
 

@@ -1043,7 +1043,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             numPartitions,
             bufferSize)
         case Type.REGION_START =>
-          val (currentRegionIndex, isBroadcast) =
+          val (currentRegionIndex, isBroadcast: Boolean) =
             if (isLegacy)
               (
                 msg.asInstanceOf[RegionStart].currentRegionIndex,
@@ -1051,7 +1051,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             else
               (
                 pbMsg.asInstanceOf[PbRegionStart].getCurrentRegionIndex,
-                Boolean.box(pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast))
+                pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast)
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionStart(
             currentRegionIndex,
             isBroadcast)
