@@ -99,7 +99,7 @@ public final class PushMergedData extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(requestId, mode, shuffleKey, partitionUniqueIds, batchOffsets, body());
+    return Objects.hashCode(requestId, mode, shuffleKey);
   }
 
   @Override
