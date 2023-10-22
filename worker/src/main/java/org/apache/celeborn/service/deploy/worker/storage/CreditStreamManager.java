@@ -187,27 +187,25 @@ public class CreditStreamManager {
   }
 
   private void startRecycleThread() {
-    if (recycleThread == null) {
-      synchronized (lock) {
-        if (recycleThread == null) {
-          recycleThread =
-              new Thread(
-                  () -> {
-                    while (true) {
-                      try {
-                        DelayedStreamId delayedStreamId = recycleStreamIds.take();
-                        cleanResource(delayedStreamId.streamId);
-                      } catch (Throwable e) {
-                        logger.warn(e.getMessage(), e);
-                      }
+    synchronized (lock) {
+      if (recycleThread == null) {
+        recycleThread =
+            new Thread(
+                () -> {
+                  while (true) {
+                    try {
+                      DelayedStreamId delayedStreamId = recycleStreamIds.take();
+                      cleanResource(delayedStreamId.streamId);
+                    } catch (Throwable e) {
+                      logger.warn(e.getMessage(), e);
                     }
-                  },
-                  "recycle-thread");
-          recycleThread.setDaemon(true);
-          recycleThread.start();
+                  }
+                },
+                "recycle-thread");
+        recycleThread.setDaemon(true);
+        recycleThread.start();
 
-          logger.info("start stream recycle thread");
-        }
+        logger.info("start stream recycle thread");
       }
     }
   }
