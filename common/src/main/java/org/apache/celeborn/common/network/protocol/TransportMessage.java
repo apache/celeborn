@@ -24,6 +24,8 @@ import java.nio.ByteBuffer;
 
 import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,13 +99,11 @@ public class TransportMessage implements Serializable {
   }
 
   public ByteBuffer toByteBuffer() {
-    int totalBufferSize = payload.length + 4 + 4;
-    ByteBuffer buffer = ByteBuffer.allocate(totalBufferSize);
-    buffer.putInt(messageTypeValue);
-    buffer.putInt(payload.length);
-    buffer.put(payload);
-    buffer.flip();
-    return buffer;
+    CompositeByteBuf buffer = Unpooled.compositeBuffer();
+    buffer.writeInt(messageTypeValue);
+    buffer.writeInt(payload.length);
+    buffer.writeBytes(Unpooled.wrappedBuffer(payload));
+    return buffer.nioBuffer();
   }
 
   public static TransportMessage fromByteBuffer(ByteBuffer buffer) throws CelebornIOException {
