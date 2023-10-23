@@ -100,6 +100,7 @@ object WorkerSource {
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
 
+  // connection
   val ACTIVE_CONNECTION_COUNT = "ActiveConnectionCount"
 
   // memory
@@ -124,11 +125,12 @@ object WorkerSource {
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
   val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
 
-  // Congestion control
+  // congestion control
   val POTENTIAL_CONSUME_SPEED = "PotentialConsumeSpeed"
   val USER_PRODUCE_SPEED = "UserProduceSpeed"
   val WORKER_CONSUME_SPEED = "WorkerConsumeSpeed"
 
   // active shuffle size
   val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
+  val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 }

@@ -304,6 +304,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_SIZE) { () =>
     storageManager.getActiveShuffleSize()
   }
+  workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_FILE_COUNT) { () =>
+    storageManager.getActiveShuffleFileCount()
+  }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_TIME) { () =>
     memoryManager.getPausePushDataTime
   }
