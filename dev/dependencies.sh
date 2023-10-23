@@ -25,7 +25,7 @@ export LC_ALL=C
 
 PWD=$(cd "$(dirname "$0")"/.. || exit; pwd)
 
-MVN="mvn"
+MVN="${PWD}/build/mvn"
 SBT="${PWD}/build/sbt"
 
 SBT_ENABLED="false"
