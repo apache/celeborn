@@ -8356,7 +8356,32 @@
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "__auto",
+          "value": "__auto"
+        },
+        "description": "The metrics legend format",
+        "hide": 0,
+        "includeAll": false,
+        "label": "legend",
+        "multi": false,
+        "name": "legend",
+        "options": [
+          {
+            "selected": true,
+            "text": "__auto",
+            "value": "__auto"
+          }
+        ],
+        "query": "__auto",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
   },
   "time": {
     "from": "now-5m",
