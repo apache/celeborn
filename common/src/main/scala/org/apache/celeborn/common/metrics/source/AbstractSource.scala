@@ -25,6 +25,7 @@ import scala.collection.mutable
 import scala.util.Random
 
 import com.codahale.metrics._
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.{CelebornHistogram, CelebornTimer, MetricLabels, ResettableSlidingWindowReservoir}
