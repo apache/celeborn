@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.flink.core.memory.MemorySegment;
