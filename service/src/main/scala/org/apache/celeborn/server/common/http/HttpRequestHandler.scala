@@ -56,7 +56,7 @@ class HttpRequestHandler(
       HttpVersion.HTTP_1_1,
       HttpResponseStatus.OK,
       Unpooled.copiedBuffer(response, CharsetUtil.UTF_8))
-    res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html; charset=UTF-8");
+    res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
     ctx.writeAndFlush(res).addListener(ChannelFutureListener.CLOSE);
   }
 
