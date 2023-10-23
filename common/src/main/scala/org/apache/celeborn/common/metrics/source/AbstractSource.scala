@@ -67,7 +67,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel
   val staticLabelsString: String = MetricLabels.labelString(staticLabels)
 
-  protected val namedGauges: JList[NamedGauge[_]] = new JArrayList[NamedGauge[_]]()
+  // Visible for testing
+  protected[source] val namedGauges: JList[NamedGauge[_]] = new JArrayList[NamedGauge[_]]()
 
   def addGauge[T](
       name: String,

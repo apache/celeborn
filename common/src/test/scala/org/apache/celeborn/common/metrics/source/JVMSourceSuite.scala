@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.metrics.source
 
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 
@@ -51,5 +53,7 @@ class JVMSourceSuite extends CelebornFunSuite {
     assert(memoryResult1._2 == Map.empty[String, String])
     assert(memoryResult2._1 == "jvm.memory.pools.init")
     assert(memoryResult2._2 == Map("name" -> "G1-Eden-Space"))
+
+    assert(!jvmSource.namedGauges.asScala.map(_.name).contains("jvm.thread.deadlocks"))
   }
 }

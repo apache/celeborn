@@ -87,8 +87,10 @@ class JVMSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
     })
 
   Seq(new ThreadStatesGaugeSet()).map(_.getMetrics.asScala.map {
-    case (name: String, metric: Gauge[_]) =>
+    case (name: String, metric: Gauge[_]) if metric.getValue.isInstanceOf[Number] =>
       addGauge(MetricRegistry.name(JVM_METRIC_THREAD_PREFIX, name), metric)
+    case (name: String, metric: Gauge[_]) =>
+      logWarning(s"Unsupported prometheus gauge type: $name: $metric")
     case (name, metric) => new IllegalArgumentException(s"Unknown metric type: $name: $metric")
   })
 
