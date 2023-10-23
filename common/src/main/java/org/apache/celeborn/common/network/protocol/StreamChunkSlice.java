@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
@@ -85,7 +86,7 @@ public final class StreamChunkSlice implements Encodable {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
         .add("streamId", streamId)
         .add("chunkIndex", chunkIndex)
         .add("offset", offset)

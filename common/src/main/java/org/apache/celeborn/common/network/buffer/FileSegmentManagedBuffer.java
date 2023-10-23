@@ -22,7 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.io.ByteStreams;
 import io.netty.channel.DefaultFileRegion;
 
@@ -145,7 +145,7 @@ public final class FileSegmentManagedBuffer extends ManagedBuffer {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
         .add("file", file)
         .add("offset", offset)
         .add("length", length)

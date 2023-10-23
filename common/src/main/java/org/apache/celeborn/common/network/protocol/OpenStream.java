@@ -20,6 +20,7 @@ package org.apache.celeborn.common.network.protocol;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 
@@ -99,7 +100,7 @@ public final class OpenStream extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
         .add("shuffleKey", new String(shuffleKey, StandardCharsets.UTF_8))
         .add("fileName", new String(fileName, StandardCharsets.UTF_8))
         .add("startMapIndex", startMapIndex)

@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -67,6 +67,6 @@ public final class ChunkFetchRequest extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this).add("streamChunkId", streamChunkSlice).toString();
+    return MoreObjects.toStringHelper(this).add("streamChunkId", streamChunkSlice).toString();
   }
 }

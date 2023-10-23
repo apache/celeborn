@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.channel.Channel;
@@ -314,7 +314,7 @@ public class TransportClient implements Closeable {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
         .add("remoteAddress", channel.remoteAddress())
         .add("isActive", isActive())
         .toString();
