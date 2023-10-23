@@ -21,7 +21,6 @@ import java.util.Properties
 import java.util.concurrent.{CopyOnWriteArrayList, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
 
@@ -39,7 +38,7 @@ class MetricsSystem(
     val servletPath: String) extends Logging {
   private[this] val metricsConfig = new MetricsConfig(conf)
 
-  private val sinks = new mutable.ArrayBuffer[Sink]
+  private val sinks = new ArrayBuffer[Sink]
   private val sources = new CopyOnWriteArrayList[Source]
   private val registry = new MetricRegistry()
 
