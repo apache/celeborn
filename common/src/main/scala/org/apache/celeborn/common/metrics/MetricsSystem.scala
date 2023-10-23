@@ -18,8 +18,9 @@
 package org.apache.celeborn.common.metrics
 
 import java.util.Properties
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CopyOnWriteArrayList, TimeUnit}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
@@ -39,7 +40,7 @@ class MetricsSystem(
   private[this] val metricsConfig = new MetricsConfig(conf)
 
   private val sinks = new mutable.ArrayBuffer[Sink]
-  private val sources = new mutable.ArrayBuffer[Source]
+  private val sources = new CopyOnWriteArrayList[Source]
   private val registry = new MetricRegistry()
 
   private var prometheusServlet: Option[PrometheusServlet] = None
@@ -80,14 +81,11 @@ class MetricsSystem(
     MetricRegistry.name(source.sourceName)
   }
 
-  def getSourcesByName(sourceName: String): Seq[Source] = sources.synchronized {
-    sources.filter(_.sourceName == sourceName).toSeq
-  }
+  def getSourcesByName(sourceName: String): Seq[Source] =
+    sources.asScala.filter(_.sourceName == sourceName).toSeq
 
   def registerSource(source: Source) {
-    sources.synchronized {
-      sources += source
-    }
+    sources.add(source)
     try {
       val regName = buildRegistryName(source)
       registry.register(regName, source.metricRegistry)
@@ -97,9 +95,7 @@ class MetricsSystem(
   }
 
   def removeSource(source: Source) {
-    sources.synchronized {
-      sources -= source
-    }
+    sources.remove(source)
     val regName = buildRegistryName(source)
     registry.removeMatching(new MetricFilter {
       def matches(name: String, metric: Metric): Boolean = name.startsWith(regName)
@@ -135,9 +131,9 @@ class MetricsSystem(
               .getConstructor(
                 classOf[Properties],
                 classOf[MetricRegistry],
-                classOf[ArrayBuffer[Source]],
+                classOf[Seq[Source]],
                 classOf[String])
-              .newInstance(kv._2, registry, sources, servletPath)
+              .newInstance(kv._2, registry, sources.asScala, servletPath)
             prometheusServlet = Some(servlet.asInstanceOf[PrometheusServlet])
           } else {
             val sink = Utils.classForName(classPath)
