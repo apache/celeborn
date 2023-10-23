@@ -152,7 +152,7 @@ private[celeborn] class Master(
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
   // init and register master metrics
-  val resourceConsumptionSource = new ResourceConsumptionSource(conf)
+  private val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
   private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -266,7 +266,7 @@ private[celeborn] class Master(
     logDebug(s"Client $address got disassociated.")
   }
 
-  def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
+  private def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
     if (HAHelper.checkShouldProcess(context, statusSystem)) {
       try {
         f
@@ -427,14 +427,13 @@ private[celeborn] class Master(
       executeWithLeaderChecker(context, handleCheckWorkersAvailable(context))
   }
 
-  private def timeoutDeadWorkers() {
+  private def timeoutDeadWorkers(): Unit = {
     val currentTime = System.currentTimeMillis()
     // Need increase timeout deadline to avoid long time leader election period
     if (HAHelper.getWorkerTimeoutDeadline(statusSystem) > currentTime) {
       return
     }
 
-    var ind = 0
     workersSnapShot.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
@@ -448,7 +447,6 @@ private[celeborn] class Master(
           worker.replicatePort,
           MasterClient.genRequestId()))
       }
-      ind += 1
     }
   }
 
@@ -467,7 +465,7 @@ private[celeborn] class Master(
       logDebug(s"Remove unavailable info for workers: $unavailableInfoTimeoutWorkers")
       self.send(RemoveWorkersUnavailableInfo(
         unavailableInfoTimeoutWorkers,
-        MasterClient.genRequestId()));
+        MasterClient.genRequestId()))
     }
   }
 
@@ -720,7 +718,7 @@ private[celeborn] class Master(
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
   }
 
-  def handleUnregisterShuffle(
+  private def handleUnregisterShuffle(
       context: RpcCallContext,
       applicationId: String,
       shuffleId: Int,
@@ -741,7 +739,10 @@ private[celeborn] class Master(
     context.reply(OneWayMessageResponse)
   }
 
-  def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
+  private def handleApplicationLost(
+      context: RpcCallContext,
+      appId: String,
+      requestId: String): Unit = {
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
@@ -766,7 +767,7 @@ private[celeborn] class Master(
     }
     val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
     if (hadoopFs.exists(hdfsWorkPath)) {
-      if (!expiredDir.isEmpty) {
+      if (expiredDir.nonEmpty) {
         val dirToDelete = new Path(hdfsWorkPath, expiredDir)
         // delete specific app dir on application lost
         CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, dirToDelete, true)
@@ -812,7 +813,7 @@ private[celeborn] class Master(
   private def handleRemoveWorkersUnavailableInfos(
       unavailableWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
-    statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId);
+    statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId)
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
@@ -877,7 +878,7 @@ private[celeborn] class Master(
   override def getMasterGroupInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Master Group INFO ==============================\n")
-    sb.append(getMasterGroupInfoInternal())
+    sb.append(getMasterGroupInfoInternal)
     sb.toString()
   }
 
@@ -981,7 +982,7 @@ private[celeborn] class Master(
     isActive
   }
 
-  private def getMasterGroupInfoInternal(): String = {
+  private def getMasterGroupInfoInternal: String = {
     if (conf.haEnabled) {
       val sb = new StringBuilder
       val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo
