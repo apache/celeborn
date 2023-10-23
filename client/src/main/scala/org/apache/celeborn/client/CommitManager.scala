@@ -191,7 +191,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
         new AtomicInteger(),
         JavaUtils.newConcurrentHashMap[Int, AtomicInteger]()))
 
-    getCommitHandler(shuffleId).registerShuffle(shuffleId, numMappers);
+    getCommitHandler(shuffleId).registerShuffle(shuffleId, numMappers)
   }
 
   def isMapperEnded(shuffleId: Int, mapId: Int): Boolean = {

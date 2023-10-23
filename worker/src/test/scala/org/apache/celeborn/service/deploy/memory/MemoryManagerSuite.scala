@@ -42,7 +42,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
       .set(WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE, 0.85)
     val caught =
       intercept[IllegalArgumentException] {
-        MemoryManager.initialize(conf);
+        MemoryManager.initialize(conf)
       }
     assert(
       caught.getMessage == s"Invalid config, ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE.key}(0.85) " +
@@ -69,17 +69,17 @@ class MemoryManagerSuite extends CelebornFunSuite {
       memoryCounter.set(pushThreshold + 1)
       assert(ServingState.PUSH_PAUSED == memoryManager.currentServingState())
       // reach pause replicate data threshold
-      memoryCounter.set(replicateThreshold + 1);
-      assert(ServingState.PUSH_AND_REPLICATE_PAUSED == memoryManager.currentServingState());
+      memoryCounter.set(replicateThreshold + 1)
+      assert(ServingState.PUSH_AND_REPLICATE_PAUSED == memoryManager.currentServingState())
       // touch pause push data threshold again
-      memoryCounter.set(pushThreshold + 1);
-      assert(MemoryManager.ServingState.PUSH_PAUSED == memoryManager.currentServingState());
+      memoryCounter.set(pushThreshold + 1)
+      assert(MemoryManager.ServingState.PUSH_PAUSED == memoryManager.currentServingState())
       // between pause push data threshold and resume data threshold
-      memoryCounter.set(resumeThreshold + 2);
-      assert(MemoryManager.ServingState.PUSH_PAUSED == memoryManager.currentServingState());
+      memoryCounter.set(resumeThreshold + 2)
+      assert(MemoryManager.ServingState.PUSH_PAUSED == memoryManager.currentServingState())
       // touch resume data threshold
-      memoryCounter.set(0);
-      assert(MemoryManager.ServingState.NONE_PAUSED == memoryManager.currentServingState());
+      memoryCounter.set(0)
+      assert(MemoryManager.ServingState.NONE_PAUSED == memoryManager.currentServingState())
     } catch {
       case e: Exception => throw e
     } finally {
@@ -112,21 +112,21 @@ class MemoryManagerSuite extends CelebornFunSuite {
     }
 
     // PAUSE PUSH -> PAUSE PUSH AND REPLICATE
-    memoryCounter.set(replicateThreshold + 1);
+    memoryCounter.set(replicateThreshold + 1)
     eventually(timeout(30.second), interval(10.milliseconds)) {
       assert(pushListener.isPause)
       assert(replicateListener.isPause)
     }
 
     // PAUSE PUSH AND REPLICATE -> PAUSE PUSH
-    memoryCounter.set(pushThreshold + 1);
+    memoryCounter.set(pushThreshold + 1)
     eventually(timeout(30.second), interval(10.milliseconds)) {
       assert(pushListener.isPause)
       assert(!replicateListener.isPause)
     }
 
     // PAUSE PUSH -> NONE PAUSED
-    memoryCounter.set(0);
+    memoryCounter.set(0)
     eventually(timeout(30.second), interval(10.milliseconds)) {
       assert(!pushListener.isPause)
       assert(!replicateListener.isPause)
@@ -136,14 +136,14 @@ class MemoryManagerSuite extends CelebornFunSuite {
     val lastPauseTime = memoryManager.getPausePushDataTime.longValue()
 
     // NONE PAUSED -> PAUSE PUSH AND REPLICATE
-    memoryCounter.set(replicateThreshold + 1);
+    memoryCounter.set(replicateThreshold + 1)
     eventually(timeout(30.second), interval(10.milliseconds)) {
       assert(pushListener.isPause)
       assert(replicateListener.isPause)
     }
 
     // PAUSE PUSH AND REPLICATE -> NONE PAUSED
-    memoryCounter.set(0);
+    memoryCounter.set(0)
     eventually(timeout(30.second), interval(10.milliseconds)) {
       assert(!pushListener.isPause)
       assert(!replicateListener.isPause)

@@ -52,7 +52,7 @@ object ShuffleClientHelper extends Logging {
           logInfo(s"Stage ended for $shuffleId")
         } else {
           logInfo(s"split failed for $respStatus, " +
-            s"shuffle file can be larger than expected, try split again");
+            s"shuffle file can be larger than expected, try split again")
         }
         splittingSet.remove(partitionId)
       case Failure(exception) =>
@@ -60,7 +60,7 @@ object ShuffleClientHelper extends Logging {
         logWarning(
           s"Shuffle file split failed for map ${shuffleId} partitionId ${partitionId}," +
             s" try again, detail : {}",
-          exception);
+          exception)
 
     }(concurrent.ExecutionContext.fromExecutorService(executors))
   }

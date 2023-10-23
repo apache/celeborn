@@ -75,7 +75,7 @@ class CelebornShuffleReader[K, C](
           streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool(
             "celeborn-create-stream-thread",
             conf.readStreamCreatorPoolThreads,
-            60);
+            60)
         }
       }
     }
