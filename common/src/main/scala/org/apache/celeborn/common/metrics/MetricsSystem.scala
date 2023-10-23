@@ -80,11 +80,14 @@ class MetricsSystem(
     MetricRegistry.name(source.sourceName)
   }
 
-  def getSourcesByName(sourceName: String): Seq[Source] =
+  def getSourcesByName(sourceName: String): Seq[Source] = sources.synchronized {
     sources.filter(_.sourceName == sourceName).toSeq
+  }
 
   def registerSource(source: Source) {
-    sources += source
+    sources.synchronized {
+      sources += source
+    }
     try {
       val regName = buildRegistryName(source)
       registry.register(regName, source.metricRegistry)
@@ -94,7 +97,9 @@ class MetricsSystem(
   }
 
   def removeSource(source: Source) {
-    sources -= source
+    sources.synchronized {
+      sources -= source
+    }
     val regName = buildRegistryName(source)
     registry.removeMatching(new MetricFilter {
       def matches(name: String, metric: Metric): Boolean = name.startsWith(regName)
