@@ -100,9 +100,9 @@ These metrics are exposed by Celeborn master.
     - PartitionSize
         - The size of estimated shuffle partition.
     - PartitionWritten
-        - The active shuffle size.
+        - The active shuffle size of workers.
     - PartitionFileCount
-        - The active shuffle partition count.
+        - The active shuffle file count of workers.
     - OfferSlotsTime
         - The time for masters to handle `RequestSlots` request when registering shuffle.
 
@@ -194,6 +194,10 @@ These metrics are exposed by Celeborn worker.
     - PotentialConsumeSpeed
     - UserProduceSpeed
     - WorkerConsumeSpeed
+    - ActiveShuffleSize
+        - The active shuffle size of a worker including master replica and slave replica.
+    - ActiveShuffleFileCount
+        - The active shuffle file count of a worker including master replica and slave replica.
     - OutstandingFetchCount
         - The count of outstanding fetch request.
     - OutstandingRpcCount
