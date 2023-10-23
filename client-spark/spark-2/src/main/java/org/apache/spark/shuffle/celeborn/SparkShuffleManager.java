@@ -43,8 +43,8 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private static final Logger logger = LoggerFactory.getLogger(SparkShuffleManager.class);
 
-  private static final String sortShuffleManagerName =
-      "org.apache.spark.shuffle.sort.SortShuffleManager";
+  private static final String SORT_SHUFFLE_MANAGER_NAME =
+      org.apache.spark.shuffle.sort.SortShuffleManager.class.getName();
 
   private final SparkConf conf;
   private final Boolean isDriver;
@@ -89,7 +89,8 @@ public class SparkShuffleManager implements ShuffleManager {
     if (_sortShuffleManager == null) {
       synchronized (this) {
         if (_sortShuffleManager == null) {
-          _sortShuffleManager = SparkUtils.instantiateClass(sortShuffleManagerName, conf, isDriver);
+          _sortShuffleManager =
+              SparkUtils.instantiateClass(SORT_SHUFFLE_MANAGER_NAME, conf, isDriver);
         }
       }
     }
@@ -186,16 +187,15 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier());
-        if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
-          ExecutorService pushThread =
-              celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
+        if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
+            && celebornConf.clientPushSortPipelineEnabled()) {
           return new SortBasedShuffleWriter<>(
               h.dependency(),
               h.numMaps(),
               context,
               celebornConf,
               client,
-              pushThread,
+              getPusherThread(),
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
