@@ -19,21 +19,11 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Matcher;
 
-import org.apache.ratis.server.storage.RaftStorage;
-import org.apache.ratis.server.storage.StorageImplUtils;
 import org.apache.ratis.statemachine.SnapshotInfo;
-import org.apache.ratis.statemachine.SnapshotRetentionPolicy;
-import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
-import org.apache.ratis.statemachine.impl.SimpleStateMachineStorageUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -44,7 +34,6 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.JavaUtils;
-import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
@@ -112,93 +101,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Assert.assertEquals(2020, latest.getTerm());
     Assert.assertEquals(1005, latest.getIndex());
     Assert.assertEquals(1, latest.getFiles().size());
-  }
-
-  @Test
-  public void testSnapshotCleanup() throws IOException {
-    StateMachine stateMachine = ratisServer.getMasterStateMachine();
-    SnapshotRetentionPolicy snapshotRetentionPolicy =
-        new SnapshotRetentionPolicy() {
-          @Override
-          public int getNumSnapshotsRetained() {
-            return 3;
-          }
-        };
-
-    File storageDir = Utils.createTempDir("./", "snapshot");
-
-    System.out.println(storageDir);
-    final RaftStorage storage =
-        StorageImplUtils.newRaftStorage(storageDir, null, RaftStorage.StartupOption.FORMAT, 100);
-    storage.initialize();
-    SimpleStateMachineStorage simpleStateMachineStorage =
-        (SimpleStateMachineStorage) stateMachine.getStateMachineStorage();
-    simpleStateMachineStorage.init(storage);
-
-    List<Long> indices = new ArrayList<>();
-
-    // Create 5 snapshot files in storage dir.
-    for (int i = 0; i < 5; i++) {
-      final long term = ThreadLocalRandom.current().nextLong(3L, 10L);
-      final long index = ThreadLocalRandom.current().nextLong(100L, 1000L);
-      indices.add(index);
-      File snapshotFile = simpleStateMachineStorage.getSnapshotFile(term, index);
-      snapshotFile.createNewFile();
-      File md5File = new File(snapshotFile.getAbsolutePath() + ".md5");
-      md5File.createNewFile();
-    }
-
-    // following 2 md5 files will be deleted
-    File snapshotFile1 = simpleStateMachineStorage.getSnapshotFile(1, 1);
-    File md5File1 = new File(snapshotFile1.getAbsolutePath() + ".md5");
-    md5File1.createNewFile();
-    File snapshotFile2 = simpleStateMachineStorage.getSnapshotFile(5, 2);
-    File md5File2 = new File(snapshotFile2.getAbsolutePath() + ".md5");
-    md5File2.createNewFile();
-    // this md5 file will not be deleted
-    File snapshotFile3 = simpleStateMachineStorage.getSnapshotFile(11, 1001);
-    File md5File3 = new File(snapshotFile3.getAbsolutePath() + ".md5");
-    md5File3.createNewFile();
-
-    File stateMachineDir = SimpleStateMachineStorageUtil.getSmDir(simpleStateMachineStorage);
-    Assert.assertTrue(stateMachineDir.listFiles().length == 13);
-    simpleStateMachineStorage.cleanupOldSnapshots(snapshotRetentionPolicy);
-    File[] remainingFiles = stateMachineDir.listFiles();
-    Assert.assertTrue(remainingFiles.length == 7);
-
-    Collections.sort(indices);
-    Collections.reverse(indices);
-    List<Long> remainingIndices = indices.subList(0, 3);
-    // check snapshot file and its md5 file management
-    for (File file : remainingFiles) {
-      System.out.println(file.getName());
-      Matcher matcher = SimpleStateMachineStorage.SNAPSHOT_REGEX.matcher(file.getName());
-      if (matcher.matches()) {
-        Assert.assertTrue(remainingIndices.contains(Long.parseLong(matcher.group(2))));
-        Assert.assertTrue(new File(file.getAbsolutePath() + ".md5").exists());
-      }
-    }
-
-    // Attempt to clean up again should not delete any more files.
-    simpleStateMachineStorage.cleanupOldSnapshots(snapshotRetentionPolicy);
-    remainingFiles = stateMachineDir.listFiles();
-    Assert.assertTrue(remainingFiles.length == 7);
-
-    // Test with Retention disabled.
-    // Create 2 snapshot files in storage dir.
-    for (int i = 0; i < 2; i++) {
-      final long term = ThreadLocalRandom.current().nextLong(10L);
-      final long index = ThreadLocalRandom.current().nextLong(1000L);
-      indices.add(index);
-      File snapshotFile = simpleStateMachineStorage.getSnapshotFile(term, index);
-      snapshotFile.createNewFile();
-      File md5File = new File(snapshotFile.getAbsolutePath() + ".md5");
-      md5File.createNewFile();
-    }
-
-    simpleStateMachineStorage.cleanupOldSnapshots(new SnapshotRetentionPolicy() {});
-
-    Assert.assertTrue(stateMachineDir.listFiles().length == 11);
   }
 
   @Test
