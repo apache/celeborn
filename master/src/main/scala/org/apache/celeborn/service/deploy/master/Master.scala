@@ -152,7 +152,7 @@ private[celeborn] class Master(
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
   // init and register master metrics
-  private val resourceConsumptionSource = new ResourceConsumptionSource(conf)
+  val resourceConsumptionSource = new ResourceConsumptionSource(conf)
   private val masterSource = new MasterSource(conf)
   private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -266,7 +266,7 @@ private[celeborn] class Master(
     logDebug(s"Client $address got disassociated.")
   }
 
-  private def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
+  def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
     if (HAHelper.checkShouldProcess(context, statusSystem)) {
       try {
         f
@@ -718,7 +718,7 @@ private[celeborn] class Master(
     context.reply(RequestSlotsResponse(StatusCode.SUCCESS, slots.asInstanceOf[WorkerResource]))
   }
 
-  private def handleUnregisterShuffle(
+  def handleUnregisterShuffle(
       context: RpcCallContext,
       applicationId: String,
       shuffleId: Int,
@@ -739,10 +739,7 @@ private[celeborn] class Master(
     context.reply(OneWayMessageResponse)
   }
 
-  private def handleApplicationLost(
-      context: RpcCallContext,
-      appId: String,
-      requestId: String): Unit = {
+  def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
