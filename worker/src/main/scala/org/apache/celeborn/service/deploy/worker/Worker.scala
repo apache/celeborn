@@ -131,10 +131,10 @@ private[celeborn] class Worker(
       conf.workerCongestionControlUserInactiveIntervalMs)
   }
 
-  var controller = new Controller(rpcEnv, conf, metricsSystem)
+  var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
-  val pushDataHandler = new PushDataHandler()
+  val pushDataHandler = new PushDataHandler(workerSource)
   val (pushServer, pushClientFactory) = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.workerPushIoThreads.getOrElse(storageManager.totalFlusherThread)
@@ -154,7 +154,7 @@ private[celeborn] class Worker(
       transportContext.createClientFactory())
   }
 
-  val replicateHandler = new PushDataHandler()
+  val replicateHandler = new PushDataHandler(workerSource)
   private val replicateServer = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads =
@@ -179,7 +179,7 @@ private[celeborn] class Worker(
     val numThreads = conf.workerFetchIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
-    fetchHandler = new FetchHandler(conf, transportConf)
+    fetchHandler = new FetchHandler(conf, transportConf, workerSource)
     val transportContext: TransportContext =
       new TransportContext(
         transportConf,
