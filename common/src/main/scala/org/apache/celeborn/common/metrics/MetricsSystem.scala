@@ -81,7 +81,7 @@ class MetricsSystem(
   }
 
   def getSourcesByName(sourceName: String): Seq[Source] =
-    sources.asScala.filter(_.sourceName == sourceName).toSeq
+    sources.asScala.filter(_.sourceName == sourceName)
 
   def registerSource(source: Source) {
     sources.add(source)
