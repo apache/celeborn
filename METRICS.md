@@ -76,8 +76,8 @@ Here is an example of grafana dashboard importing.
 |             FlushDataTime              |      worker       |                                  FlushData means flush a disk buffer to disk.                                   |
 |             OpenStreamTime             |      worker       |            OpenStream means read a shuffle file and send client about chunks size and stream index.             |
 |             FetchChunkTime             |      worker       |                      FetchChunk means read a chunk from a shuffle file and send to client.                      |
-|          PrimaryPushDataTime           |      worker       |                      PrimaryPushData means handle pushdata of primary partition location.                       |
-|          ReplicaPushDataTime           |      worker       |                      ReplicaPushData means handle pushdata of replica partition location.                       |
+|           PrimaryPushDataTime          |      worker       |                       PrimaryPushData means handle pushdata of primary partition location.                        |
+|           ReplicaPushDataTime          |      worker       |                        ReplicaPushData means handle pushdata of replica partition location.                         |
 |           WriteDataFailCount           |      worker       |                    The count of writing PushData or PushMergedData failed in current worker.                    |
 |         ReplicateDataFailCount         |      worker       |                  The count of replicating PushData or PushMergedData failed in current worker.                  |
 |      ReplicateDataWriteFailCount       |      worker       |       The count of replicating PushData or PushMergedData failed caused by write failure in peer worker.        |
@@ -97,9 +97,6 @@ Here is an example of grafana dashboard importing.
 |       PausePushDataAndReplicate        |      worker       |    PausePushDataAndReplicate means the count of worker stopped receiving data from client and other workers.    |
 |           ActiveShuffleSize            |      worker       |                 The active shuffle size of a worker including master replica and slave replica.                 |
 |         ActiveShuffleFileCount         |      worker       |              The active shuffle file count of a worker including master replica and slave replica.              |
-|         OutstandingFetchCount          |      worker       |                         The count of outstanding fetch request received in peer worker.                         |
-|          OutstandingRpcCount           |      worker       |                          The count of outstanding rpc request received in peer worker.                          |
-|          OutstandingPushCount          |      worker       |                         The count of outstanding push request received in peer worker.                          |
 
 ## Implementation
 
