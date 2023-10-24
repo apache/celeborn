@@ -759,7 +759,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     })
     hdfsWriters.forEach(new BiConsumer[String, FileWriter] {
       override def accept(t: String, u: FileWriter): Unit = {
-        u.flushOnMemoryPressure();
+        u.flushOnMemoryPressure()
       }
     })
   }

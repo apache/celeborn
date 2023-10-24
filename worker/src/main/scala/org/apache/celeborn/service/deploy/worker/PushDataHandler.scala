@@ -759,7 +759,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         logError(s"Error while handle${message.`type`()} $message", e)
         client.getChannel.writeAndFlush(new RpcFailure(
           requestId,
-          Throwables.getStackTraceAsString(e)));
+          Throwables.getStackTraceAsString(e)))
     } finally {
       message.body().release()
     }
