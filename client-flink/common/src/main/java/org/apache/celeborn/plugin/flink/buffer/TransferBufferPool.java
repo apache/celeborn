@@ -155,6 +155,7 @@ public class TransferBufferPool implements BufferRecycler {
     }
   }
 
+  @GuardedBy("lock")
   private int assignCredits(CreditListener creditListener) {
     assert Thread.holdsLock(lock);
 
@@ -176,6 +177,7 @@ public class TransferBufferPool implements BufferRecycler {
     return numCredits;
   }
 
+  @GuardedBy("lock")
   private List<CreditAssignment> dispatchReservedCredits() {
     assert Thread.holdsLock(lock);
 
