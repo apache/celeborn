@@ -164,7 +164,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_heap_init_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "init_{{instance}}",
+          "legendFormat": "init_$baseLegend",
           "range": true,
           "refId": "A"
         },
@@ -176,7 +176,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_heap_used_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "used_{{instance}}",
+          "legendFormat": "used_$baseLegend",
           "range": true,
           "refId": "B"
         },
@@ -188,7 +188,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_heap_max_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "max_{{instance}}",
+          "legendFormat": "max_$baseLegend",
           "range": true,
           "refId": "C"
         },
@@ -200,7 +200,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_heap_committed_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "committed_{{instance}}",
+          "legendFormat": "committed_$baseLegend",
           "range": true,
           "refId": "D"
         }
@@ -300,7 +300,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_non_heap_init_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "init_{{instance}}",
+          "legendFormat": "init_$baseLegend",
           "range": true,
           "refId": "A"
         },
@@ -312,7 +312,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_non_heap_used_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "used_{{instance}}",
+          "legendFormat": "used_$baseLegend",
           "range": true,
           "refId": "B"
         },
@@ -324,7 +324,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_non_heap_max_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "max_{{instance}}",
+          "legendFormat": "max_$baseLegend",
           "range": true,
           "refId": "C"
         },
@@ -336,7 +336,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_non_heap_committed_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "committed_{{instance}}",
+          "legendFormat": "committed_$baseLegend",
           "range": true,
           "refId": "D"
         }
@@ -436,7 +436,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_total_init_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "init_{{instance}}",
+          "legendFormat": "init_$baseLegend",
           "range": true,
           "refId": "A"
         },
@@ -448,7 +448,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_total_used_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "used_{{instance}}",
+          "legendFormat": "used_$baseLegend",
           "range": true,
           "refId": "B"
         },
@@ -460,7 +460,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_total_max_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "max_{{instance}}",
+          "legendFormat": "max_$baseLegend",
           "range": true,
           "refId": "C"
         },
@@ -472,7 +472,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_total_committed_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "committed_{{instance}}",
+          "legendFormat": "committed_$baseLegend",
           "range": true,
           "refId": "D"
         }
@@ -586,7 +586,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_jvm_memory_pools_init_Value{instance=~\"${instance}\", name=~\"$pool\"}",
-          "legendFormat": "init_{{instance}}",
+          "legendFormat": "init_$baseLegend",
           "range": true,
           "refId": "A"
         },
@@ -601,7 +601,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_pools_used_Value{instance=~\"${instance}\", name=~\"$pool\"}",
           "hide": false,
-          "legendFormat": "used_{{instance}}",
+          "legendFormat": "used_$baseLegend",
           "range": true,
           "refId": "B"
         },
@@ -616,7 +616,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_pools_max_Value{instance=~\"${instance}\", name=~\"$pool\"}",
           "hide": false,
-          "legendFormat": "max_{{instance}}",
+          "legendFormat": "max_$baseLegend",
           "range": true,
           "refId": "C"
         },
@@ -631,7 +631,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_memory_pools_committed_Value{instance=~\"${instance}\", name=~\"$pool\"}",
           "hide": false,
-          "legendFormat": "committed_{{instance}}",
+          "legendFormat": "committed_$baseLegend",
           "range": true,
           "refId": "D"
         }
@@ -740,7 +740,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "increase(metrics_jvm_gc_time_Value{instance=~\"${instance}\"}[${interval}])",
-          "legendFormat": "{{name}}_{{instance}}",
+          "legendFormat": "{{name}}_$baseLegend",
           "range": true,
           "refId": "A"
         }
@@ -835,7 +835,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "increase(metrics_jvm_gc_count_Value{instance=~\"${instance}\"}[${interval}])",
-          "legendFormat": "{{name}}_{{instance}}",
+          "legendFormat": "{{name}}_$baseLegend",
           "range": true,
           "refId": "A"
         }
@@ -944,7 +944,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "increase(metrics_JVMCPUTime_Value{instance=~\"${instance}\"}[${interval}])",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "$baseLegend",
           "range": true,
           "refId": "A"
         }
@@ -1039,7 +1039,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_LastMinuteSystemLoad_Value{instance=~\"${instance}\"}",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "$baseLegend",
           "range": true,
           "refId": "A"
         }
@@ -1135,7 +1135,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_AvailableProcessors_Value{instance=~\"${instance}\"}",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "$baseLegend",
           "range": true,
           "refId": "A"
         }
@@ -1230,7 +1230,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_jvm_thread_count_Value{instance=~\"${instance}\"}",
-          "legendFormat": "total_{{instance}}",
+          "legendFormat": "total_$baseLegend",
           "range": true,
           "refId": "A"
         },
@@ -1242,7 +1242,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_thread_daemon_count_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "daemon_{{instance}}",
+          "legendFormat": "daemon_$baseLegend",
           "range": true,
           "refId": "B"
         }
@@ -1337,7 +1337,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_jvm_thread_blocked_count_Value{instance=~\"${instance}\"}",
-          "legendFormat": "blocked_{{instance}}",
+          "legendFormat": "blocked_$baseLegend",
           "range": true,
           "refId": "A"
         },
@@ -1349,7 +1349,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_thread_new_count_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "new_{{instance}}",
+          "legendFormat": "new_$baseLegend",
           "range": true,
           "refId": "B"
         },
@@ -1361,7 +1361,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_thread_runnable_count_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "runnable_{{instance}}",
+          "legendFormat": "runnable_$baseLegend",
           "range": true,
           "refId": "C"
         },
@@ -1373,7 +1373,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_thread_timed_waiting_count_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "timed_waiting_{{instance}}",
+          "legendFormat": "timed_waiting_$baseLegend",
           "range": true,
           "refId": "D"
         },
@@ -1385,7 +1385,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_thread_waiting_count_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "waiting_{{instance}}",
+          "legendFormat": "waiting_$baseLegend",
           "range": true,
           "refId": "E"
         },
@@ -1397,7 +1397,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_thread_terminated_count_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "terminated_{{instance}}",
+          "legendFormat": "terminated_$baseLegend",
           "range": true,
           "refId": "F"
         },
@@ -1409,7 +1409,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_thread_deadlock_count_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "deadlock_{{instance}}",
+          "legendFormat": "deadlock_$baseLegend",
           "range": true,
           "refId": "G"
         }
@@ -1518,7 +1518,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_jvm_direct_capacity_Value{instance=~\"${instance}\"}",
-          "legendFormat": "capacity_{{instance}}",
+          "legendFormat": "capacity_$baseLegend",
           "range": true,
           "refId": "A"
         },
@@ -1530,7 +1530,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_direct_used_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "used_{{instance}}",
+          "legendFormat": "used_$baseLegend",
           "range": true,
           "refId": "B"
         }
@@ -1625,7 +1625,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_jvm_direct_count_Value{instance=~\"${instance}\"}",
-          "legendFormat": "count_{{instance}}",
+          "legendFormat": "count_$baseLegend",
           "range": true,
           "refId": "A"
         }
@@ -1721,7 +1721,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_jvm_mapped_capacity_Value{instance=~\"${instance}\"}",
-          "legendFormat": "capacity_{{instance}}",
+          "legendFormat": "capacity_$baseLegend",
           "range": true,
           "refId": "A"
         },
@@ -1733,7 +1733,7 @@
           "editorMode": "code",
           "expr": "metrics_jvm_mapped_used_Value{instance=~\"${instance}\"}",
           "hide": false,
-          "legendFormat": "used_{{instance}}",
+          "legendFormat": "used_$baseLegend",
           "range": true,
           "refId": "B"
         }
@@ -1828,7 +1828,7 @@
           "downsampleFillPolicy": "none",
           "editorMode": "code",
           "expr": "metrics_jvm_mapped_count_Value{instance=~\"${instance}\"}",
-          "legendFormat": "count_{{instance}}",
+          "legendFormat": "count_$baseLegend",
           "range": true,
           "refId": "A"
         }
@@ -1951,6 +1951,30 @@
           }
         ],
         "query": "5m,30m,1h,6h,12h,1d,3d,7d",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "{{instance}}",
+          "value": "{{instance}}"
+        },
+        "description": "The base legend format to apply for all metrics",
+        "hide": 0,
+        "includeAll": false,
+        "label": "baseLegend",
+        "multi": false,
+        "name": "baseLegend",
+        "options": [
+          {
+            "selected": true,
+            "text": "{{instance}}",
+            "value": "{{instance}}"
+          }
+        ],
+        "query": "{{instance}}",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
