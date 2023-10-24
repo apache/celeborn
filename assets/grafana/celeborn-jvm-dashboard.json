@@ -739,13 +739,13 @@
           "downsampleAggregator": "avg",
           "downsampleFillPolicy": "none",
           "editorMode": "code",
-          "expr": "increase(metrics_jvm_gc_time_Value{instance=~\"${instance}\"})",
+          "expr": "increase(metrics_jvm_gc_time_Value{instance=~\"${instance}\"}[${interval}])",
           "legendFormat": "{{name}}_{{instance}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Collection Time",
+      "title": "Collection Time Increase[${interval}]",
       "type": "timeseries"
     },
     {
@@ -834,13 +834,13 @@
           "downsampleAggregator": "avg",
           "downsampleFillPolicy": "none",
           "editorMode": "code",
-          "expr": "increase(metrics_jvm_gc_count_Value{instance=~\"${instance}\"})",
+          "expr": "increase(metrics_jvm_gc_count_Value{instance=~\"${instance}\"}[${interval}])",
           "legendFormat": "{{name}}_{{instance}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Collection Counts",
+      "title": "Collection Counts Increase[${interval}]",
       "type": "timeseries"
     },
     {
@@ -943,13 +943,13 @@
           "downsampleAggregator": "avg",
           "downsampleFillPolicy": "none",
           "editorMode": "code",
-          "expr": "increase(metrics_JVMCPUTime_Value{instance=~\"${instance}\"})",
+          "expr": "increase(metrics_JVMCPUTime_Value{instance=~\"${instance}\"}[${interval}])",
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "CPU Usage",
+      "title": "CPU Usage Increase[${interval}]",
       "type": "timeseries"
     },
     {
@@ -1892,6 +1892,68 @@
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "5m"
+          ],
+          "value": [
+            "5m"
+          ]
+        },
+        "description": "",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "interval",
+        "options": [
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": true,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "3d",
+            "value": "3d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          }
+        ],
+        "query": "5m,30m,1h,6h,12h,1d,3d,7d",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
       }
     ]
   },
