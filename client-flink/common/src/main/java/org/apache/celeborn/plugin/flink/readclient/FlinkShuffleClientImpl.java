@@ -69,11 +69,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public static final Logger logger = LoggerFactory.getLogger(FlinkShuffleClientImpl.class);
   private static volatile FlinkShuffleClientImpl _instance;
   private static volatile boolean initialized = false;
-  private FlinkTransportClientFactory flinkTransportClientFactory;
-  private ReadClientHandler readClientHandler = new ReadClientHandler();
-  private ConcurrentHashMap<String, TransportClient> currentClient =
+  private final FlinkTransportClientFactory flinkTransportClientFactory;
+  private final ReadClientHandler readClientHandler = new ReadClientHandler();
+  private final ConcurrentHashMap<String, TransportClient> currentClient =
       JavaUtils.newConcurrentHashMap();
-  private long driverTimestamp;
+  private final long driverTimestamp;
 
   public static FlinkShuffleClientImpl get(
       String appUniqueId,
@@ -146,7 +146,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
-    if (fileGroups.partitionGroups.size() == 0
+    if (fileGroups.partitionGroups.isEmpty()
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
@@ -384,7 +384,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               currentRegionIdx,
               attemptId,
               location.getUniqueId());
-          logger.debug("RegionStart  for location {}.", location.toString());
+          logger.debug("RegionStart  for location {}.", location);
           TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
           ByteBuffer regionStartResponse;
           try {
@@ -533,15 +533,13 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   private boolean shouldRetry(Throwable e) {
-    boolean isIOException =
-        e instanceof IOException
-            || e instanceof TimeoutException
-            || (e.getCause() != null && e.getCause() instanceof TimeoutException)
-            || (e.getCause() != null && e.getCause() instanceof IOException)
-            || (e instanceof RuntimeException
-                && e.getMessage() != null
-                && e.getMessage().startsWith(IOException.class.getName()));
-    return isIOException;
+    return e instanceof IOException
+        || e instanceof TimeoutException
+        || (e.getCause() != null && e.getCause() instanceof TimeoutException)
+        || (e.getCause() != null && e.getCause() instanceof IOException)
+        || (e instanceof RuntimeException
+            && e.getMessage() != null
+            && e.getMessage().startsWith(IOException.class.getName()));
   }
 
   @Override
@@ -549,7 +547,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     super.cleanup(shuffleId, mapId, attemptId);
     if (currentClient != null) {
-      currentClient.remove(mapKey);
+      JavaUtils.closeQuietly(currentClient.remove(mapKey));
     }
   }
 
