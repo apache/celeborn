@@ -26,6 +26,7 @@ scrape_configs:
 3.Install Grafana server (https://grafana.com/grafana/download).
 
 4.Import Celeborn dashboard into Grafana.
+
 You can find the Celeborn dashboard templates under the `assets/grafana` directory.
 `celeborn-dashboard.json` displays Celeborn internal metrics and `celeborn-jvm-dashboard.json` displays Celeborn JVM related metrics.
 
