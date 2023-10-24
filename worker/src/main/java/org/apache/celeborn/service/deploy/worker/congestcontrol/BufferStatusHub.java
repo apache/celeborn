@@ -41,13 +41,19 @@ public class BufferStatusHub extends TimeSlidingHub<BufferStatusHub.BufferStatus
     @Override
     public void combineNode(TimeSlidingNode node) {
       BufferStatusNode needToCombined = (BufferStatusNode) node;
-      numBytes.add(needToCombined.numBytes());
+      long nodeNumBytes = needToCombined.numBytes();
+      if (nodeNumBytes != 0) {
+        numBytes.add(nodeNumBytes);
+      }
     }
 
     @Override
     public void separateNode(TimeSlidingNode node) {
-      BufferStatusNode needToCombined = (BufferStatusNode) node;
-      numBytes.add(-needToCombined.numBytes());
+      BufferStatusNode needToSeparate = (BufferStatusNode) node;
+      long nodeNumBytes = needToSeparate.numBytes();
+      if (nodeNumBytes != 0) {
+        numBytes.add(-nodeNumBytes);
+      }
     }
 
     @Override
