@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+import java.util.{Map => JMap, Queue => JQueue}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -67,7 +67,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel
   val staticLabelsString: String = MetricLabels.labelString(staticLabels)
 
-  protected val namedGauges: JList[NamedGauge[_]] = new JArrayList[NamedGauge[_]]()
+  protected val namedGauges: JQueue[NamedGauge[_]] = new ConcurrentLinkedQueue[NamedGauge[_]]()
 
   def addGauge[T](
       name: String,
