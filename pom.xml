@@ -101,6 +101,7 @@
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
     <maven.plugin.clean.version>3.2.0</maven.plugin.clean.version>
+    <maven.plugin.compiler.version>3.11.0</maven.plugin.compiler.version>
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
     <maven.plugin.flatten.version>1.3.0</maven.plugin.flatten.version>
     <maven.plugin.jacoco.version>0.8.7</maven.plugin.jacoco.version>
@@ -870,7 +871,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.11.0</version>
+          <version>${maven.plugin.compiler.version}</version>
           <configuration>
             <source>${java.version}</source>
             <target>${java.version}</target>
@@ -886,11 +887,6 @@
                 <artifactId>error_prone_core</artifactId>
                 <version>${error-prone.version}</version>
               </path>
-              <!-- Other annotation processors go here.
-
-              If 'annotationProcessorPaths' is set, processors will no longer be
-              discovered on the regular -classpath; see also 'Using Error Prone
-              together with other annotation processors' below. -->
             </annotationProcessorPaths>
           </configuration>
         </plugin>
@@ -1140,6 +1136,7 @@
       </properties>
       <build>
         <plugins>
+          <!-- based on https://github.com/google/error-prone/blob/f8e33bc460be82ab22256a7ef8b979d7a2cacaba/docs/installation.md#jdk-8 -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
@@ -1201,11 +1198,6 @@
                   <artifactId>error_prone_core</artifactId>
                   <version>${error-prone.version}</version>
                 </path>
-                <!-- Other annotation processors go here.
-
-                If 'annotationProcessorPaths' is set, processors will no longer be
-                discovered on the regular -classpath; see also 'Using Error Prone
-                together with other annotation processors' below. -->
               </annotationProcessorPaths>
             </configuration>
           </plugin>
