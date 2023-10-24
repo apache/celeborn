@@ -41,7 +41,10 @@ import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBuffer
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
-class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
+class FetchHandler(
+    val conf: CelebornConf,
+    val transportConf: TransportConf,
+    val workerSource: WorkerSource)
   extends BaseMessageHandler with Logging {
 
   val chunkStreamManager = new ChunkStreamManager()
@@ -52,13 +55,11 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     conf.partitionReadBuffersMax,
     conf.creditStreamThreadsPerMountpoint,
     conf.readBuffersToTriggerReadMin)
-  var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
 
   def init(worker: Worker): Unit = {
-    this.workerSource = worker.workerSource
 
     workerSource.addGauge(WorkerSource.CREDIT_STREAM_COUNT) { () =>
       creditStreamManager.getStreamsCount
