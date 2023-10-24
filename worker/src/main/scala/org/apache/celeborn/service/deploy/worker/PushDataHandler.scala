@@ -42,9 +42,8 @@ import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
-class PushDataHandler extends BaseMessageHandler with Logging {
+class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
-  private var workerSource: WorkerSource = _
   private var partitionLocationInfo: WorkerPartitionLocationInfo = _
   private var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   private var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
@@ -66,7 +65,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   private var testPushReplicaDataTimeout: Boolean = _
 
   def init(worker: Worker): Unit = {
-    workerSource = worker.workerSource
     partitionLocationInfo = worker.partitionLocationInfo
     shufflePartitionType = worker.shufflePartitionType
     shufflePushDataTimeout = worker.shufflePushDataTimeout

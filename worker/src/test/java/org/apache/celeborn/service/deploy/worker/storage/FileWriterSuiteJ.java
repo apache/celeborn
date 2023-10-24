@@ -82,7 +82,6 @@ public class FileWriterSuiteJ {
   private static final CelebornConf CONF = new CelebornConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
   public static final PartitionSplitMode splitMode = PartitionSplitMode.HARD;
-  public static final PartitionType partitionType = PartitionType.REDUCE;
 
   private static File tempDir = null;
   private static LocalFlusher localFlusher = null;
@@ -138,7 +137,7 @@ public class FileWriterSuiteJ {
 
   public static void setupChunkServer(FileInfo info) {
     FetchHandler handler =
-        new FetchHandler(transConf.getCelebornConf(), transConf) {
+        new FetchHandler(transConf.getCelebornConf(), transConf, mock(WorkerSource.class)) {
           @Override
           public StorageManager storageManager() {
             return new StorageManager(CONF, source);

@@ -43,10 +43,10 @@ import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, MapPartiti
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
     val conf: CelebornConf,
-    val metricsSystem: MetricsSystem)
+    val metricsSystem: MetricsSystem,
+    val workerSource: WorkerSource)
   extends RpcEndpoint with Logging {
 
-  var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   // shuffleKey -> (epoch -> CommitInfo)
@@ -65,7 +65,6 @@ private[deploy] class Controller(
   val testRetryCommitFiles = conf.testRetryCommitFiles
 
   def init(worker: Worker): Unit = {
-    workerSource = worker.workerSource
     storageManager = worker.storageManager
     shufflePartitionType = worker.shufflePartitionType
     shufflePushDataTimeout = worker.shufflePushDataTimeout
