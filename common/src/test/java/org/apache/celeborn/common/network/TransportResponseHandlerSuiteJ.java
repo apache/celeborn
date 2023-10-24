@@ -27,7 +27,6 @@ import io.netty.channel.local.LocalChannel;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
@@ -42,40 +41,50 @@ public class TransportResponseHandlerSuiteJ {
   @Test
   public void handleSuccessfulFetch() throws Exception {
     StreamChunkSlice streamChunkSlice = new StreamChunkSlice(1, 0);
-    TransportResponseHandler handler = createResponseHandler(TransportModuleConstants.FETCH_MODULE);
+
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.FETCH_MODULE, 8),
+            new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
     FetchRequestInfo info = new FetchRequestInfo(System.currentTimeMillis() + 30000, callback);
     handler.addFetchRequest(streamChunkSlice, info);
-    assertOutstandingRequests(handler, "OutstandingFetchCount", 1);
+    assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new ChunkFetchSuccess(streamChunkSlice, new TestManagedBuffer(123)));
     verify(callback, times(1)).onSuccess(eq(0), any());
-    assertOutstandingRequests(handler, "OutstandingFetchCount", 0);
+    assertEquals(0, handler.numOutstandingRequests());
   }
 
   @Test
   public void handleFailedFetch() throws Exception {
     StreamChunkSlice streamChunkSlice = new StreamChunkSlice(1, 0);
-    TransportResponseHandler handler = createResponseHandler(TransportModuleConstants.FETCH_MODULE);
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.FETCH_MODULE, 8),
+            new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
     FetchRequestInfo info = new FetchRequestInfo(System.currentTimeMillis() + 30000, callback);
     handler.addFetchRequest(streamChunkSlice, info);
-    assertOutstandingRequests(handler, "OutstandingFetchCount", 1);
+    assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new ChunkFetchFailure(streamChunkSlice, "some error msg"));
     verify(callback, times(1)).onFailure(eq(0), any());
-    assertOutstandingRequests(handler, "OutstandingFetchCount", 0);
+    assertEquals(0, handler.numOutstandingRequests());
   }
 
   @Test
   public void clearAllOutstandingRequests() throws Exception {
-    TransportResponseHandler handler = createResponseHandler(TransportModuleConstants.DATA_MODULE);
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
+            new LocalChannel());
     ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
     FetchRequestInfo info = new FetchRequestInfo(System.currentTimeMillis() + 30000, callback);
     handler.addFetchRequest(new StreamChunkSlice(1, 0), info);
     handler.addFetchRequest(new StreamChunkSlice(1, 1), info);
     handler.addFetchRequest(new StreamChunkSlice(1, 2), info);
-    assertOutstandingRequests(handler, "OutstandingFetchCount", 3);
+    assertEquals(3, handler.numOutstandingRequests());
 
     handler.handle(new ChunkFetchSuccess(new StreamChunkSlice(1, 0), new TestManagedBuffer(12)));
     handler.exceptionCaught(new Exception("duh duh duhhhh"));
@@ -84,49 +93,18 @@ public class TransportResponseHandlerSuiteJ {
     verify(callback, times(1)).onSuccess(eq(0), any());
     verify(callback, times(1)).onFailure(eq(1), any());
     verify(callback, times(1)).onFailure(eq(2), any());
-    assertOutstandingRequests(handler, "OutstandingFetchCount", 0);
+    assertEquals(0, handler.numOutstandingRequests());
   }
 
   @Test
   public void handleSuccessfulRPC() throws Exception {
-    TransportResponseHandler handler = createResponseHandler(TransportModuleConstants.RPC_MODULE);
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.RPC_MODULE, 8),
+            new LocalChannel());
     RpcResponseCallback callback = mock(RpcResponseCallback.class);
     handler.addRpcRequest(12345, callback);
-    assertOutstandingRequests(handler, "OutstandingRpcCount", 1);
-
-    // This response should be ignored.
-    handler.handle(new RpcResponse(54321, new NioManagedBuffer(ByteBuffer.allocate(7))));
-    assertOutstandingRequests(handler, "OutstandingRpcCount", 1);
-
-    ByteBuffer resp = ByteBuffer.allocate(10);
-    handler.handle(new RpcResponse(12345, new NioManagedBuffer(resp)));
-    verify(callback, times(1)).onSuccess(eq(ByteBuffer.allocate(10)));
-    assertOutstandingRequests(handler, "OutstandingRpcCount", 0);
-  }
-
-  @Test
-  public void handleFailedRPC() throws Exception {
-    TransportResponseHandler handler = createResponseHandler(TransportModuleConstants.RPC_MODULE);
-    RpcResponseCallback callback = mock(RpcResponseCallback.class);
-    handler.addRpcRequest(12345, callback);
-    assertOutstandingRequests(handler, "OutstandingRpcCount", 1);
-
-    handler.handle(new RpcFailure(54321, "uh-oh!")); // should be ignored
-    assertOutstandingRequests(handler, "OutstandingRpcCount", 1);
-
-    handler.handle(new RpcFailure(12345, "oh no"));
-    verify(callback, times(1)).onFailure(any());
-    assertOutstandingRequests(handler, "OutstandingRpcCount", 0);
-  }
-
-  @Test
-  public void handleSuccessfulPush() throws Exception {
-    TransportResponseHandler handler = createResponseHandler(TransportModuleConstants.DATA_MODULE);
-    RpcResponseCallback callback = mock(RpcResponseCallback.class);
-    PushRequestInfo info = new PushRequestInfo(System.currentTimeMillis() + 30000, callback);
-    info.setChannelFuture(mock(ChannelFuture.class));
-    handler.addPushRequest(12345, info);
-    assertOutstandingRequests(handler, "OutstandingPushCount", 1);
+    assertEquals(1, handler.numOutstandingRequests());
 
     // This response should be ignored.
     handler.handle(new RpcResponse(54321, new NioManagedBuffer(ByteBuffer.allocate(7))));
@@ -135,42 +113,66 @@ public class TransportResponseHandlerSuiteJ {
     ByteBuffer resp = ByteBuffer.allocate(10);
     handler.handle(new RpcResponse(12345, new NioManagedBuffer(resp)));
     verify(callback, times(1)).onSuccess(eq(ByteBuffer.allocate(10)));
-    assertOutstandingRequests(handler, "OutstandingPushCount", 0);
+    assertEquals(0, handler.numOutstandingRequests());
+  }
+
+  @Test
+  public void handleFailedRPC() throws Exception {
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.RPC_MODULE, 8),
+            new LocalChannel());
+    RpcResponseCallback callback = mock(RpcResponseCallback.class);
+    handler.addRpcRequest(12345, callback);
+    assertEquals(1, handler.numOutstandingRequests());
+
+    handler.handle(new RpcFailure(54321, "uh-oh!")); // should be ignored
+    assertEquals(1, handler.numOutstandingRequests());
+
+    handler.handle(new RpcFailure(12345, "oh no"));
+    verify(callback, times(1)).onFailure(any());
+    assertEquals(0, handler.numOutstandingRequests());
+  }
+
+  @Test
+  public void handleSuccessfulPush() throws Exception {
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
+            new LocalChannel());
+    RpcResponseCallback callback = mock(RpcResponseCallback.class);
+    PushRequestInfo info = new PushRequestInfo(System.currentTimeMillis() + 30000, callback);
+    info.setChannelFuture(mock(ChannelFuture.class));
+    handler.addPushRequest(12345, info);
+    assertEquals(1, handler.numOutstandingRequests());
+
+    // This response should be ignored.
+    handler.handle(new RpcResponse(54321, new NioManagedBuffer(ByteBuffer.allocate(7))));
+    assertEquals(1, handler.numOutstandingRequests());
+
+    ByteBuffer resp = ByteBuffer.allocate(10);
+    handler.handle(new RpcResponse(12345, new NioManagedBuffer(resp)));
+    verify(callback, times(1)).onSuccess(eq(ByteBuffer.allocate(10)));
+    assertEquals(0, handler.numOutstandingRequests());
   }
 
   @Test
   public void handleFailedPush() throws Exception {
-    TransportResponseHandler handler = createResponseHandler(TransportModuleConstants.DATA_MODULE);
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
+            new LocalChannel());
     RpcResponseCallback callback = mock(RpcResponseCallback.class);
     PushRequestInfo info = new PushRequestInfo(System.currentTimeMillis() + 30000L, callback);
     info.setChannelFuture(mock(ChannelFuture.class));
     handler.addPushRequest(12345, info);
-    assertOutstandingRequests(handler, "OutstandingPushCount", 1);
+    assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new RpcFailure(54321, "uh-oh!")); // should be ignored
-    assertOutstandingRequests(handler, "OutstandingPushCount", 1);
+    assertEquals(1, handler.numOutstandingRequests());
 
     handler.handle(new RpcFailure(12345, "oh no"));
     verify(callback, times(1)).onFailure(any());
-    assertOutstandingRequests(handler, "OutstandingPushCount", 0);
-  }
-
-  private TransportResponseHandler createResponseHandler(String module) {
-    CelebornConf celebornConf = new CelebornConf();
-    return new TransportResponseHandler(
-        Utils.fromCelebornConf(celebornConf, module, 8),
-        new LocalChannel(),
-        new AbstractSource(celebornConf, "Worker") {
-          @Override
-          public String sourceName() {
-            return "worker";
-          }
-        });
-  }
-
-  private void assertOutstandingRequests(
-      TransportResponseHandler handler, String name, int expected) {
-    assertEquals(expected, handler.numOutstandingRequests());
-    assertEquals(expected, handler.source().getGauge(name).gauge().getValue());
+    assertEquals(0, handler.numOutstandingRequests());
   }
 }
