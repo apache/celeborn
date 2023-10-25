@@ -30,7 +30,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 

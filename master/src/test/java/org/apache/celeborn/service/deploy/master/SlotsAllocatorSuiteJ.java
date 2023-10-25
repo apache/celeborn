@@ -36,6 +36,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.StorageInfo;
 
 public class SlotsAllocatorSuiteJ {
   private List<WorkerInfo> prepareWorkers(boolean hasDisks) {
@@ -239,7 +240,8 @@ public class SlotsAllocatorSuiteJ {
             conf.masterSlotAssignLoadAwareDiskGroupNum(),
             conf.masterSlotAssignLoadAwareDiskGroupGradient(),
             conf.masterSlotAssignLoadAwareFlushTimeWeight(),
-            conf.masterSlotAssignLoadAwareFetchTimeWeight());
+            conf.masterSlotAssignLoadAwareFetchTimeWeight(),
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(
@@ -275,10 +277,11 @@ public class SlotsAllocatorSuiteJ {
         allocateToDiskSlots += worker.usedSlots();
       }
       if (shouldReplicate) {
-        Assert.assertEquals(partitionIds.size() * 2, unknownDiskSlots + allocateToDiskSlots);
+        Assert.assertTrue(partitionIds.size() * 2 >= unknownDiskSlots + allocateToDiskSlots);
       } else {
-        Assert.assertEquals(partitionIds.size(), unknownDiskSlots + allocateToDiskSlots);
+        Assert.assertTrue(partitionIds.size() >= unknownDiskSlots + allocateToDiskSlots);
       }
+      Assert.assertEquals(0, unknownDiskSlots);
     } else {
       assert slots.isEmpty()
           : "Expect to fail to offer slots, but return " + slots.size() + " slots.";
@@ -294,7 +297,8 @@ public class SlotsAllocatorSuiteJ {
     CelebornConf conf = new CelebornConf();
     conf.set("celeborn.active.storage.levels", "HDFS");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, shouldReplicate, false);
+        SlotsAllocator.offerSlotsRoundRobin(
+            workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     int allocatedPartitionCount = 0;
 

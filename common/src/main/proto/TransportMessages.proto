@@ -97,6 +97,7 @@ message PbStorageInfo {
   string mountPoint = 2;
   bool finalResult = 3;
   string filePath = 4;
+  int32 availableStorageTypes = 5;
 }
 
 message PbPartitionLocation {
@@ -206,6 +207,7 @@ message PbRequestSlots {
   PbUserIdentifier userIdentifier = 8;
   bool shouldRackAware = 9;
   int32 maxWorkers = 10;
+  int32 availableStorageTypes = 11;
 }
 
 message PbSlotInfo {
@@ -365,6 +367,7 @@ message PbReserveSlots {
   PbUserIdentifier userIdentifier = 9;
   int64 pushDataTimeout = 10;
   bool partitionSplitEnabled = 11;
+  int32 availableStorageTypes = 12;
 }
 
 message PbReserveSlotsResponse {
@@ -494,7 +497,7 @@ message PbSnapshotMetaInfo {
   int64 partitionTotalWritten = 8;
   int64 partitionTotalFileCount = 9;
   repeated PbAppDiskUsageSnapshot appDiskUsageMetricSnapshots = 10;
-  optional PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
+  PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
   map<string, int64> lostWorkers = 12;
   repeated PbWorkerInfo shutdownWorkers = 13;
 }
