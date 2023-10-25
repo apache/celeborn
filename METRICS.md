@@ -104,6 +104,9 @@ Here is an example of Grafana dashboard importing.
 |       PausePushDataAndReplicate        |      worker       |    PausePushDataAndReplicate means the count of worker stopped receiving data from client and other workers.    |
 |           ActiveShuffleSize            |      worker       |                 The active shuffle size of a worker including master replica and slave replica.                 |
 |         ActiveShuffleFileCount         |      worker       |              The active shuffle file count of a worker including master replica and slave replica.              |
+|         OutstandingFetchCount          |      worker       |                         The count of outstanding fetch request received in peer worker.                         |
+|          OutstandingRpcCount           |      worker       |                          The count of outstanding rpc request received in peer worker.                          |
+|          OutstandingPushCount          |      worker       |                         The count of outstanding push request received in peer worker.                          |
 |              jvm_gc_count              |        JVM        |                                     The GC count of each garbage collector.                                     |
 |              jvm_gc_time               |        JVM        |                                   The GC cost time of each garbage collector.                                   |
 |          jvm_memory_heap_init          |        JVM        |                                         The amount of heap init memory.                                         |

@@ -26,11 +26,14 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.metrics.source.NamedGauge;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.server.MessageHandler;
 import org.apache.celeborn.common.network.util.NettyUtils;
@@ -62,23 +65,24 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
   private final AtomicLong timeOfLastRequestNs;
 
-  private final long pushTimeoutCheckerInterval;
+  private final AbstractSource source;
+
   private static ScheduledExecutorService pushTimeoutChecker = null;
-  private ScheduledFuture pushCheckerScheduleFuture;
+  private ScheduledFuture<?> pushCheckerScheduleFuture;
 
-  private final long fetchTimeoutCheckerInterval;
   private static ScheduledExecutorService fetchTimeoutChecker = null;
-  private ScheduledFuture fetchCheckerScheduleFuture;
+  private ScheduledFuture<?> fetchCheckerScheduleFuture;
 
-  public TransportResponseHandler(TransportConf conf, Channel channel) {
+  public TransportResponseHandler(TransportConf conf, Channel channel, AbstractSource source) {
     this.conf = conf;
     this.channel = channel;
     this.outstandingFetches = JavaUtils.newConcurrentHashMap();
     this.outstandingRpcs = JavaUtils.newConcurrentHashMap();
     this.outstandingPushes = JavaUtils.newConcurrentHashMap();
     this.timeOfLastRequestNs = new AtomicLong(0);
-    this.pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
-    this.fetchTimeoutCheckerInterval = conf.fetchDataTimeoutCheckIntervalMs();
+    this.source = source;
+    long pushTimeoutCheckerInterval = conf.pushDataTimeoutCheckIntervalMs();
+    long fetchTimeoutCheckerInterval = conf.fetchDataTimeoutCheckIntervalMs();
 
     String module = conf.getModuleName();
     boolean checkPushTimeout = false;
@@ -110,7 +114,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     if (checkPushTimeout) {
       pushCheckerScheduleFuture =
           pushTimeoutChecker.scheduleWithFixedDelay(
-              () -> failExpiredPushRequest(),
+              this::failExpiredPushRequest,
               pushTimeoutCheckerInterval,
               pushTimeoutCheckerInterval,
               TimeUnit.MILLISECONDS);
@@ -119,11 +123,13 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     if (checkFetchTimeout) {
       fetchCheckerScheduleFuture =
           fetchTimeoutChecker.scheduleWithFixedDelay(
-              () -> failExpiredFetchRequest(),
+              this::failExpiredFetchRequest,
               fetchTimeoutCheckerInterval,
               fetchTimeoutCheckerInterval,
               TimeUnit.MILLISECONDS);
     }
+
+    monitorOutstandingRequests();
   }
 
   public void failExpiredPushRequest() {
@@ -175,6 +181,25 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           info.callback = null;
         }
       }
+    }
+  }
+
+  private void monitorOutstandingRequests() {
+    if (source != null) {
+      gauge("OutstandingFetchCount", outstandingFetches);
+      gauge("OutstandingRpcCount", outstandingRpcs);
+      gauge("OutstandingPushCount", outstandingPushes);
+    }
+  }
+
+  private void gauge(String name, Map<?, ?> outstandingRequests) {
+    if (source.getGauge(name) == null) {
+      source.addGauge(name, outstandingRequests::size);
+    } else {
+      NamedGauge<?> namedGauge = source.getGauge(name);
+      source.removeGauge(name);
+      source.addGauge(
+          name, () -> (Integer) namedGauge.gauge().getValue() + outstandingRequests.size());
     }
   }
 
@@ -267,7 +292,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     if (numOutstandingRequests() > 0) {
       // show the details of outstanding Fetches
       if (logger.isDebugEnabled()) {
-        if (outstandingFetches.size() > 0) {
+        if (!outstandingFetches.isEmpty()) {
           for (Map.Entry<StreamChunkSlice, FetchRequestInfo> e : outstandingFetches.entrySet()) {
             StreamChunkSlice key = e.getKey();
             logger.debug("The channel is closed, but there is still outstanding Fetch {}", key);
@@ -454,5 +479,10 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           "FetchRequestInfo ({}) not found/already addressed when listener handles fetch request failure",
           streamChunkSlice);
     }
+  }
+
+  @VisibleForTesting
+  public AbstractSource source() {
+    return source;
   }
 }

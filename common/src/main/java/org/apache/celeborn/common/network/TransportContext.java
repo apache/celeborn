@@ -121,7 +121,7 @@ public class TransportContext {
       if (channelsLimiter != null) {
         channel.pipeline().addLast("limiter", channelsLimiter);
       }
-      TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler);
+      TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler, source);
       channel
           .pipeline()
           .addLast("encoder", ENCODER)
@@ -140,8 +140,8 @@ public class TransportContext {
   }
 
   private TransportChannelHandler createChannelHandler(
-      Channel channel, BaseMessageHandler msgHandler) {
-    TransportResponseHandler responseHandler = new TransportResponseHandler(conf, channel);
+      Channel channel, BaseMessageHandler msgHandler, AbstractSource source) {
+    TransportResponseHandler responseHandler = new TransportResponseHandler(conf, channel, source);
     TransportClient client = new TransportClient(channel, responseHandler);
     TransportRequestHandler requestHandler =
         new TransportRequestHandler(channel, client, msgHandler);

@@ -198,6 +198,12 @@ These metrics are exposed by Celeborn worker.
         - The active shuffle size of a worker including master replica and slave replica.
     - ActiveShuffleFileCount
         - The active shuffle file count of a worker including master replica and slave replica.
+    - OutstandingFetchCount
+        - The count of outstanding fetch request.
+    - OutstandingRpcCount
+        - The count of outstanding rpc request.
+    - OutstandingPushCount
+        - The count of outstanding push request.
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 
