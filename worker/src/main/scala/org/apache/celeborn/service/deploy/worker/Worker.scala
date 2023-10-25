@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 import scala.collection.JavaConverters._
 
 import com.google.common.annotations.VisibleForTesting
-import io.netty.util.HashedWheelTimer
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
@@ -253,7 +252,6 @@ private[celeborn] class Worker(
     ThreadUtils.newDaemonCachedThreadPool("Worker-CommitFiles", conf.workerCommitThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
-  val timer = new HashedWheelTimer()
 
   // Configs
   private val heartbeatInterval = conf.workerHeartbeatTimeout / 4
