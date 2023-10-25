@@ -17,25 +17,36 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.protobuf.GeneratedMessageV3;
-import com.google.protobuf.InvalidProtocolBufferException;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.common.protocol.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.apache.celeborn.common.protocol.MessageType.*;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 
-import static org.apache.celeborn.common.protocol.MessageType.*;
+import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.InvalidProtocolBufferException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
+import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
+import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbPushDataHandShake;
+import org.apache.celeborn.common.protocol.PbReadAddCredit;
+import org.apache.celeborn.common.protocol.PbRegionFinish;
+import org.apache.celeborn.common.protocol.PbRegionStart;
+import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.PbTransportableError;
 
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
   private static Logger logger = LoggerFactory.getLogger(TransportMessage.class);
-  @Deprecated
-  private final MessageType type;
+  @Deprecated private final MessageType type;
   private final int messageTypeValue;
   private final byte[] payload;
 
