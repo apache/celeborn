@@ -17,36 +17,25 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import static org.apache.celeborn.common.protocol.MessageType.*;
+import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.InvalidProtocolBufferException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.protocol.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 
-import com.google.protobuf.GeneratedMessageV3;
-import com.google.protobuf.InvalidProtocolBufferException;
-import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.Unpooled;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.apache.celeborn.common.exception.CelebornIOException;
-import org.apache.celeborn.common.protocol.MessageType;
-import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
-import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
-import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
-import org.apache.celeborn.common.protocol.PbOpenStream;
-import org.apache.celeborn.common.protocol.PbPushDataHandShake;
-import org.apache.celeborn.common.protocol.PbReadAddCredit;
-import org.apache.celeborn.common.protocol.PbRegionFinish;
-import org.apache.celeborn.common.protocol.PbRegionStart;
-import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
-import org.apache.celeborn.common.protocol.PbStreamHandler;
-import org.apache.celeborn.common.protocol.PbTransportableError;
+import static org.apache.celeborn.common.protocol.MessageType.*;
 
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
   private static Logger logger = LoggerFactory.getLogger(TransportMessage.class);
-  @Deprecated private final MessageType type;
+  @Deprecated
+  private final MessageType type;
   private final int messageTypeValue;
   private final byte[] payload;
 
@@ -99,10 +88,9 @@ public class TransportMessage implements Serializable {
   }
 
   public ByteBuffer toByteBuffer() {
-    CompositeByteBuf buffer = Unpooled.compositeBuffer();
-    buffer.writeInt(messageTypeValue);
-    buffer.writeInt(payload.length);
-    buffer.writeBytes(Unpooled.wrappedBuffer(payload));
+    ByteBuf headerBuf = Unpooled.buffer().writeInt(messageTypeValue).writeInt(payload.length);
+    ByteBuf payloadBuf = Unpooled.wrappedBuffer(payload);
+    ByteBuf buffer = Unpooled.wrappedBuffer(headerBuf, payloadBuf);
     return buffer.nioBuffer();
   }
 
