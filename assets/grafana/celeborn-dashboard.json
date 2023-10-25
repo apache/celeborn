@@ -153,7 +153,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_WorkerCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -244,7 +244,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_RegisteredShuffleCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -335,7 +335,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_ApplicationCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -441,7 +441,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_IsActiveMaster_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -534,7 +534,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PartitionSize_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -627,7 +627,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PartitionWritten_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -719,7 +719,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PartitionFileCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -810,7 +810,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_OfferSlotsTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -900,7 +900,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_OfferSlotsTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -990,7 +990,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_ExcludedWorkerCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -1080,7 +1080,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_LostWorkers_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -1185,7 +1185,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_SlotsAllocated_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -1276,7 +1276,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_ReserveSlotsTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -1367,7 +1367,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_ReserveSlotsTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -1457,7 +1457,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_PausePushData_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -1547,7 +1547,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_PausePushDataAndReplicate_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -1638,7 +1638,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_PausePushDataTime_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -1728,7 +1728,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_ActiveConnectionCount_Count{}",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -1846,7 +1846,7 @@
               },
               "editorMode": "builder",
               "expr": "metrics_ActiveShuffleSize_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "instant": false,
               "range": true,
               "refId": "A"
@@ -1965,7 +1965,7 @@
               },
               "editorMode": "builder",
               "expr": "metrics_ActiveShuffleFileCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "instant": false,
               "range": true,
               "refId": "A"
@@ -2071,7 +2071,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_PrimaryPushDataTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -2161,7 +2161,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_PrimaryPushDataTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -2251,7 +2251,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_ReplicaPushDataTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -2341,7 +2341,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_ReplicaPushDataTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -2431,7 +2431,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_WriteDataFailCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -2522,7 +2522,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicateDataWriteFailCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -2613,7 +2613,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicateDataFailCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -2704,7 +2704,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicateDataTimeoutCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -2795,7 +2795,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicateDataConnectionExceptionCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -2886,7 +2886,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicateDataCreateConnectionFailCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -2991,7 +2991,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_OpenStreamTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3081,7 +3081,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_OpenStreamTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3171,7 +3171,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_FetchChunkTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3261,7 +3261,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_FetchChunkTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3365,7 +3365,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_TakeBufferTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3455,7 +3455,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_TakeBufferTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3545,7 +3545,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_FlushDataTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3635,7 +3635,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_FlushDataTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3725,7 +3725,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_CommitFilesTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3815,7 +3815,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_CommitFilesTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -3919,7 +3919,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_NettyMemory_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -4009,7 +4009,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_DiskBuffer_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -4100,7 +4100,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_push_usedHeapMemory_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4192,7 +4192,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_push_usedDirectMemory_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4284,7 +4284,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_fetch_usedHeapMemory_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4376,7 +4376,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_fetch_usedDirectMemory_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4468,7 +4468,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_replicate_usedHeapMemory_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4560,7 +4560,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_replicate_usedDirectMemory_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4651,7 +4651,7 @@
               },
               "editorMode": "builder",
               "expr": "metrics_ReadBufferAllocatedCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4743,7 +4743,7 @@
               },
               "editorMode": "builder",
               "expr": "metrics_BufferStreamReadBuffer_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4834,7 +4834,7 @@
               },
               "editorMode": "builder",
               "expr": "metrics_ReadBufferDispatcherRequestsLength_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -4939,7 +4939,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_SortTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -5029,7 +5029,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_SortTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -5118,7 +5118,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_SortingFiles_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -5207,7 +5207,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_SortedFiles_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -5297,7 +5297,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "expr": "metrics_SortMemory_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
@@ -5387,7 +5387,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_SortedFileSize_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -5494,7 +5494,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PotentialConsumeSpeed_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -5587,7 +5587,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_WorkerConsumeSpeed_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -5680,7 +5680,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_UserProduceSpeed_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -5786,7 +5786,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PrimaryPushDataHandshakeTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -5878,7 +5878,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PrimaryPushDataHandshakeTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -5970,7 +5970,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicaPushDataHandshakeTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6062,7 +6062,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicaPushDataHandshakeTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6154,7 +6154,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PrimaryRegionStartTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6246,7 +6246,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PrimaryRegionStartTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6338,7 +6338,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicaRegionStartTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6430,7 +6430,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicaRegionStartTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6522,7 +6522,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PrimaryRegionFinishTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6614,7 +6614,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PrimaryRegionFinishTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6706,7 +6706,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicaRegionFinishTime_Mean",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6798,7 +6798,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_ReplicaRegionFinishTime_Max",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6889,7 +6889,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_PushDataHandshakeFailCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -6980,7 +6980,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_RegionStartFailCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7071,7 +7071,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_RegionStartFailCount_Count",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7176,7 +7176,7 @@
               },
               "editorMode": "builder",
               "expr": "metrics_CreditStreamCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7267,7 +7267,7 @@
               },
               "editorMode": "builder",
               "expr": "metrics_ActiveMapPartitionCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7373,7 +7373,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_JVMCPUTime_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7466,7 +7466,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_LastMinuteSystemLoad_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7559,7 +7559,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_DeviceOSFreeBytes_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7652,7 +7652,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_DeviceCelebornFreeBytes_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7745,7 +7745,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_AvailableProcessors_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7851,7 +7851,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_diskFileCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -7944,7 +7944,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_diskBytesWritten_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -8036,7 +8036,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_hdfsFileCount_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
@@ -8129,7 +8129,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_hdfsBytesWritten_Value",
-              "legendFormat": "$baseLegend",
+              "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
