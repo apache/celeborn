@@ -372,7 +372,7 @@ private[celeborn] class Worker(
     registerWithMaster()
 
     // start heartbeat
-    sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(
+    sendHeartbeatTask = forwardMessageScheduler.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError { heartbeatToMaster() }
       },
@@ -380,7 +380,7 @@ private[celeborn] class Worker(
       heartbeatInterval,
       TimeUnit.MILLISECONDS)
 
-    checkFastFailTask = forwardMessageScheduler.scheduleAtFixedRate(
+    checkFastFailTask = forwardMessageScheduler.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           unavailablePeers.entrySet().forEach { entry: JMap.Entry[WorkerInfo, Long] =>

@@ -214,7 +214,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     saveCommittedFileInfosExecutor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
         "StorageManager-save-committed-fileinfo-thread")
-    saveCommittedFileInfosExecutor.scheduleAtFixedRate(
+    saveCommittedFileInfosExecutor.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
           if (!committedFileInfos.isEmpty) {
@@ -588,7 +588,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
 
-  storageScheduler.scheduleAtFixedRate(
+  storageScheduler.scheduleWithFixedDelay(
     new Runnable {
       override def run(): Unit = {
         try {

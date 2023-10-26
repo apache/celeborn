@@ -147,7 +147,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   override def onStart(): Unit = {
     // noinspection ConvertExpressionToSAM
-    checkForShuffleRemoval = forwardMessageThread.scheduleAtFixedRate(
+    checkForShuffleRemoval = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(RemoveExpiredShuffle)

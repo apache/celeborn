@@ -70,7 +70,7 @@ class ChangePartitionManager(
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
       // noinspection ConvertExpressionToSAM
-      _.scheduleAtFixedRate(
+      _.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = {
             try {
