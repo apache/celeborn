@@ -94,7 +94,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     lifecycleManager.registerWorkerStatusListener(new ShutdownWorkerListener)
 
     batchHandleCommitPartition = batchHandleCommitPartitionSchedulerThread.map {
-      _.scheduleAtFixedRate(
+      _.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = {
             committedPartitionInfo.asScala.foreach { case (shuffleId, shuffleCommittedInfo) =>

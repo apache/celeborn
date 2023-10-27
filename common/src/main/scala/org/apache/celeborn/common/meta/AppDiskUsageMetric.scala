@@ -136,7 +136,7 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
     })
   }
 
-  logExecutor.scheduleAtFixedRate(
+  logExecutor.scheduleWithFixedDelay(
     new Runnable {
       override def run(): Unit = {
         if (currentSnapShot.get() != null) {
