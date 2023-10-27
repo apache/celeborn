@@ -133,7 +133,7 @@ private[celeborn] class Master(
     conf.estimatedPartitionSizeForEstimationUpdateInterval
   private val partitionSizeUpdateService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
-  partitionSizeUpdateService.scheduleAtFixedRate(
+  partitionSizeUpdateService.scheduleWithFixedDelay(
     new Runnable {
       override def run(): Unit = {
         executeWithLeaderChecker(
@@ -196,7 +196,7 @@ private[celeborn] class Master(
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
-    checkForWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+    checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(ControlMessages.pbCheckForWorkerTimeout)
@@ -206,7 +206,7 @@ private[celeborn] class Master(
       workerHeartbeatTimeoutMs,
       TimeUnit.MILLISECONDS)
 
-    checkForApplicationTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+    checkForApplicationTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(CheckForApplicationTimeOut)
@@ -216,7 +216,7 @@ private[celeborn] class Master(
       appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
 
-    checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+    checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(CheckForWorkerUnavailableInfoTimeout)
@@ -227,7 +227,7 @@ private[celeborn] class Master(
       TimeUnit.MILLISECONDS)
 
     if (hasHDFSStorage) {
-      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
             self.send(CheckForHDFSExpiredDirsTimeout)

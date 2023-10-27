@@ -57,7 +57,7 @@ public class SendBufferPool {
     pushTaskQueues = new LinkedList<>();
 
     lastAquireTime = System.currentTimeMillis();
-    cleaner.scheduleAtFixedRate(
+    cleaner.scheduleWithFixedDelay(
         () -> {
           if (System.currentTimeMillis() - lastAquireTime > timeout) {
             synchronized (this) {

@@ -43,7 +43,7 @@ class ApplicationHeartbeater(
   private var appHeartbeat: ScheduledFuture[_] = _
 
   def start(): Unit = {
-    appHeartbeat = appHeartbeatHandlerThread.scheduleAtFixedRate(
+    appHeartbeat = appHeartbeatHandlerThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
           try {
