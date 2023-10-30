@@ -1046,8 +1046,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       endpoint.askSync[ReserveSlotsResponse](message, conf.clientRpcReserveSlotsRpcTimeout)
     } catch {
       case e: Exception =>
-        val msg = s"Exception when askSync worker(${endpoint.address}) ReserveSlots for $shuffleKey " +
-          s"on worker $endpoint."
+        val msg =
+          s"Exception when askSync worker(${endpoint.address}) ReserveSlots for $shuffleKey " +
+            s"on worker $endpoint."
         logError(msg, e)
         ReserveSlotsResponse(StatusCode.REQUEST_FAILED, msg + s" ${e.getMessage}")
     }
@@ -1060,7 +1061,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       endpoint.askSync[DestroyWorkerSlotsResponse](message)
     } catch {
       case e: Exception =>
-        logError(s"AskSync worker(${endpoint.address}) Destroy for ${message.shuffleKey} failed.", e)
+        logError(
+          s"AskSync worker(${endpoint.address}) Destroy for ${message.shuffleKey} failed.",
+          e)
         DestroyWorkerSlotsResponse(
           StatusCode.REQUEST_FAILED,
           message.primaryLocations,
