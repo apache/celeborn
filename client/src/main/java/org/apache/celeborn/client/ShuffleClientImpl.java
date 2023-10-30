@@ -1544,26 +1544,26 @@ public class ShuffleClientImpl extends ShuffleClient {
                 conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
 
-        if (response.status() == StatusCode.SUCCESS) {
-          logger.info(
-              "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
-              shuffleId,
-              TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
-              response.fileGroup().size());
-          return new ReduceFileGroups(
-              response.fileGroup(), response.attempts(), response.partitionIds());
-        } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
-          logger.warn(
-              "Request {} return {} for {}.",
-              getReducerFileGroup,
-              StatusCode.STAGE_END_TIME_OUT,
-              shuffleId);
-        } else if (response.status() == StatusCode.SHUFFLE_DATA_LOST) {
-          logger.warn(
-              "Request {} return {} for {}.",
-              getReducerFileGroup,
-              StatusCode.SHUFFLE_DATA_LOST,
-              shuffleId);
+        switch (response.status()) {
+          case SUCCESS:
+            logger.info(
+                "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
+                shuffleId,
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
+                response.fileGroup().size());
+            return new ReduceFileGroups(
+                response.fileGroup(), response.attempts(), response.partitionIds());
+          case STAGE_END_TIME_OUT:
+          case SHUFFLE_DATA_LOST:
+            logger.warn(
+                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
+            return null;
+          case SHUFFLE_NOT_REGISTERED:
+            logger.warn(
+                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
+            // return empty result
+            return new ReduceFileGroups(
+                response.fileGroup(), response.attempts(), response.partitionIds());
         }
       } catch (Exception e) {
         logger.error("Exception raised while call GetReducerFileGroup for {}.", shuffleId, e);
