@@ -270,21 +270,23 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     val partitionType = lifecycleManager.getPartitionType(shuffleId)
     commitHandlers.computeIfAbsent(
       partitionType,
-      {
-        case PartitionType.REDUCE => new ReducePartitionCommitHandler(
-            appUniqueId,
-            conf,
-            lifecycleManager.shuffleAllocatedWorkers,
-            committedPartitionInfo,
-            lifecycleManager.workerStatusTracker)
-        case PartitionType.MAP => new MapPartitionCommitHandler(
-            appUniqueId,
-            conf,
-            lifecycleManager.shuffleAllocatedWorkers,
-            committedPartitionInfo,
-            lifecycleManager.workerStatusTracker)
-        case partitionType => throw new UnsupportedOperationException(
-            s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
+      (partitionType: PartitionType) => {
+        partitionType match {
+          case PartitionType.REDUCE => new ReducePartitionCommitHandler(
+              appUniqueId,
+              conf,
+              lifecycleManager.shuffleAllocatedWorkers,
+              committedPartitionInfo,
+              lifecycleManager.workerStatusTracker)
+          case PartitionType.MAP => new MapPartitionCommitHandler(
+              appUniqueId,
+              conf,
+              lifecycleManager.shuffleAllocatedWorkers,
+              committedPartitionInfo,
+              lifecycleManager.workerStatusTracker)
+          case _ => throw new UnsupportedOperationException(
+              s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
+        }
       })
   }
 
