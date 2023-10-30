@@ -68,7 +68,6 @@ public class TransportClientFactory implements Closeable {
   private static final Logger logger = LoggerFactory.getLogger(TransportClientFactory.class);
 
   private final TransportContext context;
-  private final TransportConf conf;
   private final ConcurrentHashMap<SocketAddress, ClientPool> connectionPool;
 
   /** Random number generator for picking connections between peers. */
@@ -87,7 +86,7 @@ public class TransportClientFactory implements Closeable {
 
   public TransportClientFactory(TransportContext context) {
     this.context = Preconditions.checkNotNull(context);
-    this.conf = context.getConf();
+    TransportConf conf = context.getConf();
     this.connectionPool = JavaUtils.newConcurrentHashMap();
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.connectTimeoutMs = conf.connectTimeoutMs();
@@ -100,10 +99,6 @@ public class TransportClientFactory implements Closeable {
     logger.info("mode " + ioMode + " threads " + conf.clientThreads());
     this.workerGroup =
         NettyUtils.createEventLoop(ioMode, conf.clientThreads(), conf.getModuleName() + "-client");
-    initializeMemoryAllocator();
-  }
-
-  protected void initializeMemoryAllocator() {
     this.pooledAllocator = NettyUtils.getPooledByteBufAllocator(conf, null, false);
   }
 
