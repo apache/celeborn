@@ -42,6 +42,7 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
     super(context);
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
     this.fetchMaxRetries = fetchMaxRetries;
+    this.pooledAllocator = new UnpooledByteBufAllocator(true);
   }
 
   public TransportClient createClientWithRetry(String remoteHost, int remotePort)
@@ -73,11 +74,6 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
       throws IOException, InterruptedException {
     return createClient(
         remoteHost, remotePort, -1, new TransportFrameDecoderWithBufferSupplier(bufferSuppliers));
-  }
-
-  @Override
-  protected void initializeMemoryAllocator() {
-    this.pooledAllocator = new UnpooledByteBufAllocator(true);
   }
 
   public void registerSupplier(long streamId, Supplier<ByteBuf> supplier) {
