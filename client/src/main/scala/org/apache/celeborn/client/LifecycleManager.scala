@@ -293,8 +293,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
 
     case GetReducerFileGroup(shuffleId: Int) =>
-      logDebug(s"Received GetShuffleFileGroup request," +
-        s"shuffleId $shuffleId.")
+      logDebug(s"Received GetShuffleFileGroup request for shuffleId $shuffleId.")
       handleGetReducerFileGroup(context, shuffleId)
   }
 
@@ -553,6 +552,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int): Unit = {
+    if (!registeredShuffle.contains(shuffleId)) {
+      logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this stage.")
+      context.reply(GetReducerFileGroupResponse(
+        StatusCode.SHUFFLE_NOT_REGISTERED,
+        JavaUtils.newConcurrentHashMap(),
+        Array.empty))
+      return
+    }
     commitManager.handleGetReducerFileGroup(context, shuffleId)
   }
 
