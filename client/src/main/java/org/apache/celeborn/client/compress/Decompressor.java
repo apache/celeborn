@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.client.compress;
 
+import scala.Option;
+
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 
@@ -37,7 +39,8 @@ public interface Decompressor {
     CompressionCodec codec = conf.shuffleCompressionCodec();
     switch (codec) {
       case LZ4:
-        return new Lz4Decompressor();
+        Option<String> xxHashInstance = conf.shuffleDecompressionLz4XXHashInstance();
+        return new Lz4Decompressor(xxHashInstance);
       case ZSTD:
         return new ZstdDecompressor();
       default:

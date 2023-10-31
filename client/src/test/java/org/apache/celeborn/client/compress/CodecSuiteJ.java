@@ -19,6 +19,8 @@ package org.apache.celeborn.client.compress;
 
 import java.nio.charset.StandardCharsets;
 
+import scala.Option;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -35,7 +37,7 @@ public class CodecSuiteJ {
     int oriLength = data.length;
     lz4Compressor.compress(data, 0, oriLength);
 
-    Lz4Decompressor lz4Decompressor = new Lz4Decompressor();
+    Lz4Decompressor lz4Decompressor = new Lz4Decompressor(Option.empty());
     byte[] dst = new byte[oriLength];
     int decompressLength = lz4Decompressor.decompress(lz4Compressor.getCompressedBuffer(), dst, 0);
 

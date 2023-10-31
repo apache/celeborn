@@ -724,6 +724,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def shuffleCompressionCodec: CompressionCodec =
     CompressionCodec.valueOf(get(SHUFFLE_COMPRESSION_CODEC))
+  def shuffleDecompressionLz4XXHashInstance: Option[String] =
+    get(SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE)
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
 
   // //////////////////////////////////////////////////////
@@ -3225,6 +3227,16 @@ object CelebornConf extends Logging {
         CompressionCodec.ZSTD.name,
         CompressionCodec.NONE.name))
       .createWithDefault(CompressionCodec.LZ4.name)
+
+  val SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE: OptionalConfigEntry[String] =
+    buildConf("celeborn.client.shuffle.decompression.lz4.xxhash.instance")
+      .categories("client")
+      .doc("Decompression XXHash instance for Lz4. Available options: JNI, JAVASAFE, JAVAUNSAFE.")
+      .version("0.3.2")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("JNI", "JAVASAFE", "JAVAUNSAFE"))
+      .createOptional
 
   val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.compression.zstd.level")

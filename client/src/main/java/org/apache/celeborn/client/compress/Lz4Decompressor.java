@@ -17,8 +17,13 @@
 
 package org.apache.celeborn.client.compress;
 
+import java.util.Map;
+import java.util.function.Supplier;
 import java.util.zip.Checksum;
 
+import scala.Option;
+
+import com.google.common.collect.ImmutableMap;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 import net.jpountz.xxhash.XXHashFactory;
@@ -27,12 +32,22 @@ import org.slf4j.LoggerFactory;
 
 public class Lz4Decompressor extends Lz4Trait implements Decompressor {
   private static final Logger logger = LoggerFactory.getLogger(Lz4Decompressor.class);
+
   private final LZ4FastDecompressor decompressor;
   private final Checksum checksum;
 
-  public Lz4Decompressor() {
+  private final Map<String, Supplier<XXHashFactory>> xxHashFactories =
+      ImmutableMap.of(
+          "JNI",
+          XXHashFactory::nativeInstance,
+          "JAVASAFE",
+          XXHashFactory::safeInstance,
+          "JAVAUNSAFE",
+          XXHashFactory::unsafeInstance);
+
+  public Lz4Decompressor(Option<String> xxHashInstance) {
     decompressor = LZ4Factory.fastestInstance().fastDecompressor();
-    checksum = XXHashFactory.fastestInstance().newStreamingHash32(DEFAULT_SEED).asChecksum();
+    checksum = getXXHashFactory(xxHashInstance).newStreamingHash32(DEFAULT_SEED).asChecksum();
   }
 
   @Override
@@ -70,5 +85,11 @@ public class Lz4Decompressor extends Lz4Trait implements Decompressor {
     }
 
     return originalLen;
+  }
+
+  private XXHashFactory getXXHashFactory(Option<String> xxHashInstance) {
+    return xxHashInstance.isDefined() && xxHashFactories.containsKey(xxHashInstance.get())
+        ? xxHashFactories.get(xxHashInstance.get()).get()
+        : XXHashFactory.fastestInstance();
   }
 }
