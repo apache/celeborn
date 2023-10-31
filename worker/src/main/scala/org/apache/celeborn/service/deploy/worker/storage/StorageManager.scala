@@ -560,7 +560,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         }
         val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
-        disksSnapshot().filter(_.status != DiskStatus.IO_HANG).foreach { diskInfo =>
+        disksSnapshot().filter(diskInfo =>
+          diskInfo.status == DiskStatus.HEALTHY
+            || diskInfo.status == DiskStatus.HIGH_DISK_USAGE).foreach { diskInfo =>
           diskInfo.dirs.foreach { dir =>
             val file = new File(dir, s"$appId/$shuffleId")
             deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
@@ -606,7 +608,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   private def cleanupExpiredAppDirs(expireDuration: Long): Unit = {
     val diskInfoAndAppDirs = disksSnapshot()
-      .filter(_.status != DiskStatus.IO_HANG)
+      .filter(diskInfo =>
+        diskInfo.status == DiskStatus.HEALTHY
+          || diskInfo.status == DiskStatus.HIGH_DISK_USAGE)
       .map { case diskInfo =>
         (diskInfo, diskInfo.dirs.filter(_.exists).flatMap(_.listFiles()))
       }
