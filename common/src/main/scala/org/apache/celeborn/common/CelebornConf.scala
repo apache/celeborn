@@ -521,6 +521,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
+  def workerResourceConsumptionInterval: Long = get(WORKER_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -2012,6 +2013,14 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("Time length for a window about compute user resource consumption.")
       .version("0.3.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val WORKER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.userResourceConsumption.update.interval")
+      .categories("worker")
+      .doc("Time length for a window about compute user resource consumption.")
+      .version("0.3.2")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 

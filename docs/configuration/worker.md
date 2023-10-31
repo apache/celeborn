@@ -104,6 +104,7 @@ license: |
 | celeborn.worker.storage.disk.reserve.size | 5G | Celeborn worker reserved space for each disk. | 0.3.0 | 
 | celeborn.worker.storage.expireDirs.timeout | 1h | The timeout for a expire dirs to be deleted on disk. | 0.3.2 | 
 | celeborn.worker.storage.workingDir | celeborn-worker/shuffle_data | Worker's working dir path name. | 0.3.0 | 
+| celeborn.worker.userResourceConsumption.update.interval | 30s | Time length for a window about compute user resource consumption. | 0.3.2 | 
 | celeborn.worker.writer.close.timeout | 120s | Timeout for a file writer to close | 0.2.0 | 
 | celeborn.worker.writer.create.maxAttempts | 3 | Retry count for a file writer to create if its creation was failed. | 0.2.0 | 
 <!--end-include-->

@@ -73,10 +73,10 @@ Here is an example of Grafana dashboard importing.
 |             PartitionSize              |      master       |          The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.           |
 |            PartitionWritten            |      master       |                                            The active shuffle size.                                             |
 |           PartitionFileCount           |      master       |                                       The active shuffle partition count.                                       |
-|             diskFileCount              |      master       |                                The count of disk files consumption by each user.                                |
-|            diskBytesWritten            |      master       |                               The amount of disk files consumption by each user.                                |
-|             hdfsFileCount              |      master       |                                The count of hdfs files consumption by each user.                                |
-|            hdfsBytesWritten            |      master       |                               The amount of hdfs files consumption by each user.                                |
+|             diskFileCount              | master and worker |                                The count of disk files consumption by each user.                                |
+|            diskBytesWritten            | master and worker |                               The amount of disk files consumption by each user.                                |
+|             hdfsFileCount              | master and worker |                                The count of hdfs files consumption by each user.                                |
+|            hdfsBytesWritten            | master and worker |                               The amount of hdfs files consumption by each user.                                |
 |         RegisteredShuffleCount         | master and worker |                                  The value means count of registered shuffle.                                   |
 |            CommitFilesTime             |      worker       |                           CommitFiles means flush and close a shuffle partition file.                           |
 |            ReserveSlotsTime            |      worker       |                     ReserveSlots means acquire a disk buffer and record partition location.                     |

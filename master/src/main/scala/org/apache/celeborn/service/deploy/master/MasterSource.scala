@@ -25,7 +25,7 @@ import org.apache.celeborn.service.deploy.master.MasterSource.OFFER_SLOTS_TIME
 
 class MasterSource(conf: CelebornConf)
   extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) with Logging {
-  override val sourceName = s"master"
+  override val sourceName = "master"
 
   addTimer(OFFER_SLOTS_TIME)
   // start cleaner

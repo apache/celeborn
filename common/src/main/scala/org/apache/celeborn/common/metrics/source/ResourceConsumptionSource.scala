@@ -19,9 +19,18 @@ package org.apache.celeborn.common.metrics.source
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.MetricsSystem
 
-class ResourceConsumptionSource(conf: CelebornConf)
-  extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) with Logging {
+class ResourceConsumptionSource(conf: CelebornConf, role: String)
+  extends AbstractSource(conf, role) with Logging {
   override val sourceName = "ResourceConsumption"
+}
+
+object ResourceConsumptionSource {
+  val DISK_FILE_COUNT = "diskFileCount"
+
+  val DISK_BYTES_WRITTEN = "diskBytesWritten"
+
+  val HDFS_FILE_COUNT = "hdfsFileCount"
+
+  val HDFS_BYTES_WRITTEN = "hdfsBytesWritten"
 }

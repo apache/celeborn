@@ -18,13 +18,15 @@
 package org.apache.celeborn.service.deploy.worker
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.service.deploy.worker.WorkerSource._
 
-class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_WORKER) {
+class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_WORKER)
+  with Logging {
   override val sourceName = "worker"
 
-  import WorkerSource._
   // add counters
   addCounter(WRITE_DATA_FAIL_COUNT)
   addCounter(REPLICATE_DATA_FAIL_COUNT)
@@ -38,7 +40,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addCounter(REGION_FINISH_FAIL_COUNT)
   addCounter(ACTIVE_CONNECTION_COUNT)
 
-  // add Timers
+  // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
   addTimer(FLUSH_DATA_TIME)
@@ -130,7 +132,7 @@ object WorkerSource {
   val USER_PRODUCE_SPEED = "UserProduceSpeed"
   val WORKER_CONSUME_SPEED = "WorkerConsumeSpeed"
 
-  // active shuffle size
+  // active shuffle
   val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 }
