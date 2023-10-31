@@ -5,9 +5,9 @@ issue or monitor Celeborn cluster.
 
 ## Prerequisites
 
-1.Enable Celeborn metrics. Set configuration `celeborn.metrics.enabled` to true (true by default).
+1. Enable Celeborn metrics. Set configuration `celeborn.metrics.enabled` to true (true by default).
 
-2.Configure Celeborn metrics properties.
+2. Configure Celeborn metrics properties.
 ```shell
 cd $CELEBORN_HOME/conf
 cp metrics.properties.template metrics.properties
@@ -17,7 +17,7 @@ The default values of the Celeborn metrics configuration are as follows:
 *.sink.prometheusServlet.class=org.apache.celeborn.common.metrics.sink.PrometheusServlet
 ```
 
-3.Install Prometheus (https://prometheus.io/). We provide an example for Prometheus config file:
+3. Install Prometheus (https://prometheus.io/). We provide an example for Prometheus config file:
 
 ```yaml
 # Prometheus example config
@@ -33,9 +33,9 @@ scrape_configs:
       - targets: [ "master-ip:9098","worker1-ip:9096","worker2-ip:9096","worker3-ip:9096","worker4-ip:9096" ]
 ```
 
-4.Install Grafana server (https://grafana.com/grafana/download).
+4. Install Grafana server (https://grafana.com/grafana/download).
 
-5.Import Celeborn dashboard into Grafana.
+5. Import Celeborn dashboard into Grafana.
 
 You can find the Celeborn dashboard templates under the `assets/grafana` directory.
 `celeborn-dashboard.json` displays Celeborn internal metrics and `celeborn-jvm-dashboard.json` displays Celeborn JVM related metrics.
