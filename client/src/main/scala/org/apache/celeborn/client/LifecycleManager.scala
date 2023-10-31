@@ -319,7 +319,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           val initialLocs = workerSnapshots(shuffleId)
             .values()
             .asScala
-            .flatMap(_.getAllPrimaryLocationsWithMinEpoch().asScala)
+            .flatMap(_.getAllPrimaryLocationsWithMinEpoch())
             .filter(p =>
               (partitionType == PartitionType.REDUCE && p.getEpoch == 0) || (partitionType == PartitionType.MAP && p.getId == partitionId))
             .toArray
