@@ -304,6 +304,8 @@ javax.servlet:javax.servlet-api
 
 MIT License
 ------------
+See license/LISENCE-jdktools.txt for details.
+com.github.olivergondza:maven-jdk-tools-wrapper
 See license/LICENSE-slf4j.txt for details.
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
