@@ -18,15 +18,13 @@
 package org.apache.celeborn.service.deploy.worker
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.service.deploy.worker.WorkerSource._
 
-class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_WORKER)
-  with Logging {
+class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_WORKER) {
   override val sourceName = "worker"
 
+  import WorkerSource._
   // add counters
   addCounter(WRITE_DATA_FAIL_COUNT)
   addCounter(REPLICATE_DATA_FAIL_COUNT)

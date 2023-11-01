@@ -18,15 +18,14 @@
 package org.apache.celeborn.service.deploy.master
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.service.deploy.master.MasterSource.OFFER_SLOTS_TIME
 
-class MasterSource(conf: CelebornConf)
-  extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) with Logging {
+class MasterSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) {
   override val sourceName = "master"
 
+  import MasterSource._
+  // add timers
   addTimer(OFFER_SLOTS_TIME)
   // start cleaner
   startCleaner()
