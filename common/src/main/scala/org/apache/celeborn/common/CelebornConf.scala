@@ -3901,7 +3901,7 @@ object CelebornConf extends Logging {
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(p => p.split(",").map(StorageInfo.validate(_)).reduce(_ && _), "")
-      .createWithDefault("LOCAL_DISK")
+      .createWithDefault("HDD")
 
   val READ_LOCAL_SHUFFLE_FILE: ConfigEntry[Boolean] =
     buildConf("celeborn.client.readLocalShuffleFile.enabled")
