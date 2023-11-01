@@ -128,7 +128,8 @@ private[celeborn] class Worker(
       conf.workerCongestionControlSampleTimeWindowSeconds.toInt,
       conf.workerCongestionControlHighWatermark.get,
       conf.workerCongestionControlLowWatermark.get,
-      conf.workerCongestionControlUserInactiveIntervalMs)
+      conf.workerCongestionControlUserInactiveIntervalMs,
+      conf.workerCongestionControlCheckIntervalMs)
   }
 
   var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
@@ -454,6 +455,7 @@ private[celeborn] class Worker(
       partitionsSorter.close(exitKind)
       storageManager.close(exitKind)
       memoryManager.close()
+      Option(CongestionController.instance()).foreach(_.close())
 
       masterClient.close()
       replicateServer.shutdown(exitKind)
