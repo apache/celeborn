@@ -152,7 +152,8 @@ private[celeborn] class Master(
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
   // init and register master metrics
-  val resourceConsumptionSource = new ResourceConsumptionSource(conf)
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_MASTER)
   private val masterSource = new MasterSource(conf)
   private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -840,16 +841,24 @@ private[celeborn] class Master(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
 
-    resourceConsumptionSource.addGauge("diskFileCount", userIdentifier.toMap) { () =>
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).diskFileCount
     }
-    resourceConsumptionSource.addGauge("diskBytesWritten", userIdentifier.toMap) { () =>
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).diskBytesWritten
     }
-    resourceConsumptionSource.addGauge("hdfsFileCount", userIdentifier.toMap) { () =>
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).hdfsFileCount
     }
-    resourceConsumptionSource.addGauge("hdfsBytesWritten", userIdentifier.toMap) { () =>
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).hdfsBytesWritten
     }
 
