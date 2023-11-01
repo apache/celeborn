@@ -23,13 +23,10 @@ import java.util.*;
 public class StorageInfo implements Serializable {
   public enum Type {
     MEMORY(0),
-    @Deprecated
     HDD(1),
-    @Deprecated
     SSD(2),
     HDFS(3),
-    OSS(4),
-    LOCAL_DISK(5);
+    OSS(4);
     private final int value;
 
     Type(int value) {
@@ -218,7 +215,6 @@ public class StorageInfo implements Serializable {
           break;
         case HDD:
         case SSD:
-        case LOCAL_DISK:
           ava = ava | LOCAL_DISK_MASK;
           break;
         case HDFS:

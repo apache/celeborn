@@ -3897,7 +3897,7 @@ object CelebornConf extends Logging {
       .categories("master", "worker", "client")
       .version("0.3.0")
       .doc(
-        "Enabled storage levels. Available options: MEMORY,LOCAL_DISK,HDFS. HDD,SSD is outdated.")
+        "Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(p => p.split(",").map(StorageInfo.validate(_)).reduce(_ && _), "")

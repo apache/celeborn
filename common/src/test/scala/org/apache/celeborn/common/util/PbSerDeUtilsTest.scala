@@ -91,7 +91,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       PartitionLocation.Mode.REPLICA,
       partitionLocation3,
       new StorageInfo(
-        StorageInfo.Type.LOCAL_DISK,
+        StorageInfo.Type.HDD,
         "mountPoint",
         false,
         "filePath",
