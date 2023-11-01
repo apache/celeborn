@@ -227,9 +227,10 @@ public class DfsPartitionReader implements PartitionReader {
     try {
       while (chunk == null) {
         checkException();
-        Long startFetchWait = System.currentTimeMillis();
+        Long startFetchWait = System.nanoTime();
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
-        metricsCallback.incReadTime(System.currentTimeMillis() - startFetchWait);
+        metricsCallback.incReadTime(
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait));
         logger.debug("poll result with result size: {}", results.size());
       }
     } catch (InterruptedException e) {
