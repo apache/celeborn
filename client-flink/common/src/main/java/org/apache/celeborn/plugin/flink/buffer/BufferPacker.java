@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
+import org.apache.celeborn.reflect.DynMethods;
 
 /** Harness used to pack multiple partial buffers together as a full one. */
 public class BufferPacker {
@@ -214,6 +215,16 @@ public class BufferPacker {
     @Override
     public BufferRecycler getRecycler() {
       return buffer.getRecycler();
+    }
+
+    // Flink 1.18.0
+    // [FLINK-32549][network] Tiered storage memory manager supports ownership transfer for buffers
+    public void setRecycler(BufferRecycler bufferRecycler) {
+      DynMethods.builder("setRecycler")
+          .impl(buffer.getClass().getName(), BufferRecycler.class)
+          .build()
+          .bind(buffer)
+          .invoke(bufferRecycler);
     }
 
     @Override
