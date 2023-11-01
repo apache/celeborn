@@ -245,6 +245,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter.decrementPendingWrites()
       return;
     }
+    // Write to local async before replicating
+    writeDataWithExceptionHandling(fileWriter, body, shuffleKey)
 
     // for primary, send data to replica
     if (doReplicate) {
@@ -372,24 +374,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         }
       }
     }
-
-    try {
-      fileWriter.write(body)
-    } catch {
-      case e: AlreadyClosedException =>
-        fileWriter.decrementPendingWrites()
-        val (mapId, attemptId) = getMapAttempt(body)
-        val endedAttempt =
-          if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-            shuffleMapperAttempts.get(shuffleKey).get(mapId)
-          } else -1
-        // TODO just info log for ended attempt
-        logError(
-          s"[handlePushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
-      case e: Exception =>
-        logError("Exception encountered when write.", e)
-    }
   }
 
   def handlePushMergedData(
@@ -516,6 +500,16 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriters.foreach(_.decrementPendingWrites())
       return
     }
+    fileWriters.zip(batchOffsets).foreach { case (fileWriter, offset) =>
+      val length =
+        if (fileWriters.last == fileWriter) {
+          body.readableBytes() - offset
+        } else {
+          batchOffsets(fileWriters.indexOf(fileWriter) + 1) - offset
+        }
+      val batchBody = body.slice(offset, length)
+      writeDataWithExceptionHandling(fileWriter, batchBody, shuffleKey)
+    }
 
     // for primary, send data to replica
     if (doReplicate) {
@@ -635,45 +629,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         case None =>
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
       }
-    }
-
-    index = 0
-    var fileWriter: FileWriter = null
-    var alreadyClosed = false
-    while (index < fileWriters.length) {
-      fileWriter = fileWriters(index)
-      val offset = body.readerIndex() + batchOffsets(index)
-      val length =
-        if (index == fileWriters.length - 1) {
-          body.readableBytes() - batchOffsets(index)
-        } else {
-          batchOffsets(index + 1) - batchOffsets(index)
-        }
-      val batchBody = body.slice(offset, length)
-
-      try {
-        if (!alreadyClosed) {
-          fileWriter.write(batchBody)
-        } else {
-          fileWriter.decrementPendingWrites()
-        }
-      } catch {
-        case e: AlreadyClosedException =>
-          fileWriter.decrementPendingWrites()
-          alreadyClosed = true
-          val (mapId, attemptId) = getMapAttempt(body)
-          val endedAttempt =
-            if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-              shuffleMapperAttempts.get(shuffleKey).get(mapId)
-            } else -1
-          // TODO just info log for ended attempt
-          logError(
-            s"[handlePushMergedData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-              s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
-        case e: Exception =>
-          logError("Exception encountered when write.", e)
-      }
-      index += 1
     }
   }
 
@@ -818,6 +773,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter.decrementPendingWrites()
       return;
     }
+    // Write to local async before replicating
+    writeDataWithExceptionHandling(fileWriter, body, shuffleKey)
 
     // for primary, send data to replica
     if (location.hasPeer && isPrimary) {
@@ -1243,6 +1200,28 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       pushClientFactory.createClient(host, port)
     } else {
       pushClientFactory.createClient(host, port, partitionId)
+    }
+  }
+
+  private def writeDataWithExceptionHandling(
+    fileWriter: FileWriter,
+    body: ByteBuf,
+    shuffleKey: String): Unit = {
+    try {
+      fileWriter.write(body)
+    } catch {
+      case e: AlreadyClosedException =>
+        fileWriter.decrementPendingWrites()
+        val (mapId, attemptId) = getMapAttempt(body)
+        val endedAttempt =
+          if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+            shuffleMapperAttempts.get(shuffleKey).get(mapId)
+          } else -1
+        // TODO just info log for ended attempt
+        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+          s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+      case e: Exception =>
+        logError("Exception encountered when write.", e)
     }
   }
 
