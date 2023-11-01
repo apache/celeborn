@@ -217,14 +217,14 @@ object CelebornCommonSettings {
     // https://www.scala-sbt.org/1.x/docs/Testing.html
     Dependencies.junitInterface % "test")
 
-  def licenseFileOnlyProjectMergeStrategy(path: String, log: Logger) =
+  def licenseFileOnlyProjectMergeStrategy(log: Logger) =
     CustomMergeStrategy("LicenseFileOnlyProjectMergeStrategy") { conflicts =>
       Right(conflicts.map {
         case dep if dep.isProjectDependency =>
-          log.info(s"assembly - including file: ${path}")
+          log.info(s"assembly - including file: ${dep.target}")
           Some(JarEntry(dep.target, dep.stream))
         case dep =>
-          log.info(s"assembly - excluding file: $dep:$path")
+          log.info(s"assembly - excluding file: $dep")
           None
       }.flatMap(_.toVector))
     }
@@ -704,7 +704,7 @@ trait SparkClientProjects {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
           case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
           case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) =>
-            licenseFileOnlyProjectMergeStrategy(ps.mkString(java.io.File.separator), sLog.value)
+            licenseFileOnlyProjectMergeStrategy(sLog.value)
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
           case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
@@ -897,7 +897,7 @@ trait FlinkClientProjects {
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
           case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
-          case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => licenseFileOnlyProjectMergeStrategy(ps.mkString(java.io.File.separator), sLog.value)
+          case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => licenseFileOnlyProjectMergeStrategy(sLog.value)
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
           case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
@@ -976,7 +976,7 @@ object MRClientProjects {
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
           case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
-          case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => licenseFileOnlyProjectMergeStrategy(ps.mkString(java.io.File.separator), sLog.value)
+          case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => licenseFileOnlyProjectMergeStrategy(sLog.value)
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
           case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
