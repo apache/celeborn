@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.CelebornInputStream;
+import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -1589,7 +1590,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public CelebornInputStream readPartition(
-      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
+      int shuffleId,
+      int partitionId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex,
+      MetricsCallback metricsCallback)
       throws IOException {
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
 
@@ -1608,7 +1614,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           attemptNumber,
           startMapIndex,
           endMapIndex,
-          fetchExcludedWorkers);
+          fetchExcludedWorkers,
+          metricsCallback);
     }
   }
 

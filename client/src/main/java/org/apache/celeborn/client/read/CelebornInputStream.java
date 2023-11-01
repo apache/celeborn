@@ -56,7 +56,8 @@ public abstract class CelebornInputStream extends InputStream {
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
-      ConcurrentHashMap<String, Long> fetchExcludedWorkers)
+      ConcurrentHashMap<String, Long> fetchExcludedWorkers,
+      MetricsCallback metricsCallback)
       throws IOException {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
@@ -70,15 +71,14 @@ public abstract class CelebornInputStream extends InputStream {
           attemptNumber,
           startMapIndex,
           endMapIndex,
-          fetchExcludedWorkers);
+          fetchExcludedWorkers,
+          metricsCallback);
     }
   }
 
   public static CelebornInputStream empty() {
     return emptyInputStream;
   }
-
-  public abstract void init(MetricsCallback callback) throws IOException;
 
   private static final CelebornInputStream emptyInputStream =
       new CelebornInputStream() {
@@ -91,9 +91,6 @@ public abstract class CelebornInputStream extends InputStream {
         public int read(byte[] b, int off, int len) throws IOException {
           return -1;
         }
-
-        @Override
-        public void init(MetricsCallback callback) throws IOException {}
 
         @Override
         public int totalPartitionsToRead() {
@@ -164,7 +161,8 @@ public abstract class CelebornInputStream extends InputStream {
         int attemptNumber,
         int startMapIndex,
         int endMapIndex,
-        ConcurrentHashMap<String, Long> fetchExcludedWorkers)
+        ConcurrentHashMap<String, Long> fetchExcludedWorkers,
+        MetricsCallback metricsCallback)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -202,12 +200,7 @@ public abstract class CelebornInputStream extends InputStream {
       TransportConf transportConf =
           Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
       retryWaitMs = transportConf.ioRetryWaitTimeMs();
-    }
-
-    @Override
-    public void init(MetricsCallback callback) throws IOException {
-      // callback must set before read()
-      this.callback = callback;
+      this.callback = metricsCallback;
       moveToNextReader();
     }
 
