@@ -658,6 +658,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int =
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
+  def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
@@ -972,6 +973,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDiskTimeSlidingWindowMinFetchCount: Int =
     get(WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT)
   def workerDiskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
+  def workerDiskCleanThreads: Int = get(WORKER_DISK_CLEAN_THREADS)
   def workerDiskMonitorEnabled: Boolean = get(WORKER_DISK_MONITOR_ENABLED)
   def workerDiskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
   def workerDiskMonitorCheckInterval: Long = get(WORKER_DISK_MONITOR_CHECK_INTERVAL)
@@ -2131,6 +2133,14 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
 
+  val WORKER_DISK_CLEAN_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.disk.clean.threads")
+      .categories("worker")
+      .version("0.3.2")
+      .doc("Thread number of worker to clean up directories of expired shuffle keys on disk.")
+      .intConf
+      .createWithDefault(4)
+
   val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.worker.storage.checkDirsEmpty.maxRetries")
       .withAlternative("celeborn.worker.disk.checkFileClean.maxRetries")
@@ -2282,6 +2292,14 @@ object CelebornConf extends Logging {
         "It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .intConf
       .createWithDefault(32)
+
+  val WORKER_CLEAN_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.clean.threads")
+      .categories("worker")
+      .version("0.3.2")
+      .doc("Thread number of worker to clean up expired shuffle keys.")
+      .intConf
+      .createWithDefault(64)
 
   val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.commitFiles.timeout")
