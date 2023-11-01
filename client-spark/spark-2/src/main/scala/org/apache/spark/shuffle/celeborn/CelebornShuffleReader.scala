@@ -86,10 +86,6 @@ class CelebornShuffleReader[K, C](
         override def run(): Unit = {
           if (exceptionRef.get() == null) {
             try {
-              val metricsCallback = new MetricsCallback {
-                override def incBytesRead(bytesWritten: Long): Unit = {}
-                override def incReadTime(time: Long): Unit = {}
-              }
               val inputStream = shuffleClient.readPartition(
                 handle.shuffleId,
                 partitionId,
