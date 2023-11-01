@@ -1009,6 +1009,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_CONGESTION_CONTROL_HIGH_WATERMARK)
   def workerCongestionControlUserInactiveIntervalMs: Long =
     get(WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL)
+  def workerCongestionControlCheckIntervalMs: Long = get(WORKER_CONGESTION_CONTROL_CHECK_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                 Columnar Shuffle                    //
@@ -2595,6 +2596,15 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
+
+  val WORKER_CONGESTION_CONTROL_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.check.interval")
+      .categories("worker")
+      .doc(
+        s"Interval of worker checks congestion if ${WORKER_CONGESTION_CONTROL_ENABLED.key} is true.")
+      .version("0.3.2")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10ms")
 
   val WORKER_DECOMMISSION_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.decommission.checkInterval")

@@ -52,12 +52,15 @@ public class CongestionController {
 
   private final ScheduledExecutorService removeUserExecutorService;
 
+  private final ScheduledExecutorService checkService;
+
   protected CongestionController(
       WorkerSource workerSource,
       int sampleTimeWindowSeconds,
       long highWatermark,
       long lowWatermark,
-      long userInactiveTimeMills) {
+      long userInactiveTimeMills,
+      long checkIntervalTimeMills) {
     assert (highWatermark > lowWatermark);
 
     this.workerSource = workerSource;
@@ -74,6 +77,11 @@ public class CongestionController {
     this.removeUserExecutorService.scheduleWithFixedDelay(
         this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.MILLISECONDS);
 
+    this.checkService = ThreadUtils.newDaemonSingleThreadScheduledExecutor("congestion-checker");
+
+    this.checkService.scheduleWithFixedDelay(
+        this::checkCongestion, 0, checkIntervalTimeMills, TimeUnit.MILLISECONDS);
+
     this.workerSource.addGauge(
         WorkerSource.POTENTIAL_CONSUME_SPEED(), this::getPotentialConsumeSpeed);
 
@@ -86,14 +94,16 @@ public class CongestionController {
       int sampleTimeWindowSeconds,
       long highWatermark,
       long lowWatermark,
-      long userInactiveTimeMills) {
+      long userInactiveTimeMills,
+      long checkIntervalTimeMills) {
     _INSTANCE =
         new CongestionController(
             workSource,
             sampleTimeWindowSeconds,
             highWatermark,
             lowWatermark,
-            userInactiveTimeMills);
+            userInactiveTimeMills,
+            checkIntervalTimeMills);
     return _INSTANCE;
   }
 
@@ -137,26 +147,7 @@ public class CongestionController {
     if (userBufferStatuses.size() == 0) {
       return false;
     }
-
-    long pendingConsumed = getTotalPendingBytes();
-    if (pendingConsumed > highWatermark && overHighWatermark.compareAndSet(false, true)) {
-      logger.info(
-          "Pending consume bytes: {} higher than high watermark, need to congest it",
-          pendingConsumed);
-    }
-
     if (overHighWatermark.get()) {
-      trimMemoryUsage();
-      pendingConsumed = getTotalPendingBytes();
-
-      if (pendingConsumed < lowWatermark && overHighWatermark.compareAndSet(true, false)) {
-        logger.info("Lower than low watermark, exit congestion control");
-      }
-
-      if (!overHighWatermark.get()) {
-        return false;
-      }
-
       // If the user produce speed is higher that the avg consume speed, will congest it
       long userProduceSpeed = getUserProduceSpeed(userBufferStatuses.get(userIdentifier));
       long avgConsumeSpeed = getPotentialConsumeSpeed();
@@ -245,12 +236,33 @@ public class CongestionController {
         }
       }
     } catch (Exception e) {
-      logger.error("Error occurs when removing inactive users, ", e);
+      logger.error("Error occurs when removing inactive users", e);
+    }
+  }
+
+  protected void checkCongestion() {
+    try {
+      long pendingConsume = getTotalPendingBytes();
+      if (pendingConsume < lowWatermark) {
+        if (overHighWatermark.compareAndSet(true, false)) {
+          logger.info("Pending consume is lower than low watermark, exit congestion control");
+        }
+        return;
+      } else if (pendingConsume > highWatermark && overHighWatermark.compareAndSet(false, true)) {
+        logger.info("Pending consume is higher than high watermark, need congestion control");
+      }
+      if (overHighWatermark.get()) {
+        trimMemoryUsage();
+      }
+    } catch (Exception e) {
+      logger.error("Congestion check error", e);
     }
   }
 
   public void close() {
+    logger.info("Closing {}", this.getClass().getSimpleName());
     this.removeUserExecutorService.shutdownNow();
+    this.checkService.shutdownNow();
     this.userBufferStatuses.clear();
     this.consumedBufferStatusHub.clear();
   }
