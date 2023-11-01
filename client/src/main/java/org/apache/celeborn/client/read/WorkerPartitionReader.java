@@ -147,9 +147,10 @@ public class WorkerPartitionReader implements PartitionReader {
     try {
       while (chunk == null) {
         checkException();
-        Long startFetchWait = System.currentTimeMillis();
+        Long startFetchWait = System.nanoTime();
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
-        metricsCallback.incReadTime(System.currentTimeMillis() - startFetchWait);
+        metricsCallback.incReadTime(
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait));
       }
     } catch (InterruptedException e) {
       logger.error("PartitionReader thread interrupted while polling data.");
