@@ -19,8 +19,6 @@ package org.apache.celeborn.common.metrics.sink
 
 import java.util.Properties
 
-import scala.collection.mutable
-
 import com.codahale.metrics.MetricRegistry
 import io.netty.channel.ChannelHandler.Sharable
 
@@ -31,7 +29,7 @@ import org.apache.celeborn.common.metrics.source.Source
 class PrometheusServlet(
     val property: Properties,
     val registry: MetricRegistry,
-    val sources: mutable.ArrayBuffer[Source],
+    val sources: Seq[Source],
     val servletPath: String) extends Sink with Logging {
 
   def getHandler(conf: CelebornConf): PrometheusHttpRequestHandler = {

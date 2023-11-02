@@ -148,7 +148,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   override def onStart(): Unit = {
     // noinspection ConvertExpressionToSAM
-    checkForShuffleRemoval = forwardMessageThread.scheduleAtFixedRate(
+    checkForShuffleRemoval = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(RemoveExpiredShuffle)
@@ -294,8 +294,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
 
     case GetReducerFileGroup(shuffleId: Int) =>
-      logDebug(s"Received GetShuffleFileGroup request," +
-        s"shuffleId $shuffleId.")
+      logDebug(s"Received GetShuffleFileGroup request for shuffleId $shuffleId.")
       handleGetReducerFileGroup(context, shuffleId)
   }
 
@@ -320,7 +319,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           val initialLocs = workerSnapshots(shuffleId)
             .values()
             .asScala
-            .flatMap(_.getAllPrimaryLocationsWithMinEpoch().asScala)
+            .flatMap(_.getAllPrimaryLocationsWithMinEpoch())
             .filter(p =>
               (partitionType == PartitionType.REDUCE && p.getEpoch == 0) || (partitionType == PartitionType.MAP && p.getId == partitionId))
             .toArray
@@ -554,6 +553,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int): Unit = {
+    if (!registeredShuffle.contains(shuffleId)) {
+      logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this stage.")
+      context.reply(GetReducerFileGroupResponse(
+        StatusCode.SHUFFLE_NOT_REGISTERED,
+        JavaUtils.newConcurrentHashMap(),
+        Array.empty))
+      return
+    }
     commitManager.handleGetReducerFileGroup(context, shuffleId)
   }
 
@@ -1048,8 +1055,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       endpoint.askSync[ReserveSlotsResponse](message, conf.clientRpcReserveSlotsRpcTimeout)
     } catch {
       case e: Exception =>
-        val msg = s"Exception when askSync ReserveSlots for $shuffleKey " +
-          s"on worker $endpoint."
+        val msg =
+          s"Exception when askSync worker(${endpoint.address}) ReserveSlots for $shuffleKey " +
+            s"on worker $endpoint."
         logError(msg, e)
         ReserveSlotsResponse(StatusCode.REQUEST_FAILED, msg + s" ${e.getMessage}")
     }
@@ -1062,7 +1070,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       endpoint.askSync[DestroyWorkerSlotsResponse](message)
     } catch {
       case e: Exception =>
-        logError(s"AskSync Destroy for ${message.shuffleKey} failed.", e)
+        logError(
+          s"AskSync worker(${endpoint.address}) Destroy for ${message.shuffleKey} failed.",
+          e)
         DestroyWorkerSlotsResponse(
           StatusCode.REQUEST_FAILED,
           message.primaryLocations,

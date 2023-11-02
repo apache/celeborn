@@ -524,6 +524,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
+  def workerResourceConsumptionInterval: Long = get(WORKER_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -661,6 +662,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int =
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
+  def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
@@ -727,6 +729,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def shuffleCompressionCodec: CompressionCodec =
     CompressionCodec.valueOf(get(SHUFFLE_COMPRESSION_CODEC))
+  def shuffleDecompressionLz4XXHashInstance: Option[String] =
+    get(SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE)
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
 
   // //////////////////////////////////////////////////////
@@ -973,6 +977,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDiskTimeSlidingWindowMinFetchCount: Int =
     get(WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT)
   def workerDiskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
+  def workerDiskCleanThreads: Int = get(WORKER_DISK_CLEAN_THREADS)
   def workerDiskMonitorEnabled: Boolean = get(WORKER_DISK_MONITOR_ENABLED)
   def workerDiskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
   def workerDiskMonitorCheckInterval: Long = get(WORKER_DISK_MONITOR_CHECK_INTERVAL)
@@ -1015,6 +1020,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_CONGESTION_CONTROL_HIGH_WATERMARK)
   def workerCongestionControlUserInactiveIntervalMs: Long =
     get(WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL)
+  def workerCongestionControlCheckIntervalMs: Long = get(WORKER_CONGESTION_CONTROL_CHECK_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                 Columnar Shuffle                    //
@@ -2018,6 +2024,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
+  val WORKER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.userResourceConsumption.update.interval")
+      .categories("worker")
+      .doc("Time length for a window about compute user resource consumption.")
+      .version("0.3.2")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
   val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chunk.size")
       .categories("worker")
@@ -2130,6 +2144,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
+
+  val WORKER_DISK_CLEAN_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.disk.clean.threads")
+      .categories("worker")
+      .version("0.3.2")
+      .doc("Thread number of worker to clean up directories of expired shuffle keys on disk.")
+      .intConf
+      .createWithDefault(4)
 
   val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.worker.storage.checkDirsEmpty.maxRetries")
@@ -2282,6 +2304,14 @@ object CelebornConf extends Logging {
         "It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.activeTypes`.")
       .intConf
       .createWithDefault(32)
+
+  val WORKER_CLEAN_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.clean.threads")
+      .categories("worker")
+      .version("0.3.2")
+      .doc("Thread number of worker to clean up expired shuffle keys.")
+      .intConf
+      .createWithDefault(64)
 
   val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.commitFiles.timeout")
@@ -2633,6 +2663,15 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
+
+  val WORKER_CONGESTION_CONTROL_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.check.interval")
+      .categories("worker")
+      .doc(
+        s"Interval of worker checks congestion if ${WORKER_CONGESTION_CONTROL_ENABLED.key} is true.")
+      .version("0.3.2")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10ms")
 
   val WORKER_DECOMMISSION_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.decommission.checkInterval")
@@ -3228,6 +3267,16 @@ object CelebornConf extends Logging {
         CompressionCodec.ZSTD.name,
         CompressionCodec.NONE.name))
       .createWithDefault(CompressionCodec.LZ4.name)
+
+  val SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE: OptionalConfigEntry[String] =
+    buildConf("celeborn.client.shuffle.decompression.lz4.xxhash.instance")
+      .categories("client")
+      .doc("Decompression XXHash instance for Lz4. Available options: JNI, JAVASAFE, JAVAUNSAFE.")
+      .version("0.3.2")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("JNI", "JAVASAFE", "JAVAUNSAFE"))
+      .createOptional
 
   val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.compression.zstd.level")

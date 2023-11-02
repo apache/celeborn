@@ -37,12 +37,14 @@ public class TestCongestionController {
 
   private long pendingBytes = 0L;
   private final long userInactiveTimeMills = 2000L;
+  private final long checkIntervalTimeMills = Integer.MAX_VALUE;
 
   @Before
   public void initialize() {
     // Make sampleTimeWindow a bit larger in case the tests run time exceed this window.
     controller =
-        new CongestionController(source, 10, 1000, 500, userInactiveTimeMills) {
+        new CongestionController(
+            source, 10, 1000, 500, userInactiveTimeMills, checkIntervalTimeMills) {
           @Override
           public long getTotalPendingBytes() {
             return pendingBytes;
@@ -69,10 +71,12 @@ public class TestCongestionController {
 
     controller.produceBytes(userIdentifier, 1001);
     pendingBytes = 1001;
+    controller.checkCongestion();
     Assert.assertTrue(controller.isUserCongested(userIdentifier));
 
     controller.consumeBytes(1001);
     pendingBytes = 0;
+    controller.checkCongestion();
     Assert.assertFalse(controller.isUserCongested(userIdentifier));
   }
 
@@ -91,6 +95,7 @@ public class TestCongestionController {
     controller.produceBytes(user2, 201);
     controller.consumeBytes(500);
     pendingBytes = 1001;
+    controller.checkCongestion();
     Assert.assertTrue(controller.isUserCongested(user1));
     Assert.assertFalse(controller.isUserCongested(user2));
 
@@ -99,11 +104,13 @@ public class TestCongestionController {
     controller.produceBytes(user2, 800);
     controller.consumeBytes(500);
     pendingBytes = 1600;
+    controller.checkCongestion();
     Assert.assertTrue(controller.isUserCongested(user1));
     Assert.assertTrue(controller.isUserCongested(user2));
 
     // If pending bytes lower than the low watermark, should don't congest all users.
     pendingBytes = 0;
+    controller.checkCongestion();
     Assert.assertFalse(controller.isUserCongested(user1));
     Assert.assertFalse(controller.isUserCongested(user2));
   }

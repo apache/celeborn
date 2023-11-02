@@ -136,14 +136,20 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
     })
   }
 
-  logExecutor.scheduleAtFixedRate(
+  logExecutor.scheduleWithFixedDelay(
     new Runnable {
       override def run(): Unit = {
         if (currentSnapShot.get() != null) {
           currentSnapShot.get().commit()
         }
         currentSnapShot.set(getNewSnapShot())
-        logInfo(s"App Disk Usage Top$usageCount Report ${summary()}")
+        val summaryStr = Some(summary()).map(str =>
+          if (str != null && str.nonEmpty) {
+            "\n" + str
+          } else {
+            str
+          }).getOrElse("")
+        logInfo(s"App Disk Usage Top$usageCount Report $summaryStr")
       }
     },
     60,
@@ -161,7 +167,7 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
   def summary(): String = {
     val stringBuilder = new StringBuilder()
     for (i <- 0 until snapshotCount) {
-      if (snapShots(i) != null && snapShots(i).topNItems.length != 0) {
+      if (snapShots(i) != null && snapShots(i).topNItems.exists(_ != null)) {
         stringBuilder.append(snapShots(i))
         stringBuilder.append("    \n")
       }

@@ -21,6 +21,7 @@ import java.util
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import org.apache.celeborn.common.protocol.PartitionLocation
 
@@ -29,7 +30,6 @@ class ShufflePartitionLocationInfo {
 
   private val primaryPartitionLocations = new PartitionInfo
   private val replicaPartitionLocations = new PartitionInfo
-  implicit val partitionOrdering: Ordering[PartitionLocation] = Ordering.by(_.getEpoch)
 
   def addPrimaryPartitions(primaryLocations: util.List[PartitionLocation]) = {
     addPartitions(primaryPartitionLocations, primaryLocations)
@@ -89,10 +89,24 @@ class ShufflePartitionLocationInfo {
     }
   }
 
-  def getAllPrimaryLocationsWithMinEpoch(): util.Set[PartitionLocation] = {
-    primaryPartitionLocations.values().asScala.map { partitionLocations =>
-      partitionLocations.asScala.min
-    }.toSet.asJava
+  def getAllPrimaryLocationsWithMinEpoch(): ArrayBuffer[PartitionLocation] = {
+    val set = new ArrayBuffer[PartitionLocation](primaryPartitionLocations.size())
+    val locationsIterator = primaryPartitionLocations.values().iterator()
+    while (locationsIterator.hasNext) {
+      val locationIterator = locationsIterator.next().iterator()
+      var min: PartitionLocation = null
+      if (locationIterator.hasNext) {
+        min = locationIterator.next();
+      }
+      while (locationIterator.hasNext) {
+        val next = locationIterator.next()
+        if (min.getEpoch > next.getEpoch) {
+          min = next;
+        }
+      }
+      set += min;
+    }
+    set
   }
 
   private def addPartitions(

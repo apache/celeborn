@@ -104,7 +104,7 @@ By using these profiles, you can easily switch between different client modules 
 For example, you can build the Spark 3.3 client assembly jar by running the following commands:
 
 ```shell
-$ ./build/sbt
+$ ./build/sbt -Pspark-3.3
 > project celeborn-client-spark-3-shaded
 > assembly
 
@@ -115,7 +115,7 @@ $ ./build/sbt -Pspark-3.3 celeborn-client-spark-3-shaded/assembly
 Similarly, you can build the Flink 1.15 client assembly jar using the following commands:
 
 ```shell
-$ ./build/sbt
+$ ./build/sbt -Pflink-1.15
 > project celeborn-client-flink-1_15-shaded
 > assembly
 

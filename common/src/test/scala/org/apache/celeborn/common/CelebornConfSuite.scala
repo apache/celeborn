@@ -119,6 +119,22 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(workerBaseDirs.head._3 == 9)
   }
 
+  test("CELEBORN-1095: Support configuration of fastest available XXHashFactory instance for checksum of Lz4Decompressor") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE.key, "JNI")
+    assert(conf.shuffleDecompressionLz4XXHashInstance.get == "JNI")
+    conf.set(CelebornConf.SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE.key, "JAVASAFE")
+    assert(conf.shuffleDecompressionLz4XXHashInstance.get == "JAVASAFE")
+    conf.set(CelebornConf.SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE.key, "JAVAUNSAFE")
+    assert(conf.shuffleDecompressionLz4XXHashInstance.get == "JAVAUNSAFE")
+    val error = intercept[IllegalArgumentException] {
+      conf.set(CelebornConf.SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE.key, "NATIVE")
+      assert(conf.shuffleDecompressionLz4XXHashInstance.get == "NATIVE")
+    }.getMessage
+    assert(error.contains(
+      s"The value of ${CelebornConf.SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE.key} should be one of JNI, JAVASAFE, JAVAUNSAFE, but was NATIVE"))
+  }
+
   test("zstd level") {
     val conf = new CelebornConf()
     val error1 = intercept[IllegalArgumentException] {

@@ -186,21 +186,23 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
     String indexFilePath = Utils.getIndexFilePath(fileInfo.getFilePath());
-    if (sorted.contains(fileId)) {
-      return resolve(
-          shuffleKey,
-          fileId,
-          userIdentifier,
-          sortedFilePath,
-          indexFilePath,
-          startMapIndex,
-          endMapIndex);
-    }
     synchronized (sorting) {
+      if (sorted.contains(fileId)) {
+        return resolve(
+            shuffleKey,
+            fileId,
+            userIdentifier,
+            sortedFilePath,
+            indexFilePath,
+            startMapIndex,
+            endMapIndex);
+      }
       if (!sorting.contains(fileId)) {
         try {
           FileSorter fileSorter = new FileSorter(fileInfo, fileId, shuffleKey);
           sorting.add(fileId);
+          logger.debug(
+              "Adding sorter to sort queue shuffle key {}, file name {}", shuffleKey, fileName);
           shuffleSortTaskDeque.put(fileSorter);
         } catch (InterruptedException e) {
           logger.error("Sorter scheduler thread is interrupted means worker is shutting down.", e);
@@ -747,6 +749,10 @@ class PartitionFilesCleaner {
                       PartitionFilesSorter.FileSorter sorter = it.next();
                       try {
                         if (sorter.getOriginFileInfo().isStreamsEmpty()) {
+                          logger.debug(
+                              "Deleting the original files for shuffle key {}: {}",
+                              sorter.getShuffleKey(),
+                              sorter.getOriginFileInfo().getFilePath());
                           sorter.deleteOriginFiles();
                           queue.remove(sorter);
                         }

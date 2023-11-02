@@ -25,6 +25,7 @@ import scala.collection.JavaConverters._
 import org.junit.Assert
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.util.JavaUtils.timeOutOrMeetCondition
@@ -140,12 +141,17 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // reduce file group size (for empty partitions)
     Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
 
+    val metricsCallback = new MetricsCallback {
+      override def incBytesRead(bytesWritten: Long): Unit = {}
+      override def incReadTime(time: Long): Unit = {}
+    }
+
     // reduce normal empty CelebornInputStream
-    var stream = shuffleClient.readPartition(shuffleId, 1, 1, 0, Integer.MAX_VALUE)
+    var stream = shuffleClient.readPartition(shuffleId, 1, 1, 0, Integer.MAX_VALUE, metricsCallback)
     Assert.assertEquals(stream.read(), -1)
 
     // reduce normal null partition for CelebornInputStream
-    stream = shuffleClient.readPartition(shuffleId, 3, 1, 0, Integer.MAX_VALUE)
+    stream = shuffleClient.readPartition(shuffleId, 3, 1, 0, Integer.MAX_VALUE, metricsCallback)
     Assert.assertEquals(stream.read(), -1)
   }
 

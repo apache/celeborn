@@ -46,7 +46,7 @@ class ReviveManager {
     this.interval = conf.clientPushReviveInterval();
     this.batchSize = conf.clientPushReviveBatchSize();
 
-    batchReviveRequestScheduler.scheduleAtFixedRate(
+    batchReviveRequestScheduler.scheduleWithFixedDelay(
         () -> {
           Map<Integer, Set<ReviveRequest>> shuffleMap = new HashMap<>();
           do {

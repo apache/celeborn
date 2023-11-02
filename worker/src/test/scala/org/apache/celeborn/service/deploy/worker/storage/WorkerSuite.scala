@@ -31,7 +31,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
-import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils}
+import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ThreadUtils}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 
 class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
@@ -83,7 +83,12 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     val shuffleKey2 = "2-2"
     expiredShuffleKeys.add(shuffleKey1)
     expiredShuffleKeys.add(shuffleKey2)
-    worker.cleanup(expiredShuffleKeys)
+    worker.cleanup(
+      expiredShuffleKeys,
+      ThreadUtils.newDaemonCachedThreadPool(
+        "worker-clean-expired-shuffle-keys",
+        conf.workerCleanThreads))
+    Thread.sleep(3000)
     worker.storageManager.workingDirWriters.values().asScala.map(t => assert(t.size() == 0))
   }
 

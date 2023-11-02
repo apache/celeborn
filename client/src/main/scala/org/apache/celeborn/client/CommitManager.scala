@@ -94,7 +94,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     lifecycleManager.registerWorkerStatusListener(new ShutdownWorkerListener)
 
     batchHandleCommitPartition = batchHandleCommitPartitionSchedulerThread.map {
-      _.scheduleAtFixedRate(
+      _.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = {
             committedPartitionInfo.asScala.foreach { case (shuffleId, shuffleCommittedInfo) =>
@@ -268,30 +268,26 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
 
   private def getCommitHandler(shuffleId: Int): CommitHandler = {
     val partitionType = lifecycleManager.getPartitionType(shuffleId)
-    if (commitHandlers.containsKey(partitionType)) {
-      commitHandlers.get(partitionType)
-    } else {
-      commitHandlers.computeIfAbsent(
-        partitionType,
-        (partitionType: PartitionType) => {
-          partitionType match {
-            case PartitionType.REDUCE => new ReducePartitionCommitHandler(
-                appUniqueId,
-                conf,
-                lifecycleManager.shuffleAllocatedWorkers,
-                committedPartitionInfo,
-                lifecycleManager.workerStatusTracker)
-            case PartitionType.MAP => new MapPartitionCommitHandler(
-                appUniqueId,
-                conf,
-                lifecycleManager.shuffleAllocatedWorkers,
-                committedPartitionInfo,
-                lifecycleManager.workerStatusTracker)
-            case _ => throw new UnsupportedOperationException(
-                s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
-          }
-        })
-    }
+    commitHandlers.computeIfAbsent(
+      partitionType,
+      (partitionType: PartitionType) => {
+        partitionType match {
+          case PartitionType.REDUCE => new ReducePartitionCommitHandler(
+              appUniqueId,
+              conf,
+              lifecycleManager.shuffleAllocatedWorkers,
+              committedPartitionInfo,
+              lifecycleManager.workerStatusTracker)
+          case PartitionType.MAP => new MapPartitionCommitHandler(
+              appUniqueId,
+              conf,
+              lifecycleManager.shuffleAllocatedWorkers,
+              committedPartitionInfo,
+              lifecycleManager.workerStatusTracker)
+          case _ => throw new UnsupportedOperationException(
+              s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
+        }
+      })
   }
 
   def commitMetrics(): (Long, Long) = commitHandlers.asScala.values.foldLeft(0L -> 0L) {

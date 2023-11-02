@@ -198,12 +198,6 @@ These metrics are exposed by Celeborn worker.
         - The active shuffle size of a worker including master replica and slave replica.
     - ActiveShuffleFileCount
         - The active shuffle file count of a worker including master replica and slave replica.
-    - OutstandingFetchCount
-        - The count of outstanding fetch request.
-    - OutstandingRpcCount
-        - The count of outstanding rpc request.
-    - OutstandingPushCount
-        - The count of outstanding push request.
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 
@@ -271,6 +265,14 @@ These metrics are exposed by Celeborn worker.
     - This source provides information on JVM metrics using the
       [Dropwizard/Codahale Metric Sets for JVM instrumentation](https://metrics.dropwizard.io/4.2.0/manual/jvm.html)
       and in particular the metric sets BufferPoolMetricSet, GarbageCollectorMetricSet and MemoryUsageGaugeSet.
+
+  - namespace=ResourceConsumption
+    - **notes:**
+        - This metrics data is generated for each user and they are identified using a metric tag.
+    - diskFileCount
+    - diskBytesWritten
+    - hdfsFileCount
+    - hdfsBytesWritten
 
 **Note:**
 

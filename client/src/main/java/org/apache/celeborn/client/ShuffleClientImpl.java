@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.CelebornInputStream;
+import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -272,6 +273,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           batchId,
           newLoc);
+      pushDataRpcResponseCallback.updateLatestPartition(newLoc);
       try {
         if (!isPushTargetWorkerExcluded(newLoc, pushDataRpcResponseCallback)) {
           if (!testRetryRevive || remainReviveTimes < 1) {
@@ -281,7 +283,6 @@ public class ShuffleClientImpl extends ShuffleClient {
             String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
             PushData newPushData =
                 new PushData(PRIMARY_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
-            pushDataRpcResponseCallback.updateLatestPartition(newLoc);
             client.pushData(newPushData, pushDataTimeout, pushDataRpcResponseCallback);
           } else {
             throw new RuntimeException(
@@ -633,18 +634,17 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   void excludeWorkerByCause(StatusCode cause, PartitionLocation oldLocation) {
     if (pushExcludeWorkerOnFailureEnabled && oldLocation != null) {
-      if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY) {
-        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY) {
-        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_PRIMARY) {
-        pushExcludedWorkers.add(oldLocation.hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA) {
-        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA) {
-        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
-      } else if (cause == StatusCode.PUSH_DATA_TIMEOUT_REPLICA) {
-        pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
+      switch (cause) {
+        case PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY:
+        case PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY:
+        case PUSH_DATA_TIMEOUT_PRIMARY:
+          pushExcludedWorkers.add(oldLocation.hostAndPushPort());
+          break;
+        case PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA:
+        case PUSH_DATA_CONNECTION_EXCEPTION_REPLICA:
+        case PUSH_DATA_TIMEOUT_REPLICA:
+          pushExcludedWorkers.add(oldLocation.getPeer().hostAndPushPort());
+          break;
       }
     }
   }
@@ -905,10 +905,10 @@ public class ShuffleClientImpl extends ShuffleClient {
             PartitionLocation latest = loc;
 
             @Override
-            public void updateLatestPartition(PartitionLocation latest) {
-              pushState.addBatch(nextBatchId, latest.hostAndPushPort());
+            public void updateLatestPartition(PartitionLocation newloc) {
+              pushState.addBatch(nextBatchId, newloc.hostAndPushPort());
               pushState.removeBatch(nextBatchId, this.latest.hostAndPushPort());
-              this.latest = latest;
+              this.latest = newloc;
             }
 
             @Override
@@ -1003,12 +1003,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void onFailure(Throwable e) {
-              StatusCode cause = getPushDataFailCause(e.getMessage());
-
               if (pushState.exception.get() != null) {
                 return;
               }
-
+              StatusCode cause = getPushDataFailCause(e.getMessage());
               if (remainReviveTimes <= 0) {
                 if (e instanceof CelebornIOException) {
                   callback.onFailure(e);
@@ -1383,11 +1381,10 @@ public class ShuffleClientImpl extends ShuffleClient {
 
           @Override
           public void onFailure(Throwable e) {
-            StatusCode cause = getPushDataFailCause(e.getMessage());
-
             if (pushState.exception.get() != null) {
               return;
             }
+            StatusCode cause = getPushDataFailCause(e.getMessage());
             if (remainReviveTimes <= 0) {
               if (e instanceof CelebornIOException) {
                 callback.onFailure(e);
@@ -1544,26 +1541,26 @@ public class ShuffleClientImpl extends ShuffleClient {
                 conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
                 ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
 
-        if (response.status() == StatusCode.SUCCESS) {
-          logger.info(
-              "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
-              shuffleId,
-              TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
-              response.fileGroup().size());
-          return new ReduceFileGroups(
-              response.fileGroup(), response.attempts(), response.partitionIds());
-        } else if (response.status() == StatusCode.STAGE_END_TIME_OUT) {
-          logger.warn(
-              "Request {} return {} for {}.",
-              getReducerFileGroup,
-              StatusCode.STAGE_END_TIME_OUT,
-              shuffleId);
-        } else if (response.status() == StatusCode.SHUFFLE_DATA_LOST) {
-          logger.warn(
-              "Request {} return {} for {}.",
-              getReducerFileGroup,
-              StatusCode.SHUFFLE_DATA_LOST,
-              shuffleId);
+        switch (response.status()) {
+          case SUCCESS:
+            logger.info(
+                "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
+                shuffleId,
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
+                response.fileGroup().size());
+            return new ReduceFileGroups(
+                response.fileGroup(), response.attempts(), response.partitionIds());
+          case STAGE_END_TIME_OUT:
+          case SHUFFLE_DATA_LOST:
+            logger.warn(
+                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
+            return null;
+          case SHUFFLE_NOT_REGISTERED:
+            logger.warn(
+                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
+            // return empty result
+            return new ReduceFileGroups(
+                response.fileGroup(), response.attempts(), response.partitionIds());
         }
       } catch (Exception e) {
         logger.error("Exception raised while call GetReducerFileGroup for {}.", shuffleId, e);
@@ -1589,7 +1586,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public CelebornInputStream readPartition(
-      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
+      int shuffleId,
+      int partitionId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex,
+      MetricsCallback metricsCallback)
       throws IOException {
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
 
@@ -1608,7 +1610,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           attemptNumber,
           startMapIndex,
           endMapIndex,
-          fetchExcludedWorkers);
+          fetchExcludedWorkers,
+          metricsCallback);
     }
   }
 

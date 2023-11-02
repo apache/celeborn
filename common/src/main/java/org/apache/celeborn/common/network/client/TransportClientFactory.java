@@ -68,7 +68,6 @@ public class TransportClientFactory implements Closeable {
   private static final Logger logger = LoggerFactory.getLogger(TransportClientFactory.class);
 
   private final TransportContext context;
-  private final TransportConf conf;
   private final ConcurrentHashMap<SocketAddress, ClientPool> connectionPool;
 
   /** Random number generator for picking connections between peers. */
@@ -76,15 +75,23 @@ public class TransportClientFactory implements Closeable {
 
   private final int numConnectionsPerPeer;
 
+  private final int connectTimeoutMs;
+
+  private final int receiveBuf;
+
+  private final int sendBuf;
   private final Class<? extends Channel> socketChannelClass;
   private EventLoopGroup workerGroup;
   protected ByteBufAllocator pooledAllocator;
 
   public TransportClientFactory(TransportContext context) {
     this.context = Preconditions.checkNotNull(context);
-    this.conf = context.getConf();
+    TransportConf conf = context.getConf();
     this.connectionPool = JavaUtils.newConcurrentHashMap();
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
+    this.connectTimeoutMs = conf.connectTimeoutMs();
+    this.receiveBuf = conf.receiveBuf();
+    this.sendBuf = conf.sendBuf();
     this.rand = new Random();
 
     IOMode ioMode = IOMode.valueOf(conf.ioMode());
@@ -92,10 +99,6 @@ public class TransportClientFactory implements Closeable {
     logger.info("mode " + ioMode + " threads " + conf.clientThreads());
     this.workerGroup =
         NettyUtils.createEventLoop(ioMode, conf.clientThreads(), conf.getModuleName() + "-client");
-    initializeMemoryAllocator();
-  }
-
-  protected void initializeMemoryAllocator() {
     this.pooledAllocator = NettyUtils.getPooledByteBufAllocator(conf, null, false);
   }
 
@@ -213,15 +216,15 @@ public class TransportClientFactory implements Closeable {
         // Disable Nagle's Algorithm since we don't want packets to wait
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
-        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, conf.connectTimeoutMs())
+        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMs)
         .option(ChannelOption.ALLOCATOR, pooledAllocator);
 
-    if (conf.receiveBuf() > 0) {
-      bootstrap.option(ChannelOption.SO_RCVBUF, conf.receiveBuf());
+    if (receiveBuf > 0) {
+      bootstrap.option(ChannelOption.SO_RCVBUF, receiveBuf);
     }
 
-    if (conf.sendBuf() > 0) {
-      bootstrap.option(ChannelOption.SO_SNDBUF, conf.sendBuf());
+    if (sendBuf > 0) {
+      bootstrap.option(ChannelOption.SO_SNDBUF, sendBuf);
     }
 
     final AtomicReference<TransportClient> clientRef = new AtomicReference<>();
@@ -239,9 +242,9 @@ public class TransportClientFactory implements Closeable {
 
     // Connect to the remote server
     ChannelFuture cf = bootstrap.connect(address);
-    if (!cf.await(conf.connectTimeoutMs())) {
+    if (!cf.await(connectTimeoutMs)) {
       throw new CelebornIOException(
-          String.format("Connecting to %s timed out (%s ms)", address, conf.connectTimeoutMs()));
+          String.format("Connecting to %s timed out (%s ms)", address, connectTimeoutMs));
     } else if (cf.cause() != null) {
       throw new CelebornIOException(String.format("Failed to connect to %s", address), cf.cause());
     }

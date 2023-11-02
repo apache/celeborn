@@ -167,8 +167,9 @@ public class SparkShuffleManager implements ShuffleManager {
     if (lifecycleManager != null) {
       lifecycleManager.stop();
     }
-    if (sortShuffleManager() != null) {
-      sortShuffleManager().stop();
+    if (_sortShuffleManager != null) {
+      _sortShuffleManager.stop();
+      _sortShuffleManager = null;
     }
   }
 

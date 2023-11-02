@@ -54,7 +54,7 @@ class ReleasePartitionManager(
   def start(): Unit = {
     batchHandleReleasePartition = batchHandleReleasePartitionSchedulerThread.map {
       // noinspection ConvertExpressionToSAM
-      _.scheduleAtFixedRate(
+      _.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = {
             try {
