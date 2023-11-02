@@ -1204,9 +1204,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   private def writeDataWithExceptionHandling(
-    fileWriter: FileWriter,
-    body: ByteBuf,
-    shuffleKey: String): Unit = {
+      fileWriter: FileWriter,
+      body: ByteBuf,
+      shuffleKey: String): Unit = {
     try {
       fileWriter.write(body)
     } catch {
