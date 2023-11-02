@@ -251,7 +251,11 @@ private[celeborn] class Worker(
   val replicateThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("Worker-CommitFiles", conf.workerCommitThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-commit-files", conf.workerCommitThreads)
+  val cleanThreadPool: ThreadPoolExecutor =
+    ThreadUtils.newDaemonCachedThreadPool(
+      "worker-clean-expired-shuffle-keys",
+      conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
@@ -400,7 +404,7 @@ private[celeborn] class Worker(
         while (true) {
           val expiredShuffleKeys = cleanTaskQueue.take()
           try {
-            cleanup(expiredShuffleKeys)
+            cleanup(expiredShuffleKeys, cleanThreadPool)
           } catch {
             case e: Throwable =>
               logError("Cleanup failed", e)
@@ -512,20 +516,23 @@ private[celeborn] class Worker(
     throw new CelebornException("Register worker failed.", exception)
   }
   @VisibleForTesting
-  def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
-    expiredShuffleKeys.asScala.foreach { shuffleKey =>
-      partitionLocationInfo.removeShuffle(shuffleKey)
-      shufflePartitionType.remove(shuffleKey)
-      shufflePushDataTimeout.remove(shuffleKey)
-      shuffleMapperAttempts.remove(shuffleKey)
-      shuffleCommitInfos.remove(shuffleKey)
-      workerInfo.releaseSlots(shuffleKey)
-      logInfo(s"Cleaned up expired shuffle $shuffleKey")
+  def cleanup(expiredShuffleKeys: JHashSet[String], threadPool: ThreadPoolExecutor): Unit =
+    synchronized {
+      expiredShuffleKeys.asScala.foreach { shuffleKey =>
+        partitionLocationInfo.removeShuffle(shuffleKey)
+        shufflePartitionType.remove(shuffleKey)
+        shufflePushDataTimeout.remove(shuffleKey)
+        shuffleMapperAttempts.remove(shuffleKey)
+        shuffleCommitInfos.remove(shuffleKey)
+        workerInfo.releaseSlots(shuffleKey)
+        logInfo(s"Cleaned up expired shuffle $shuffleKey")
+      }
+      partitionsSorter.cleanup(expiredShuffleKeys)
+      fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
+      threadPool.execute(new Runnable {
+        override def run(): Unit = storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+      })
     }
-    partitionsSorter.cleanup(expiredShuffleKeys)
-    storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
-    fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
-  }
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
