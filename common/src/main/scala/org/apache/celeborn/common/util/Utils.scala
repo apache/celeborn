@@ -476,14 +476,14 @@ object Utils extends Logging {
     hostPortParseResults.get(hostPort)
   }
 
-  private val MAX_DEFAULT_NETTY_THREADS = 64
+  private var maxDefaultNettyThreads = 64
 
   def fromCelebornConf(
       _conf: CelebornConf,
       module: String,
       numUsableCores: Int = 0): TransportConf = {
     val conf = _conf.clone
-
+    maxDefaultNettyThreads = conf.maxDefaultNettyThreads
     // Specify thread configuration based on our JVM's allocation of cores (rather than necessarily
     // assuming we have all the machine's cores).
     // NB: Only set if serverThreads/clientThreads not already set.
@@ -500,7 +500,7 @@ object Utils extends Logging {
   private def defaultNumThreads(numUsableCores: Int): Int = {
     val availableCores =
       if (numUsableCores > 0) numUsableCores else Runtime.getRuntime.availableProcessors()
-    math.min(availableCores, MAX_DEFAULT_NETTY_THREADS)
+    math.min(availableCores, maxDefaultNettyThreads)
   }
 
   def getClassLoader: ClassLoader = getClass.getClassLoader
