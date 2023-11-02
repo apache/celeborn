@@ -174,7 +174,7 @@ public class ChunkStreamManager {
 
       // normally expiredStreamIds set will be empty as streamId will be removed when be fully read
       if (expiredStreamIds != null && !expiredStreamIds.isEmpty()) {
-        expiredStreamIds.parallelStream().forEach(streams::remove);
+        expiredStreamIds.forEach(streams::remove);
       }
     }
     logger.info(
