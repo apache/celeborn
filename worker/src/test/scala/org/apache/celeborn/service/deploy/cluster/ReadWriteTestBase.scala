@@ -29,6 +29,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
+import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -102,7 +103,11 @@ trait ReadWriteTestBase extends AnyFunSuite
 
     shuffleClient.mapperEnd(1, 0, 0, 1)
 
-    val inputStream = shuffleClient.readPartition(1, 0, 0)
+    val metricsCallback = new MetricsCallback {
+      override def incBytesRead(bytesWritten: Long): Unit = {}
+      override def incReadTime(time: Long): Unit = {}
+    }
+    val inputStream = shuffleClient.readPartition(1, 0, 0, 0, Integer.MAX_VALUE, metricsCallback)
     val outputStream = new ByteArrayOutputStream()
 
     var b = inputStream.read()

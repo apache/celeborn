@@ -48,6 +48,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private PartitionLocation location;
   private final TransportClientFactory clientFactory;
   private PbStreamHandler streamHandle;
+  private MetricsCallback metricsCallback;
 
   private int returnedChunks;
   private int chunkIndex;
@@ -73,11 +74,13 @@ public class WorkerPartitionReader implements PartitionReader {
       int startMapIndex,
       int endMapIndex,
       int fetchChunkRetryCnt,
-      int fetchChunkMaxRetry)
+      int fetchChunkMaxRetry,
+      MetricsCallback metricsCallback)
       throws IOException, InterruptedException {
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    this.metricsCallback = metricsCallback;
     // only add the buffer to results queue if this reader is not closed.
     callback =
         new ChunkReceivedCallback() {
@@ -142,7 +145,10 @@ public class WorkerPartitionReader implements PartitionReader {
     try {
       while (chunk == null) {
         checkException();
+        Long startFetchWait = System.nanoTime();
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
+        metricsCallback.incReadTime(
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait));
       }
     } catch (InterruptedException e) {
       logger.error("PartitionReader thread interrupted while polling data.");

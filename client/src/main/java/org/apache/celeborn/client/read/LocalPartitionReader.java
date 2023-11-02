@@ -63,6 +63,7 @@ public class LocalPartitionReader implements PartitionReader {
   private FileChannel shuffleChannel;
   private List<Long> chunkOffsets;
   private AtomicBoolean pendingFetchTask = new AtomicBoolean(false);
+  private MetricsCallback metricsCallback;
 
   public LocalPartitionReader(
       CelebornConf conf,
@@ -70,7 +71,8 @@ public class LocalPartitionReader implements PartitionReader {
       PartitionLocation location,
       TransportClientFactory clientFactory,
       int startMapIndex,
-      int endMapIndex)
+      int endMapIndex,
+      MetricsCallback metricsCallback)
       throws IOException {
     if (readLocalShufflePool == null) {
       synchronized (LocalPartitionReader.class) {
@@ -84,6 +86,7 @@ public class LocalPartitionReader implements PartitionReader {
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     this.location = location;
+    this.metricsCallback = metricsCallback;
     PbStreamHandler streamHandle;
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
     try {
@@ -197,7 +200,10 @@ public class LocalPartitionReader implements PartitionReader {
     try {
       while (chunk == null) {
         checkException();
+        Long startFetchWait = System.nanoTime();
         chunk = results.poll(100, TimeUnit.MILLISECONDS);
+        metricsCallback.incReadTime(
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait));
         logger.debug("Poll result with result size: {}", results.size());
       }
     } catch (InterruptedException e) {

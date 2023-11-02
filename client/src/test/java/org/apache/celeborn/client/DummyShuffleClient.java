@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.CelebornInputStream;
+import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -112,12 +113,12 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public CelebornInputStream readPartition(
-      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex) {
-    return null;
-  }
-
-  @Override
-  public CelebornInputStream readPartition(int shuffleId, int partitionId, int attemptNumber) {
+      int shuffleId,
+      int partitionId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex,
+      MetricsCallback metricsCallback) {
     return null;
   }
 
