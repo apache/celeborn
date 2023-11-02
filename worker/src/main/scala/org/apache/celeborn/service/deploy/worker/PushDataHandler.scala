@@ -21,6 +21,8 @@ import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
+import scala.util.{Failure, Success, Try}
+
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
@@ -245,8 +247,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter.decrementPendingWrites()
       return;
     }
-    // Write to local async before replicating
-    writeDataWithExceptionHandling(fileWriter, body, shuffleKey)
+    // Write to local async.
+    // If write to buffer fails, respond back to client with failure. Else proceed with replication.
+    if (!writeDataWithExceptionHandling(fileWriter, body, shuffleKey, callbackWithTimer)) {
+      return
+    }
 
     // for primary, send data to replica
     if (doReplicate) {
@@ -508,7 +513,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           batchOffsets(fileWriters.indexOf(fileWriter) + 1) - offset
         }
       val batchBody = body.slice(offset, length)
-      writeDataWithExceptionHandling(fileWriter, batchBody, shuffleKey)
+      // Write to local async.
+      // If write to buffer fails, respond back to client with failure. Else proceed with replication.
+      if (!writeDataWithExceptionHandling(fileWriter, body, shuffleKey, callbackWithTimer)) {
+        return
+      }
     }
 
     // for primary, send data to replica
@@ -773,8 +782,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter.decrementPendingWrites()
       return;
     }
-    // Write to local async before replicating
-    writeDataWithExceptionHandling(fileWriter, body, shuffleKey)
+    // Write to local async.
+    // If write to buffer fails, respond back to client with failure. Else proceed with replication.
+    if (!writeDataWithExceptionHandling(fileWriter, body, shuffleKey, callback)) {
+      return
+    }
 
     // for primary, send data to replica
     if (location.hasPeer && isPrimary) {
@@ -782,24 +794,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     } else {
       wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-    }
-
-    try {
-      fileWriter.write(body)
-    } catch {
-      case e: AlreadyClosedException =>
-        fileWriter.decrementPendingWrites()
-        val (mapId, attemptId) = getMapAttempt(body)
-        val endedAttempt =
-          if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-            shuffleMapperAttempts.get(shuffleKey).get(mapId)
-          } else -1
-        // TODO just info log for ended attempt
-        logError(
-          s"[handleMapPartitionPushData] Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
-      case e: Exception =>
-        logError("Exception encountered when write.", e)
     }
   }
 
@@ -1206,22 +1200,27 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private def writeDataWithExceptionHandling(
       fileWriter: FileWriter,
       body: ByteBuf,
-      shuffleKey: String): Unit = {
-    try {
+      shuffleKey: String,
+      callbackWithTimer: RpcResponseCallback): Boolean = {
+    Try {
       fileWriter.write(body)
-    } catch {
-      case e: AlreadyClosedException =>
-        fileWriter.decrementPendingWrites()
-        val (mapId, attemptId) = getMapAttempt(body)
-        val endedAttempt =
-          if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-            shuffleMapperAttempts.get(shuffleKey).get(mapId)
-          } else -1
-        // TODO just info log for ended attempt
-        logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-          s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
-      case e: Exception =>
-        logError("Exception encountered when write.", e)
+    } match {
+      case Success(_) => true
+      case Failure(e) =>
+        e match {
+          case e: AlreadyClosedException =>
+            fileWriter.decrementPendingWrites()
+            val (mapId, attemptId) = getMapAttempt(body)
+            val endedAttempt =
+              if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+                shuffleMapperAttempts.get(shuffleKey).get(mapId)
+              } else -1
+            logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+              s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+          case e: Exception => logError("Exception encountered when write.", e)
+        }
+        callbackWithTimer.onFailure(new CelebornIOException(e))
+        false
     }
   }
 
