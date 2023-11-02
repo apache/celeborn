@@ -29,6 +29,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 import io.netty.buffer.PooledByteBufAllocator
+import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 
@@ -88,7 +89,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       diskInfo =>
         cleaners.put(
           diskInfo.mountPoint,
-          ThreadUtils.newDaemonCachedThreadPool(s"Disk-cleaner-${diskInfo.mountPoint}", 1))
+          ThreadUtils.newDaemonCachedThreadPool(
+            s"disk-cleaner-${diskInfo.mountPoint}",
+            conf.workerDiskCleanThreads))
     }
     cleaners
   }
@@ -156,7 +159,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
     if (diskStatus == DiskStatus.CRITICAL_ERROR) {
-      logInfo(s"Disk ${mountPoint} faces critical error, will remove its disk operator.")
+      logInfo(s"Disk $mountPoint faces critical error, will remove its disk operator.")
       val operator = diskOperators.remove(mountPoint)
       if (operator != null) {
         operator.shutdown()
@@ -168,7 +171,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (!diskOperators.containsKey(mountPoint)) {
       diskOperators.put(
         mountPoint,
-        ThreadUtils.newDaemonCachedThreadPool(s"Disk-cleaner-${mountPoint}", 1))
+        ThreadUtils.newDaemonCachedThreadPool(
+          s"disk-cleaner-$mountPoint",
+          conf.workerDiskCleanThreads))
     }
   }
 
@@ -176,7 +181,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private val counterOperator = new IntUnaryOperator() {
     override def applyAsInt(operand: Int): Int = {
       val dirs = healthyWorkingDirs()
-      if (dirs.length > 0) {
+      if (dirs.nonEmpty) {
         (operand + 1) % dirs.length
       } else 0
     }
@@ -254,12 +259,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           val shuffleKey = parseDbShuffleKey(key)
           try {
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache)
-            logDebug(s"Reload DB: ${shuffleKey} -> ${files}")
+            logDebug(s"Reload DB: $shuffleKey -> $files")
             fileInfos.put(shuffleKey, files)
             db.delete(entry.getKey)
           } catch {
             case exception: Exception =>
-              logError(s"Reload DB: ${shuffleKey} failed.", exception)
+              logError(s"Reload DB: $shuffleKey failed.", exception)
           }
         } else {
           return
@@ -523,7 +528,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val hdfsFileWriter = hdfsWriters.get(fileInfo.getFilePath)
       if (hdfsFileWriter != null) {
         hdfsFileWriter.destroy(new IOException(
-          s"Destroy FileWriter ${hdfsFileWriter} caused by shuffle ${shuffleKey} expired."))
+          s"Destroy FileWriter $hdfsFileWriter caused by shuffle $shuffleKey expired."))
         hdfsWriters.remove(fileInfo.getFilePath)
       }
     } else {
@@ -534,7 +539,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val fileWriter = writers.get(fileInfo.getFilePath)
         if (fileWriter != null) {
           fileWriter.destroy(new IOException(
-            s"Destroy FileWriter ${fileWriter} caused by shuffle ${shuffleKey} expired."))
+            s"Destroy FileWriter $fileWriter caused by shuffle $shuffleKey expired."))
           writers.remove(fileInfo.getFilePath)
         }
       }
@@ -611,9 +616,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       .filter(diskInfo =>
         diskInfo.status == DiskStatus.HEALTHY
           || diskInfo.status == DiskStatus.HIGH_DISK_USAGE)
-      .map { case diskInfo =>
-        (diskInfo, diskInfo.dirs.filter(_.exists).flatMap(_.listFiles()))
-      }
+      .map(diskInfo =>
+        (diskInfo, diskInfo.dirs.filter(_.exists).flatMap(_.listFiles())))
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
 
     diskInfoAndAppDirs.foreach { case (diskInfo, appDirs) =>
@@ -629,34 +633,25 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def deleteDirectory(dir: File, threadPool: ThreadPoolExecutor): Unit = {
-    val allContents = dir.listFiles
-    if (allContents != null) {
-      for (file <- allContents) {
-        deleteDirectory(file, threadPool)
-      }
+    if (dir.exists()) {
+      threadPool.submit(new Runnable {
+        override def run(): Unit = {
+          deleteDirectoryWithRetry(dir)
+        }
+      })
     }
-    threadPool.submit(new Runnable {
-      override def run(): Unit = {
-        deleteFileWithRetry(dir)
-      }
-    })
   }
 
-  private def deleteFileWithRetry(file: File): Unit = {
-    if (file.exists()) {
-      var retryCount = 0
-      var deleteSuccess = false
-      while (!deleteSuccess && retryCount <= 3) {
-        deleteSuccess = file.delete()
-        retryCount = retryCount + 1
-        if (!deleteSuccess) {
-          Thread.sleep(200 * retryCount)
-        }
-      }
-      if (deleteSuccess) {
-        logDebug(s"Deleted expired shuffle file $file.")
-      } else {
-        logWarning(s"Failed to delete expired shuffle file $file.")
+  private def deleteDirectoryWithRetry(dir: File): Unit = {
+    var retryCount = 0
+    var deleteSuccess = false
+    while (!deleteSuccess && retryCount <= 3) {
+      try {
+        FileUtils.deleteDirectory(dir)
+        deleteSuccess = true
+      } catch {
+        case _: IOException =>
+          retryCount = retryCount + 1
       }
     }
   }
@@ -696,7 +691,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       retryTimes += 1
       if (retryTimes < conf.workerCheckFileCleanMaxRetries) {
         logInfo(s"Working directory's files have not been cleaned up completely, " +
-          s"will start ${retryTimes + 1}th attempt after ${workerCheckFileCleanTimeout} milliseconds.")
+          s"will start ${retryTimes + 1}th attempt after $workerCheckFileCleanTimeout milliseconds.")
       }
       Thread.sleep(workerCheckFileCleanTimeout)
     }
