@@ -1365,7 +1365,7 @@ object CelebornConf extends Logging {
       .createWithDefault(0)
 
   val RPC_ROLE_DISPATHER_THREADS: ConfigEntry[Int] =
-    buildConf("celeborn.rpc.<role>.dispatcher.threads")
+    buildConf("celeborn.<role>.rpc.dispatcher.threads")
       .categories("network")
       .doc("Threads number of message dispatcher event loop for roles")
       .fallbackConf(RPC_DISPATCHER_THREADS)
