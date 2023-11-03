@@ -381,8 +381,17 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(get(RPC_LOOKUP_TIMEOUT).milli, RPC_LOOKUP_TIMEOUT.key)
   def rpcAskTimeout: RpcTimeout =
     new RpcTimeout(get(RPC_ASK_TIMEOUT).milli, RPC_ASK_TIMEOUT.key)
-  def rpcDispatcherNumThreads(availableCores: Int): Int =
-    get(RPC_DISPATCHER_THREADS).getOrElse(availableCores)
+  def rpcDispatcherNumThreads(availableCores: Int): Int = {
+    val num = get(RPC_DISPATCHER_THREADS)
+    if (num != 0) num else availableCores
+  }
+  def rpcDispatcherNumThreads(availableCores: Int, role: String): Int = {
+    val num = getInt(
+      RPC_ROLE_DISPATHER_THREADS.key.replace("<role>", role),
+      rpcDispatcherNumThreads(availableCores))
+    if (num != 0) num else availableCores
+  }
+
   def networkIoMode(module: String): String = {
     val key = NETWORK_IO_MODE.key.replace("<module>", module)
     get(key, NETWORK_IO_MODE.defaultValue.get)
@@ -1346,14 +1355,20 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
-  val RPC_DISPATCHER_THREADS: OptionalConfigEntry[Int] =
+  val RPC_DISPATCHER_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.rpc.dispatcher.threads")
       .withAlternative("celeborn.rpc.dispatcher.numThreads")
       .categories("network")
-      .doc("Threads number of message dispatcher event loop")
+      .doc("Threads number of message dispatcher event loop. Default to 0, which is availableCore.")
       .version("0.3.0")
       .intConf
-      .createOptional
+      .createWithDefault(0)
+
+  val RPC_ROLE_DISPATHER_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.<role>.rpc.dispatcher.threads")
+      .categories("network")
+      .doc("Threads number of message dispatcher event loop for roles")
+      .fallbackConf(RPC_DISPATCHER_THREADS)
 
   val NETWORK_IO_MODE: ConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
