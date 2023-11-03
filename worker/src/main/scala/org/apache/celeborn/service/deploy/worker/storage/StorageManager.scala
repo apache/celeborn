@@ -400,7 +400,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
         hdfsWriters.put(fileInfo.getFilePath, hdfsWriter)
         return hdfsWriter
-      } else if (location.getStorageInfo.localDiskAvailable()) {
+      } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
         val dir = dirs(getNextIndex() % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
