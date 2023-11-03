@@ -243,7 +243,6 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(conf.availableStorageTypes == StorageInfo.HDFS_MASK)
   }
 
-
   test("Test role rpcDispatcherNumThreads") {
     val availableCores = 5
     val conf = new CelebornConf()
