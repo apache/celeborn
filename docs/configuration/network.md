@@ -38,6 +38,8 @@ license: |
 | celeborn.&lt;module&gt;.io.serverThreads | 0 | Number of threads used in the server thread pool. Default to 0, which is 2x#cores. |  | 
 | celeborn.&lt;module&gt;.push.timeoutCheck.interval | 5s | Interval for checking push data timeout. If setting <module> to `data`, it works for shuffle client push data and should be configured on client side. If setting <module> to `replicate`, it works for worker replicate data to peer worker and should be configured on worker side. | 0.3.0 | 
 | celeborn.&lt;module&gt;.push.timeoutCheck.threads | 4 | Threads num for checking push data timeout. If setting <module> to `data`, it works for shuffle client push data and should be configured on client side. If setting <module> to `replicate`, it works for worker replicate data to peer worker and should be configured on worker side. | 0.3.0 | 
+| celeborn.&lt;role&gt;.rpc.dispatcher.threads | &lt;value of celeborn.rpc.dispatcher.threads&gt; | Threads number of message dispatcher event loop for roles |  | 
+| celeborn.io.maxDefaultNettyThreads | 64 | Max default netty threads | 0.3.2 | 
 | celeborn.network.bind.preferIpAddress | true | When `ture`, prefer to use IP address, otherwise FQDN. This configuration only takes effects when the bind hostname is not set explicitly, in such case, Celeborn will find the first non-loopback address to bind. | 0.3.0 | 
 | celeborn.network.connect.timeout | 10s | Default socket connect timeout. | 0.2.0 | 
 | celeborn.network.memory.allocator.numArenas | &lt;undefined&gt; | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 | 
@@ -46,7 +48,7 @@ license: |
 | celeborn.port.maxRetries | 1 | When port is occupied, we will retry for max retry times. | 0.2.0 | 
 | celeborn.rpc.askTimeout | 60s | Timeout for RPC ask operations. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.activeTypes` | 0.2.0 | 
 | celeborn.rpc.connect.threads | 64 |  | 0.2.0 | 
-| celeborn.rpc.dispatcher.threads | &lt;undefined&gt; | Threads number of message dispatcher event loop | 0.3.0 | 
+| celeborn.rpc.dispatcher.threads | 0 | Threads number of message dispatcher event loop. Default to 0, which is availableCore. | 0.3.0 | 
 | celeborn.rpc.io.threads | &lt;undefined&gt; | Netty IO thread number of NettyRpcEnv to handle RPC request. The default threads number is the number of runtime available processors. | 0.2.0 | 
 | celeborn.rpc.lookupTimeout | 30s | Timeout for RPC lookup operations. | 0.2.0 | 
 | celeborn.shuffle.io.maxChunksBeingTransferred | &lt;undefined&gt; | The max number of chunks allowed to be transferred at the same time on shuffle service. Note that new incoming connections will be closed when the max number is hit. The client will retry according to the shuffle retry configs (see `celeborn.<module>.io.maxRetries` and `celeborn.<module>.io.retryWait`), if those limits are reached the task will fail with fetch failure. | 0.2.0 | 

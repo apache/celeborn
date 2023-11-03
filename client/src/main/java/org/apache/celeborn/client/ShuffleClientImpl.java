@@ -172,8 +172,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       pushDataTimeout = conf.pushDataTimeoutMs();
     }
 
-    // init rpc env and master endpointRef
-    rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(conf), 0, conf);
+    // init rpc env
+    rpcEnv = RpcEnv.create(RpcNameConstants.SHUFFLE_CLIENT_SYS, Utils.localHostName(conf), 0, conf);
 
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =

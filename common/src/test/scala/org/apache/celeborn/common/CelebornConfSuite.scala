@@ -243,4 +243,27 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(conf.availableStorageTypes == StorageInfo.HDFS_MASK)
   }
 
+
+  test("Test role rpcDispatcherNumThreads") {
+    val availableCores = 5
+    val conf = new CelebornConf()
+    assert(conf.rpcDispatcherNumThreads(availableCores, "shuffleclient") === 5)
+
+    conf.set("celeborn.shuffleclient.rpc.dispatcher.threads", "1")
+    assert(conf.rpcDispatcherNumThreads(availableCores, "shuffleclient") === 1)
+    assert(conf.rpcDispatcherNumThreads(availableCores, "lifecyclemanager") === 5)
+
+    conf.set("celeborn.rpc.dispatcher.threads", "2")
+    assert(conf.rpcDispatcherNumThreads(availableCores, "lifecyclemanager") === 2)
+
+    conf.unset("celeborn.rpc.dispatcher.threads")
+    conf.set("celeborn.rpc.dispatcher.numThreads", "3")
+    assert(conf.rpcDispatcherNumThreads(availableCores, "lifecyclemanager") === 3)
+  }
+
+  test("Test rpcDispatcherNumThreads") {
+    val availableCores = 5
+    val conf = new CelebornConf()
+    assert(conf.rpcDispatcherNumThreads(availableCores) === 5)
+  }
 }
