@@ -82,7 +82,8 @@ object CelebornHadoopUtils extends Logging {
     UserGroupInformation.setConfiguration(hadoopConf)
     if (conf.hdfsStorageKerberosEnabled) {
       val principal = conf.hdfsStorageKerberosPrincipal
-        .getOrElse(throw new NoSuchElementException(CelebornConf.HDFS_STORAGE_KERBEROS_PRINCIPAL.key))
+        .getOrElse(throw new NoSuchElementException(
+          CelebornConf.HDFS_STORAGE_KERBEROS_PRINCIPAL.key))
       val keytab = conf.hdfsStorageKerberosKeytab
         .getOrElse(throw new NoSuchElementException(CelebornConf.HDFS_STORAGE_KERBEROS_KEYTAB.key))
       if (!new File(keytab).exists()) {
