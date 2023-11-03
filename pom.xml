@@ -1312,6 +1312,7 @@
       <modules>
         <module>client-mr/mr</module>
         <module>client-mr/mr-shaded</module>
+        <module>tests/mr-it</module>
       </modules>
     </profile>
 
