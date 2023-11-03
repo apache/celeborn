@@ -507,6 +507,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getTimeAsMs(key, FETCH_TIMEOUT_CHECK_INTERVAL.defaultValueString)
   }
 
+  def maxDefaultNettyThreads: Int = get(MAX_DEFAULT_NETTY_THREADS)
+
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
@@ -3993,4 +3995,12 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
+
+  val MAX_DEFAULT_NETTY_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.io.maxDefaultNettyThreads")
+      .categories("network")
+      .doc("Max default netty threads")
+      .version("0.3.2")
+      .intConf
+      .createWithDefault(64)
 }
