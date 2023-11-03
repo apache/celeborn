@@ -188,6 +188,7 @@ public abstract class ShuffleClient {
    *     to read all partition data
    * @param endMapIndex the index of end map index of interested map range, set to
    *     `Integer.MAX_VALUE` if you want to read all partition data
+   * @param metricsCallback callback to report metrics
    * @return
    * @throws IOException
    */
