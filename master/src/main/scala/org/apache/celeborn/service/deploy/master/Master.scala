@@ -20,11 +20,10 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.Random
 
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -137,7 +136,7 @@ private[celeborn] class Master(
     conf.estimatedPartitionSizeForEstimationUpdateInterval
   private val partitionSizeUpdateService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
-  partitionSizeUpdateService.scheduleAtFixedRate(
+  partitionSizeUpdateService.scheduleWithFixedDelay(
     new Runnable {
       override def run(): Unit = {
         executeWithLeaderChecker(
@@ -153,7 +152,8 @@ private[celeborn] class Master(
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
   // init and register master metrics
-  val resourceConsumptionSource = new ResourceConsumptionSource(conf)
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_MASTER)
   private val masterSource = new MasterSource(conf)
   private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -164,7 +164,30 @@ private[celeborn] class Master(
   }
   masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
   masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
+  masterSource.addGauge(MasterSource.RUNNING_APPLICATION_COUNT) { () =>
+    statusSystem.appHeartbeatTime.size
+  }
   masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
+  masterSource.addGauge(MasterSource.PARTITION_WRITTEN) { () =>
+    statusSystem.workers.parallelStream()
+      .mapToLong(new ToLongFunction[WorkerInfo]() {
+        override def applyAsLong(value: WorkerInfo): Long =
+          value.userResourceConsumption.values().parallelStream()
+            .mapToLong(new ToLongFunction[ResourceConsumption]() {
+              override def applyAsLong(value: ResourceConsumption): Long = value.diskBytesWritten
+            }).sum()
+      }).sum()
+  }
+  masterSource.addGauge(MasterSource.PARTITION_FILE_COUNT) { () =>
+    statusSystem.workers.parallelStream()
+      .mapToLong(new ToLongFunction[WorkerInfo]() {
+        override def applyAsLong(value: WorkerInfo): Long =
+          value.userResourceConsumption.values().parallelStream()
+            .mapToLong(new ToLongFunction[ResourceConsumption]() {
+              override def applyAsLong(value: ResourceConsumption): Long = value.diskFileCount
+            }).sum()
+      }).sum()
+  }
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
   metricsSystem.registerSource(resourceConsumptionSource)
@@ -177,7 +200,7 @@ private[celeborn] class Master(
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
-    checkForWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+    checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(ControlMessages.pbCheckForWorkerTimeout)
@@ -187,7 +210,7 @@ private[celeborn] class Master(
       workerHeartbeatTimeoutMs,
       TimeUnit.MILLISECONDS)
 
-    checkForApplicationTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+    checkForApplicationTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(CheckForApplicationTimeOut)
@@ -197,7 +220,7 @@ private[celeborn] class Master(
       appHeartbeatTimeoutMs / 2,
       TimeUnit.MILLISECONDS)
 
-    checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+    checkForUnavailableWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           self.send(CheckForWorkerUnavailableInfoTimeout)
@@ -208,7 +231,7 @@ private[celeborn] class Master(
       TimeUnit.MILLISECONDS)
 
     if (hasHDFSStorage) {
-      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleAtFixedRate(
+      checkForHDFSRemnantDirsTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
             self.send(CheckForHDFSExpiredDirsTimeout)
@@ -405,14 +428,13 @@ private[celeborn] class Master(
       executeWithLeaderChecker(context, handleCheckWorkersAvailable(context))
   }
 
-  private def timeoutDeadWorkers() {
+  private def timeoutDeadWorkers(): Unit = {
     val currentTime = System.currentTimeMillis()
     // Need increase timeout deadline to avoid long time leader election period
     if (HAHelper.getWorkerTimeoutDeadline(statusSystem) > currentTime) {
       return
     }
 
-    var ind = 0
     workersSnapShot.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
@@ -426,7 +448,6 @@ private[celeborn] class Master(
           worker.replicatePort,
           MasterClient.genRequestId()))
       }
-      ind += 1
     }
   }
 
@@ -445,7 +466,7 @@ private[celeborn] class Master(
       logDebug(s"Remove unavailable info for workers: $unavailableInfoTimeoutWorkers")
       self.send(RemoveWorkersUnavailableInfo(
         unavailableInfoTimeoutWorkers,
-        MasterClient.genRequestId()));
+        MasterClient.genRequestId()))
     }
   }
 
@@ -615,22 +636,31 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
-    var availableWorkers = workersAvailable()
-    Collections.shuffle(availableWorkers)
+    val availableWorkers = workersAvailable()
+    val numAvailableWorkers = availableWorkers.size()
     val numWorkers = Math.min(
       Math.max(
         if (requestSlots.shouldReplicate) 2 else 1,
         if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers
         else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
-      availableWorkers.size())
-    availableWorkers = availableWorkers.subList(0, numWorkers)
+      numAvailableWorkers)
+    val startIndex = Random.nextInt(numAvailableWorkers)
+    val selectedWorkers = new util.ArrayList[WorkerInfo](numWorkers)
+    selectedWorkers.addAll(availableWorkers.subList(
+      startIndex,
+      Math.min(numAvailableWorkers, startIndex + numWorkers)))
+    if (startIndex + numWorkers > numAvailableWorkers) {
+      selectedWorkers.addAll(availableWorkers.subList(
+        0,
+        startIndex + numWorkers - numAvailableWorkers))
+    }
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
           if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !hasHDFSStorage) {
             SlotsAllocator.offerSlotsLoadAware(
-              availableWorkers,
+              selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
@@ -641,7 +671,7 @@ private[celeborn] class Master(
               loadAwareFetchTimeWeight)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
-              availableWorkers,
+              selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware)
@@ -735,7 +765,7 @@ private[celeborn] class Master(
     }
     val hdfsWorkPath = new Path(conf.hdfsDir, conf.workerWorkingDir)
     if (hadoopFs.exists(hdfsWorkPath)) {
-      if (!expiredDir.isEmpty) {
+      if (expiredDir.nonEmpty) {
         val dirToDelete = new Path(hdfsWorkPath, expiredDir)
         // delete specific app dir on application lost
         CelebornHadoopUtils.deleteHDFSPathOrLogError(hadoopFs, dirToDelete, true)
@@ -781,7 +811,7 @@ private[celeborn] class Master(
   private def handleRemoveWorkersUnavailableInfos(
       unavailableWorkers: util.List[WorkerInfo],
       requestId: String): Unit = {
-    statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId);
+    statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId)
   }
 
   private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
@@ -811,16 +841,24 @@ private[celeborn] class Master(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
 
-    resourceConsumptionSource.addGauge("diskFileCount", userIdentifier.toMap) { () =>
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).diskFileCount
     }
-    resourceConsumptionSource.addGauge("diskBytesWritten", userIdentifier.toMap) { () =>
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).diskBytesWritten
     }
-    resourceConsumptionSource.addGauge("hdfsFileCount", userIdentifier.toMap) { () =>
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).hdfsFileCount
     }
-    resourceConsumptionSource.addGauge("hdfsBytesWritten", userIdentifier.toMap) { () =>
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).hdfsBytesWritten
     }
 
@@ -846,7 +884,7 @@ private[celeborn] class Master(
   override def getMasterGroupInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Master Group INFO ==============================\n")
-    sb.append(getMasterGroupInfoInternal())
+    sb.append(getMasterGroupInfoInternal)
     sb.toString()
   }
 
@@ -950,7 +988,7 @@ private[celeborn] class Master(
     isActive
   }
 
-  private def getMasterGroupInfoInternal(): String = {
+  private def getMasterGroupInfoInternal: String = {
     if (conf.haEnabled) {
       val sb = new StringBuilder
       val groupInfo = statusSystem.asInstanceOf[HAMasterMetaManager].getRatisServer.getGroupInfo

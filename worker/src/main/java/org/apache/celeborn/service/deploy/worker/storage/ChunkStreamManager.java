@@ -26,8 +26,6 @@ import scala.Tuple2;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,9 +89,7 @@ public class ChunkStreamManager {
     }
 
     FileManagedBuffers buffers = state.buffers;
-    ManagedBuffer nextChunk = buffers.chunk(chunkIndex, offset, len);
-
-    return nextChunk;
+    return buffers.chunk(chunkIndex, offset, len);
   }
 
   public TimeWindow getFetchTimeMetric(long streamId) {
@@ -103,20 +99,6 @@ public class ChunkStreamManager {
     } else {
       return null;
     }
-  }
-
-  public static String genStreamChunkId(long streamId, int chunkId) {
-    return String.format("%d_%d", streamId, chunkId);
-  }
-
-  // Parse streamChunkId to be stream id and chunk id. This is used when fetch remote chunk as a
-  // stream.
-  public static Pair<Long, Integer> parseStreamChunkId(String streamChunkId) {
-    String[] array = streamChunkId.split("_");
-    assert array.length == 2 : "Stream id and chunk index should be specified.";
-    long streamId = Long.parseLong(array[0]);
-    int chunkIndex = Integer.parseInt(array[1]);
-    return ImmutablePair.of(streamId, chunkIndex);
   }
 
   public void chunkBeingSent(long streamId) {
@@ -184,14 +166,21 @@ public class ChunkStreamManager {
   }
 
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
+    logger.info(
+        "Clean up expired shuffle keys {}",
+        String.join(",", expiredShuffleKeys.toArray(new String[0])));
     for (String expiredShuffleKey : expiredShuffleKeys) {
       Set<Long> expiredStreamIds = shuffleStreamIds.remove(expiredShuffleKey);
 
       // normally expiredStreamIds set will be empty as streamId will be removed when be fully read
       if (expiredStreamIds != null && !expiredStreamIds.isEmpty()) {
-        streams.keySet().removeAll(expiredStreamIds);
+        expiredStreamIds.forEach(streams::remove);
       }
     }
+    logger.info(
+        "Cleaned up expired shuffle keys. The count of shuffle keys and streams: {}, {}",
+        shuffleStreamIds.size(),
+        streams.size());
   }
 
   public Tuple2<String, String> getShuffleKeyAndFileName(long streamId) {
@@ -206,6 +195,6 @@ public class ChunkStreamManager {
 
   @VisibleForTesting
   public long numShuffleSteams() {
-    return shuffleStreamIds.values().stream().flatMap(Set::stream).count();
+    return shuffleStreamIds.values().stream().mapToLong(Set::size).sum();
   }
 }

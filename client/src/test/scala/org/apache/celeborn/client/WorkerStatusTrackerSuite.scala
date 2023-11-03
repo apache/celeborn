@@ -32,12 +32,12 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
   test("handleHeartbeatResponse") {
     val celebornConf = new CelebornConf()
-    celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L);
+    celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()
-    statusTracker.excludedWorkers.put(mock("host1"), (StatusCode.WORKER_UNKNOWN, registerTime));
-    statusTracker.excludedWorkers.put(mock("host2"), (StatusCode.WORKER_SHUTDOWN, registerTime));
+    statusTracker.excludedWorkers.put(mock("host1"), (StatusCode.WORKER_UNKNOWN, registerTime))
+    statusTracker.excludedWorkers.put(mock("host2"), (StatusCode.WORKER_SHUTDOWN, registerTime))
 
     // test reserve (only statusCode list in handleHeartbeatResponse)
     val empty = buildResponse(Array.empty, Array.empty, Array.empty)
@@ -105,6 +105,6 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   }
 
   private def mock(host: String): WorkerInfo = {
-    new WorkerInfo(host, -1, -1, -1, -1);
+    new WorkerInfo(host, -1, -1, -1, -1)
   }
 }

@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker
 
 import java.io.File
 import java.lang.{Long => JLong}
+import java.util
 import java.util.{HashMap => JHashMap, HashSet => JHashSet, Map => JMap}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
@@ -36,7 +37,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, SystemMiscSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -104,7 +105,10 @@ private[celeborn] class Worker(
     }
   }
 
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
   val workerSource = new WorkerSource(conf)
+  metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(workerSource)
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
@@ -128,13 +132,14 @@ private[celeborn] class Worker(
       conf.workerCongestionControlSampleTimeWindowSeconds.toInt,
       conf.workerCongestionControlHighWatermark.get,
       conf.workerCongestionControlLowWatermark.get,
-      conf.workerCongestionControlUserInactiveIntervalMs)
+      conf.workerCongestionControlUserInactiveIntervalMs,
+      conf.workerCongestionControlCheckIntervalMs)
   }
 
-  var controller = new Controller(rpcEnv, conf, metricsSystem)
+  var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
-  val pushDataHandler = new PushDataHandler()
+  val pushDataHandler = new PushDataHandler(workerSource)
   val (pushServer, pushClientFactory) = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.workerPushIoThreads.getOrElse(storageManager.totalFlusherThread)
@@ -154,7 +159,7 @@ private[celeborn] class Worker(
       transportContext.createClientFactory())
   }
 
-  val replicateHandler = new PushDataHandler()
+  val replicateHandler = new PushDataHandler(workerSource)
   private val replicateServer = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads =
@@ -179,7 +184,7 @@ private[celeborn] class Worker(
     val numThreads = conf.workerFetchIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
       Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, numThreads)
-    fetchHandler = new FetchHandler(conf, transportConf)
+    fetchHandler = new FetchHandler(conf, transportConf, workerSource)
     val transportContext: TransportContext =
       new TransportContext(
         transportConf,
@@ -250,7 +255,11 @@ private[celeborn] class Worker(
   val replicateThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("Worker-CommitFiles", conf.workerCommitThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-commit-files", conf.workerCommitThreads)
+  val cleanThreadPool: ThreadPoolExecutor =
+    ThreadUtils.newDaemonCachedThreadPool(
+      "worker-clean-expired-shuffle-keys",
+      conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
@@ -261,6 +270,10 @@ private[celeborn] class Worker(
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: Thread = _
+
+  private val workerResourceConsumptionInterval = conf.workerResourceConsumptionInterval
+  private val userResourceConsumptions =
+    JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   workerSource.addGauge(WorkerSource.REGISTERED_SHUFFLE_COUNT) { () =>
     workerInfo.getShuffleKeySet.size
@@ -304,6 +317,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_SIZE) { () =>
     storageManager.getActiveShuffleSize()
   }
+  workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_FILE_COUNT) { () =>
+    storageManager.getActiveShuffleFileCount()
+  }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_TIME) { () =>
     memoryManager.getPausePushDataTime
   }
@@ -331,9 +347,6 @@ private[celeborn] class Worker(
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
       }.toMap.asJava).values().asScala.toSeq
-    val resourceConsumption = workerInfo.updateThenGetUserResourceConsumption(
-      storageManager.userResourceConsumptionSnapshot().asJava)
-
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
@@ -342,7 +355,7 @@ private[celeborn] class Worker(
         fetchPort,
         replicatePort,
         diskInfos,
-        resourceConsumption,
+        handleResourceConsumption(),
         activeShuffleKeys,
         estimatedAppDiskUsage,
         highWorkload),
@@ -369,7 +382,7 @@ private[celeborn] class Worker(
     registerWithMaster()
 
     // start heartbeat
-    sendHeartbeatTask = forwardMessageScheduler.scheduleAtFixedRate(
+    sendHeartbeatTask = forwardMessageScheduler.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError { heartbeatToMaster() }
       },
@@ -377,7 +390,7 @@ private[celeborn] class Worker(
       heartbeatInterval,
       TimeUnit.MILLISECONDS)
 
-    checkFastFailTask = forwardMessageScheduler.scheduleAtFixedRate(
+    checkFastFailTask = forwardMessageScheduler.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
           unavailablePeers.entrySet().forEach { entry: JMap.Entry[WorkerInfo, Long] =>
@@ -396,7 +409,7 @@ private[celeborn] class Worker(
         while (true) {
           val expiredShuffleKeys = cleanTaskQueue.take()
           try {
-            cleanup(expiredShuffleKeys)
+            cleanup(expiredShuffleKeys, cleanThreadPool)
           } catch {
             case e: Throwable =>
               logError("Cleanup failed", e)
@@ -451,6 +464,7 @@ private[celeborn] class Worker(
       partitionsSorter.close(exitKind)
       storageManager.close(exitKind)
       memoryManager.close()
+      Option(CongestionController.instance()).foreach(_.close())
 
       masterClient.close()
       replicateServer.shutdown(exitKind)
@@ -481,8 +495,7 @@ private[celeborn] class Worker(
               // Use WorkerInfo's diskInfo since re-register when heartbeat return not-registered,
               // StorageManager have update the disk info.
               workerInfo.diskInfos.asScala.toMap,
-              workerInfo.updateThenGetUserResourceConsumption(
-                storageManager.userResourceConsumptionSnapshot().asJava).asScala.toMap,
+              handleResourceConsumption().asScala.toMap,
               MasterClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {
@@ -506,21 +519,70 @@ private[celeborn] class Worker(
     // If worker register still failed after retry, throw exception to stop worker process
     throw new CelebornException("Register worker failed.", exception)
   }
-  @VisibleForTesting
-  def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
-    expiredShuffleKeys.asScala.foreach { shuffleKey =>
-      partitionLocationInfo.removeShuffle(shuffleKey)
-      shufflePartitionType.remove(shuffleKey)
-      shufflePushDataTimeout.remove(shuffleKey)
-      shuffleMapperAttempts.remove(shuffleKey)
-      shuffleCommitInfos.remove(shuffleKey)
-      workerInfo.releaseSlots(shuffleKey)
-      logInfo(s"Cleaned up expired shuffle $shuffleKey")
+
+  private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
+    val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
+    resourceConsumptionSnapshot.foreach { resourceConsumption =>
+      {
+        resourceConsumptionSource.addGauge(
+          ResourceConsumptionSource.DISK_FILE_COUNT,
+          resourceConsumption._1.toMap) { () =>
+          computeUserResourceConsumption(resourceConsumption).diskFileCount
+        }
+        resourceConsumptionSource.addGauge(
+          ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+          resourceConsumption._1.toMap) { () =>
+          computeUserResourceConsumption(resourceConsumption).diskBytesWritten
+        }
+        resourceConsumptionSource.addGauge(
+          ResourceConsumptionSource.HDFS_FILE_COUNT,
+          resourceConsumption._1.toMap) { () =>
+          computeUserResourceConsumption(resourceConsumption).hdfsFileCount
+        }
+        resourceConsumptionSource.addGauge(
+          ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+          resourceConsumption._1.toMap) { () =>
+          computeUserResourceConsumption(resourceConsumption).hdfsBytesWritten
+        }
+      }
     }
-    partitionsSorter.cleanup(expiredShuffleKeys)
-    storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
-    fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
   }
+
+  private def computeUserResourceConsumption(userResourceConsumption: (
+      UserIdentifier,
+      ResourceConsumption)): ResourceConsumption = {
+    val userIdentifier = userResourceConsumption._1
+    val resourceConsumption = userResourceConsumption._2
+    val current = System.currentTimeMillis()
+    if (userResourceConsumptions.containsKey(userIdentifier)) {
+      val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
+      if (current - resourceConsumptionAndUpdateTime._2 <= workerResourceConsumptionInterval) {
+        return resourceConsumptionAndUpdateTime._1
+      }
+    }
+    userResourceConsumptions.put(userIdentifier, (resourceConsumption, current))
+    resourceConsumption
+  }
+
+  @VisibleForTesting
+  def cleanup(expiredShuffleKeys: JHashSet[String], threadPool: ThreadPoolExecutor): Unit =
+    synchronized {
+      expiredShuffleKeys.asScala.foreach { shuffleKey =>
+        partitionLocationInfo.removeShuffle(shuffleKey)
+        shufflePartitionType.remove(shuffleKey)
+        shufflePushDataTimeout.remove(shuffleKey)
+        shuffleMapperAttempts.remove(shuffleKey)
+        shuffleCommitInfos.remove(shuffleKey)
+        workerInfo.releaseSlots(shuffleKey)
+        logInfo(s"Cleaned up expired shuffle $shuffleKey")
+      }
+      partitionsSorter.cleanup(expiredShuffleKeys)
+      fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
+      threadPool.execute(new Runnable {
+        override def run(): Unit = storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+      })
+    }
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder

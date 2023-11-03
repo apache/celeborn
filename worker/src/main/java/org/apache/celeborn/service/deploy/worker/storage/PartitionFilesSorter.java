@@ -82,7 +82,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final AtomicInteger sortedFileCount = new AtomicInteger();
   private final AtomicLong sortedFilesSize = new AtomicLong();
-  protected final boolean eagerlyRemoveOriginalFilesEnabled;
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
   protected final long reservedMemoryPerPartition;
@@ -97,8 +96,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
-    this.eagerlyRemoveOriginalFilesEnabled =
-        conf.partitionSorterEagerlyRemoveOriginalFilesEnabled();
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
@@ -189,21 +186,23 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
     String indexFilePath = Utils.getIndexFilePath(fileInfo.getFilePath());
-    if (sorted.contains(fileId)) {
-      return resolve(
-          shuffleKey,
-          fileId,
-          userIdentifier,
-          sortedFilePath,
-          indexFilePath,
-          startMapIndex,
-          endMapIndex);
-    }
     synchronized (sorting) {
+      if (sorted.contains(fileId)) {
+        return resolve(
+            shuffleKey,
+            fileId,
+            userIdentifier,
+            sortedFilePath,
+            indexFilePath,
+            startMapIndex,
+            endMapIndex);
+      }
       if (!sorting.contains(fileId)) {
         try {
           FileSorter fileSorter = new FileSorter(fileInfo, fileId, shuffleKey);
           sorting.add(fileId);
+          logger.debug(
+              "Adding sorter to sort queue shuffle key {}, file name {}", shuffleKey, fileName);
           shuffleSortTaskDeque.put(fileSorter);
         } catch (InterruptedException e) {
           logger.error("Sorter scheduler thread is interrupted means worker is shutting down.", e);
@@ -750,6 +749,10 @@ class PartitionFilesCleaner {
                       PartitionFilesSorter.FileSorter sorter = it.next();
                       try {
                         if (sorter.getOriginFileInfo().isStreamsEmpty()) {
+                          logger.debug(
+                              "Deleting the original files for shuffle key {}: {}",
+                              sorter.getShuffleKey(),
+                              sorter.getOriginFileInfo().getFilePath());
                           sorter.deleteOriginFiles();
                           queue.remove(sorter);
                         }

@@ -530,6 +530,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
+  def workerResourceConsumptionInterval: Long = get(WORKER_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -623,6 +624,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
   def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
+  def haMasterRatisClientRpcTimeout: Long = get(HA_MASTER_RATIS_CLIENT_RPC_TIMEOUT)
+  def haMasterRatisClientRpcWatchTimeout: Long = get(HA_MASTER_RATIS_CLIENT_RPC_WATCH_TIMEOUT)
   def haMasterRatisFirstElectionTimeoutMin: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN)
   def haMasterRatisFirstElectionTimeoutMax: Long = get(HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MAX)
   def haMasterRatisNotificationNoLeaderTimeout: Long =
@@ -634,6 +637,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisSnapshotAutoTriggerThreshold: Long =
     get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
   def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
+  def haRatisCustomConfigs: JMap[String, String] = {
+    settings.asScala.filter(_._1.startsWith("celeborn.ratis")).toMap.asJava
+  }
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -662,10 +668,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int =
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
+  def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
-  def partitionSorterEagerlyRemoveOriginalFilesEnabled: Boolean =
-    get(PARTITION_SORTER_EAGERLY_REMOVE_ORIGINAL_FILES_ENABLED)
   def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
   def partitionSorterReservedMemoryPerPartition: Long =
     get(WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
@@ -730,6 +735,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def shuffleCompressionCodec: CompressionCodec =
     CompressionCodec.valueOf(get(SHUFFLE_COMPRESSION_CODEC))
+  def shuffleDecompressionLz4XXHashInstance: Option[String] =
+    get(SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE)
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
 
   // //////////////////////////////////////////////////////
@@ -919,6 +926,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
+  def workerStorageExpireDirTimeout: Long = get(WORKER_STORAGE_EXPIRE_DIR_TIMEOUT)
   def creditStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
   def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
   def partitionReadBuffersMin: Int = get(WORKER_PARTITION_READ_BUFFERS_MIN)
@@ -975,6 +983,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDiskTimeSlidingWindowMinFetchCount: Int =
     get(WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT)
   def workerDiskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
+  def workerDiskCleanThreads: Int = get(WORKER_DISK_CLEAN_THREADS)
   def workerDiskMonitorEnabled: Boolean = get(WORKER_DISK_MONITOR_ENABLED)
   def workerDiskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
   def workerDiskMonitorCheckInterval: Long = get(WORKER_DISK_MONITOR_CHECK_INTERVAL)
@@ -1017,6 +1026,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_CONGESTION_CONTROL_HIGH_WATERMARK)
   def workerCongestionControlUserInactiveIntervalMs: Long =
     get(WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL)
+  def workerCongestionControlCheckIntervalMs: Long = get(WORKER_CONGESTION_CONTROL_CHECK_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                 Columnar Shuffle                    //
@@ -1821,6 +1831,22 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("5s")
 
+  val HA_MASTER_RATIS_CLIENT_RPC_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.ratis.raft.client.rpc.timeout")
+      .internal
+      .categories("ha")
+      .version("0.3.2")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("10s")
+
+  val HA_MASTER_RATIS_CLIENT_RPC_WATCH_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.ratis.raft.client.rpc.watch.timeout")
+      .internal
+      .categories("ha")
+      .version("0.3.2")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("20s")
+
   val HA_MASTER_RATIS_FIRSTELECTION_TIMEOUT_MIN: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.first.election.timeout.min")
       .withAlternative("celeborn.ha.master.ratis.first.election.timeout.min")
@@ -2010,6 +2036,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
+  val WORKER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.userResourceConsumption.update.interval")
+      .categories("worker")
+      .doc("Time length for a window about compute user resource consumption.")
+      .version("0.3.2")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
   val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chunk.size")
       .categories("worker")
@@ -2098,6 +2132,14 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(16)
 
+  val WORKER_STORAGE_EXPIRE_DIR_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.storage.expireDirs.timeout")
+      .categories("worker")
+      .version("0.3.2")
+      .doc(s"The timeout for a expire dirs to be deleted on disk.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1h")
+
   val HDFS_DIR: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.hdfs.dir")
       .categories("worker", "master", "client")
@@ -2114,6 +2156,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
+
+  val WORKER_DISK_CLEAN_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.disk.clean.threads")
+      .categories("worker")
+      .version("0.3.2")
+      .doc("Thread number of worker to clean up directories of expired shuffle keys on disk.")
+      .intConf
+      .createWithDefault(4)
 
   val WORKER_CHECK_FILE_CLEAN_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.worker.storage.checkDirsEmpty.maxRetries")
@@ -2267,6 +2317,14 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(32)
 
+  val WORKER_CLEAN_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.clean.threads")
+      .categories("worker")
+      .version("0.3.2")
+      .doc("Thread number of worker to clean up expired shuffle keys.")
+      .intConf
+      .createWithDefault(64)
+
   val WORKER_SHUFFLE_COMMIT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.commitFiles.timeout")
       .withAlternative("celeborn.worker.shuffle.commit.timeout")
@@ -2276,23 +2334,6 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
-
-  val PARTITION_SORTER_EAGERLY_REMOVE_ORIGINAL_FILES_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.sortPartition.eagerlyRemoveOriginalFiles.enabled")
-      .categories("worker")
-      .doc("When set to true, the PartitionSorter immediately removes the original file once " +
-        "its partition has been successfully sorted. It is important to note that this behavior " +
-        "may result in a potential issue with the ReusedExchange operation when it triggers both " +
-        "non-range and range fetch requests simultaneously. When set to false, the " +
-        "PartitionSorter will retain the original unsorted file. However, it's essential to be " +
-        "aware that enabling this option may lead to an increase in storage space usage during " +
-        "the range fetch phase, as both the original and sorted files will be retained until the " +
-        "shuffle is finished. Note that the default value is configured as 'false' as a " +
-        "temporary workaround for CELEBORN-980. see CELEBORN-980 for more details.")
-      .version("0.3.1")
-      .internal
-      .booleanConf
-      .createWithDefault(false)
 
   val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.timeout")
@@ -2634,6 +2675,15 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10min")
+
+  val WORKER_CONGESTION_CONTROL_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.congestionControl.check.interval")
+      .categories("worker")
+      .doc(
+        s"Interval of worker checks congestion if ${WORKER_CONGESTION_CONTROL_ENABLED.key} is true.")
+      .version("0.3.2")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10ms")
 
   val WORKER_DECOMMISSION_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.decommission.checkInterval")
@@ -3229,6 +3279,16 @@ object CelebornConf extends Logging {
         CompressionCodec.ZSTD.name,
         CompressionCodec.NONE.name))
       .createWithDefault(CompressionCodec.LZ4.name)
+
+  val SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE: OptionalConfigEntry[String] =
+    buildConf("celeborn.client.shuffle.decompression.lz4.xxhash.instance")
+      .categories("client")
+      .doc("Decompression XXHash instance for Lz4. Available options: JNI, JAVASAFE, JAVAUNSAFE.")
+      .version("0.3.2")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("JNI", "JAVASAFE", "JAVAUNSAFE"))
+      .createOptional
 
   val SHUFFLE_COMPRESSION_ZSTD_LEVEL: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.compression.zstd.level")

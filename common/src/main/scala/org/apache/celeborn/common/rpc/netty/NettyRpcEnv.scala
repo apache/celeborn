@@ -119,18 +119,16 @@ class NettyRpcEnv(
     }
   }
 
-  def asyncSetupEndpointRefByURI(uri: String): Future[RpcEndpointRef] = {
-    val addr = RpcEndpointAddress(uri)
-    val endpointRef = new NettyRpcEndpointRef(celebornConf, addr, this)
+  def asyncSetupEndpointRefByAddr(addr: RpcEndpointAddress): Future[RpcEndpointRef] = {
     val verifier = new NettyRpcEndpointRef(
       celebornConf,
       RpcEndpointAddress(addr.rpcAddress, RpcEndpointVerifier.NAME),
       this)
-    verifier.ask[Boolean](RpcEndpointVerifier.CheckExistence(endpointRef.name)).flatMap { find =>
+    verifier.ask[Boolean](RpcEndpointVerifier.CheckExistence(addr.name)).flatMap { find =>
       if (find) {
-        Future.successful(endpointRef)
+        Future.successful(new NettyRpcEndpointRef(celebornConf, addr, this))
       } else {
-        Future.failed(new RpcEndpointNotFoundException(uri))
+        Future.failed(new RpcEndpointNotFoundException(addr.toString))
       }
     }(ThreadUtils.sameThread)
   }

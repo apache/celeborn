@@ -103,7 +103,7 @@ class LocalDeviceMonitor(
   }
 
   override def startCheck(): Unit = {
-    diskChecker.scheduleAtFixedRate(
+    diskChecker.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
           logDebug("Device check start")

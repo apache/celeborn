@@ -33,10 +33,12 @@ abstract class HttpService extends Service with Logging {
 
   def getConf: String = {
     val sb = new StringBuilder
-    val maxKeyLength = conf.getAll.toMap.keys.map(_.length).max
     sb.append("=========================== Configuration ============================\n")
-    conf.getAll.foreach { case (key, value) =>
-      sb.append(s"${key.padTo(maxKeyLength + 10, " ").mkString}$value\n")
+    if (conf.getAll.length > 0) {
+      val maxKeyLength = conf.getAll.toMap.keys.map(_.length).max
+      conf.getAll.foreach { case (key, value) =>
+        sb.append(s"${key.padTo(maxKeyLength + 10, " ").mkString}$value\n")
+      }
     }
     sb.toString()
   }

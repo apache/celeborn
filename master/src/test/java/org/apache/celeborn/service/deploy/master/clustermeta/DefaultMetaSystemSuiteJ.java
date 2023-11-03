@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -309,12 +310,7 @@ public class DefaultMetaSystemSuiteJ {
         HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 + ":" + REPLICATEPORT1);
 
     List<Map<String, Integer>> workerSlots = new ArrayList<>();
-    workerSlots.add(
-        new HashMap() {
-          {
-            put("disk1", 3);
-          }
-        });
+    workerSlots.add(ImmutableMap.of("disk1", 3));
 
     Assert.assertEquals(
         0,

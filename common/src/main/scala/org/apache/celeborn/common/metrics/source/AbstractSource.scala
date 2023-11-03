@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+import java.util.{Map => JMap, Queue => JQueue}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -67,7 +67,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel
   val staticLabelsString: String = MetricLabels.labelString(staticLabels)
 
-  protected val namedGauges: JList[NamedGauge[_]] = new JArrayList[NamedGauge[_]]()
+  protected val namedGauges: JQueue[NamedGauge[_]] = new ConcurrentLinkedQueue[NamedGauge[_]]()
 
   def addGauge[T](
       name: String,
@@ -144,39 +144,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def gauges(): List[NamedGauge[_]] = {
     namedGauges.asScala.toList
-  }
-
-  /**
-   * Gets the named gauge of the metric given the metric name.
-   *
-   * Note: This method is exposed to test the value of the gauge for metric.
-   *
-   * @param name The metric name.
-   * @return The corresponding named gauge.
-   */
-  def getGauge(name: String): NamedGauge[_] = {
-    getGauge(name, Map.empty)
-  }
-
-  /**
-   * Gets the named gauge of the metric given the metric name and labels.
-   *
-   * Note: This method is exposed to test the value of the gauge for metric.
-   *
-   * @param name The metric name.
-   * @param labels The metric labels.
-   * @return The corresponding named gauge.
-   */
-  def getGauge(name: String, labels: Map[String, String] = Map.empty): NamedGauge[_] = {
-    val labelString = MetricLabels.labelString(labels ++ staticLabels)
-    val iter = namedGauges.iterator()
-    while (iter.hasNext) {
-      val namedGauge = iter.next()
-      if (namedGauge.name.equals(name) && namedGauge.labelString.equals(labelString)) {
-        return namedGauge
-      }
-    }
-    null
   }
 
   protected def histograms(): List[NamedHistogram] = {

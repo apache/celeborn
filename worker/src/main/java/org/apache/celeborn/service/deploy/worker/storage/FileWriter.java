@@ -152,25 +152,26 @@ public abstract class FileWriter implements DeviceObserver {
     numPendingWrites.decrementAndGet();
   }
 
-  @GuardedBy("flushLock")
   protected void flush(boolean finalFlush) throws IOException {
-    // flushBuffer == null here means writer already closed
-    if (flushBuffer != null) {
-      int numBytes = flushBuffer.readableBytes();
-      if (numBytes != 0) {
-        notifier.checkException();
-        notifier.numPendingFlushes.incrementAndGet();
-        FlushTask task = null;
-        if (channel != null) {
-          task = new LocalFlushTask(flushBuffer, channel, notifier);
-        } else if (fileInfo.isHdfs()) {
-          task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
-        }
-        addTask(task);
-        flushBuffer = null;
-        fileInfo.updateBytesFlushed(numBytes);
-        if (!finalFlush) {
-          takeBuffer();
+    synchronized (flushLock) {
+      // flushBuffer == null here means writer already closed
+      if (flushBuffer != null) {
+        int numBytes = flushBuffer.readableBytes();
+        if (numBytes != 0) {
+          notifier.checkException();
+          notifier.numPendingFlushes.incrementAndGet();
+          FlushTask task = null;
+          if (channel != null) {
+            task = new LocalFlushTask(flushBuffer, channel, notifier);
+          } else if (fileInfo.isHdfs()) {
+            task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
+          }
+          addTask(task);
+          flushBuffer = null;
+          fileInfo.updateBytesFlushed(numBytes);
+          if (!finalFlush) {
+            takeBuffer();
+          }
         }
       }
     }
@@ -372,7 +373,9 @@ public abstract class FileWriter implements DeviceObserver {
     }
 
     // real action
-    flushBuffer = flusher.takeBuffer();
+    synchronized (flushLock) {
+      flushBuffer = flusher.takeBuffer();
+    }
 
     // metrics end
     if (source.metricsCollectCriticalEnabled()) {

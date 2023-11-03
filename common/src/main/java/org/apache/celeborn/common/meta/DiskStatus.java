@@ -37,14 +37,14 @@ public enum DiskStatus {
 
   public final String toMetric() {
     String[] fragments = this.name().split("_");
-    String metric = "";
+    StringBuilder metric = new StringBuilder();
     for (String fragment : fragments) {
       int len = fragment.length();
       if (len >= 1) {
-        metric += fragment.substring(0, 1).toUpperCase();
-        metric += fragment.substring(1, len).toLowerCase();
+        metric.append(fragment.substring(0, 1).toUpperCase());
+        metric.append(fragment.substring(1, len).toLowerCase());
       }
     }
-    return metric;
+    return metric.toString();
   }
 }

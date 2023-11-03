@@ -95,9 +95,14 @@ These metrics are exposed by Celeborn master.
     - LostWorkers
     - ExcludedWorkerCount
     - RegisteredShuffleCount
+    - RunningApplicationCount
     - IsActiveMaster
     - PartitionSize
         - The size of estimated shuffle partition.
+    - PartitionWritten
+        - The active shuffle size of workers.
+    - PartitionFileCount
+        - The active shuffle file count of workers.
     - OfferSlotsTime
         - The time for masters to handle `RequestSlots` request when registering shuffle.
 
@@ -189,12 +194,10 @@ These metrics are exposed by Celeborn worker.
     - PotentialConsumeSpeed
     - UserProduceSpeed
     - WorkerConsumeSpeed
-    - OutstandingFetchCount
-        - The count of outstanding fetch request.
-    - OutstandingRpcCount
-        - The count of outstanding rpc request.
-    - OutstandingPushCount
-        - The count of outstanding push request.
+    - ActiveShuffleSize
+        - The active shuffle size of a worker including master replica and slave replica.
+    - ActiveShuffleFileCount
+        - The active shuffle file count of a worker including master replica and slave replica.
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 
@@ -262,6 +265,14 @@ These metrics are exposed by Celeborn worker.
     - This source provides information on JVM metrics using the
       [Dropwizard/Codahale Metric Sets for JVM instrumentation](https://metrics.dropwizard.io/4.2.0/manual/jvm.html)
       and in particular the metric sets BufferPoolMetricSet, GarbageCollectorMetricSet and MemoryUsageGaugeSet.
+
+  - namespace=ResourceConsumption
+    - **notes:**
+        - This metrics data is generated for each user and they are identified using a metric tag.
+    - diskFileCount
+    - diskBytesWritten
+    - hdfsFileCount
+    - hdfsBytesWritten
 
 **Note:**
 

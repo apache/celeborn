@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.flink.core.memory.MemorySegment;
@@ -63,7 +62,6 @@ public class PartitionSortedBuffer implements SortBuffer {
   private final BufferPool bufferPool;
 
   /** A segment list as a joint buffer which stores all records and index entries. */
-  @GuardedBy("lock")
   private final ArrayList<MemorySegment> buffers = new ArrayList<>();
 
   /** Addresses of the first record's index entry for each subpartition. */
@@ -92,7 +90,6 @@ public class PartitionSortedBuffer implements SortBuffer {
   // For writing
   // ---------------------------------------------------------------------------------------------
   /** Whether this sort buffer is released. A released sort buffer can not be used. */
-  @GuardedBy("lock")
   private boolean isReleased;
   /** Array index in the segment list of the current available buffer for writing. */
   private int writeSegmentIndex;

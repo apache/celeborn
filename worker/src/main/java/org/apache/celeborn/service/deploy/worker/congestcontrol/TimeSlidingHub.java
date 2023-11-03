@@ -25,11 +25,11 @@ import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * A time sliding list that group different {@link TimeSlidingNode} with corresponding timestamp by
- * exact interval 1 second. Internally hold a {@link sumInfo} to get the sum of the nodes in the
- * list.
+ * exact interval 1 second. Internally hold a {@link TimeSlidingHub#sumInfo} to get the sum of the
+ * nodes in the list.
  *
- * <p>This list is thread-safe, but {@link TimeSlidingNode} returned by the method {@link sum}
- * should only be readable, do not try to update it.
+ * <p>This list is thread-safe, but {@link TimeSlidingNode} returned by the method {@link
+ * TimeSlidingHub#sum()} should only be readable, do not try to update it.
  */
 public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
 
@@ -44,7 +44,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
     /** Merge new node with this. */
     void combineNode(TimeSlidingNode node);
 
-    /** Minus the value from the {@param node}. */
+    /** Minus the value from the node. */
     void separateNode(TimeSlidingNode node);
 
     TimeSlidingNode clone();
@@ -68,13 +68,12 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
   }
 
   public void add(N newNode) {
-    long currentTimestamp = currentTimeMillis();
-    add(currentTimestamp, newNode);
+    add(currentTimeMillis(), newNode);
   }
 
   public synchronized void add(long currentTimestamp, N newNode) {
-    if (_deque.size() == 0) {
-      _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
+    if (sumInfo.getRight() == 0) {
+      _deque.add(Pair.of(currentTimestamp, newNode));
       sumInfo = Pair.of((N) newNode.clone(), 1);
       return;
     }
@@ -92,7 +91,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         // The new node exceed existing sliding list, need to clear all old nodes
         // and create a new sliding list
         _deque.clear();
-        _deque.add(Pair.of(currentTimestamp, (N) newNode.clone()));
+        _deque.add(Pair.of(currentTimestamp, newNode));
         sumInfo = Pair.of((N) newNode.clone(), 1);
         return;
       }
@@ -104,7 +103,7 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
         _deque.add(lastNode);
       }
 
-      _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, (N) newNode.clone()));
+      _deque.add(Pair.of(lastNode.getLeft() + intervalPerBucketInMills, newNode));
       N nodeToCombine = sumInfo.getLeft();
       nodeToCombine.combineNode(newNode);
       sumInfo = Pair.of(nodeToCombine, sumInfo.getRight() + nodesToAdd);
@@ -119,14 +118,16 @@ public abstract class TimeSlidingHub<N extends TimeSlidingHub.TimeSlidingNode> {
     }
 
     if (timeDiff < 0) {
-      // Belong to one existing node
-      Iterator<Pair<Long, N>> iter = _deque.descendingIterator();
-      while (iter.hasNext()) {
-        Pair<Long, N> curNode = iter.next();
-        if (currentTimestamp - curNode.getLeft() >= 0) {
-          curNode.getRight().combineNode(newNode);
-          sumInfo.getLeft().combineNode(newNode);
-          return;
+      if (-timeDiff < intervalPerBucketInMills * (sumInfo.getRight() - 1)) {
+        // Belong to one existing node
+        Iterator<Pair<Long, N>> iter = _deque.descendingIterator();
+        while (iter.hasNext()) {
+          Pair<Long, N> curNode = iter.next();
+          if (currentTimestamp - curNode.getLeft() >= 0) {
+            curNode.getRight().combineNode(newNode);
+            sumInfo.getLeft().combineNode(newNode);
+            return;
+          }
         }
       }
 

@@ -51,7 +51,7 @@ class RetryReviveTest extends AnyFunSuite
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
     val result = ss.sparkContext.parallelize(1 to 1000, 2)
-      .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(16).collect()
+      .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(4).collect()
     assert(result.size == 1000)
     ss.stop()
   }

@@ -183,8 +183,7 @@ public class FetchHandlerSuiteJ {
       TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
       FetchHandler fetchHandler = mockFetchHandler(fileInfo);
 
-      PbStreamHandler streamHandler =
-          openStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
+      PbStreamHandler streamHandler = openStreamAndCheck(client, channel, fetchHandler, 5, 10);
 
       fetchChunkAndCheck(client, channel, fetchHandler, streamHandler);
     } finally {
@@ -257,11 +256,11 @@ public class FetchHandlerSuiteJ {
   }
 
   private FetchHandler mockFetchHandler(FileInfo fileInfo) {
+    WorkerSource workerSource = mock(WorkerSource.class);
     TransportConf transportConf =
         Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, 4);
-    FetchHandler fetchHandler0 = new FetchHandler(conf, transportConf);
+    FetchHandler fetchHandler0 = new FetchHandler(conf, transportConf, workerSource);
     Worker worker = mock(Worker.class);
-    WorkerSource workerSource = mock(WorkerSource.class);
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryManager.instance(), conf, workerSource);
 

@@ -42,9 +42,8 @@ import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
-class PushDataHandler extends BaseMessageHandler with Logging {
+class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
-  private var workerSource: WorkerSource = _
   private var partitionLocationInfo: WorkerPartitionLocationInfo = _
   private var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   private var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
@@ -66,7 +65,6 @@ class PushDataHandler extends BaseMessageHandler with Logging {
   private var testPushReplicaDataTimeout: Boolean = _
 
   def init(worker: Worker): Unit = {
-    workerSource = worker.workerSource
     partitionLocationInfo = worker.partitionLocationInfo
     shufflePartitionType = worker.shufflePartitionType
     shufflePushDataTimeout = worker.shufflePushDataTimeout
@@ -759,7 +757,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         logError(s"Error while handle${message.`type`()} $message", e)
         client.getChannel.writeAndFlush(new RpcFailure(
           requestId,
-          Throwables.getStackTraceAsString(e)));
+          Throwables.getStackTraceAsString(e)))
     } finally {
       message.body().release()
     }
@@ -1043,7 +1041,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             numPartitions,
             bufferSize)
         case Type.REGION_START =>
-          val (currentRegionIndex, isBroadcast) =
+          val (currentRegionIndex, isBroadcast: Boolean) =
             if (isLegacy)
               (
                 msg.asInstanceOf[RegionStart].currentRegionIndex,
@@ -1051,7 +1049,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
             else
               (
                 pbMsg.asInstanceOf[PbRegionStart].getCurrentRegionIndex,
-                Boolean.box(pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast))
+                pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast)
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionStart(
             currentRegionIndex,
             isBroadcast)
@@ -1209,11 +1207,11 @@ class PushDataHandler extends BaseMessageHandler with Logging {
       softSplit: AtomicBoolean,
       callback: RpcResponseCallback): Boolean = {
     val diskFull = checkDiskFull(fileWriter)
-    logDebug(
+    logTrace(
       s"""
          |CheckDiskFullAndSplit in
          |diskFull:$diskFull,
-         |partitionSplitMinimumSize: $partitionSplitMinimumSize,
+         |partitionSplitMinimumSize:$partitionSplitMinimumSize,
          |splitThreshold:${fileWriter.getSplitThreshold()},
          |fileLength:${fileWriter.getFileInfo.getFileLength}
          |fileName:${fileWriter.getFileInfo.getFilePath}
@@ -1225,7 +1223,7 @@ class PushDataHandler extends BaseMessageHandler with Logging {
         softSplit.set(true)
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-        logDebug(
+        logTrace(
           s"""
              |CheckDiskFullAndSplit hardSplit
              |diskFull:$diskFull,

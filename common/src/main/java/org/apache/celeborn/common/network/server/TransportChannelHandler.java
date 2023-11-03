@@ -106,7 +106,7 @@ public class TransportChannelHandler extends ChannelInboundHandlerAdapter {
     if (enableHeartbeat) {
       heartbeatFuture =
           ctx.executor()
-              .scheduleAtFixedRate(
+              .scheduleWithFixedDelay(
                   () -> {
                     logger.debug("send heartbeat");
                     ctx.writeAndFlush(new Heartbeat());

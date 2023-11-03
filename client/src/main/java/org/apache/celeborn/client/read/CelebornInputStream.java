@@ -56,7 +56,8 @@ public abstract class CelebornInputStream extends InputStream {
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
-      ConcurrentHashMap<String, Long> fetchExcludedWorkers)
+      ConcurrentHashMap<String, Long> fetchExcludedWorkers,
+      MetricsCallback metricsCallback)
       throws IOException {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
@@ -70,15 +71,14 @@ public abstract class CelebornInputStream extends InputStream {
           attemptNumber,
           startMapIndex,
           endMapIndex,
-          fetchExcludedWorkers);
+          fetchExcludedWorkers,
+          metricsCallback);
     }
   }
 
   public static CelebornInputStream empty() {
     return emptyInputStream;
   }
-
-  public abstract void setCallback(MetricsCallback callback);
 
   private static final CelebornInputStream emptyInputStream =
       new CelebornInputStream() {
@@ -91,9 +91,6 @@ public abstract class CelebornInputStream extends InputStream {
         public int read(byte[] b, int off, int len) throws IOException {
           return -1;
         }
-
-        @Override
-        public void setCallback(MetricsCallback callback) {}
 
         @Override
         public int totalPartitionsToRead() {
@@ -164,7 +161,8 @@ public abstract class CelebornInputStream extends InputStream {
         int attemptNumber,
         int startMapIndex,
         int endMapIndex,
-        ConcurrentHashMap<String, Long> fetchExcludedWorkers)
+        ConcurrentHashMap<String, Long> fetchExcludedWorkers,
+        MetricsCallback metricsCallback)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -202,6 +200,7 @@ public abstract class CelebornInputStream extends InputStream {
       TransportConf transportConf =
           Utils.fromCelebornConf(conf, TransportModuleConstants.DATA_MODULE, 0);
       retryWaitMs = transportConf.ioRetryWaitTimeMs();
+      this.callback = metricsCallback;
       moveToNextReader();
     }
 
@@ -418,7 +417,7 @@ public abstract class CelebornInputStream extends InputStream {
             logger.debug("Read local shuffle file {}", localHostAddress);
             containLocalRead = true;
             return new LocalPartitionReader(
-                conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
+                conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);
           } else {
             return new WorkerPartitionReader(
                 conf,
@@ -428,20 +427,16 @@ public abstract class CelebornInputStream extends InputStream {
                 startMapIndex,
                 endMapIndex,
                 fetchChunkRetryCnt,
-                fetchChunkMaxRetry);
+                fetchChunkMaxRetry,
+                callback);
           }
         case HDFS:
           return new DfsPartitionReader(
-              conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex);
+              conf, shuffleKey, location, clientFactory, startMapIndex, endMapIndex, callback);
         default:
           throw new CelebornIOException(
               String.format("Unknown storage info %s to read location %s", storageInfo, location));
       }
-    }
-
-    public void setCallback(MetricsCallback callback) {
-      // callback must set before read()
-      this.callback = callback;
     }
 
     @Override
@@ -539,8 +534,6 @@ public abstract class CelebornInputStream extends InputStream {
         return false;
       }
 
-      long startTime = System.nanoTime();
-
       boolean hasData = false;
       while (currentChunk.isReadable() || moveToNextChunk()) {
         currentChunk.readBytes(sizeBuf);
@@ -572,9 +565,7 @@ public abstract class CelebornInputStream extends InputStream {
           Set<Integer> batchSet = batchesRead.get(mapId);
           if (!batchSet.contains(batchId)) {
             batchSet.add(batchId);
-            if (callback != null) {
-              callback.incBytesRead(BATCH_HEADER_SIZE + size);
-            }
+            callback.incBytesRead(BATCH_HEADER_SIZE + size);
             if (shuffleCompressionEnabled) {
               // decompress data
               int originalLength = decompressor.getOriginalLen(compressedBuf);
@@ -598,9 +589,6 @@ public abstract class CelebornInputStream extends InputStream {
         }
       }
 
-      if (callback != null) {
-        callback.incReadTime(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
-      }
       return hasData;
     }
 

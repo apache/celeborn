@@ -77,7 +77,7 @@ class CelebornShuffleReader[K, C](
           streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool(
             "celeborn-create-stream-thread",
             conf.readStreamCreatorPoolThreads,
-            60);
+            60)
         }
       }
     }
@@ -93,7 +93,8 @@ class CelebornShuffleReader[K, C](
                 partitionId,
                 context.attemptNumber(),
                 startMapIndex,
-                endMapIndex)
+                endMapIndex,
+                metricsCallback)
               streams.put(partitionId, inputStream)
             } catch {
               case e: IOException =>
@@ -121,7 +122,6 @@ class CelebornShuffleReader[K, C](
         }
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
-        inputStream.setCallback(metricsCallback)
         // ensure inputStream is closed when task completes
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
         inputStream

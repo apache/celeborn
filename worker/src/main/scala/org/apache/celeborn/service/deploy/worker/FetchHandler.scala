@@ -41,7 +41,10 @@ import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBuffer
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
-class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
+class FetchHandler(
+    val conf: CelebornConf,
+    val transportConf: TransportConf,
+    val workerSource: WorkerSource)
   extends BaseMessageHandler with Logging {
 
   val chunkStreamManager = new ChunkStreamManager()
@@ -52,13 +55,11 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
     conf.partitionReadBuffersMax,
     conf.creditStreamThreadsPerMountpoint,
     conf.readBuffersToTriggerReadMin)
-  var workerSource: WorkerSource = _
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
 
   def init(worker: Worker): Unit = {
-    this.workerSource = worker.workerSource
 
     workerSource.addGauge(WorkerSource.CREDIT_STREAM_COUNT) { () =>
       creditStreamManager.getStreamsCount
@@ -195,8 +196,11 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
       fileInfo.getPartitionType match {
         case PartitionType.REDUCE =>
-          val streamId = chunkStreamManager.nextStreamId()
+          logDebug(s"Received open stream request $shuffleKey $fileName $startIndex " +
+            s"$endIndex get file name $fileName from client channel " +
+            s"${NettyUtils.getRemoteAddress(client.getChannel)}")
 
+          val streamId = chunkStreamManager.nextStreamId()
           // we must get sorted fileInfo for the following cases.
           // 1. when the current request is a non-range openStream, but the original unsorted file
           //    has been deleted by another range's openStream request.
@@ -210,9 +214,6 @@ class FetchHandler(val conf: CelebornConf, val transportConf: TransportConf)
               startIndex,
               endIndex)
           }
-          logDebug(s"Received chunk fetch request $shuffleKey $fileName $startIndex " +
-            s"$endIndex get file info $fileInfo from client channel " +
-            s"${NettyUtils.getRemoteAddress(client.getChannel)}")
           if (readLocalShuffle) {
             replyStreamHandler(
               client,

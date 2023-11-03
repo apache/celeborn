@@ -18,15 +18,14 @@
 package org.apache.celeborn.service.deploy.master
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.service.deploy.master.MasterSource.OFFER_SLOTS_TIME
 
-class MasterSource(conf: CelebornConf)
-  extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) with Logging {
-  override val sourceName = s"master"
+class MasterSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_MASTER) {
+  override val sourceName = "master"
 
+  import MasterSource._
+  // add timers
   addTimer(OFFER_SLOTS_TIME)
   // start cleaner
   startCleaner()
@@ -41,9 +40,15 @@ object MasterSource {
 
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
 
+  val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
+
   val IS_ACTIVE_MASTER = "IsActiveMaster"
 
   val PARTITION_SIZE = "PartitionSize"
+
+  val PARTITION_WRITTEN = "PartitionWritten"
+
+  val PARTITION_FILE_COUNT = "PartitionFileCount"
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
 }

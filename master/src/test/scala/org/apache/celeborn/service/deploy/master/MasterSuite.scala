@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master
 
+import com.google.common.io.Files
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -30,7 +31,7 @@ class MasterSuite extends AnyFunSuite
   with Logging {
 
   def getTmpDir(): String = {
-    val tmpDir = com.google.common.io.Files.createTempDir()
+    val tmpDir = Files.createTempDir()
     tmpDir.deleteOnExit()
     tmpDir.getAbsolutePath
   }

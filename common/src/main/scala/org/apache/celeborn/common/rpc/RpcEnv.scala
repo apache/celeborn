@@ -81,15 +81,15 @@ abstract class RpcEnv(config: RpcEnvConfig) {
   def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef
 
   /**
-   * Retrieve the [[RpcEndpointRef]] represented by `uri` asynchronously.
+   * Retrieve the [[RpcEndpointRef]] represented by `addr` asynchronously.
    */
-  def asyncSetupEndpointRefByURI(uri: String): Future[RpcEndpointRef]
+  def asyncSetupEndpointRefByAddr(addr: RpcEndpointAddress): Future[RpcEndpointRef]
 
   /**
-   * Retrieve the [[RpcEndpointRef]] represented by `uri`. This is a blocking action.
+   * Retrieve the [[RpcEndpointRef]] represented by `addr`. This is a blocking action.
    */
-  def setupEndpointRefByURI(uri: String): RpcEndpointRef = {
-    defaultLookupTimeout.awaitResult(asyncSetupEndpointRefByURI(uri))
+  def setupEndpointRefByAddr(addr: RpcEndpointAddress): RpcEndpointRef = {
+    defaultLookupTimeout.awaitResult(asyncSetupEndpointRefByAddr(addr))
   }
 
   /**
@@ -97,7 +97,7 @@ abstract class RpcEnv(config: RpcEnvConfig) {
    * This is a blocking action.
    */
   def setupEndpointRef(address: RpcAddress, endpointName: String): RpcEndpointRef = {
-    setupEndpointRefByURI(RpcEndpointAddress(address, endpointName).toString)
+    setupEndpointRefByAddr(RpcEndpointAddress(address, endpointName))
   }
 
   /**
