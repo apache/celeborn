@@ -75,6 +75,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   val latestPartitionLocation =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
+  private val availableStorageTypes = conf.availableStorageTypes
 
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
@@ -1025,7 +1026,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         pushReplicateEnabled,
         pushRackAwareEnabled,
         userIdentifier,
-        slotsAssignMaxWorkers)
+        slotsAssignMaxWorkers,
+        availableStorageTypes)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)

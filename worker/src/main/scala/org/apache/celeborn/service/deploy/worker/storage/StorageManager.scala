@@ -359,7 +359,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
       val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
-      if (dirs.isEmpty) {
+      if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         val fileInfo =
@@ -397,7 +397,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
         hdfsWriters.put(fileInfo.getFilePath, hdfsWriter)
         return hdfsWriter
-      } else {
+      } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
         val dir = dirs(getNextIndex() % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
@@ -468,6 +468,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               exception,
               DiskStatus.READ_OR_WRITE_FAILURE)
         }
+      } else {
+        exception = new IOException("No storage available for location:" + location.toString)
       }
       retryCount += 1
     }

@@ -37,6 +37,7 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public class SlotsAllocatorRackAwareSuiteJ {
@@ -67,7 +68,8 @@ public class SlotsAllocatorRackAwareSuiteJ {
     List<WorkerInfo> workers = prepareWorkers(resolver);
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, true);
+        SlotsAllocator.offerSlotsRoundRobin(
+            workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     Consumer<PartitionLocation> assertCustomer =
         new Consumer<PartitionLocation>() {
@@ -102,7 +104,8 @@ public class SlotsAllocatorRackAwareSuiteJ {
     List<WorkerInfo> workers = prepareWorkers(resolver);
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(workers, partitionIds, true, true);
+        SlotsAllocator.offerSlotsRoundRobin(
+            workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     Consumer<PartitionLocation> assertConsumer =
         new Consumer<PartitionLocation>() {
