@@ -23,7 +23,7 @@ import java.util
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, FileInfo, WorkerInfo}
-import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
 
@@ -51,8 +51,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   val userIdentifier1 = UserIdentifier("tenant-a", "user-a")
   val userIdentifier2 = UserIdentifier("tenant-b", "user-b")
 
-  val chunkOffsets1 = util.Arrays.asList[java.lang.Long](1000, 2000, 3000)
-  val chunkOffsets2 = util.Arrays.asList[java.lang.Long](2000, 4000, 6000)
+  val chunkOffsets1 = util.Arrays.asList[java.lang.Long](1000L, 2000L, 3000L)
+  val chunkOffsets2 = util.Arrays.asList[java.lang.Long](2000L, 4000L, 6000L)
 
   val fileInfo1 = new FileInfo("/tmp/1", chunkOffsets1, userIdentifier1)
   val fileInfo2 = new FileInfo("/tmp/2", chunkOffsets2, userIdentifier2)
@@ -76,6 +76,27 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     new PartitionLocation(0, 0, "host1", 10, 9, 8, 14, PartitionLocation.Mode.REPLICA)
   val partitionLocation2 =
     new PartitionLocation(1, 1, "host2", 20, 19, 18, 24, PartitionLocation.Mode.REPLICA)
+
+  val partitionLocation3 =
+    new PartitionLocation(2, 2, "host3", 30, 29, 28, 27, PartitionLocation.Mode.PRIMARY)
+  val partitionLocation4 =
+    new PartitionLocation(
+      3,
+      3,
+      "host4",
+      40,
+      39,
+      38,
+      37,
+      PartitionLocation.Mode.REPLICA,
+      partitionLocation3,
+      new StorageInfo(
+        StorageInfo.Type.HDD,
+        "mountPoint",
+        false,
+        "filePath",
+        StorageInfo.LOCAL_DISK_MASK),
+      null)
 
   val workerResource = new WorkerResource()
   workerResource.put(
@@ -187,4 +208,17 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
     assert(restoredWorkerResource.equals(workerResource))
   }
+
+  test("testPbStorageInfo") {
+    val pbPartitionLocation3 = PbSerDeUtils.toPbPartitionLocation(partitionLocation3)
+    val pbPartitionLocation4 = PbSerDeUtils.toPbPartitionLocation(partitionLocation4)
+
+    val restoredPartitionLocation3 = PbSerDeUtils.fromPbPartitionLocation(pbPartitionLocation3)
+    val restoredPartitionLocation4 = PbSerDeUtils.fromPbPartitionLocation(pbPartitionLocation4)
+
+    assert(restoredPartitionLocation3.equals(partitionLocation3))
+    assert(restoredPartitionLocation4.equals(partitionLocation4))
+    assert(restoredPartitionLocation4.getStorageInfo.equals(partitionLocation4.getStorageInfo))
+  }
+
 }

@@ -357,7 +357,7 @@ private[celeborn] class Master(
       // keep it for compatible reason
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
@@ -668,13 +668,15 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupNum,
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
-              loadAwareFetchTimeWeight)
+              loadAwareFetchTimeWeight,
+              requestSlots.availableStorageTypes)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
               selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware)
+              requestSlots.shouldRackAware,
+              requestSlots.availableStorageTypes)
           }
         }
       }

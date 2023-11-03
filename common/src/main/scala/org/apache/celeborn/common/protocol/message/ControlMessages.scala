@@ -170,6 +170,7 @@ object ControlMessages extends Logging {
       shouldRackAware: Boolean,
       userIdentifier: UserIdentifier,
       maxWorkers: Int,
+      availableStorageTypes: Int,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -519,6 +520,7 @@ object ControlMessages extends Logging {
           shouldRackAware,
           userIdentifier,
           maxWorkers,
+          availableStorageTypes,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -529,6 +531,7 @@ object ControlMessages extends Logging {
         .setShouldRackAware(shouldRackAware)
         .setMaxWorkers(maxWorkers)
         .setRequestId(requestId)
+        .setAvailableStorageTypes(availableStorageTypes)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
@@ -896,6 +899,7 @@ object ControlMessages extends Logging {
           pbRequestSlots.getShouldRackAware,
           userIdentifier,
           pbRequestSlots.getMaxWorkers,
+          pbRequestSlots.getAvailableStorageTypes,
           pbRequestSlots.getRequestId)
 
       case REQUEST_SLOTS_RESPONSE_VALUE =>

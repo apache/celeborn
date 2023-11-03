@@ -514,7 +514,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def masterSlotAssignPolicy: SlotsAssignPolicy =
     SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
-
+  def availableStorageTypes: Int = {
+    val types = get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf(_)).toList
+    StorageInfo.getAvailableTypes(types.asJava)
+  }
   def hasHDFSStorage: Boolean =
     get(ACTIVE_STORAGE_TYPES).contains(StorageInfo.Type.HDFS.name()) && get(HDFS_DIR).isDefined
   def masterSlotAssignLoadAwareDiskGroupNum: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM)
@@ -3955,13 +3958,16 @@ object CelebornConf extends Logging {
       .createWithDefaultString("32m")
 
   val ACTIVE_STORAGE_TYPES: ConfigEntry[String] =
-    buildConf("celeborn.storage.activeTypes")
-      .categories("master", "worker")
+    buildConf("celeborn.storage.availableTypes")
+      .withAlternative("celeborn.storage.activeTypes")
+      .categories("master", "worker", "client")
       .version("0.3.0")
-      .doc("Enabled storage levels. Available options: HDD,SSD,HDFS. ")
+      .doc(
+        "Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .createWithDefault("HDD,SSD")
+      .checkValue(p => p.split(",").map(StorageInfo.validate(_)).reduce(_ && _), "")
+      .createWithDefault("HDD")
 
   val READ_LOCAL_SHUFFLE_FILE: ConfigEntry[Boolean] =
     buildConf("celeborn.client.readLocalShuffleFile.enabled")
