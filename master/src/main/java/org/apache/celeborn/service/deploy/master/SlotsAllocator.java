@@ -26,11 +26,13 @@ import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.util.DiskUtils;
 
 public class SlotsAllocator {
   static class UsableDiskInfo {
@@ -93,11 +95,7 @@ public class SlotsAllocator {
           List<Integer> partitionIds,
           boolean shouldReplicate,
           boolean shouldRackAware,
-          long minimumUsableSize,
-          int diskGroupCount,
-          double diskGroupGradient,
-          double flushTimeWeight,
-          double fetchTimeWeight,
+          CelebornConf conf,
           int availableStorageTypes) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
@@ -115,7 +113,11 @@ public class SlotsAllocator {
                 .forEach(
                     (key, diskInfo) -> {
                       diskToWorkerMap.put(diskInfo, i);
-                      if (diskInfo.actualUsableSpace() > minimumUsableSize
+                      if (diskInfo.actualUsableSpace()
+                              > DiskUtils.getMinimumUsableSize(
+                                  diskInfo,
+                                  conf.workerDiskReserveSize(),
+                                  conf.workerDiskReserveRatio())
                           && diskInfo.status().equals(DiskStatus.HEALTHY)) {
                         usableDisks.add(diskInfo);
                       }
@@ -135,13 +137,19 @@ public class SlotsAllocator {
           workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
     }
 
+    int diskGroupCount = conf.masterSlotAssignLoadAwareDiskGroupNum();
+
     if (!initialized) {
-      initLoadAwareAlgorithm(diskGroupCount, diskGroupGradient);
+      initLoadAwareAlgorithm(diskGroupCount, conf.masterSlotAssignLoadAwareDiskGroupGradient());
     }
 
     Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         getRestriction(
-            placeDisksToGroups(usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight),
+            placeDisksToGroups(
+                usableDisks,
+                diskGroupCount,
+                conf.masterSlotAssignLoadAwareFlushTimeWeight(),
+                conf.masterSlotAssignLoadAwareFetchTimeWeight()),
             diskToWorkerMap,
             shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
     return locateSlots(

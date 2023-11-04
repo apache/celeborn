@@ -31,7 +31,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{DiskUtils, ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
@@ -246,8 +246,12 @@ object DeviceMonitor extends Logging {
     tryWithTimeoutAndCallback({
       val usage = getDiskUsageInfos(diskInfo)
       // assume no single device capacity exceeds 1EB in this era
+      val minimumUsableSize = DiskUtils.getMinimumUsableSize(
+        diskInfo,
+        conf.workerDiskReserveSize,
+        conf.workerDiskReserveRatio)
       val highDiskUsage =
-        usage.freeSpace < conf.workerDiskReserveSize || diskInfo.actualUsableSpace <= 0
+        usage.freeSpace < minimumUsableSize || diskInfo.actualUsableSpace <= 0
       if (highDiskUsage) {
         logWarning(s"${diskInfo.mountPoint} usage is above threshold." +
           s" Disk usage(Report by OS):{total:${Utils.bytesToString(usage.totalSpace)}," +
