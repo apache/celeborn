@@ -1059,6 +1059,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
+
+  // //////////////////////////////////////////////////////
+  //                    kerberos                         //
+  // //////////////////////////////////////////////////////
+  def hdfsStorageKerberosEnabled = get(HDFS_STORAGE_TYPE_KERBEROS_ENABLED)
+  def hdfsStorageKerberosPrincipal = get(HDFS_STORAGE_KERBEROS_PRINCIPAL)
+  def hdfsStorageKerberosKeytab = get(HDFS_STORAGE_KERBEROS_KEYTAB)
 }
 
 object CelebornConf extends Logging {
@@ -3963,4 +3970,28 @@ object CelebornConf extends Logging {
       .version("0.3.2")
       .intConf
       .createWithDefault(64)
+
+  val HDFS_STORAGE_TYPE_KERBEROS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.storage.hdfs.kerberos.enabled")
+      .categories("master", "worker")
+      .version("0.3.2")
+      .doc("Whether to enable kerberos authentication for HDFS storage connection.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val HDFS_STORAGE_KERBEROS_PRINCIPAL: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.hdfs.kerberos.principal")
+      .categories("master", "worker")
+      .version("0.3.2")
+      .doc("Kerberos principal for HDFS storage connection.")
+      .stringConf
+      .createOptional
+
+  val HDFS_STORAGE_KERBEROS_KEYTAB: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.hdfs.kerberos.keytab")
+      .categories("master", "worker")
+      .version("0.3.2")
+      .doc("Kerberos keytab file path for HDFS storage connection.")
+      .stringConf
+      .createOptional
 }
