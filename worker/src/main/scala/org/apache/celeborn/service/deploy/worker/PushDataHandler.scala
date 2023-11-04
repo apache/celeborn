@@ -251,14 +251,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     // for primary, send data to replica
     if (doReplicate) {
-      val responseContainer: AtomicReference[ByteBuffer] = new AtomicReference[ByteBuffer]()
-      val localWriteFuture = writeDataWithExceptionHandling(fileWriter, body, shuffleKey)
-      pushData.body().retain()
-      val replicateFuture = replicateToPeer(location, pushData, shuffleKey, Seq(fileWriter), softSplit, Array.emptyIntArray, responseContainer)
-      Future.sequence(Seq(replicateFuture, localWriteFuture)).onComplete {
-        case Success(_) => callbackWithTimer.onSuccess(responseContainer.get())
-        case Failure(exception) => callbackWithTimer.onFailure(exception)
-      }
+      replicateToPeer(location, pushData, shuffleKey, Seq(fileWriter), softSplit, Array.emptyIntArray,
+        Seq(writeDataWithExceptionHandling(fileWriter, body, shuffleKey)), callbackWithTimer)
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
@@ -432,14 +426,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
     // for primary, send data to replica
     if (doReplicate) {
-      val responseContainer: AtomicReference[ByteBuffer] = new AtomicReference[ByteBuffer]()
-      val localWriteFutures = writePushMergedDataLocal()
       pushMergedData.body().retain()
-      val replicateFuture = replicateToPeer(partitionIdToLocations.head._2, pushMergedData, shuffleKey, fileWriters, new AtomicBoolean(false), batchOffsets, responseContainer)
-      Future.sequence(localWriteFutures :+ replicateFuture).onComplete {
-        case Success(_) => callbackWithTimer.onSuccess(responseContainer.get())
-        case Failure(exception) => callbackWithTimer.onFailure(exception)
-      }
+      replicateToPeer(partitionIdToLocations.head._2, pushMergedData, shuffleKey,
+        fileWriters, new AtomicBoolean(false), batchOffsets, writePushMergedDataLocal(), callbackWithTimer)
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
@@ -543,8 +532,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       message: RequestMessage,
       requestId: Long,
       handler: () => Unit): Unit = {
-    message.body().retain()
     try {
+      message.body().retain()
       handler()
     } catch {
       case e: Exception =>
@@ -1054,7 +1043,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     fileWriters: Seq[FileWriter],
     softSplit: AtomicBoolean,
     batchOffsets: Array[Int],
-    responseContainer: AtomicReference[ByteBuffer]): Future[Unit] = {
+    localWriteFutures: Seq[Future[Unit]],
+    callbackWithTimer: RpcResponseCallbackWithTimer): Future[Unit] = {
     Future {
       val peer = location.getPeer
       val peerWorker = new WorkerInfo(
@@ -1074,33 +1064,38 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       // Handle the response from replica
       val wrappedCallback = new RpcResponseCallback() {
         override def onSuccess(response: ByteBuffer): Unit = {
-          if (response.remaining() > 0) {
-            val resp = ByteBuffer.allocate(response.remaining())
-            resp.put(response)
-            resp.flip()
-            responseContainer.set(resp)
-          } else if (softSplit.get()) {
-            // TODO Currently if the worker is in soft split status, given the guess that the client
-            // will fast stop pushing data to the worker, we won't return congest status. But
-            // in the long term, especially if this issue could frequently happen, we may need to return
-            // congest&softSplit status together
-            responseContainer.set(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
-          } else {
-            Option(CongestionController.instance()) match {
-              case Some(congestionController) if fileWriters.nonEmpty =>
-                if (congestionController.isUserCongested(
-                  fileWriters.head.getFileInfo.getUserIdentifier)) {
-                  // Check whether primary congest the data though the replicas doesn't congest
-                  // it(the response is empty)
-                  responseContainer.set(ByteBuffer.wrap(
-                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
-                } else {
-                  responseContainer.set(ByteBuffer.wrap(Array[Byte]()))
+          Future.sequence(localWriteFutures).onComplete {
+            case Success(_) =>
+              if (response.remaining() > 0) {
+                val resp = ByteBuffer.allocate(response.remaining())
+                resp.put(response)
+                resp.flip()
+                callbackWithTimer.onSuccess(resp)
+              } else if (softSplit.get()) {
+                // TODO Currently if the worker is in soft split status, given the guess that the client
+                // will fast stop pushing data to the worker, we won't return congest status. But
+                // in the long term, especially if this issue could frequently happen, we may need to return
+                // congest&softSplit status together
+                callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+              } else {
+                Option(CongestionController.instance()) match {
+                  case Some(congestionController) if fileWriters.nonEmpty =>
+                    if (congestionController.isUserCongested(
+                      fileWriters.head.getFileInfo.getUserIdentifier)) {
+                      // Check whether primary congest the data though the replicas doesn't congest
+                      // it(the response is empty)
+                      callbackWithTimer.onSuccess(ByteBuffer.wrap(
+                        Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
+                    } else {
+                      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+                    }
+                  case None =>
+                    callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
                 }
-              case None =>
-                responseContainer.set(ByteBuffer.wrap(Array[Byte]()))
-            }
+              }
+            case Failure(exception) => callbackWithTimer.onFailure(exception)
           }
+
         }
 
         override def onFailure(e: Throwable): Unit = {
@@ -1108,16 +1103,23 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
           // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
           // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-          if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
-            workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
-            throw e
-          } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
-            workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
-            throw e
-          } else {
-            workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
-              throw new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA)
+          Future.sequence(localWriteFutures).onComplete {
+            case Failure(exception) =>
+              callbackWithTimer.onFailure(exception)
+            case Success(value) =>
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
+                callbackWithTimer.onFailure(e)
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
+                callbackWithTimer.onFailure(e)
+              } else {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
+              }
           }
+
         }
       }
       try {

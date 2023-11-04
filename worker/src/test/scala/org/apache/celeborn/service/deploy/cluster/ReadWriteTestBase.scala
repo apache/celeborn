@@ -60,7 +60,7 @@ trait ReadWriteTestBase extends AnyFunSuite
     val clientConf = new CelebornConf()
       .set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
       .set(CelebornConf.SHUFFLE_COMPRESSION_CODEC.key, codec.name)
-      // .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
       .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
       .set(CelebornConf.READ_LOCAL_SHUFFLE_FILE, readLocalShuffle)
       .set("celeborn.data.io.numConnectionsPerPeer", "1")
