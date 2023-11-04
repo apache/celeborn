@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.read.CelebornInputStream;
+import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.reflect.DynConstructors;
@@ -129,9 +130,23 @@ public class CelebornShuffleConsumer<K, V>
         reduceId.getTaskID().getId(),
         reduceId.getId());
 
+    MetricsCallback metricsCallback =
+        new MetricsCallback() {
+          @Override
+          public void incBytesRead(long bytesRead) {}
+
+          @Override
+          public void incReadTime(long time) {}
+        };
+
     CelebornInputStream shuffleInputStream =
         shuffleClient.readPartition(
-            0, reduceId.getTaskID().getId(), reduceId.getId(), 0, Integer.MAX_VALUE);
+            0,
+            reduceId.getTaskID().getId(),
+            reduceId.getId(),
+            0,
+            Integer.MAX_VALUE,
+            metricsCallback);
     CelebornShuffleFetcher<K, V> shuffleReader =
         new CelebornShuffleFetcher(
             reduceId, taskStatus, merger, copyPhase, reporter, metrics, shuffleInputStream);
