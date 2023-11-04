@@ -40,4 +40,7 @@ license: |
 | celeborn.master.workerUnavailableInfo.expireTimeout | 1800s | Worker unavailable info would be cleared when the retention period is expired | 0.3.1 | 
 | celeborn.storage.availableTypes | HDD | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical. | 0.3.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 | 
+| celeborn.storage.hdfs.kerberos.enabled | false | Whether to enable kerberos authentication for HDFS storage connection. | 0.3.2 | 
+| celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | Kerberos keytab file path for HDFS storage connection. | 0.3.2 | 
+| celeborn.storage.hdfs.kerberos.principal | &lt;undefined&gt; | Kerberos principal for HDFS storage connection. | 0.3.2 | 
 <!--end-include-->
