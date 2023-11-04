@@ -251,10 +251,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     // for primary, send data to replica
     if (doReplicate) {
-      pushData.body().retain()
       val responseContainer: AtomicReference[ByteBuffer] = new AtomicReference[ByteBuffer]()
-      val replicateFuture = replicateToPeer(location, pushData, shuffleKey, Seq(fileWriter), softSplit, Array.emptyIntArray, responseContainer)
       val localWriteFuture = writeDataWithExceptionHandling(fileWriter, body, shuffleKey)
+      pushData.body().retain()
+      val replicateFuture = replicateToPeer(location, pushData, shuffleKey, Seq(fileWriter), softSplit, Array.emptyIntArray, responseContainer)
       Future.sequence(Seq(replicateFuture, localWriteFuture)).onComplete {
         case Success(_) => callbackWithTimer.onSuccess(responseContainer.get())
         case Failure(exception) => callbackWithTimer.onFailure(exception)
@@ -421,22 +421,20 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       return
     }
     def writePushMergedDataLocal() = {
-      fileWriters.zip(batchOffsets).map { case (fileWriter, offset) =>
-        val length =
-          if (fileWriters.last == fileWriter) {
-            body.readableBytes() - offset
-          } else {
-            batchOffsets(fileWriters.indexOf(fileWriter) + 1) - offset
-          }
-        val batchBody = body.slice(offset, length)
+      var fileWriter: FileWriter = null
+      batchOffsets.zip(fileWriters).map { case (offset, writer) =>
+        fileWriter = writer
+        val batchBody = body.slice(body.readerIndex() + offset,
+          if (offset == batchOffsets.last) body.readableBytes() - offset
+          else batchOffsets(batchOffsets.indexOf(offset) + 1) - offset)
         writeDataWithExceptionHandling(fileWriter, batchBody, shuffleKey)
       }.toSeq
     }
     // for primary, send data to replica
     if (doReplicate) {
-      pushMergedData.body().retain()
       val responseContainer: AtomicReference[ByteBuffer] = new AtomicReference[ByteBuffer]()
       val localWriteFutures = writePushMergedDataLocal()
+      pushMergedData.body().retain()
       val replicateFuture = replicateToPeer(partitionIdToLocations.head._2, pushMergedData, shuffleKey, fileWriters, new AtomicBoolean(false), batchOffsets, responseContainer)
       Future.sequence(localWriteFutures :+ replicateFuture).onComplete {
         case Success(_) => callbackWithTimer.onSuccess(responseContainer.get())
@@ -545,6 +543,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       message: RequestMessage,
       requestId: Long,
       handler: () => Unit): Unit = {
+    message.body().retain()
     try {
       handler()
     } catch {
@@ -1024,13 +1023,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
   }
 
-  private def writeDataWithExceptionHandling(
-      fileWriter: FileWriter,
-      body: ByteBuf,
-      shuffleKey: String): Future[Unit] = {
+  def writeDataWithExceptionHandling(
+    fileWriter: FileWriter,
+    body: ByteBuf,
+    shuffleKey: String): Future[Unit] = {
     Future {
       try {
-        fileWriter.write(body)
+        synchronized {
+          fileWriter.write(body)
+        }
       } catch {
         case e: AlreadyClosedException =>
           fileWriter.decrementPendingWrites()
@@ -1145,7 +1146,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         logInfo(s"${requestMessage.`type`().toString} replication started for partitionLocation: $location")
       } catch {
         case e: Exception =>
-          requestMessage.body().release()
           unavailablePeers.put(peerWorker, System.currentTimeMillis())
           workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
           logError(
