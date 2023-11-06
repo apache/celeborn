@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import scala.Option;
 import scala.Tuple2;
 
 import org.junit.Assert;
@@ -228,17 +229,20 @@ public class SlotsAllocatorSuiteJ {
       boolean expectSuccess) {
     String shuffleKey = "appId-1";
     CelebornConf conf = new CelebornConf();
-    conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM(), 2);
-    conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT(), 1.0);
-    conf.set(CelebornConf.WORKER_DISK_RESERVE_SIZE(), 10 * 1024 * 1024 * 1024L);
-    conf.set(CelebornConf.WORKER_DISK_RESERVE_RATIO(), 0.1);
+    conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "2");
+    conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT().key(), "1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsLoadAware(
             workers,
             partitionIds,
             shouldReplicate,
             false,
-            conf,
+            10 * 1024 * 1024 * 1024L,
+            Option.empty(),
+            conf.masterSlotAssignLoadAwareDiskGroupNum(),
+            conf.masterSlotAssignLoadAwareDiskGroupGradient(),
+            conf.masterSlotAssignLoadAwareFlushTimeWeight(),
+            conf.masterSlotAssignLoadAwareFetchTimeWeight(),
             StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     if (expectSuccess) {
       if (shouldReplicate) {

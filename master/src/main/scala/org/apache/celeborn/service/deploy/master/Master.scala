@@ -121,7 +121,16 @@ private[celeborn] class Master(
   private def shutdownWorkerSnapshot: util.List[WorkerInfo] =
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers))
 
+  private def diskReserveSize = conf.workerDiskReserveSize
+  private def diskReserveRatio = conf.workerDiskReserveRatio
+
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
+  private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
+  private val slotsAssignLoadAwareDiskGroupGradient =
+    conf.masterSlotAssignLoadAwareDiskGroupGradient
+  private val loadAwareFlushTimeWeight = conf.masterSlotAssignLoadAwareFlushTimeWeight
+  private val loadAwareFetchTimeWeight = conf.masterSlotAssignLoadAwareFetchTimeWeight
+
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay
   private val estimatedPartitionSizeForEstimationUpdateInterval =
@@ -656,7 +665,12 @@ private[celeborn] class Master(
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
-              conf,
+              diskReserveSize,
+              diskReserveRatio,
+              slotsAssignLoadAwareDiskGroupNum,
+              slotsAssignLoadAwareDiskGroupGradient,
+              loadAwareFlushTimeWeight,
+              loadAwareFetchTimeWeight,
               requestSlots.availableStorageTypes)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
