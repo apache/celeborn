@@ -249,10 +249,110 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       return;
     }
 
+    val localWriteFuture = writeDataWithExceptionHandling(fileWriter, body, shuffleKey)
     // for primary, send data to replica
     if (doReplicate) {
-      replicateToPeer(location, pushData, shuffleKey, Seq(fileWriter), softSplit, Array.emptyIntArray,
-        Seq(writeDataWithExceptionHandling(fileWriter, body, shuffleKey)), callbackWithTimer)
+      pushData.body().retain()
+      replicateThreadPool.submit(new Runnable {
+        override def run(): Unit = {
+          val peer = location.getPeer
+          val peerWorker = new WorkerInfo(
+            peer.getHost,
+            peer.getRpcPort,
+            peer.getPushPort,
+            peer.getFetchPort,
+            peer.getReplicatePort)
+          if (unavailablePeers.containsKey(peerWorker)) {
+            pushData.body().release()
+            workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+            logError(
+              s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
+            callbackWithTimer.onFailure(
+              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+            return
+          }
+
+          // Handle the response from replica
+          val wrappedCallback = new RpcResponseCallback() {
+            override def onSuccess(response: ByteBuffer): Unit = {
+              localWriteFuture.onComplete {
+                case Success(_) =>
+                  if (response.remaining() > 0) {
+                    val resp = ByteBuffer.allocate(response.remaining())
+                    resp.put(response)
+                    resp.flip()
+                    callbackWithTimer.onSuccess(resp)
+                  } else if (softSplit.get()) {
+                    // TODO Currently if the worker is in soft split status, given the guess that the client
+                    // will fast stop pushing data to the worker, we won't return congest status. But
+                    // in the long term, especially if this issue could frequently happen, we may need to return
+                    // congest&softSplit status together
+                    callbackWithTimer.onSuccess(
+                      ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+                  } else {
+                    Option(CongestionController.instance()) match {
+                      case Some(congestionController) =>
+                        if (congestionController.isUserCongested(
+                          fileWriter.getFileInfo.getUserIdentifier)) {
+                          // Check whether primary congest the data though the replicas doesn't congest
+                          // it(the response is empty)
+                          callbackWithTimer.onSuccess(
+                            ByteBuffer.wrap(
+                              Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
+                        } else {
+                          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+                        }
+                      case None =>
+                        callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+                    }
+                  }
+                case Failure(e) => callbackWithTimer.onFailure(e)
+              }
+            }
+
+            override def onFailure(e: Throwable): Unit = {
+              logError(s"PushData replication failed for partitionLocation: $location", e)
+              // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
+              // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
+              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
+              localWriteFuture.onComplete {
+                case Success(_) =>
+                  if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
+                    callbackWithTimer.onFailure(e)
+                  } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
+                    callbackWithTimer.onFailure(e)
+                  } else {
+                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+                    callbackWithTimer.onFailure(
+                      new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
+                  }
+                case Failure(e) => callbackWithTimer.onFailure(e)
+              }
+            }
+          }
+          try {
+            val client = getClient(peer.getHost, peer.getReplicatePort, location.getId)
+            val newPushData = new PushData(
+              PartitionLocation.Mode.REPLICA.mode(),
+              shuffleKey,
+              pushData.partitionUniqueId,
+              pushData.body)
+            client.pushData(newPushData, shufflePushDataTimeout.get(shuffleKey), wrappedCallback)
+          } catch {
+            case e: Exception =>
+              pushData.body().release()
+              unavailablePeers.put(peerWorker, System.currentTimeMillis())
+              workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+              logError(
+                s"PushData replication failed during connecting peer for partitionLocation: $location",
+                e)
+              callbackWithTimer.onFailure(
+                new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+          }
+        }
+      })
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
@@ -261,7 +361,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       // will fast stop pushing data to the worker, we won't return congest status. But
       // in the long term, especially if this issue could frequently happen, we may need to return
       // congest&softSplit status together
-      writeDataWithExceptionHandling(fileWriter, body, shuffleKey).onComplete {
+      localWriteFuture.onComplete {
         case Success(_) =>
           if (softSplit.get()) {
             callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
@@ -424,16 +524,115 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         writeDataWithExceptionHandling(fileWriter, batchBody, shuffleKey)
       }.toSeq
     }
+    val localWriteFutures = writePushMergedDataLocal()
     // for primary, send data to replica
     if (doReplicate) {
       pushMergedData.body().retain()
-      replicateToPeer(partitionIdToLocations.head._2, pushMergedData, shuffleKey,
-        fileWriters, new AtomicBoolean(false), batchOffsets, writePushMergedDataLocal(), callbackWithTimer)
+      replicateThreadPool.submit(new Runnable {
+        override def run(): Unit = {
+          val location = partitionIdToLocations.head._2
+          val peer = location.getPeer
+          val peerWorker = new WorkerInfo(
+            peer.getHost,
+            peer.getRpcPort,
+            peer.getPushPort,
+            peer.getFetchPort,
+            peer.getReplicatePort)
+          if (unavailablePeers.containsKey(peerWorker)) {
+            pushMergedData.body().release()
+            workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+            logError(
+              s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
+            callbackWithTimer.onFailure(
+              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+            return
+          }
+
+          // Handle the response from replica
+          val wrappedCallback = new RpcResponseCallback() {
+            override def onSuccess(response: ByteBuffer): Unit = {
+              Future.sequence(localWriteFutures).onComplete {
+                case Success(_) =>
+                  // Only primary data enable replication will push data to replica
+                  if (response.remaining() > 0) {
+                    val resp = ByteBuffer.allocate(response.remaining())
+                    resp.put(response)
+                    resp.flip()
+                    callbackWithTimer.onSuccess(resp)
+                  } else {
+                    Option(CongestionController.instance()) match {
+                      case Some(congestionController) if fileWriters.nonEmpty =>
+                        if (congestionController.isUserCongested(
+                          fileWriters.head.getFileInfo.getUserIdentifier)) {
+                          // Check whether primary congest the data though the replicas doesn't congest
+                          // it(the response is empty)
+                          callbackWithTimer.onSuccess(
+                            ByteBuffer.wrap(
+                              Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
+                        } else {
+                          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+                        }
+                      case None =>
+                        callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+                    }
+                  }
+                case Failure(e) => callbackWithTimer.onFailure(e)
+              }
+            }
+
+            override def onFailure(e: Throwable): Unit = {
+              logError(s"PushMergedData replicate failed for partitionLocation: $location", e)
+              // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
+              // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
+              // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
+              Future.sequence(localWriteFutures).onComplete {
+                case Success(_) =>
+                  if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
+                    callbackWithTimer.onFailure(e)
+                  } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
+                    callbackWithTimer.onFailure(e)
+                  } else {
+                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+                    callbackWithTimer.onFailure(
+                      new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
+                  }
+                case Failure(e) => callbackWithTimer.onFailure(e)
+              }
+            }
+          }
+
+          try {
+            val client = getClient(peer.getHost, peer.getReplicatePort, location.getId)
+            val newPushMergedData = new PushMergedData(
+              PartitionLocation.Mode.REPLICA.mode(),
+              shuffleKey,
+              pushMergedData.partitionUniqueIds,
+              batchOffsets,
+              pushMergedData.body)
+            client.pushMergedData(
+              newPushMergedData,
+              shufflePushDataTimeout.get(shuffleKey),
+              wrappedCallback)
+          } catch {
+            case e: Exception =>
+              pushMergedData.body().release()
+              unavailablePeers.put(peerWorker, System.currentTimeMillis())
+              workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+              logError(
+                s"PushMergedData replication failed during connecting peer for partitionLocation: $location",
+                e)
+              callbackWithTimer.onFailure(
+                new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+          }
+        }
+      })
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
       // 2. the client enables push data to the replica, and the replica worker could hit here
-      Future.sequence(writePushMergedDataLocal()).onComplete {
+      Future.sequence(localWriteFutures).onComplete {
         case Success(_) =>
           Option(CongestionController.instance()) match {
             case Some(congestionController) if fileWriters.nonEmpty =>
