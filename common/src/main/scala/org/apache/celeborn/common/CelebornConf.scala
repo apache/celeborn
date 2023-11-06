@@ -2894,7 +2894,7 @@ object CelebornConf extends Logging {
   val APPLICATION_UNREGISTER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.application.unregister.enabled")
       .categories("client")
-      .version("0.4.0")
+      .version("0.3.2")
       .doc("When true, Celeborn client will inform celeborn master the application is already shutdown during client " +
         "exit, this allows the cluster to release resources immediately, resulting in resource savings.")
       .booleanConf

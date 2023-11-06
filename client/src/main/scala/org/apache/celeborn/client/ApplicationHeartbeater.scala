@@ -102,10 +102,10 @@ class ApplicationHeartbeater(
   private def unregisterApplication(): Unit = {
     try {
       // Then unregister Application
-      logInfo(s"Unregister Application when $appId shutdown")
-      masterClient.askSync[ApplicationLostResponse](
+      val response = masterClient.askSync[ApplicationLostResponse](
         ApplicationLost(appId),
         classOf[ApplicationLostResponse])
+      logInfo(s"Unregister Application $appId with response status: ${response.status}")
     } catch {
       case e: Exception =>
         logWarning("AskSync unRegisterApplication failed.", e)
