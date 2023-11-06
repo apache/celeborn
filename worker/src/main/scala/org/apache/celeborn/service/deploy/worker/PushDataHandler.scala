@@ -19,8 +19,8 @@ package org.apache.celeborn.service.deploy.worker
 
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray, AtomicReference}
-import scala.util.{Failure, Success, Try}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
+import scala.util.{Failure, Success}
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
@@ -41,9 +41,8 @@ import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
-import java.util
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
