@@ -67,7 +67,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
-  private val applicationUnregisterEnabled = conf.applicationUnregisterEnabled
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   // maintain each shuffle's map relation of WorkerInfo and partition location
@@ -1147,10 +1146,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * A convenient method to stop [[RpcEndpoint]].
    */
   override def stop(): Unit = {
-    if (applicationUnregisterEnabled) {
-      heartbeater.stop()
-    }
-
+    heartbeater.stop()
     super.stop()
   }
 }

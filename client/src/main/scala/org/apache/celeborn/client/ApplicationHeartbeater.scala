@@ -40,6 +40,7 @@ class ApplicationHeartbeater(
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
+  private val applicationUnregisterEnabled = conf.applicationUnregisterEnabled
   private val appHeartbeatHandlerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-app-heartbeat")
   private var appHeartbeat: ScheduledFuture[_] = _
@@ -118,8 +119,10 @@ class ApplicationHeartbeater(
         logInfo(s"Stop Application heartbeat $appId")
         appHeartbeat.cancel(true)
         ThreadUtils.shutdown(appHeartbeatHandlerThread, 800.millis)
+        if (applicationUnregisterEnabled) {
+          unregisterApplication()
+        }
         stopped = true
-        unregisterApplication()
       }
     }
   }
