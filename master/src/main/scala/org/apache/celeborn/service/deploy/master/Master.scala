@@ -22,7 +22,6 @@ import java.net.BindException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 import java.util.function.ToLongFunction
-import java.util.stream.Collectors
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -287,18 +286,6 @@ private[celeborn] class Master(
       executeWithLeaderChecker(null, timeoutDeadApplications())
     case CheckForHDFSExpiredDirsTimeout =>
       executeWithLeaderChecker(null, checkAndCleanExpiredAppDirsOnHDFS())
-    case pb: PbWorkerExclude =>
-      val workersToAdd = new util.ArrayList[WorkerInfo](pb.getWorkersToAddList
-        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
-      val workersToRemove = new util.ArrayList[WorkerInfo](pb.getWorkersToRemoveList
-        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
-      executeWithLeaderChecker(
-        null,
-        handleWorkerExclude(
-          null,
-          workersToAdd,
-          workersToRemove,
-          pb.getRequestId))
     case pb: PbWorkerLost =>
       val host = pb.getHost
       val rpcPort = pb.getRpcPort
@@ -428,9 +415,9 @@ private[celeborn] class Master(
       val workersToRemove = new util.ArrayList[WorkerInfo](pb.getWorkersToRemoveList
         .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
       executeWithLeaderChecker(
-        null,
+        context,
         handleWorkerExclude(
-          null,
+          context,
           workersToAdd,
           workersToRemove,
           pb.getRequestId))
@@ -1014,17 +1001,22 @@ private[celeborn] class Master(
     sb.append("============================ Add/Remove Excluded Workers  Manually =============================\n")
     val workersToAdd = addWorkers.split(",").filter(_.nonEmpty)
     val workersToRemove = removeWorkers.split(",").filter(_.nonEmpty)
-    self.send(WorkerExclude(
+    val workerExcludeResponse = self.askSync[PbWorkerExcludeResponse](WorkerExclude(
       workersToAdd.map(WorkerInfo.fromUniqueId).toList.asJava,
       workersToRemove.map(WorkerInfo.fromUniqueId).toList.asJava,
       MasterClient.genRequestId()))
-    sb.append(
-      s"Excluded workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")}\n")
+    if (workerExcludeResponse.getSuccess) {
+      sb.append(
+        s"Excluded workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")} successfully.\n")
+    } else {
+      sb.append(
+        s"Failed to Exclude workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")}.\n")
+    }
     val unknownExcludedWorkers =
       (workersToAdd ++ workersToRemove).filter(!workersSnapShot.contains(_))
     if (unknownExcludedWorkers.nonEmpty) {
       sb.append(
-        s"Unknown worker ${unknownExcludedWorkers.mkString(",")}. Workers in Master:\n$getWorkers")
+        s"Unknown worker ${unknownExcludedWorkers.mkString(",")}. Workers in Master:\n$getWorkers.")
     }
     sb.toString()
   }
