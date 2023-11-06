@@ -59,6 +59,15 @@ celeborn.worker.flusher.hdfs.buffer.size 4m
 celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
 
+# If your HDFS is enabled with Kerberos authentication. You also need to set the following
+# parameters for Celeborn master and worker. You need to deploy the keytab file to the
+# corresponding path on the master and worker.
+celeborn.storage.hdfs.kerberos.enabled true
+celeborn.storage.hdfs.kerberos.principal user@REALM
+celeborn.storage.hdfs.kerberos.keytab /path/to/user.keytab
+celeborn.hadoop.hadoop.security.authorization kerberos
+celeborn.hadoop.dfs.namenode.kerberos.principal hdfs/_HOST@REALM
+
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
 ```   
