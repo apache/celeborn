@@ -883,7 +883,7 @@ trait FlinkClientProjects {
   
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
-          case m if m == "META-INF/LICENSE" || m == "META-INF/NOTICE" => MergeStrategy.preferProject
+          case "META-INF/LICENSE" | "META-INF/NOTICE" => MergeStrategy.preferProject
           case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
