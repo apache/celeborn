@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.File
 import java.lang.{Long => JLong}
 import java.util
-import java.util.{HashMap => JHashMap, HashSet => JHashSet, Map => JMap}
+import java.util.{HashMap => JHashMap, HashSet => JHashSet, Locale, Map => JMap}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
@@ -647,7 +647,7 @@ private[celeborn] class Worker(
   }
 
   override def exit(exitType: String): String = {
-    exitType match {
+    exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
         exitKind = CelebornExitKind.WORKER_DECOMMISSION
         ShutdownHookManager.get().updateTimeout(

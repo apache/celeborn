@@ -141,6 +141,36 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleWorkerExclude(
+      List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.WorkerExclude)
+              .setRequestId(requestId)
+              .setWorkerExcludeRequest(
+                  ResourceProtos.WorkerExcludeRequest.newBuilder()
+                      .addAllWorkersToAdd(
+                          workersToAdd.stream()
+                              .map(MetaUtil::infoToAddr)
+                              .collect(Collectors.toList()))
+                      .addAllWorkersToRemove(
+                          workersToRemove.stream()
+                              .map(MetaUtil::infoToAddr)
+                              .collect(Collectors.toList()))
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error(
+          "Handle worker exclude for workersToAdd {} and workersToRemove {} failed!",
+          workersToAdd.stream().map(WorkerInfo::toString).collect(Collectors.joining(",")),
+          workersToRemove.stream().map(WorkerInfo::toString).collect(Collectors.joining(",")),
+          e);
+      throw e;
+    }
+  }
+
+  @Override
   public void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     try {

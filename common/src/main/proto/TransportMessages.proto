@@ -85,6 +85,8 @@ enum MessageType {
   STREAM_CHUNK_SLICE = 62;
   CHUNK_FETCH_REQUEST = 63;
   TRANSPORTABLE_ERROR = 64;
+  WORKER_EXCLUDE = 65;
+  WORKER_EXCLUDE_RESPONSE = 66;
 }
 
 enum StreamType {
@@ -417,6 +419,16 @@ message PbRemoveWorkersUnavailableInfo {
   string requestId = 2;
 }
 
+message PbWorkerExclude {
+  repeated PbWorkerInfo workersToAdd = 1;
+  repeated PbWorkerInfo workersToRemove = 2;
+  string requestId = 3;
+}
+
+message PbWorkerExcludeResponse {
+  bool success = 1;
+}
+
 message PbWorkerLost {
   string host = 1;
   int32 rpcPort = 2;
@@ -500,6 +512,7 @@ message PbSnapshotMetaInfo {
   PbAppDiskUsageSnapshot currentAppDiskUsageMetricsSnapshot = 11;
   map<string, int64> lostWorkers = 12;
   repeated PbWorkerInfo shutdownWorkers = 13;
+  repeated PbWorkerInfo manuallyExcludedWorkers = 14;
 }
 
 message PbOpenStream {

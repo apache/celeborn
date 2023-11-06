@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.collect.ImmutableMap;
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -51,7 +50,7 @@ public class RatisMasterStatusSystemSuiteJ {
   protected static HAMasterMetaManager STATUSSYSTEM2 = null;
   protected static HAMasterMetaManager STATUSSYSTEM3 = null;
 
-  private static RpcEndpointRef dummyRef =
+  private static final RpcEndpointRef dummyRef =
       new NettyRpcEndpointRef(
           new CelebornConf(), RpcEndpointAddress.apply("localhost", 111, "dummy"), null);
 
@@ -155,45 +154,43 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
-  public void testLeaderAvaiable() throws InterruptedException {
-    boolean hasLeader = false;
-    if (RATISSERVER1.isLeader() || RATISSERVER2.isLeader() || RATISSERVER3.isLeader()) {
-      hasLeader = true;
-    }
-    Assert.assertEquals(hasLeader, true);
+  public void testLeaderAvaiable() {
+    boolean hasLeader =
+        RATISSERVER1.isLeader() || RATISSERVER2.isLeader() || RATISSERVER3.isLeader();
+    Assert.assertTrue(hasLeader);
   }
 
-  private static String HOSTNAME1 = "host1";
-  private static int RPCPORT1 = 1111;
-  private static int PUSHPORT1 = 1112;
-  private static int FETCHPORT1 = 1113;
-  private static int REPLICATEPORT1 = 1114;
-  private static Map<String, DiskInfo> disks1 = new HashMap();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
+  private static final String HOSTNAME1 = "host1";
+  private static final int RPCPORT1 = 1111;
+  private static final int PUSHPORT1 = 1112;
+  private static final int FETCHPORT1 = 1113;
+  private static final int REPLICATEPORT1 = 1114;
+  private static final Map<String, DiskInfo> disks1 = new HashMap<>();
+  private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
       new HashMap<>();
 
-  private static String HOSTNAME2 = "host2";
-  private static int RPCPORT2 = 2111;
-  private static int PUSHPORT2 = 2112;
-  private static int FETCHPORT2 = 2113;
-  private static int REPLICATEPORT2 = 2114;
-  private static Map<String, DiskInfo> disks2 = new HashMap<>();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
+  private static final String HOSTNAME2 = "host2";
+  private static final int RPCPORT2 = 2111;
+  private static final int PUSHPORT2 = 2112;
+  private static final int FETCHPORT2 = 2113;
+  private static final int REPLICATEPORT2 = 2114;
+  private static final Map<String, DiskInfo> disks2 = new HashMap<>();
+  private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
       new HashMap<>();
 
-  private static String HOSTNAME3 = "host3";
-  private static int RPCPORT3 = 3111;
-  private static int PUSHPORT3 = 3112;
-  private static int FETCHPORT3 = 3113;
-  private static int REPLICATEPORT3 = 3114;
-  private static Map<String, DiskInfo> disks3 = new HashMap<>();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
+  private static final String HOSTNAME3 = "host3";
+  private static final int RPCPORT3 = 3111;
+  private static final int PUSHPORT3 = 3112;
+  private static final int FETCHPORT3 = 3113;
+  private static final int REPLICATEPORT3 = 3114;
+  private static final Map<String, DiskInfo> disks3 = new HashMap<>();
+  private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
       new HashMap<>();
 
-  private AtomicLong callerId = new AtomicLong();
-  private static String APPID1 = "appId1";
-  private static int SHUFFLEID1 = 1;
-  private static String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
+  private final AtomicLong callerId = new AtomicLong();
+  private static final String APPID1 = "appId1";
+  private static final int SHUFFLEID1 = 1;
+  private static final String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
 
   private String getNewReqeustId() {
     return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
@@ -235,7 +232,7 @@ public class RatisMasterStatusSystemSuiteJ {
           disks1,
           userResourceConsumption1,
           getNewReqeustId());
-      Assert.assertTrue(false);
+      Assert.fail();
     } catch (CelebornRuntimeException e) {
       Assert.assertTrue(true);
     } finally {
@@ -281,6 +278,66 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
+  }
+
+  @Test
+  public void testHandleWorkerExclude() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    WorkerInfo workerInfo1 =
+        new WorkerInfo(
+            HOSTNAME1,
+            RPCPORT1,
+            PUSHPORT1,
+            FETCHPORT1,
+            REPLICATEPORT1,
+            disks1,
+            userResourceConsumption1);
+    WorkerInfo workerInfo2 =
+        new WorkerInfo(
+            HOSTNAME2,
+            RPCPORT2,
+            PUSHPORT2,
+            FETCHPORT2,
+            REPLICATEPORT2,
+            disks2,
+            userResourceConsumption2);
+
+    statusSystem.handleRegisterWorker(
+        workerInfo1.host(),
+        workerInfo1.rpcPort(),
+        workerInfo1.pushPort(),
+        workerInfo1.fetchPort(),
+        workerInfo1.replicatePort(),
+        workerInfo1.diskInfos(),
+        workerInfo1.userResourceConsumption(),
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        workerInfo2.host(),
+        workerInfo2.rpcPort(),
+        workerInfo2.pushPort(),
+        workerInfo2.fetchPort(),
+        workerInfo2.replicatePort(),
+        workerInfo2.diskInfos(),
+        workerInfo2.userResourceConsumption(),
+        getNewReqeustId());
+
+    statusSystem.handleWorkerExclude(
+        Arrays.asList(workerInfo1, workerInfo2), Collections.emptyList(), getNewReqeustId());
+    Thread.sleep(3000L);
+
+    Assert.assertEquals(2, STATUSSYSTEM1.manuallyExcludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.manuallyExcludedWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.manuallyExcludedWorkers.size());
+
+    statusSystem.handleWorkerExclude(
+        Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
+    Thread.sleep(3000L);
+
+    Assert.assertEquals(1, STATUSSYSTEM1.manuallyExcludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM2.manuallyExcludedWorkers.size());
+    Assert.assertEquals(1, STATUSSYSTEM3.manuallyExcludedWorkers.size());
   }
 
   @Test
@@ -483,15 +540,6 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
     Thread.sleep(3000L);
 
-    List<String> workerIds = new ArrayList<>();
-    workerIds.add(
-        HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 + ":" + REPLICATEPORT1);
-
-    List<Map<String, Integer>> workerSlots = new ArrayList<>();
-    workerSlots.add(ImmutableMap.of("disk1", 3));
-
-    Thread.sleep(3000L);
-
     // Do not update diskinfo's activeslots
 
     Assert.assertEquals(
@@ -658,9 +706,9 @@ public class RatisMasterStatusSystemSuiteJ {
     statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(true, STATUSSYSTEM1.registeredShuffle.isEmpty());
-    Assert.assertEquals(true, STATUSSYSTEM2.registeredShuffle.isEmpty());
-    Assert.assertEquals(true, STATUSSYSTEM3.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM1.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM2.registeredShuffle.isEmpty());
+    Assert.assertTrue(STATUSSYSTEM3.registeredShuffle.isEmpty());
   }
 
   @Test
@@ -671,17 +719,17 @@ public class RatisMasterStatusSystemSuiteJ {
     long dummy = 1235L;
     statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
     Thread.sleep(3000L);
-    Assert.assertEquals(new Long(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
-    Assert.assertEquals(new Long(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
-    Assert.assertEquals(new Long(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
+    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
+    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
+    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(new Long(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
-    Assert.assertEquals(new Long(dummy), STATUSSYSTEM2.appHeartbeatTime.get(appId2));
-    Assert.assertEquals(new Long(dummy), STATUSSYSTEM3.appHeartbeatTime.get(appId2));
+    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
+    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(appId2));
+    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(appId2));
 
     Assert.assertEquals(2, STATUSSYSTEM1.appHeartbeatTime.size());
     Assert.assertEquals(2, STATUSSYSTEM2.appHeartbeatTime.size());
@@ -871,7 +919,8 @@ public class RatisMasterStatusSystemSuiteJ {
         userResourceConsumption3,
         getNewReqeustId());
 
-    WorkerInfo workerInfo1 =
+    List<WorkerInfo> failedWorkers = new ArrayList<>();
+    failedWorkers.add(
         new WorkerInfo(
             HOSTNAME1,
             RPCPORT1,
@@ -879,19 +928,7 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1);
-    WorkerInfo workerInfo2 =
-        new WorkerInfo(
-            HOSTNAME2,
-            RPCPORT2,
-            PUSHPORT2,
-            FETCHPORT2,
-            REPLICATEPORT2,
-            disks2,
-            userResourceConsumption2);
-
-    List<WorkerInfo> failedWorkers = new ArrayList<>();
-    failedWorkers.add(workerInfo1);
+            userResourceConsumption1));
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     Thread.sleep(3000L);
