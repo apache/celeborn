@@ -136,6 +136,14 @@ upload_nexus_staging() {
   ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.17 \
     -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
     -pl :celeborn-client-flink-1.17-shaded_2.12
+
+  echo "Deploying celeborn-client-flink-1.18-shaded_2.12"
+  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,flink-1.18 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-flink-1.18-shaded_2.12 -am
+  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.18 \
+    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
+    -pl :celeborn-client-flink-1.18-shaded_2.12
 }
 
 finalize_svn() {
