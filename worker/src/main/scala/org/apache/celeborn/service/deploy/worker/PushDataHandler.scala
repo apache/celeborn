@@ -1221,9 +1221,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       shuffleKey: String): Future[Unit] = {
     Future {
       try {
-        synchronized {
-          fileWriter.write(body)
-        }
+        fileWriter.write(body)
       } catch {
         case e: AlreadyClosedException =>
           fileWriter.decrementPendingWrites()
