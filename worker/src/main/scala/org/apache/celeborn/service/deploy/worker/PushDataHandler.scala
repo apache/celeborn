@@ -20,10 +20,15 @@ package org.apache.celeborn.service.deploy.worker
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
+
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
+
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo, WorkerPartitionLocationInfo}
@@ -40,9 +45,6 @@ import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
@@ -292,7 +294,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     Option(CongestionController.instance()) match {
                       case Some(congestionController) =>
                         if (congestionController.isUserCongested(
-                          fileWriter.getFileInfo.getUserIdentifier)) {
+                            fileWriter.getFileInfo.getUserIdentifier)) {
                           // Check whether primary congest the data though the replicas doesn't congest
                           // it(the response is empty)
                           callbackWithTimer.onSuccess(
@@ -363,11 +365,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       localWriteFuture.onComplete {
         case Success(_) =>
           if (softSplit.get()) {
-            callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+            callbackWithTimer.onSuccess(
+              ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
           } else {
             Option(CongestionController.instance()) match {
               case Some(congestionController) =>
-                if (congestionController.isUserCongested(fileWriter.getFileInfo.getUserIdentifier)) {
+                if (congestionController.isUserCongested(
+                    fileWriter.getFileInfo.getUserIdentifier)) {
                   if (isPrimary) {
                     callbackWithTimer.onSuccess(
                       ByteBuffer.wrap(
@@ -517,7 +521,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       var fileWriter: FileWriter = null
       batchOffsets.zip(fileWriters).map { case (offset, writer) =>
         fileWriter = writer
-        val batchBody = body.slice(body.readerIndex() + offset,
+        val batchBody = body.slice(
+          body.readerIndex() + offset,
           if (offset == batchOffsets.last) body.readableBytes() - offset
           else batchOffsets(batchOffsets.indexOf(offset) + 1) - offset)
         writeDataWithExceptionHandling(fileWriter, batchBody, shuffleKey)
@@ -562,7 +567,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     Option(CongestionController.instance()) match {
                       case Some(congestionController) if fileWriters.nonEmpty =>
                         if (congestionController.isUserCongested(
-                          fileWriters.head.getFileInfo.getUserIdentifier)) {
+                            fileWriters.head.getFileInfo.getUserIdentifier)) {
                           // Check whether primary congest the data though the replicas doesn't congest
                           // it(the response is empty)
                           callbackWithTimer.onSuccess(
@@ -636,7 +641,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           Option(CongestionController.instance()) match {
             case Some(congestionController) if fileWriters.nonEmpty =>
               if (congestionController.isUserCongested(
-                fileWriters.head.getFileInfo.getUserIdentifier)) {
+                  fileWriters.head.getFileInfo.getUserIdentifier)) {
                 if (isPrimary) {
                   callbackWithTimer.onSuccess(
                     ByteBuffer.wrap(
@@ -1211,9 +1216,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   def writeDataWithExceptionHandling(
-    fileWriter: FileWriter,
-    body: ByteBuf,
-    shuffleKey: String): Future[Unit] = {
+      fileWriter: FileWriter,
+      body: ByteBuf,
+      shuffleKey: String): Future[Unit] = {
     Future {
       try {
         synchronized {
