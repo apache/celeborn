@@ -34,7 +34,7 @@ object Dependencies {
 
   val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.2-1")
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
-  
+
   // Dependent library versions
   val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
@@ -934,6 +934,8 @@ object MRClientProjects {
   }
 
   def mrIt: Project = {
+    val hadoopVersion = "3.3.6"
+
     Project("celeborn-mr-it", file("tests/mr-it"))
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
       .dependsOn(CelebornCommon.common % "test->test;compile->compile")
@@ -947,6 +949,10 @@ object MRClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.hadoop" % "hadoop-client-minicluster" % hadoopVersion % "test",
           "org.apache.hadoop" % "hadoop-mapreduce-examples" % hadoopVersion % "test",
+          "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion,
+          "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion,
+          "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll (
+            ExclusionRule("com.google.guava", "guava")),
           "org.bouncycastle" % "bcpkix-jdk15on" % "1.68"
         ) ++ commonUnitTestDependencies
       )
