@@ -1230,7 +1230,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             if (shuffleMapperAttempts.containsKey(shuffleKey)) {
               shuffleMapperAttempts.get(shuffleKey).get(mapId)
             } else -1
-          logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+          logError(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
             s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
           throw e
       }
