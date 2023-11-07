@@ -36,6 +36,7 @@ enum Type {
   UpdatePartitionSize = 21;
   WorkerRemove = 22;
   RemoveWorkersUnavailableInfo = 23;
+  WorkerExclude = 24;
 }
 
 message ResourceRequest {
@@ -55,6 +56,7 @@ message ResourceRequest {
   optional ReportWorkerUnavailableRequest reportWorkerUnavailableRequest = 18;
   optional WorkerRemoveRequest workerRemoveRequest = 19;
   optional RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest = 20;
+  optional WorkerExcludeRequest workerExcludeRequest = 21;
 }
 
 message DiskInfo {
@@ -95,6 +97,11 @@ message AppHeartbeatRequest {
 
 message AppLostRequest {
   required string appId = 1;
+}
+
+message WorkerExcludeRequest {
+  repeated WorkerAddress workersToAdd = 1;
+  repeated WorkerAddress workersToRemove = 2;
 }
 
 message WorkerLostRequest {

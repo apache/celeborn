@@ -131,6 +131,18 @@ public class MetaHandler {
           metaSystem.updateAppLostMeta(appId);
           break;
 
+        case WorkerExclude:
+          List<ResourceProtos.WorkerAddress> addAddresses =
+              request.getWorkerExcludeRequest().getWorkersToAddList();
+          List<ResourceProtos.WorkerAddress> removeAddresses =
+              request.getWorkerExcludeRequest().getWorkersToRemoveList();
+          List<WorkerInfo> workersToAdd =
+              addAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
+          List<WorkerInfo> workersToRemove =
+              removeAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
+          metaSystem.updateWorkerExcludeMeta(workersToAdd, workersToRemove);
+          break;
+
         case WorkerLost:
           host = request.getWorkerLostRequest().getHost();
           rpcPort = request.getWorkerLostRequest().getRpcPort();

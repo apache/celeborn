@@ -369,6 +369,7 @@ object PbSerDeUtils {
       registeredShuffle: java.util.Set[String],
       hostnameSet: java.util.Set[String],
       excludedWorkers: java.util.Set[WorkerInfo],
+      manuallyExcludedWorkers: java.util.Set[WorkerInfo],
       workerLostEvent: java.util.Set[WorkerInfo],
       appHeartbeatTime: java.util.Map[String, java.lang.Long],
       workers: java.util.List[WorkerInfo],
@@ -383,6 +384,8 @@ object PbSerDeUtils {
       .addAllRegisteredShuffle(registeredShuffle)
       .addAllHostnameSet(hostnameSet)
       .addAllExcludedWorkers(excludedWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .addAllManuallyExcludedWorkers(manuallyExcludedWorkers.asScala
+        .map(toPbWorkerInfo(_, true)).asJava)
       .addAllWorkerLostEvents(workerLostEvent.asScala.map(toPbWorkerInfo(_, true)).asJava)
       .putAllAppHeartbeatTime(appHeartbeatTime)
       .addAllWorkers(workers.asScala.map(toPbWorkerInfo(_, true)).asJava)

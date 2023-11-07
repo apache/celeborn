@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -43,43 +42,43 @@ import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 
 public class DefaultMetaSystemSuiteJ {
 
-  private RpcEnv mockRpcEnv = mock(RpcEnv.class);
-  private CelebornConf conf = new CelebornConf();
+  private final RpcEnv mockRpcEnv = mock(RpcEnv.class);
+  private final CelebornConf conf = new CelebornConf();
   private AbstractMetaManager statusSystem;
-  private RpcEndpointRef dummyRef =
+  private final RpcEndpointRef dummyRef =
       new NettyRpcEndpointRef(
           new CelebornConf(), RpcEndpointAddress.apply("localhost", 111, "dummy"), null);
-  private AtomicLong callerId = new AtomicLong();
+  private final AtomicLong callerId = new AtomicLong();
 
-  private static String HOSTNAME1 = "host1";
-  private static int RPCPORT1 = 1111;
-  private static int PUSHPORT1 = 1112;
-  private static int FETCHPORT1 = 1113;
-  private static int REPLICATEPORT1 = 1114;
-  private static Map<String, DiskInfo> disks1 = new HashMap<>();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
+  private static final String HOSTNAME1 = "host1";
+  private static final int RPCPORT1 = 1111;
+  private static final int PUSHPORT1 = 1112;
+  private static final int FETCHPORT1 = 1113;
+  private static final int REPLICATEPORT1 = 1114;
+  private static final Map<String, DiskInfo> disks1 = new HashMap<>();
+  private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
       new HashMap<>();
 
-  private static String HOSTNAME2 = "host2";
-  private static int RPCPORT2 = 2111;
-  private static int PUSHPORT2 = 2112;
-  private static int FETCHPORT2 = 2113;
-  private static int REPLICATEPORT2 = 2114;
-  private static Map<String, DiskInfo> disks2 = new HashMap<>();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
+  private static final String HOSTNAME2 = "host2";
+  private static final int RPCPORT2 = 2111;
+  private static final int PUSHPORT2 = 2112;
+  private static final int FETCHPORT2 = 2113;
+  private static final int REPLICATEPORT2 = 2114;
+  private static final Map<String, DiskInfo> disks2 = new HashMap<>();
+  private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
       new HashMap<>();
 
-  private static String HOSTNAME3 = "host3";
-  private static int RPCPORT3 = 3111;
-  private static int PUSHPORT3 = 3112;
-  private static int FETCHPORT3 = 3113;
-  private static int REPLICATEPORT3 = 3114;
-  private static Map<String, DiskInfo> disks3 = new HashMap<>();
-  private static Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
+  private static final String HOSTNAME3 = "host3";
+  private static final int RPCPORT3 = 3111;
+  private static final int PUSHPORT3 = 3112;
+  private static final int FETCHPORT3 = 3113;
+  private static final int REPLICATEPORT3 = 3114;
+  private static final Map<String, DiskInfo> disks3 = new HashMap<>();
+  private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
       new HashMap<>();
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
     statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf);
 
@@ -103,7 +102,7 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @After
-  public void tearDown() throws Exception {}
+  public void tearDown() {}
 
   private String getNewReqeustId() {
     return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
@@ -144,6 +143,55 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @Test
+  public void testHandleWorkerExclude() {
+    WorkerInfo workerInfo1 =
+        new WorkerInfo(
+            HOSTNAME1,
+            RPCPORT1,
+            PUSHPORT1,
+            FETCHPORT1,
+            REPLICATEPORT1,
+            disks1,
+            userResourceConsumption1);
+    WorkerInfo workerInfo2 =
+        new WorkerInfo(
+            HOSTNAME2,
+            RPCPORT2,
+            PUSHPORT2,
+            FETCHPORT2,
+            REPLICATEPORT2,
+            disks2,
+            userResourceConsumption2);
+
+    statusSystem.handleRegisterWorker(
+        workerInfo1.host(),
+        workerInfo1.rpcPort(),
+        workerInfo1.pushPort(),
+        workerInfo1.fetchPort(),
+        workerInfo1.replicatePort(),
+        workerInfo1.diskInfos(),
+        workerInfo1.userResourceConsumption(),
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        workerInfo2.host(),
+        workerInfo2.rpcPort(),
+        workerInfo2.pushPort(),
+        workerInfo2.fetchPort(),
+        workerInfo2.replicatePort(),
+        workerInfo2.diskInfos(),
+        workerInfo2.userResourceConsumption(),
+        getNewReqeustId());
+
+    statusSystem.handleWorkerExclude(
+        Arrays.asList(workerInfo1, workerInfo2), Collections.emptyList(), getNewReqeustId());
+    assert (statusSystem.manuallyExcludedWorkers.size() == 2);
+
+    statusSystem.handleWorkerExclude(
+        Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
+    assert (statusSystem.manuallyExcludedWorkers.size() == 1);
+  }
+
+  @Test
   public void testHandleWorkerLost() {
     statusSystem.handleRegisterWorker(
         HOSTNAME1,
@@ -178,9 +226,9 @@ public class DefaultMetaSystemSuiteJ {
     assert (statusSystem.workers.size() == 2);
   }
 
-  private static String APPID1 = "appId1";
-  private static int SHUFFLEID1 = 1;
-  private static String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
+  private static final String APPID1 = "appId1";
+  private static final int SHUFFLEID1 = 1;
+  private static final String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
 
   @Test
   public void testHandleRequestSlots() {
@@ -304,14 +352,6 @@ public class DefaultMetaSystemSuiteJ {
         allocation);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
-
-    List<String> workerIds = new ArrayList<>();
-    workerIds.add(
-        HOSTNAME1 + ":" + RPCPORT1 + ":" + PUSHPORT1 + ":" + FETCHPORT1 + ":" + REPLICATEPORT1);
-
-    List<Map<String, Integer>> workerSlots = new ArrayList<>();
-    workerSlots.add(ImmutableMap.of("disk1", 3));
-
     Assert.assertEquals(
         0,
         statusSystem.workers.stream()
@@ -583,7 +623,8 @@ public class DefaultMetaSystemSuiteJ {
         userResourceConsumption3,
         getNewReqeustId());
 
-    WorkerInfo workerInfo1 =
+    List<WorkerInfo> failedWorkers = new ArrayList<>();
+    failedWorkers.add(
         new WorkerInfo(
             HOSTNAME1,
             RPCPORT1,
@@ -591,23 +632,11 @@ public class DefaultMetaSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1);
-    WorkerInfo workerInfo2 =
-        new WorkerInfo(
-            HOSTNAME2,
-            RPCPORT2,
-            PUSHPORT2,
-            FETCHPORT2,
-            REPLICATEPORT2,
-            disks2,
-            userResourceConsumption2);
-
-    List<WorkerInfo> failedWorkers = new ArrayList<>();
-    failedWorkers.add(workerInfo1);
+            userResourceConsumption1));
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     assert 1 == statusSystem.shutdownWorkers.size();
-    assert 0 == statusSystem.excludedWorkers.size();
+    assert statusSystem.excludedWorkers.isEmpty();
   }
 
   @Test

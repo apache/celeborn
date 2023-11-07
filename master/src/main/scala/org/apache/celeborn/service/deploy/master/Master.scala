@@ -160,7 +160,7 @@ private[celeborn] class Master(
     statusSystem.registeredShuffle.size
   }
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
-    statusSystem.excludedWorkers.size
+    statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
   masterSource.addGauge(MasterSource.WORKER_COUNT) { () => statusSystem.workers.size }
   masterSource.addGauge(MasterSource.LOST_WORKER_COUNT) { () => statusSystem.lostWorkers.size }
@@ -409,6 +409,19 @@ private[celeborn] class Master(
         context,
         handleReportNodeUnavailable(context, failedWorkers, requestId))
 
+    case pb: PbWorkerExclude =>
+      val workersToAdd = new util.ArrayList[WorkerInfo](pb.getWorkersToAddList
+        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+      val workersToRemove = new util.ArrayList[WorkerInfo](pb.getWorkersToRemoveList
+        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+      executeWithLeaderChecker(
+        context,
+        handleWorkerExclude(
+          context,
+          workersToAdd,
+          workersToRemove,
+          pb.getRequestId))
+
     case pb: PbWorkerLost =>
       val host = pb.getHost
       val rpcPort = pb.getRpcPort
@@ -535,6 +548,20 @@ private[celeborn] class Master(
       }
     }
     context.reply(HeartbeatFromWorkerResponse(expiredShuffleKeys, registered))
+  }
+
+  private def handleWorkerExclude(
+      context: RpcCallContext,
+      workersToAdd: util.List[WorkerInfo],
+      workersToRemove: util.List[WorkerInfo],
+      requestId: String): Unit = {
+    statusSystem.handleWorkerExclude(
+      workersToAdd.asScala.filter(workersSnapShot.contains(_)).asJava,
+      workersToRemove.asScala.filter(workersSnapShot.contains(_)).asJava,
+      requestId)
+    if (context != null) {
+      context.reply(WorkerExcludeResponse(true))
+    }
   }
 
   private def handleWorkerLost(
@@ -878,8 +905,8 @@ private[celeborn] class Master(
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.excludedWorkers.contains(w) && !statusSystem.shutdownWorkers.contains(
-        w) && !tmpExcludedWorkerList.contains(w)
+      !statusSystem.excludedWorkers.contains(w) && !statusSystem.manuallyExcludedWorkers.contains(
+        w) && !statusSystem.shutdownWorkers.contains(w) && !tmpExcludedWorkerList.contains(w)
     }.asJava
   }
 
@@ -890,12 +917,14 @@ private[celeborn] class Master(
     sb.toString()
   }
 
+  private def getWorkers: String = {
+    workersSnapShot.asScala.mkString("\n")
+  }
+
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Workers Info in Master =========================\n")
-    workersSnapShot.asScala.foreach { w =>
-      sb.append(w).append("\n")
-    }
+    sb.append(getWorkers)
     sb.toString()
   }
 
@@ -920,8 +949,8 @@ private[celeborn] class Master(
   override def getExcludedWorkers: String = {
     val sb = new StringBuilder
     sb.append("===================== Excluded Workers in Master ======================\n")
-    statusSystem.excludedWorkers.asScala.foreach { worker =>
-      sb.append(s"${worker.toUniqueId()}\n")
+    (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).foreach {
+      worker => sb.append(s"${worker.toUniqueId()}\n")
     }
     sb.toString()
   }
@@ -967,13 +996,30 @@ private[celeborn] class Master(
     sb.toString()
   }
 
-  override def listPartitionLocationInfo: String = throw new UnsupportedOperationException()
-
-  override def getUnavailablePeers: String = throw new UnsupportedOperationException()
-
-  override def isShutdown: String = throw new UnsupportedOperationException()
-
-  override def isRegistered: String = throw new UnsupportedOperationException()
+  override def exclude(addWorkers: String, removeWorkers: String): String = {
+    val sb = new StringBuilder
+    sb.append("============================ Add/Remove Excluded Workers  Manually =============================\n")
+    val workersToAdd = addWorkers.split(",").filter(_.nonEmpty)
+    val workersToRemove = removeWorkers.split(",").filter(_.nonEmpty)
+    val workerExcludeResponse = self.askSync[PbWorkerExcludeResponse](WorkerExclude(
+      workersToAdd.map(WorkerInfo.fromUniqueId).toList.asJava,
+      workersToRemove.map(WorkerInfo.fromUniqueId).toList.asJava,
+      MasterClient.genRequestId()))
+    if (workerExcludeResponse.getSuccess) {
+      sb.append(
+        s"Excluded workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")} successfully.\n")
+    } else {
+      sb.append(
+        s"Failed to Exclude workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")}.\n")
+    }
+    val unknownExcludedWorkers =
+      (workersToAdd ++ workersToRemove).filter(!workersSnapShot.contains(_))
+    if (unknownExcludedWorkers.nonEmpty) {
+      sb.append(
+        s"Unknown worker ${unknownExcludedWorkers.mkString(",")}. Workers in Master:\n$getWorkers.")
+    }
+    sb.toString()
+  }
 
   private def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard

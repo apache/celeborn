@@ -39,6 +39,9 @@ public interface IMetadataHandler {
 
   void handleAppLost(String appId, String requestId);
 
+  void handleWorkerExclude(
+      List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId);
+
   void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
 

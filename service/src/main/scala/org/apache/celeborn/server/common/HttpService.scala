@@ -43,9 +43,15 @@ abstract class HttpService extends Service with Logging {
     sb.toString()
   }
 
-  def getMasterGroupInfo: String = throw new UnsupportedOperationException()
-
   def getWorkerInfo: String
+
+  def getThreadDump: String
+
+  def getShuffleList: String
+
+  def listTopDiskUseApps: String
+
+  def getMasterGroupInfo: String = throw new UnsupportedOperationException()
 
   def getLostWorkers: String = throw new UnsupportedOperationException()
 
@@ -53,23 +59,20 @@ abstract class HttpService extends Service with Logging {
 
   def getExcludedWorkers: String = throw new UnsupportedOperationException()
 
-  def getThreadDump: String
-
   def getHostnameList: String = throw new UnsupportedOperationException()
 
   def getApplicationList: String = throw new UnsupportedOperationException()
 
-  def getShuffleList: String
+  def exclude(addWorkers: String, removeWorkers: String): String =
+    throw new UnsupportedOperationException()
 
-  def listTopDiskUseApps: String
+  def listPartitionLocationInfo: String = throw new UnsupportedOperationException()
 
-  def listPartitionLocationInfo: String
+  def getUnavailablePeers: String = throw new UnsupportedOperationException()
 
-  def getUnavailablePeers: String
+  def isShutdown: String = throw new UnsupportedOperationException()
 
-  def isShutdown: String
-
-  def isRegistered: String
+  def isRegistered: String = throw new UnsupportedOperationException()
 
   def exit(exitType: String): String = throw new UnsupportedOperationException()
 
