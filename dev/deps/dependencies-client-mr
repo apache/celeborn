@@ -180,7 +180,7 @@ ratis-common/2.5.1//ratis-common-2.5.1.jar
 ratis-proto/2.5.1//ratis-proto-2.5.1.jar
 ratis-thirdparty-misc/1.0.4//ratis-thirdparty-misc-1.0.4.jar
 re2j/1.1//re2j-1.1.jar
-reload4j/1.2.19//reload4j-1.2.19.jar
+reload4j/1.2.22//reload4j-1.2.22.jar
 scala-library/2.12.15//scala-library-2.12.15.jar
 scala-reflect/2.12.15//scala-reflect-2.12.15.jar
 shims/0.9.32//shims-0.9.32.jar

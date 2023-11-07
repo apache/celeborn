@@ -81,6 +81,7 @@ object Dependencies {
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
   val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(
+    ExclusionRule("io.netty", "netty-transport-native-epoll"),
     ExclusionRule("com.google.guava", "guava"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
