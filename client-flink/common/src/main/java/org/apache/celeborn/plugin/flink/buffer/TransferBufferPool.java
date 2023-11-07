@@ -106,7 +106,8 @@ public class TransferBufferPool implements BufferRecycler {
         listener = creditListener;
       }
 
-      logger.warn("reserveBuffers,numCredits: {}, required: {}", numCredits, numRequiredBuffers);
+      logger.debug(
+          "reserveBuffers: numCredits: {}, requiredBuffers: {}", numCredits, numRequiredBuffers);
     }
     if (listener != null) {
       listener.notifyAvailableCredits(numCredits);
