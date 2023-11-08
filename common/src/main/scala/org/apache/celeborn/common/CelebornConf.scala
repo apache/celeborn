@@ -729,6 +729,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
+  def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
+
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeReplicaOnFailureEnabled: Boolean =
@@ -2899,6 +2901,15 @@ object CelebornConf extends Logging {
       .doc("Interval for client to send heartbeat message to master.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
+
+  val APPLICATION_UNREGISTER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.application.unregister.enabled")
+      .categories("client")
+      .version("0.3.2")
+      .doc("When true, Celeborn client will inform celeborn master the application is already shutdown during client " +
+        "exit, this allows the cluster to release resources immediately, resulting in resource savings.")
+      .booleanConf
+      .createWithDefault(true)
 
   val CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.excludePeerWorkerOnFailure.enabled")
