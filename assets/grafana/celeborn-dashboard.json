@@ -1184,12 +1184,12 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_SlotsAllocated_Value",
+              "expr": "metrics_SlotsAllocated_Count",
               "legendFormat": "$baseLegend",
               "refId": "A"
             }
           ],
-          "title": "metrics_SlotsAllocated_Value",
+          "title": "metrics_SlotsAllocated_Count",
           "type": "timeseries"
         },
         {

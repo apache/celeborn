@@ -59,14 +59,6 @@ class WorkerInfo(
       new util.HashMap[UserIdentifier, ResourceConsumption]())
   }
 
-  val allocationBuckets = new Array[Int](61)
-  var bucketIndex = 0
-  var bucketTime = System.currentTimeMillis()
-  var bucketAllocations = 0
-  0 until allocationBuckets.length foreach { case idx =>
-    allocationBuckets(idx) = 0
-  }
-
   def isActive: Boolean = {
     endpoint.asInstanceOf[NettyRpcEndpointRef].client.isActive
   }
@@ -76,27 +68,19 @@ class WorkerInfo(
     diskInfos.asScala.map(_._2.activeSlots).sum
   }
 
-  def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit =
+  def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit = {
+    logDebug(s"Shuffle $shuffleKey, allocations $slotsPerDisk")
     this.synchronized {
-      logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
-      var totalSlots = 0
       slotsPerDisk.asScala.foreach { case (disk, slots) =>
-        if (!diskInfos.containsKey(disk)) {
-          logDebug(s"Unknown disk $disk")
+        val diskInfo = diskInfos.get(disk)
+        if (diskInfo == null) {
+          logDebug(s"Unknown disk $disk when allocateSlots")
         } else {
-          diskInfos.get(disk).allocateSlots(shuffleKey, slots)
+          diskInfo.allocateSlots(shuffleKey, slots)
         }
-        totalSlots += slots
       }
-
-      val current = System.currentTimeMillis()
-      if (current - bucketTime > 60 * 1000) {
-        bucketIndex = (bucketIndex + 1) % allocationBuckets.length
-        allocationBuckets(bucketIndex) = 0
-        bucketTime = current
-      }
-      allocationBuckets(bucketIndex) = allocationBuckets(bucketIndex) + totalSlots
     }
+  }
 
   def releaseSlots(shuffleKey: String, slots: util.Map[String, Integer]): Unit = this.synchronized {
     slots.asScala.foreach { case (disk, slot) =>
@@ -116,14 +100,6 @@ class WorkerInfo(
       shuffleKeySet.addAll(diskInfo.getShuffleKeySet())
     }
     shuffleKeySet
-  }
-
-  def allocationsInLastHour(): Int = this.synchronized {
-    var total = 0
-    1 to 60 foreach { case delta =>
-      total += allocationBuckets((bucketIndex + delta) % allocationBuckets.length)
-    }
-    total
   }
 
   def hasSameInfoWith(other: WorkerInfo): Boolean = {

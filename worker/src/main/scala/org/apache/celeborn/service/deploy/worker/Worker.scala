@@ -270,9 +270,6 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.REGISTERED_SHUFFLE_COUNT) { () =>
     workerInfo.getShuffleKeySet.size
   }
-  workerSource.addGauge(WorkerSource.SLOTS_ALLOCATED) { () =>
-    workerInfo.allocationsInLastHour()
-  }
   workerSource.addGauge(WorkerSource.SORT_MEMORY) { () =>
     memoryManager.getSortMemoryCounter.get()
   }

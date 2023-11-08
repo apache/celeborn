@@ -816,7 +816,7 @@ object Utils extends Logging {
     val slotDistributions = new util.HashMap[String, Integer]()
     (masterLocations.asScala ++ workerLocations.asScala)
       .foreach {
-        case location =>
+        location =>
           val mountPoint = location.getStorageInfo.getMountPoint
           if (slotDistributions.containsKey(mountPoint)) {
             slotDistributions.put(mountPoint, slotDistributions.get(mountPoint) + 1)
@@ -824,10 +824,10 @@ object Utils extends Logging {
             slotDistributions.put(mountPoint, 1)
           }
       }
-    logDebug(s"locations to distribution ," +
-      s" ${masterLocations.asScala.map(_.toString).mkString(",")} " +
+    logDebug(s"locations to distribution, " +
+      s"${masterLocations.asScala.map(_.toString).mkString(",")} " +
       s"${workerLocations.asScala.map(_.toString).mkString(",")} " +
-      s"to ${slotDistributions} ")
+      s"to $slotDistributions ")
     slotDistributions
   }
 
