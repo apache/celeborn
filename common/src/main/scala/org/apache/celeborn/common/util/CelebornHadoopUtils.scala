@@ -80,18 +80,21 @@ object CelebornHadoopUtils extends Logging {
     // If we are accessing HDFS and it has Kerberos enabled, we have to login
     // from a keytab file so that we can access HDFS beyond the kerberos ticket expiration.
     UserGroupInformation.setConfiguration(hadoopConf)
-    if (conf.hdfsStorageKerberosEnabled) {
-      val principal = conf.hdfsStorageKerberosPrincipal
-        .getOrElse(throw new NoSuchElementException(
-          CelebornConf.HDFS_STORAGE_KERBEROS_PRINCIPAL.key))
-      val keytab = conf.hdfsStorageKerberosKeytab
-        .getOrElse(throw new NoSuchElementException(CelebornConf.HDFS_STORAGE_KERBEROS_KEYTAB.key))
-      if (!new File(keytab).exists()) {
-        throw new CelebornException(s"Keytab file: ${keytab} does not exist")
-      } else {
-        logInfo("Attempting to login to Kerberos " +
-          s"using principal: ${principal} and keytab: ${keytab}")
-        UserGroupInformation.loginUserFromKeytab(principal, keytab)
+    if ("kerberos".equals(hadoopConf.get("hadoop.security.authentication").toLowerCase)) {
+      val principalOpt = conf.hdfsStorageKerberosPrincipal
+      val keytabOpt = conf.hdfsStorageKerberosKeytab
+      (principalOpt, keytabOpt) match {
+        case (Some(principal), Some(keytab)) =>
+          logInfo("Attempting to login to Kerberos " +
+            s"using principal: ${principal} and keytab: ${keytab}")
+          if (!new File(keytab).exists()) {
+            throw new CelebornException(s"Keytab file: ${keytab} does not exist")
+          }
+          UserGroupInformation.loginUserFromKeytab(principal, keytab)
+        case _ =>
+          logInfo("Kerberos is enabled without principal and keytab supplied," +
+            " assuming keytab is managed externally")
+          UserGroupInformation.getCurrentUser()
       }
     }
   }
