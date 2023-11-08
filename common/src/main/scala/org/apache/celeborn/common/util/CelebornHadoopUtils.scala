@@ -77,8 +77,6 @@ object CelebornHadoopUtils extends Logging {
   }
 
   def initKerberos(conf: CelebornConf, hadoopConf: Configuration): Unit = {
-    // If we are accessing HDFS and it has Kerberos enabled, we have to login
-    // from a keytab file so that we can access HDFS beyond the kerberos ticket expiration.
     UserGroupInformation.setConfiguration(hadoopConf)
     if ("kerberos".equals(hadoopConf.get("hadoop.security.authentication").toLowerCase)) {
       val principalOpt = conf.hdfsStorageKerberosPrincipal
