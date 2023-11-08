@@ -53,7 +53,7 @@ As an example, one can build a version of Celeborn as follows:
 To create a Celeborn distribution like those distributed by the [Celeborn Downloads](https://celeborn.apache.org/download/) page, and that is laid out so as to be runnable, use `./build/make-distribution.sh` in the project root directory.
 
 ```
-./build/make-distribution.sh --sbt-enabled
+./build/make-distribution.sh --sbt-enabled --release
 ```
 
 ### Maven-Style Profile Management
