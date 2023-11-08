@@ -79,9 +79,7 @@ object CelebornHadoopUtils extends Logging {
   def initKerberos(conf: CelebornConf, hadoopConf: Configuration): Unit = {
     UserGroupInformation.setConfiguration(hadoopConf)
     if ("kerberos".equals(hadoopConf.get("hadoop.security.authentication").toLowerCase)) {
-      val principalOpt = conf.hdfsStorageKerberosPrincipal
-      val keytabOpt = conf.hdfsStorageKerberosKeytab
-      (principalOpt, keytabOpt) match {
+      (conf.hdfsStorageKerberosPrincipal, conf.hdfsStorageKerberosKeytab) match {
         case (Some(principal), Some(keytab)) =>
           logInfo("Attempting to login to Kerberos " +
             s"using principal: ${principal} and keytab: ${keytab}")
