@@ -982,6 +982,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDiskTimeSlidingWindowMinFetchCount: Int =
     get(WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT)
   def workerDiskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
+  def workerDiskReserveRatio: Option[Double] = get(WORKER_DISK_RESERVE_RATIO)
   def workerDiskCleanThreads: Int = get(WORKER_DISK_CLEAN_THREADS)
   def workerDiskMonitorEnabled: Boolean = get(WORKER_DISK_MONITOR_ENABLED)
   def workerDiskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
@@ -2126,6 +2127,16 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
+
+  val WORKER_DISK_RESERVE_RATIO: OptionalConfigEntry[Double] =
+    buildConf("celeborn.worker.storage.disk.reserve.ratio")
+      .categories("worker")
+      .doc("Celeborn worker reserved ratio for each disk. The minimum usable size for each disk is the max space " +
+        "between the reserved space and the space calculate via reserved ratio.")
+      .version("0.3.2")
+      .doubleConf
+      .checkValue(v => v > 0.0 && v < 1.0, "Should be in (0.0, 1.0).")
+      .createOptional
 
   val WORKER_DISK_CLEAN_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.disk.clean.threads")

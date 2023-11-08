@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import scala.Option;
 import scala.Tuple2;
 
 import org.junit.Assert;
@@ -237,6 +238,7 @@ public class SlotsAllocatorSuiteJ {
             shouldReplicate,
             false,
             10 * 1024 * 1024 * 1024L,
+            Option.empty(),
             conf.masterSlotAssignLoadAwareDiskGroupNum(),
             conf.masterSlotAssignLoadAwareDiskGroupGradient(),
             conf.masterSlotAssignLoadAwareFlushTimeWeight(),

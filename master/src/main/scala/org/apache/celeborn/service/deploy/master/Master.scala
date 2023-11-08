@@ -119,6 +119,7 @@ private[celeborn] class Master(
     statusSystem.workers.synchronized(new util.ArrayList[WorkerInfo](statusSystem.shutdownWorkers))
 
   private def diskReserveSize = conf.workerDiskReserveSize
+  private def diskReserveRatio = conf.workerDiskReserveRatio
 
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
@@ -666,6 +667,7 @@ private[celeborn] class Master(
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
               diskReserveSize,
+              diskReserveRatio,
               slotsAssignLoadAwareDiskGroupNum,
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
