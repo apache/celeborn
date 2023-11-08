@@ -371,7 +371,8 @@ private[celeborn] class Master(
       executeWithLeaderChecker(context, handleGetBlacklist(context, msg))
 
     case ApplicationLost(appId, requestId) =>
-      logDebug(s"Received ApplicationLost request $requestId, $appId.")
+      logDebug(
+        s"Received ApplicationLost request $requestId, $appId from ${context.senderAddress}.")
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(

@@ -1202,4 +1202,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   // Initialize at the end of LifecycleManager construction.
   initialize()
+
+  /**
+   * A convenient method to stop [[RpcEndpoint]].
+   */
+  override def stop(): Unit = {
+    heartbeater.stop()
+    super.stop()
+  }
 }
