@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{DiskUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
@@ -54,6 +54,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private var registered: AtomicBoolean = _
   private var workerInfo: WorkerInfo = _
   private var diskReserveSize: Long = _
+  private var diskReserveRatio: Option[Double] = _
   private var partitionSplitMinimumSize: Long = _
   private var partitionSplitMaximumSize: Long = _
   private var shutdown: AtomicBoolean = _
@@ -75,6 +76,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     registered = worker.registered
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.workerDiskReserveSize
+    diskReserveRatio = worker.conf.workerDiskReserveRatio
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     partitionSplitMaximumSize = worker.conf.partitionSplitMaximumSize
     storageManager = worker.storageManager
@@ -85,7 +87,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     testPushPrimaryDataTimeout = worker.conf.testPushPrimaryDataTimeout
     testPushReplicaDataTimeout = worker.conf.testPushReplicaDataTimeout
 
-    logInfo(s"diskReserveSize ${Utils.bytesToString(diskReserveSize)}")
+    logInfo(
+      s"diskReserveSize ${Utils.bytesToString(diskReserveSize)}, diskReserveRatio ${diskReserveRatio.orNull}")
   }
 
   override def receive(client: TransportClient, msg: RequestMessage): Unit =
@@ -1195,8 +1198,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val diskInfo = workerInfo.diskInfos
       .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
 
+    val minimumUsableSize =
+      DiskUtils.getMinimumUsableSize(diskInfo, diskReserveSize, diskReserveRatio)
     val diskFull = diskInfo.status.equals(
-      DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace < diskReserveSize
+      DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace < minimumUsableSize
 
     diskFull
   }
