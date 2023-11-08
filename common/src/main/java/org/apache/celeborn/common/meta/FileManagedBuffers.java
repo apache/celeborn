@@ -20,11 +20,21 @@ package org.apache.celeborn.common.meta;
 import java.io.File;
 import java.util.List;
 
+import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
+import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.MemCacheManager;
 
 public class FileManagedBuffers {
+  private static final Logger logger = LoggerFactory.getLogger(FileManagedBuffers.class);
+  private static volatile long chunkTotal = 1;
+  private static volatile long fetchChunkFromCacheNum = 1;
+
   private final File file;
   private final long[] offsets;
   private final int numChunks;
@@ -56,6 +66,26 @@ public class FileManagedBuffers {
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     assert offset < chunkLength;
     long length = Math.min(chunkLength - offset, len);
+    MemCacheManager memCacheManager = MemCacheManager.getMemCacheManager();
+    chunkTotal++;
+    if (memCacheManager.contains(file.getAbsolutePath())) {
+      String filePath = file.getAbsolutePath();
+      ByteBuf fileBuffer = memCacheManager.getCache(filePath);
+      ByteBuf buffer = fileBuffer.slice((int) (chunkOffset + offset), (int) length);
+      logger.debug(
+          "fetch chunk form memory cache for "
+              + filePath
+              + ", start point is "
+              + (chunkOffset + offset)
+              + ", fetch size is "
+              + length);
+      fetchChunkFromCacheNum++;
+      return new NettyManagedBuffer(buffer);
+    }
     return new FileSegmentManagedBuffer(conf, file, chunkOffset + offset, length);
+  }
+
+  public static double getMemHitRate() {
+    return Math.round(((double) fetchChunkFromCacheNum / chunkTotal) * 10000) / 10000.0;
   }
 }

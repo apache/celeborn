@@ -43,7 +43,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, MemCacheManager, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
@@ -550,6 +550,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def cleanupExpiredShuffleKey(
       expiredShuffleKeys: util.HashSet[String],
       cleanDB: Boolean = true): Unit = {
+    val memCacheManager: MemCacheManager = MemCacheManager.getMemCacheManager
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (fileInfos.containsKey(shuffleKey)) {
@@ -558,6 +559,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
             case (_, fileInfo) =>
+              if (memCacheManager.contains(fileInfo.getFilePath)) {
+                logDebug(s"remove cache ${fileInfo.getFilePath}")
+                memCacheManager.removeCache(fileInfo.getFilePath)
+              }
               if (cleanFileInternal(shuffleKey, fileInfo)) {
                 isHdfsExpired = true
               }

@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
 import java.util
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import java.util.function.Consumer
 
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -33,7 +33,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
-import org.apache.celeborn.common.network.buffer.NioManagedBuffer
+import org.apache.celeborn.common.network.buffer.{ManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
@@ -60,6 +60,10 @@ class FetchHandler(
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
+
+  var pendingReadFileSize: AtomicLong = new AtomicLong(0)
+  var readTotalFileSize: AtomicLong = new AtomicLong(0)
+  var totalChunkNum: AtomicLong = new AtomicLong(0)
 
   def init(worker: Worker): Unit = {
 
@@ -344,13 +348,16 @@ class FetchHandler(
     workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
     val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(req.streamChunkSlice.streamId)
     val fetchBeginTime = System.nanoTime()
+    var buf: ManagedBuffer = null
     try {
-      val buf = chunkStreamManager.getChunk(
+      buf = chunkStreamManager.getChunk(
         req.streamChunkSlice.streamId,
         req.streamChunkSlice.chunkIndex,
         req.streamChunkSlice.offset,
         req.streamChunkSlice.len)
+      pendingReadFileSize.addAndGet(buf.size())
       chunkStreamManager.chunkBeingSent(req.streamChunkSlice.streamId)
+      totalChunkNum.incrementAndGet()
       client.getChannel.writeAndFlush(new ChunkFetchSuccess(req.streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
           override def operationComplete(future: Future[_ >: Void]): Unit = {
@@ -363,6 +370,10 @@ class FetchHandler(
               logError(
                 s"Sending ChunkFetchSuccess operation failed, chunk ${req.streamChunkSlice}",
                 future.cause())
+            }
+            if (buf != null) {
+              pendingReadFileSize.addAndGet(-1 * buf.size())
+              readTotalFileSize.addAndGet(buf.size())
             }
             chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
@@ -380,6 +391,8 @@ class FetchHandler(
         client.getChannel.writeAndFlush(new ChunkFetchFailure(
           req.streamChunkSlice,
           Throwables.getStackTraceAsString(e)))
+        if (buf != null)
+          pendingReadFileSize.addAndGet(-1 * buf.size())
         workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
     }
   }

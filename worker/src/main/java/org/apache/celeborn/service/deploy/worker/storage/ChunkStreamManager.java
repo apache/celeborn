@@ -45,6 +45,8 @@ public class ChunkStreamManager {
   // ShuffleKey -> StreamId
   protected final ConcurrentHashMap<String, Set<Long>> shuffleStreamIds;
 
+  private AtomicLong chunksBeingTransferredNum = new AtomicLong(0);
+
   /** State of a single stream. */
   protected static class StreamState {
     final FileManagedBuffers buffers;
@@ -97,6 +99,7 @@ public class ChunkStreamManager {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
       streamState.chunksBeingTransferred++;
+      chunksBeingTransferredNum.incrementAndGet();
     }
   }
 
@@ -104,15 +107,12 @@ public class ChunkStreamManager {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
       streamState.chunksBeingTransferred--;
+      chunksBeingTransferredNum.decrementAndGet();
     }
   }
 
   public long chunksBeingTransferred() {
-    long sum = 0L;
-    for (StreamState streamState : streams.values()) {
-      sum += streamState.chunksBeingTransferred;
-    }
-    return sum;
+    return chunksBeingTransferredNum.get();
   }
 
   /**

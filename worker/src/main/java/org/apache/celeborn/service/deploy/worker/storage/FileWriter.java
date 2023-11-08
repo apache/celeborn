@@ -42,6 +42,7 @@ import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
+import org.apache.celeborn.common.util.MemCacheManager;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -154,19 +155,27 @@ public abstract class FileWriter implements DeviceObserver {
 
   @GuardedBy("flushLock")
   protected void flush(boolean finalFlush) throws IOException {
+    MemCacheManager cacheManager = MemCacheManager.getMemCacheManager();
     // flushBuffer == null here means writer already closed
     if (flushBuffer != null) {
       int numBytes = flushBuffer.readableBytes();
       if (numBytes != 0) {
         notifier.checkException();
-        notifier.numPendingFlushes.incrementAndGet();
-        FlushTask task = null;
-        if (channel != null) {
-          task = new LocalFlushTask(flushBuffer, channel, notifier);
-        } else if (fileInfo.isHdfs()) {
-          task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
+        if (finalFlush && fileInfo.getFileLength() == 0 && cacheManager.canCache(numBytes)) {
+          cacheManager.putCache(fileInfo.getFilePath(), flushBuffer.copy());
+          flusher.returnBuffer(flushBuffer);
+          logger.debug(
+              "MemCache for " + fileInfo.getFilePath() + ", and total cache size is " + numBytes);
+        } else {
+          notifier.numPendingFlushes.incrementAndGet();
+          FlushTask task = null;
+          if (channel != null) {
+            task = new LocalFlushTask(flushBuffer, channel, notifier);
+          } else if (fileInfo.isHdfs()) {
+            task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
+          }
+          addTask(task);
         }
-        addTask(task);
         flushBuffer = null;
         fileInfo.updateBytesFlushed(numBytes);
         if (!finalFlush) {

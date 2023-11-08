@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.buffer.ByteBufUtil;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -610,11 +611,25 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     private void initializeFiles() throws IOException {
+      MemCacheManager memCacheManager = MemCacheManager.getMemCacheManager();
       if (isHdfs) {
+        if (memCacheManager.contains(originFilePath)) {
+          FSDataOutputStream hdfsOriginOutput =
+              StorageManager.hadoopFs().create(new Path(originFilePath), true);
+          hdfsOriginOutput.write(ByteBufUtil.getBytes(memCacheManager.getCache(originFilePath)));
+          hdfsOriginOutput.close();
+          memCacheManager.removeCache(originFilePath);
+        }
         hdfsOriginInput = StorageManager.hadoopFs().open(new Path(originFilePath));
         hdfsSortedOutput =
             StorageManager.hadoopFs().create(new Path(sortedFilePath), true, 256 * 1024);
       } else {
+        if (memCacheManager.contains(originFilePath)) {
+          FileChannel channel = FileChannelUtils.createWritableFileChannel(originFilePath);
+          channel.write(memCacheManager.getCache(originFilePath).nioBuffer());
+          channel.close();
+          memCacheManager.removeCache(originFilePath);
+        }
         originFileChannel = FileChannelUtils.openReadableFileChannel(originFilePath);
         sortedFileChannel = FileChannelUtils.createWritableFileChannel(sortedFilePath);
       }
