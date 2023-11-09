@@ -353,7 +353,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
         }
       })
-      pushData.body().retain()
       writeLocalData(Seq(fileWriter), body, shuffleKey, None, Some(writePromise))
     } else {
       // The codes here could be executed if
@@ -619,7 +618,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
         }
       })
-      pushMergedData.body().retain()
       writeLocalData(fileWriters, body, shuffleKey, Some(batchOffsets), Some(writePromise))
     } else {
       // The codes here could be executed if
