@@ -20,15 +20,11 @@ package org.apache.celeborn.service.deploy.worker
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
-
+import scala.concurrent.{Await, Promise}
+import scala.util.{Failure, Success, Try}
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
-
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo, WorkerPartitionLocationInfo}
@@ -45,6 +41,8 @@ import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
+
+import scala.concurrent.duration.Duration
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
@@ -249,10 +247,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter.decrementPendingWrites()
       return;
     }
-
-    val localWriteFuture = writeDataWithExceptionHandling(fileWriter, body, shuffleKey)
     // for primary, send data to replica
     if (doReplicate) {
+      val writePromise = Promise[Unit]()
       pushData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
@@ -276,7 +273,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
-              localWriteFuture.onComplete {
+              Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(_) =>
                   if (response.remaining() > 0) {
                     val resp = ByteBuffer.allocate(response.remaining())
@@ -316,7 +313,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-              localWriteFuture.onComplete {
+              Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(_) =>
                   if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
                     workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
@@ -354,6 +351,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
         }
       })
+      pushData.body().retain()
+      writeLocalData(Seq(fileWriter), body, shuffleKey, None, Some(writePromise))
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
@@ -362,33 +361,30 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       // will fast stop pushing data to the worker, we won't return congest status. But
       // in the long term, especially if this issue could frequently happen, we may need to return
       // congest&softSplit status together
-      localWriteFuture.onComplete {
-        case Success(_) =>
-          if (softSplit.get()) {
-            callbackWithTimer.onSuccess(
-              ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
-          } else {
-            Option(CongestionController.instance()) match {
-              case Some(congestionController) =>
-                if (congestionController.isUserCongested(
-                    fileWriter.getFileInfo.getUserIdentifier)) {
-                  if (isPrimary) {
-                    callbackWithTimer.onSuccess(
-                      ByteBuffer.wrap(
-                        Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
-                  } else {
-                    callbackWithTimer.onSuccess(
-                      ByteBuffer.wrap(
-                        Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
-                  }
-                } else {
-                  callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-                }
-              case None =>
-                callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      writeLocalData(Seq(fileWriter), body, shuffleKey, None, None)
+      if (softSplit.get()) {
+        callbackWithTimer.onSuccess(
+          ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+      } else {
+        Option(CongestionController.instance()) match {
+          case Some(congestionController) =>
+            if (congestionController.isUserCongested(
+                fileWriter.getFileInfo.getUserIdentifier)) {
+              if (isPrimary) {
+                callbackWithTimer.onSuccess(
+                  ByteBuffer.wrap(
+                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
+              } else {
+                callbackWithTimer.onSuccess(
+                  ByteBuffer.wrap(
+                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
+              }
+            } else {
+              callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
             }
-          }
-        case Failure(exception) => callbackWithTimer.onFailure(exception)
+          case None =>
+            callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+        }
       }
     }
   }
@@ -517,20 +513,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriters.foreach(_.decrementPendingWrites())
       return
     }
-    def writePushMergedDataLocal() = {
-      var fileWriter: FileWriter = null
-      batchOffsets.zip(fileWriters).map { case (offset, writer) =>
-        fileWriter = writer
-        val batchBody = body.slice(
-          body.readerIndex() + offset,
-          if (offset == batchOffsets.last) body.readableBytes() - offset
-          else batchOffsets(batchOffsets.indexOf(offset) + 1) - offset)
-        writeDataWithExceptionHandling(fileWriter, batchBody, shuffleKey)
-      }.toSeq
-    }
-    val localWriteFutures = writePushMergedDataLocal()
     // for primary, send data to replica
     if (doReplicate) {
+      val writePromise = Promise[Unit]()
       pushMergedData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
@@ -555,7 +540,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
-              Future.sequence(localWriteFutures).onComplete {
+              Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(_) =>
                   // Only primary data enable replication will push data to replica
                   if (response.remaining() > 0) {
@@ -589,7 +574,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-              Future.sequence(localWriteFutures).onComplete {
+              Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(_) =>
                   if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
                     workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
@@ -632,32 +617,31 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
         }
       })
+      pushMergedData.body().retain()
+      writeLocalData(fileWriters, body, shuffleKey, Some(batchOffsets), Some(writePromise))
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
       // 2. the client enables push data to the replica, and the replica worker could hit here
-      Future.sequence(localWriteFutures).onComplete {
-        case Success(_) =>
-          Option(CongestionController.instance()) match {
-            case Some(congestionController) if fileWriters.nonEmpty =>
-              if (congestionController.isUserCongested(
-                  fileWriters.head.getFileInfo.getUserIdentifier)) {
-                if (isPrimary) {
-                  callbackWithTimer.onSuccess(
-                    ByteBuffer.wrap(
-                      Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
-                } else {
-                  callbackWithTimer.onSuccess(
-                    ByteBuffer.wrap(
-                      Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
-                }
-              } else {
-                callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-              }
-            case None =>
-              callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      writeLocalData(fileWriters, body, shuffleKey, Some(batchOffsets), None)
+      Option(CongestionController.instance()) match {
+        case Some(congestionController) if fileWriters.nonEmpty =>
+          if (congestionController.isUserCongested(
+              fileWriters.head.getFileInfo.getUserIdentifier)) {
+            if (isPrimary) {
+              callbackWithTimer.onSuccess(
+                ByteBuffer.wrap(
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
+            } else {
+              callbackWithTimer.onSuccess(
+                ByteBuffer.wrap(
+                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
+            }
+          } else {
+            callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
           }
-        case Failure(exception) => callbackWithTimer.onFailure(exception)
+        case None =>
+          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
       }
     }
   }
@@ -736,7 +720,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       requestId: Long,
       handler: () => Unit): Unit = {
     try {
-      message.body().retain()
       handler()
     } catch {
       case e: Exception =>
@@ -804,14 +787,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter.decrementPendingWrites()
       return;
     }
-
+    writeLocalData(Seq(fileWriter), body, shuffleKey, None, None)
     // for primary, send data to replica
     if (location.hasPeer && isPrimary) {
-      writeDataWithExceptionHandling(fileWriter, body, shuffleKey).onComplete {
-        case Success(_) => wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-        // TODO: handle exception
-        case Failure(_) => wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-      }
+      // to do
+      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+    } else {
+      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     }
   }
 
@@ -1215,11 +1197,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
   }
 
-  def writeDataWithExceptionHandling(
-      fileWriter: FileWriter,
+  private def writeLocalData(
+      fileWriters: Seq[FileWriter],
       body: ByteBuf,
-      shuffleKey: String): Future[Unit] = {
-    Future {
+      shuffleKey: String,
+    batchOffsets: Option[Array[Int]],
+    writePromise: Option[Promise[Unit]]): Unit = {
+    def writeData(fileWriter: FileWriter, body: ByteBuf, shuffleKey: String): Unit = {
       try {
         fileWriter.write(body)
       } catch {
@@ -1230,10 +1214,30 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             if (shuffleMapperAttempts.containsKey(shuffleKey)) {
               shuffleMapperAttempts.get(shuffleKey).get(mapId)
             } else -1
-          logError(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+          // TODO just info log for ended attempt
+          logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
             s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
-          throw e
+          writePromise.map(_.failure(e)).orElse(throw e)
+        case e: Exception =>
+          logError("Exception encountered when write.", e)
+          writePromise.map(_.failure(e)).orElse(throw e)
       }
+    }
+    batchOffsets match {
+      case Some(batchOffsets) =>
+        batchOffsets.zip(fileWriters).foreach { case (offset, writer) =>
+          val length = if (offset == batchOffsets.last) {
+            body.readableBytes() - offset
+          } else {
+            batchOffsets(batchOffsets.indexOf(offset) + 1) - offset
+          }
+          val batchBody = body.slice(body.readerIndex() + offset, length)
+          writeData(writer, batchBody, shuffleKey)
+        }
+        writePromise.foreach(_.success())
+      case _ =>
+        writeData(fileWriters.head, body, shuffleKey)
+        writePromise.foreach(_.success())
     }
   }
 
