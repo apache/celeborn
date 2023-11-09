@@ -35,17 +35,16 @@ class ReviveManager {
   private static final Logger logger = LoggerFactory.getLogger(ReviveManager.class);
 
   LinkedBlockingQueue<ReviveRequest> requestQueue = new LinkedBlockingQueue<>();
-  private final long interval;
   private final int batchSize;
   ShuffleClientImpl shuffleClient;
-  private ScheduledExecutorService batchReviveRequestScheduler =
+  private final ScheduledExecutorService batchReviveRequestScheduler =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("batch-revive-scheduler");
 
   public ReviveManager(ShuffleClientImpl shuffleClient, CelebornConf conf) {
     this.shuffleClient = shuffleClient;
-    this.interval = conf.clientPushReviveInterval();
     this.batchSize = conf.clientPushReviveBatchSize();
 
+    long interval = conf.clientPushReviveInterval();
     batchReviveRequestScheduler.scheduleWithFixedDelay(
         () -> {
           Map<Integer, Set<ReviveRequest>> shuffleMap = new HashMap<>();
@@ -123,5 +122,9 @@ class ReviveManager {
     } catch (InterruptedException e) {
       logger.error("Exception when put into requests!", e);
     }
+  }
+
+  public void close() {
+    batchReviveRequestScheduler.shutdown();
   }
 }
