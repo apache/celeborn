@@ -136,8 +136,7 @@ celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
 celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
-# If you HDFS is enabled with Kerberos.
-# You will need to set the following configs or use kinit to get valid TGT.
+# Either principal/keytab or valid TGT cache is required to access kerberized HDFS
 celeborn.storage.hdfs.kerberos.principal user@REALM
 celeborn.storage.hdfs.kerberos.keytab /path/to/user.keytab
 
