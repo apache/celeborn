@@ -1235,10 +1235,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           val batchBody = body.slice(body.readerIndex() + offset, length)
           writeData(writer, batchBody, shuffleKey)
         }
-        writePromise.foreach(_.success())
       case _ =>
         writeData(fileWriters.head, body, shuffleKey)
-        writePromise.foreach(_.success())
+    }
+    writePromise.foreach { promise =>
+      if (!promise.isCompleted) {
+        promise.success()
+      }
     }
   }
 
