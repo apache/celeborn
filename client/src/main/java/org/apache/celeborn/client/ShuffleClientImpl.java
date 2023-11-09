@@ -606,7 +606,7 @@ public class ShuffleClientImpl extends ShuffleClient {
    * @param shuffleMap The mapping between shuffle id and partition location.
    * @param partitionId The id of partition.
    * @param epoch The epoch of revive.
-   * @param wait whether to wait for some time for a newer partition location.
+   * @param wait Whether to wait for some time for a newer partition location.
    * @return whether newer partition location exists in local cache.
    */
   boolean newerPartitionLocationExists(
