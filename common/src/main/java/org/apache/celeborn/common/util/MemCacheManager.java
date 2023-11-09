@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.celeborn.common.util;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,7 +36,7 @@ public class MemCacheManager {
   public MemCacheManager(CelebornConf conf) {
     this.conf = conf;
     maxCacheSize = this.conf.fileCacheMaxSize();
-    cacheEnable = this.conf.fileCacheEnable();
+    cacheEnable = this.conf.fileCacheEnable() && !conf.hasHDFSStorage();
   }
 
   public void putCache(String key, ByteBuf cache) {
@@ -35,6 +52,7 @@ public class MemCacheManager {
   public void removeCache(String key) {
     ByteBuf cache = caches.remove(key);
     currentCacheSize.getAndAdd(-1 * cache.readableBytes());
+    cache.release();
   }
 
   public boolean contains(String key) {
@@ -46,16 +64,13 @@ public class MemCacheManager {
     return caches.get(key);
   }
 
-  public static synchronized MemCacheManager getMemCacheManager(CelebornConf conf) {
+  public static MemCacheManager getMemCacheManager(CelebornConf conf) {
     if (memCacheManager == null) {
-      memCacheManager = new MemCacheManager(conf);
-    }
-    return memCacheManager;
-  }
-
-  public static synchronized MemCacheManager getMemCacheManager() {
-    if (memCacheManager == null) {
-      memCacheManager = new MemCacheManager(new CelebornConf());
+      synchronized (MemCacheManager.class) {
+        if (memCacheManager == null) {
+          memCacheManager = new MemCacheManager(conf);
+        }
+      }
     }
     return memCacheManager;
   }

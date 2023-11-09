@@ -339,7 +339,7 @@ private[celeborn] class Worker(
     memCacheManager.getCacheFileNum
   }
   workerSource.addGauge(WorkerSource.fileCacheHitRate) { () =>
-    FileManagedBuffers.getMemHitRate
+    fetchHandler.getMemCacheHitRate
   }
 
   private def highWorkload: Boolean = {

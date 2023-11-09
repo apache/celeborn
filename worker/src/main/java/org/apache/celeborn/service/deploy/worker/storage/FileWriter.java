@@ -87,6 +87,7 @@ public abstract class FileWriter implements DeviceObserver {
   private String shuffleKey;
   private StorageManager storageManager;
   private boolean workerGracefulShutdown;
+  private MemCacheManager cacheManager;
 
   public FileWriter(
       FileInfo fileInfo,
@@ -130,6 +131,7 @@ public abstract class FileWriter implements DeviceObserver {
       }
     }
     source = workerSource;
+    cacheManager = MemCacheManager.getMemCacheManager(conf);
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     if (rangeReadFilter) {
       this.mapIdBitMap = new RoaringBitmap();
@@ -155,7 +157,6 @@ public abstract class FileWriter implements DeviceObserver {
 
   @GuardedBy("flushLock")
   protected void flush(boolean finalFlush) throws IOException {
-    MemCacheManager cacheManager = MemCacheManager.getMemCacheManager();
     // flushBuffer == null here means writer already closed
     if (flushBuffer != null) {
       int numBytes = flushBuffer.readableBytes();

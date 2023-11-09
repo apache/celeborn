@@ -17,23 +17,29 @@
 
 package org.apache.celeborn.common.meta;
 
-import java.io.File;
 import java.util.List;
 
-import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
+import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
+import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.MemCacheManager;
 
-public class FileManagedBuffers implements Buffers {
+public class MemoryBuffers implements Buffers {
+  private static final Logger logger = LoggerFactory.getLogger(FileManagedBuffers.class);
 
-  private final File file;
   private final long[] offsets;
   private final int numChunks;
+  private final String filePath;
 
   private final TransportConf conf;
+  MemCacheManager memCacheManager;
 
-  public FileManagedBuffers(FileInfo fileInfo, TransportConf conf) {
-    file = fileInfo.getFile();
+  public MemoryBuffers(FileInfo fileInfo, TransportConf conf) {
+    filePath = fileInfo.getFilePath();
     numChunks = fileInfo.numChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];
@@ -45,6 +51,7 @@ public class FileManagedBuffers implements Buffers {
       offsets = new long[] {0};
     }
     this.conf = conf;
+    memCacheManager = MemCacheManager.getMemCacheManager(conf.getCelebornConf());
   }
 
   public int numChunks() {
@@ -57,6 +64,16 @@ public class FileManagedBuffers implements Buffers {
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     assert offset < chunkLength;
     long length = Math.min(chunkLength - offset, len);
-    return new FileSegmentManagedBuffer(conf, file, chunkOffset + offset, length);
+    ByteBuf fileBuffer = memCacheManager.getCache(filePath);
+    assert chunkOffset + offset + length <= fileBuffer.readableBytes();
+    ByteBuf buffer = fileBuffer.retainedSlice((int) (chunkOffset + offset), (int) length);
+    logger.info(
+        "fetch chunk form memory cache for "
+            + filePath
+            + ", start point is "
+            + (chunkOffset + offset)
+            + ", fetch size is "
+            + length);
+    return new NettyManagedBuffer(buffer);
   }
 }

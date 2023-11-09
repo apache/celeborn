@@ -2064,17 +2064,17 @@ object CelebornConf extends Logging {
     buildConf("celeborn.shuffle.cache.max")
       .categories("worker")
       .doc("Max size for shuffle file cache to memory")
-      .version("0.4.0")
+      .version("0.3.2")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("10g")
+      .createWithDefaultString("256m")
 
   val FILE_CACHE_ENABLE: ConfigEntry[Boolean] =
     buildConf("celeborn.shuffle.cache.enable")
       .categories("worker")
-      .doc("memory cache enable")
-      .version("0.4.0")
+      .doc("wether memory cache enable, it only effective when using local disk and should disable local shuffle read")
+      .version("0.3.2")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val WORKER_STORAGE_DIRS: OptionalConfigEntry[Seq[String]] =
     buildConf("celeborn.worker.storage.dirs")

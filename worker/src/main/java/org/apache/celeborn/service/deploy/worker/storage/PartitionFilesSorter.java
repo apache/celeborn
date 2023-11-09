@@ -90,6 +90,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
+  private MemCacheManager memCacheManager;
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
@@ -103,6 +104,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.source = source;
     this.memoryManager = memoryManager;
     this.gracefulShutdown = conf.workerGracefulShutdown();
+    this.memCacheManager = MemCacheManager.getMemCacheManager(conf);
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (gracefulShutdown) {
@@ -611,7 +613,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
 
     private void initializeFiles() throws IOException {
-      MemCacheManager memCacheManager = MemCacheManager.getMemCacheManager();
       if (isHdfs) {
         if (memCacheManager.contains(originFilePath)) {
           FSDataOutputStream hdfsOriginOutput =

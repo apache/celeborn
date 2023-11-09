@@ -32,15 +32,15 @@ import io.netty.util.concurrent.{Future, GenericFutureListener}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
-import org.apache.celeborn.common.network.buffer.{ManagedBuffer, NioManagedBuffer}
+import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers, MemoryBuffers}
+import org.apache.celeborn.common.network.buffer.{ManagedBuffer, NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbOpenStream, PbReadAddCredit, PbStreamHandler}
-import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
+import org.apache.celeborn.common.util.{ExceptionUtils, MemCacheManager, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
 class FetchHandler(
@@ -57,13 +57,15 @@ class FetchHandler(
     conf.partitionReadBuffersMax,
     conf.creditStreamThreadsPerMountpoint,
     conf.readBuffersToTriggerReadMin)
+  val memCacheManager = MemCacheManager.getMemCacheManager(conf)
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
 
   var pendingReadFileSize: AtomicLong = new AtomicLong(0)
   var readTotalFileSize: AtomicLong = new AtomicLong(0)
-  var totalChunkNum: AtomicLong = new AtomicLong(0)
+  var totalChunkNum: AtomicLong = new AtomicLong(1)
+  var totalMemCacheNum: AtomicLong = new AtomicLong(1)
 
   def init(worker: Worker): Unit = {
 
@@ -228,7 +230,10 @@ class FetchHandler(
           } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, request.requestId, 0, 0, isLegacy)
           } else {
-            val buffers = new FileManagedBuffers(fileInfo, transportConf)
+            val buffers =
+              if (memCacheManager.contains(fileInfo.getFilePath))
+                new MemoryBuffers(fileInfo, transportConf)
+              else new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
             val streamId = chunkStreamManager.registerStream(
               shuffleKey,
@@ -374,6 +379,8 @@ class FetchHandler(
             if (buf != null) {
               pendingReadFileSize.addAndGet(-1 * buf.size())
               readTotalFileSize.addAndGet(buf.size())
+              if (buf.isInstanceOf[NettyManagedBuffer])
+                totalMemCacheNum.incrementAndGet()
             }
             chunkStreamManager.chunkSent(req.streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
@@ -418,5 +425,11 @@ class FetchHandler(
 
   def cleanupExpiredShuffleKey(expiredShuffleKeys: util.HashSet[String]): Unit = {
     chunkStreamManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+  }
+
+  def getMemCacheHitRate(): Double = {
+    BigDecimal(totalMemCacheNum.get().toDouble / totalChunkNum.get()).setScale(
+      4,
+      BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 }

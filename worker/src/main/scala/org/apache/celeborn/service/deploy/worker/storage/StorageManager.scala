@@ -131,6 +131,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   deviceMonitor.startCheck()
 
+  val memCacheManager: MemCacheManager = MemCacheManager.getMemCacheManager(conf)
+
   val hdfsDir = conf.hdfsDir
   val hdfsPermission = new FsPermission("755")
   val hdfsWriters = JavaUtils.newConcurrentHashMap[String, FileWriter]()
@@ -550,7 +552,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def cleanupExpiredShuffleKey(
       expiredShuffleKeys: util.HashSet[String],
       cleanDB: Boolean = true): Unit = {
-    val memCacheManager: MemCacheManager = MemCacheManager.getMemCacheManager
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (fileInfos.containsKey(shuffleKey)) {

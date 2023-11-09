@@ -27,7 +27,7 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.meta.FileManagedBuffers;
+import org.apache.celeborn.common.meta.Buffers;
 import org.apache.celeborn.common.meta.TimeWindow;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -49,14 +49,14 @@ public class ChunkStreamManager {
 
   /** State of a single stream. */
   protected static class StreamState {
-    final FileManagedBuffers buffers;
+    final Buffers buffers;
     final String shuffleKey;
     final TimeWindow fetchTimeMetric;
 
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
-    StreamState(String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
+    StreamState(String shuffleKey, Buffers buffers, TimeWindow fetchTimeMetric) {
       this.buffers = Preconditions.checkNotNull(buffers);
       this.shuffleKey = shuffleKey;
       this.fetchTimeMetric = fetchTimeMetric;
@@ -82,7 +82,7 @@ public class ChunkStreamManager {
           String.format("Requested chunk index beyond end %s", chunkIndex));
     }
 
-    FileManagedBuffers buffers = state.buffers;
+    Buffers buffers = state.buffers;
     return buffers.chunk(chunkIndex, offset, len);
   }
 
@@ -127,8 +127,7 @@ public class ChunkStreamManager {
    * <p>This stream could be reused again when other channel of the client is reconnected. If a
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
-  public long registerStream(
-      String shuffleKey, FileManagedBuffers buffers, TimeWindow fetchTimeMetric) {
+  public long registerStream(String shuffleKey, Buffers buffers, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
     streams.put(myStreamId, new StreamState(shuffleKey, buffers, fetchTimeMetric));
     shuffleStreamIds.compute(
