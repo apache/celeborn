@@ -84,7 +84,7 @@ object CelebornHadoopUtils extends Logging {
           logInfo(
             s"Attempting to login to Kerberos using principal: $principal and keytab: $keytab")
           if (!new File(keytab).exists()) {
-            throw new CelebornException(s"Keytab file: ${keytab} does not exist")
+            throw new CelebornException(s"Keytab file: $keytab does not exist")
           }
           UserGroupInformation.loginUserFromKeytab(principal, keytab)
         case _ =>
