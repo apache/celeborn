@@ -303,4 +303,34 @@ class WorkerInfoSuite extends CelebornFunSuite {
       }
     }
   }
+
+  test("Test WorkerInfo hashcode") {
+    val host = "127.0.0.1"
+    val rpcPort = 9082
+    val pushPort = 9092
+    val fetchPort = 9093
+    val replicatePort = 9094
+    val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
+
+    // origin hashCode()
+    var now = System.nanoTime()
+    val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort)
+    val originHash = state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    var after = System.nanoTime()
+    println("WorkerInfo origin hash result = " + originHash + ", costs " + (after - now))
+
+    // hashCode() with while loop
+    now = System.nanoTime()
+    val hashCode1 = workerInfo.hashCode()
+    after = System.nanoTime()
+    println("WorkerInfo hashCode1 hash result = " + hashCode1 + ", costs " + (after - now))
+    assert(originHash === hashCode1)
+
+    // hashCode() with cache
+    now = System.nanoTime()
+    val hashCode2 = workerInfo.hashCode()
+    after = System.nanoTime()
+    println("WorkerInfo hashCode2 hash result = " + hashCode2 + ", costs " + (after - now))
+    assert(hashCode1 === hashCode2)
+  }
 }

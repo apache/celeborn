@@ -47,6 +47,8 @@ class WorkerInfo(
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
     else null
   var endpoint: RpcEndpointRef = null
+  // Cache the hash code for WorkerInfo
+  var hash = 0
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
@@ -232,8 +234,17 @@ class WorkerInfo(
   }
 
   override def hashCode(): Int = {
-    val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    var h = hash
+    if (h == 0) {
+      val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort)
+      var i = 0
+      while (i < state.size) {
+        h = 31 * h + state(i).hashCode()
+        i = i + 1
+      }
+      hash = h
+    }
+    h
   }
 }
 
