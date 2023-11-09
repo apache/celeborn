@@ -81,8 +81,8 @@ object CelebornHadoopUtils extends Logging {
     if ("kerberos".equals(hadoopConf.get("hadoop.security.authentication").toLowerCase)) {
       (conf.hdfsStorageKerberosPrincipal, conf.hdfsStorageKerberosKeytab) match {
         case (Some(principal), Some(keytab)) =>
-          logInfo("Attempting to login to Kerberos " +
-            s"using principal: ${principal} and keytab: ${keytab}")
+          logInfo(
+            s"Attempting to login to Kerberos using principal: $principal and keytab: $keytab")
           if (!new File(keytab).exists()) {
             throw new CelebornException(s"Keytab file: ${keytab} does not exist")
           }
