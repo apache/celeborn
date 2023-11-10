@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.File
 import java.lang.{Long => JLong}
 import java.util
-import java.util.{HashMap => JHashMap, HashSet => JHashSet, Map => JMap}
+import java.util.{HashMap => JHashMap, HashSet => JHashSet, Locale, Map => JMap}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
@@ -255,7 +255,11 @@ private[celeborn] class Worker(
   val replicateThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("Worker-CommitFiles", conf.workerCommitThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-commit-files", conf.workerCommitThreads)
+  val cleanThreadPool: ThreadPoolExecutor =
+    ThreadUtils.newDaemonCachedThreadPool(
+      "worker-clean-expired-shuffle-keys",
+      conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
@@ -273,9 +277,6 @@ private[celeborn] class Worker(
 
   workerSource.addGauge(WorkerSource.REGISTERED_SHUFFLE_COUNT) { () =>
     workerInfo.getShuffleKeySet.size
-  }
-  workerSource.addGauge(WorkerSource.SLOTS_ALLOCATED) { () =>
-    workerInfo.allocationsInLastHour()
   }
   workerSource.addGauge(WorkerSource.SORT_MEMORY) { () =>
     memoryManager.getSortMemoryCounter.get()
@@ -405,7 +406,7 @@ private[celeborn] class Worker(
         while (true) {
           val expiredShuffleKeys = cleanTaskQueue.take()
           try {
-            cleanup(expiredShuffleKeys)
+            cleanup(expiredShuffleKeys, cleanThreadPool)
           } catch {
             case e: Throwable =>
               logError("Cleanup failed", e)
@@ -562,20 +563,23 @@ private[celeborn] class Worker(
   }
 
   @VisibleForTesting
-  def cleanup(expiredShuffleKeys: JHashSet[String]): Unit = synchronized {
-    expiredShuffleKeys.asScala.foreach { shuffleKey =>
-      partitionLocationInfo.removeShuffle(shuffleKey)
-      shufflePartitionType.remove(shuffleKey)
-      shufflePushDataTimeout.remove(shuffleKey)
-      shuffleMapperAttempts.remove(shuffleKey)
-      shuffleCommitInfos.remove(shuffleKey)
-      workerInfo.releaseSlots(shuffleKey)
-      logInfo(s"Cleaned up expired shuffle $shuffleKey")
+  def cleanup(expiredShuffleKeys: JHashSet[String], threadPool: ThreadPoolExecutor): Unit =
+    synchronized {
+      expiredShuffleKeys.asScala.foreach { shuffleKey =>
+        partitionLocationInfo.removeShuffle(shuffleKey)
+        shufflePartitionType.remove(shuffleKey)
+        shufflePushDataTimeout.remove(shuffleKey)
+        shuffleMapperAttempts.remove(shuffleKey)
+        shuffleCommitInfos.remove(shuffleKey)
+        workerInfo.releaseSlots(shuffleKey)
+        logInfo(s"Cleaned up expired shuffle $shuffleKey")
+      }
+      partitionsSorter.cleanup(expiredShuffleKeys)
+      fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
+      threadPool.execute(new Runnable {
+        override def run(): Unit = storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+      })
     }
-    partitionsSorter.cleanup(expiredShuffleKeys)
-    storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
-    fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
-  }
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
@@ -640,7 +644,7 @@ private[celeborn] class Worker(
   }
 
   override def exit(exitType: String): String = {
-    exitType match {
+    exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
         exitKind = CelebornExitKind.WORKER_DECOMMISSION
         ShutdownHookManager.get().updateTimeout(

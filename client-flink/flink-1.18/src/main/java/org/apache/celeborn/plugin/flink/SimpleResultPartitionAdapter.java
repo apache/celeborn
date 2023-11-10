@@ -15,27 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.util;
+package org.apache.celeborn.plugin.flink;
 
-import java.util.Collection;
-import java.util.Map;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
-public class CollectionUtils {
-
-  public static boolean isEmpty(Collection collection) {
-    return collection == null || collection.isEmpty();
+public class SimpleResultPartitionAdapter implements ResultPartitionAdapter {
+  @Override
+  public boolean isBlockingResultPartition(ResultPartitionType partitionType) {
+    return partitionType.isBlockingOrBlockingPersistentResultPartition();
   }
-
-  public static boolean isNotEmpty(Collection collection) {
-    return !isEmpty(collection);
-  }
-
-  public static boolean isEmpty(Map map) {
-    return map == null || map.isEmpty();
-  }
-
-  public static boolean isNotEmpty(Map map) {
-    return !isEmpty(map);
-  }
-
 }

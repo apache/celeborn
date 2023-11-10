@@ -64,7 +64,6 @@ public class PartitionLocation implements Serializable {
   private StorageInfo storageInfo;
   private RoaringBitmap mapIdBitMap;
   private transient String _hostPushPort;
-
   private transient String _hostFetchPort;
 
   public PartitionLocation(PartitionLocation loc) {

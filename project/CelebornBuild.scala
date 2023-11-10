@@ -275,6 +275,7 @@ object Utils {
     case Some("flink-1.14") => Some(Flink114)
     case Some("flink-1.15") => Some(Flink115)
     case Some("flink-1.17") => Some(Flink117)
+    case Some("flink-1.18") => Some(Flink118)
     case _ => None
   }
 
@@ -690,6 +691,8 @@ trait SparkClientProjects {
   
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          case "META-INF/LICENSE" | "META-INF/NOTICE" => MergeStrategy.preferProject
+          case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
           case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
@@ -745,6 +748,16 @@ object Flink117 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_17"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.17-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_17-shaded"
+}
+
+object Flink118 extends FlinkClientProjects {
+  val flinkVersion = "1.18.0"
+
+  // note that SBT does not allow using the period symbol (.) in project names.
+  val flinkClientProjectPath = "client-flink/flink-1.18"
+  val flinkClientProjectName = "celeborn-client-flink-1_18"
+  val flinkClientShadedProjectPath: String = "client-flink/flink-1.18-shaded"
+  val flinkClientShadedProjectName: String = "celeborn-client-flink-1_18-shaded"
 }
 
 trait FlinkClientProjects {
@@ -881,6 +894,8 @@ trait FlinkClientProjects {
   
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          case "META-INF/LICENSE" | "META-INF/NOTICE" => MergeStrategy.preferProject
+          case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
           case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard
@@ -958,11 +973,10 @@ object MRClientProjects {
 
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
+          // For netty-3.x.y.Final.jar
           case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
-          case m if m == "META-INF/LICENSE.txt" => MergeStrategy.discard
-          case m if m == "META-INF/NOTICE.txt" => MergeStrategy.discard
-          case m if m == "LICENSE.txt" => MergeStrategy.discard
-          case m if m == "NOTICE.txt" => MergeStrategy.discard
+          case "META-INF/LICENSE" | "META-INF/NOTICE" => MergeStrategy.preferProject
+          case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
           case m if m.toLowerCase(Locale.ROOT).startsWith("meta-inf/native-image") => MergeStrategy.discard

@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.CelebornInputStream;
+import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -72,8 +73,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final int registerShuffleMaxRetries;
   private final long registerShuffleRetryWaitMs;
-  private int maxReviveTimes;
-  private boolean testRetryRevive;
+  private final int maxReviveTimes;
+  private final boolean testRetryRevive;
   private final int pushBufferMaxSize;
   protected final long pushDataTimeout;
 
@@ -112,7 +113,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected final String appUniqueId;
 
-  private ThreadLocal<Compressor> compressorThreadLocal =
+  private final ThreadLocal<Compressor> compressorThreadLocal =
       new ThreadLocal<Compressor>() {
         @Override
         protected Compressor initialValue() {
@@ -171,8 +172,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       pushDataTimeout = conf.pushDataTimeoutMs();
     }
 
-    // init rpc env and master endpointRef
-    rpcEnv = RpcEnv.create("ShuffleClient", Utils.localHostName(conf), 0, conf);
+    // init rpc env
+    rpcEnv = RpcEnv.create(RpcNameConstants.SHUFFLE_CLIENT_SYS, Utils.localHostName(conf), 0, conf);
 
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
@@ -600,13 +601,13 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   /**
-   * check if a newer PartitionLocation(with larger epoch) exists in local cache
+   * Check if a newer PartitionLocation(with larger epoch) exists in local cache.
    *
-   * @param shuffleMap
-   * @param partitionId
-   * @param epoch
-   * @param wait whether to wait for some time for a newer PartitionLocation
-   * @return
+   * @param shuffleMap The mapping between shuffle id and partition location.
+   * @param partitionId The id of partition.
+   * @param epoch The epoch of revive.
+   * @param wait Whether to wait for some time for a newer partition location.
+   * @return whether newer partition location exists in local cache.
    */
   boolean newerPartitionLocationExists(
       Map<Integer, PartitionLocation> shuffleMap, int partitionId, int epoch, boolean wait) {
@@ -674,12 +675,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           attemptId,
           partitionId);
       return true;
-    } else if (results == null
-        || !results.containsKey(partitionId)
-        || results.get(partitionId) != StatusCode.SUCCESS.getValue()) {
-      return false;
     } else {
-      return true;
+      return results != null
+          && results.containsKey(partitionId)
+          && results.get(partitionId) == StatusCode.SUCCESS.getValue();
     }
   }
 
@@ -1585,11 +1584,16 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public CelebornInputStream readPartition(
-      int shuffleId, int partitionId, int attemptNumber, int startMapIndex, int endMapIndex)
+      int shuffleId,
+      int partitionId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex,
+      MetricsCallback metricsCallback)
       throws IOException {
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
 
-    if (fileGroups.partitionGroups.size() == 0
+    if (fileGroups.partitionGroups.isEmpty()
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
       return CelebornInputStream.empty();
@@ -1604,7 +1608,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           attemptNumber,
           startMapIndex,
           endMapIndex,
-          fetchExcludedWorkers);
+          fetchExcludedWorkers,
+          metricsCallback);
     }
   }
 
@@ -1615,6 +1620,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public void shutdown() {
+    if (null != reviveManager) {
+      reviveManager.close();
+    }
     if (null != rpcEnv) {
       rpcEnv.shutdown();
     }
@@ -1659,7 +1667,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     logger.debug("Push data failed cause message: {}", message);
     StatusCode cause;
     if (message == null) {
-      logger.error("Push data throw unexpected exception: {}", message);
+      logger.error("Push data throw unexpected exception");
       cause = StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
     } else if (message.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
       cause = StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA;

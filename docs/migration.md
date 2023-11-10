@@ -42,6 +42,8 @@ license: |
 - Since 0.4.0, Celeborn deprecate `celeborn.worker.storage.baseDir.prefix` and `celeborn.worker.storage.baseDir.number`.
   Please use `celeborn.worker.storage.dirs` instead.
 
+- Since 0.4.0, Celeborn deprecate `celeborn.storage.activeTypes`. Please use `celeborn.storage.availableTypes` instead.
+
 ## Upgrading from 0.3.1 to 0.3.2
 
 - Since 0.3.1, Celeborn changed the default value of `raft.client.rpc.request.timeout` from `3s` to `10s`.

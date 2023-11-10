@@ -247,6 +247,7 @@ private[deploy] class Controller(
     workerInfo.allocateSlots(
       shuffleKey,
       Utils.getSlotsPerDisk(requestPrimaryLocs, requestReplicaLocs))
+    workerSource.incCounter(WorkerSource.SLOTS_ALLOCATED, primaryLocs.size() + replicaLocs.size())
 
     logInfo(s"Reserved ${primaryLocs.size()} primary location" +
       s" and ${replicaLocs.size()} replica location for $shuffleKey ")

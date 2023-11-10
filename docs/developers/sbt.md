@@ -38,6 +38,7 @@ The following table indicates the compatibility of Celeborn Spark and Flink clie
 | Flink 1.14 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.15 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
+| Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 
 ## Useful SBT commands
 
@@ -52,7 +53,7 @@ As an example, one can build a version of Celeborn as follows:
 To create a Celeborn distribution like those distributed by the [Celeborn Downloads](https://celeborn.apache.org/download/) page, and that is laid out so as to be runnable, use `./build/make-distribution.sh` in the project root directory.
 
 ```
-./build/make-distribution.sh --sbt-enabled
+./build/make-distribution.sh --sbt-enabled --release
 ```
 
 ### Maven-Style Profile Management

@@ -32,7 +32,8 @@ object HttpUtils {
     ExcludedWorkers,
     ShutdownWorkers,
     Hostnames,
-    Applications) ++ baseEndpoints
+    Applications,
+    Exclude) ++ baseEndpoints
   private val workerEndpoints: List[HttpEndpoint] =
     List(
       ListPartitionLocationInfo,
@@ -50,7 +51,7 @@ object HttpUtils {
         url.getQuery
           .split("&")
           .map(_.split("="))
-          .map(arr => arr(0).toUpperCase(Locale.ROOT) -> arr(1).toUpperCase(Locale.ROOT)).toMap
+          .map(arr => arr(0).toUpperCase(Locale.ROOT) -> arr(1)).toMap
       }
     (url.getPath, parameter)
   }

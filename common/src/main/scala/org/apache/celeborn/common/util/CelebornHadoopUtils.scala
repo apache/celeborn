@@ -17,13 +17,15 @@
 
 package org.apache.celeborn.common.util
 
-import java.io.IOException
+import java.io.{File, IOException}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.security.UserGroupInformation
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 
 object CelebornHadoopUtils extends Logging {
@@ -56,7 +58,9 @@ object CelebornHadoopUtils extends Logging {
   }
 
   def getHadoopFS(conf: CelebornConf): FileSystem = {
-    new Path(conf.hdfsDir).getFileSystem(newConfiguration(conf))
+    val hadoopConf = newConfiguration(conf)
+    initKerberos(conf, hadoopConf)
+    new Path(conf.hdfsDir).getFileSystem(hadoopConf)
   }
 
   def deleteHDFSPathOrLogError(hadoopFs: FileSystem, path: Path, recursive: Boolean): Unit = {
@@ -69,6 +73,25 @@ object CelebornHadoopUtils extends Logging {
     } catch {
       case e: IOException =>
         logError(s"Failed to delete HDFS ${path}(recursive=$recursive) due to: ", e)
+    }
+  }
+
+  def initKerberos(conf: CelebornConf, hadoopConf: Configuration): Unit = {
+    UserGroupInformation.setConfiguration(hadoopConf)
+    if ("kerberos".equals(hadoopConf.get("hadoop.security.authentication").toLowerCase)) {
+      (conf.hdfsStorageKerberosPrincipal, conf.hdfsStorageKerberosKeytab) match {
+        case (Some(principal), Some(keytab)) =>
+          logInfo(
+            s"Attempting to login to Kerberos using principal: $principal and keytab: $keytab")
+          if (!new File(keytab).exists()) {
+            throw new CelebornException(s"Keytab file: $keytab does not exist")
+          }
+          UserGroupInformation.loginUserFromKeytab(principal, keytab)
+        case _ =>
+          logInfo("Kerberos is enabled without principal and keytab supplied," +
+            " assuming keytab is managed externally")
+          UserGroupInformation.getCurrentUser()
+      }
     }
   }
 }

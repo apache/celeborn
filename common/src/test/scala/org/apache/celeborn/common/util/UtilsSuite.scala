@@ -20,7 +20,8 @@ package org.apache.celeborn.common.util
 import java.util
 
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
@@ -166,6 +167,15 @@ class UtilsSuite extends CelebornFunSuite {
     val set =
       (response.fileGroup.values().toArray diff responseTrans.fileGroup.values().toArray).toSet
     assert(set.size == 0)
+  }
+
+  test("validate number of client/server netty threads") {
+    val celebornConf = new CelebornConf()
+    celebornConf.set("celeborn.io.maxDefaultNettyThreads", "100")
+    val transportConf =
+      Utils.fromCelebornConf(celebornConf, TransportModuleConstants.PUSH_MODULE, 120)
+    assert(transportConf.serverThreads() == 100)
+    assert(transportConf.clientThreads() == 100)
   }
 
   def partitionLocation(partitionId: Int): util.HashSet[PartitionLocation] = {

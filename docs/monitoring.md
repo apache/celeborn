@@ -304,21 +304,22 @@ API path listed as below:
 
 #### Master
 
-| Path                  | Meaning                                                                                                                             |
-|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus   | List the metrics data in prometheus format of the master.(The url path is defined by configure `celeborn.metrics.prometheus.path`.) |
-| /conf                 | List the conf setting of the master.                                                                                                |
-| /masterGroupInfo      | List master group information of the service. It will list all master's LEADER, FOLLOWER information.                               |
-| /workerInfo           | List worker information of the service. It will list all registered workers 's information.                                         |
-| /lostWorkers          | List all lost workers of the master.                                                                                                |
-| /excludedWorkers      | List all excluded workers of the master.                                                                                            |
-| /shutdownWorkers      | List all shutdown workers of the master.                                                                                            |
-| /threadDump           | List the current thread dump of the master.                                                                                         |
-| /hostnames            | List all running application's LifecycleManager's hostnames of the cluster.                                                         |
-| /applications         | List all running application's ids of the cluster.                                                                                  |
-| /shuffles             | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.                              |
-| /listTopDiskUsedApps  | List the top disk usage application ids. It will return the top disk usage application ids for the cluster.                         |
-| /help                 | List the available API providers of the master.                                                                                     |
+| Path                                                 | Meaning                                                                                                                                                                                            |
+|------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| /metrics/prometheus                                  | List the metrics data in prometheus format of the master.(The url path is defined by configure `celeborn.metrics.prometheus.path`.)                                                                |
+| /conf                                                | List the conf setting of the master.                                                                                                                                                               |
+| /masterGroupInfo                                     | List master group information of the service. It will list all master's LEADER, FOLLOWER information.                                                                                              |
+| /workerInfo                                          | List worker information of the service. It will list all registered workers 's information.                                                                                                        |
+| /lostWorkers                                         | List all lost workers of the master.                                                                                                                                                               |
+| /excludedWorkers                                     | List all excluded workers of the master.                                                                                                                                                           |
+| /shutdownWorkers                                     | List all shutdown workers of the master.                                                                                                                                                           |
+| /threadDump                                          | List the current thread dump of the master.                                                                                                                                                        |
+| /hostnames                                           | List all running application's LifecycleManager's hostnames of the cluster.                                                                                                                        |
+| /applications                                        | List all running application's ids of the cluster.                                                                                                                                                 |
+| /shuffles                                            | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.                                                                                             |
+| /listTopDiskUsedApps                                 | List the top disk usage application ids. It will return the top disk usage application ids for the cluster.                                                                                        |
+| /exclude?add=${ADD_WORKERS}&remove=${REMOVE_WORKERS} | Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas. |
+| /help                                                | List the available API providers of the master.                                                                                                                                                    |
 
 #### Worker
 
@@ -334,5 +335,5 @@ API path listed as below:
 | /unavailablePeers          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.                                  |
 | /isShutdown                | Show if the worker is during the process of shutdown.                                                                               |
 | /isRegistered              | Show if the worker is registered to the master success.                                                                             |
-| /exit?type=${TYPE}         | Trigger this worker to exit. Legal `type`s are 'DECOMMISSION‘, 'GRACEFUL' and 'IMMEDIATELY'                                         |
+| /exit?type=${TYPE}         | Trigger this worker to exit. Legal `type`s are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.                                        |
 | /help                      | List the available API providers of the worker.                                                                                     |

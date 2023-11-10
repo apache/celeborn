@@ -63,6 +63,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
   public final Set<WorkerInfo> excludedWorkers = ConcurrentHashMap.newKeySet();
+  public final Set<WorkerInfo> manuallyExcludedWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> shutdownWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
 
@@ -109,6 +110,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void updateAppLostMeta(String appId) {
     registeredShuffle.removeIf(shuffleKey -> shuffleKey.startsWith(appId));
     appHeartbeatTime.remove(appId);
+  }
+
+  public void updateWorkerExcludeMeta(
+      List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove) {
+    manuallyExcludedWorkers.addAll(workersToAdd);
+    workersToRemove.forEach(manuallyExcludedWorkers::remove);
   }
 
   public void updateWorkerLostMeta(
@@ -223,6 +230,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 registeredShuffle,
                 hostnameSet,
                 excludedWorkers,
+                manuallyExcludedWorkers,
                 workerLostEvents,
                 appHeartbeatTime,
                 workers,
@@ -252,6 +260,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       hostnameSet.addAll(snapshotMetaInfo.getHostnameSetList());
       excludedWorkers.addAll(
           snapshotMetaInfo.getExcludedWorkersList().stream()
+              .map(PbSerDeUtils::fromPbWorkerInfo)
+              .collect(Collectors.toSet()));
+      manuallyExcludedWorkers.addAll(
+          snapshotMetaInfo.getManuallyExcludedWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet()));
       workerLostEvents.addAll(
@@ -310,10 +322,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     LOG.info("Successfully restore meta info from snapshot {}", file.getAbsolutePath());
     LOG.info(
-        "Worker size: {}, Registered shuffle size: {}. Worker excluded list size: {}.",
+        "Worker size: {}, Registered shuffle size: {}. Worker excluded list size: {}. Manually Excluded list size: {}",
         workers.size(),
         registeredShuffle.size(),
-        excludedWorkers.size());
+        excludedWorkers.size(),
+        manuallyExcludedWorkers.size());
     workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
   }
@@ -342,7 +355,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         Utils.bytesToString(oldEstimatedPartitionSize),
         Utils.bytesToString(estimatedPartitionSize));
     workers.stream()
-        .filter(worker -> !excludedWorkers.contains(worker))
+        .filter(
+            worker ->
+                !excludedWorkers.contains(worker) && !manuallyExcludedWorkers.contains(worker))
         .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
   }
 }

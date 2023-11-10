@@ -170,6 +170,7 @@ object ControlMessages extends Logging {
       shouldRackAware: Boolean,
       userIdentifier: UserIdentifier,
       maxWorkers: Int,
+      availableStorageTypes: Int,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -272,6 +273,28 @@ object ControlMessages extends Logging {
       attempts: Array[Int],
       partitionIds: util.Set[Integer] = new util.HashSet[Integer]())
     extends MasterMessage
+
+  object WorkerExclude {
+    def apply(
+        workersToAdd: util.List[WorkerInfo],
+        workersToRemove: util.List[WorkerInfo],
+        requestId: String): PbWorkerExclude = PbWorkerExclude.newBuilder()
+      .addAllWorkersToAdd(workersToAdd.asScala.map { workerInfo =>
+        PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+      }.toList.asJava)
+      .addAllWorkersToRemove(workersToRemove.asScala.map { workerInfo =>
+        PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+      }.toList.asJava)
+      .setRequestId(requestId)
+      .build()
+  }
+
+  object WorkerExcludeResponse {
+    def apply(success: Boolean): PbWorkerExcludeResponse =
+      PbWorkerExcludeResponse.newBuilder()
+        .setSuccess(success)
+        .build()
+  }
 
   object WorkerLost {
     def apply(
@@ -519,6 +542,7 @@ object ControlMessages extends Logging {
           shouldRackAware,
           userIdentifier,
           maxWorkers,
+          availableStorageTypes,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -529,6 +553,7 @@ object ControlMessages extends Logging {
         .setShouldRackAware(shouldRackAware)
         .setMaxWorkers(maxWorkers)
         .setRequestId(requestId)
+        .setAvailableStorageTypes(availableStorageTypes)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
@@ -603,6 +628,12 @@ object ControlMessages extends Logging {
       builder.addAllPartitionIds(partitionIds)
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload)
+
+    case pb: PbWorkerExclude =>
+      new TransportMessage(MessageType.WORKER_EXCLUDE, pb.toByteArray)
+
+    case pb: PbWorkerExcludeResponse =>
+      new TransportMessage(MessageType.WORKER_EXCLUDE_RESPONSE, pb.toByteArray)
 
     case pb: PbWorkerLost =>
       new TransportMessage(MessageType.WORKER_LOST, pb.toByteArray)
@@ -896,6 +927,7 @@ object ControlMessages extends Logging {
           pbRequestSlots.getShouldRackAware,
           userIdentifier,
           pbRequestSlots.getMaxWorkers,
+          pbRequestSlots.getAvailableStorageTypes,
           pbRequestSlots.getRequestId)
 
       case REQUEST_SLOTS_RESPONSE_VALUE =>

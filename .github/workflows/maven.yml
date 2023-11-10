@@ -154,6 +154,7 @@ jobs:
           - '1.14'
           - '1.15'
           - '1.17'
+          - '1.18'
     steps:
       - uses: actions/checkout@v2
       - name: Setup JDK ${{ matrix.java }}

@@ -119,7 +119,7 @@ INFO [async-reply] Controller: CommitFiles for local-1690000152711-0 success wit
 
 ## Start Flink with Celeborn
 #### Copy Celeborn Client to Flink's lib
-Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x and Flink 1.17.x, copy the corresponding client jar into Flink's
+Celeborn release binary contains clients for Flink 1.14.x, Flink 1.15.x, Flink 1.17.x and Flink 1.18.x, copy the corresponding client jar into Flink's
 `lib/` directory:
 ```shell
 cp $CELEBORN_HOME/flink/<Celeborn Client Jar> $FLINK_HOME/lib/
