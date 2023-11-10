@@ -48,7 +48,7 @@ class WorkerInfo(
     else null
   var endpoint: RpcEndpointRef = null
   // Cache the hash code for WorkerInfo
-  var hash = 0
+  private var hash = 0
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
