@@ -133,4 +133,12 @@ object WorkerSource {
   // active shuffle
   val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
+  val RunningStreamTotalCount = "RunningStreamTotal"
+  val ChunksBeingTransferredNum = "ChunksBeingTransferred"
+  val pendingTotalReadFileSize = "pendingTotalReadFileSize"
+  val readTotalFileSize = "ReadTotalFileSize"
+  val totalChunkNum = "TotalChunk"
+  val fileCacheSize = "FileCacheSize"
+  val fileCacheNum = "FileCacheNum"
+  val fileCacheHitRate = "FileCacheHitRate"
 }

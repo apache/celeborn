@@ -29,7 +29,7 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.meta.FileManagedBuffers;
+import org.apache.celeborn.common.meta.Buffers;
 import org.apache.celeborn.common.meta.TimeWindow;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -47,9 +47,11 @@ public class ChunkStreamManager {
   // ShuffleKey -> StreamId
   protected final ConcurrentHashMap<String, Set<Long>> shuffleStreamIds;
 
+  private AtomicLong chunksBeingTransferredNum = new AtomicLong(0);
+
   /** State of a single stream. */
   protected static class StreamState {
-    final FileManagedBuffers buffers;
+    final Buffers buffers;
     final String shuffleKey;
     final String fileName;
     final TimeWindow fetchTimeMetric;
@@ -57,11 +59,7 @@ public class ChunkStreamManager {
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
-    StreamState(
-        String shuffleKey,
-        FileManagedBuffers buffers,
-        String fileName,
-        TimeWindow fetchTimeMetric) {
+    StreamState(String shuffleKey, Buffers buffers, String fileName, TimeWindow fetchTimeMetric) {
       this.buffers = Preconditions.checkNotNull(buffers);
       this.shuffleKey = shuffleKey;
       this.fileName = fileName;
@@ -88,7 +86,7 @@ public class ChunkStreamManager {
           String.format("Requested chunk index beyond end %s", chunkIndex));
     }
 
-    FileManagedBuffers buffers = state.buffers;
+    Buffers buffers = state.buffers;
     return buffers.chunk(chunkIndex, offset, len);
   }
 
@@ -105,6 +103,7 @@ public class ChunkStreamManager {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
       streamState.chunksBeingTransferred++;
+      chunksBeingTransferredNum.incrementAndGet();
     }
   }
 
@@ -112,15 +111,12 @@ public class ChunkStreamManager {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
       streamState.chunksBeingTransferred--;
+      chunksBeingTransferredNum.decrementAndGet();
     }
   }
 
   public long chunksBeingTransferred() {
-    long sum = 0L;
-    for (StreamState streamState : streams.values()) {
-      sum += streamState.chunksBeingTransferred;
-    }
-    return sum;
+    return chunksBeingTransferredNum.get();
   }
 
   /**
@@ -136,7 +132,7 @@ public class ChunkStreamManager {
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
   public long registerStream(
-      String shuffleKey, FileManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
+      String shuffleKey, Buffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
     return registerStream(myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric);
   }
@@ -144,7 +140,7 @@ public class ChunkStreamManager {
   public long registerStream(
       long streamId,
       String shuffleKey,
-      FileManagedBuffers buffers,
+      Buffers buffers,
       String fileName,
       TimeWindow fetchTimeMetric) {
     streams.put(streamId, new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric));

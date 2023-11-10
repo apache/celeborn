@@ -69,6 +69,8 @@ license: |
 | celeborn.worker.graceful.shutdown.timeout | 600s | The worker's graceful shutdown timeout time. | 0.2.0 | 
 | celeborn.worker.http.host | &lt;localhost&gt; | Worker's http host. | 0.4.0 | 
 | celeborn.worker.http.port | 9096 | Worker's http port. | 0.4.0 | 
+| celeborn.worker.memoryCache.capacity | 256m | Max size for shuffle file cache to memory | 0.3.2 | 
+| celeborn.worker.memoryCache.enabled | false | wether memory cache enable, it only effective when using local disk and should disable local shuffle read | 0.3.2 | 
 | celeborn.worker.monitor.disk.check.interval | 30s | Intervals between device monitor to check disk. | 0.3.0 | 
 | celeborn.worker.monitor.disk.check.timeout | 30s | Timeout time for worker check device status. | 0.3.0 | 
 | celeborn.worker.monitor.disk.checklist | readwrite,diskusage | Monitor type for disk, available items are: iohang, readwrite and diskusage. | 0.2.0 | 

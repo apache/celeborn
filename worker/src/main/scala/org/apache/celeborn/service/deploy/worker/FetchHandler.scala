@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
 import java.util
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import java.util.function.Consumer
 
 import com.google.common.base.Throwables
@@ -31,14 +31,14 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
-import org.apache.celeborn.common.network.buffer.NioManagedBuffer
+import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers, MemoryBuffers}
+import org.apache.celeborn.common.network.buffer.{ManagedBuffer, NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
-import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
+import org.apache.celeborn.common.util.{ExceptionUtils, MemCacheManager, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
 class FetchHandler(
@@ -55,9 +55,15 @@ class FetchHandler(
     conf.partitionReadBuffersMax,
     conf.creditStreamThreadsPerMountpoint,
     conf.readBuffersToTriggerReadMin)
+  val memCacheManager = MemCacheManager.getMemCacheManager(conf)
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
+
+  var pendingReadFileSize: AtomicLong = new AtomicLong(0)
+  var readTotalFileSize: AtomicLong = new AtomicLong(0)
+  var totalChunkNum: AtomicLong = new AtomicLong(1)
+  var totalMemCacheNum: AtomicLong = new AtomicLong(1)
 
   def init(worker: Worker): Unit = {
 
@@ -226,7 +232,10 @@ class FetchHandler(
           } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
           } else {
-            val buffers = new FileManagedBuffers(fileInfo, transportConf)
+            val buffers =
+              if (memCacheManager.contains(fileInfo.getFilePath))
+                new MemoryBuffers(fileInfo, transportConf)
+              else new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
             chunkStreamManager.registerStream(
               streamId,
@@ -365,13 +374,16 @@ class FetchHandler(
     workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
     val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(streamChunkSlice.streamId)
     val fetchBeginTime = System.nanoTime()
+    var buf: ManagedBuffer = null
     try {
-      val buf = chunkStreamManager.getChunk(
+      buf = chunkStreamManager.getChunk(
         streamChunkSlice.streamId,
         streamChunkSlice.chunkIndex,
         streamChunkSlice.offset,
         streamChunkSlice.len)
+      pendingReadFileSize.addAndGet(buf.size())
       chunkStreamManager.chunkBeingSent(streamChunkSlice.streamId)
+      totalChunkNum.incrementAndGet()
       client.getChannel.writeAndFlush(new ChunkFetchSuccess(streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
           override def operationComplete(future: Future[_ >: Void]): Unit = {
@@ -384,6 +396,12 @@ class FetchHandler(
               logError(
                 s"Sending ChunkFetchSuccess operation failed, chunk $streamChunkSlice",
                 future.cause())
+            }
+            if (buf != null) {
+              pendingReadFileSize.addAndGet(-1 * buf.size())
+              readTotalFileSize.addAndGet(buf.size())
+              if (buf.isInstanceOf[NettyManagedBuffer])
+                totalMemCacheNum.incrementAndGet()
             }
             chunkStreamManager.chunkSent(streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
@@ -401,6 +419,8 @@ class FetchHandler(
         client.getChannel.writeAndFlush(new ChunkFetchFailure(
           streamChunkSlice,
           Throwables.getStackTraceAsString(e)))
+        if (buf != null)
+          pendingReadFileSize.addAndGet(-1 * buf.size())
         workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
     }
   }
@@ -434,5 +454,11 @@ class FetchHandler(
 
   def setPartitionsSorter(partitionFilesSorter: PartitionFilesSorter): Unit = {
     this.partitionsSorter = partitionFilesSorter
+  }
+
+  def getMemCacheHitRate(): Double = {
+    BigDecimal(totalMemCacheNum.get().toDouble / totalChunkNum.get()).setScale(
+      4,
+      BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 }

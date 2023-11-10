@@ -42,7 +42,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, MemCacheManager, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
@@ -130,6 +130,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   deviceMonitor.startCheck()
+
+  val memCacheManager: MemCacheManager = MemCacheManager.getMemCacheManager(conf)
 
   val hdfsDir = conf.hdfsDir
   val hdfsPermission = new FsPermission("755")
@@ -561,6 +563,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
             case (_, fileInfo) =>
+              memCacheManager.removeCache(fileInfo.getFilePath)
               if (cleanFileInternal(shuffleKey, fileInfo)) {
                 isHdfsExpired = true
               }

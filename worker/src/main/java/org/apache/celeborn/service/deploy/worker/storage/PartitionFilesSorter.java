@@ -93,6 +93,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
+  private MemCacheManager memCacheManager;
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
@@ -104,6 +105,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
     this.gracefulShutdown = conf.workerGracefulShutdown();
+    this.memCacheManager = MemCacheManager.getMemCacheManager(conf);
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.
     if (gracefulShutdown) {
@@ -637,6 +639,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         hdfsSortedOutput =
             StorageManager.hadoopFs().create(new Path(sortedFilePath), true, 256 * 1024);
       } else {
+        if (memCacheManager.contains(originFilePath)) {
+          FileChannel channel = FileChannelUtils.createWritableFileChannel(originFilePath);
+          channel.write(memCacheManager.getCache(originFilePath).nioBuffer());
+          channel.close();
+          memCacheManager.removeCache(originFilePath);
+        }
         originFileChannel = FileChannelUtils.openReadableFileChannel(originFilePath);
         sortedFileChannel = FileChannelUtils.createWritableFileChannel(sortedFilePath);
       }
