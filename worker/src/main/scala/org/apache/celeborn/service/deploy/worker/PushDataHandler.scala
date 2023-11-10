@@ -249,9 +249,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter.decrementPendingWrites()
       return;
     }
+    val writePromise = Promise[Unit]()
     // for primary, send data to replica
     if (doReplicate) {
-      val writePromise = Promise[Unit]()
       pushData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
@@ -315,20 +315,16 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-              Try(Await.result(writePromise.future, Duration.Inf)) match {
-                case Success(_) =>
-                  if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
-                    callbackWithTimer.onFailure(e)
-                  } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
-                    callbackWithTimer.onFailure(e)
-                  } else {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
-                    callbackWithTimer.onFailure(
-                      new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
-                  }
-                case Failure(e) => callbackWithTimer.onFailure(e)
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
+                callbackWithTimer.onFailure(e)
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
+                callbackWithTimer.onFailure(e)
+              } else {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
               }
             }
           }
@@ -353,7 +349,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
         }
       })
-      writeLocalData(Seq(fileWriter), body, shuffleKey, None, Some(writePromise))
+      writeLocalData(Seq(fileWriter), body, shuffleKey, isPrimary, None, writePromise)
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
@@ -362,30 +358,34 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       // will fast stop pushing data to the worker, we won't return congest status. But
       // in the long term, especially if this issue could frequently happen, we may need to return
       // congest&softSplit status together
-      writeLocalData(Seq(fileWriter), body, shuffleKey, None, None)
-      if (softSplit.get()) {
-        callbackWithTimer.onSuccess(
-          ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
-      } else {
-        Option(CongestionController.instance()) match {
-          case Some(congestionController) =>
-            if (congestionController.isUserCongested(
-                fileWriter.getFileInfo.getUserIdentifier)) {
-              if (isPrimary) {
-                callbackWithTimer.onSuccess(
-                  ByteBuffer.wrap(
-                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
-              } else {
-                callbackWithTimer.onSuccess(
-                  ByteBuffer.wrap(
-                    Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
-              }
-            } else {
-              callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      writeLocalData(Seq(fileWriter), body, shuffleKey, isPrimary, None, writePromise)
+      Try(Await.result(writePromise.future, Duration.Inf)) match {
+        case Success(_) =>
+          if (softSplit.get()) {
+            callbackWithTimer.onSuccess(
+              ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
+          } else {
+            Option(CongestionController.instance()) match {
+              case Some(congestionController) =>
+                if (congestionController.isUserCongested(
+                    fileWriter.getFileInfo.getUserIdentifier)) {
+                  if (isPrimary) {
+                    callbackWithTimer.onSuccess(
+                      ByteBuffer.wrap(
+                        Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
+                  } else {
+                    callbackWithTimer.onSuccess(
+                      ByteBuffer.wrap(
+                        Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
+                  }
+                } else {
+                  callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+                }
+              case None =>
+                callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
             }
-          case None =>
-            callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-        }
+          }
+        case Failure(e) => callbackWithTimer.onFailure(e)
       }
     }
   }
@@ -514,9 +514,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriters.foreach(_.decrementPendingWrites())
       return
     }
+    val writePromise = Promise[Unit]()
     // for primary, send data to replica
     if (doReplicate) {
-      val writePromise = Promise[Unit]()
       pushMergedData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
@@ -575,20 +575,16 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-              Try(Await.result(writePromise.future, Duration.Inf)) match {
-                case Success(_) =>
-                  if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
-                    callbackWithTimer.onFailure(e)
-                  } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
-                    callbackWithTimer.onFailure(e)
-                  } else {
-                    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
-                    callbackWithTimer.onFailure(
-                      new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
-                  }
-                case Failure(e) => callbackWithTimer.onFailure(e)
+              if (e.getMessage.startsWith(StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
+                callbackWithTimer.onFailure(e)
+              } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
+                callbackWithTimer.onFailure(e)
+              } else {
+                workerSource.incCounter(WorkerSource.REPLICATE_DATA_CONNECTION_EXCEPTION_COUNT)
+                callbackWithTimer.onFailure(
+                  new CelebornIOException(StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA))
               }
             }
           }
@@ -618,30 +614,34 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
         }
       })
-      writeLocalData(fileWriters, body, shuffleKey, Some(batchOffsets), Some(writePromise))
+      writeLocalData(fileWriters, body, shuffleKey, isPrimary, Some(batchOffsets), writePromise)
     } else {
       // The codes here could be executed if
       // 1. the client doesn't enable push data to the replica, the primary worker could hit here
       // 2. the client enables push data to the replica, and the replica worker could hit here
-      writeLocalData(fileWriters, body, shuffleKey, Some(batchOffsets), None)
-      Option(CongestionController.instance()) match {
-        case Some(congestionController) if fileWriters.nonEmpty =>
-          if (congestionController.isUserCongested(
-              fileWriters.head.getFileInfo.getUserIdentifier)) {
-            if (isPrimary) {
-              callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(
-                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
-            } else {
-              callbackWithTimer.onSuccess(
-                ByteBuffer.wrap(
-                  Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
-            }
-          } else {
-            callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      writeLocalData(fileWriters, body, shuffleKey, isPrimary, Some(batchOffsets), writePromise)
+      Try(Await.result(writePromise.future, Duration.Inf)) match {
+        case Success(_) =>
+          Option(CongestionController.instance()) match {
+            case Some(congestionController) if fileWriters.nonEmpty =>
+              if (congestionController.isUserCongested(
+                  fileWriters.head.getFileInfo.getUserIdentifier)) {
+                if (isPrimary) {
+                  callbackWithTimer.onSuccess(
+                    ByteBuffer.wrap(
+                      Array[Byte](StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue)))
+                } else {
+                  callbackWithTimer.onSuccess(
+                    ByteBuffer.wrap(
+                      Array[Byte](StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue)))
+                }
+              } else {
+                callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+              }
+            case None =>
+              callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
           }
-        case None =>
-          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+        case Failure(e) => callbackWithTimer.onFailure(e)
       }
     }
   }
@@ -787,13 +787,20 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter.decrementPendingWrites()
       return;
     }
-    writeLocalData(Seq(fileWriter), body, shuffleKey, None, None)
+    val writePromise = Promise[Unit]()
+    writeLocalData(Seq(fileWriter), body, shuffleKey, isPrimary, None, writePromise)
     // for primary, send data to replica
     if (location.hasPeer && isPrimary) {
       // to do
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      Try(Await.result(writePromise.future, Duration.Inf)) match {
+        case Success(_) => wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+        case Failure(e) => wrappedCallback.onFailure(e)
+      }
     } else {
-      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+      Try(Await.result(writePromise.future, Duration.Inf)) match {
+        case Success(_) => wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+        case Failure(e) => wrappedCallback.onFailure(e)
+      }
     }
   }
 
@@ -1201,26 +1208,36 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriters: Seq[FileWriter],
       body: ByteBuf,
       shuffleKey: String,
+      isPrimary: Boolean,
       batchOffsets: Option[Array[Int]],
-      writePromise: Option[Promise[Unit]]): Unit = {
+      writePromise: Promise[Unit]): Unit = {
     def writeData(fileWriter: FileWriter, body: ByteBuf, shuffleKey: String): Unit = {
       try {
         fileWriter.write(body)
       } catch {
-        case e: AlreadyClosedException =>
-          fileWriter.decrementPendingWrites()
-          val (mapId, attemptId) = getMapAttempt(body)
-          val endedAttempt =
-            if (shuffleMapperAttempts.containsKey(shuffleKey)) {
-              shuffleMapperAttempts.get(shuffleKey).get(mapId)
-            } else -1
-          // TODO just info log for ended attempt
-          logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
-            s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
-          writePromise.map(_.failure(e)).orElse(throw e)
         case e: Exception =>
-          logError("Exception encountered when write.", e)
-          writePromise.map(_.failure(e)).orElse(throw e)
+          if (e.isInstanceOf[AlreadyClosedException]) {
+            val (mapId, attemptId) = getMapAttempt(body)
+            val endedAttempt =
+              if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+                shuffleMapperAttempts.get(shuffleKey).get(mapId)
+              } else -1
+            // TODO just info log for ended attempt
+            logWarning(s"Append data failed for task(shuffle $shuffleKey, map $mapId, attempt" +
+              s" $attemptId), caused by AlreadyClosedException, endedAttempt $endedAttempt, error message: ${e.getMessage}")
+          } else {
+            logError("Exception encountered when write.", e)
+          }
+          if (!writePromise.isCompleted) {
+            val cause =
+              if (isPrimary) {
+                StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
+              } else {
+                StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
+              }
+            writePromise.failure(new CelebornIOException(cause))
+          }
+          fileWriter.decrementPendingWrites()
       }
     }
     batchOffsets match {
@@ -1238,10 +1255,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       case _ =>
         writeData(fileWriters.head, body, shuffleKey)
     }
-    writePromise.foreach { promise =>
-      if (!promise.isCompleted) {
-        promise.success()
-      }
+    if (!writePromise.isCompleted) {
+      writePromise.success()
     }
   }
 
