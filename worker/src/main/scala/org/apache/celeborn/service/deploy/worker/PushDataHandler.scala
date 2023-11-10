@@ -1228,29 +1228,32 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           } else {
             logError("Exception encountered when write.", e)
           }
-          if (!writePromise.isCompleted) {
-            val cause =
-              if (isPrimary) {
-                StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
-              } else {
-                StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
-              }
-            writePromise.failure(new CelebornIOException(cause))
-          }
+          val cause =
+            if (isPrimary) {
+              StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
+            } else {
+              StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
+            }
+          writePromise.failure(new CelebornIOException(cause))
           fileWriter.decrementPendingWrites()
       }
     }
     batchOffsets match {
       case Some(batchOffsets) =>
-        batchOffsets.zip(fileWriters).foreach { case (offset, writer) =>
+        var index = 0
+        var fileWriter: FileWriter = null
+        while (!writePromise.isCompleted && index < fileWriters.length) {
+          fileWriter = fileWriters(index)
+          val offset = body.readerIndex() + batchOffsets(index)
           val length =
-            if (offset == batchOffsets.last) {
-              body.readableBytes() - offset
+            if (index == fileWriters.length - 1) {
+              body.readableBytes() - batchOffsets(index)
             } else {
-              batchOffsets(batchOffsets.indexOf(offset) + 1) - offset
+              batchOffsets(index + 1) - batchOffsets(index)
             }
-          val batchBody = body.slice(body.readerIndex() + offset, length)
-          writeData(writer, batchBody, shuffleKey)
+          val batchBody = body.slice(offset, length)
+          writeData(fileWriter, batchBody, shuffleKey)
+          index += 1
         }
       case _ =>
         writeData(fileWriters.head, body, shuffleKey)
