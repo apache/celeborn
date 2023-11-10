@@ -721,6 +721,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
   def metricsWorkerForceAppendPauseSpentTimeThreshold: Int =
     get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
+  def metricsJsonPrettyEnabled: Boolean = get(METRICS_JSON_PRETTY_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -3899,6 +3900,23 @@ object CelebornConf extends Logging {
       .stringConf
       .checkValue(path => path.startsWith("/"), "Context path must start with '/'")
       .createWithDefault("/metrics/prometheus")
+
+  val METRICS_JSON_PATH: ConfigEntry[String] =
+    buildConf("celeborn.metrics.json.path")
+      .categories("metrics")
+      .doc("URI context path of json metrics HTTP server.")
+      .version("0.4.0")
+      .stringConf
+      .checkValue(path => path.startsWith("/"), "Context path must start with '/'")
+      .createWithDefault("/metrics/json")
+
+  val METRICS_JSON_PRETTY_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.json.pretty.enabled")
+      .categories("metrics")
+      .doc("When true, view metrics in json pretty format")
+      .version("0.4.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val QUOTA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.quota.enabled")
