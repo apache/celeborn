@@ -21,6 +21,8 @@ import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
+import scala.collection.JavaConverters._
+
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
@@ -55,6 +57,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private var workerInfo: WorkerInfo = _
   private var diskReserveSize: Long = _
   private var diskReserveRatio: Option[Double] = _
+  private var diskUsableSizes: Map[String, Long] = _
   private var partitionSplitMinimumSize: Long = _
   private var partitionSplitMaximumSize: Long = _
   private var shutdown: AtomicBoolean = _
@@ -77,6 +80,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.workerDiskReserveSize
     diskReserveRatio = worker.conf.workerDiskReserveRatio
+    diskUsableSizes = workerInfo.diskInfos.asScala.map { case (mountPoint, diskInfo) =>
+      (mountPoint, DiskUtils.getMinimumUsableSize(diskInfo, diskReserveSize, diskReserveRatio))
+    }.toMap
     partitionSplitMinimumSize = worker.conf.partitionSplitMinimumSize
     partitionSplitMaximumSize = worker.conf.partitionSplitMaximumSize
     storageManager = worker.storageManager
@@ -1195,14 +1201,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     if (fileWriter.flusher.isInstanceOf[HdfsFlusher]) {
       return false
     }
-    val diskInfo = workerInfo.diskInfos
-      .get(fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint)
-
-    val minimumUsableSize =
-      DiskUtils.getMinimumUsableSize(diskInfo, diskReserveSize, diskReserveRatio)
+    val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint
+    val diskInfo = workerInfo.diskInfos.get(mountPoint)
     val diskFull = diskInfo.status.equals(
-      DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace < minimumUsableSize
-
+      DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace < diskUsableSizes(mountPoint)
     diskFull
   }
 
