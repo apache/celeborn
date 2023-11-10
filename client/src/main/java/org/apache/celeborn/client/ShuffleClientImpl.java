@@ -1620,6 +1620,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public void shutdown() {
+    if (null != reviveManager) {
+      reviveManager.close();
+    }
     if (null != rpcEnv) {
       rpcEnv.shutdown();
     }
@@ -1631,9 +1634,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     if (null != partitionSplitPool) {
       partitionSplitPool.shutdown();
-    }
-    if (null != reviveManager) {
-      reviveManager.close();
     }
     if (null != lifecycleManagerRef) {
       lifecycleManagerRef = null;
