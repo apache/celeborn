@@ -38,7 +38,6 @@ public class StorageInfo implements Serializable {
     }
   }
 
-  @Deprecated public static String UNKNOWN_DISK = "UNKNOWN_DISK";
   public static Map<Integer, Type> typesMap = new HashMap<>();
   public static Set<String> typeNames = new HashSet<>();
 
@@ -57,7 +56,7 @@ public class StorageInfo implements Serializable {
 
   // Default storage Type is MEMORY.
   private Type type = Type.MEMORY;
-  private String mountPoint = UNKNOWN_DISK;
+  private String mountPoint = "";
   // if a file is committed, field "finalResult" will be true
   private boolean finalResult = false;
   private String filePath;
@@ -74,6 +73,11 @@ public class StorageInfo implements Serializable {
 
   public StorageInfo(String mountPoint, int availableStorageTypes) {
     this.mountPoint = mountPoint;
+    this.availableStorageTypes = availableStorageTypes;
+  }
+
+  public StorageInfo(Type type, int availableStorageTypes) {
+    this.type = type;
     this.availableStorageTypes = availableStorageTypes;
   }
 
@@ -147,19 +151,39 @@ public class StorageInfo implements Serializable {
         + '}';
   }
 
-  public boolean localDiskAvailable() {
+  public static boolean localDiskAvailable(int availableStorageTypes) {
     return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
         || (availableStorageTypes & LOCAL_DISK_MASK) > 0;
   }
 
-  public boolean HDFSAvailable() {
+  public boolean localDiskAvailable() {
+    return StorageInfo.localDiskAvailable(availableStorageTypes);
+  }
+
+  public static boolean HDFSAvailable(int availableStorageTypes) {
     return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
         || (availableStorageTypes & HDFS_MASK) > 0;
   }
 
-  public boolean OSSAvailable() {
+  public boolean HDFSAvailable() {
+    return StorageInfo.HDFSAvailable(availableStorageTypes);
+  }
+
+  public static boolean HDFSOnly(int availableStorageTypes) {
+    return availableStorageTypes == HDFS_MASK;
+  }
+
+  public boolean HDFSOnly() {
+    return StorageInfo.HDFSOnly(availableStorageTypes);
+  }
+
+  public static boolean OSSAvailable(int availableStorageTypes) {
     return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
         || (availableStorageTypes & OSS_MASK) > 0;
+  }
+
+  public boolean OSSAvailable() {
+    return StorageInfo.OSSAvailable(availableStorageTypes);
   }
 
   @Override

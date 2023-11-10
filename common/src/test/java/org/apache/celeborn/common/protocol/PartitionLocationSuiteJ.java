@@ -205,7 +205,7 @@ public class PartitionLocationSuiteJ {
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:PRIMARY\n"
             + "  peer:(empty)\n"
-            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', finalResult=false, filePath=null}\n"
+            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{}]";
     String exp2 =
         "PartitionLocation[\n"
@@ -213,7 +213,7 @@ public class PartitionLocationSuiteJ {
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:PRIMARY\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
-            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='UNKNOWN_DISK', finalResult=false, filePath=null}\n"
+            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{}]";
     String exp3 =
         "PartitionLocation[\n"

@@ -298,7 +298,7 @@ public class SlotsAllocatorSuiteJ {
     conf.set("celeborn.active.storage.levels", "HDFS");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsRoundRobin(
-            workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            workers, partitionIds, shouldReplicate, false, StorageInfo.HDFS_MASK);
 
     int allocatedPartitionCount = 0;
 
