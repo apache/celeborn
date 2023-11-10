@@ -302,10 +302,18 @@ Masters and works can be deployed on the same node but should not deploy multipl
 See more detail in [CONFIGURATIONS](docs/configuration.md)
 
 ### Support Spark Dynamic Allocation
-We provide a patch to enable users to use Spark with both Dynamic Resource Allocation(DRA) and Celeborn.
-For Spark2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).  
-For Spark3.x check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3.patch).
-For Spark3.4 check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_4.patch).
+For Spark versions >= 3.5.0, Celeborn can be used with Dynamic Resource Allocation(DRA) 
+when `spark.shuffle.sort.io.plugin.class` is set to `org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO`.
+Check [SPARK-42689](https://issues.apache.org/jira/browse/SPARK-42689) and [CELEBORN-911](https://issues.apache.org/jira/browse/CELEBORN-911)
+for more details.
+
+For Spark versions < 3.5.0, we provide a patch to enable users to use Spark with DRA and Celeborn.
+- For Spark 2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).
+- For Spark 3.0 check [Spark3.0 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_0.patch).
+- For Spark 3.1 check [Spark3.1 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_1.patch).
+- For Spark 3.2 check [Spark3.2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_2.patch).
+- For Spark 3.3 check [Spark3.3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_3.patch).
+- For Spark 3.4 check [Spark3.4 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_4.patch).
 
 ### Metrics
 Celeborn has various metrics. [METRICS](METRICS.md)
