@@ -19,11 +19,11 @@ package org.apache.celeborn.common.network.protocol;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Objects;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import java.util.Objects;
-import io.netty.buffer.ByteBuf;
 
 /**
  * Request to read a set of blocks. Returns {@link StreamHandle}. Use PbOpenStream instead of this

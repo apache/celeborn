@@ -17,9 +17,9 @@
 
 package org.apache.celeborn.common.network.protocol;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
-import io.netty.buffer.ByteBuf;
 
 /**
  * Request to fetch a sequence of a single chunk of a stream. This will correspond to a single

@@ -18,13 +18,13 @@
 package org.apache.celeborn.common.network.buffer;
 
 import java.io.IOException;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 /** A {@link ManagedBuffer} backed by {@link ByteBuffer}. */
 public class NioManagedBuffer extends ManagedBuffer {

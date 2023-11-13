@@ -21,10 +21,11 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
+
 import com.google.common.io.ByteStreams;
 import io.netty.channel.DefaultFileRegion;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 import org.apache.celeborn.common.network.util.LimitedInputStream;
 import org.apache.celeborn.common.network.util.TransportConf;

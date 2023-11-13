@@ -18,8 +18,8 @@
 package org.apache.celeborn.common.network.protocol;
 
 import java.nio.ByteBuffer;
-
 import java.util.Objects;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 

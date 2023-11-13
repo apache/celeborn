@@ -18,8 +18,6 @@
 package org.apache.celeborn.common.network.client;
 
 import java.io.Closeable;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
@@ -33,6 +31,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -316,9 +316,9 @@ public class TransportClient implements Closeable {
   @Override
   public String toString() {
     return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-      .append("remoteAdress", channel.remoteAddress())
-      .append("isActive", isActive())
-      .toString();
+        .append("remoteAdress", channel.remoteAddress())
+        .append("isActive", isActive())
+        .toString();
   }
 
   private static final AtomicLong counter = new AtomicLong();
