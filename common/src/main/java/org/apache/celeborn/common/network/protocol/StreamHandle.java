@@ -17,7 +17,9 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+import java.util.Objects;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -56,7 +58,7 @@ public final class StreamHandle extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamId, numChunks);
+    return Objects.hash(streamId, numChunks);
   }
 
   @Override
@@ -70,9 +72,9 @@ public final class StreamHandle extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("streamId", streamId)
-        .add("numChunks", numChunks)
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("streamId", streamId)
+        .append("numChunks", numChunks)
         .toString();
   }
 }

@@ -18,10 +18,11 @@
 package org.apache.celeborn.common.network.buffer;
 
 import java.io.IOException;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
@@ -77,6 +78,8 @@ public class NettyManagedBuffer extends ManagedBuffer {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this).add("buf", buf).toString();
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+      .append("buf", buf)
+      .toString();
   }
 }

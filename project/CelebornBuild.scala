@@ -42,7 +42,7 @@ object Dependencies {
   val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.12.0"
   val findbugsVersion = "1.3.9"
-  val guavaVersion = "14.0.1"
+  val guavaVersion = "27.0-jre"
   val hadoopVersion = "3.2.4"
   val javaxServletVersion = "3.1.0"
   val junitInterfaceVersion = "0.13.3"

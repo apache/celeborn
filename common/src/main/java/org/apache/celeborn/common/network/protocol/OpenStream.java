@@ -20,7 +20,9 @@ package org.apache.celeborn.common.network.protocol;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import com.google.common.base.Objects;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+import java.util.Objects;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -81,7 +83,7 @@ public final class OpenStream extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(
+    return Objects.hash(
         Arrays.hashCode(shuffleKey), Arrays.hashCode(fileName), startMapIndex, endMapIndex);
   }
 
@@ -99,11 +101,11 @@ public final class OpenStream extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("shuffleKey", new String(shuffleKey, StandardCharsets.UTF_8))
-        .add("fileName", new String(fileName, StandardCharsets.UTF_8))
-        .add("startMapIndex", startMapIndex)
-        .add("endMapIndex", endMapIndex)
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("shuffleKey", new String(shuffleKey, StandardCharsets.UTF_8))
+        .append("fileName", new String(fileName, StandardCharsets.UTF_8))
+        .append("startMapIndex", startMapIndex)
+        .append("endMapIndex", endMapIndex)
         .toString();
   }
 }

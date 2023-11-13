@@ -17,7 +17,9 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+import java.util.Objects;
 import io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -76,7 +78,7 @@ public final class ChunkFetchSuccess extends ResponseMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamChunkSlice, body());
+    return Objects.hash(streamChunkSlice, body());
   }
 
   @Override
@@ -90,9 +92,9 @@ public final class ChunkFetchSuccess extends ResponseMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("streamChunkId", streamChunkSlice)
-        .add("buffer", body())
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("streamChunkId", streamChunkSlice)
+        .append("buffer", body())
         .toString();
   }
 }

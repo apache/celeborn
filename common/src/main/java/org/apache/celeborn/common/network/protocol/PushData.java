@@ -17,7 +17,9 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -86,7 +88,7 @@ public final class PushData extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(requestId, mode, shuffleKey, partitionUniqueId, body());
+    return Objects.hash(requestId, mode, shuffleKey, partitionUniqueId, body());
   }
 
   @Override
@@ -104,12 +106,12 @@ public final class PushData extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("requestId", requestId)
-        .add("mode", mode)
-        .add("shuffleKey", shuffleKey)
-        .add("partitionUniqueId", partitionUniqueId)
-        .add("body size", body().size())
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("requestId", requestId)
+        .append("mode", mode)
+        .append("shuffleKey", shuffleKey)
+        .append("partitionUniqueId", partitionUniqueId)
+        .append("body size", body().size())
         .toString();
   }
 }
