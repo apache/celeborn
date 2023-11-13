@@ -28,6 +28,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
@@ -105,6 +106,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       boolean highWorkload,
+      WorkerStatus workerStatus,
       String requestId) {
     updateWorkerHeartbeatMeta(
         host,
@@ -116,6 +118,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         userResourceConsumption,
         estimatedAppDiskUsage,
         time,
+        workerStatus,
         highWorkload);
   }
 
@@ -139,6 +142,11 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleWorkerEvent(
+      int workerEventTypeValue, List<WorkerInfo> workerInfoList, String requestId) {
+    updateWorkerEventMeta(workerEventTypeValue, workerInfoList);
+  }
+
   public void handleUpdatePartitionSize() {
     updatePartitionSize();
   }

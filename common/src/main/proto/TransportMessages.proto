@@ -96,11 +96,22 @@ enum MessageType {
   AUTHENTICATION_INITIATION_RESPONSE = 73;
   REGISTER_APPLICATION_REQUEST = 74;
   REGISTER_APPLICATION_RESPONSE = 75;
+  WORKER_EVENT_REQUEST = 76;
+  WORKER_EVENT_RESPONSE = 77;
 }
 
 enum StreamType {
   ChunkStream = 0;
   CreditStream = 1;
+}
+
+enum WorkerEventType {
+  None = 0;
+  Immediately = 1; // Immediately exit
+  Decommission = 2; // From normal to decommission, then exit
+  DecommissionThenIdle = 3; // From normal to decommission and keep as idle state
+  Graceful = 4; // From normal to graceful, then exit
+  Recommission = 5; // -> From InDecommissionThenIdle/Idle state to Normal
 }
 
 message PbStorageInfo {
@@ -182,11 +193,44 @@ message PbHeartbeatFromWorker {
   map<string, PbResourceConsumption> userResourceConsumption = 9;
   map<string, int64> estimatedAppDiskUsage = 10;
   bool highWorkload = 11;
+  PbWorkerStatus workerStatus = 12;
+}
+
+message PbWorkerStatus {
+  enum State {
+    Normal = 0;
+    Idle = 1; // Can be recommissioned
+    Exit = 2;
+    InDecommissionThenIdle = 3; // Can be recommissioned
+    InDecommission = 4;
+    InGraceFul = 5;
+    InExit = 6;
+  }
+
+  State state = 1;
+  int64 stateStartTime = 2;
 }
 
 message PbHeartbeatFromWorkerResponse {
   repeated string expiredShuffleKeys = 1;
   bool registered = 2;
+  WorkerEventType workerEventType = 3;
+}
+
+message PbWorkerEventInfo {
+  WorkerEventType workerEventType = 1;
+  int64 eventStartTime = 2;
+}
+
+message PbWorkerEventRequest {
+  repeated PbWorkerInfo workers = 1;
+  WorkerEventType workerEventType = 2;
+  string requestId = 3;
+}
+
+message PbWorkerEventResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message PbRegisterShuffle {
@@ -565,6 +609,7 @@ message PbSnapshotMetaInfo {
   map<string, int64> lostWorkers = 12;
   repeated PbWorkerInfo shutdownWorkers = 13;
   repeated PbWorkerInfo manuallyExcludedWorkers = 14;
+  map<string, PbWorkerEventInfo> workerEventInfos = 15;
 }
 
 message PbOpenStream {

@@ -292,10 +292,18 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |WorkerRef: null
            |""".stripMargin;
 
-      assertEquals(exp1, worker1.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-      assertEquals(exp2, worker2.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-      assertEquals(exp3, worker3.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-      assertEquals(exp4, worker4.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+      assertEquals(
+        exp1,
+        worker1.toString.replaceAll("(HeartbeatElapsedSeconds|WorkerStatus):.*\n", ""))
+      assertEquals(
+        exp2,
+        worker2.toString.replaceAll("(HeartbeatElapsedSeconds|WorkerStatus):.*\n", ""))
+      assertEquals(
+        exp3,
+        worker3.toString.replaceAll("(HeartbeatElapsedSeconds|WorkerStatus):.*\n", ""))
+      assertEquals(
+        exp4,
+        worker4.toString.replaceAll("(HeartbeatElapsedSeconds|WorkerStatus):.*\n", ""))
     } finally {
       if (null != rpcEnv) {
         rpcEnv.shutdown()
