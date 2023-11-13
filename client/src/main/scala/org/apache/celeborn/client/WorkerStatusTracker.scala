@@ -165,7 +165,7 @@ class WorkerStatusTracker(
                 StatusCode.RESERVE_SLOTS_FAILED |
                 StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY |
                 StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA |
-                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA |
+                StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY |
                 StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA |
                 StatusCode.PUSH_DATA_TIMEOUT_PRIMARY |
                 StatusCode.PUSH_DATA_TIMEOUT_REPLICA
