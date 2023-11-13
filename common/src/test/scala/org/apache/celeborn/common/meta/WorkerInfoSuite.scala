@@ -314,10 +314,10 @@ class WorkerInfoSuite extends CelebornFunSuite {
 
   test("Test WorkerInfo hashcode") {
     val host = generateRandomIPv4Address
-    val rpcPort = Random.nextInt(65535)
-    val pushPort = Random.nextInt(65535)
-    val fetchPort = Random.nextInt(65535)
-    val replicatePort = Random.nextInt(65535)
+    val rpcPort = Random.nextInt(65536)
+    val pushPort = Random.nextInt(65536)
+    val fetchPort = Random.nextInt(65536)
+    val replicatePort = Random.nextInt(65536)
     val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
 
     // origin hashCode() logic

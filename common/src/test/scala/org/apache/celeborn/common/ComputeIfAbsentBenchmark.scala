@@ -30,9 +30,9 @@ import org.apache.celeborn.benchmark.{Benchmark, BenchmarkBase}
  * ComputeIfAbsent benchmark.
  * To run this benchmark:
  * {{{
- *   1. build/sbt "common/test:runMain <this class>"
+ *   1. build/sbt "celeborn-common/test:runMain <this class>"
  *   2. generate result:
- *      CELEBORN_GENERATE_BENCHMARK_FILES=1 build/sbt "common/test:runMain <this class>"
+ *      CELEBORN_GENERATE_BENCHMARK_FILES=1 build/sbt "celeborn-common/test:runMain <this class>"
  *      Results will be written to "benchmarks/ComputeIfAbsentBenchmark-results.txt".
  * }}}
  */

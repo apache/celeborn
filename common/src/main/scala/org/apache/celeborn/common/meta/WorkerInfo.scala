@@ -49,6 +49,7 @@ class WorkerInfo(
   var endpoint: RpcEndpointRef = null
   // Cache the hash code for WorkerInfo
   private var hash = 0
+  private var isZeroHash = false
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
@@ -235,14 +236,18 @@ class WorkerInfo(
 
   override def hashCode(): Int = {
     var h = hash
-    if (h == 0) {
-      val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort)
+    if (h == 0 || isZeroHash) {
+      val state = Array(host, rpcPort, pushPort, fetchPort, replicatePort)
       var i = 0
-      while (i < state.size) {
+      while (i < state.length) {
         h = 31 * h + state(i).hashCode()
         i = i + 1
       }
-      hash = h
+      if (h == 0) {
+        isZeroHash = true
+      } else {
+        hash = h
+      }
     }
     h
   }
