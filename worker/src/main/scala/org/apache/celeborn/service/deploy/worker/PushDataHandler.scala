@@ -1248,17 +1248,21 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       case Some(batchOffsets) =>
         var index = 0
         var fileWriter: FileWriter = null
-        while (!writePromise.isCompleted && index < fileWriters.length) {
-          fileWriter = fileWriters(index)
-          val offset = body.readerIndex() + batchOffsets(index)
-          val length =
-            if (index == fileWriters.length - 1) {
-              body.readableBytes() - batchOffsets(index)
-            } else {
-              batchOffsets(index + 1) - batchOffsets(index)
-            }
-          val batchBody = body.slice(offset, length)
-          writeData(fileWriter, batchBody, shuffleKey)
+        while (index < fileWriters.length) {
+          if (!writePromise.isCompleted) {
+            fileWriter = fileWriters(index)
+            val offset = body.readerIndex() + batchOffsets(index)
+            val length =
+              if (index == fileWriters.length - 1) {
+                body.readableBytes() - batchOffsets(index)
+              } else {
+                batchOffsets(index + 1) - batchOffsets(index)
+              }
+            val batchBody = body.slice(offset, length)
+            writeData(fileWriter, batchBody, shuffleKey)
+          } else {
+            fileWriter.decrementPendingWrites()
+          }
           index += 1
         }
       case _ =>
