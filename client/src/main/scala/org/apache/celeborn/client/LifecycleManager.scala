@@ -816,11 +816,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def unregisterAppShuffle(appShuffleId: Int): Unit = {
     logInfo(s"Unregister appShuffleId $appShuffleId starts...")
     val shuffleIds = shuffleIdMapping.remove(appShuffleId)
-    shuffleIds.synchronized(
-      shuffleIds.values.map {
-        case (shuffleId, _) =>
-          unregisterShuffle(shuffleId)
-      })
+    if (shuffleIds != null) {
+      shuffleIds.synchronized(
+        shuffleIds.values.map {
+          case (shuffleId, _) =>
+            unregisterShuffle(shuffleId)
+        })
+    }
   }
 
   /* ========================================================== *
