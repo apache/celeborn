@@ -29,7 +29,7 @@ trait CelebornCompressibleColumnBuilder[T <: AtomicType]
 
   this: CelebornNativeColumnBuilder[T] with WithCelebornCompressionSchemes =>
 
-  var compressionEncoder: Encoder[T] = CelebornPassThrough.encoder(columnType)
+  private var compressionEncoder: Encoder[T] = CelebornPassThrough.encoder(columnType)
 
   def init(encoder: Encoder[T]): Unit = {
     compressionEncoder = encoder
