@@ -147,6 +147,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def get[T](entry: ConfigEntry[T]): T = {
     entry.readFrom(reader)
   }
+
   /**
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
