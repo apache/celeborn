@@ -196,7 +196,7 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier());
-        int shuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, true);
+        int shuffleId = SparkUtils.celebornShuffleId(client, h, context, true);
         shuffleIdTracker.track(h.shuffleId(), shuffleId);
 
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
