@@ -33,7 +33,7 @@ case object CelebornPassThrough extends CelebornCompressionScheme {
   override def supports(columnType: CelebornColumnType[_]): Boolean = true
 
   override def encoder[T <: AtomicType](columnType: NativeCelebornColumnType[T]): Encoder[T] = {
-    new this.CelebornEncoder[T](columnType)
+    new this.CelebornEncoder[T]()
   }
 
   override def decoder[T <: AtomicType](
@@ -42,7 +42,7 @@ case object CelebornPassThrough extends CelebornCompressionScheme {
     new this.CelebornDecoder(buffer, columnType)
   }
 
-  class CelebornEncoder[T <: AtomicType](columnType: NativeCelebornColumnType[T])
+  class CelebornEncoder[T <: AtomicType]()
     extends Encoder[T] {
     override def uncompressedSize: Int = 0
 
@@ -247,7 +247,7 @@ case object CelebornDictionaryEncoding extends CelebornCompressionScheme {
   override val typeId = 1
 
   // 32K unique values allowed
-  var MAX_DICT_SIZE = Short.MaxValue
+  var MAX_DICT_SIZE: Short = Short.MaxValue
 
   override def decoder[T <: AtomicType](
       buffer: ByteBuffer,
@@ -277,7 +277,7 @@ case object CelebornDictionaryEncoding extends CelebornCompressionScheme {
     // Total number of elements.
     private var count = 0
 
-    def cleanBatch: Unit = {
+    def cleanBatch(): Unit = {
       count = 0
       _uncompressedSize = 0
     }
@@ -341,11 +341,11 @@ case object CelebornDictionaryEncoding extends CelebornCompressionScheme {
       buffer: ByteBuffer,
       columnType: NativeCelebornColumnType[T])
     extends Decoder[T] {
-    val elementNum = ByteBufferHelper.getInt(buffer)
+    private val elementNum: Int = ByteBufferHelper.getInt(buffer)
     private val dictionary: Array[Any] = new Array[Any](elementNum)
-    private var intDictionary: Array[Int] = null
-    private var longDictionary: Array[Long] = null
-    private var stringDictionary: Array[String] = null
+    private var intDictionary: Array[Int] = _
+    private var longDictionary: Array[Long] = _
+    private var stringDictionary: Array[String] = _
 
     columnType.dataType match {
       case _: IntegerType =>
