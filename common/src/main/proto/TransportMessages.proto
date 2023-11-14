@@ -87,6 +87,10 @@ enum MessageType {
   TRANSPORTABLE_ERROR = 64;
   WORKER_EXCLUDE = 65;
   WORKER_EXCLUDE_RESPONSE = 66;
+  REPORT_SHUFFLE_FETCH_FAILURE = 67;
+  REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE = 68;
+  GET_SHUFFLE_ID = 69;
+  GET_SHUFFLE_ID_RESPONSE = 70;
 }
 
 enum StreamType {
@@ -294,6 +298,25 @@ message PbGetReducerFileGroupResponse {
 
   // only map partition mode has succeed partitionIds
   repeated int32 partitionIds = 4;
+}
+
+message PbGetShuffleId {
+  int32 appShuffleId = 1;
+  string appShuffleIdentifier = 2;
+  bool isShuffleWriter = 3;
+}
+
+message PbGetShuffleIdResponse {
+  int32 shuffleId = 1;
+}
+
+message PbReportShuffleFetchFailure {
+  int32 appShuffleId = 1;
+  int32 shuffleId = 2;
+}
+
+message PbReportShuffleFetchFailureResponse {
+  bool success = 1;
 }
 
 message PbUnregisterShuffle {

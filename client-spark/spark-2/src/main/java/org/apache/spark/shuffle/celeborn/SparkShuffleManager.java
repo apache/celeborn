@@ -66,6 +66,8 @@ public class SparkShuffleManager implements ShuffleManager {
   private long sendBufferPoolCheckInterval;
   private long sendBufferPoolExpireTimeout;
 
+  private ExecutorShuffleIdTracker shuffleIdTracker = new ExecutorShuffleIdTracker();
+
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     this.conf = conf;
     this.isDriver = isDriver;
@@ -105,6 +107,12 @@ public class SparkShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appId, celebornConf);
+          if (celebornConf.clientFetchThrowsFetchFailure()) {
+            MapOutputTrackerMaster mapOutputTracker =
+                (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
+            lifecycleManager.registerShuffleTrackerCallback(
+                shuffleId -> mapOutputTracker.unregisterAllMapOutput(shuffleId));
+          }
         }
       }
     }
@@ -131,23 +139,24 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager.getPort(),
           lifecycleManager.getUserIdentifier(),
           shuffleId,
+          celebornConf.clientFetchThrowsFetchFailure(),
           numMaps,
           dependency);
     }
   }
 
   @Override
-  public boolean unregisterShuffle(int shuffleId) {
-    if (sortShuffleIds.contains(shuffleId)) {
-      return sortShuffleManager().unregisterShuffle(shuffleId);
+  public boolean unregisterShuffle(int appShuffleId) {
+    if (sortShuffleIds.contains(appShuffleId)) {
+      return sortShuffleManager().unregisterShuffle(appShuffleId);
     }
     // For Spark driver side trigger unregister shuffle.
     if (lifecycleManager != null) {
-      lifecycleManager.unregisterShuffle(shuffleId);
+      lifecycleManager.unregisterAppShuffle(appShuffleId);
     }
     // For Spark executor side cleanup shuffle related info.
     if (shuffleClient != null) {
-      shuffleClient.cleanupShuffle(shuffleId);
+      shuffleIdTracker.unregisterAppShuffleId(shuffleClient, appShuffleId);
     }
     return true;
   }
@@ -187,10 +196,14 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier());
+        int shuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, true);
+        shuffleIdTracker.track(h.shuffleId(), shuffleId);
+
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
           return new SortBasedShuffleWriter<>(
+              shuffleId,
               h.dependency(),
               h.numMaps(),
               context,
@@ -200,6 +213,7 @@ public class SparkShuffleManager implements ShuffleManager {
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           return new HashBasedShuffleWriter<>(
+              shuffleId,
               h,
               mapId,
               context,
@@ -225,7 +239,14 @@ public class SparkShuffleManager implements ShuffleManager {
       @SuppressWarnings("unchecked")
       CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
       return new CelebornShuffleReader<>(
-          h, startPartition, endPartition, 0, Int.MaxValue(), context, celebornConf);
+          h,
+          startPartition,
+          endPartition,
+          0,
+          Int.MaxValue(),
+          context,
+          celebornConf,
+          shuffleIdTracker);
     }
     return _sortShuffleManager.getReader(handle, startPartition, endPartition, context);
   }

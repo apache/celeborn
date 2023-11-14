@@ -153,6 +153,16 @@ public class DummyShuffleClient extends ShuffleClient {
     return new PushState(conf);
   }
 
+  @Override
+  public int getShuffleId(int appShuffleId, String appShuffleIdentifier, boolean isWriter) {
+    return appShuffleId;
+  }
+
+  @Override
+  public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId) {
+    return true;
+  }
+
   public void initReducePartitionMap(int shuffleId, int numPartitions, int workerNum) {
     ConcurrentHashMap<Integer, PartitionLocation> map = JavaUtils.newConcurrentHashMap();
     String host = "host";

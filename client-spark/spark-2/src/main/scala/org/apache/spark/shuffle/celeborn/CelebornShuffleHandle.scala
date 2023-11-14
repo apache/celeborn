@@ -28,6 +28,7 @@ class CelebornShuffleHandle[K, V, C](
     val lifecycleManagerPort: Int,
     val userIdentifier: UserIdentifier,
     shuffleId: Int,
+    val throwsFetchFailure: Boolean,
     numMappers: Int,
     dependency: ShuffleDependency[K, V, C])
   extends BaseShuffleHandle(shuffleId, numMappers, dependency)

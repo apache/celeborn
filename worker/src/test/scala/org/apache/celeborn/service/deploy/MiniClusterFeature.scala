@@ -35,13 +35,13 @@ trait MiniClusterFeature extends Logging {
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
 
-  private def runnerWrap[T](code: => T): Thread = new Thread(new Runnable {
+  def runnerWrap[T](code: => T): Thread = new Thread(new Runnable {
     override def run(): Unit = {
       Utils.tryLogNonFatalError(code)
     }
   })
 
-  private def createTmpDir(): String = {
+  def createTmpDir(): String = {
     val tmpDir = Files.createTempDirectory("celeborn-")
     logInfo(s"created temp dir: $tmpDir")
     tmpDir.toFile.deleteOnExit()
@@ -66,10 +66,14 @@ trait MiniClusterFeature extends Logging {
     master
   }
 
-  private def createWorker(map: Map[String, String] = null): Worker = {
+  def createWorker(map: Map[String, String] = null): Worker = {
+    createWorker(map, createTmpDir())
+  }
+
+  def createWorker(map: Map[String, String], storageDir: String): Worker = {
     logInfo("start create worker for mini cluster")
     val conf = new CelebornConf()
-    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, createTmpDir())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, storageDir)
     conf.set(CelebornConf.WORKER_DISK_MONITOR_ENABLED.key, "false")
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
     conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${workerHttpPort.incrementAndGet()}")

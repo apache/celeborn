@@ -108,7 +108,13 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
           .when(() -> CustomShuffleDependencyUtils.getSchema(handle.dependency()))
           .thenReturn(schema);
       return SparkUtils.createColumnarHashBasedShuffleWriter(
-          handle, context, conf, client, metrics, SendBufferPool.get(1, 30, 60));
+          SparkUtils.celebornShuffleId(client, handle, context, true),
+          handle,
+          context,
+          conf,
+          client,
+          metrics,
+          SendBufferPool.get(1, 30, 60));
     }
   }
 

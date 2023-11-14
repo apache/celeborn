@@ -39,6 +39,7 @@ class CelebornColumnarShuffleReaderSuite {
       0,
       new UserIdentifier("mock", "mock"),
       0,
+      false,
       10,
       null)
 

@@ -487,6 +487,18 @@ object ControlMessages extends Logging {
     case pb: PbRegisterWorker =>
       new TransportMessage(MessageType.REGISTER_WORKER, pb.toByteArray)
 
+    case pb: PbGetShuffleId =>
+      new TransportMessage(MessageType.GET_SHUFFLE_ID, pb.toByteArray)
+
+    case pb: PbGetShuffleIdResponse =>
+      new TransportMessage(MessageType.GET_SHUFFLE_ID_RESPONSE, pb.toByteArray)
+
+    case pb: PbReportShuffleFetchFailure =>
+      new TransportMessage(MessageType.REPORT_SHUFFLE_FETCH_FAILURE, pb.toByteArray)
+
+    case pb: PbReportShuffleFetchFailureResponse =>
+      new TransportMessage(MessageType.REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE, pb.toByteArray)
+
     case HeartbeatFromWorker(
           host,
           rpcPort,
@@ -979,6 +991,18 @@ object ControlMessages extends Logging {
           fileGroup,
           attempts,
           partitionIds)
+
+      case GET_SHUFFLE_ID_VALUE =>
+        message.getParsedPayload()
+
+      case GET_SHUFFLE_ID_RESPONSE_VALUE =>
+        message.getParsedPayload()
+
+      case REPORT_SHUFFLE_FETCH_FAILURE_VALUE =>
+        message.getParsedPayload()
+
+      case REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE_VALUE =>
+        message.getParsedPayload()
 
       case UNREGISTER_SHUFFLE_VALUE =>
         PbUnregisterShuffle.parseFrom(message.getPayload)
