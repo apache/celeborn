@@ -36,7 +36,7 @@ import org.apache.celeborn.common.CelebornConf;
 
 public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
 
-  private StructType schema =
+  private final StructType schema =
       new StructType().add("key", IntegerType$.MODULE$).add("value", StringType$.MODULE$);
 
   @Override
@@ -44,12 +44,7 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
     if (serializer instanceof UnsafeRowSerializer
         && CelebornBatchBuilder.supportsColumnarType(schema)) {
       CelebornConf conf = new CelebornConf();
-      return new CelebornColumnarBatchSerializer(
-              schema,
-              conf.columnarShuffleBatchSize(),
-              conf.columnarShuffleDictionaryEnabled(),
-              conf.columnarShuffleOffHeapEnabled(),
-              null)
+      return new CelebornColumnarBatchSerializer(schema, conf.columnarShuffleOffHeapEnabled(), null)
           .newInstance();
     } else {
       return serializer.newInstance();

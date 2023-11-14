@@ -30,7 +30,8 @@ class CelebornColumnarBatchBuilder(
     encodingEnabled: Boolean = false) extends CelebornBatchBuilder {
   var rowCnt = 0
 
-  val typeConversion: PartialFunction[DataType, NativeCelebornColumnType[_ <: AtomicType]] = {
+  private val typeConversion
+      : PartialFunction[DataType, NativeCelebornColumnType[_ <: AtomicType]] = {
     case IntegerType => CELEBORN_INT
     case LongType => CELEBORN_LONG
     case StringType => CELEBORN_STRING
@@ -45,7 +46,7 @@ class CelebornColumnarBatchBuilder(
     case _ => null
   }
 
-  val encodersArr: Array[Encoder[_ <: AtomicType]] = schema.map { attribute =>
+  private val encodersArr: Array[Encoder[_ <: AtomicType]] = schema.map { attribute =>
     val nativeColumnType = typeConversion(attribute.dataType)
     if (nativeColumnType == null) {
       null
@@ -63,7 +64,6 @@ class CelebornColumnarBatchBuilder(
   var columnBuilders: Array[CelebornColumnBuilder] = _
 
   def newBuilders(): Unit = {
-    totalSize = 0
     rowCnt = 0
     var i = -1
     columnBuilders = schema.map { attribute =>
@@ -100,8 +100,6 @@ class CelebornColumnarBatchBuilder(
     giantBuffer.toByteArray
   }
 
-  var totalSize = 0
-
   def writeRow(row: InternalRow): Unit = {
     var i = 0
     while (i < row.numFields) {
@@ -111,21 +109,5 @@ class CelebornColumnarBatchBuilder(
     rowCnt += 1
   }
 
-  def getTotalSize(): Int = {
-    var i = 0
-    var tempTotalSize = 0
-    while (i < schema.length) {
-      columnBuilders(i) match {
-        case builder: CelebornCompressibleColumnBuilder[_] =>
-          tempTotalSize += builder.getTotalSize.toInt
-        case builder: CelebornNullableColumnBuilder => tempTotalSize += builder.getTotalSize.toInt
-        case _ =>
-      }
-      i += 1
-    }
-    totalSize = tempTotalSize + 4 + 4 * schema.length
-    totalSize
-  }
-
-  def getRowCnt(): Int = rowCnt
+  def getRowCnt: Int = rowCnt
 }

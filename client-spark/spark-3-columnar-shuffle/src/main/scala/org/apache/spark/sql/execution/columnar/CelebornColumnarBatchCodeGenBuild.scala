@@ -102,21 +102,6 @@ class CelebornColumnarBatchCodeGenBuild {
     val writeRowCode = new mutable.StringBuilder()
     for (index <- schema.indices) {
       schema.fields(index).dataType match {
-        case NullType =>
-          initCode.append(
-            s"""
-               |  ${classOf[CelebornNullColumnBuilder].getName} b$index;
-          """.stripMargin)
-          buildCode.append(
-            s"""
-               |  b$index = new ${classOf[CelebornNullColumnBuilder].getName}();
-               |  builder.initialize($batchSize, "${schema.fields(index).name}", false);
-          """.stripMargin)
-          writeCode.append(genWriteCode(index))
-          writeRowCode.append(
-            s"""
-               |  b$index.appendFrom(row, $index);
-          """.stripMargin)
         case ByteType =>
           initCode.append(
             s"""

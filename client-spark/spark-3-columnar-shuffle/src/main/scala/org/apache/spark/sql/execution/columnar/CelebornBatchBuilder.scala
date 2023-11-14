@@ -28,7 +28,7 @@ abstract class CelebornBatchBuilder {
 
   def writeRow(row: InternalRow): Unit
 
-  def getRowCnt(): Int
+  def getRowCnt: Int
 
   def int2ByteArray(i: Int): Array[Byte] = {
     val result = new Array[Byte](4)
@@ -46,7 +46,7 @@ object CelebornBatchBuilder {
       f.dataType match {
         case BooleanType | ByteType | ShortType | IntegerType | LongType |
             FloatType | DoubleType | StringType => true
-        case dt: DecimalType => true
+        case _: DecimalType => true
         case _ => false
       })
   }
