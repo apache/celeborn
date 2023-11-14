@@ -90,6 +90,8 @@ spec:
         {{- range $dir := $dirs }}
         - {{ $dir.mountPath }}
         {{- end}}
+        resources:
+          {{- toYaml .Values.resources.worker | nindent 12 }}
         volumeMounts:
         {{- range $index, $dir := $dirs }}
         - name: {{ $.Release.Name }}-worker-vol-{{ $index }}

@@ -88,6 +88,8 @@ spec:
         - chown
         - {{ .Values.securityContext.runAsUser | default 10006 }}:{{ .Values.securityContext.runAsGroup | default 10006 }}
         - {{ (index $dirs 0).mountPath }}
+        resources:
+          {{- toYaml .Values.resources.master | nindent 12 }}
         volumeMounts:
           - name: {{ $.Release.Name }}-master-vol-0
             mountPath: {{ (index $dirs 0).mountPath }}
