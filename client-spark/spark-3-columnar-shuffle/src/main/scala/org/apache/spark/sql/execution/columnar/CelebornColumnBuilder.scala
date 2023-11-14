@@ -88,10 +88,6 @@ class CelebornBasicColumnBuilder[JvmType](
   }
 }
 
-class CelebornNullColumnBuilder
-  extends CelebornBasicColumnBuilder[Any](new CelebornObjectColumnStats(NullType), CELEBORN_NULL)
-  with CelebornNullableColumnBuilder
-
 abstract class CelebornComplexColumnBuilder[JvmType](
     columnStats: CelebornColumnStats,
     columnType: CelebornColumnType[JvmType])
@@ -318,7 +314,6 @@ class CelebornDecimalCodeGenColumnBuilder(dataType: DecimalType)
 }
 
 object CelebornColumnBuilder {
-  val MAX_BATCH_SIZE_IN_BYTE: Long = 4 * 1024 * 1024L
 
   def ensureFreeSpace(orig: ByteBuffer, size: Int): ByteBuffer = {
     if (orig.remaining >= size) {
@@ -343,7 +338,6 @@ object CelebornColumnBuilder {
       encodingEnabled: Boolean,
       encoder: Encoder[_ <: AtomicType]): CelebornColumnBuilder = {
     val builder: CelebornColumnBuilder = dataType match {
-      case NullType => new CelebornNullColumnBuilder
       case ByteType => new CelebornByteColumnBuilder
       case BooleanType => new CelebornBooleanColumnBuilder
       case ShortType => new CelebornShortColumnBuilder
@@ -367,7 +361,7 @@ object CelebornColumnBuilder {
         new CelebornCompactDecimalColumnBuilder(dt)
       case dt: DecimalType => new CelebornDecimalColumnBuilder(dt)
       case other =>
-        throw new Exception(s"not support type: $other")
+        throw new Exception(s"Unsupported type: $other")
     }
 
     builder.initialize(rowCnt, columnName, encodingEnabled)
