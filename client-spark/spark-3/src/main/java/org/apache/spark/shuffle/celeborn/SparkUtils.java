@@ -218,7 +218,8 @@ public class SparkUtils {
               int.class,
               TaskContext.class,
               CelebornConf.class,
-              ShuffleReadMetricsReporter.class);
+              ShuffleReadMetricsReporter.class,
+              ExecutorShuffleIdTracker.class);
 
   public static <K, C> CelebornShuffleReader<K, C> createColumnarShuffleReader(
       CelebornShuffleHandle<K, ?, C> handle,
@@ -228,7 +229,8 @@ public class SparkUtils {
       int endMapIndex,
       TaskContext context,
       CelebornConf conf,
-      ShuffleReadMetricsReporter metrics) {
+      ShuffleReadMetricsReporter metrics,
+      ExecutorShuffleIdTracker shuffleIdTracker) {
     return COLUMNAR_SHUFFLE_READER_CONSTRUCTOR_BUILDER
         .build()
         .invoke(
@@ -240,7 +242,8 @@ public class SparkUtils {
             endMapIndex,
             context,
             conf,
-            metrics);
+            metrics,
+            shuffleIdTracker);
   }
 
   // Added in SPARK-32920, for Spark 3.2 and above

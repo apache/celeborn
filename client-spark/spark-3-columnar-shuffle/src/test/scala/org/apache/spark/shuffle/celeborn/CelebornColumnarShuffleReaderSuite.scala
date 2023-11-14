@@ -54,7 +54,8 @@ class CelebornColumnarShuffleReaderSuite {
         10,
         null,
         new CelebornConf(),
-        null)
+        null,
+        new ExecutorShuffleIdTracker())
       assert(shuffleReader.getClass == classOf[CelebornColumnarShuffleReader[Int, String]])
     } finally {
       if (shuffleClient != null) {

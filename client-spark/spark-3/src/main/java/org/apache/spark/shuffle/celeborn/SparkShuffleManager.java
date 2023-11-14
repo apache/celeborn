@@ -365,7 +365,8 @@ public class SparkShuffleManager implements ShuffleManager {
           endMapIndex,
           context,
           celebornConf,
-          metrics);
+          metrics,
+          shuffleIdTracker);
     } else {
       return new CelebornShuffleReader<>(
           h,
