@@ -147,7 +147,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def get[T](entry: ConfigEntry[T]): T = {
     entry.readFrom(reader)
   }
-
   /**
    * Get a time parameter as seconds; throws a NoSuchElementException if it's not set. If no
    * suffix is provided then seconds are assumed.
@@ -365,6 +364,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         throw new IllegalArgumentException(s"Illegal value for config key $key: ${e.getMessage}", e)
     }
   }
+
+  def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
+  def dynamicConfigRefreshTime: Long = get(DYNAMIC_CONFIG_REFRESH_TIME)
 
   // //////////////////////////////////////////////////////
   //                      Network                        //
@@ -4053,4 +4055,21 @@ object CelebornConf extends Logging {
       .doc("Kerberos keytab file path for HDFS storage connection.")
       .stringConf
       .createOptional
+
+  val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.backend")
+      .categories("master", "worker")
+      .doc("Store backend for dynamic config, NONE means disable dynamic config store")
+      .version("0.3.2")
+      .stringConf
+      .checkValues(Set("FS", "NONE"))
+      .createWithDefault("NONE")
+
+  val DYNAMIC_CONFIG_REFRESH_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.refresh.time")
+      .categories("master", "worker")
+      .version("0.3.2")
+      .doc("For refreshing the related dynamic config periodically")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 }
