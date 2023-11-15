@@ -353,7 +353,8 @@ private[deploy] class Controller(
       epoch: Long): Unit = {
 
     def alreadyCommitted(shuffleKey: String, epoch: Long): Boolean = {
-      shuffleCommitInfos.contains(shuffleKey) && shuffleCommitInfos.get(shuffleKey).contains(epoch)
+      shuffleCommitInfos.containsKey(shuffleKey) && shuffleCommitInfos.get(shuffleKey).containsKey(
+        epoch)
     }
 
     // Reply SHUFFLE_NOT_REGISTERED if shuffleKey does not exist AND the shuffle is not committed.
