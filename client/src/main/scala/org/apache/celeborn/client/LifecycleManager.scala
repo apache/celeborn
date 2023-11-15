@@ -21,6 +21,8 @@ import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Consumer
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -33,6 +35,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -720,22 +723,27 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       Math.min(Math.max(1, workerPartitionLocations.size), conf.clientRpcMaxParallelism)
     ThreadUtils.parmap(workerPartitionLocations, "ReserveSlot", parallelism) {
       case (workerInfo, (primaryLocations, replicaLocations)) =>
-        val res = requestWorkerReserveSlots(
-          workerInfo.endpoint,
-          ReserveSlots(
-            appUniqueId,
-            shuffleId,
-            primaryLocations,
-            replicaLocations,
-            partitionSplitThreshold,
-            partitionSplitMode,
-            getPartitionType(shuffleId),
-            rangeReadFilter,
-            userIdentifier,
-            conf.pushDataTimeoutMs,
-            if (getPartitionType(shuffleId) == PartitionType.MAP)
-              conf.clientShuffleMapPartitionSplitEnabled
-            else true))
+        val res =
+          if (workerInfo.endpoint == null) {
+            ReserveSlotsResponse(StatusCode.REQUEST_FAILED, s"$workerInfo endpoint is NULL!")
+          } else {
+            requestWorkerReserveSlots(
+              workerInfo.endpoint,
+              ReserveSlots(
+                appUniqueId,
+                shuffleId,
+                primaryLocations,
+                replicaLocations,
+                partitionSplitThreshold,
+                partitionSplitMode,
+                getPartitionType(shuffleId),
+                rangeReadFilter,
+                userIdentifier,
+                conf.pushDataTimeoutMs,
+                if (getPartitionType(shuffleId) == PartitionType.MAP)
+                  conf.clientShuffleMapPartitionSplitEnabled
+                else true))
+          }
         if (res.status.equals(StatusCode.SUCCESS)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for shuffleId $shuffleId" +
