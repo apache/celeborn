@@ -21,6 +21,8 @@ import java.io.IOException;
 
 import scala.Product2;
 
+import com.google.common.annotations.VisibleForTesting;
+import org.apache.spark.ShuffleDependency;
 import org.apache.spark.TaskContext;
 import org.apache.spark.annotation.Private;
 import org.apache.spark.serializer.Serializer;
@@ -32,6 +34,8 @@ import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchBuilder;
 import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchCodeGenBuild;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.types.StructType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
@@ -39,14 +43,19 @@ import org.apache.celeborn.common.CelebornConf;
 @Private
 public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWriter<K, V, C> {
 
-  private CelebornBatchBuilder[] celebornBatchBuilders;
-  private StructType schema;
-  private Serializer depSerializer;
-  private boolean isColumnarShuffle = false;
-  private int columnarShuffleBatchSize;
-  private boolean columnarShuffleCodeGenEnabled;
-  private boolean columnarShuffleDictionaryEnabled;
-  private double columnarShuffleDictionaryMaxFactor;
+  private static final Logger logger =
+      LoggerFactory.getLogger(ColumnarHashBasedShuffleWriter.class);
+
+  private final int stageId;
+  private final int shuffleId;
+  private final CelebornBatchBuilder[] celebornBatchBuilders;
+  private final StructType schema;
+  private final Serializer depSerializer;
+  private final boolean isColumnarShuffle;
+  private final int columnarShuffleBatchSize;
+  private final boolean columnarShuffleCodeGenEnabled;
+  private final boolean columnarShuffleDictionaryEnabled;
+  private final double columnarShuffleDictionaryMaxFactor;
 
   public ColumnarHashBasedShuffleWriter(
       CelebornShuffleHandle<K, V, C> handle,
@@ -61,17 +70,21 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
     columnarShuffleCodeGenEnabled = conf.columnarShuffleCodeGenEnabled();
     columnarShuffleDictionaryEnabled = conf.columnarShuffleDictionaryEnabled();
     columnarShuffleDictionaryMaxFactor = conf.columnarShuffleDictionaryMaxFactor();
-    this.schema = CustomShuffleDependencyUtils.getSchema(handle.dependency());
+    ShuffleDependency<?, ?, ?> shuffleDependency = handle.dependency();
+    this.stageId = taskContext.stageId();
+    this.shuffleId = shuffleDependency.shuffleId();
+    this.schema = CustomShuffleDependencyUtils.getSchema(shuffleDependency);
     this.depSerializer = handle.dependency().serializer();
     this.celebornBatchBuilders =
         new CelebornBatchBuilder[handle.dependency().partitioner().numPartitions()];
-    this.isColumnarShuffle = CelebornBatchBuilder.supportsColumnarType(schema);
+    this.isColumnarShuffle = schema != null && CelebornBatchBuilder.supportsColumnarType(schema);
   }
 
   @Override
   protected void fastWrite0(scala.collection.Iterator iterator)
       throws IOException, InterruptedException {
     if (isColumnarShuffle) {
+      logger.info("Fast columnar write of columnar shuffle {} for stage {}.", shuffleId, stageId);
       fastColumnarWrite0(iterator);
     } else {
       super.fastWrite0(iterator);
@@ -140,5 +153,10 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
         celebornBatchBuilders[i] = null;
       }
     }
+  }
+
+  @VisibleForTesting
+  public boolean isColumnarShuffle() {
+    return isColumnarShuffle;
   }
 }

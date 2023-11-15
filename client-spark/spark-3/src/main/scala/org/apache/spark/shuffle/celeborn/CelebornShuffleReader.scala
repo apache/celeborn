@@ -192,7 +192,7 @@ class CelebornShuffleReader[K, C](
     }
   }
 
-  protected def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
+  def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
     dep.serializer.newInstance()
   }
 
