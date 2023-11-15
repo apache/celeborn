@@ -19,8 +19,11 @@ package org.apache.celeborn.common.network.server;
 
 import java.io.Closeable;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -44,17 +47,25 @@ public class TransportServer implements Closeable {
 
   private final TransportContext context;
   private final TransportConf conf;
-
+  private final BaseMessageHandler appMessageHandler;
+  private final List<TransportServerBootstrap> bootstraps;
   private ServerBootstrap bootstrap;
   private ChannelFuture channelFuture;
   private AbstractSource source;
   private int port = -1;
 
   public TransportServer(
-      TransportContext context, String hostToBind, int portToBind, AbstractSource source) {
+      TransportContext context,
+      String hostToBind,
+      int portToBind,
+      AbstractSource source,
+      BaseMessageHandler appMessageHandler,
+      List<TransportServerBootstrap> bootstraps) {
     this.context = context;
     this.conf = context.getConf();
     this.source = source;
+    this.appMessageHandler = Preconditions.checkNotNull(appMessageHandler);
+    this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
 
     boolean shouldClose = true;
     try {
@@ -124,7 +135,14 @@ public class TransportServer implements Closeable {
         new ChannelInitializer<SocketChannel>() {
           @Override
           protected void initChannel(SocketChannel ch) {
-            context.initializePipeline(ch);
+            BaseMessageHandler baseHandler = appMessageHandler;
+            logger.debug("number of bootstraps {}", bootstraps.size());
+            for (TransportServerBootstrap bootstrap : bootstraps) {
+              logger.debug(
+                  "Adding bootstrap to TransportServer {}.", bootstrap.getClass().getName());
+              baseHandler = bootstrap.doBootstrap(ch, baseHandler);
+            }
+            context.initializePipeline(ch, baseHandler);
           }
         });
   }

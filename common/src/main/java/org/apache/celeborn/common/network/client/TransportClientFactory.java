@@ -21,12 +21,16 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
@@ -68,6 +72,7 @@ public class TransportClientFactory implements Closeable {
   private static final Logger logger = LoggerFactory.getLogger(TransportClientFactory.class);
 
   private final TransportContext context;
+  private final List<TransportClientBootstrap> clientBootstraps;
   private final ConcurrentHashMap<SocketAddress, ClientPool> connectionPool;
 
   /** Random number generator for picking connections between peers. */
@@ -84,9 +89,11 @@ public class TransportClientFactory implements Closeable {
   private EventLoopGroup workerGroup;
   protected ByteBufAllocator pooledAllocator;
 
-  public TransportClientFactory(TransportContext context) {
+  public TransportClientFactory(
+      TransportContext context, List<TransportClientBootstrap> clientBootstraps) {
     this.context = Preconditions.checkNotNull(context);
     TransportConf conf = context.getConf();
+    this.clientBootstraps = Lists.newArrayList(Preconditions.checkNotNull(clientBootstraps));
     this.connectionPool = JavaUtils.newConcurrentHashMap();
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.connectTimeoutMs = conf.connectTimeoutMs();
@@ -241,6 +248,7 @@ public class TransportClientFactory implements Closeable {
         });
 
     // Connect to the remote server
+    long preConnect = System.nanoTime();
     ChannelFuture cf = bootstrap.connect(address);
     if (!cf.await(connectTimeoutMs)) {
       throw new CelebornIOException(
@@ -250,7 +258,28 @@ public class TransportClientFactory implements Closeable {
     }
 
     TransportClient client = clientRef.get();
+    Channel channel = channelRef.get();
     assert client != null : "Channel future completed successfully with null client";
+
+    // Execute any client bootstraps synchronously before marking the Client as successful.
+    long preBootstrap = System.nanoTime();
+    logger.debug("Connection to {} successful, running bootstraps...", address);
+    try {
+      for (TransportClientBootstrap clientBootstrap : clientBootstraps) {
+        clientBootstrap.doBootstrap(client, channel);
+      }
+    } catch (Exception e) { // catch non-RuntimeExceptions too as bootstrap may be written in Scala
+      long bootstrapTimeMs = Duration.ofNanos(System.nanoTime() - preBootstrap).toMillis();
+      logger.error("Exception while bootstrapping client after " + bootstrapTimeMs + " ms", e);
+      client.close();
+      throw Throwables.propagate(e);
+    }
+    long postBootstrap = System.nanoTime();
+    logger.info(
+        "Successfully created connection to {} after {} ms ({} ms spent in bootstraps)",
+        address,
+        (postBootstrap - preConnect) / 1000000,
+        (postBootstrap - preBootstrap) / 1000000);
 
     logger.debug(
         "Connection from {} to {} successful", client.getChannel().localAddress(), address);

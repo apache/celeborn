@@ -19,6 +19,7 @@ package org.apache.celeborn.common.network.server;
 
 import java.io.IOException;
 import java.net.SocketAddress;
+import java.nio.ByteBuffer;
 
 import com.google.common.base.Throwables;
 import io.netty.channel.Channel;
@@ -26,6 +27,8 @@ import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.*;
 
@@ -73,8 +76,52 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   @Override
   public void handle(RequestMessage request) {
+    logger.trace("Received request {} from {}", request.getClass().getName(), reverseClient);
     if (checkRegistered(request)) {
-      msgHandler.receive(reverseClient, request);
+      if (request instanceof RpcRequest) {
+        processRpcRequest((RpcRequest) request);
+      } else if (request instanceof OneWayMessage) {
+        processOneWayMessage((OneWayMessage) request);
+      } else {
+        logger.trace("delegating to handler to process other request");
+        msgHandler.receive(reverseClient, request);
+      }
+    }
+  }
+
+  private void processRpcRequest(final RpcRequest req) {
+    try {
+      logger.trace("Process rpc request {}", req.requestId);
+      msgHandler.receive(
+          reverseClient,
+          req,
+          new RpcResponseCallback() {
+            @Override
+            public void onSuccess(ByteBuffer response) {
+              respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
+            }
+
+            @Override
+            public void onFailure(Throwable e) {
+              respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
+            }
+          });
+    } catch (Exception e) {
+      logger.error("Error while invoking RpcHandler#receive() on RPC id " + req.requestId, e);
+      respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
+    } finally {
+      req.body().release();
+    }
+  }
+
+  private void processOneWayMessage(OneWayMessage req) {
+    try {
+      logger.trace("Process one way request");
+      msgHandler.receive(reverseClient, req);
+    } catch (Exception e) {
+      logger.error("Error while invoking RpcHandler#receive() for one-way message.", e);
+    } finally {
+      req.body().release();
     }
   }
 

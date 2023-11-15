@@ -24,6 +24,8 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -78,6 +80,7 @@ public class TransportClient implements Closeable {
   private final Channel channel;
   private final TransportResponseHandler handler;
   private volatile boolean timedOut;
+  @Nullable private String clientId;
 
   public TransportClient(Channel channel, TransportResponseHandler handler) {
     this.channel = Preconditions.checkNotNull(channel);
@@ -315,7 +318,8 @@ public class TransportClient implements Closeable {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-        .add("remoteAddress", channel.remoteAddress())
+        .add("remoteAdress", channel.remoteAddress())
+        .add("clientId", clientId)
         .add("isActive", isActive())
         .toString();
   }
@@ -324,6 +328,25 @@ public class TransportClient implements Closeable {
 
   public static long requestId() {
     return counter.getAndIncrement();
+  }
+
+  /**
+   * Returns the ID used by the client to authenticate itself when authentication is enabled.
+   *
+   * @return The client ID, or null if authentication is disabled.
+   */
+  public String getClientId() {
+    return clientId;
+  }
+
+  /**
+   * Sets the authenticated client ID. This is meant to be used by the authentication layer.
+   *
+   * <p>Trying to set a different client ID after it's been set will result in an exception.
+   */
+  public void setClientId(String id) {
+    Preconditions.checkState(clientId == null, "Client ID has already been set.");
+    this.clientId = id;
   }
 
   public class StdChannelListener implements GenericFutureListener<Future<? super Void>> {

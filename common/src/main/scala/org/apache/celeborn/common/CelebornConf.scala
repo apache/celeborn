@@ -509,6 +509,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def maxDefaultNettyThreads: Int = get(MAX_DEFAULT_NETTY_THREADS)
 
+  def networkIoSaslTimoutMs(module: String): Int = {
+    val key = NETWORK_IO_SASL_TIMEOUT.key.replace("<module>", module)
+    getTimeAsMs(key, s"${networkTimeout.duration.toMillis}ms").toInt
+  }
+
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
@@ -4053,4 +4058,12 @@ object CelebornConf extends Logging {
       .doc("Kerberos keytab file path for HDFS storage connection.")
       .stringConf
       .createOptional
+
+  val NETWORK_IO_SASL_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.io.saslTimeout")
+      .categories("network")
+      .doc("Timeout for a single round trip of auth message exchange, in milliseconds.")
+      .version("0.3.2")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 }

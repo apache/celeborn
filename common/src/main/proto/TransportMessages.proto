@@ -87,6 +87,8 @@ enum MessageType {
   TRANSPORTABLE_ERROR = 64;
   WORKER_EXCLUDE = 65;
   WORKER_EXCLUDE_RESPONSE = 66;
+  SASL_REQUEST = 67;
+  SASL_RESPONSE = 68;
 }
 
 enum StreamType {
@@ -585,4 +587,25 @@ message PbChunkFetchRequest {
 message PbTransportableError {
   int64 streamId = 1;
   string message = 2;
+}
+
+enum PbAuthType {
+  CLIENT_AUTH = 0;
+  CONNECTION_AUTH = 1;
+}
+
+message PbSaslMechanism {
+  string mechanism = 1;
+  repeated PbAuthType authTypes = 2;
+}
+
+message PbSaslRequest {
+  string appId = 1;
+  string method = 2;
+  PbAuthType authType = 3;
+  bytes payload = 4;
+}
+
+message PbSaslResponse {
+  bytes payload = 1;
 }
