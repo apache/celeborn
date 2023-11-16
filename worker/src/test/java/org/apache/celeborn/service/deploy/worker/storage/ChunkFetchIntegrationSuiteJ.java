@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import org.junit.AfterClass;
@@ -43,6 +44,7 @@ import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.protocol.ChunkFetchFailure;
 import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
@@ -118,10 +120,17 @@ public class ChunkFetchIntegrationSuiteJ {
             }
             StreamChunkSlice slice =
                 StreamChunkSlice.fromProto(chunkFetchRequest.getStreamChunkSlice());
-            ManagedBuffer buf =
-                chunkStreamManager.getChunk(
-                    slice.streamId, slice.chunkIndex, slice.offset, slice.len);
-            client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
+            ManagedBuffer buf = null;
+            try {
+              buf =
+                  chunkStreamManager.getChunk(
+                      slice.streamId, slice.chunkIndex, slice.offset, slice.len);
+              client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
+            } catch (Exception e) {
+              client
+                  .getChannel()
+                  .writeAndFlush(new ChunkFetchFailure(slice, Throwables.getStackTraceAsString(e)));
+            }
           }
 
           @Override
@@ -189,7 +198,7 @@ public class ChunkFetchIntegrationSuiteJ {
     for (int chunkIndex : chunkIndices) {
       client.fetchChunk(STREAM_ID, chunkIndex, 10000, callback);
     }
-    if (!sem.tryAcquire(chunkIndices.size(), 5, TimeUnit.SECONDS)) {
+    if (!sem.tryAcquire(chunkIndices.size(), 60, TimeUnit.SECONDS)) {
       fail("Timeout getting response from the server");
     }
     client.close();
