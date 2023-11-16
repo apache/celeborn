@@ -30,6 +30,7 @@ import org.mockito.MockitoAnnotations;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.OneWayMessage;
+import org.apache.celeborn.common.network.protocol.PushData;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 
 public class TransportRequestHandlerSuiteJ {
@@ -67,6 +68,18 @@ public class TransportRequestHandlerSuiteJ {
     requestHandler.handle(oneWayMessage);
     verify(msgHandler).receive(eq(reverseClient), eq(oneWayMessage));
     verify(msgHandler, times(0)).receive(eq(reverseClient), eq(oneWayMessage), any());
+    assert buffer.refCnt() == 0;
+  }
+
+  @Test
+  public void testHandleOtherMessage() {
+    when(msgHandler.checkRegistered()).thenReturn(true);
+    ByteBuf buffer = Unpooled.wrappedBuffer(new byte[] {1});
+    PushData pushData =
+        new PushData((byte) 0, "shuffleKey", "partitionId", new NettyManagedBuffer(buffer));
+    requestHandler.handle(pushData);
+    verify(msgHandler).receive(eq(reverseClient), eq(pushData));
+    verify(msgHandler, times(0)).receive(eq(reverseClient), eq(pushData), any());
     assert buffer.refCnt() == 0;
   }
 }

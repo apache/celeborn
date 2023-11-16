@@ -83,8 +83,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       } else if (request instanceof OneWayMessage) {
         processOneWayMessage((OneWayMessage) request);
       } else {
-        logger.trace("delegating to handler to process other request");
-        msgHandler.receive(reverseClient, request);
+        processOtherMessages(request);
       }
     }
   }
@@ -107,7 +106,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
             }
           });
     } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() on RPC id " + req.requestId, e);
+      logger.error("Error while invoking handler#receive() on RPC id " + req.requestId, e);
       respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
     } finally {
       req.body().release();
@@ -119,7 +118,18 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       logger.trace("Process one way request");
       msgHandler.receive(reverseClient, req);
     } catch (Exception e) {
-      logger.error("Error while invoking RpcHandler#receive() for one-way message.", e);
+      logger.error("Error while invoking handler#receive() for one-way message.", e);
+    } finally {
+      req.body().release();
+    }
+  }
+
+  private void processOtherMessages(RequestMessage req) {
+    try {
+      logger.trace("delegating to handler to process other request");
+      msgHandler.receive(reverseClient, req);
+    } catch (Exception e) {
+      logger.error("Error while invoking handler#receive() for other message.", e);
     } finally {
       req.body().release();
     }

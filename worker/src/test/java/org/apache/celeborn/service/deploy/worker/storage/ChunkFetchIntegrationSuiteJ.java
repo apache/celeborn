@@ -40,6 +40,7 @@ import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
@@ -121,6 +122,12 @@ public class ChunkFetchIntegrationSuiteJ {
                 chunkStreamManager.getChunk(
                     slice.streamId, slice.chunkIndex, slice.offset, slice.len);
             client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
+          }
+
+          @Override
+          public void receive(
+              TransportClient client, RequestMessage msg, RpcResponseCallback callback) {
+            receive(client, msg);
           }
 
           @Override

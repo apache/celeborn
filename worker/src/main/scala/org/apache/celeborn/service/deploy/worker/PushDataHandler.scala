@@ -91,18 +91,25 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       s"diskReserveSize ${Utils.bytesToString(diskReserveSize)}, diskReserveRatio ${diskReserveRatio.orNull}")
   }
 
+  override def receive(
+      client: TransportClient,
+      msg: RequestMessage,
+      callback: RpcResponseCallback): Unit = {
+    handleRpcRequest(client, msg.asInstanceOf[RpcRequest], callback)
+  }
+
   override def receive(client: TransportClient, msg: RequestMessage): Unit =
     msg match {
       case pushData: PushData =>
+        val callback = new SimpleRpcResponseCallback(
+          client,
+          pushData.requestId,
+          pushData.shuffleKey)
         handleCore(
           client,
           pushData,
           pushData.requestId,
           () => {
-            val callback = new SimpleRpcResponseCallback(
-              client,
-              pushData.requestId,
-              pushData.shuffleKey)
             val partitionType =
               shufflePartitionType.getOrDefault(pushData.shuffleKey, PartitionType.REDUCE)
             partitionType match {
@@ -114,8 +121,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                   callback)
               case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
             }
-          })
+          },
+          callback)
       case pushMergedData: PushMergedData =>
+        val callback = new SimpleRpcResponseCallback(
+          client,
+          pushMergedData.requestId,
+          pushMergedData.shuffleKey)
         handleCore(
           client,
           pushMergedData,
@@ -123,11 +135,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           () =>
             handlePushMergedData(
               pushMergedData,
-              new SimpleRpcResponseCallback(
-                client,
-                pushMergedData.requestId,
-                pushMergedData.shuffleKey)))
-      case rpcRequest: RpcRequest => handleRpcRequest(client, rpcRequest)
+              callback),
+          callback)
     }
 
   def handlePushData(pushData: PushData, callback: RpcResponseCallback): Unit = {
@@ -752,17 +761,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       client: TransportClient,
       message: RequestMessage,
       requestId: Long,
-      handler: () => Unit): Unit = {
+      handler: () => Unit,
+      callback: RpcResponseCallback): Unit = {
     try {
       handler()
     } catch {
       case e: Exception =>
         logError(s"Error while handle${message.`type`()} $message", e)
-        client.getChannel.writeAndFlush(new RpcFailure(
-          requestId,
-          Throwables.getStackTraceAsString(e)))
-    } finally {
-      message.body().release()
+        callback.onFailure(e)
     }
   }
 
@@ -849,7 +855,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
   }
 
-  private def handleRpcRequest(client: TransportClient, rpcRequest: RpcRequest): Unit = {
+  private def handleRpcRequest(
+      client: TransportClient,
+      rpcRequest: RpcRequest,
+      callback: RpcResponseCallback): Unit = {
     val requestId = rpcRequest.requestId
     val (pbMsg, msg, isLegacy, messageType, mode, shuffleKey, partitionUniqueId, checkSplit) =
       mapPartitionRpcRequest(rpcRequest)
@@ -871,7 +880,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           new SimpleRpcResponseCallback(
             client,
             requestId,
-            shuffleKey)))
+            shuffleKey)),
+      callback)
   }
 
   private def mapPartitionRpcRequest(rpcRequest: RpcRequest)

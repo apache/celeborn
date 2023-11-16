@@ -108,6 +108,12 @@ public class RequestTimeoutIntegrationSuiteJ {
           }
 
           @Override
+          public void receive(
+              TransportClient client, RequestMessage msg, RpcResponseCallback callback) {
+            receive(client, msg);
+          }
+
+          @Override
           public boolean checkRegistered() {
             return true;
           }
@@ -155,6 +161,12 @@ public class RequestTimeoutIntegrationSuiteJ {
             } catch (InterruptedException e) {
               // do nothing
             }
+          }
+
+          @Override
+          public void receive(
+              TransportClient client, RequestMessage msg, RpcResponseCallback callback) {
+            receive(client, msg);
           }
 
           @Override
@@ -214,6 +226,12 @@ public class RequestTimeoutIntegrationSuiteJ {
             ManagedBuffer buf =
                 manager.getChunk(slice.streamId, slice.chunkIndex, slice.offset, slice.len);
             client.getChannel().writeAndFlush(new ChunkFetchSuccess(slice, buf));
+          }
+
+          @Override
+          public void receive(
+              TransportClient client, RequestMessage msg, RpcResponseCallback callback) {
+            receive(client, msg);
           }
 
           @Override
