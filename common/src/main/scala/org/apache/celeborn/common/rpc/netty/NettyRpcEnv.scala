@@ -536,7 +536,7 @@ private[celeborn] class NettyRpcHandler(
       dispatcher.postOneWayMessage(messageToDispatch)
     } catch {
       case e: Exception =>
-        logError("Error while invoking RpcHandler#receive() for one-way message.", e)
+        logError("Error while invoking NettyRpcHandler#receive() for one-way message.", e)
     }
   }
 
@@ -551,10 +551,8 @@ private[celeborn] class NettyRpcHandler(
     } catch {
       case e: Exception =>
         val rpcReq = requestMessage.asInstanceOf[RpcRequest]
-        logError("Error while invoking RpcHandler#receive() on RPC id " + rpcReq.requestId, e)
-        client.getChannel.writeAndFlush(new NRpcFailure(
-          rpcReq.requestId,
-          Throwables.getStackTraceAsString(e)))
+        logError("Error while invoking NettyRpcHandler#receive() on RPC id " + rpcReq.requestId, e)
+        callback.onFailure(e)
     }
   }
 
