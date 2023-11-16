@@ -235,21 +235,12 @@ class WorkerInfo(
   }
 
   override def hashCode(): Int = {
-    var h = hash
-    if (h == 0 || isZeroHash) {
-      val state = Array(host, rpcPort, pushPort, fetchPort, replicatePort)
-      var i = 0
-      while (i < state.length) {
-        h = 31 * h + state(i).hashCode()
-        i = i + 1
-      }
-      if (h == 0) {
-        isZeroHash = true
-      } else {
-        hash = h
-      }
-    }
-    h
+    var result = host.hashCode()
+    result = 31 * result + rpcPort.hashCode()
+    result = 31 * result + pushPort.hashCode()
+    result = 31 * result + fetchPort.hashCode()
+    result = 31 * result + replicatePort.hashCode()
+    result
   }
 }
 

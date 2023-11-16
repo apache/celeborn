@@ -324,11 +324,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
     val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort)
     val originHash = state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
 
-    // hashCode() with while loop
     val hashCode1 = workerInfo.hashCode()
     assert(originHash === hashCode1)
 
-    // hashCode() with cache
     val hashCode2 = workerInfo.hashCode()
     assert(hashCode1 === hashCode2)
   }
