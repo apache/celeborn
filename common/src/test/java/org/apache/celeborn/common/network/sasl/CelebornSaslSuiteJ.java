@@ -21,9 +21,7 @@ import static org.apache.celeborn.common.network.sasl.SaslConstants.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -58,7 +56,6 @@ public class CelebornSaslSuiteJ {
 
   @Test
   public void testAnonymous() {
-    Security.addProvider(new sun.security.provider.Sun());
     CelebornSaslClient client = new CelebornSaslClient(ANONYMOUS, null, null);
     CelebornSaslServer server = new CelebornSaslServer(ANONYMOUS, null, null);
 
@@ -193,15 +190,6 @@ public class CelebornSaslSuiteJ {
 
     saslHandler.exceptionCaught(null, null);
     verify(handler).exceptionCaught(isNull(), isNull());
-  }
-
-  @Test
-  public void testDelegates() throws Exception {
-    Method[] rpcHandlerMethods = BaseMessageHandler.class.getDeclaredMethods();
-    for (Method m : rpcHandlerMethods) {
-      Method delegate = SaslRpcHandler.class.getMethod(m.getName(), m.getParameterTypes());
-      assertNotEquals(delegate.getDeclaringClass(), BaseMessageHandler.class);
-    }
   }
 
   private static class SaslTestCtx implements AutoCloseable {

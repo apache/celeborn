@@ -21,7 +21,6 @@ import static org.apache.celeborn.common.network.sasl.SaslConstants.*;
 
 import java.io.IOException;
 
-import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
@@ -30,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
-import org.apache.celeborn.common.network.protocol.RpcFailure;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.server.AbstractAuthRpcHandler;
@@ -61,7 +59,7 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
   private final SecretRegistry secretRegistry;
 
   private CelebornSaslServer saslServer;
-  private AppRegistrationFetcher _appRegistrationFetcher;
+  private final AppRegistrationFetcher appRegistrationFetcher;
 
   public SaslRpcHandler(
       TransportConf conf,
@@ -74,7 +72,7 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
     this.channel = channel;
     this.secretRegistry = secretRegistry;
     this.saslServer = null;
-    this._appRegistrationFetcher = appRegistrationFetcher;
+    this.appRegistrationFetcher = appRegistrationFetcher;
   }
 
   @Override
@@ -92,12 +90,9 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
         TransportMessage pbMsg = TransportMessage.fromByteBuffer(message.body().nioByteBuffer());
         saslMessage = pbMsg.getParsedPayload();
       } catch (IOException e) {
-        logger.error(
-            "Error while invoking RpcHandler#receive() on RPC id " + rpcRequest.requestId, e);
-        client
-            .getChannel()
-            .writeAndFlush(
-                new RpcFailure(rpcRequest.requestId, Throwables.getStackTraceAsString(e)));
+        logger.error("Error while parsing Sasl Message with RPC id {} ", rpcRequest.requestId, e);
+        callback.onFailure(e);
+        return false;
       }
       assert saslMessage != null;
       if (saslServer == null) {
@@ -107,8 +102,8 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
         if (!secretRegistry.isRegistered(saslMessage.getAppId())) {
           logger.info("Application registration missing for {}", saslMessage.getAppId());
           // Pull the registration information from the coordinator.
-          if (_appRegistrationFetcher != null) {
-            _appRegistrationFetcher.fetchRegistrationInfoFor(saslMessage.getAppId());
+          if (appRegistrationFetcher != null) {
+            appRegistrationFetcher.fetchRegistrationInfoFor(saslMessage.getAppId());
           }
         }
         if (!secretRegistry.isRegistered(saslMessage.getAppId())) {
@@ -140,7 +135,7 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
     // messages are being written to the channel while negotiation is still going on.
     if (saslServer.isComplete()) {
       logger.debug("SASL authentication successful for channel {}", client);
-      complete(true);
+      complete();
       return true;
     }
     return false;
@@ -157,13 +152,11 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
     }
   }
 
-  private void complete(boolean dispose) {
-    if (dispose) {
-      try {
-        saslServer.dispose();
-      } catch (RuntimeException e) {
-        logger.error("Error while disposing SASL server", e);
-      }
+  private void complete() {
+    try {
+      saslServer.dispose();
+    } catch (RuntimeException e) {
+      logger.error("Error while disposing SASL server", e);
     }
     saslServer = null;
   }
