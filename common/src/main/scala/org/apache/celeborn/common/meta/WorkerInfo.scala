@@ -47,9 +47,6 @@ class WorkerInfo(
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
     else null
   var endpoint: RpcEndpointRef = null
-  // Cache the hash code for WorkerInfo
-  private var hash = 0
-  private var isZeroHash = false
 
   def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
     this(
