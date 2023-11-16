@@ -132,7 +132,10 @@ vi conf/flink-conf.yaml
 ```
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
+execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
 ```
+**Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
+
 Then deploy the example word count job to the running cluster:
 ```shell
 cd $FLINK_HOME

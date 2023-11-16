@@ -22,7 +22,9 @@ import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFact
 
 import java.time.Duration;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.metrics.MetricGroup;
@@ -44,6 +46,25 @@ public class AbstractRemoteShuffleServiceFactory {
               + ") corresponds to more than MAX_INT pages.");
     }
     return (int) numBuffersLong;
+  }
+
+  /**
+   * Checks the shuffle service config given the Flink configuration.
+   *
+   * <p>The config option {@link ExecutionOptions#BATCH_SHUFFLE_MODE} should configure as {@link
+   * BatchShuffleMode#ALL_EXCHANGES_BLOCKING}.
+   *
+   * @param configuration The Flink configuration with shuffle service config.
+   */
+  protected static void checkShuffleServiceConfig(Configuration configuration) {
+    if (configuration.get(ExecutionOptions.BATCH_SHUFFLE_MODE)
+        != BatchShuffleMode.ALL_EXCHANGES_BLOCKING) {
+      throw new IllegalArgumentException(
+          String.format(
+              "The config option %s should configure as %s",
+              ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
+              BatchShuffleMode.ALL_EXCHANGES_BLOCKING.name()));
+    }
   }
 
   protected static AbstractRemoteShuffleServiceParameters initializePreCreateShuffleEnvironment(

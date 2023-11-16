@@ -22,7 +22,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -54,5 +56,23 @@ public class RemoteShuffleServiceFactorySuitJ {
         ((RemoteShuffleEnvironment) shuffleEnvironment)
             .getResultPartitionFactory()
             .getNetworkBufferSize());
+  }
+
+  @Test
+  public void testInvalidShuffleServiceConfig() {
+    RemoteShuffleServiceFactory remoteShuffleServiceFactory = new RemoteShuffleServiceFactory();
+    ShuffleEnvironmentContext shuffleEnvironmentContext = mock(ShuffleEnvironmentContext.class);
+    when(shuffleEnvironmentContext.getConfiguration())
+        .thenReturn(
+            new Configuration()
+                .set(
+                    ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED));
+    Assert.assertThrows(
+        String.format(
+            "The config option %s should configure as %s",
+            ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
+            BatchShuffleMode.ALL_EXCHANGES_BLOCKING.name()),
+        IllegalArgumentException.class,
+        () -> remoteShuffleServiceFactory.createShuffleEnvironment(shuffleEnvironmentContext));
   }
 }
