@@ -131,7 +131,9 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     } catch (Exception e) {
       logger.error("Error while invoking handler#receive() for other message.", e);
     } finally {
-      req.body().release();
+      if (req.body() != null) {
+        req.body().release();
+      }
     }
   }
 
