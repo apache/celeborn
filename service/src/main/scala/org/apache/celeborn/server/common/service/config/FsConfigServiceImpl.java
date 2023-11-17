@@ -107,6 +107,11 @@ public class FsConfigServiceImpl implements ConfigService {
     this.refresh();
   }
 
+  @Override
+  public void shutdown() {
+    configRefreshService.shutdown();
+  }
+
   private File getConfigurationFile(Map<String, String> env) {
     if (!this.celebornConf.quotaConfigurationPath().isEmpty()) {
       return new File(this.celebornConf.quotaConfigurationPath().get());

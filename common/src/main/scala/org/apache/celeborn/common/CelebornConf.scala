@@ -4060,7 +4060,7 @@ object CelebornConf extends Logging {
   val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")
       .categories("master", "worker")
-      .doc("Store backend for dynamic config, NONE means disable dynamic config store")
+      .doc("Store backend for dynamic config, NONE means disabling dynamic config store")
       .version("0.3.2")
       .stringConf
       .checkValues(Set("FS", "NONE"))
@@ -4070,7 +4070,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.dynamicConfig.refresh.time")
       .categories("master", "worker")
       .version("0.3.2")
-      .doc("For refreshing the related dynamic config periodically")
+      .doc("The time interval for refreshing the corresponding dynamic config periodically")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 }
