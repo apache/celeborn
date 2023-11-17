@@ -31,7 +31,7 @@ public class FileManagedBuffers {
 
   private final TransportConf conf;
 
-  public FileManagedBuffers(FileInfo fileInfo, TransportConf conf) {
+  public FileManagedBuffers(NonMemoryFileInfo fileInfo, TransportConf conf) {
     file = fileInfo.getFile();
     numChunks = fileInfo.numChunks();
     if (numChunks > 0) {

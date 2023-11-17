@@ -44,7 +44,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.PORT_MAX_RETRY
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, NonMemoryFileInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportModuleConstants}
@@ -1078,10 +1078,10 @@ object Utils extends Logging {
   }
 
   def getShortFormattedFileName(fileInfo: FileInfo): String = {
-    val parentFile = fileInfo.getFile.getParent
+    val parentFile = fileInfo.asInstanceOf[NonMemoryFileInfo].getFile.getParent
     parentFile.substring(
       parentFile.lastIndexOf("/"),
-      parentFile.length) + "/" + fileInfo.getFile.getName
+      parentFile.length) + "/" + fileInfo.asInstanceOf[NonMemoryFileInfo].getFile.getName
   }
 
   def parseMetricLabels(label: String): (String, String) = {

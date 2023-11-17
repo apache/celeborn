@@ -15,21 +15,35 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker;
+package org.apache.celeborn.common.meta;
 
-import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter;
+import io.netty.buffer.CompositeByteBuf;
 
-public class WorkingPartition extends PartitionLocation {
-  private final transient PartitionDataWriter partitionDataWriter;
+import org.apache.celeborn.common.identity.UserIdentifier;
 
-  public WorkingPartition(
-      PartitionLocation partitionLocation, PartitionDataWriter partitionDataWriter) {
-    super(partitionLocation);
-    this.partitionDataWriter = partitionDataWriter;
+public class MemoryFileInfo extends FileInfo {
+  private CompositeByteBuf buffer;
+  private long length;
+
+  public MemoryFileInfo(
+      UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
+    super(userIdentifier, partitionSplitEnabled, fileMeta);
   }
 
-  public PartitionDataWriter getFileWriter() {
-    return partitionDataWriter;
+  public CompositeByteBuf getBuffer() {
+    return buffer;
+  }
+
+  public void setBuffer(CompositeByteBuf buffer) {
+    this.buffer = buffer;
+  }
+
+  public void setBufferSize(int bufferSize) {
+    this.length = bufferSize;
+  }
+
+  @Override
+  public long getFileLength() {
+    return length;
   }
 }

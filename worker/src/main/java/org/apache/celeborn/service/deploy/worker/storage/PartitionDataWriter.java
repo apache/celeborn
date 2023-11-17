@@ -36,6 +36,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -50,8 +51,8 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
  * Note: Once FlushNotifier.exception is set, the whole file is not available.
  *       That's fine some of the internal state(e.g. bytesFlushed) may be inaccurate.
  */
-public abstract class FileWriter implements DeviceObserver {
-  private static final Logger logger = LoggerFactory.getLogger(FileWriter.class);
+public abstract class PartitionDataWriter implements DeviceObserver {
+  private static final Logger logger = LoggerFactory.getLogger(PartitionDataWriter.class);
   private static final long WAIT_INTERVAL_MS = 5;
 
   protected final FileInfo fileInfo;
@@ -87,9 +88,9 @@ public abstract class FileWriter implements DeviceObserver {
   private StorageManager storageManager;
   private boolean workerGracefulShutdown;
 
-  public FileWriter(
-      FileInfo fileInfo,
-      Flusher flusher,
+  public PartitionDataWriter(
+      StorageManager storageManager,
+      CreateFileContext createFileContext,
       AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
@@ -98,9 +99,11 @@ public abstract class FileWriter implements DeviceObserver {
       PartitionType partitionType,
       boolean rangeReadFilter)
       throws IOException {
-    this.fileInfo = fileInfo;
-    this.flusher = flusher;
-    this.flushWorkerIndex = flusher.getWorkerIndex();
+    this.storageManager = storageManager;
+    CreateFileResult createFileResult = storageManager.createFile(createFileContext, this);
+    fileInfo = createFileResult.fileInfo();
+    flusher = createFileResult.flusher();
+    this.flushWorkerIndex = createFileResult.flusher().getWorkerIndex();
     this.writerCloseTimeoutMs = conf.workerWriterCloseTimeoutMs();
     this.workerGracefulShutdown = conf.workerGracefulShutdown();
     this.splitThreshold = splitThreshold;
@@ -108,16 +111,19 @@ public abstract class FileWriter implements DeviceObserver {
     this.splitMode = splitMode;
     this.partitionType = partitionType;
     this.rangeReadFilter = rangeReadFilter;
-    if (!fileInfo.isHdfs()) {
+    if (!((NonMemoryFileInfo) fileInfo).isHdfs()) {
       this.flusherBufferSize = conf.workerFlusherBufferSize();
-      channel = FileChannelUtils.createWritableFileChannel(fileInfo.getFilePath());
+      channel =
+          FileChannelUtils.createWritableFileChannel(((NonMemoryFileInfo) fileInfo).getFilePath());
     } else {
       this.flusherBufferSize = conf.workerHdfsFlusherBufferSize();
       // We open the stream and close immediately because HDFS output stream will
       // create a DataStreamer that is a thread.
       // If we reuse HDFS output stream, we will exhaust the memory soon.
       try {
-        StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
+        StorageManager.hadoopFs()
+            .create(((NonMemoryFileInfo) fileInfo).getHdfsPath(), true)
+            .close();
       } catch (IOException e) {
         try {
           // If create file failed, wait 10 ms and retry
@@ -125,7 +131,9 @@ public abstract class FileWriter implements DeviceObserver {
         } catch (InterruptedException ex) {
           throw new RuntimeException(ex);
         }
-        StorageManager.hadoopFs().create(fileInfo.getHdfsPath(), true).close();
+        StorageManager.hadoopFs()
+            .create(((NonMemoryFileInfo) fileInfo).getHdfsPath(), true)
+            .close();
       }
     }
     source = workerSource;
@@ -141,7 +149,7 @@ public abstract class FileWriter implements DeviceObserver {
   }
 
   public File getFile() {
-    return fileInfo.getFile();
+    return ((NonMemoryFileInfo) fileInfo).getFile();
   }
 
   public void incrementPendingWrites() {
@@ -163,12 +171,14 @@ public abstract class FileWriter implements DeviceObserver {
           FlushTask task = null;
           if (channel != null) {
             task = new LocalFlushTask(flushBuffer, channel, notifier);
-          } else if (fileInfo.isHdfs()) {
-            task = new HdfsFlushTask(flushBuffer, fileInfo.getHdfsPath(), notifier);
+          } else if (((NonMemoryFileInfo) fileInfo).isHdfs()) {
+            task =
+                new HdfsFlushTask(
+                    flushBuffer, ((NonMemoryFileInfo) fileInfo).getHdfsPath(), notifier);
           }
           addTask(task);
           flushBuffer = null;
-          fileInfo.updateBytesFlushed(numBytes);
+          ((NonMemoryFileInfo) fileInfo).updateBytesFlushed(numBytes);
           if (!finalFlush) {
             takeBuffer();
           }
@@ -180,7 +190,9 @@ public abstract class FileWriter implements DeviceObserver {
   /** assume data size is less than chunk capacity */
   public void write(ByteBuf data) throws IOException {
     if (closed) {
-      String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();
+      String msg =
+          "FileWriter has already closed!, fileName "
+              + ((NonMemoryFileInfo) fileInfo).getFilePath();
       logger.warn(msg);
       throw new AlreadyClosedException(msg);
     }
@@ -208,7 +220,9 @@ public abstract class FileWriter implements DeviceObserver {
 
     synchronized (flushLock) {
       if (closed) {
-        String msg = "FileWriter has already closed!, fileName " + fileInfo.getFilePath();
+        String msg =
+            "FileWriter has already closed!, fileName "
+                + ((NonMemoryFileInfo) fileInfo).getFilePath();
         logger.warn(msg);
         throw new AlreadyClosedException(msg);
       }
@@ -240,7 +254,8 @@ public abstract class FileWriter implements DeviceObserver {
       if (deleted) {
         return null;
       } else {
-        return new StorageInfo(StorageInfo.Type.HDFS, true, fileInfo.getFilePath());
+        return new StorageInfo(
+            StorageInfo.Type.HDFS, true, ((NonMemoryFileInfo) fileInfo).getFilePath());
       }
     }
   }
@@ -262,7 +277,8 @@ public abstract class FileWriter implements DeviceObserver {
       RunnableWithIOException finalClose)
       throws IOException {
     if (closed) {
-      String msg = "FileWriter has already closed! fileName " + fileInfo.getFilePath();
+      String msg =
+          "FileWriter has already closed! fileName " + ((NonMemoryFileInfo) fileInfo).getFilePath();
       logger.error(msg);
       throw new AlreadyClosedException(msg);
     }
@@ -293,7 +309,7 @@ public abstract class FileWriter implements DeviceObserver {
       finalClose.run();
 
       // unregister from DeviceMonitor
-      if (!fileInfo.isHdfs()) {
+      if (!((NonMemoryFileInfo) fileInfo).isHdfs()) {
         logger.debug("file info {} unregister from device monitor", fileInfo);
         deviceMonitor.unregisterFileWriter(this);
       }
@@ -318,17 +334,17 @@ public abstract class FileWriter implements DeviceObserver {
       } catch (IOException e) {
         logger.warn(
             "Close channel failed for file {} caused by {}.",
-            fileInfo.getFilePath(),
+            ((NonMemoryFileInfo) fileInfo).getFilePath(),
             e.getMessage());
       }
     }
 
     if (!destroyed) {
       destroyed = true;
-      fileInfo.deleteAllFiles(StorageManager.hadoopFs());
+      ((NonMemoryFileInfo) fileInfo).deleteAllFiles(StorageManager.hadoopFs());
 
       // unregister from DeviceMonitor
-      if (!fileInfo.isHdfs()) {
+      if (!((NonMemoryFileInfo) fileInfo).isHdfs()) {
         deviceMonitor.unregisterFileWriter(this);
       }
     }
@@ -369,7 +385,7 @@ public abstract class FileWriter implements DeviceObserver {
     String fileAbsPath = null;
     if (source.metricsCollectCriticalEnabled()) {
       metricsName = WorkerSource.TAKE_BUFFER_TIME();
-      fileAbsPath = fileInfo.getFilePath();
+      fileAbsPath = ((NonMemoryFileInfo) fileInfo).getFilePath();
       source.startTimer(metricsName, fileAbsPath);
     }
 
@@ -402,16 +418,18 @@ public abstract class FileWriter implements DeviceObserver {
   }
 
   public int hashCode() {
-    return fileInfo.getFilePath().hashCode();
+    return ((NonMemoryFileInfo) fileInfo).getFilePath().hashCode();
   }
 
   public boolean equals(Object obj) {
-    return (obj instanceof FileWriter)
-        && fileInfo.getFilePath().equals(((FileWriter) obj).fileInfo.getFilePath());
+    return (obj instanceof PartitionDataWriter)
+        && ((NonMemoryFileInfo) fileInfo)
+            .getFilePath()
+            .equals(((NonMemoryFileInfo) ((PartitionDataWriter) obj).fileInfo).getFilePath());
   }
 
   public String toString() {
-    return fileInfo.getFilePath();
+    return ((NonMemoryFileInfo) fileInfo).getFilePath();
   }
 
   public void flushOnMemoryPressure() throws IOException {
@@ -458,9 +476,5 @@ public abstract class FileWriter implements DeviceObserver {
 
   public void setShuffleKey(String shuffleKey) {
     this.shuffleKey = shuffleKey;
-  }
-
-  public void setStorageManager(StorageManager storageManager) {
-    this.storageManager = storageManager;
   }
 }

@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, MapPartitionFileWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionPartitionDataWriter, PartitionDataWriter, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -161,7 +161,7 @@ private[deploy] class Controller(
           requestPrimaryLocs.get(ind).getUniqueId)
         if (location == null) {
           location = requestPrimaryLocs.get(ind)
-          val writer = storageManager.createWriter(
+          val writer = storageManager.createPartitionDataWriter(
             applicationId,
             shuffleId,
             location,
@@ -201,7 +201,7 @@ private[deploy] class Controller(
             requestReplicaLocs.get(ind).getUniqueId)
         if (location == null) {
           location = requestReplicaLocs.get(ind)
-          val writer = storageManager.createWriter(
+          val writer = storageManager.createPartitionDataWriter(
             applicationId,
             shuffleId,
             location,
@@ -327,12 +327,14 @@ private[deploy] class Controller(
     future
   }
 
-  private def waitMapPartitionRegionFinished(fileWriter: FileWriter, waitTimeout: Long): Unit = {
-    if (fileWriter.isInstanceOf[MapPartitionFileWriter]) {
+  private def waitMapPartitionRegionFinished(
+      fileWriter: PartitionDataWriter,
+      waitTimeout: Long): Unit = {
+    if (fileWriter.isInstanceOf[MapPartitionPartitionDataWriter]) {
       val delta = 100
       var times = 0
       while (delta * times < waitTimeout) {
-        if (fileWriter.asInstanceOf[MapPartitionFileWriter].isRegionFinished) {
+        if (fileWriter.asInstanceOf[MapPartitionPartitionDataWriter].isRegionFinished) {
           logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
           return
         }
