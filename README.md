@@ -289,6 +289,7 @@ Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
 To use Celeborn, the following flink configurations should be added.
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
+execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
 celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
 
 celeborn.client.shuffle.batchHandleReleasePartition.enabled: true
@@ -306,6 +307,7 @@ taskmanager.network.memory.floating-buffers-per-gate: 4096
 taskmanager.network.memory.buffers-per-channel: 0
 taskmanager.memory.task.off-heap.size: 512m
 ```
+**Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
 
 ### Deploy mapreduce client 
 Add $CELEBORN_HOME/mr/*.jar to to `mapreduce.application.classpath` and `yarn.application.classpath`.
