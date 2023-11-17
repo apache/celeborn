@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -32,15 +32,16 @@ import org.apache.celeborn.common.protocol.PartitionType;
 /*
  * reduce partition file writer, it will create chunk index
  */
-public final class ReducePartitionFileWriter extends FileWriter {
-  private static final Logger logger = LoggerFactory.getLogger(ReducePartitionFileWriter.class);
+public final class ReducePartitionPartitionDataWriter extends PartitionDataWriter {
+  private static final Logger logger =
+      LoggerFactory.getLogger(ReducePartitionPartitionDataWriter.class);
 
   private long nextBoundary;
   private final long shuffleChunkSize;
 
-  public ReducePartitionFileWriter(
-      FileInfo fileInfo,
-      Flusher flusher,
+  public ReducePartitionPartitionDataWriter(
+      StorageManager storageManager,
+      CreateFileContext createFileContext,
       AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
@@ -49,8 +50,8 @@ public final class ReducePartitionFileWriter extends FileWriter {
       boolean rangeReadFilter)
       throws IOException {
     super(
-        fileInfo,
-        flusher,
+        storageManager,
+        createFileContext,
         workerSource,
         conf,
         deviceMonitor,
@@ -70,7 +71,7 @@ public final class ReducePartitionFileWriter extends FileWriter {
   private void maybeSetChunkOffsets(boolean forceSet) {
     long bytesFlushed = fileInfo.getFileLength();
     if (bytesFlushed >= nextBoundary || forceSet) {
-      fileInfo.addChunkOffset(bytesFlushed);
+      fileInfo.getFileMeta().addChunkOffset(bytesFlushed);
       nextBoundary = bytesFlushed + shuffleChunkSize;
     }
   }
@@ -84,7 +85,7 @@ public final class ReducePartitionFileWriter extends FileWriter {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return fileInfo.getLastChunkOffset() == fileInfo.getFileLength();
+    return fileInfo.getFileMeta().getLastChunkOffset() == fileInfo.getFileLength();
   }
 
   public synchronized long close() throws IOException {
@@ -95,16 +96,20 @@ public final class ReducePartitionFileWriter extends FileWriter {
           }
         },
         () -> {
-          if (fileInfo.isHdfs()) {
-            if (StorageManager.hadoopFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
-              StorageManager.hadoopFs().delete(fileInfo.getHdfsPath(), false);
+          if (((NonMemoryFileInfo) fileInfo).isHdfs()) {
+            if (StorageManager.hadoopFs()
+                .exists(((NonMemoryFileInfo) fileInfo).getHdfsPeerWriterSuccessPath())) {
+              StorageManager.hadoopFs().delete(((NonMemoryFileInfo) fileInfo).getHdfsPath(), false);
               deleted = true;
             } else {
-              StorageManager.hadoopFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
+              StorageManager.hadoopFs()
+                  .create(((NonMemoryFileInfo) fileInfo).getHdfsWriterSuccessPath())
+                  .close();
               FSDataOutputStream indexOutputStream =
-                  StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath());
-              indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
-              for (Long offset : fileInfo.getChunkOffsets()) {
+                  StorageManager.hadoopFs()
+                      .create(((NonMemoryFileInfo) fileInfo).getHdfsIndexPath());
+              indexOutputStream.writeInt(((NonMemoryFileInfo) fileInfo).getChunkOffsets().size());
+              for (Long offset : ((NonMemoryFileInfo) fileInfo).getChunkOffsets()) {
                 indexOutputStream.writeLong(offset);
               }
               indexOutputStream.close();

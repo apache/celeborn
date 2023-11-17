@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.CelebornExitKind;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -53,7 +54,7 @@ public class PartitionFilesSorterSuiteJ {
   private FileInfo fileInfo;
   private String originFileName;
   private long originFileLen;
-  private FileWriter fileWriter;
+  private PartitionDataWriter partitionDataWriter;
   private UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
   private static final int MAX_MAP_ID = 50;
@@ -64,7 +65,7 @@ public class PartitionFilesSorterSuiteJ {
     shuffleFile = File.createTempFile("Celeborn", "sort-suite");
 
     originFileName = shuffleFile.getAbsolutePath();
-    fileInfo = new FileInfo(shuffleFile, userIdentifier);
+    fileInfo = new NonMemoryFileInfo(shuffleFile, userIdentifier);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -102,8 +103,8 @@ public class PartitionFilesSorterSuiteJ {
       partitionSize[mapId] = partitionSize[mapId] + batchHeader.length + mockedData.length;
     }
     originFileLen = channel.size();
-    fileInfo.getChunkOffsets().add(originFileLen);
-    fileInfo.updateBytesFlushed(originFileLen);
+    fileInfo.getFileMeta().getChunkOffsets().add(originFileLen);
+    ((NonMemoryFileInfo) fileInfo).updateBytesFlushed(originFileLen);
     logger.info(shuffleFile.getAbsolutePath() + " filelen: " + Utils.bytesToString(originFileLen));
 
     CelebornConf conf = new CelebornConf();
@@ -117,9 +118,9 @@ public class PartitionFilesSorterSuiteJ {
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
     MemoryManager.initialize(conf);
-    fileWriter = Mockito.mock(FileWriter.class);
-    when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
-    when(fileWriter.getFileInfo()).thenAnswer(i -> fileInfo);
+    partitionDataWriter = Mockito.mock(PartitionDataWriter.class);
+    when(partitionDataWriter.getFile()).thenAnswer(i -> shuffleFile);
+    when(partitionDataWriter.getFileInfo()).thenAnswer(i -> fileInfo);
     return partitionSize;
   }
 
@@ -143,7 +144,7 @@ public class PartitionFilesSorterSuiteJ {
           partitionFilesSorter.getSortedFileInfo(
               "application-1",
               originFileName,
-              fileWriter.getFileInfo(),
+              partitionDataWriter.getFileInfo(),
               startMapIndex,
               endMapIndex);
       long totalSizeToFetch = 0;
@@ -151,8 +152,11 @@ public class PartitionFilesSorterSuiteJ {
         totalSizeToFetch += partitionSize[i];
       }
       long numChunks = totalSizeToFetch / conf.shuffleChunkSize() + 1;
-      Assert.assertTrue(0 < info.numChunks() && info.numChunks() <= numChunks);
-      long actualTotalChunkSize = info.getLastChunkOffset() - info.getChunkOffsets().get(0);
+      Assert.assertTrue(
+          0 < ((NonMemoryFileInfo) info).numChunks()
+              && ((NonMemoryFileInfo) info).numChunks() <= numChunks);
+      long actualTotalChunkSize =
+          info.getFileMeta().getLastChunkOffset() - info.getFileMeta().getChunkOffsets().get(0);
       Assert.assertTrue(totalSizeToFetch == actualTotalChunkSize);
     } finally {
       clean();

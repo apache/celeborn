@@ -494,6 +494,26 @@ message PbFileInfo {
   bool partitionSplitEnabled = 8;
 }
 
+message PbMapFileMeta{
+  int32 bufferSize = 1;
+  int32 numSubPartitions = 2;
+}
+
+message PbReduceFileMeta {
+  repeated int64 chunkOffsets = 1;
+  bool sorted = 2;
+}
+
+message PbNonMemoryFile{
+  PbUserIdentifier userIdentifier = 1;
+  bool partitionSplitEnabled = 2;
+  PbMapFileMeta mapFileMeta = 3;
+  PbReduceFileMeta reduceFileMeta = 4;
+  string filePath = 5;
+  PbStorageInfo storageInfo = 6;
+  int64 bytesFlusher = 7;
+}
+
 message PbFileInfoMap {
   map<string, PbFileInfo> values = 1;
 }

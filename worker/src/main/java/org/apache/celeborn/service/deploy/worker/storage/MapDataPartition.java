@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -81,27 +82,29 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     updateBuffersTarget((this.minReadBuffers + this.maxReadBuffers) / 2 + 1);
     logger.debug(
         "read map partition {} with {} {}",
-        fileInfo.getFilePath(),
+        ((NonMemoryFileInfo) fileInfo).getFilePath(),
         bufferQueue.getLocalBuffersTarget(),
-        fileInfo.getBufferSize());
+        fileInfo.getFileMeta().getBufferSize());
 
     this.minBuffersToTriggerRead = minBuffersToTriggerRead;
 
     readExecutor =
         storageFetcherPool.computeIfAbsent(
-            fileInfo.getMountPoint(),
+            fileInfo.getFileMeta().getMountPoint(),
             k ->
                 Executors.newFixedThreadPool(
                     threadsPerMountPoint,
                     new ThreadFactoryBuilder()
-                        .setNameFormat(fileInfo.getMountPoint() + "-reader-thread-%d")
+                        .setNameFormat(fileInfo.getFileMeta().getMountPoint() + "-reader-thread-%d")
                         .setUncaughtExceptionHandler(
                             (t1, t2) -> {
                               logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
                             })
                         .build()));
-    this.dataFileChanel = FileChannelUtils.openReadableFileChannel(fileInfo.getFilePath());
-    this.indexChannel = FileChannelUtils.openReadableFileChannel(fileInfo.getIndexPath());
+    this.dataFileChanel =
+        FileChannelUtils.openReadableFileChannel(((NonMemoryFileInfo) fileInfo).getFilePath());
+    this.indexChannel =
+        FileChannelUtils.openReadableFileChannel(((NonMemoryFileInfo) fileInfo).getIndexPath());
     this.indexSize = indexChannel.size();
 
     MemoryManager.instance().addReadBufferTargetChangeListener(this);
@@ -135,7 +138,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
     if (bufferQueueInitialized.compareAndSet(false, true)) {
       bufferQueue.tryApplyNewBuffers(
           readers.size(),
-          fileInfo.getBufferSize(),
+          fileInfo.getFileMeta().getBufferSize(),
           (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
     } else {
       triggerRead();
@@ -173,7 +176,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
     bufferQueue.tryApplyNewBuffers(
         readers.size(),
-        fileInfo.getBufferSize(),
+        fileInfo.getFileMeta().getBufferSize(),
         (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
   }
 
@@ -256,7 +259,7 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
   @Override
   public String toString() {
-    return "MapDataPartition{" + "fileInfo=" + fileInfo.getFilePath() + '}';
+    return "MapDataPartition{" + "fileInfo=" + ((NonMemoryFileInfo) fileInfo).getFilePath() + '}';
   }
 
   public ConcurrentHashMap<Long, MapDataPartitionReader> getReaders() {
@@ -269,7 +272,8 @@ class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
 
   @Override
   public void onChange(long newMemoryTarget) {
-    updateBuffersTarget((int) Math.ceil(newMemoryTarget * 1.0 / fileInfo.getBufferSize()));
+    updateBuffersTarget(
+        (int) Math.ceil(newMemoryTarget * 1.0 / fileInfo.getFileMeta().getBufferSize()));
     bufferQueue.trim();
   }
 }

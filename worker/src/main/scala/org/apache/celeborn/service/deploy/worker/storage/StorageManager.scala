@@ -37,7 +37,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo, TimeWindow}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo, NonMemoryFileInfo, ReduceFileMeta, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
@@ -48,11 +48,26 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPres
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
+class CreateFileContext(
+    val location: PartitionLocation,
+    val appId: String,
+    val shuffleId: Int,
+    val fileName: String,
+    val userIdentifier: UserIdentifier,
+    val partitionType: PartitionType,
+    val partitionSplitEnabled: Boolean)
+
+class CreateFileResult(
+    val filePath: String,
+    val mountPointFile: File,
+    val flusher: Flusher,
+    val fileInfo: NonMemoryFileInfo)
+
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // mount point -> file writer
   val workingDirWriters =
-    JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, FileWriter]]()
+    JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, PartitionDataWriter]]()
 
   val hasHDFSStorage = conf.hasHDFSStorage
 
@@ -137,7 +152,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val hdfsDir = conf.hdfsDir
   val hdfsPermission = new FsPermission("755")
-  val hdfsWriters = JavaUtils.newConcurrentHashMap[String, FileWriter]()
+  val hdfsWriters = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
   val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (hasHDFSStorage) {
       logInfo(s"Initialize HDFS support with path ${hdfsDir}")
@@ -192,8 +207,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   // shuffleKey -> (fileName -> file info)
-  private val fileInfos =
-    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
+  private val nonMemoryFileInfos =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, NonMemoryFileInfo]]()
   private val RECOVERY_FILE_NAME_PREFIX = "recovery"
   private var RECOVERY_FILE_NAME = "recovery.ldb"
   private var db: DB = null
@@ -264,7 +279,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           try {
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache)
             logDebug(s"Reload DB: $shuffleKey -> $files")
-            fileInfos.put(shuffleKey, files)
+            nonMemoryFileInfos.put(shuffleKey, files)
             db.delete(entry.getKey)
           } catch {
             case exception: Exception =>
@@ -306,13 +321,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
 
   private val workingDirWriterListFunc =
-    new java.util.function.Function[File, ConcurrentHashMap[String, FileWriter]]() {
-      override def apply(t: File): ConcurrentHashMap[String, FileWriter] =
-        JavaUtils.newConcurrentHashMap[String, FileWriter]()
+    new java.util.function.Function[File, ConcurrentHashMap[String, PartitionDataWriter]]() {
+      override def apply(t: File): ConcurrentHashMap[String, PartitionDataWriter] =
+        JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
     }
 
   @throws[IOException]
-  def createWriter(
+  def createPartitionDataWriter(
       appId: String,
       shuffleId: Int,
       location: PartitionLocation,
@@ -320,8 +335,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
-      userIdentifier: UserIdentifier): FileWriter = {
-    createWriter(
+      userIdentifier: UserIdentifier): PartitionDataWriter = {
+    createPartitionDataWriter(
       appId,
       shuffleId,
       location,
@@ -334,7 +349,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   @throws[IOException]
-  def createWriter(
+  def createPartitionDataWriter(
       appId: String,
       shuffleId: Int,
       location: PartitionLocation,
@@ -343,149 +358,55 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
-      partitionSplitEnabled: Boolean): FileWriter = {
+      partitionSplitEnabled: Boolean): PartitionDataWriter = {
     if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage) {
       throw new IOException("No available working dirs!")
     }
-
-    val fileName = location.getFileName
-    var retryCount = 0
-    var exception: IOException = null
-    val suggestedMountPoint = location.getStorageInfo.getMountPoint
-    while (retryCount < conf.workerCreateWriterMaxAttempts) {
-      val diskInfo = diskInfos.get(suggestedMountPoint)
-      val dirs =
-        if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
-          diskInfo.dirs
-        } else {
-          logDebug(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
-            s" working dirs. diskInfo $diskInfo")
-          healthyWorkingDirs()
-        }
-      if (dirs.isEmpty && hdfsFlusher.isEmpty) {
-        throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
-      }
-      val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
-      if ((dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) || location.getStorageInfo.HDFSOnly()) {
-        val shuffleDir =
-          new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        val fileInfo =
-          new FileInfo(
-            new Path(shuffleDir, fileName).toString,
-            userIdentifier,
-            partitionType,
-            partitionSplitEnabled)
-        fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
-        FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
-        val hdfsWriter = partitionType match {
-          case PartitionType.MAP => new MapPartitionFileWriter(
-              fileInfo,
-              hdfsFlusher.get,
-              workerSource,
-              conf,
-              deviceMonitor,
-              splitThreshold,
-              splitMode,
-              rangeReadFilter)
-          case PartitionType.REDUCE => new ReducePartitionFileWriter(
-              fileInfo,
-              hdfsFlusher.get,
-              workerSource,
-              conf,
-              deviceMonitor,
-              splitThreshold,
-              splitMode,
-              rangeReadFilter)
-          case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
-        }
-        if (workerGracefulShutdown) {
-          hdfsWriter.setStorageManager(this)
-          hdfsWriter.setShuffleKey(shuffleKey)
-        }
-        hdfsWriters.put(fileInfo.getFilePath, hdfsWriter)
-        return hdfsWriter
-      } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
-        val dir = dirs(getNextIndex() % dirs.size)
-        val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
-        val shuffleDir = new File(dir, s"$appId/$shuffleId")
-        val file = new File(shuffleDir, fileName)
-        try {
-          val fileInfo =
-            new FileInfo(
-              file.getAbsolutePath,
+    try {
+      partitionType match {
+        case PartitionType.MAP => new MapPartitionPartitionDataWriter(
+            this,
+            new CreateFileContext(
+              location,
+              appId,
+              shuffleId,
+              location.getFileName,
               userIdentifier,
               partitionType,
-              partitionSplitEnabled)
-          fileInfo.setMountPoint(mountPoint)
-          fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
-          shuffleDir.mkdirs()
-          if (file.exists()) {
-            throw new FileAlreadyExistsException(
-              s"Shuffle data file ${file.getAbsolutePath} already exists.")
-          } else {
-            val createFileSuccess = file.createNewFile()
-            if (!createFileSuccess) {
-              throw new CelebornException(
-                s"Create shuffle data file ${file.getAbsolutePath} failed!")
-            }
-          }
-          val fileWriter = partitionType match {
-            case PartitionType.MAP => new MapPartitionFileWriter(
-                fileInfo,
-                localFlushers.get(mountPoint),
-                workerSource,
-                conf,
-                deviceMonitor,
-                splitThreshold,
-                splitMode,
-                rangeReadFilter)
-            case PartitionType.REDUCE => new ReducePartitionFileWriter(
-                fileInfo,
-                localFlushers.get(mountPoint),
-                workerSource,
-                conf,
-                deviceMonitor,
-                splitThreshold,
-                splitMode,
-                rangeReadFilter)
-            case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
-          }
-          if (workerGracefulShutdown) {
-            fileWriter.setStorageManager(this)
-            fileWriter.setShuffleKey(shuffleKey)
-          }
-          deviceMonitor.registerFileWriter(fileWriter)
-          val map = workingDirWriters.computeIfAbsent(dir, workingDirWriterListFunc)
-          map.put(fileInfo.getFilePath, fileWriter)
-          location.getStorageInfo.setMountPoint(mountPoint)
-          logDebug(s"location $location set disk hint to ${location.getStorageInfo} ")
-          return fileWriter
-        } catch {
-          case fe: FileAlreadyExistsException =>
-            logError("Failed to create fileWriter because of existed file", fe)
-            throw fe
-          case t: Throwable =>
-            logError(
-              s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint " +
-                s"failed, report to DeviceMonitor",
-              t)
-            exception = new IOException(t)
-            deviceMonitor.reportNonCriticalError(
-              mountPoint,
-              exception,
-              DiskStatus.READ_OR_WRITE_FAILURE)
-        }
-      } else {
-        exception = new IOException("No storage available for location:" + location.toString)
+              partitionSplitEnabled),
+            workerSource,
+            conf,
+            deviceMonitor,
+            splitThreshold,
+            splitMode,
+            rangeReadFilter)
+        case PartitionType.REDUCE => new ReducePartitionPartitionDataWriter(
+            this,
+            new CreateFileContext(
+              location,
+              appId,
+              shuffleId,
+              location.getFileName,
+              userIdentifier,
+              partitionType,
+              partitionSplitEnabled),
+            workerSource,
+            conf,
+            deviceMonitor,
+            splitThreshold,
+            splitMode,
+            rangeReadFilter)
+        case _ => throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
-      retryCount += 1
+    } catch {
+      case e: Exception =>
+        logError("Create partition data writer failed", e)
+        throw e
     }
-
-    throw exception
   }
 
   def getFileInfo(shuffleKey: String, fileName: String): FileInfo = {
-    val shuffleMap = fileInfos.get(shuffleKey)
+    val shuffleMap = nonMemoryFileInfos.get(shuffleKey)
     if (shuffleMap ne null) {
       shuffleMap.get(fileName)
     } else {
@@ -504,12 +425,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def shuffleKeySet(): util.HashSet[String] = {
     val hashSet = new util.HashSet[String]()
-    hashSet.addAll(fileInfos.keySet())
+    hashSet.addAll(nonMemoryFileInfos.keySet())
     hashSet
   }
 
   def topAppDiskUsage: util.Map[String, Long] = {
-    fileInfos.asScala.map { keyedWriters =>
+    nonMemoryFileInfos.asScala.map { keyedWriters =>
       {
         keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
       }
@@ -523,11 +444,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
     val fileInfo = getFileInfo(shuffleKey, fileName)
     if (fileInfo != null) {
-      cleanFileInternal(shuffleKey, fileInfo)
+      cleanFileInternal(shuffleKey, fileInfo.asInstanceOf[NonMemoryFileInfo])
     }
   }
 
-  def cleanFileInternal(shuffleKey: String, fileInfo: FileInfo): Boolean = {
+  def cleanFileInternal(shuffleKey: String, fileInfo: NonMemoryFileInfo): Boolean = {
     var isHdfsExpired = false
     if (fileInfo.isHdfs) {
       isHdfsExpired = true
@@ -559,8 +480,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       cleanDB: Boolean = true): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      if (fileInfos.containsKey(shuffleKey)) {
-        val removedFileInfos = fileInfos.remove(shuffleKey)
+      if (nonMemoryFileInfos.containsKey(shuffleKey)) {
+        val removedFileInfos = nonMemoryFileInfos.remove(shuffleKey)
         var isHdfsExpired = false
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
@@ -741,10 +662,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def flushFileWriters(): Unit = {
-    workingDirWriters.forEach(new BiConsumer[File, ConcurrentHashMap[String, FileWriter]] {
-      override def accept(t: File, writers: ConcurrentHashMap[String, FileWriter]): Unit = {
-        writers.forEach(new BiConsumer[String, FileWriter] {
-          override def accept(file: String, writer: FileWriter): Unit = {
+    workingDirWriters.forEach(new BiConsumer[File, ConcurrentHashMap[String, PartitionDataWriter]] {
+      override def accept(
+          t: File,
+          writers: ConcurrentHashMap[String, PartitionDataWriter]): Unit = {
+        writers.forEach(new BiConsumer[String, PartitionDataWriter] {
+          override def accept(file: String, writer: PartitionDataWriter): Unit = {
             if (writer.getException == null) {
               try {
                 writer.flushOnMemoryPressure()
@@ -762,8 +685,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         })
       }
     })
-    hdfsWriters.forEach(new BiConsumer[String, FileWriter] {
-      override def accept(t: String, u: FileWriter): Unit = {
+    hdfsWriters.forEach(new BiConsumer[String, PartitionDataWriter] {
+      override def accept(t: String, u: PartitionDataWriter): Unit = {
         u.flushOnMemoryPressure()
       }
     })
@@ -808,9 +731,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {
-    fileInfos.synchronized {
+    nonMemoryFileInfos.synchronized {
       // shuffleId -> (fileName -> fileInfo)
-      fileInfos
+      nonMemoryFileInfos
         .asScala
         .toList
         .flatMap { case (_, fileInfoMaps) =>
@@ -847,12 +770,103 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def getActiveShuffleSize(): Long = {
-    fileInfos.values().asScala.map(_.values().asScala.map(_.getBytesFlushed).sum).sum
+    nonMemoryFileInfos.values().asScala.map(_.values().asScala.map(_.getBytesFlushed).sum).sum
   }
 
   def getActiveShuffleFileCount(): Long = {
-    fileInfos.asScala.values.map(_.size()).sum
+    nonMemoryFileInfos.asScala.values.map(_.size()).sum
   }
+
+  def createFile(
+      createFileContext: CreateFileContext): CreateFileResult = {
+    val (location, appId, shuffleId, fileName) = (
+      createFileContext.location,
+      createFileContext.appId,
+      createFileContext.shuffleId,
+      createFileContext.fileName)
+    val suggestedMountPoint = location.getStorageInfo.getMountPoint
+    var retryCount = 0
+    var exception: IOException = null
+    while (retryCount < conf.workerCreateWriterMaxAttempts) {
+      val diskInfo = diskInfos.get(suggestedMountPoint)
+      val dirs =
+        if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
+          diskInfo.dirs
+        } else {
+          logDebug(s"Disk unavailable for $suggestedMountPoint, return all healthy" +
+            s" working dirs. diskInfo $diskInfo")
+          healthyWorkingDirs()
+        }
+      if (dirs.isEmpty && hdfsFlusher.isEmpty) {
+        throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
+      }
+
+      if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
+        val shuffleDir =
+          new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
+        FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
+        val hdfsFilePath = new Path(shuffleDir, fileName).toString
+        return new CreateFileResult(
+          hdfsFilePath,
+          null,
+          hdfsFlusher.get,
+          new NonMemoryFileInfo(
+            createFileContext.userIdentifier,
+            createFileContext.partitionSplitEnabled,
+            new ReduceFileMeta(),
+            hdfsFilePath,
+            StorageInfo.Type.HDFS))
+        // (hdfsFilePath, createFileContext.userIdentifier, createFileContext.partitionType, createFileContext.partitionSplitEnabled))
+      } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
+        val dir = dirs(getNextIndex() % dirs.size)
+        val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
+        val shuffleDir = new File(dir, s"$appId/$shuffleId")
+        shuffleDir.mkdirs()
+        val file = new File(shuffleDir, fileName)
+        try {
+          if (file.exists()) {
+            throw new FileAlreadyExistsException(
+              s"Shuffle data file ${file.getAbsolutePath} already exists.")
+          } else {
+            val createFileSuccess = file.createNewFile()
+            if (!createFileSuccess) {
+              throw new CelebornException(
+                s"Create shuffle data file ${file.getAbsolutePath} failed!")
+            }
+          }
+          val filePath = file.getAbsolutePath
+          return new CreateFileResult(
+            filePath,
+            dir,
+            localFlushers.get(mountPoint),
+            new NonMemoryFileInfo(
+              createFileContext.userIdentifier,
+              createFileContext.partitionSplitEnabled,
+              new ReduceFileMeta(),
+              filePath,
+              StorageInfo.Type.HDD))
+        } catch {
+          case fe: FileAlreadyExistsException =>
+            logError("Failed to create fileWriter because of existed file", fe)
+            throw fe
+          case t: Throwable =>
+            logError(
+              s"Create FileWriter for ${file.getAbsolutePath} of mount $mountPoint " +
+                s"failed, report to DeviceMonitor",
+              t)
+            deviceMonitor.reportNonCriticalError(
+              mountPoint,
+              new IOException(t),
+              DiskStatus.READ_OR_WRITE_FAILURE)
+            throw t
+        }
+      } else {
+        exception = new IOException("No storage available for location:" + location.toString)
+      }
+    }
+    throw exception
+  }
+
 }
 
 object StorageManager {

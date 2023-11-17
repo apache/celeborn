@@ -25,11 +25,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
+import scala.Tuple3;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.Unpooled;
@@ -52,9 +52,9 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
-public class MapPartitionFileWriterSuiteJ {
+public class MapPartitionDataWriterSuiteJ {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MapPartitionFileWriterSuiteJ.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDataWriterSuiteJ.class);
 
   private static final CelebornConf CONF = new CelebornConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
@@ -118,12 +118,17 @@ public class MapPartitionFileWriterSuiteJ {
   }
 
   @Test
-  public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
-    File file = getTemporaryFile();
-    MapPartitionFileWriter fileWriter =
-        new MapPartitionFileWriter(
-            new FileInfo(file, userIdentifier),
+  public void testMultiThreadWrite() throws IOException {
+    Tuple3<StorageManager, CreateFileContext, FileInfo> context =
+        PartitionDataWriterSuiteUtils.prepareTestFileContext(
+            PartitionDataWriterSuiteUtils.getTemporaryFile(tempDir),
+            userIdentifier,
             localFlusher,
+            true);
+    MapPartitionPartitionDataWriter fileWriter =
+        new MapPartitionPartitionDataWriter(
+            context._1(),
+            context._2(),
             source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),

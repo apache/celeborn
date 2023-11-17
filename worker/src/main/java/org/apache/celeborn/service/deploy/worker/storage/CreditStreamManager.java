@@ -132,7 +132,8 @@ public class CreditStreamManager {
       FileInfo fileInfo,
       long streamId,
       MapDataPartition mapDataPartition) {
-    StreamState streamState = new StreamState(channel, fileInfo.getBufferSize(), mapDataPartition);
+    StreamState streamState =
+        new StreamState(channel, fileInfo.getFileMeta().getBufferSize(), mapDataPartition);
     streams.put(streamId, streamState);
     mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
   }

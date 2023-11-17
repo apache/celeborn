@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
@@ -87,7 +88,7 @@ public class FetchHandlerSuiteJ {
     byte[] batchHeader = new byte[16];
     File shuffleFile = File.createTempFile("celeborn", UUID.randomUUID().toString());
 
-    FileInfo fileInfo = new FileInfo(shuffleFile, userIdentifier);
+    FileInfo fileInfo = new NonMemoryFileInfo(shuffleFile, userIdentifier);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();

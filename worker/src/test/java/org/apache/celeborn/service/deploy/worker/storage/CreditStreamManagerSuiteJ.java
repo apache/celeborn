@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.MapFileMeta;
+import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -75,9 +77,10 @@ public class CreditStreamManagerSuiteJ {
     CreditStreamManager creditStreamManager = new CreditStreamManager(10, 10, 1, 32);
     Channel channel = Mockito.mock(Channel.class);
     FileInfo fileInfo =
-        new FileInfo(createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"));
-    fileInfo.setNumSubpartitions(10);
-    fileInfo.setBufferSize(1024);
+        new NonMemoryFileInfo(
+            createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"));
+    MapFileMeta mapFileMeta = new MapFileMeta(1024, 10);
+    fileInfo.replaceFileMeta(mapFileMeta);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);
 
     long registerStream1 =
