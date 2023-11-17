@@ -232,8 +232,12 @@ class WorkerInfo(
   }
 
   override def hashCode(): Int = {
-    val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort)
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    var result = host.hashCode()
+    result = 31 * result + rpcPort.hashCode()
+    result = 31 * result + pushPort.hashCode()
+    result = 31 * result + fetchPort.hashCode()
+    result = 31 * result + replicatePort.hashCode()
+    result
   }
 }
 

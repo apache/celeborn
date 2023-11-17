@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
-import scala.reflect.ClassTag
+import scala.util.Random
 
 import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 
@@ -32,8 +32,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEndpointRef, RpcEnv, RpcTimeout}
-import org.apache.celeborn.common.rpc.netty.{NettyRpcEndpointRef, NettyRpcEnv}
+import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEnv}
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 class WorkerInfoSuite extends CelebornFunSuite {
@@ -302,5 +301,33 @@ class WorkerInfoSuite extends CelebornFunSuite {
         rpcEnv.shutdown()
       }
     }
+  }
+
+  def generateRandomIPv4Address: String = {
+    val ipAddress = new StringBuilder
+    for (i <- 0 until 4) {
+      ipAddress.append(Random.nextInt(256))
+      if (i < 3) ipAddress.append(".")
+    }
+    ipAddress.toString
+  }
+
+  test("Test WorkerInfo hashcode") {
+    val host = generateRandomIPv4Address
+    val rpcPort = Random.nextInt(65536)
+    val pushPort = Random.nextInt(65536)
+    val fetchPort = Random.nextInt(65536)
+    val replicatePort = Random.nextInt(65536)
+    val workerInfo = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
+
+    // origin hashCode() logic
+    val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort)
+    val originHash = state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+
+    val hashCode1 = workerInfo.hashCode()
+    assert(originHash === hashCode1)
+
+    val hashCode2 = workerInfo.hashCode()
+    assert(hashCode1 === hashCode2)
   }
 }
