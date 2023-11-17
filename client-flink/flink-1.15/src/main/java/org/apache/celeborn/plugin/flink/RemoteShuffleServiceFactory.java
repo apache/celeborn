@@ -28,14 +28,12 @@ public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFac
   @Override
   public ShuffleMaster<RemoteShuffleDescriptor> createShuffleMaster(
       ShuffleMasterContext shuffleMasterContext) {
-    checkShuffleServiceConfig(shuffleMasterContext.getConfiguration());
     return new RemoteShuffleMaster(shuffleMasterContext, new SimpleResultPartitionAdapter());
   }
 
   @Override
   public ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate> createShuffleEnvironment(
       ShuffleEnvironmentContext shuffleEnvironmentContext) {
-    checkShuffleServiceConfig(shuffleEnvironmentContext.getConfiguration());
     AbstractRemoteShuffleServiceParameters parameters =
         initializePreCreateShuffleEnvironment(shuffleEnvironmentContext);
     RemoteShuffleResultPartitionFactory resultPartitionFactory =

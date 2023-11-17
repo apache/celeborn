@@ -26,8 +26,10 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -196,6 +198,22 @@ public class RemoteShuffleMasterTest {
     MemorySize expected = new MemorySize(expectedInput + expectedOutput);
 
     Assert.assertEquals(expected, calculated);
+  }
+
+  @Test
+  public void testInvalidShuffleConfig() {
+    Assert.assertThrows(
+        String.format(
+            "The config option %s should configure as %s",
+            ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
+            BatchShuffleMode.ALL_EXCHANGES_BLOCKING.name()),
+        IllegalArgumentException.class,
+        () ->
+            createShuffleMaster(
+                new Configuration()
+                    .set(
+                        ExecutionOptions.BATCH_SHUFFLE_MODE,
+                        BatchShuffleMode.ALL_EXCHANGES_PIPELINED)));
   }
 
   @After

@@ -24,7 +24,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
@@ -48,10 +51,10 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleMaster.class);
   private final ShuffleMasterContext shuffleMasterContext;
   // Flink JobId -> Celeborn register shuffleIds
-  private Map<JobID, Set<Integer>> jobShuffleIds = JavaUtils.newConcurrentHashMap();
+  private final Map<JobID, Set<Integer>> jobShuffleIds = JavaUtils.newConcurrentHashMap();
   private String celebornAppId;
   private volatile LifecycleManager lifecycleManager;
-  private ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
+  private final ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
   private ShuffleResourceTracker shuffleResourceTracker;
   private final ScheduledThreadPoolExecutor executor =
       new ScheduledThreadPoolExecutor(
@@ -61,6 +64,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
 
   public RemoteShuffleMaster(
       ShuffleMasterContext shuffleMasterContext, ResultPartitionAdapter resultPartitionDelegation) {
+    checkShuffleConfig(shuffleMasterContext.getConfiguration());
     this.shuffleMasterContext = shuffleMasterContext;
     this.resultPartitionDelegation = resultPartitionDelegation;
     this.lifecycleManagerTimestamp = System.currentTimeMillis();
@@ -120,49 +124,46 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   @Override
   public CompletableFuture<RemoteShuffleDescriptor> registerPartitionWithProducer(
       JobID jobID, PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
-    CompletableFuture<RemoteShuffleDescriptor> completableFuture =
-        CompletableFuture.supplyAsync(
-            () -> {
-              Set<Integer> shuffleIds = jobShuffleIds.get(jobID);
-              if (shuffleIds == null) {
-                throw new RuntimeException("Can not find job in lifecycleManager, job: " + jobID);
-              }
+    return CompletableFuture.supplyAsync(
+        () -> {
+          Set<Integer> shuffleIds = jobShuffleIds.get(jobID);
+          if (shuffleIds == null) {
+            throw new RuntimeException("Can not find job in lifecycleManager, job: " + jobID);
+          }
 
-              FlinkResultPartitionInfo resultPartitionInfo =
-                  new FlinkResultPartitionInfo(jobID, partitionDescriptor, producerDescriptor);
-              ShuffleResourceDescriptor shuffleResourceDescriptor =
-                  shuffleTaskInfo.genShuffleResourceDescriptor(
-                      resultPartitionInfo.getShuffleId(),
-                      resultPartitionInfo.getTaskId(),
-                      resultPartitionInfo.getAttemptId());
-
-              synchronized (shuffleIds) {
-                shuffleIds.add(shuffleResourceDescriptor.getShuffleId());
-              }
-
-              RemoteShuffleResource remoteShuffleResource =
-                  new RemoteShuffleResource(
-                      lifecycleManager.getHost(),
-                      lifecycleManager.getPort(),
-                      lifecycleManagerTimestamp,
-                      shuffleResourceDescriptor);
-
-              shuffleResourceTracker.addPartitionResource(
-                  jobID,
-                  shuffleResourceDescriptor.getShuffleId(),
-                  shuffleResourceDescriptor.getPartitionId(),
-                  resultPartitionInfo.getResultPartitionId());
-
-              return new RemoteShuffleDescriptor(
-                  celebornAppId,
-                  jobID,
+          FlinkResultPartitionInfo resultPartitionInfo =
+              new FlinkResultPartitionInfo(jobID, partitionDescriptor, producerDescriptor);
+          ShuffleResourceDescriptor shuffleResourceDescriptor =
+              shuffleTaskInfo.genShuffleResourceDescriptor(
                   resultPartitionInfo.getShuffleId(),
-                  resultPartitionInfo.getResultPartitionId(),
-                  remoteShuffleResource);
-            },
-            executor);
+                  resultPartitionInfo.getTaskId(),
+                  resultPartitionInfo.getAttemptId());
 
-    return completableFuture;
+          synchronized (shuffleIds) {
+            shuffleIds.add(shuffleResourceDescriptor.getShuffleId());
+          }
+
+          RemoteShuffleResource remoteShuffleResource =
+              new RemoteShuffleResource(
+                  lifecycleManager.getHost(),
+                  lifecycleManager.getPort(),
+                  lifecycleManagerTimestamp,
+                  shuffleResourceDescriptor);
+
+          shuffleResourceTracker.addPartitionResource(
+              jobID,
+              shuffleResourceDescriptor.getShuffleId(),
+              shuffleResourceDescriptor.getPartitionId(),
+              resultPartitionInfo.getResultPartitionId());
+
+          return new RemoteShuffleDescriptor(
+              celebornAppId,
+              jobID,
+              resultPartitionInfo.getShuffleId(),
+              resultPartitionInfo.getResultPartitionId(),
+              remoteShuffleResource);
+        },
+        executor);
   }
 
   @Override
@@ -237,5 +238,24 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
     }
 
     ExecutorUtils.gracefulShutdown(10, TimeUnit.SECONDS, executor);
+  }
+
+  /**
+   * Checks the shuffle config given the Flink configuration.
+   *
+   * <p>The config option {@link ExecutionOptions#BATCH_SHUFFLE_MODE} should configure as {@link
+   * BatchShuffleMode#ALL_EXCHANGES_BLOCKING}.
+   *
+   * @param configuration The Flink configuration with shuffle config.
+   */
+  private void checkShuffleConfig(Configuration configuration) {
+    if (configuration.get(ExecutionOptions.BATCH_SHUFFLE_MODE)
+        != BatchShuffleMode.ALL_EXCHANGES_BLOCKING) {
+      throw new IllegalArgumentException(
+          String.format(
+              "The config option %s should configure as %s",
+              ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
+              BatchShuffleMode.ALL_EXCHANGES_BLOCKING.name()));
+    }
   }
 }
