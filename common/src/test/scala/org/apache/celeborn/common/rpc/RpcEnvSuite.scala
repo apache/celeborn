@@ -17,20 +17,22 @@
 
 package org.apache.celeborn.common.rpc
 
-import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.CelebornException
-import org.apache.celeborn.common.util.ThreadUtils
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.{mock, never, verify}
-import org.scalatest.concurrent.Eventually._
-
 import java.io.NotSerializableException
 import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, TimeUnit}
+
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
+
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{mock, never, verify}
+import org.scalatest.concurrent.Eventually._
+
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.util.ThreadUtils
 
 /**
  * Common tests for an RpcEnv implementation.

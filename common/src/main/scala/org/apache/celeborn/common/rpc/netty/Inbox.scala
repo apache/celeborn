@@ -218,20 +218,26 @@ private[celeborn] class Inbox(
   /**
    * Calls action closure, and calls the endpoint's onError function in the case of exceptions.
    */
-  private def safelyCall(endpoint: RpcEndpoint, endpointRef: NettyRpcEndpointRef)(action: => Unit): Unit = {
+  private def safelyCall(
+      endpoint: RpcEndpoint,
+      endpointRef: NettyRpcEndpointRef)(action: => Unit): Unit = {
     def dealWithFatalError(fatal: Throwable): Unit = {
       inbox.synchronized {
         assert(numActiveThreads > 0, "The number of active threads should be positive.")
         // Should reduce the number of active threads before throw the error.
         numActiveThreads -= 1
       }
-      logError(s"An error happened while processing message in the inbox for ${endpointRef.name}", fatal)
+      logError(
+        s"An error happened while processing message in the inbox for ${endpointRef.name}",
+        fatal)
       throw fatal
     }
 
-    try action catch {
+    try action
+    catch {
       case NonFatal(e) =>
-        try endpoint.onError(e) catch {
+        try endpoint.onError(e)
+        catch {
           case NonFatal(ee) =>
             if (stopped) {
               logDebug("Ignoring error", ee)

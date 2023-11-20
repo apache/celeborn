@@ -17,15 +17,16 @@
 
 package org.apache.celeborn.common.rpc.netty
 
+import java.net.InetSocketAddress
+import java.nio.ByteBuffer
+
 import io.netty.channel.Channel
-import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.network.client.{TransportClient, TransportResponseHandler}
-import org.apache.celeborn.common.rpc.RpcAddress
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 
-import java.net.InetSocketAddress
-import java.nio.ByteBuffer
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.network.client.{TransportClient, TransportResponseHandler}
+import org.apache.celeborn.common.rpc.RpcAddress
 
 class NettyRpcHandlerSuite extends CelebornFunSuite {
 

@@ -17,16 +17,18 @@
 
 package org.apache.celeborn.common.rpc.netty
 
+import java.util.concurrent.ExecutionException
+
+import scala.concurrent.duration._
+
+import org.mockito.Mockito.mock
+import org.scalatest.concurrent.{Signaler, ThreadSignaler, TimeLimits}
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.ThreadUtils
-import org.mockito.Mockito.mock
-import org.scalatest.concurrent.{Signaler, ThreadSignaler, TimeLimits}
-
-import java.util.concurrent.ExecutionException
-import scala.concurrent.duration._
 
 class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
 

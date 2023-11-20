@@ -17,12 +17,13 @@
 
 package org.apache.celeborn.common.rpc.netty
 
-import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.rpc.{RpcAddress, TestRpcEndpoint}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
+
 import org.mockito.Mockito._
 
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.rpc.{RpcAddress, TestRpcEndpoint}
 
 class InboxSuite extends CelebornFunSuite {
 

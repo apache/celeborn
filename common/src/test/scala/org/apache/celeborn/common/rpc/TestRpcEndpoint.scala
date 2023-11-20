@@ -17,10 +17,10 @@
 
 package org.apache.celeborn.common.rpc
 
+import scala.collection.mutable.ArrayBuffer
+
 import org.scalactic.TripleEquals
 import org.scalatest.Assertions._
-
-import scala.collection.mutable.ArrayBuffer
 
 class TestRpcEndpoint extends ThreadSafeRpcEndpoint with TripleEquals {
 
