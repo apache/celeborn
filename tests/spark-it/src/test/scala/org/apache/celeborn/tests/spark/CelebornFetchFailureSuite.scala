@@ -190,4 +190,34 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
     sparkSession.stop()
   }
+
+  test("celeborn spark integration test - Fetch Failure with read write shuffles in one stage") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.shuffle.enabled", "true")
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.HookedCelebornShuffleManager")
+      .getOrCreate()
+
+    val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
+    val hook = new ShuffleReaderGetHook(celebornConf)
+    HookedCelebornShuffleManager.registerReaderGetHook(hook);
+
+    val sc = sparkSession.sparkContext
+    val rdd1 = sc.parallelize(0 until 10000, 3).map(v => (v, v)).groupByKey()
+    val rdd2 = rdd1.map(v => (v._2, v._1)).groupByKey()
+
+    hook.executed.set(true)
+    val x1 = rdd1.count()
+
+    hook.executed.set(false)
+    val x2 = rdd2.count()
+
+    sparkSession.stop()
+  }
 }

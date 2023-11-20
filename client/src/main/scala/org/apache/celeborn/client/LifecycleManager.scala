@@ -87,6 +87,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     Int,
     scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]()
   private val shuffleIdGenerator = new AtomicInteger(0)
+  // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
+  private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]();
 
   private val rpcCacheSize = conf.clientRpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
@@ -674,12 +676,30 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
             context.reply(pbGetShuffleIdResponse)
           case None =>
-            val newShuffleId = shuffleIdGenerator.getAndIncrement()
-            logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
-            shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
-            val pbGetShuffleIdResponse =
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(newShuffleId).build()
-            context.reply(pbGetShuffleIdResponse)
+            Option(appShuffleDeterminateMap.get(appShuffleId)).map { determinate =>
+              val candidateShuffle =
+                if (determinate)
+                  shuffleIds.values.toSeq.reverse.find(e => e._2 == true)
+                else
+                  None
+
+              val shuffleId: Integer =
+                if (determinate && candidateShuffle.isDefined) {
+                  val id = candidateShuffle.get._1
+                  logInfo(s"reuse existing shuffleId $id for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  id
+                } else {
+                  val newShuffleId = shuffleIdGenerator.getAndIncrement()
+                  logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
+                  newShuffleId
+                }
+              val pbGetShuffleIdResponse =
+                PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
+              context.reply(pbGetShuffleIdResponse)
+            }.orElse(
+              throw new UnsupportedOperationException(
+                s"unexpected! unknown appShuffleId $appShuffleId when checking shuffle deterministic level"))
         }
       } else {
         shuffleIds.values.map(v => v._1).toSeq.reverse.find(isAllMaptaskEnd) match {
@@ -815,6 +835,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   def unregisterAppShuffle(appShuffleId: Int): Unit = {
     logInfo(s"Unregister appShuffleId $appShuffleId starts...")
+    appShuffleDeterminateMap.remove(appShuffleId)
     val shuffleIds = shuffleIdMapping.remove(appShuffleId)
     if (shuffleIds != null) {
       shuffleIds.synchronized(
@@ -1335,6 +1356,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private var appShuffleTrackerCallback: Option[Consumer[Integer]] = None
   def registerShuffleTrackerCallback(callback: Consumer[Integer]): Unit = {
     appShuffleTrackerCallback = Some(callback)
+  }
+
+  def registerAppShuffleDeterminate(appShuffleId: Int, determinate: Boolean): Unit = {
+    appShuffleDeterminateMap.put(appShuffleId, determinate)
   }
 
   // Initialize at the end of LifecycleManager construction.

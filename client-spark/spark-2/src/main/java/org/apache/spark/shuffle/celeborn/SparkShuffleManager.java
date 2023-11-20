@@ -26,6 +26,7 @@ import scala.Int;
 
 import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
+import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.util.Utils;
@@ -126,6 +127,10 @@ public class SparkShuffleManager implements ShuffleManager {
     // This method may be called many times.
     appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager(appUniqueId);
+
+    lifecycleManager.registerAppShuffleDeterminate(
+        shuffleId,
+        dependency.rdd().getOutputDeterministicLevel() != DeterministicLevel.INDETERMINATE());
 
     if (fallbackPolicyRunner.applyAllFallbackPolicy(
         lifecycleManager, dependency.partitioner().numPartitions())) {
