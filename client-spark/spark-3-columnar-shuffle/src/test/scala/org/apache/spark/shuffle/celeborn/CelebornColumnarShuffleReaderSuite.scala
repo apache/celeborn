@@ -17,6 +17,11 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import org.apache.spark.{ShuffleDependency, SparkConf}
+import org.apache.spark.serializer.{KryoSerializer, KryoSerializerInstance}
+import org.apache.spark.sql.execution.UnsafeRowSerializer
+import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchSerializerInstance
+import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
 import org.junit.Test
 import org.mockito.{MockedStatic, Mockito}
 
@@ -37,9 +42,9 @@ class CelebornColumnarShuffleReaderSuite {
       10,
       null)
 
-    var shuffleClientClass: MockedStatic[ShuffleClient] = null
+    var shuffleClient: MockedStatic[ShuffleClient] = null
     try {
-      shuffleClientClass = Mockito.mockStatic(classOf[ShuffleClient])
+      shuffleClient = Mockito.mockStatic(classOf[ShuffleClient])
       val shuffleReader = SparkUtils.createColumnarShuffleReader(
         handle,
         0,
@@ -51,8 +56,54 @@ class CelebornColumnarShuffleReaderSuite {
         null)
       assert(shuffleReader.getClass == classOf[CelebornColumnarShuffleReader[Int, String]])
     } finally {
-      if (shuffleClientClass != null) {
-        shuffleClientClass.close()
+      if (shuffleClient != null) {
+        shuffleClient.close()
+      }
+    }
+  }
+
+  @Test
+  def columnarShuffleReaderNewSerializerInstance(): Unit = {
+    var shuffleClient: MockedStatic[ShuffleClient] = null
+    try {
+      shuffleClient = Mockito.mockStatic(classOf[ShuffleClient])
+      val shuffleReader = SparkUtils.createColumnarShuffleReader(
+        new CelebornShuffleHandle[Int, String, String](
+          "appId",
+          "host",
+          0,
+          new UserIdentifier("mock", "mock"),
+          0,
+          10,
+          null),
+        0,
+        10,
+        0,
+        10,
+        null,
+        new CelebornConf(),
+        null)
+      val shuffleDependency = Mockito.mock(classOf[ShuffleDependency[Int, String, String]])
+      Mockito.when(shuffleDependency.shuffleId).thenReturn(0)
+      Mockito.when(shuffleDependency.serializer).thenReturn(new KryoSerializer(
+        new SparkConf(false)))
+
+      // CelebornColumnarShuffleReader creates new serializer instance with dependency which has null schema.
+      var serializerInstance = shuffleReader.newSerializerInstance(shuffleDependency)
+      assert(serializerInstance.getClass == classOf[KryoSerializerInstance])
+
+      // CelebornColumnarShuffleReader creates new serializer instance with dependency which has non-null schema.
+      val dependencyUtils = Mockito.mockStatic(classOf[CustomShuffleDependencyUtils])
+      dependencyUtils.when(() =>
+        CustomShuffleDependencyUtils.getSchema(shuffleDependency)).thenReturn(new StructType().add(
+        "key",
+        IntegerType).add("value", StringType))
+      Mockito.when(shuffleDependency.serializer).thenReturn(new UnsafeRowSerializer(2, null))
+      serializerInstance = shuffleReader.newSerializerInstance(shuffleDependency)
+      assert(serializerInstance.getClass == classOf[CelebornColumnarBatchSerializerInstance])
+    } finally {
+      if (shuffleClient != null) {
+        shuffleClient.close()
       }
     }
   }

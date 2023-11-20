@@ -94,23 +94,23 @@ public abstract class CelebornShuffleWriterSuiteBase {
   private final String appId = "appId";
   private final String host = "host";
   private final int port = 0;
-  private final int shuffleId = 0;
+  protected final int shuffleId = 0;
 
-  private final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
+  protected final UserIdentifier userIdentifier = new UserIdentifier("mock", "mock");
 
   private final int numMaps = 10;
-  private final int numPartitions = 10;
-  private final SparkConf sparkConf = new SparkConf(false);
+  protected final int numPartitions = 10;
+  protected final SparkConf sparkConf = new SparkConf(false);
   private final BlockManagerId bmId = BlockManagerId.apply("execId", "host", 1, None$.empty());
 
   private final TaskMemoryManager taskMemoryManager =
       new TaskMemoryManager(UnifiedMemoryManager.apply(sparkConf, 1), 0);
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  private TaskContext taskContext = null;
+  protected TaskContext taskContext = null;
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  private ShuffleDependency<Integer, String, String> dependency = null;
+  protected ShuffleDependency<Integer, String, String> dependency = null;
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
   private SparkEnv env = null;
@@ -118,9 +118,9 @@ public abstract class CelebornShuffleWriterSuiteBase {
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
   private BlockManager blockManager = null;
 
-  private TaskMetrics metrics = null;
+  protected TaskMetrics metrics = null;
 
-  private static File tempDir = null;
+  protected static File tempDir = null;
 
   @BeforeClass
   public static void beforeAll() {
