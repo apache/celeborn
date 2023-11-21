@@ -18,9 +18,11 @@
 package org.apache.celeborn.common.network.protocol;
 
 import java.util.Arrays;
+import java.util.Objects;
 
-import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
@@ -99,7 +101,7 @@ public final class PushMergedData extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(requestId, mode, shuffleKey);
+    return Objects.hash(requestId, mode, shuffleKey);
   }
 
   @Override
@@ -118,13 +120,13 @@ public final class PushMergedData extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("requestId", requestId)
-        .add("mode", mode)
-        .add("shuffleKey", shuffleKey)
-        .add("partitionIds", Arrays.toString(partitionUniqueIds))
-        .add("batchOffsets", Arrays.toString(batchOffsets))
-        .add("body size", body().size())
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("requestId", requestId)
+        .append("mode", mode)
+        .append("shuffleKey", shuffleKey)
+        .append("partitionIds", Arrays.toString(partitionUniqueIds))
+        .append("batchOffsets", Arrays.toString(batchOffsets))
+        .append("body size", body().size())
         .toString();
   }
 }

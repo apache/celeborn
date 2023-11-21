@@ -42,7 +42,7 @@ object Dependencies {
   val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.12.0"
   val findbugsVersion = "1.3.9"
-  val guavaVersion = "14.0.1"
+  val guavaVersion = "32.1.3-jre"
   val hadoopVersion = "3.2.4"
   val javaxServletVersion = "3.1.0"
   val junitInterfaceVersion = "0.13.3"
@@ -72,7 +72,12 @@ object Dependencies {
   val commonsLang3 = "org.apache.commons" % "commons-lang3" % commonsLang3Version
   val commonsLogging = "commons-logging" % "commons-logging" % commonsLoggingVersion
   val findbugsJsr305 = "com.google.code.findbugs" % "jsr305" % findbugsVersion
-  val guava = "com.google.guava" % "guava" % guavaVersion
+  val guava = "com.google.guava" % "guava" % guavaVersion excludeAll(
+    ExclusionRule("org.checkerframework", "checker-qual"),
+    ExclusionRule("org.codehaus.mojo", "animal-sniffer-annotations"),
+    ExclusionRule("com.google.errorprone", "error_prone_annotations"),
+    ExclusionRule("com.google.guava", "listenablefuture"),
+    ExclusionRule("com.google.j2objc", "j2objc-annotations"))
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
   val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(

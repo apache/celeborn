@@ -17,8 +17,11 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
+
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 /** Response to {@link RpcRequest} for a failed RPC. */
 public final class RpcFailure extends ResponseMessage {
@@ -54,7 +57,7 @@ public final class RpcFailure extends ResponseMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(requestId, errorString);
+    return Objects.hash(requestId, errorString);
   }
 
   @Override
@@ -68,9 +71,9 @@ public final class RpcFailure extends ResponseMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("requestId", requestId)
-        .add("errorString", errorString)
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("requestId", requestId)
+        .append("errorString", errorString)
         .toString();
   }
 }

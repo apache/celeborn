@@ -17,8 +17,11 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
+
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 
@@ -56,7 +59,7 @@ public final class ChunkFetchFailure extends ResponseMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamChunkSlice, errorString);
+    return Objects.hash(streamChunkSlice, errorString);
   }
 
   @Override
@@ -70,9 +73,9 @@ public final class ChunkFetchFailure extends ResponseMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("streamChunkId", streamChunkSlice)
-        .add("errorString", errorString)
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("streamChunkId", streamChunkSlice)
+        .append("errorString", errorString)
         .toString();
   }
 }
