@@ -131,8 +131,12 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
 
     val mapreduceLibPath = (Utils.getCodeSourceLocation(getClass).split("/").dropRight(1) ++ Array(
       "mapreduce_lib")).mkString("/")
+    val excludeJarList =
+      Seq("hadoop-client-api", "hadoop-client-runtime", "hadoop-client-minicluster")
     Files.list(Paths.get(mapreduceLibPath)).iterator().asScala.foreach(path => {
-      job.addFileToClassPath(new Path(path.toString))
+      if (!excludeJarList.exists(path.toFile.getPath.contains(_))) {
+        job.addFileToClassPath(new Path(path.toString))
+      }
     })
 
     val exitCode = job.waitForCompletion(true)

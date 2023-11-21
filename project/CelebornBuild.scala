@@ -934,7 +934,7 @@ object MRClientProjects {
   }
 
   def mrIt: Project = {
-    val hadoopVersion = "3.3.6"
+    val hadoopVersion = "3.2.4"
 
     Project("celeborn-mr-it", file("tests/mr-it"))
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
@@ -948,12 +948,7 @@ object MRClientProjects {
         copyDepsSettings,
         libraryDependencies ++= Seq(
           "org.apache.hadoop" % "hadoop-client-minicluster" % hadoopVersion % "test",
-          "org.apache.hadoop" % "hadoop-mapreduce-examples" % hadoopVersion % "test",
-          "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion,
-          "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion,
-          "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll (
-            ExclusionRule("com.google.guava", "guava")),
-          "org.bouncycastle" % "bcpkix-jdk15on" % "1.68"
+          "org.apache.hadoop" % "hadoop-mapreduce-examples" % hadoopVersion % "test"
         ) ++ commonUnitTestDependencies
       )
   }
