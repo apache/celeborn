@@ -131,16 +131,18 @@ public class SlotsAllocator {
                       }
                     }));
 
-    boolean shouldFallback =
+    boolean noUsableDisks =
         usableDisks.isEmpty()
             || (shouldReplicate
                 && (usableDisks.size() == 1
                     || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
+    boolean noAvailableSlots = usableDisks.stream().mapToLong(DiskInfo::availableSlots).sum() <= 0;
 
-    if (shouldFallback) {
+    if (noUsableDisks || noAvailableSlots) {
       logger.warn(
-          "offer slots for {} fallback to roundrobin because there is no usable disks",
-          StringUtils.join(partitionIds, ','));
+          "offer slots for {} fallback to roundrobin because there is no {}",
+          StringUtils.join(partitionIds, ','),
+          noUsableDisks ? "usable disks" : "available slots");
       return offerSlotsRoundRobin(
           workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
     }
