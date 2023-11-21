@@ -53,8 +53,8 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
   }
 
   test("advertise address different from bind address") {
-    val sparkConf = createCelebornConf()
-    val config = RpcEnvConfig(sparkConf, "test", "localhost", "example.com", 0, 0)
+    val celebornConf = createCelebornConf()
+    val config = RpcEnvConfig(celebornConf, "test", "localhost", "example.com", 0, 0)
     val env = new NettyRpcEnvFactory().create(config)
     try {
       assert(env.address.hostPort.startsWith("example.com:"))

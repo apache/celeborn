@@ -176,7 +176,7 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
       })
 
     val conf = createCelebornConf()
-    val shortProp = "spark.rpc.short.timeout"
+    val shortProp = "celeborn.rpc.short.timeout"
     val anotherEnv = createRpcEnv(conf, "remote", 0, clientMode = true)
     // Use anotherEnv to find out the RpcEndpointRef
     val rpcEndpointRef = anotherEnv.setupEndpointRef(env.address, "ask-timeout")
@@ -184,7 +184,7 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
       val e = intercept[RpcTimeoutException] {
         rpcEndpointRef.askSync[String]("hello", new RpcTimeout(1.millisecond, shortProp))
       }
-      // The SparkException cause should be a RpcTimeoutException with message indicating the
+      // The Celeborn exception cause should be a RpcTimeoutException with message indicating the
       // controlling timeout property
       assert(e.isInstanceOf[RpcTimeoutException])
       assert(e.getMessage.contains(shortProp))
@@ -730,9 +730,9 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
   test("construct RpcTimeout with conf property") {
     val conf = new CelebornConf()
 
-    val testProp = "spark.ask.test.timeout"
+    val testProp = "celeborn.ask.test.timeout"
     val testDurationSeconds = 30
-    val secondaryProp = "spark.ask.secondary.timeout"
+    val secondaryProp = "celeborn.ask.secondary.timeout"
 
     conf.set(testProp, s"${testDurationSeconds}s")
     conf.set(secondaryProp, "100s")
@@ -742,11 +742,11 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
     assert(testDurationSeconds === rt1.duration.toSeconds)
 
     // Construct RpcTimeout with prioritized list of properties
-    val rt2 = RpcTimeout(conf, Seq("spark.ask.invalid.timeout", testProp, secondaryProp), "1s")
+    val rt2 = RpcTimeout(conf, Seq("celeborn.ask.invalid.timeout", testProp, secondaryProp), "1s")
     assert(testDurationSeconds === rt2.duration.toSeconds)
 
     // Construct RpcTimeout with default value,
-    val defaultProp = "spark.ask.default.timeout"
+    val defaultProp = "celeborn.ask.default.timeout"
     val defaultDurationSeconds = 1
     val rt3 = RpcTimeout(conf, Seq(defaultProp), defaultDurationSeconds.toString + "s")
     assert(defaultDurationSeconds === rt3.duration.toSeconds)
@@ -754,7 +754,7 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
 
     // Try to construct RpcTimeout with an unconfigured property
     intercept[NoSuchElementException] {
-      RpcTimeout(conf, "spark.ask.invalid.timeout")
+      RpcTimeout(conf, "celeborn.ask.invalid.timeout")
     }
   }
 
@@ -772,8 +772,8 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
         }
       })
 
-    val longTimeout = new RpcTimeout(1.second, "spark.rpc.long.timeout")
-    val shortTimeout = new RpcTimeout(10.milliseconds, "spark.rpc.short.timeout")
+    val longTimeout = new RpcTimeout(1.second, "celeborn.rpc.long.timeout")
+    val shortTimeout = new RpcTimeout(10.milliseconds, "celeborn.rpc.short.timeout")
 
     // Ask with immediate response, should complete successfully
     val fut1 = rpcEndpointRef.ask[String]("hello", longTimeout)
@@ -817,9 +817,9 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
     assert(shortTimeout.timeoutProp.r.findAllIn(reply4).length === 1)
   }
 
-  test("SPARK-14699: RpcEnv.shutdown should not fire onDisconnected events") {
+  test("RpcEnv.shutdown should not fire onDisconnected events") {
     env.setupEndpoint(
-      "SPARK-14699",
+      "test_ep_11212023",
       new RpcEndpoint {
         override val rpcEnv: RpcEnv = env
 
@@ -830,9 +830,9 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
 
     val anotherEnv = createRpcEnv(createCelebornConf(), "remote", 0)
     val endpoint = mock(classOf[RpcEndpoint])
-    anotherEnv.setupEndpoint("SPARK-14699", endpoint)
+    anotherEnv.setupEndpoint("test_ep_11212023", endpoint)
 
-    val ref = anotherEnv.setupEndpointRef(env.address, "SPARK-14699")
+    val ref = anotherEnv.setupEndpointRef(env.address, "test_ep_11212023")
     // Make sure the connect is set up
     assert(ref.askSync[String]("hello") === "hello")
     anotherEnv.shutdown()
