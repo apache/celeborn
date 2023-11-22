@@ -934,8 +934,6 @@ object MRClientProjects {
   }
 
   def mrIt: Project = {
-    val hadoopVersion = "3.2.4"
-
     Project("celeborn-mr-it", file("tests/mr-it"))
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
       .dependsOn(CelebornCommon.common % "test->test;compile->compile")
@@ -947,8 +945,8 @@ object MRClientProjects {
         commonSettings,
         copyDepsSettings,
         libraryDependencies ++= Seq(
-          "org.apache.hadoop" % "hadoop-client-minicluster" % hadoopVersion % "test",
-          "org.apache.hadoop" % "hadoop-mapreduce-examples" % hadoopVersion % "test"
+          "org.apache.hadoop" % "hadoop-client-minicluster" % Dependencies.hadoopVersion % "test",
+          "org.apache.hadoop" % "hadoop-mapreduce-examples" % Dependencies.hadoopVersion % "test"
         ) ++ commonUnitTestDependencies
       )
   }
