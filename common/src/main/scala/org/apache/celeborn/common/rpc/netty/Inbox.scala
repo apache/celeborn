@@ -106,7 +106,7 @@ private[celeborn] class Inbox(
       }
     }
     while (true) {
-      safelyCall(endpoint, endpointRef) {
+      safelyCall(endpoint, endpointRef.name) {
         message match {
           case RpcMessage(_sender, content, context) =>
             try {
@@ -220,7 +220,7 @@ private[celeborn] class Inbox(
    */
   private def safelyCall(
       endpoint: RpcEndpoint,
-      endpointRef: NettyRpcEndpointRef)(action: => Unit): Unit = {
+      endpointRefName: String)(action: => Unit): Unit = {
     def dealWithFatalError(fatal: Throwable): Unit = {
       inbox.synchronized {
         assert(numActiveThreads > 0, "The number of active threads should be positive.")
@@ -228,7 +228,7 @@ private[celeborn] class Inbox(
         numActiveThreads -= 1
       }
       logError(
-        s"An error happened while processing message in the inbox for ${endpointRef.name}",
+        s"An error happened while processing message in the inbox for $endpointRefName",
         fatal)
       throw fatal
     }
