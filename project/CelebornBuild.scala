@@ -34,7 +34,7 @@ object Dependencies {
 
   val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.2-1")
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
-  
+
   // Dependent library versions
   val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
@@ -933,6 +933,24 @@ object MRClientProjects {
       )
   }
 
+  def mrIt: Project = {
+    Project("celeborn-mr-it", file("tests/mr-it"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+      .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+      .dependsOn(mrClient % "test->test;compile->compile")
+      .settings(
+        commonSettings,
+        copyDepsSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.hadoop" % "hadoop-client-minicluster" % Dependencies.hadoopVersion % "test",
+          "org.apache.hadoop" % "hadoop-mapreduce-examples" % Dependencies.hadoopVersion % "test"
+        ) ++ commonUnitTestDependencies
+      )
+  }
+
   def mrClientShade: Project = {
     Project("celeborn-client-mr-shaded", file("client-mr/mr-shaded"))
       .dependsOn(mrClient)
@@ -996,6 +1014,37 @@ object MRClientProjects {
   }
 
   def modules: Seq[Project] = {
-    Seq(mrClient, mrClientShade)
+    Seq(mrClient, mrIt, mrGroup, mrClientShade)
   }
+
+  // for test only, don't use this group for any other projects
+  lazy val mrGroup = (project withId "celeborn-mr-group").aggregate(mrClient, mrIt)
+
+  val copyDeps = TaskKey[Unit]("copyDeps", "Copies needed dependencies to the build directory.")
+  val destPath = (Compile / crossTarget) {
+    _ / "mapreduce_lib"
+  }
+
+  lazy val copyDepsSettings = Seq(
+    copyDeps := {
+      val dest = destPath.value
+      if (!dest.isDirectory() && !dest.mkdirs()) {
+        throw new java.io.IOException("Failed to create jars directory.")
+      }
+
+      (Compile / dependencyClasspath).value.map(_.data)
+        .filter { jar => jar.isFile() }
+        .foreach { jar =>
+          val destJar = new File(dest, jar.getName())
+          if (destJar.isFile()) {
+            destJar.delete()
+          }
+          Files.copy(jar.toPath(), destJar.toPath())
+        }
+    },
+    (Test / compile) := {
+      copyDeps.value
+      (Test / compile).value
+    }
+  )
 }
