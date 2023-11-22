@@ -92,8 +92,17 @@ class DiskInfo(
     avgFetchTime = fetchTimeMetrics.getAverage()
   }
 
+  /**
+   * Returns the available slots of the disk calculated by maxSlots minus activeSlots.
+   * Returns zero for the negative slots calculated.
+   *
+   * <b>Note:</b>`maxSlots` is calculated by actualUsableSpace divided estimatedPartitionSize.
+   * Meanwhile, `activeSlots` include slots reserved.
+   *
+   * @return the available slots of the disk.
+   */
   def availableSlots(): Long = this.synchronized {
-    maxSlots - activeSlots
+    math.max(maxSlots - activeSlots, 0L)
   }
 
   def allocateSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
