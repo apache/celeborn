@@ -153,6 +153,6 @@ class InboxSuite extends CelebornFunSuite {
     intercept[OutOfMemoryError] {
       inbox.process(dispatcher)
     }
-    assert(inbox.getNumActiveThreads == 0)
+    assert(inbox.getNumActiveThreads === 0)
   }
 }

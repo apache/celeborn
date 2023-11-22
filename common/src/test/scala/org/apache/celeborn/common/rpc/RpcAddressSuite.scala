@@ -24,15 +24,15 @@ class RpcAddressSuite extends CelebornFunSuite {
 
   test("hostPort") {
     val address = RpcAddress("1.2.3.4", 1234)
-    assert(address.host == "1.2.3.4")
-    assert(address.port == 1234)
-    assert(address.hostPort == "1.2.3.4:1234")
+    assert(address.host === "1.2.3.4")
+    assert(address.port === 1234)
+    assert(address.hostPort === "1.2.3.4:1234")
   }
 
   test("fromCelebornURL") {
     val address = RpcAddress.fromCelebornURL("celeborn://1.2.3.4:1234")
-    assert(address.host == "1.2.3.4")
-    assert(address.port == 1234)
+    assert(address.host === "1.2.3.4")
+    assert(address.port === 1234)
   }
 
   test("fromCelebornURL: a typo url") {
@@ -51,7 +51,7 @@ class RpcAddressSuite extends CelebornFunSuite {
 
   test("toCelebornURL") {
     val address = RpcAddress("1.2.3.4", 1234)
-    assert(address.toCelebornURL == "celeborn://1.2.3.4:1234")
+    assert(address.toCelebornURL === "celeborn://1.2.3.4:1234")
   }
 
 }
