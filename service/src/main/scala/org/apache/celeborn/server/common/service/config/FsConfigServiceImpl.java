@@ -36,6 +36,8 @@ import org.yaml.snakeyaml.Yaml;
 
 import org.apache.celeborn.common.CelebornConf;
 
+import scala.concurrent.duration.Duration;
+
 public class FsConfigServiceImpl implements ConfigService {
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
   private CelebornConf celebornConf;
@@ -109,7 +111,7 @@ public class FsConfigServiceImpl implements ConfigService {
 
   @Override
   public void shutdown() {
-    configRefreshService.shutdown();
+    ThreadUtils.shutdown(configRefreshService, Duration.apply("800ms"));
   }
 
   private File getConfigurationFile(Map<String, String> env) {
