@@ -329,13 +329,15 @@ public abstract class CelebornInputStream extends InputStream {
             if (fetchChunkRetryCnt % 2 == 0) {
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
             }
-            location = location.getPeer();
+            PartitionLocation peerLocation = location.getPeer();
             logger.warn(
-                "CreatePartitionReader failed {}/{} times for location {}, change to peer",
+                "CreatePartitionReader failed {}/{} times for location {}, change to peer {}",
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry,
                 location,
+                peerLocation,
                 e);
+            location = peerLocation;
           } else {
             logger.warn(
                 "CreatePartitionReader failed {}/{} times for location {}, retry the same location",
