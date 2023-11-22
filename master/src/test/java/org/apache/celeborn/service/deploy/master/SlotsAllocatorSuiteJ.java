@@ -334,4 +334,16 @@ public class SlotsAllocatorSuiteJ {
     final boolean shouldReplicate = true;
     checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true);
   }
+
+  @Test
+  public void testAllocateSlotsWithNoAvailableSlots() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    // Simulates no available slots behavior with greatly changed estimatedPartitionSize for workers
+    // with usable disks.
+    workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(Long.MAX_VALUE));
+    final List<Integer> partitionIds = Collections.singletonList(0);
+    final boolean shouldReplicate = false;
+
+    check(workers, partitionIds, shouldReplicate, true);
+  }
 }
