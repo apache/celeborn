@@ -63,7 +63,7 @@ final private[columnar] class CelebornBooleanColumnStats extends CelebornColumnS
       val value = row.getBoolean(ordinal)
       gatherValueStats(value)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -79,15 +79,15 @@ final private[columnar] class CelebornBooleanColumnStats extends CelebornColumnS
 }
 
 final private[columnar] class CelebornByteColumnStats extends CelebornColumnStats {
-  protected var upper = Byte.MinValue
-  protected var lower = Byte.MaxValue
+  protected var upper: Byte = Byte.MinValue
+  protected var lower: Byte = Byte.MaxValue
 
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
       val value = row.getByte(ordinal)
       gatherValueStats(value)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -103,15 +103,15 @@ final private[columnar] class CelebornByteColumnStats extends CelebornColumnStat
 }
 
 final private[columnar] class CelebornShortColumnStats extends CelebornColumnStats {
-  protected var upper = Short.MinValue
-  protected var lower = Short.MaxValue
+  protected var upper: Short = Short.MinValue
+  protected var lower: Short = Short.MaxValue
 
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
       val value = row.getShort(ordinal)
       gatherValueStats(value)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -127,15 +127,15 @@ final private[columnar] class CelebornShortColumnStats extends CelebornColumnSta
 }
 
 final private[columnar] class CelebornIntColumnStats extends CelebornColumnStats {
-  protected var upper = Int.MinValue
-  protected var lower = Int.MaxValue
+  protected var upper: Int = Int.MinValue
+  protected var lower: Int = Int.MaxValue
 
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
       val value = row.getInt(ordinal)
       gatherValueStats(value)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -151,15 +151,15 @@ final private[columnar] class CelebornIntColumnStats extends CelebornColumnStats
 }
 
 final private[columnar] class CelebornLongColumnStats extends CelebornColumnStats {
-  protected var upper = Long.MinValue
-  protected var lower = Long.MaxValue
+  protected var upper: Long = Long.MinValue
+  protected var lower: Long = Long.MaxValue
 
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
       val value = row.getLong(ordinal)
       gatherValueStats(value)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -175,15 +175,15 @@ final private[columnar] class CelebornLongColumnStats extends CelebornColumnStat
 }
 
 final private[columnar] class CelebornFloatColumnStats extends CelebornColumnStats {
-  protected var upper = Float.MinValue
-  protected var lower = Float.MaxValue
+  protected var upper: Float = Float.MinValue
+  protected var lower: Float = Float.MaxValue
 
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
       val value = row.getFloat(ordinal)
       gatherValueStats(value)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -199,15 +199,15 @@ final private[columnar] class CelebornFloatColumnStats extends CelebornColumnSta
 }
 
 final private[columnar] class CelebornDoubleColumnStats extends CelebornColumnStats {
-  protected var upper = Double.MinValue
-  protected var lower = Double.MaxValue
+  protected var upper: Double = Double.MinValue
+  protected var lower: Double = Double.MaxValue
 
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
       val value = row.getDouble(ordinal)
       gatherValueStats(value)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -223,8 +223,8 @@ final private[columnar] class CelebornDoubleColumnStats extends CelebornColumnSt
 }
 
 final private[columnar] class CelebornStringColumnStats extends CelebornColumnStats {
-  protected var upper: UTF8String = null
-  protected var lower: UTF8String = null
+  protected var upper: UTF8String = _
+  protected var lower: UTF8String = _
 
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
@@ -232,7 +232,7 @@ final private[columnar] class CelebornStringColumnStats extends CelebornColumnSt
       val size = CELEBORN_STRING.actualSize(row, ordinal)
       gatherValueStats(value, size)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -247,34 +247,19 @@ final private[columnar] class CelebornStringColumnStats extends CelebornColumnSt
     Array[Any](lower, upper, nullCount, count, sizeInBytes)
 }
 
-final private[columnar] class CelebornBinaryColumnStats extends CelebornColumnStats {
-  override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
-    if (!row.isNullAt(ordinal)) {
-      val size = CELEBORN_BINARY.actualSize(row, ordinal)
-      sizeInBytes += size
-      count += 1
-    } else {
-      gatherNullStats
-    }
-  }
-
-  override def collectedStatistics: Array[Any] =
-    Array[Any](null, null, nullCount, count, sizeInBytes)
-}
-
 final private[columnar] class CelebornDecimalColumnStats(precision: Int, scale: Int)
   extends CelebornColumnStats {
   def this(dt: DecimalType) = this(dt.precision, dt.scale)
 
-  protected var upper: Decimal = null
-  protected var lower: Decimal = null
+  protected var upper: Decimal = _
+  protected var lower: Decimal = _
 
   override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
     if (!row.isNullAt(ordinal)) {
       val value = row.getDecimal(ordinal, precision, scale)
       gatherValueStats(value)
     } else {
-      gatherNullStats
+      gatherNullStats()
     }
   }
 
@@ -293,22 +278,4 @@ final private[columnar] class CelebornDecimalColumnStats(precision: Int, scale: 
 
   override def collectedStatistics: Array[Any] =
     Array[Any](lower, upper, nullCount, count, sizeInBytes)
-}
-
-final private[columnar] class CelebornObjectColumnStats(dataType: DataType)
-  extends CelebornColumnStats {
-  val columnType = CelebornColumnType(dataType)
-
-  override def gatherStats(row: InternalRow, ordinal: Int): Unit = {
-    if (!row.isNullAt(ordinal)) {
-      val size = columnType.actualSize(row, ordinal)
-      sizeInBytes += size
-      count += 1
-    } else {
-      gatherNullStats
-    }
-  }
-
-  override def collectedStatistics: Array[Any] =
-    Array[Any](null, null, nullCount, count, sizeInBytes)
 }

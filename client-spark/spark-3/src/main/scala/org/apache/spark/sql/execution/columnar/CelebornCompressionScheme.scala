@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.columnar
 
-import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.ByteBuffer
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
@@ -75,12 +75,5 @@ object CelebornCompressionScheme {
     typeIdToScheme.getOrElse(
       typeId,
       throw new UnsupportedOperationException(s"Unrecognized compression scheme type ID: $typeId"))
-  }
-
-  def columnHeaderSize(columnBuffer: ByteBuffer): Int = {
-    val header = columnBuffer.duplicate().order(ByteOrder.nativeOrder)
-    val nullCount = header.getInt()
-    // null count + null positions
-    4 + 4 * nullCount
   }
 }

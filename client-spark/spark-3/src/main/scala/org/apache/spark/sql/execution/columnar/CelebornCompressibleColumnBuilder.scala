@@ -29,7 +29,7 @@ trait CelebornCompressibleColumnBuilder[T <: AtomicType]
 
   this: CelebornNativeColumnBuilder[T] with WithCelebornCompressionSchemes =>
 
-  var compressionEncoder: Encoder[T] = CelebornPassThrough.encoder(columnType)
+  private var compressionEncoder: Encoder[T] = CelebornPassThrough.encoder(columnType)
 
   def init(encoder: Encoder[T]): Unit = {
     compressionEncoder = encoder
@@ -46,7 +46,7 @@ trait CelebornCompressibleColumnBuilder[T <: AtomicType]
   // the row to become unaligned, thus causing crashes.  Until a way of fixing the compression
   // is found to also allow aligned accesses this must be disabled for SPARK.
 
-  protected def isWorthCompressing(encoder: Encoder[T]) = {
+  protected def isWorthCompressing(encoder: Encoder[T]): Boolean = {
     CelebornCompressibleColumnBuilder.unaligned && encoder.compressionRatio < 0.8
   }
 
@@ -103,5 +103,5 @@ trait CelebornCompressibleColumnBuilder[T <: AtomicType]
 }
 
 object CelebornCompressibleColumnBuilder {
-  val unaligned = Platform.unaligned()
+  val unaligned: Boolean = Platform.unaligned()
 }

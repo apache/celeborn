@@ -70,6 +70,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
   private final ShuffleWriteMetricsReporter writeMetrics;
+  private final int stageId;
   private final int shuffleId;
   private final int mapId;
   private final TaskContext taskContext;
@@ -132,6 +133,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = handle.dependency();
+    this.stageId = taskContext.stageId();
     this.shuffleId = dep.shuffleId();
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();
@@ -185,7 +187,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       columnarShuffleDictionaryMaxFactor = conf.columnarShuffleDictionaryMaxFactor();
       this.schema = SparkUtils.getSchema(dep);
       this.celebornBatchBuilders = new CelebornBatchBuilder[numPartitions];
-      this.isColumnarShuffle = CelebornBatchBuilder.supportsColumnarType(schema);
+      this.isColumnarShuffle = schema != null && CelebornBatchBuilder.supportsColumnarType(schema);
     }
   }
 
@@ -194,6 +196,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     try {
       if (canUseFastWrite()) {
         if (isColumnarShuffle) {
+          logger.info(
+              "Fast columnar write of columnar shuffle {} for stage {}.", shuffleId, stageId);
           fastColumnarWrite0(records);
         } else {
           fastWrite0(records);
