@@ -331,11 +331,10 @@ public abstract class CelebornInputStream extends InputStream {
             }
             PartitionLocation peerLocation = location.getPeer();
             logger.warn(
-                "CreatePartitionReader failed {}/{} times for location {}, change to peer {}",
+                "CreatePartitionReader failed {}/{} times for location {}, change to peer",
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry,
                 location,
-                peerLocation,
                 e);
             location = peerLocation;
           } else {
