@@ -178,15 +178,16 @@ public class DfsPartitionReader implements PartitionReader {
 
   private List<Long> getChunkOffsetsFromUnsortedIndex(CelebornConf conf, PartitionLocation location)
       throws IOException {
-    FSDataInputStream indexInputStream =
+    List<Long> offsets;
+    try (FSDataInputStream indexInputStream =
         ShuffleClient.getHdfsFs(conf)
-            .open(new Path(Utils.getIndexFilePath(location.getStorageInfo().getFilePath())));
-    List<Long> offsets = new ArrayList<>();
-    int offsetCount = indexInputStream.readInt();
-    for (int i = 0; i < offsetCount; i++) {
-      offsets.add(indexInputStream.readLong());
+            .open(new Path(Utils.getIndexFilePath(location.getStorageInfo().getFilePath())))) {
+      offsets = new ArrayList<>();
+      int offsetCount = indexInputStream.readInt();
+      for (int i = 0; i < offsetCount; i++) {
+        offsets.add(indexInputStream.readLong());
+      }
     }
-    indexInputStream.close();
     return offsets;
   }
 
@@ -194,20 +195,22 @@ public class DfsPartitionReader implements PartitionReader {
       CelebornConf conf, PartitionLocation location, int startMapIndex, int endMapIndex)
       throws IOException {
     String indexPath = Utils.getIndexFilePath(location.getStorageInfo().getFilePath());
-    FSDataInputStream indexInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(indexPath));
-    logger.debug("read sorted index {}", indexPath);
-    long indexSize = ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
-    // Index size won't be large, so it's safe to do the conversion.
-    byte[] indexBuffer = new byte[(int) indexSize];
-    indexInputStream.readFully(0L, indexBuffer);
-    List<Long> offsets =
-        new ArrayList<>(
-            ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                startMapIndex,
-                endMapIndex,
-                shuffleChunkSize,
-                ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
-    indexInputStream.close();
+    List<Long> offsets;
+    try (FSDataInputStream indexInputStream =
+        ShuffleClient.getHdfsFs(conf).open(new Path(indexPath))) {
+      logger.debug("read sorted index {}", indexPath);
+      long indexSize = ShuffleClient.getHdfsFs(conf).getFileStatus(new Path(indexPath)).getLen();
+      // Index size won't be large, so it's safe to do the conversion.
+      byte[] indexBuffer = new byte[(int) indexSize];
+      indexInputStream.readFully(0L, indexBuffer);
+      offsets =
+          new ArrayList<>(
+              ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
+                  startMapIndex,
+                  endMapIndex,
+                  shuffleChunkSize,
+                  ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuffer)));
+    }
     return offsets;
   }
 
