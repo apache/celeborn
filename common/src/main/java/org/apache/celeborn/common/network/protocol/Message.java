@@ -18,8 +18,8 @@
 package org.apache.celeborn.common.network.protocol;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
-import com.google.common.base.Objects;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -56,7 +56,7 @@ public abstract class Message implements Encodable {
   }
 
   protected boolean equals(Message other) {
-    return Objects.equal(body, other.body);
+    return Objects.equals(body, other.body);
   }
 
   public ByteBuffer toByteBuffer() {

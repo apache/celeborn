@@ -128,7 +128,7 @@ trait RpcEndpoint {
   /**
    * A convenient method to stop [[RpcEndpoint]].
    */
-  final def stop(): Unit = {
+  def stop(): Unit = {
     val _self = self
     if (_self != null) {
       rpcEnv.stop(_self)

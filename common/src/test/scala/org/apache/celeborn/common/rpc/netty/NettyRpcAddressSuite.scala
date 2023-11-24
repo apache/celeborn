@@ -15,27 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.util;
+package org.apache.celeborn.common.rpc.netty
 
-import java.util.Collection;
-import java.util.Map;
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.rpc.RpcEndpointAddress
 
-public class CollectionUtils {
+class NettyRpcAddressSuite extends CelebornFunSuite {
 
-  public static boolean isEmpty(Collection collection) {
-    return collection == null || collection.isEmpty();
+  test("toString") {
+    val addr = new RpcEndpointAddress("localhost", 12345, "test")
+    assert(addr.toString === "celeborn://test@localhost:12345")
   }
 
-  public static boolean isNotEmpty(Collection collection) {
-    return !isEmpty(collection);
+  test("toString for client mode") {
+    val addr = RpcEndpointAddress(null, "test")
+    assert(addr.toString === "celeborn-client://test")
   }
-
-  public static boolean isEmpty(Map map) {
-    return map == null || map.isEmpty();
-  }
-
-  public static boolean isNotEmpty(Map map) {
-    return !isEmpty(map);
-  }
-
 }

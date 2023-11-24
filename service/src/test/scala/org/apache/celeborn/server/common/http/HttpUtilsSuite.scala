@@ -33,13 +33,29 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
     assert(parameters == expectParameters)
   }
 
+  test("CELEBORN-448: Support exclude worker manually") {
+    checkParseUri("/exclude", "/exclude", Map.empty)
+    checkParseUri(
+      "/exclude?add=localhost:1001:1002:1003:1004",
+      "/exclude",
+      Map("ADD" -> "localhost:1001:1002:1003:1004"))
+    checkParseUri(
+      "/exclude?remove=localhost:1001:1002:1003:1004",
+      "/exclude",
+      Map("REMOVE" -> "localhost:1001:1002:1003:1004"))
+    checkParseUri(
+      "/exclude?add=localhost:1001:1002:1003:1004&remove=localhost:2001:2002:2003:2004",
+      "/exclude",
+      Map("ADD" -> "localhost:1001:1002:1003:1004", "REMOVE" -> "localhost:2001:2002:2003:2004"))
+  }
+
   test("CELEBORN-847: Support parse HTTP Restful API parameters") {
     checkParseUri("/exit", "/exit", Map.empty)
-    checkParseUri("/exit?type=decommission", "/exit", Map("TYPE" -> "DECOMMISSION"))
+    checkParseUri("/exit?type=decommission", "/exit", Map("TYPE" -> "decommission"))
     checkParseUri(
-      "/exit?type=decommission&foo=a",
+      "/exit?type=decommission&foo=A",
       "/exit",
-      Map("TYPE" -> "DECOMMISSION", "FOO" -> "A"))
+      Map("TYPE" -> "decommission", "FOO" -> "A"))
   }
 
   test("CELEBORN-829: Improve response message of invalid HTTP request") {
@@ -47,6 +63,7 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
       s"""Available API providers include:
          |/applications        List all running application's ids of the cluster.
          |/conf                List the conf setting of the master.
+         |/exclude             Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas.
          |/excludedWorkers     List all excluded workers of the master.
          |/help                List the available API providers of the master.
          |/hostnames           List all running application's LifecycleManager's hostnames of the cluster.
@@ -61,7 +78,7 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
     assert(HttpUtils.help(Service.WORKER) ==
       s"""Available API providers include:
          |/conf                      List the conf setting of the worker.
-         |/exit                      Trigger this worker to exit. Legal types are 'DECOMMISSION‘, 'GRACEFUL' and 'IMMEDIATELY'
+         |/exit                      Trigger this worker to exit. Legal types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.
          |/help                      List the available API providers of the worker.
          |/isRegistered              Show if the worker is registered to the master success.
          |/isShutdown                Show if the worker is during the process of shutdown.

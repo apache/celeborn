@@ -16,8 +16,6 @@
 # limitations under the License.
 #
 
-unset HADOOP_CONF_DIR
-
 # included in all the celeborn scripts with source command
 # should not be executable directly
 # also should not be passed any arguments, since we need original $*

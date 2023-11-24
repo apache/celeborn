@@ -729,6 +729,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
+  def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
+
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeReplicaOnFailureEnabled: Boolean =
@@ -988,6 +990,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDiskTimeSlidingWindowMinFetchCount: Int =
     get(WORKER_DISKTIME_SLIDINGWINDOW_MINFETCHCOUNT)
   def workerDiskReserveSize: Long = get(WORKER_DISK_RESERVE_SIZE)
+  def workerDiskReserveRatio: Option[Double] = get(WORKER_DISK_RESERVE_RATIO)
   def workerDiskCleanThreads: Int = get(WORKER_DISK_CLEAN_THREADS)
   def workerDiskMonitorEnabled: Boolean = get(WORKER_DISK_MONITOR_ENABLED)
   def workerDiskMonitorCheckList: Seq[String] = get(WORKER_DISK_MONITOR_CHECKLIST)
@@ -1069,7 +1072,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                    kerberos                         //
   // //////////////////////////////////////////////////////
-  def hdfsStorageKerberosEnabled = get(HDFS_STORAGE_TYPE_KERBEROS_ENABLED)
   def hdfsStorageKerberosPrincipal = get(HDFS_STORAGE_KERBEROS_PRINCIPAL)
   def hdfsStorageKerberosKeytab = get(HDFS_STORAGE_KERBEROS_KEYTAB)
 }
@@ -2169,6 +2171,16 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5G")
 
+  val WORKER_DISK_RESERVE_RATIO: OptionalConfigEntry[Double] =
+    buildConf("celeborn.worker.storage.disk.reserve.ratio")
+      .categories("worker")
+      .doc("Celeborn worker reserved ratio for each disk. The minimum usable size for each disk is the max space " +
+        "between the reserved space and the space calculate via reserved ratio.")
+      .version("0.3.2")
+      .doubleConf
+      .checkValue(v => v > 0.0 && v < 1.0, "Should be in (0.0, 1.0).")
+      .createOptional
+
   val WORKER_DISK_CLEAN_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.disk.clean.threads")
       .categories("worker")
@@ -2888,6 +2900,15 @@ object CelebornConf extends Logging {
       .doc("Interval for client to send heartbeat message to master.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
+
+  val APPLICATION_UNREGISTER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.application.unregister.enabled")
+      .categories("client")
+      .version("0.3.2")
+      .doc("When true, Celeborn client will inform celeborn master the application is already shutdown during client " +
+        "exit, this allows the cluster to release resources immediately, resulting in resource savings.")
+      .booleanConf
+      .createWithDefault(true)
 
   val CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.excludePeerWorkerOnFailure.enabled")
@@ -4016,14 +4037,6 @@ object CelebornConf extends Logging {
       .version("0.3.2")
       .intConf
       .createWithDefault(64)
-
-  val HDFS_STORAGE_TYPE_KERBEROS_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.storage.hdfs.kerberos.enabled")
-      .categories("master", "worker")
-      .version("0.3.2")
-      .doc("Whether to enable kerberos authentication for HDFS storage connection.")
-      .booleanConf
-      .createWithDefault(false)
 
   val HDFS_STORAGE_KERBEROS_PRINCIPAL: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.hdfs.kerberos.principal")

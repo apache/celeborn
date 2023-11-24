@@ -34,24 +34,18 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 class CelebornColumnarBatchSerializer(
     schema: StructType,
-    columnBatchSize: Int,
-    encodingEnabled: Boolean,
     offHeapColumnVectorEnabled: Boolean,
     dataSize: SQLMetric = null) extends Serializer with Serializable {
   override def newInstance(): SerializerInstance =
     new CelebornColumnarBatchSerializerInstance(
       schema,
-      columnBatchSize,
-      encodingEnabled,
       offHeapColumnVectorEnabled,
       dataSize)
   override def supportsRelocationOfSerializedObjects: Boolean = true
 }
 
-private class CelebornColumnarBatchSerializerInstance(
+class CelebornColumnarBatchSerializerInstance(
     schema: StructType,
-    columnBatchSize: Int,
-    encodingEnabled: Boolean,
     offHeapColumnVectorEnabled: Boolean,
     dataSize: SQLMetric) extends SerializerInstance {
 
@@ -93,7 +87,8 @@ private class CelebornColumnarBatchSerializerInstance(
     }
   }
 
-  val toUnsafe: UnsafeProjection = UnsafeProjection.create(schema.fields.map(f => f.dataType))
+  private val toUnsafe: UnsafeProjection =
+    UnsafeProjection.create(schema.fields.map(f => f.dataType))
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     val numFields = schema.fields.length
@@ -160,7 +155,7 @@ private class CelebornColumnarBatchSerializerInstance(
         try {
           dIn.readInt()
         } catch {
-          case e: EOFException =>
+          case _: EOFException =>
             dIn.close()
             EOF
         }

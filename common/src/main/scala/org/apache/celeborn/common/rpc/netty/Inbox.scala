@@ -106,7 +106,7 @@ private[celeborn] class Inbox(
       }
     }
     while (true) {
-      safelyCall(endpoint) {
+      safelyCall(endpoint, endpointRef.name) {
         message match {
           case RpcMessage(_sender, content, context) =>
             try {
@@ -218,7 +218,21 @@ private[celeborn] class Inbox(
   /**
    * Calls action closure, and calls the endpoint's onError function in the case of exceptions.
    */
-  private def safelyCall(endpoint: RpcEndpoint)(action: => Unit): Unit = {
+  private def safelyCall(
+      endpoint: RpcEndpoint,
+      endpointRefName: String)(action: => Unit): Unit = {
+    def dealWithFatalError(fatal: Throwable): Unit = {
+      inbox.synchronized {
+        assert(numActiveThreads > 0, "The number of active threads should be positive.")
+        // Should reduce the number of active threads before throw the error.
+        numActiveThreads -= 1
+      }
+      logError(
+        s"An error happened while processing message in the inbox for $endpointRefName",
+        fatal)
+      throw fatal
+    }
+
     try action
     catch {
       case NonFatal(e) =>
@@ -230,8 +244,18 @@ private[celeborn] class Inbox(
             } else {
               logError("Ignoring error", ee)
             }
+          case fatal: Throwable =>
+            dealWithFatalError(fatal)
         }
+      case fatal: Throwable =>
+        dealWithFatalError(fatal)
     }
   }
 
+  // exposed only for testing
+  def getNumActiveThreads: Int = {
+    inbox.synchronized {
+      inbox.numActiveThreads
+    }
+  }
 }

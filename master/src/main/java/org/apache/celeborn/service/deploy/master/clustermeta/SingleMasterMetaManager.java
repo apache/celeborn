@@ -70,6 +70,12 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleWorkerExclude(
+      List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId) {
+    updateWorkerExcludeMeta(workersToAdd, workersToRemove);
+  }
+
+  @Override
   public void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);

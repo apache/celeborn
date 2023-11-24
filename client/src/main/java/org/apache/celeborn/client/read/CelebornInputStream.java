@@ -312,6 +312,7 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private PartitionReader createReaderWithRetry(PartitionLocation location) throws IOException {
+      Exception lastException = null;
       while (fetchChunkRetryCnt < fetchChunkMaxRetry) {
         try {
           if (isExcluded(location)) {
@@ -319,6 +320,7 @@ public abstract class CelebornInputStream extends InputStream {
           }
           return createReader(location, fetchChunkRetryCnt, fetchChunkMaxRetry);
         } catch (Exception e) {
+          lastException = e;
           excludeFailedLocation(location, e);
           fetchChunkRetryCnt++;
           if (location.hasPeer()) {
@@ -327,13 +329,13 @@ public abstract class CelebornInputStream extends InputStream {
             if (fetchChunkRetryCnt % 2 == 0) {
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
             }
-            location = location.getPeer();
             logger.warn(
                 "CreatePartitionReader failed {}/{} times for location {}, change to peer",
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry,
                 location,
                 e);
+            location = location.getPeer();
           } else {
             logger.warn(
                 "CreatePartitionReader failed {}/{} times for location {}, retry the same location",
@@ -345,7 +347,7 @@ public abstract class CelebornInputStream extends InputStream {
           }
         }
       }
-      throw new CelebornIOException("createPartitionReader failed! " + location);
+      throw new CelebornIOException("createPartitionReader failed! " + location, lastException);
     }
 
     private ByteBuf getNextChunk() throws IOException {

@@ -17,8 +17,11 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
+
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
 
@@ -68,7 +71,7 @@ public final class StreamChunkSlice implements Encodable {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamId, chunkIndex, offset, len);
+    return Objects.hash(streamId, chunkIndex, offset, len);
   }
 
   @Override
@@ -85,11 +88,11 @@ public final class StreamChunkSlice implements Encodable {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("streamId", streamId)
-        .add("chunkIndex", chunkIndex)
-        .add("offset", offset)
-        .add("len", len)
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("streamId", streamId)
+        .append("chunkIndex", chunkIndex)
+        .append("offset", offset)
+        .append("len", len)
         .toString();
   }
 

@@ -136,6 +136,9 @@ celeborn.rpc.askTimeout 240s
 celeborn.worker.flusher.hdfs.buffer.size 4m
 celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 celeborn.worker.replicate.fastFail.duration 240s
+# Either principal/keytab or valid TGT cache is required to access kerberized HDFS
+celeborn.storage.hdfs.kerberos.principal user@REALM
+celeborn.storage.hdfs.kerberos.keytab /path/to/user.keytab
 
 # If your hosts have disk raid or use lvm, set celeborn.worker.monitor.disk.enabled to false
 celeborn.worker.monitor.disk.enabled false
@@ -286,6 +289,7 @@ Copy $CELEBORN_HOME/flink/*.jar to $FLINK_HOME/lib/
 To use Celeborn, the following flink configurations should be added.
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
+execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING
 celeborn.master.endpoints: clb-1:9097,clb-2:9097,clb-3:9097
 
 celeborn.client.shuffle.batchHandleReleasePartition.enabled: true
@@ -303,6 +307,7 @@ taskmanager.network.memory.floating-buffers-per-gate: 4096
 taskmanager.network.memory.buffers-per-channel: 0
 taskmanager.memory.task.off-heap.size: 512m
 ```
+**Note**: The config option `execution.batch-shuffle-mode` should configure as `ALL_EXCHANGES_BLOCKING`.
 
 ### Deploy mapreduce client 
 Add $CELEBORN_HOME/mr/*.jar to to `mapreduce.application.classpath` and `yarn.application.classpath`.
@@ -330,7 +335,10 @@ for more details.
 
 For Spark versions < 3.5.0, we provide a patch to enable users to use Spark with DRA and Celeborn.
 - For Spark 2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).
-- For Spark 3.0-3.3 check [Spark3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3.patch).
+- For Spark 3.0 check [Spark3.0 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_0.patch).
+- For Spark 3.1 check [Spark3.1 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_1.patch).
+- For Spark 3.2 check [Spark3.2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_2.patch).
+- For Spark 3.3 check [Spark3.3 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_3.patch).
 - For Spark 3.4 check [Spark3.4 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_4.patch).
 
 ### Metrics

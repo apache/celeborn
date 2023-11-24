@@ -46,14 +46,11 @@ class CelebornColumnarShuffleReader[K, C](
 
   override def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
     val schema = CustomShuffleDependencyUtils.getSchema(dep)
-    if (CelebornBatchBuilder.supportsColumnarType(
-        schema)) {
-      val dataSize = SparkUtils.getDataSize(
-        dep.serializer.asInstanceOf[UnsafeRowSerializer])
+    if (schema != null && CelebornBatchBuilder.supportsColumnarType(schema)) {
+      logInfo(s"Creating column batch serializer of columnar shuffle ${dep.shuffleId}.")
+      val dataSize = SparkUtils.getDataSize(dep.serializer.asInstanceOf[UnsafeRowSerializer])
       new CelebornColumnarBatchSerializer(
         schema,
-        conf.columnarShuffleBatchSize,
-        conf.columnarShuffleDictionaryEnabled,
         conf.columnarShuffleOffHeapEnabled,
         dataSize).newInstance()
     } else {

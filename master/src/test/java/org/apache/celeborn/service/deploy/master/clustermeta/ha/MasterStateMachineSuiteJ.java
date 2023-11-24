@@ -76,7 +76,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .build();
 
     ResourceResponse response = stateMachine.runCommand(request, -1);
-    Assert.assertEquals(response.getSuccess(), true);
+    Assert.assertTrue(response.getSuccess());
   }
 
   @Test
@@ -160,6 +160,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     masterStatusSystem.excludedWorkers.add(info2);
     masterStatusSystem.excludedWorkers.add(info3);
 
+    masterStatusSystem.manuallyExcludedWorkers.add(info1);
+    masterStatusSystem.manuallyExcludedWorkers.add(info2);
+
     masterStatusSystem.hostnameSet.add(host1);
     masterStatusSystem.hostnameSet.add(host2);
     masterStatusSystem.hostnameSet.add(host3);
@@ -184,10 +187,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
     masterStatusSystem.hostnameSet.clear();
     masterStatusSystem.excludedWorkers.clear();
+    masterStatusSystem.manuallyExcludedWorkers.clear();
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
 
     Assert.assertEquals(3, masterStatusSystem.excludedWorkers.size());
+    Assert.assertEquals(2, masterStatusSystem.manuallyExcludedWorkers.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
     Assert.assertEquals(
         conf.metricsAppTopDiskUsageWindowSize(),

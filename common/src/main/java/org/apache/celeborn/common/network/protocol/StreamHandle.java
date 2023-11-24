@@ -17,8 +17,11 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
+
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 /**
  * Identifier for a fixed number of chunks to read from a stream created by an "open blocks"
@@ -56,7 +59,7 @@ public final class StreamHandle extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(streamId, numChunks);
+    return Objects.hash(streamId, numChunks);
   }
 
   @Override
@@ -70,9 +73,9 @@ public final class StreamHandle extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("streamId", streamId)
-        .add("numChunks", numChunks)
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("streamId", streamId)
+        .append("numChunks", numChunks)
         .toString();
   }
 }

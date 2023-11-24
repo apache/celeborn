@@ -20,6 +20,8 @@ package org.apache.celeborn.service.deploy.master;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import scala.Double;
+import scala.Option;
 import scala.Tuple2;
 
 import org.apache.commons.lang3.StringUtils;
@@ -32,6 +34,7 @@ import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.util.DiskUtils;
 
 public class SlotsAllocator {
   static class UsableDiskInfo {
@@ -95,7 +98,8 @@ public class SlotsAllocator {
           List<Integer> partitionIds,
           boolean shouldReplicate,
           boolean shouldRackAware,
-          long minimumUsableSize,
+          long diskReserveSize,
+          Option<Double> diskReserveRatio,
           int diskGroupCount,
           double diskGroupGradient,
           double flushTimeWeight,
@@ -121,23 +125,31 @@ public class SlotsAllocator {
                 .forEach(
                     (key, diskInfo) -> {
                       diskToWorkerMap.put(diskInfo, i);
-                      if (diskInfo.actualUsableSpace() > minimumUsableSize
+                      if (diskInfo.actualUsableSpace()
+                              > DiskUtils.getMinimumUsableSize(
+                                  diskInfo,
+                                  diskReserveSize,
+                                  diskReserveRatio.isEmpty()
+                                      ? Option.empty()
+                                      : Option.apply(diskReserveRatio.get()))
                           && diskInfo.status().equals(DiskStatus.HEALTHY)
                           && diskInfo.storageType() != StorageInfo.Type.HDFS) {
                         usableDisks.add(diskInfo);
                       }
                     }));
 
-    boolean shouldFallback =
+    boolean noUsableDisks =
         usableDisks.isEmpty()
             || (shouldReplicate
                 && (usableDisks.size() == 1
                     || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
+    boolean noAvailableSlots = usableDisks.stream().mapToLong(DiskInfo::availableSlots).sum() <= 0;
 
-    if (shouldFallback) {
+    if (noUsableDisks || noAvailableSlots) {
       logger.warn(
-          "offer slots for {} fallback to roundrobin because there is no usable disks",
-          StringUtils.join(partitionIds, ','));
+          "offer slots for {} fallback to roundrobin because there is no {}",
+          StringUtils.join(partitionIds, ','),
+          noUsableDisks ? "usable disks" : "available slots");
       return offerSlotsRoundRobin(
           workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes);
     }

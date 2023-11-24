@@ -17,8 +17,11 @@
 
 package org.apache.celeborn.common.network.protocol;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
+
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 @Deprecated
 public final class PushDataHandShake extends RequestMessage {
@@ -83,8 +86,7 @@ public final class PushDataHandShake extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(
-        mode, shuffleKey, partitionUniqueId, attemptId, numPartitions, bufferSize);
+    return Objects.hash(mode, shuffleKey, partitionUniqueId, attemptId, numPartitions, bufferSize);
   }
 
   @Override
@@ -104,13 +106,13 @@ public final class PushDataHandShake extends RequestMessage {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("mode", mode)
-        .add("shuffleKey", shuffleKey)
-        .add("partitionUniqueId", partitionUniqueId)
-        .add("attemptId", attemptId)
-        .add("numSubPartitions", numPartitions)
-        .add("bufferSize", bufferSize)
+    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("mode", mode)
+        .append("shuffleKey", shuffleKey)
+        .append("partitionUniqueId", partitionUniqueId)
+        .append("attemptId", attemptId)
+        .append("numSubPartitions", numPartitions)
+        .append("bufferSize", bufferSize)
         .toString();
   }
 }

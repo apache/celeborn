@@ -17,14 +17,16 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.io.IOException;
-
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.sql.types.StructType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.reflect.DynFields;
 
 public class CustomShuffleDependencyUtils {
+
+  private static final Logger logger = LoggerFactory.getLogger(CustomShuffleDependencyUtils.class);
 
   /**
    * Columnar Shuffle requires a field, `ShuffleDependency#schema`, which does not exist in vanilla
@@ -33,10 +35,17 @@ public class CustomShuffleDependencyUtils {
   private static final DynFields.UnboundField<StructType> SCHEMA_FIELD =
       DynFields.builder().hiddenImpl(ShuffleDependency.class, "schema").defaultAlwaysNull().build();
 
-  public static StructType getSchema(ShuffleDependency<?, ?, ?> dep) throws IOException {
-    StructType schema = SCHEMA_FIELD.bind(dep).get();
+  public static StructType getSchema(ShuffleDependency<?, ?, ?> dep) {
+    StructType schema = null;
+    try {
+      schema = SCHEMA_FIELD.bind(dep).get();
+    } catch (Exception e) {
+      logger.error("Failed to bind shuffle dependency of shuffle {}.", dep.shuffleId(), e);
+    }
     if (schema == null) {
-      throw new IOException("Failed to get Schema, columnar shuffle won't work properly.");
+      logger.warn(
+          "Failed to get Schema of shuffle {}, columnar shuffle won't work properly.",
+          dep.shuffleId());
     }
     return schema;
   }

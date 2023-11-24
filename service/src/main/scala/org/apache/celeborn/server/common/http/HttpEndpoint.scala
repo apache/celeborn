@@ -168,6 +168,16 @@ case object Applications extends HttpEndpoint {
     service.getApplicationList
 }
 
+case object Exclude extends HttpEndpoint {
+  override def path: String = "/exclude"
+
+  override def description(service: String): String =
+    "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas."
+
+  override def handle(service: HttpService, parameters: Map[String, String]): String =
+    service.exclude(parameters.getOrElse("ADD", "").trim, parameters.getOrElse("REMOVE", "").trim)
+}
+
 case object ListPartitionLocationInfo extends HttpEndpoint {
   override def path: String = "/listPartitionLocationInfo"
 
@@ -212,7 +222,7 @@ case object Exit extends HttpEndpoint {
   override def path: String = "/exit"
 
   override def description(service: String): String =
-    "Trigger this worker to exit. Legal types are 'DECOMMISSION‘, 'GRACEFUL' and 'IMMEDIATELY'"
+    "Trigger this worker to exit. Legal types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'."
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.exit(parameters.getOrElse("TYPE", ""))

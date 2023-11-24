@@ -34,7 +34,7 @@ object Dependencies {
 
   val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.2-1")
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
-  
+
   // Dependent library versions
   val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
@@ -42,7 +42,7 @@ object Dependencies {
   val commonsLoggingVersion = "1.1.3"
   val commonsLang3Version = "3.12.0"
   val findbugsVersion = "1.3.9"
-  val guavaVersion = "14.0.1"
+  val guavaVersion = "32.1.3-jre"
   val hadoopVersion = "3.2.4"
   val javaxServletVersion = "3.1.0"
   val junitInterfaceVersion = "0.13.3"
@@ -72,7 +72,12 @@ object Dependencies {
   val commonsLang3 = "org.apache.commons" % "commons-lang3" % commonsLang3Version
   val commonsLogging = "commons-logging" % "commons-logging" % commonsLoggingVersion
   val findbugsJsr305 = "com.google.code.findbugs" % "jsr305" % findbugsVersion
-  val guava = "com.google.guava" % "guava" % guavaVersion
+  val guava = "com.google.guava" % "guava" % guavaVersion excludeAll(
+    ExclusionRule("org.checkerframework", "checker-qual"),
+    ExclusionRule("org.codehaus.mojo", "animal-sniffer-annotations"),
+    ExclusionRule("com.google.errorprone", "error_prone_annotations"),
+    ExclusionRule("com.google.guava", "listenablefuture"),
+    ExclusionRule("com.google.j2objc", "j2objc-annotations"))
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
   val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(
@@ -928,6 +933,24 @@ object MRClientProjects {
       )
   }
 
+  def mrIt: Project = {
+    Project("celeborn-mr-it", file("tests/mr-it"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+      .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+      .dependsOn(mrClient % "test->test;compile->compile")
+      .settings(
+        commonSettings,
+        copyDepsSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.hadoop" % "hadoop-client-minicluster" % Dependencies.hadoopVersion % "test",
+          "org.apache.hadoop" % "hadoop-mapreduce-examples" % Dependencies.hadoopVersion % "test"
+        ) ++ commonUnitTestDependencies
+      )
+  }
+
   def mrClientShade: Project = {
     Project("celeborn-client-mr-shaded", file("client-mr/mr-shaded"))
       .dependsOn(mrClient)
@@ -991,6 +1014,37 @@ object MRClientProjects {
   }
 
   def modules: Seq[Project] = {
-    Seq(mrClient, mrClientShade)
+    Seq(mrClient, mrIt, mrGroup, mrClientShade)
   }
+
+  // for test only, don't use this group for any other projects
+  lazy val mrGroup = (project withId "celeborn-mr-group").aggregate(mrClient, mrIt)
+
+  val copyDeps = TaskKey[Unit]("copyDeps", "Copies needed dependencies to the build directory.")
+  val destPath = (Compile / crossTarget) {
+    _ / "mapreduce_lib"
+  }
+
+  lazy val copyDepsSettings = Seq(
+    copyDeps := {
+      val dest = destPath.value
+      if (!dest.isDirectory() && !dest.mkdirs()) {
+        throw new java.io.IOException("Failed to create jars directory.")
+      }
+
+      (Compile / dependencyClasspath).value.map(_.data)
+        .filter { jar => jar.isFile() }
+        .foreach { jar =>
+          val destJar = new File(dest, jar.getName())
+          if (destJar.isFile()) {
+            destJar.delete()
+          }
+          Files.copy(jar.toPath(), destJar.toPath())
+        }
+    },
+    (Test / compile) := {
+      copyDeps.value
+      (Test / compile).value
+    }
+  )
 }

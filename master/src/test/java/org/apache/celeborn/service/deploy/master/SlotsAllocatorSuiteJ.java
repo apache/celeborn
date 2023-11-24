@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import scala.Option;
 import scala.Tuple2;
 
 import org.junit.Assert;
@@ -237,6 +238,7 @@ public class SlotsAllocatorSuiteJ {
             shouldReplicate,
             false,
             10 * 1024 * 1024 * 1024L,
+            Option.empty(),
             conf.masterSlotAssignLoadAwareDiskGroupNum(),
             conf.masterSlotAssignLoadAwareDiskGroupGradient(),
             conf.masterSlotAssignLoadAwareFlushTimeWeight(),
@@ -331,5 +333,17 @@ public class SlotsAllocatorSuiteJ {
     }
     final boolean shouldReplicate = true;
     checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true);
+  }
+
+  @Test
+  public void testAllocateSlotsWithNoAvailableSlots() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    // Simulates no available slots behavior with greatly changed estimatedPartitionSize for workers
+    // with usable disks.
+    workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(Long.MAX_VALUE));
+    final List<Integer> partitionIds = Collections.singletonList(0);
+    final boolean shouldReplicate = false;
+
+    check(workers, partitionIds, shouldReplicate, true);
   }
 }

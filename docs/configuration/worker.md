@@ -24,7 +24,6 @@ license: |
 | celeborn.shuffle.chunk.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 | 
 | celeborn.storage.availableTypes | HDD | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical. | 0.3.0 | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 | 
-| celeborn.storage.hdfs.kerberos.enabled | false | Whether to enable kerberos authentication for HDFS storage connection. | 0.3.2 | 
 | celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | Kerberos keytab file path for HDFS storage connection. | 0.3.2 | 
 | celeborn.storage.hdfs.kerberos.principal | &lt;undefined&gt; | Kerberos principal for HDFS storage connection. | 0.3.2 | 
 | celeborn.worker.activeConnection.max | &lt;undefined&gt; | If the number of active connections on a worker exceeds this configuration value, the worker will be marked as high-load in the heartbeat report, and the master will not include that node in the response of RequestSlots. | 0.3.1 | 
@@ -107,6 +106,7 @@ license: |
 | celeborn.worker.storage.checkDirsEmpty.maxRetries | 3 | The number of retries for a worker to check if the working directory is cleaned up before registering with the master. | 0.3.0 | 
 | celeborn.worker.storage.checkDirsEmpty.timeout | 1000ms | The wait time per retry for a worker to check if the working directory is cleaned up before registering with the master. | 0.3.0 | 
 | celeborn.worker.storage.dirs | &lt;undefined&gt; | Directory list to store shuffle data. It's recommended to configure one directory on each disk. Storage size limit can be set for each directory. For the sake of performance, there should be no more than 2 flush threads on the same disk partition if you are using HDD, and should be 8 or more flush threads on the same disk partition if you are using SSD. For example: `dir1[:capacity=][:disktype=][:flushthread=],dir2[:capacity=][:disktype=][:flushthread=]` | 0.2.0 | 
+| celeborn.worker.storage.disk.reserve.ratio | &lt;undefined&gt; | Celeborn worker reserved ratio for each disk. The minimum usable size for each disk is the max space between the reserved space and the space calculate via reserved ratio. | 0.3.2 | 
 | celeborn.worker.storage.disk.reserve.size | 5G | Celeborn worker reserved space for each disk. | 0.3.0 | 
 | celeborn.worker.storage.expireDirs.timeout | 1h | The timeout for a expire dirs to be deleted on disk. | 0.3.2 | 
 | celeborn.worker.storage.workingDir | celeborn-worker/shuffle_data | Worker's working dir path name. | 0.3.0 | 
