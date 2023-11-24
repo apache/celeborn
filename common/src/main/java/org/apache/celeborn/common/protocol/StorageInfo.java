@@ -80,6 +80,12 @@ public class StorageInfo implements Serializable {
     this.availableStorageTypes = availableStorageTypes;
   }
 
+  public StorageInfo(String mountPoint, StorageInfo.Type type, int availableStorageTypes) {
+    this.mountPoint = mountPoint;
+    this.type = type;
+    this.availableStorageTypes = availableStorageTypes;
+  }
+
   public StorageInfo(Type type, int availableStorageTypes) {
     this.type = type;
     this.availableStorageTypes = availableStorageTypes;

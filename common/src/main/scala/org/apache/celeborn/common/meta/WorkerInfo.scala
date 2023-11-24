@@ -162,7 +162,7 @@ class WorkerInfo(
         }
         curDisk.setStatus(newDisk.status)
       } else {
-        if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS) {
+        if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS) {
           newDisk.maxSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
         }
         diskInfos.put(mountPoint, newDisk)

@@ -162,7 +162,8 @@ class DiskInfo(
       s" avgFetchTime: ${Utils.nanoDurationToString(avgFetchTime)}," +
       s" activeSlots: $activeSlots)" +
       s" status: $status" +
-      s" dirs ${dirs.mkString("\t")}"
+      s" dirs ${dirs.mkString("\t")}" +
+      s" storageType: ${storageType}"
   }
 }
 
