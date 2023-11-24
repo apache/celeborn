@@ -160,10 +160,11 @@ class DiskInfo(
       s" usableSpace: ${Utils.bytesToString(actualUsableSpace)}," +
       s" avgFlushTime: ${Utils.nanoDurationToString(avgFlushTime)}," +
       s" avgFetchTime: ${Utils.nanoDurationToString(avgFetchTime)}," +
-      s" activeSlots: $activeSlots)" +
+      s" activeSlots: $activeSlots," +
+      s" storageType: ${storageType})" +
       s" status: $status" +
-      s" dirs ${dirs.mkString("\t")}" +
-      s" storageType: ${storageType}"
+      s" dirs ${dirs.mkString("\t")}"
+
   }
 }
 
