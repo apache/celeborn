@@ -51,6 +51,17 @@ class DiskInfo(
 
   def this(
       mountPoint: String,
+      usableSpace: Long,
+      avgFlushTime: Long,
+      avgFetchTime: Long,
+      activeSlots: Long,
+      storageType: StorageInfo.Type) = {
+    this(mountPoint, usableSpace, avgFlushTime, avgFetchTime, activeSlots, List.empty, null)
+    this.storageType = storageType
+  }
+
+  def this(
+      mountPoint: String,
       dirs: List[File],
       deviceInfo: DeviceInfo,
       conf: CelebornConf) = {
@@ -70,9 +81,13 @@ class DiskInfo(
   var status: DiskStatus = DiskStatus.HEALTHY
   var threadCount = 1
   var configuredUsableSpace = 0L
-  var storageType: StorageInfo.Type = _
+  var storageType: StorageInfo.Type = StorageInfo.Type.SSD
   var maxSlots: Long = 0
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
+
+  def setStorageType(storageType: StorageInfo.Type) = {
+    this.storageType = storageType
+  }
 
   def setStatus(status: DiskStatus): this.type = this.synchronized {
     this.status = status

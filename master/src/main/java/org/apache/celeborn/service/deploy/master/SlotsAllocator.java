@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import scala.Tuple2;
 
@@ -47,8 +48,6 @@ public class SlotsAllocator {
   private static final Random rand = new Random();
   private static boolean initialized = false;
   private static double[] taskAllocationRatio = null;
-  private static final DiskInfo HDFSDiskInfo =
-      new DiskInfo("HDFS", Integer.MAX_VALUE, 0, 0, Integer.MAX_VALUE);
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       offerSlotsRoundRobin(
@@ -68,7 +67,8 @@ public class SlotsAllocator {
       List<UsableDiskInfo> usableDisks =
           restrictions.computeIfAbsent(worker, v -> new ArrayList<>());
       for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
-        if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)) {
+        if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)
+            && diskInfoEntry.getValue().storageType() != StorageInfo.Type.HDFS) {
           usableDisks.add(
               new UsableDiskInfo(
                   diskInfoEntry.getValue(), diskInfoEntry.getValue().availableSlots()));
@@ -122,7 +122,8 @@ public class SlotsAllocator {
                     (key, diskInfo) -> {
                       diskToWorkerMap.put(diskInfo, i);
                       if (diskInfo.actualUsableSpace() > minimumUsableSize
-                          && diskInfo.status().equals(DiskStatus.HEALTHY)) {
+                          && diskInfo.status().equals(DiskStatus.HEALTHY)
+                          && diskInfo.storageType() != StorageInfo.Type.HDFS) {
                         usableDisks.add(diskInfo);
                       }
                     }));
@@ -175,17 +176,14 @@ public class SlotsAllocator {
       }
       usableDiskInfos.get(diskIndex).usableSlots--;
       DiskInfo selectedDiskInfo = usableDiskInfos.get(diskIndex).diskInfo;
-      if (selectedDiskInfo.equals(HDFSDiskInfo)) {
-        storageInfo = new StorageInfo(StorageInfo.Type.HDFS, availableStorageTypes);
-      } else {
-        storageInfo = new StorageInfo(selectedDiskInfo.mountPoint(), availableStorageTypes);
-      }
+      storageInfo = new StorageInfo(selectedDiskInfo.mountPoint(), availableStorageTypes);
       workerDiskIndex.put(selectedWorker, (diskIndex + 1) % usableDiskInfos.size());
     } else {
       if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
         DiskInfo[] diskInfos = selectedWorker.diskInfos().values().toArray(new DiskInfo[0]);
         storageInfo = new StorageInfo(diskInfos[diskIndex].mountPoint(), availableStorageTypes);
         diskIndex = (diskIndex + 1) % diskInfos.length;
+        workerDiskIndex.put(selectedWorker, (diskIndex + 1) % diskInfos.length);
       } else {
         storageInfo = new StorageInfo(StorageInfo.Type.HDFS, availableStorageTypes);
       }
@@ -244,8 +242,7 @@ public class SlotsAllocator {
       boolean shouldReplicate,
       boolean shouldRackAware,
       int availableStorageTypes) {
-    // workerInfo -> (diskIndexForPrimary, diskIndexForRe
-    // plica)
+    // workerInfo -> (diskIndexForPrimary, diskIndexForReplica)
     Map<WorkerInfo, Integer> workerDiskIndexForPrimary = new HashMap<>();
     Map<WorkerInfo, Integer> workerDiskIndexForReplica = new HashMap<>();
     List<Integer> partitionIdList = new ArrayList<>(partitionIds);
@@ -256,7 +253,7 @@ public class SlotsAllocator {
       int nextPrimaryInd = primaryIndex;
 
       int partitionId = iter.next();
-      StorageInfo storageInfo = new StorageInfo();
+      StorageInfo storageInfo;
       if (restrictions != null) {
         // this means that we'll select a mount point
         while (!haveUsableSlots(restrictions, workers, nextPrimaryInd)) {
@@ -352,7 +349,10 @@ public class SlotsAllocator {
   }
 
   private static boolean haveDisk(List<WorkerInfo> workers, int index) {
-    return !workers.get(index).diskInfos().isEmpty();
+    return !workers.get(index).diskInfos().entrySet().stream()
+        .filter(p -> !(p.getValue().storageType() == StorageInfo.Type.HDFS))
+        .collect(Collectors.toList())
+        .isEmpty();
   }
 
   private static boolean satisfyRackAware(

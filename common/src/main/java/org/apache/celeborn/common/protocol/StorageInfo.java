@@ -65,6 +65,10 @@ public class StorageInfo implements Serializable {
 
   public StorageInfo() {}
 
+  public StorageInfo(Type type) {
+    this.type = type;
+  }
+
   public StorageInfo(Type type, boolean isFinal, String filePath) {
     this.type = type;
     this.finalResult = isFinal;

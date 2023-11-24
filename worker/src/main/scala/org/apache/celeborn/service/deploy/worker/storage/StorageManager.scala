@@ -40,7 +40,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
@@ -72,6 +72,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     DeviceInfo.getDeviceAndDiskInfos(workingDirInfos, conf)
   }
   val mountPoints = new util.HashSet[String](diskInfos.keySet())
+  val hdfsDiskInfo =
+    if (conf.hasHDFSStorage)
+      Option(new DiskInfo("HDFS", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.HDFS))
+    else None
 
   def disksSnapshot(): List[DiskInfo] = {
     diskInfos.synchronized {

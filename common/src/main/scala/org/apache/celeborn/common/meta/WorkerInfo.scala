@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef
@@ -180,12 +181,12 @@ class WorkerInfo(
         curDisk.activeSlots = newDisk.activeSlots
         curDisk.avgFlushTime = newDisk.avgFlushTime
         curDisk.avgFetchTime = newDisk.avgFetchTime
-        if (estimatedPartitionSize.nonEmpty) {
+        if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS) {
           curDisk.maxSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
         }
         curDisk.setStatus(newDisk.status)
       } else {
-        if (estimatedPartitionSize.nonEmpty) {
+        if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS) {
           newDisk.maxSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
         }
         diskInfos.put(mountPoint, newDisk)

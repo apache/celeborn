@@ -346,7 +346,7 @@ private[celeborn] class Worker(
     val diskInfos =
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
-      }.toMap.asJava).values().asScala.toSeq
+      }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
