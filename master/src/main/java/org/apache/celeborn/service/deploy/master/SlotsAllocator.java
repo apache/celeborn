@@ -196,7 +196,7 @@ public class SlotsAllocator {
       usableDiskInfos.get(diskIndex).usableSlots--;
       DiskInfo selectedDiskInfo = usableDiskInfos.get(diskIndex).diskInfo;
       if (selectedDiskInfo.storageType() == StorageInfo.Type.HDFS) {
-        storageInfo = new StorageInfo(StorageInfo.Type.HDFS, availableStorageTypes);
+        storageInfo = new StorageInfo("", StorageInfo.Type.HDFS, availableStorageTypes);
       } else {
         storageInfo =
             new StorageInfo(
@@ -212,11 +212,15 @@ public class SlotsAllocator {
                 .filter(p -> p.storageType() != StorageInfo.Type.HDFS)
                 .collect(Collectors.toList())
                 .toArray(new DiskInfo[0]);
-        storageInfo = new StorageInfo(diskInfos[diskIndex].mountPoint(), availableStorageTypes);
+        storageInfo =
+            new StorageInfo(
+                diskInfos[diskIndex].mountPoint(),
+                diskInfos[diskIndex].storageType(),
+                availableStorageTypes);
         diskIndex = (diskIndex + 1) % diskInfos.length;
         workerDiskIndex.put(selectedWorker, (diskIndex + 1) % diskInfos.length);
       } else {
-        storageInfo = new StorageInfo(StorageInfo.Type.HDFS, availableStorageTypes);
+        storageInfo = new StorageInfo("", StorageInfo.Type.HDFS, availableStorageTypes);
       }
     }
     return storageInfo;

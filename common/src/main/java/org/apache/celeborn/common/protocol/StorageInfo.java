@@ -65,48 +65,16 @@ public class StorageInfo implements Serializable {
 
   public StorageInfo() {}
 
-  public StorageInfo(Type type) {
-    this.type = type;
-  }
-
   public StorageInfo(Type type, boolean isFinal, String filePath) {
     this.type = type;
     this.finalResult = isFinal;
     this.filePath = filePath;
   }
 
-  public StorageInfo(String mountPoint, int availableStorageTypes) {
-    this.mountPoint = mountPoint;
-    this.availableStorageTypes = availableStorageTypes;
-  }
-
   public StorageInfo(String mountPoint, StorageInfo.Type type, int availableStorageTypes) {
     this.mountPoint = mountPoint;
     this.type = type;
     this.availableStorageTypes = availableStorageTypes;
-  }
-
-  public StorageInfo(Type type, int availableStorageTypes) {
-    this.type = type;
-    this.availableStorageTypes = availableStorageTypes;
-  }
-
-  public StorageInfo(Type type, String mountPoint) {
-    this.type = type;
-    this.mountPoint = mountPoint;
-  }
-
-  public StorageInfo(Type type, String mountPoint, boolean finalResult) {
-    this.type = type;
-    this.mountPoint = mountPoint;
-    this.finalResult = finalResult;
-  }
-
-  public StorageInfo(Type type, String mountPoint, boolean finalResult, String filePath) {
-    this.type = type;
-    this.mountPoint = mountPoint;
-    this.finalResult = finalResult;
-    this.filePath = filePath;
   }
 
   public StorageInfo(

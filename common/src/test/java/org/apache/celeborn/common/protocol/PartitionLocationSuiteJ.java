@@ -178,7 +178,9 @@ public class PartitionLocationSuiteJ {
     PartitionLocation location2 =
         new PartitionLocation(
             partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
-    StorageInfo storageInfo = new StorageInfo(StorageInfo.Type.MEMORY, "/mnt/disk/0");
+    StorageInfo storageInfo =
+        new StorageInfo(
+            "/mnt/disk/0", StorageInfo.Type.MEMORY, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     RoaringBitmap bitmap = new RoaringBitmap();
     bitmap.add(1);
     bitmap.add(2);
