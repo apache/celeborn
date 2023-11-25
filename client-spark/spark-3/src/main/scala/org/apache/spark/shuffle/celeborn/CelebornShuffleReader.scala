@@ -131,7 +131,7 @@ class CelebornShuffleReader[K, C](
                     -1,
                     -1,
                     partitionId,
-                    SparkUtils.FETCH_FAILURE_ERROR_MSG,
+                    SparkUtils.FETCH_FAILURE_ERROR_MSG + shuffleId,
                     ce)
                 } else
                   throw ce
@@ -164,7 +164,7 @@ class CelebornShuffleReader[K, C](
               -1,
               -1,
               partitionId,
-              SparkUtils.FETCH_FAILURE_ERROR_MSG,
+              SparkUtils.FETCH_FAILURE_ERROR_MSG + shuffleId,
               e)
           } else
             throw e

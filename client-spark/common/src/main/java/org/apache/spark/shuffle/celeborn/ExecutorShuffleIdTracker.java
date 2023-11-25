@@ -40,7 +40,7 @@ public class ExecutorShuffleIdTracker {
     HashSet<Integer> shuffleIds = shuffleIdMap.remove(appShuffleId);
     if (shuffleIds != null) {
       synchronized (shuffleIds) {
-        shuffleIds.forEach(shuffleId -> shuffleClient.cleanupShuffle(shuffleId));
+        shuffleIds.forEach(shuffleClient::cleanupShuffle);
       }
     }
   }

@@ -42,7 +42,7 @@ import org.apache.celeborn.common.util.Utils;
 public class SparkUtils {
   private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
 
-  public static final String FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure";
+  public static final String FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with shuffle id ";
 
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long[] uncompressedRecords) throws IOException {

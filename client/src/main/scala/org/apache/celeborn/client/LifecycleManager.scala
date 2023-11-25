@@ -1353,7 +1353,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     workerStatusTracker.registerWorkerStatusListener(workerStatusListener)
   }
 
-  private var appShuffleTrackerCallback: Option[Consumer[Integer]] = None
+  @volatile private var appShuffleTrackerCallback: Option[Consumer[Integer]] = None
   def registerShuffleTrackerCallback(callback: Consumer[Integer]): Unit = {
     appShuffleTrackerCallback = Some(callback)
   }

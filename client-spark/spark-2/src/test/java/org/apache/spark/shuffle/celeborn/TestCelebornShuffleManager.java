@@ -20,14 +20,13 @@ package org.apache.spark.shuffle.celeborn;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.shuffle.ShuffleHandle;
-import org.apache.spark.shuffle.ShuffleReadMetricsReporter;
 import org.apache.spark.shuffle.ShuffleReader;
 
-public class HookedCelebornShuffleManager extends SparkShuffleManager {
+public class TestCelebornShuffleManager extends SparkShuffleManager {
 
   private static ShuffleManagerHook shuffleReaderGetHook = null;
 
-  public HookedCelebornShuffleManager(SparkConf conf) {
+  public TestCelebornShuffleManager(SparkConf conf) {
     super(conf, true);
   }
 
@@ -37,31 +36,10 @@ public class HookedCelebornShuffleManager extends SparkShuffleManager {
 
   @Override
   public <K, C> ShuffleReader<K, C> getReader(
-      ShuffleHandle handle,
-      int startMapIndex,
-      int endMapIndex,
-      int startPartition,
-      int endPartition,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
-    if (shuffleReaderGetHook != null) {
-      shuffleReaderGetHook.exec(
-          handle, startMapIndex, endMapIndex, startPartition, endPartition, context);
-    }
-    return super.getReader(
-        handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics);
-  }
-
-  @Override
-  public <K, C> ShuffleReader<K, C> getReader(
-      ShuffleHandle handle,
-      int startPartition,
-      int endPartition,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
+      ShuffleHandle handle, int startPartition, int endPartition, TaskContext context) {
     if (shuffleReaderGetHook != null) {
       shuffleReaderGetHook.exec(handle, startPartition, endPartition, context);
     }
-    return super.getReader(handle, startPartition, endPartition, context, metrics);
+    return super.getReader(handle, startPartition, endPartition, context);
   }
 }

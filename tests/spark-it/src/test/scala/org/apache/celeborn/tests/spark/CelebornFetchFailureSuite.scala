@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, HookedCelebornShuffleManager, ShuffleManagerHook, SparkUtils}
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
@@ -101,12 +101,12 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
       .config(
         "spark.shuffle.manager",
-        "org.apache.spark.shuffle.celeborn.HookedCelebornShuffleManager")
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
 
     val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
     val hook = new ShuffleReaderGetHook(celebornConf)
-    HookedCelebornShuffleManager.registerReaderGetHook(hook);
+    TestCelebornShuffleManager.registerReaderGetHook(hook)
 
     val value = Range(1, 10000).mkString(",")
     val tuples = sparkSession.sparkContext.parallelize(1 to 10000, 2)
@@ -132,12 +132,12 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
       .config(
         "spark.shuffle.manager",
-        "org.apache.spark.shuffle.celeborn.HookedCelebornShuffleManager")
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
 
     val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
     val hook = new ShuffleReaderGetHook(celebornConf)
-    HookedCelebornShuffleManager.registerReaderGetHook(hook);
+    TestCelebornShuffleManager.registerReaderGetHook(hook)
 
     import sparkSession.implicits._
 
@@ -162,12 +162,12 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
       .config(
         "spark.shuffle.manager",
-        "org.apache.spark.shuffle.celeborn.HookedCelebornShuffleManager")
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
 
     val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
     val hook = new ShuffleReaderGetHook(celebornConf)
-    HookedCelebornShuffleManager.registerReaderGetHook(hook);
+    TestCelebornShuffleManager.registerReaderGetHook(hook)
 
     val sc = sparkSession.sparkContext
     val rdd1 = sc.parallelize(0 until 10000, 3).map(v => (v, v)).groupByKey()
@@ -176,8 +176,8 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
     hook.executed.set(true)
 
-    val x1 = rdd1.count()
-    val x2 = rdd2.count()
+    rdd1.count()
+    rdd2.count()
 
     hook.executed.set(false)
     rdd3.count()
@@ -201,22 +201,22 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
       .config(
         "spark.shuffle.manager",
-        "org.apache.spark.shuffle.celeborn.HookedCelebornShuffleManager")
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
       .getOrCreate()
 
     val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
     val hook = new ShuffleReaderGetHook(celebornConf)
-    HookedCelebornShuffleManager.registerReaderGetHook(hook);
+    TestCelebornShuffleManager.registerReaderGetHook(hook)
 
     val sc = sparkSession.sparkContext
     val rdd1 = sc.parallelize(0 until 10000, 3).map(v => (v, v)).groupByKey()
     val rdd2 = rdd1.map(v => (v._2, v._1)).groupByKey()
 
     hook.executed.set(true)
-    val x1 = rdd1.count()
+    rdd1.count()
 
     hook.executed.set(false)
-    val x2 = rdd2.count()
+    rdd2.count()
 
     sparkSession.stop()
   }
