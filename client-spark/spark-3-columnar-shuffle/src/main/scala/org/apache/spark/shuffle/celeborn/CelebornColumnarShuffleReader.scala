@@ -33,7 +33,8 @@ class CelebornColumnarShuffleReader[K, C](
     endMapIndex: Int = Int.MaxValue,
     context: TaskContext,
     conf: CelebornConf,
-    metrics: ShuffleReadMetricsReporter)
+    metrics: ShuffleReadMetricsReporter,
+    shuffleIdTracker: ExecutorShuffleIdTracker)
   extends CelebornShuffleReader[K, C](
     handle,
     startPartition,
@@ -42,7 +43,8 @@ class CelebornColumnarShuffleReader[K, C](
     endMapIndex,
     context,
     conf,
-    metrics) {
+    metrics,
+    shuffleIdTracker) {
 
   override def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
     val schema = CustomShuffleDependencyUtils.getSchema(dep)

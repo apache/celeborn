@@ -17,30 +17,31 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.io.IOException;
-
-import org.apache.spark.TaskContext;
-import org.apache.spark.shuffle.ShuffleWriter;
+import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.JavaUtils;
 
-public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
+public class ExecutorShuffleIdTracker {
+  // track appShuffleId -> shuffleId Set in executor for cleanup
+  private ConcurrentHashMap<Integer, HashSet<Integer>> shuffleIdMap =
+      JavaUtils.newConcurrentHashMap();
 
-  public HashBasedShuffleWriterSuiteJ() throws IOException {}
+  public void track(int appShuffleId, int shuffleId) {
+    HashSet<Integer> shuffleIds = shuffleIdMap.computeIfAbsent(appShuffleId, id -> new HashSet<>());
 
-  @Override
-  protected ShuffleWriter<Integer, String> createShuffleWriter(
-      CelebornShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
-      throws IOException {
-    // this test case is independent of the `mapId` value
-    return new HashBasedShuffleWriter<Integer, String, String>(
-        SparkUtils.celebornShuffleId(client, handle, context, true),
-        handle,
-        /*mapId=*/ 0,
-        context,
-        conf,
-        client,
-        SendBufferPool.get(1, 30, 60));
+    synchronized (shuffleIds) {
+      shuffleIds.add(shuffleId);
+    }
+  }
+
+  public void unregisterAppShuffleId(ShuffleClient shuffleClient, int appShuffleId) {
+    HashSet<Integer> shuffleIds = shuffleIdMap.remove(appShuffleId);
+    if (shuffleIds != null) {
+      synchronized (shuffleIds) {
+        shuffleIds.forEach(shuffleClient::cleanupShuffle);
+      }
+    }
   }
 }

@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
+import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.internal.SQLConf;
@@ -38,6 +39,17 @@ import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.reflect.DynMethods;
 
+/**
+ * In order to support Spark Stage resubmit with ShuffleReader FetchFails, Celeborn shuffleId has to
+ * be distinguished from Spark shuffleId. Spark shuffleId is assigned at ShuffleDependency
+ * construction time, and all Attempts of a Spark Stage have the same ShuffleId. When Celeborn
+ * ShuffleReader fails to fetch shuffle data from worker and throws {@link FetchFailedException},
+ * Spark DAGScheduler resubmits the failed ResultStage and corresponding ShuffleMapStage , but
+ * Celeborn can't differentiate shuffle data from previous failed/resubmitted ShuffleMapStage with
+ * the same shuffleId. Current solution takes Stage retry in account, and has LifecycleManager to
+ * generate and track usage of spark shuffle id (appShuffleID) and Celeborn shuffle id (shuffle id).
+ * Spark shuffle Reader/Write gets shuffleId from LifecycleManager with GetShuffleId RPC
+ */
 public class SparkShuffleManager implements ShuffleManager {
 
   private static final Logger logger = LoggerFactory.getLogger(SparkShuffleManager.class);
@@ -78,6 +90,8 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private long sendBufferPoolCheckInterval;
   private long sendBufferPoolExpireTimeout;
+
+  private ExecutorShuffleIdTracker shuffleIdTracker = new ExecutorShuffleIdTracker();
 
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key(), true)) {
@@ -125,6 +139,13 @@ public class SparkShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
+          if (celebornConf.clientFetchThrowsFetchFailure()) {
+            MapOutputTrackerMaster mapOutputTracker =
+                (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
+
+            lifecycleManager.registerShuffleTrackerCallback(
+                shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
+          }
         }
       }
     }
@@ -138,6 +159,10 @@ public class SparkShuffleManager implements ShuffleManager {
     // This method may be called many times.
     appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager();
+
+    lifecycleManager.registerAppShuffleDeterminate(
+        shuffleId,
+        dependency.rdd().getOutputDeterministicLevel() != DeterministicLevel.INDETERMINATE());
 
     if (fallbackPolicyRunner.applyAllFallbackPolicy(
         lifecycleManager, dependency.partitioner().numPartitions())) {
@@ -160,23 +185,24 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager.getPort(),
           lifecycleManager.getUserIdentifier(),
           shuffleId,
+          celebornConf.clientFetchThrowsFetchFailure(),
           dependency.rdd().getNumPartitions(),
           dependency);
     }
   }
 
   @Override
-  public boolean unregisterShuffle(int shuffleId) {
-    if (sortShuffleIds.contains(shuffleId)) {
-      return sortShuffleManager().unregisterShuffle(shuffleId);
+  public boolean unregisterShuffle(int appShuffleId) {
+    if (sortShuffleIds.contains(appShuffleId)) {
+      return sortShuffleManager().unregisterShuffle(appShuffleId);
     }
     // For Spark driver side trigger unregister shuffle.
     if (lifecycleManager != null) {
-      lifecycleManager.unregisterShuffle(shuffleId);
+      lifecycleManager.unregisterAppShuffle(appShuffleId);
     }
     // For Spark executor side cleanup shuffle related info.
     if (shuffleClient != null) {
-      shuffleClient.cleanupShuffle(shuffleId);
+      shuffleIdTracker.unregisterAppShuffleId(shuffleClient, appShuffleId);
     }
     return true;
   }
@@ -217,10 +243,14 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier());
+        int shuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, true);
+        shuffleIdTracker.track(h.shuffleId(), shuffleId);
+
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
           ExecutorService pushThread =
               celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
           return new SortBasedShuffleWriter<>(
+              shuffleId,
               h.dependency(),
               h.numMappers(),
               context,
@@ -234,10 +264,10 @@ public class SparkShuffleManager implements ShuffleManager {
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout);
           if (COLUMNAR_SHUFFLE_CLASSES_PRESENT && celebornConf.columnarShuffleEnabled()) {
             return SparkUtils.createColumnarHashBasedShuffleWriter(
-                h, context, celebornConf, shuffleClient, metrics, pool);
+                shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
           } else {
             return new HashBasedShuffleWriter<>(
-                h, context, celebornConf, shuffleClient, metrics, pool);
+                shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
           }
         } else {
           throw new UnsupportedOperationException(
@@ -340,7 +370,8 @@ public class SparkShuffleManager implements ShuffleManager {
           endMapIndex,
           context,
           celebornConf,
-          metrics);
+          metrics,
+          shuffleIdTracker);
     } else {
       return new CelebornShuffleReader<>(
           h,
@@ -350,7 +381,8 @@ public class SparkShuffleManager implements ShuffleManager {
           endMapIndex,
           context,
           celebornConf,
-          metrics);
+          metrics,
+          shuffleIdTracker);
     }
   }
 

@@ -26,6 +26,7 @@ import scala.Tuple2;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.apache.spark.TaskContext;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
@@ -34,11 +35,14 @@ import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
 
 public class SparkUtils {
   private static final Logger logger = LoggerFactory.getLogger(SparkUtils.class);
+
+  public static final String FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with shuffle id ";
 
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long[] uncompressedRecords) throws IOException {
@@ -112,6 +116,23 @@ public class SparkUtils {
       return context.applicationId() + "_" + context.applicationAttemptId().get();
     } else {
       return context.applicationId();
+    }
+  }
+
+  public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {
+    return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
+  }
+
+  public static int celebornShuffleId(
+      ShuffleClient client,
+      CelebornShuffleHandle<?, ?, ?> handle,
+      TaskContext context,
+      Boolean isWriter) {
+    if (handle.throwsFetchFailure()) {
+      String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
+      return client.getShuffleId(handle.shuffleId(), appShuffleIdentifier, isWriter);
+    } else {
+      return handle.shuffleId();
     }
   }
 

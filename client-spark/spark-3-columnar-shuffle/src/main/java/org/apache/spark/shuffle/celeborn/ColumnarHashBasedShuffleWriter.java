@@ -58,6 +58,7 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
   private final double columnarShuffleDictionaryMaxFactor;
 
   public ColumnarHashBasedShuffleWriter(
+      int shuffleId,
       CelebornShuffleHandle<K, V, C> handle,
       TaskContext taskContext,
       CelebornConf conf,
@@ -65,7 +66,7 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
       ShuffleWriteMetricsReporter metrics,
       SendBufferPool sendBufferPool)
       throws IOException {
-    super(handle, taskContext, conf, client, metrics, sendBufferPool);
+    super(shuffleId, handle, taskContext, conf, client, metrics, sendBufferPool);
     columnarShuffleBatchSize = conf.columnarShuffleBatchSize();
     columnarShuffleCodeGenEnabled = conf.columnarShuffleCodeGenEnabled();
     columnarShuffleDictionaryEnabled = conf.columnarShuffleDictionaryEnabled();

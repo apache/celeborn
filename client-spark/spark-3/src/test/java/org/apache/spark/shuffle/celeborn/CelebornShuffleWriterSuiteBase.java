@@ -236,7 +236,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
     final File tempFile = new File(tempDir, UUID.randomUUID().toString());
     final CelebornShuffleHandle<Integer, String, String> handle =
         new CelebornShuffleHandle<>(
-            appId, host, port, userIdentifier, shuffleId, numMaps, dependency);
+            appId, host, port, userIdentifier, shuffleId, false, numMaps, dependency);
     final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
     ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, 1);
 

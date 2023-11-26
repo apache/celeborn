@@ -101,6 +101,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public HashBasedShuffleWriter(
+      int shuffleId,
       CelebornShuffleHandle<K, V, C> handle,
       TaskContext taskContext,
       CelebornConf conf,
@@ -110,7 +111,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = handle.dependency();
-    this.shuffleId = dep.shuffleId();
+    this.shuffleId = shuffleId;
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();
     this.writeMetrics = metrics;

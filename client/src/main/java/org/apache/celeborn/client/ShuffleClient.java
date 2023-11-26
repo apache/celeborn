@@ -212,4 +212,13 @@ public abstract class ShuffleClient {
       int shuffleId, int numMappers, int numPartitions);
 
   public abstract PushState getPushState(String mapKey);
+
+  public abstract int getShuffleId(int appShuffleId, String appShuffleIdentifier, boolean isWriter);
+
+  /**
+   * report shuffle data fetch failure to LifecycleManager for special handling, eg, shuffle status
+   * cleanup for spark app. It must be a sync call and make sure the cleanup is done, otherwise,
+   * incorrect shuffle data can be fetched in re-run tasks
+   */
+  public abstract boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId);
 }

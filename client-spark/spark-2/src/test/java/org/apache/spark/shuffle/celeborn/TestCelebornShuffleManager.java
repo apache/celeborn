@@ -17,30 +17,29 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.io.IOException;
-
+import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
-import org.apache.spark.shuffle.ShuffleWriter;
+import org.apache.spark.shuffle.ShuffleHandle;
+import org.apache.spark.shuffle.ShuffleReader;
 
-import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.CelebornConf;
+public class TestCelebornShuffleManager extends SparkShuffleManager {
 
-public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
+  private static ShuffleManagerHook shuffleReaderGetHook = null;
 
-  public HashBasedShuffleWriterSuiteJ() throws IOException {}
+  public TestCelebornShuffleManager(SparkConf conf) {
+    super(conf, true);
+  }
+
+  public static void registerReaderGetHook(ShuffleManagerHook hook) {
+    shuffleReaderGetHook = hook;
+  }
 
   @Override
-  protected ShuffleWriter<Integer, String> createShuffleWriter(
-      CelebornShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
-      throws IOException {
-    // this test case is independent of the `mapId` value
-    return new HashBasedShuffleWriter<Integer, String, String>(
-        SparkUtils.celebornShuffleId(client, handle, context, true),
-        handle,
-        /*mapId=*/ 0,
-        context,
-        conf,
-        client,
-        SendBufferPool.get(1, 30, 60));
+  public <K, C> ShuffleReader<K, C> getReader(
+      ShuffleHandle handle, int startPartition, int endPartition, TaskContext context) {
+    if (shuffleReaderGetHook != null) {
+      shuffleReaderGetHook.exec(handle, startPartition, endPartition, context);
+    }
+    return super.getReader(handle, startPartition, endPartition, context);
   }
 }

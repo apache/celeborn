@@ -39,6 +39,7 @@ class CelebornColumnarShuffleReaderSuite {
       0,
       new UserIdentifier("mock", "mock"),
       0,
+      false,
       10,
       null)
 
@@ -53,7 +54,8 @@ class CelebornColumnarShuffleReaderSuite {
         10,
         null,
         new CelebornConf(),
-        null)
+        null,
+        new ExecutorShuffleIdTracker())
       assert(shuffleReader.getClass == classOf[CelebornColumnarShuffleReader[Int, String]])
     } finally {
       if (shuffleClient != null) {
@@ -74,6 +76,7 @@ class CelebornColumnarShuffleReaderSuite {
           0,
           new UserIdentifier("mock", "mock"),
           0,
+          false,
           10,
           null),
         0,
@@ -82,7 +85,8 @@ class CelebornColumnarShuffleReaderSuite {
         10,
         null,
         new CelebornConf(),
-        null)
+        null,
+        new ExecutorShuffleIdTracker())
       val shuffleDependency = Mockito.mock(classOf[ShuffleDependency[Int, String, String]])
       Mockito.when(shuffleDependency.shuffleId).thenReturn(0)
       Mockito.when(shuffleDependency.serializer).thenReturn(new KryoSerializer(

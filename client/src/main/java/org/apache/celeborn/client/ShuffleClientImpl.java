@@ -86,6 +86,9 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected final int BATCH_HEADER_SIZE = 4 * 4;
 
+  // key: appShuffleIdentifier, value: shuffleId
+  protected Map<String, Integer> shuffleIdCache = JavaUtils.newConcurrentHashMap();
+
   // key: shuffleId, value: (partitionId, PartitionLocation)
   final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       JavaUtils.newConcurrentHashMap();
@@ -515,6 +518,41 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public PushState getPushState(String mapKey) {
     return pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+  }
+
+  @Override
+  public int getShuffleId(int appShuffleId, String appShuffleIdentifier, boolean isWriter) {
+    return shuffleIdCache.computeIfAbsent(
+        appShuffleIdentifier,
+        (id) -> {
+          PbGetShuffleId pbGetShuffleId =
+              PbGetShuffleId.newBuilder()
+                  .setAppShuffleId(appShuffleId)
+                  .setAppShuffleIdentifier(appShuffleIdentifier)
+                  .setIsShuffleWriter(isWriter)
+                  .build();
+          PbGetShuffleIdResponse pbGetShuffleIdResponse =
+              lifecycleManagerRef.askSync(
+                  pbGetShuffleId,
+                  conf.clientRpcRegisterShuffleRpcAskTimeout(),
+                  ClassTag$.MODULE$.apply(PbGetShuffleIdResponse.class));
+          return pbGetShuffleIdResponse.getShuffleId();
+        });
+  }
+
+  @Override
+  public boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId) {
+    PbReportShuffleFetchFailure pbReportShuffleFetchFailure =
+        PbReportShuffleFetchFailure.newBuilder()
+            .setAppShuffleId(appShuffleId)
+            .setShuffleId(shuffleId)
+            .build();
+    PbReportShuffleFetchFailureResponse pbReportShuffleFetchFailureResponse =
+        lifecycleManagerRef.askSync(
+            pbReportShuffleFetchFailure,
+            conf.clientRpcRegisterShuffleRpcAskTimeout(),
+            ClassTag$.MODULE$.apply(PbReportShuffleFetchFailureResponse.class));
+    return pbReportShuffleFetchFailureResponse.getSuccess();
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(

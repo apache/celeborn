@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import org.apache.spark.{InterruptibleIterator, TaskContext}
 import org.apache.spark.internal.Logging
-import org.apache.spark.shuffle.ShuffleReader
+import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader}
 import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
@@ -32,7 +32,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.CelebornIOException
+import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.util.ThreadUtils
 
 class CelebornShuffleReader[K, C](
@@ -42,7 +42,8 @@ class CelebornShuffleReader[K, C](
     startMapIndex: Int = 0,
     endMapIndex: Int = Int.MaxValue,
     context: TaskContext,
-    conf: CelebornConf)
+    conf: CelebornConf,
+    shuffleIdTracker: ExecutorShuffleIdTracker)
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
@@ -58,6 +59,11 @@ class CelebornShuffleReader[K, C](
   override def read(): Iterator[Product2[K, C]] = {
 
     val serializerInstance = dep.serializer.newInstance()
+
+    val shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+    shuffleIdTracker.track(handle.shuffleId, shuffleId)
+    logDebug(
+      s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")
 
     // Update the context task metrics for each record read.
     val readMetrics = context.taskMetrics.createTempShuffleReadMetrics()
@@ -87,7 +93,7 @@ class CelebornShuffleReader[K, C](
           if (exceptionRef.get() == null) {
             try {
               val inputStream = shuffleClient.readPartition(
-                handle.shuffleId,
+                shuffleId,
                 partitionId,
                 context.attemptNumber(),
                 startMapIndex,
@@ -113,7 +119,21 @@ class CelebornShuffleReader[K, C](
         var inputStream: CelebornInputStream = streams.get(partitionId)
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
-            throw exceptionRef.get()
+            exceptionRef.get() match {
+              case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
+                if (handle.throwsFetchFailure &&
+                  shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+                  throw new FetchFailedException(
+                    null,
+                    handle.shuffleId,
+                    -1,
+                    partitionId,
+                    SparkUtils.FETCH_FAILURE_ERROR_MSG + shuffleId,
+                    ce)
+                } else
+                  throw ce
+              case e => throw e
+            }
           }
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
@@ -122,12 +142,30 @@ class CelebornShuffleReader[K, C](
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
         // ensure inputStream is closed when task completes
         context.addTaskCompletionListener(_ => inputStream.close())
-        inputStream
+        (partitionId, inputStream)
       } else {
-        CelebornInputStream.empty()
+        (partitionId, CelebornInputStream.empty())
       }
-    }).flatMap(
-      serializerInstance.deserializeStream(_).asKeyValueIterator)
+    }).map { case (partitionId, inputStream) =>
+      (partitionId, serializerInstance.deserializeStream(inputStream).asKeyValueIterator)
+    }.flatMap { case (partitionId, iter) =>
+      try {
+        iter
+      } catch {
+        case e @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
+          if (handle.throwsFetchFailure &&
+            shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+            throw new FetchFailedException(
+              null,
+              handle.shuffleId,
+              -1,
+              partitionId,
+              SparkUtils.FETCH_FAILURE_ERROR_MSG + shuffleId,
+              e)
+          } else
+            throw e
+      }
+    }
 
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
       recordIter.map { record =>

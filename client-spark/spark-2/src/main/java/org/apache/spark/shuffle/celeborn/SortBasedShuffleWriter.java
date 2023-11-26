@@ -94,6 +94,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
   public SortBasedShuffleWriter(
+      int shuffleId,
       ShuffleDependency<K, V, C> dep,
       int numMappers,
       TaskContext taskContext,
@@ -104,7 +105,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException {
     this.mapId = taskContext.partitionId();
     this.dep = dep;
-    this.shuffleId = dep.shuffleId();
+    this.shuffleId = shuffleId;
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();
     this.writeMetrics = taskContext.taskMetrics().shuffleWriteMetrics();

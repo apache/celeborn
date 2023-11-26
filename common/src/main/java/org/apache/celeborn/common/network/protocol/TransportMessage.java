@@ -32,11 +32,15 @@ import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
+import org.apache.celeborn.common.protocol.PbGetShuffleId;
+import org.apache.celeborn.common.protocol.PbGetShuffleIdResponse;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbPushDataHandShake;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbRegionFinish;
 import org.apache.celeborn.common.protocol.PbRegionStart;
+import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailure;
+import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailureResponse;
 import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.PbTransportableError;
@@ -90,6 +94,14 @@ public class TransportMessage implements Serializable {
         return (T) PbChunkFetchRequest.parseFrom(payload);
       case TRANSPORTABLE_ERROR_VALUE:
         return (T) PbTransportableError.parseFrom(payload);
+      case GET_SHUFFLE_ID_VALUE:
+        return (T) PbGetShuffleId.parseFrom(payload);
+      case GET_SHUFFLE_ID_RESPONSE_VALUE:
+        return (T) PbGetShuffleIdResponse.parseFrom(payload);
+      case REPORT_SHUFFLE_FETCH_FAILURE_VALUE:
+        return (T) PbReportShuffleFetchFailure.parseFrom(payload);
+      case REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE_VALUE:
+        return (T) PbReportShuffleFetchFailureResponse.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }

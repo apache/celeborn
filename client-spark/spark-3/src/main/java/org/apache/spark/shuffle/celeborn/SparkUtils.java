@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
 
+import org.apache.spark.MapOutputTrackerMaster;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskContext;
@@ -45,6 +46,8 @@ import org.apache.celeborn.reflect.DynMethods;
 
 public class SparkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(SparkUtils.class);
+
+  public static final String FETCH_FAILURE_ERROR_MSG = "Celeborn FetchFailure with shuffle id ";
 
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long mapTaskId) {
@@ -90,6 +93,23 @@ public class SparkUtils {
         .applicationAttemptId()
         .map(id -> context.applicationId() + "_" + id)
         .getOrElse(context::applicationId);
+  }
+
+  public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {
+    return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
+  }
+
+  public static int celebornShuffleId(
+      ShuffleClient client,
+      CelebornShuffleHandle<?, ?, ?> handle,
+      TaskContext context,
+      Boolean isWriter) {
+    if (handle.throwsFetchFailure()) {
+      String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
+      return client.getShuffleId(handle.shuffleId(), appShuffleIdentifier, isWriter);
+    } else {
+      return handle.shuffleId();
+    }
   }
 
   // Create an instance of the class with the given name, possibly initializing it with our conf
@@ -164,6 +184,7 @@ public class SparkUtils {
       DynConstructors.builder()
           .impl(
               COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CLASS,
+              int.class,
               CelebornShuffleHandle.class,
               TaskContext.class,
               CelebornConf.class,
@@ -172,6 +193,7 @@ public class SparkUtils {
               SendBufferPool.class);
 
   public static <K, V, C> HashBasedShuffleWriter<K, V, C> createColumnarHashBasedShuffleWriter(
+      int shuffleId,
       CelebornShuffleHandle<K, V, C> handle,
       TaskContext taskContext,
       CelebornConf conf,
@@ -180,7 +202,7 @@ public class SparkUtils {
       SendBufferPool sendBufferPool) {
     return COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CONSTRUCTOR_BUILDER
         .build()
-        .invoke(null, handle, taskContext, conf, client, metrics, sendBufferPool);
+        .invoke(null, shuffleId, handle, taskContext, conf, client, metrics, sendBufferPool);
   }
 
   public static final String COLUMNAR_SHUFFLE_READER_CLASS =
@@ -196,7 +218,8 @@ public class SparkUtils {
               int.class,
               TaskContext.class,
               CelebornConf.class,
-              ShuffleReadMetricsReporter.class);
+              ShuffleReadMetricsReporter.class,
+              ExecutorShuffleIdTracker.class);
 
   public static <K, C> CelebornShuffleReader<K, C> createColumnarShuffleReader(
       CelebornShuffleHandle<K, ?, C> handle,
@@ -206,7 +229,8 @@ public class SparkUtils {
       int endMapIndex,
       TaskContext context,
       CelebornConf conf,
-      ShuffleReadMetricsReporter metrics) {
+      ShuffleReadMetricsReporter metrics,
+      ExecutorShuffleIdTracker shuffleIdTracker) {
     return COLUMNAR_SHUFFLE_READER_CONSTRUCTOR_BUILDER
         .build()
         .invoke(
@@ -218,6 +242,35 @@ public class SparkUtils {
             endMapIndex,
             context,
             conf,
-            metrics);
+            metrics,
+            shuffleIdTracker);
+  }
+
+  // Added in SPARK-32920, for Spark 3.2 and above
+  private static final DynMethods.UnboundMethod UnregisterAllMapAndMergeOutput_METHOD =
+      DynMethods.builder("unregisterAllMapAndMergeOutput")
+          .impl(MapOutputTrackerMaster.class, Integer.TYPE)
+          .orNoop()
+          .build();
+
+  // for spark 3.1, see detail in SPARK-32920
+  private static final DynMethods.UnboundMethod UnregisterAllMapOutput_METHOD =
+      DynMethods.builder("unregisterAllMapOutput")
+          .impl(MapOutputTrackerMaster.class, Integer.TYPE)
+          .orNoop()
+          .build();
+
+  public static void unregisterAllMapOutput(
+      MapOutputTrackerMaster mapOutputTracker, int shuffleId) {
+    if (!UnregisterAllMapAndMergeOutput_METHOD.isNoop()) {
+      UnregisterAllMapAndMergeOutput_METHOD.bind(mapOutputTracker).invoke(shuffleId);
+      return;
+    }
+    if (!UnregisterAllMapOutput_METHOD.isNoop()) {
+      UnregisterAllMapOutput_METHOD.bind(mapOutputTracker).invoke(shuffleId);
+      return;
+    }
+    throw new UnsupportedOperationException(
+        "unexpected! neither methods unregisterAllMapAndMergeOutput/unregisterAllMapOutput are found in MapOutputTrackerMaster");
   }
 }

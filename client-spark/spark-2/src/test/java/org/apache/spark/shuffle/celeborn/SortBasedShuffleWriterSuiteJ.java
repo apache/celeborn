@@ -34,6 +34,7 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
       CelebornShuffleHandle handle, TaskContext context, CelebornConf conf, ShuffleClient client)
       throws IOException {
     return new SortBasedShuffleWriter<Integer, String, String>(
+        SparkUtils.celebornShuffleId(client, handle, context, true),
         handle.dependency(),
         numPartitions,
         context,
