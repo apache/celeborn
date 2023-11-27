@@ -79,6 +79,7 @@
     <google.jsr305.version>1.3.9</google.jsr305.version>
     <grpc.version>1.44.0</grpc.version>
     <guava.version>32.1.3-jre</guava.version>
+    <guava.failureaccess.version>1.0.1</guava.failureaccess.version>
     <javaxservlet.version>3.1.0</javaxservlet.version>
     <junit.version>4.13.2</junit.version>
     <leveldb.version>1.8</leveldb.version>
@@ -333,6 +334,11 @@
             <artifactId>j2objc-annotations</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>failureaccess</artifactId>
+        <version>${guava.failureaccess.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
