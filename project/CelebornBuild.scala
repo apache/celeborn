@@ -315,6 +315,7 @@ object CelebornCommon {
         Dependencies.protobufJava % "protobuf",
         Dependencies.findbugsJsr305,
         Dependencies.guava,
+        Dependencies.guavaFailureaccessVersion,
         Dependencies.commonsIo,
         Dependencies.ioDropwizardMetricsCore,
         Dependencies.ioDropwizardMetricsGraphite,
@@ -370,6 +371,7 @@ object CelebornClient {
       libraryDependencies ++= Seq(
         Dependencies.ioNetty,
         Dependencies.guava,
+        Dependencies.guavaFailureaccessVersion,
         Dependencies.lz4Java,
         Dependencies.zstdJni,
         Dependencies.commonsLang3,
@@ -405,6 +407,7 @@ object CelebornMaster {
       protoSettings,
       libraryDependencies ++= Seq(
         Dependencies.guava,
+        Dependencies.guavaFailreaccess,
         Dependencies.protobufJava,
         Dependencies.ioNetty,
         Dependencies.hadoopClientApi,
@@ -435,6 +438,7 @@ object CelebornWorker {
       ),
       libraryDependencies ++= Seq(
         Dependencies.guava,
+        Dependencies.guavaFailreaccess,
         Dependencies.commonsIo,
         Dependencies.ioNetty,
         Dependencies.log4j12Api,
