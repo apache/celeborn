@@ -20,8 +20,6 @@ package org.apache.spark.sql.execution.columnar
 import java.math.{BigDecimal, BigInteger}
 import java.nio.ByteBuffer
 
-import scala.reflect.runtime.universe.TypeTag
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -177,26 +175,10 @@ sealed abstract private[columnar] class CelebornColumnType[JvmType] {
   override def toString: String = getClass.getSimpleName.stripSuffix("$")
 }
 
-private[columnar] object CELEBORN_NULL extends CelebornColumnType[Any] {
-
-  override def dataType: DataType = NullType
-  override def defaultSize: Int = 0
-  override def append(v: Any, buffer: ByteBuffer): Unit = {}
-  override def extract(buffer: ByteBuffer): Any = null
-  override def setField(row: InternalRow, ordinal: Int, value: Any): Unit = row.setNullAt(ordinal)
-  override def getField(row: InternalRow, ordinal: Int): Any = null
-}
-
 abstract private[columnar] class NativeCelebornColumnType[T <: AtomicType](
     val dataType: T,
     val defaultSize: Int)
-  extends CelebornColumnType[T#InternalType] {
-
-  /**
-   * Scala TypeTag. Can be used to create primitive arrays and hash tables.
-   */
-  def scalaTag: TypeTag[dataType.InternalType] = dataType.tag
-}
+  extends CelebornColumnType[T#InternalType] {}
 
 private[columnar] object CELEBORN_INT extends NativeCelebornColumnType(IntegerType, 4) {
   override def append(v: Int, buffer: ByteBuffer): Unit = {
@@ -428,26 +410,28 @@ private[columnar] trait DirectCopyCelebornColumnType[JvmType] extends CelebornCo
 
   // copy the bytes from ByteBuffer to UnsafeRow
   override def extract(buffer: ByteBuffer, row: InternalRow, ordinal: Int): Unit = {
-    if (row.isInstanceOf[MutableUnsafeRow]) {
-      val numBytes = buffer.getInt
-      val cursor = buffer.position()
-      buffer.position(cursor + numBytes)
-      row.asInstanceOf[MutableUnsafeRow].writer.write(
-        ordinal,
-        buffer.array(),
-        buffer.arrayOffset() + cursor,
-        numBytes)
-    } else {
-      setField(row, ordinal, extract(buffer))
+    row match {
+      case r: MutableUnsafeRow =>
+        val numBytes = buffer.getInt
+        val cursor = buffer.position()
+        buffer.position(cursor + numBytes)
+        r.writer.write(
+          ordinal,
+          buffer.array(),
+          buffer.arrayOffset() + cursor,
+          numBytes)
+      case _ =>
+        setField(row, ordinal, extract(buffer))
     }
   }
 
   // copy the bytes from UnsafeRow to ByteBuffer
   override def append(row: InternalRow, ordinal: Int, buffer: ByteBuffer): Unit = {
-    if (row.isInstanceOf[UnsafeRow]) {
-      row.asInstanceOf[UnsafeRow].writeFieldTo(ordinal, buffer)
-    } else {
-      super.append(row, ordinal, buffer)
+    row match {
+      case r: UnsafeRow =>
+        r.writeFieldTo(ordinal, buffer)
+      case _ =>
+        super.append(row, ordinal, buffer)
     }
   }
 }
@@ -472,10 +456,11 @@ private[columnar] object CELEBORN_STRING
   }
 
   override def setField(row: InternalRow, ordinal: Int, value: UTF8String): Unit = {
-    if (row.isInstanceOf[MutableUnsafeRow]) {
-      row.asInstanceOf[MutableUnsafeRow].writer.write(ordinal, value)
-    } else {
-      row.update(ordinal, value.clone())
+    row match {
+      case r: MutableUnsafeRow =>
+        r.writer.write(ordinal, value)
+      case _ =>
+        row.update(ordinal, value.clone())
     }
   }
 
@@ -617,26 +602,6 @@ sealed abstract private[columnar] class ByteArrayCelebornColumnType[JvmType](val
   }
 }
 
-private[columnar] object CELEBORN_BINARY extends ByteArrayCelebornColumnType[Array[Byte]](16) {
-
-  def dataType: DataType = BinaryType
-
-  override def setField(row: InternalRow, ordinal: Int, value: Array[Byte]): Unit = {
-    row.update(ordinal, value)
-  }
-
-  override def getField(row: InternalRow, ordinal: Int): Array[Byte] = {
-    row.getBinary(ordinal)
-  }
-
-  override def actualSize(row: InternalRow, ordinal: Int): Int = {
-    row.getBinary(ordinal).length + 4
-  }
-
-  def serialize(value: Array[Byte]): Array[Byte] = value
-  def deserialize(bytes: Array[Byte]): Array[Byte] = bytes
-}
-
 private[columnar] case class CELEBORN_LARGE_DECIMAL(precision: Int, scale: Int)
   extends ByteArrayCelebornColumnType[Decimal](12) {
 
@@ -673,7 +638,6 @@ private[columnar] object CELEBORN_LARGE_DECIMAL {
 private[columnar] object CelebornColumnType {
   def apply(dataType: DataType): CelebornColumnType[_] = {
     dataType match {
-      case NullType => CELEBORN_NULL
       case BooleanType => CELEBORN_BOOLEAN
       case ByteType => CELEBORN_BYTE
       case ShortType => CELEBORN_SHORT
@@ -682,7 +646,6 @@ private[columnar] object CelebornColumnType {
       case FloatType => CELEBORN_FLOAT
       case DoubleType => CELEBORN_DOUBLE
       case StringType => CELEBORN_STRING
-      case BinaryType => CELEBORN_BINARY
       case dt: DecimalType if dt.precision <= Decimal.MAX_INT_DIGITS =>
         CELEBORN_COMPACT_MINI_DECIMAL(dt)
       case dt: DecimalType if dt.precision <= Decimal.MAX_LONG_DIGITS =>

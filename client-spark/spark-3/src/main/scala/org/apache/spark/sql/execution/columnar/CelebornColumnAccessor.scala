@@ -61,12 +61,8 @@ abstract class CelebornBasicColumnAccessor[JvmType](
     columnType.extract(buffer, row, ordinal)
   }
 
-  protected def underlyingBuffer = buffer
+  protected def underlyingBuffer: ByteBuffer = buffer
 }
-
-class CelebornNullColumnAccessor(buffer: ByteBuffer)
-  extends CelebornBasicColumnAccessor[Any](buffer, CELEBORN_NULL)
-  with CelebornNullableColumnAccessor
 
 abstract class CelebornNativeColumnAccessor[T <: AtomicType](
     override protected val buffer: ByteBuffer,
@@ -112,7 +108,6 @@ private[sql] object CelebornColumnAccessor {
     val buf = buffer.order(ByteOrder.nativeOrder)
 
     dataType match {
-      case NullType => new CelebornNullColumnAccessor(buf)
       case BooleanType => new CelebornBooleanColumnAccessor(buf)
       case ByteType => new CelebornByteColumnAccessor(buf)
       case ShortType => new CelebornShortColumnAccessor(buf)
@@ -135,7 +130,7 @@ private[sql] object CelebornColumnAccessor {
     columnAccessor match {
       case nativeAccessor: CelebornNativeColumnAccessor[_] =>
         nativeAccessor.decompress(columnVector, numRows)
-      case d: CelebornDecimalColumnAccessor =>
+      case _: CelebornDecimalColumnAccessor =>
         (0 until numRows).foreach(columnAccessor.extractToColumnVector(columnVector, _))
       case _ =>
         throw new RuntimeException("Not support non-primitive type now")

@@ -17,7 +17,6 @@
 
 package org.apache.spark.shuffle.celeborn;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
@@ -162,10 +161,17 @@ public class SparkUtils {
   private static final DynFields.UnboundField<StructType> SCHEMA_FIELD =
       DynFields.builder().hiddenImpl(ShuffleDependency.class, "schema").defaultAlwaysNull().build();
 
-  public static StructType getSchema(ShuffleDependency<?, ?, ?> dep) throws IOException {
-    StructType schema = SCHEMA_FIELD.bind(dep).get();
+  public static StructType getSchema(ShuffleDependency<?, ?, ?> dep) {
+    StructType schema = null;
+    try {
+      schema = SCHEMA_FIELD.bind(dep).get();
+    } catch (Exception e) {
+      LOG.error("Failed to bind shuffle dependency of shuffle {}.", dep.shuffleId(), e);
+    }
     if (schema == null) {
-      throw new IOException("Failed to get Schema, columnar shuffle won't work properly.");
+      LOG.warn(
+          "Failed to get Schema of shuffle {}, columnar shuffle won't work properly.",
+          dep.shuffleId());
     }
     return schema;
   }
