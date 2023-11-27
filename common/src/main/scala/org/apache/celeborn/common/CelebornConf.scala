@@ -366,6 +366,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
   }
 
+  def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
+  def dynamicConfigRefreshTime: Long = get(DYNAMIC_CONFIG_REFRESH_TIME)
+
   // //////////////////////////////////////////////////////
   //                      Network                        //
   // //////////////////////////////////////////////////////
@@ -4062,4 +4065,21 @@ object CelebornConf extends Logging {
       .doc("Kerberos keytab file path for HDFS storage connection.")
       .stringConf
       .createOptional
+
+  val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.backend")
+      .categories("master", "worker")
+      .doc("Store backend for dynamic config, NONE means disabling dynamic config store")
+      .version("0.4.0")
+      .stringConf
+      .checkValues(Set("FS", "NONE"))
+      .createWithDefault("NONE")
+
+  val DYNAMIC_CONFIG_REFRESH_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.refresh.time")
+      .categories("master", "worker")
+      .version("0.4.0")
+      .doc("The time interval for refreshing the corresponding dynamic config periodically")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 }
