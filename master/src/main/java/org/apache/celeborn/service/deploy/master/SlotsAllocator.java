@@ -307,7 +307,6 @@ public class SlotsAllocator {
       } else {
         if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
           while (!workers.get(nextPrimaryInd).haveDisk()) {
-            // !haveDisk(workers, nextPrimaryInd)) {
             nextPrimaryInd = (nextPrimaryInd + 1) % workers.size();
             if (nextPrimaryInd == primaryIndex) {
               break outer;
