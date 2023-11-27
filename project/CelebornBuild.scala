@@ -680,6 +680,7 @@ trait SparkClientProjects {
             !(name.startsWith("celeborn-") ||
               name.startsWith("protobuf-java-") ||
               name.startsWith("guava-") ||
+              name.startsWith("failureaccess-") ||
               name.startsWith("netty-") ||
               name.startsWith("commons-lang3-") ||
               name.startsWith("RoaringBitmap-"))
@@ -883,6 +884,7 @@ trait FlinkClientProjects {
             !(name.startsWith("celeborn-") ||
                 name.startsWith("protobuf-java-") ||
                 name.startsWith("guava-") ||
+                name.startsWith("failureaccess-") ||
                 name.startsWith("netty-") ||
                 name.startsWith("commons-lang3-") ||
                 name.startsWith("RoaringBitmap-"))
@@ -977,6 +979,7 @@ object MRClientProjects {
             !(name.startsWith("celeborn-") ||
               name.startsWith("protobuf-java-") ||
               name.startsWith("guava-") ||
+              name.startsWith("failureaccess-") ||
               name.startsWith("netty-") ||
               name.startsWith("commons-lang3-") ||
               name.startsWith("RoaringBitmap-") ||

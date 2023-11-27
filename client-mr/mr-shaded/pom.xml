@@ -77,6 +77,7 @@
               <include>org.apache.celeborn:*</include>
               <include>com.google.protobuf:protobuf-java</include>
               <include>com.google.guava:guava</include>
+              <include>com.google.guava:failureaccess</include>
               <include>io.netty:*</include>
               <include>org.apache.commons:commons-lang3</include>
               <include>org.scala-lang:scala-library</include>
