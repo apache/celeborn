@@ -203,8 +203,8 @@ public class SlotsAllocator {
                 selectedDiskInfo.mountPoint(),
                 selectedDiskInfo.storageType(),
                 availableStorageTypes);
+        workerDiskIndex.put(selectedWorker, (diskIndex + 1) % usableDiskInfos.size());
       }
-      workerDiskIndex.put(selectedWorker, (diskIndex + 1) % usableDiskInfos.size());
     } else {
       if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
         DiskInfo[] diskInfos =
@@ -306,7 +306,8 @@ public class SlotsAllocator {
                 availableStorageTypes);
       } else {
         if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
-          while (!haveDisk(workers, nextPrimaryInd)) {
+          while (!workers.get(nextPrimaryInd).haveDisk()) {
+            // !haveDisk(workers, nextPrimaryInd)) {
             nextPrimaryInd = (nextPrimaryInd + 1) % workers.size();
             if (nextPrimaryInd == primaryIndex) {
               break outer;
@@ -346,7 +347,7 @@ public class SlotsAllocator {
           }
         } else {
           if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
-            while (!haveDisk(workers, nextPrimaryInd)) {
+            while (!workers.get(nextPrimaryInd).haveDisk()) {
               nextPrimaryInd = (nextPrimaryInd + 1) % workers.size();
               if (nextPrimaryInd == primaryIndex) {
                 break outer;
@@ -381,13 +382,6 @@ public class SlotsAllocator {
   private static boolean haveUsableSlots(
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions, List<WorkerInfo> workers, int index) {
     return restrictions.get(workers.get(index)).stream().mapToLong(i -> i.usableSlots).sum() > 0;
-  }
-
-  private static boolean haveDisk(List<WorkerInfo> workers, int index) {
-    return !workers.get(index).diskInfos().entrySet().stream()
-        .filter(p -> !(p.getValue().storageType() == StorageInfo.Type.HDFS))
-        .collect(Collectors.toList())
-        .isEmpty();
   }
 
   private static boolean satisfyRackAware(

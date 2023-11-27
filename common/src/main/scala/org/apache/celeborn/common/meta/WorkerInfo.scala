@@ -240,6 +240,11 @@ class WorkerInfo(
     result = 31 * result + replicatePort.hashCode()
     result
   }
+
+  def haveDisk(): Boolean = {
+    diskInfos.values().asScala.exists(p =>
+      p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
+  }
 }
 
 object WorkerInfo {
