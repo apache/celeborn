@@ -21,7 +21,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.time.Duration;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,6 +34,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
+import org.apache.celeborn.common.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +93,7 @@ public class TransportClientFactory implements Closeable {
       TransportContext context, List<TransportClientBootstrap> clientBootstraps) {
     this.context = Preconditions.checkNotNull(context);
     TransportConf conf = context.getConf();
-    this.clientBootstraps = Arrays.asList(Preconditions.checkNotNull(clientBootstraps));
+    this.clientBootstraps = Lists.newArrayList(Preconditions.checkNotNull(clientBootstraps));
     this.connectionPool = JavaUtils.newConcurrentHashMap();
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.connectTimeoutMs = conf.connectTimeoutMs();
@@ -269,20 +269,17 @@ public class TransportClientFactory implements Closeable {
         clientBootstrap.doBootstrap(client, channel);
       }
     } catch (Exception e) { // catch non-RuntimeExceptions too as bootstrap may be written in Scala
-      long bootstrapTimeMs = Duration.ofNanos(System.nanoTime() - preBootstrap).toMillis();
-      logger.error("Exception while bootstrapping client after " + Utils.msDurationToString(bootstrapTimeMs), e);
+      long bootstrapTime = System.nanoTime() - preBootstrap;
+      logger.error("Exception while bootstrapping client after " + Utils.nanoDurationToString(bootstrapTime), e);
       client.close();
       throw Throwables.propagate(e);
     }
     long postBootstrap = System.nanoTime();
-    logger.info(
+    logger.debug(
         "Successfully created connection to {} after {} ({} spent in bootstraps)",
         address,
-        Duration.ofNanos(postBootstrap - preConnect).toMillis(),
-        Duration.ofNanos(postBootstrap - preBootstrap).toMillis());
-
-    logger.debug(
-        "Connection from {} to {} successful", client.getChannel().localAddress(), address);
+        Utils.nanoDurationToString(postBootstrap - preConnect),
+        Utils.nanoDurationToString(postBootstrap - preBootstrap));
 
     return client;
   }
