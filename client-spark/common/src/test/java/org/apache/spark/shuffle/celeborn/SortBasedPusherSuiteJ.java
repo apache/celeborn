@@ -22,11 +22,15 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Properties;
 import java.util.UUID;
 
 import scala.collection.mutable.ListBuffer;
 
 import org.apache.spark.SparkConf;
+import org.apache.spark.TaskContext;
+import org.apache.spark.TaskContextImpl;
+import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.memory.UnifiedMemoryManager;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -58,6 +62,22 @@ public class SortBasedPusherSuiteJ {
   private final TaskMemoryManager taskMemoryManager =
       new TaskMemoryManager(unifiedMemoryManager, 0);
 
+  // first attempt -- its successful
+  private final TaskContext taskContext =
+      new TaskContextImpl(
+          0,
+          0,
+          0,
+          0L,
+          0,
+          1,
+          taskMemoryManager,
+          new Properties(),
+          null,
+          TaskMetrics.empty(),
+          1,
+          null);
+
   private final File tempFile = new File(tempDir, UUID.randomUUID().toString());
   private static File tempDir = null;
 
@@ -82,7 +102,7 @@ public class SortBasedPusherSuiteJ {
         new SortBasedPusher(
             taskMemoryManager,
             /*shuffleClient=*/ client,
-            /*taskContext=*/ null,
+            /*taskContext=*/ taskContext,
             /*shuffleId=*/ 0,
             /*mapId=*/ 0,
             /*attemptNumber=*/ 0,
@@ -126,6 +146,8 @@ public class SortBasedPusherSuiteJ {
             row5k.getBaseObject(), row5k.getBaseOffset(), row5k.getSizeInBytes(), 0, true));
 
     pusher.close();
+
+    assertEquals(taskContext.taskMetrics().memoryBytesSpilled(), 2097152);
   }
 
   private static UnsafeRow genUnsafeRow(int size) {
