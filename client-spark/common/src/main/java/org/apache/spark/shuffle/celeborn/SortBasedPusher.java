@@ -442,11 +442,15 @@ public class SortBasedPusher extends MemoryConsumer {
   }
 
   public void cleanupResources() {
-    freeMemory();
+    long freedBytes = freeMemory();
     if (inMemSorter != null) {
       inMemSorter.freeMemory();
       inMemSorter = null;
     }
+    // Reset the in-memory sorter's pointer array only after freeing up the memory pages holding
+    // the records. Otherwise, if the task is over allocated memory, then without freeing the
+    // memory pages, we might not be able to get memory for the pointer array.
+    taskContext.taskMetrics().incMemoryBytesSpilled(freedBytes);
   }
 
   public void close() throws IOException {
