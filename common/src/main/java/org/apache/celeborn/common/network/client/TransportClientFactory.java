@@ -270,7 +270,7 @@ public class TransportClientFactory implements Closeable {
       }
     } catch (Exception e) { // catch non-RuntimeExceptions too as bootstrap may be written in Scala
       long bootstrapTimeMs = Duration.ofNanos(System.nanoTime() - preBootstrap).toMillis();
-      logger.error("Exception while bootstrapping client after " + bootstrapTimeMs + " ms", e);
+      logger.error("Exception while bootstrapping client after " + Utils.msDurationToString(bootstrapTimeMs), e);
       client.close();
       throw Throwables.propagate(e);
     }
