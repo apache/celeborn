@@ -1680,7 +1680,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     shuffleIdCache.clear();
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
-
     logger.warn("Shuffle client has been shutdown!");
   }
 
