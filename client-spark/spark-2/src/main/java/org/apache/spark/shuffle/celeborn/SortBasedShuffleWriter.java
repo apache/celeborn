@@ -134,6 +134,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             new SortBasedPusher(
                 taskContext.taskMemoryManager(),
                 shuffleClient,
+                taskContext,
                 shuffleId,
                 mapId,
                 taskContext.attemptNumber(),
@@ -154,6 +155,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           new SortBasedPusher(
               taskContext.taskMemoryManager(),
               shuffleClient,
+              taskContext,
               shuffleId,
               mapId,
               taskContext.attemptNumber(),
