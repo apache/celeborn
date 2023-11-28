@@ -182,7 +182,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
-      int blockSize = conf.clientPushBufferMaxSize();
+      int blockSize = conf.clientFetchBufferMaxSize();
       if (shuffleCompressionEnabled) {
         int headerLen = Decompressor.getCompressionHeaderLength(conf);
         blockSize += headerLen;
