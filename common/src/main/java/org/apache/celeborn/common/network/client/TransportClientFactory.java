@@ -276,7 +276,7 @@ public class TransportClientFactory implements Closeable {
     }
     long postBootstrap = System.nanoTime();
     logger.info(
-        "Successfully created connection to {} after {} ms ({} ms spent in bootstraps)",
+        "Successfully created connection to {} after {} ({} spent in bootstraps)",
         address,
         Duration.ofNanos(postBootstrap - preConnect).toMillis(),
         Duration.ofNanos(postBootstrap - preBootstrap).toMillis());
