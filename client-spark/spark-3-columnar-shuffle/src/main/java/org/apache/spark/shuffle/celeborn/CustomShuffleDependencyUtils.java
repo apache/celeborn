@@ -17,6 +17,9 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.io.IOException;
+import java.util.Arrays;
+
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
