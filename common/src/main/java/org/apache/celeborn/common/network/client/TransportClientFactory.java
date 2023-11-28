@@ -34,7 +34,6 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
-import org.apache.celeborn.common.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +42,7 @@ import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
 import org.apache.celeborn.common.network.util.*;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.Utils;
 
 /**
  * Factory for creating {@link TransportClient}s by using createClient.
@@ -270,7 +270,9 @@ public class TransportClientFactory implements Closeable {
       }
     } catch (Exception e) { // catch non-RuntimeExceptions too as bootstrap may be written in Scala
       long bootstrapTime = System.nanoTime() - preBootstrap;
-      logger.error("Exception while bootstrapping client after " + Utils.nanoDurationToString(bootstrapTime), e);
+      logger.error(
+          "Exception while bootstrapping client after " + Utils.nanoDurationToString(bootstrapTime),
+          e);
       client.close();
       throw Throwables.propagate(e);
     }
