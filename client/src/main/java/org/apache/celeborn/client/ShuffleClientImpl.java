@@ -1676,6 +1676,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (null != lifecycleManagerRef) {
       lifecycleManagerRef = null;
     }
+
+    shuffleIdCache.clear();
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
     logger.warn("Shuffle client has been shutdown!");
