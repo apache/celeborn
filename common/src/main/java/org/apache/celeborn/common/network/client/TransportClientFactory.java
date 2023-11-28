@@ -93,7 +93,7 @@ public class TransportClientFactory implements Closeable {
       TransportContext context, List<TransportClientBootstrap> clientBootstraps) {
     this.context = Preconditions.checkNotNull(context);
     TransportConf conf = context.getConf();
-    this.clientBootstraps = Lists.newArrayList(Preconditions.checkNotNull(clientBootstraps));
+    this.clientBootstraps = Arrays.asList(Preconditions.checkNotNull(clientBootstraps));
     this.connectionPool = JavaUtils.newConcurrentHashMap();
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.connectTimeoutMs = conf.connectTimeoutMs();
@@ -263,20 +263,20 @@ public class TransportClientFactory implements Closeable {
 
     // Execute any client bootstraps synchronously before marking the Client as successful.
     long preBootstrap = System.nanoTime();
-    logger.debug("Connection to {} successful, running bootstraps...", address);
+    logger.debug("Running bootstraps for {} ...", address);
     try {
       for (TransportClientBootstrap clientBootstrap : clientBootstraps) {
         clientBootstrap.doBootstrap(client, channel);
       }
     } catch (Exception e) { // catch non-RuntimeExceptions too as bootstrap may be written in Scala
       long bootstrapTimeMs = Duration.ofNanos(System.nanoTime() - preBootstrap).toMillis();
-      logger.error("Exception while bootstrapping client after " + bootstrapTimeMs + " ms", e);
+      logger.error("Exception while bootstrapping client after " + Utils.msDurationToString(bootstrapTimeMs), e);
       client.close();
       throw Throwables.propagate(e);
     }
     long postBootstrap = System.nanoTime();
     logger.info(
-        "Successfully created connection to {} after {} ms ({} ms spent in bootstraps)",
+        "Successfully created connection to {} after {} ({} spent in bootstraps)",
         address,
         Duration.ofNanos(postBootstrap - preConnect).toMillis(),
         Duration.ofNanos(postBootstrap - preBootstrap).toMillis());
