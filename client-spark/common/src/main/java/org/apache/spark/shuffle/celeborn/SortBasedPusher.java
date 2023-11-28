@@ -24,6 +24,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
+import org.apache.spark.TaskContext;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.SparkOutOfMemoryError;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -57,6 +58,7 @@ public class SortBasedPusher extends MemoryConsumer {
   private long pageCursor = -1;
 
   private final ShuffleClient shuffleClient;
+  private final TaskContext taskContext;
   private DataPusher dataPusher;
   private final int pushBufferMaxSize;
   private final long pushSortMemoryThreshold;
@@ -78,6 +80,7 @@ public class SortBasedPusher extends MemoryConsumer {
   public SortBasedPusher(
       TaskMemoryManager memoryManager,
       ShuffleClient shuffleClient,
+      TaskContext taskContext,
       int shuffleId,
       int mapId,
       int attemptNumber,
@@ -97,6 +100,7 @@ public class SortBasedPusher extends MemoryConsumer {
         memoryManager.getTungstenMemoryMode());
 
     this.shuffleClient = shuffleClient;
+    this.taskContext = taskContext;
 
     this.shuffleId = shuffleId;
     this.mapId = mapId;
@@ -213,6 +217,10 @@ public class SortBasedPusher extends MemoryConsumer {
 
       long freedBytes = freeMemory();
       inMemSorter.freeMemory();
+      // Reset the in-memory sorter's pointer array only after freeing up the memory pages holding the
+      // records. Otherwise, if the task is over allocated memory, then without freeing the memory
+      // pages, we might not be able to get memory for the pointer array.
+      taskContext.taskMetrics().incMemoryBytesSpilled(freedBytes);
 
       return freedBytes;
     }
