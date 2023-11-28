@@ -22,14 +22,13 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Properties;
 import java.util.UUID;
 
 import scala.collection.mutable.ListBuffer;
 
 import org.apache.spark.SparkConf;
+import org.apache.spark.TaskContext$;
 import org.apache.spark.TaskContextImpl;
-import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.memory.UnifiedMemoryManager;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -61,20 +60,7 @@ public class SortBasedPusherSuiteJ {
   private final TaskMemoryManager taskMemoryManager =
       new TaskMemoryManager(unifiedMemoryManager, 0);
 
-  private final TaskContextImpl taskContext =
-      new TaskContextImpl(
-          0,
-          0,
-          0,
-          0L,
-          0,
-          1,
-          taskMemoryManager,
-          new Properties(),
-          null,
-          TaskMetrics.empty(),
-          1,
-          null);
+  private final TaskContextImpl taskContext = TaskContext$.MODULE$.empty();
 
   private final File tempFile = new File(tempDir, UUID.randomUUID().toString());
   private static File tempDir = null;
