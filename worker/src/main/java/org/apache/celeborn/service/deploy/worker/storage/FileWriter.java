@@ -234,7 +234,8 @@ public abstract class FileWriter implements DeviceObserver {
   public StorageInfo getStorageInfo() {
     if (flusher instanceof LocalFlusher) {
       LocalFlusher localFlusher = (LocalFlusher) flusher;
-      return new StorageInfo(localFlusher.diskType(), localFlusher.mountPoint(), true);
+      // do not write file path to reduce rpc size
+      return new StorageInfo(localFlusher.diskType(), true, "");
     } else {
       if (deleted) {
         return null;

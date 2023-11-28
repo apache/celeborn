@@ -63,14 +63,17 @@ object PbSerDeUtils {
       .setMinor(minor)
       .build.toByteArray
 
-  def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfo =
-    new DiskInfo(
+  def fromPbDiskInfo(pbDiskInfo: PbDiskInfo): DiskInfo = {
+    val diskInfo = new DiskInfo(
       pbDiskInfo.getMountPoint,
       pbDiskInfo.getUsableSpace,
       pbDiskInfo.getAvgFlushTime,
       pbDiskInfo.getAvgFetchTime,
       pbDiskInfo.getUsedSlots)
       .setStatus(Utils.toDiskStatus(pbDiskInfo.getStatus))
+    diskInfo.setStorageType(StorageInfo.typesMap.get(pbDiskInfo.getStorageType))
+    diskInfo
+  }
 
   def toPbDiskInfo(diskInfo: DiskInfo): PbDiskInfo =
     PbDiskInfo.newBuilder
@@ -80,6 +83,7 @@ object PbSerDeUtils {
       .setAvgFetchTime(diskInfo.avgFetchTime)
       .setUsedSlots(diskInfo.activeSlots)
       .setStatus(diskInfo.status.getValue)
+      .setStorageType(diskInfo.storageType.getValue)
       .build
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo): FileInfo =

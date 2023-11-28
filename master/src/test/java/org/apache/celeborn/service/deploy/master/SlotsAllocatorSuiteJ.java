@@ -17,15 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 import scala.Option;
 import scala.Tuple2;
@@ -294,16 +286,34 @@ public class SlotsAllocatorSuiteJ {
       List<WorkerInfo> workers,
       List<Integer> partitionIds,
       boolean shouldReplicate,
-      boolean expectSuccess) {
+      boolean expectSuccess,
+      boolean roundrobin) {
     String shuffleKey = "appId-1";
     CelebornConf conf = new CelebornConf();
     conf.set("celeborn.active.storage.levels", "HDFS");
-    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(
-            workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
-
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
+    if (roundrobin) {
+      slots =
+          SlotsAllocator.offerSlotsRoundRobin(
+              workers, partitionIds, shouldReplicate, false, StorageInfo.HDFS_MASK);
+    } else {
+      slots =
+          SlotsAllocator.offerSlotsLoadAware(
+              workers,
+              partitionIds,
+              shouldReplicate,
+              false,
+              1000_000_000,
+              Option.empty(),
+              3,
+              0.1,
+              0,
+              1,
+              StorageInfo.LOCAL_DISK_MASK | StorageInfo.HDFS_MASK);
+    }
     int allocatedPartitionCount = 0;
-
+    Map<WorkerInfo, Map<String, Integer>> slotsDistribution =
+        SlotsAllocator.slotsToDiskAllocations(slots);
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         workerToPartitions : slots.entrySet()) {
       WorkerInfo workerInfo = workerToPartitions.getKey();
@@ -332,7 +342,86 @@ public class SlotsAllocatorSuiteJ {
       partitionIds.add(i);
     }
     final boolean shouldReplicate = true;
-    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true);
+    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true, true);
+  }
+
+  @Test
+  public void testLocalDisksAndHDFSOnRoundRobin() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    DiskInfo hdfs1 =
+        new DiskInfo(
+            "HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.HDFS);
+    DiskInfo hdfs2 =
+        new DiskInfo(
+            "HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.HDFS);
+    DiskInfo hdfs3 =
+        new DiskInfo(
+            "HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.HDFS);
+    hdfs1.maxSlots_$eq(Long.MAX_VALUE);
+    hdfs2.maxSlots_$eq(Long.MAX_VALUE);
+    hdfs3.maxSlots_$eq(Long.MAX_VALUE);
+    workers.get(0).diskInfos().put("HDFS", hdfs1);
+    workers.get(1).diskInfos().put("HDFS", hdfs2);
+    workers.get(2).diskInfos().put("HDFS", hdfs3);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true, true);
+  }
+
+  @Test
+  public void testLocalDisksAndHDFSOnLoadAware() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    DiskInfo hdfs1 =
+        new DiskInfo(
+            "HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.HDFS);
+    DiskInfo hdfs2 =
+        new DiskInfo(
+            "HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.HDFS);
+    //    DiskInfo hdfs3 = new DiskInfo("HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE,
+    // StorageInfo.Type.HDFS);
+    hdfs1.maxSlots_$eq(Long.MAX_VALUE);
+    hdfs2.maxSlots_$eq(Long.MAX_VALUE);
+    //    hdfs3.maxSlots_$eq(Long.MAX_VALUE);
+    workers.get(0).diskInfos().put("HDFS", hdfs1);
+    workers.get(1).diskInfos().put("HDFS", hdfs2);
+    //    workers.get(2).diskInfos().put("HDFS", hdfs3);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true, false);
+  }
+
+  @Test
+  public void testLocalDisksAndHDFSOnLoadAwareWithInsufficientSlots() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    DiskInfo hdfs1 =
+        new DiskInfo(
+            "HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.HDFS);
+    DiskInfo hdfs2 =
+        new DiskInfo(
+            "HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.HDFS);
+    //    DiskInfo hdfs3 = new DiskInfo("HDFS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE,
+    // StorageInfo.Type.HDFS);
+    hdfs1.maxSlots_$eq(Long.MAX_VALUE);
+    hdfs2.maxSlots_$eq(Long.MAX_VALUE);
+    //    hdfs3.maxSlots_$eq(Long.MAX_VALUE);
+    workers.get(0).diskInfos().put("HDFS", hdfs1);
+    workers.get(1).diskInfos().put("HDFS", hdfs2);
+    for (Map.Entry<String, DiskInfo> diskEntry : workers.get(2).diskInfos().entrySet()) {
+      diskEntry.getValue().maxSlots_$eq(100);
+    }
+    //    workers.get(2).diskInfos().put("HDFS", hdfs3);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnHDFS(workers, partitionIds, shouldReplicate, true, false);
   }
 
   @Test

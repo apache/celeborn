@@ -687,7 +687,7 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workers.synchronized {
-          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE && !hasHDFSStorage) {
+          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
             SlotsAllocator.offerSlotsLoadAware(
               selectedWorkers,
               requestSlots.partitionIdList,

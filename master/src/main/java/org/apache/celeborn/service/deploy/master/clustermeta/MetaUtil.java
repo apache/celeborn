@@ -24,6 +24,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.identity.UserIdentifier$;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.Utils;
 
@@ -61,7 +62,8 @@ public class MetaUtil {
                   v.getUsableSpace(),
                   v.getAvgFlushTime(),
                   v.getAvgFetchTime(),
-                  v.getUsedSlots());
+                  v.getUsedSlots(),
+                  StorageInfo.typesMap.get(v.getStorageType()));
           diskInfo.setStatus(Utils.toDiskStatus(v.getStatus()));
           map.put(k, diskInfo);
         });
@@ -81,6 +83,7 @@ public class MetaUtil {
                     .setAvgFlushTime(v.avgFlushTime())
                     .setAvgFetchTime(v.avgFetchTime())
                     .setUsedSlots(v.activeSlots())
+                    .setStorageType(v.storageType().getValue())
                     .setStatus(v.status().getValue())
                     .build()));
     return map;

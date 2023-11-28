@@ -137,6 +137,7 @@ message PbDiskInfo {
   int64 usedSlots = 4;
   int32 status = 5;
   int64 avgFetchTime = 6;
+  int32 storageType = 7;
 }
 
 message PbWorkerInfo {
