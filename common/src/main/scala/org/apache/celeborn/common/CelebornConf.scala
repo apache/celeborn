@@ -3216,7 +3216,6 @@ object CelebornConf extends Logging {
 
   val CLIENT_FETCH_BUFFER_MAX_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.buffer.max.size")
-      .withAlternative("celeborn.fetch.buffer.max.size")
       .categories("client")
       .version("0.4.0")
       .doc("Max size of reducer partition buffer memory for shuffle reader.")
