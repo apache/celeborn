@@ -263,7 +263,7 @@ public class TransportClientFactory implements Closeable {
 
     // Execute any client bootstraps synchronously before marking the Client as successful.
     long preBootstrap = System.nanoTime();
-    logger.debug("Connection to {} successful, running bootstraps...", address);
+    logger.debug("Running bootstraps for {} ...", address);
     try {
       for (TransportClientBootstrap clientBootstrap : clientBootstraps) {
         clientBootstrap.doBootstrap(client, channel);
