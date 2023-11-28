@@ -70,6 +70,14 @@ license: |
 | celeborn.worker.graceful.shutdown.timeout | 600s | The worker's graceful shutdown timeout time. | 0.2.0 | 
 | celeborn.worker.http.host | &lt;localhost&gt; | Worker's http host. | 0.4.0 | 
 | celeborn.worker.http.port | 9096 | Worker's http port. | 0.4.0 | 
+| celeborn.worker.jvmQuake.check.interval | 1s | Interval of gc behavior checking for worker jvm quake. | 0.4.0 | 
+| celeborn.worker.jvmQuake.dump.enabled | true | Whether to heap dump for the maximum GC 'deficit' during worker jvm quake. | 0.4.0 | 
+| celeborn.worker.jvmQuake.dump.path | &lt;tmp&gt;/jvm-quake/dump/&lt;pid&gt; | The path of heap dump for the maximum GC 'deficit' during worker jvm quake. | 0.4.0 | 
+| celeborn.worker.jvmQuake.dump.threshold | 30s | The threshold of heap dump for the maximum GC 'deficit' which can be accumulated before jvmquake takes action. Meanwhile, there is no heap dump generated when dump threshold is greater than kill threshold. | 0.4.0 | 
+| celeborn.worker.jvmQuake.enabled | false | When true, Celeborn worker will start the jvm quake to monitor of gc behavior, which enables early detection of memory management issues and facilitates fast failure. | 0.4.0 | 
+| celeborn.worker.jvmQuake.exitCode | 502 | The exit code of system kill for the maximum GC 'deficit' during worker jvm quake. | 0.4.0 | 
+| celeborn.worker.jvmQuake.kill.threshold | 60s | The threshold of system kill for the maximum GC 'deficit' which can be accumulated before jvmquake takes action. | 0.4.0 | 
+| celeborn.worker.jvmQuake.runtimeWeight | 5.0 | The factor by which to multiply running JVM time, when weighing it against GCing time. 'Deficit' is accumulated as `gc_time - runtime * runtime_weight`, and is compared against threshold to determine whether to take action. | 0.4.0 | 
 | celeborn.worker.monitor.disk.check.interval | 30s | Intervals between device monitor to check disk. | 0.3.0 | 
 | celeborn.worker.monitor.disk.check.timeout | 30s | Timeout time for worker check device status. | 0.3.0 | 
 | celeborn.worker.monitor.disk.checklist | readwrite,diskusage | Monitor type for disk, available items are: iohang, readwrite and diskusage. | 0.2.0 | 

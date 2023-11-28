@@ -50,6 +50,7 @@ object Dependencies {
   val junitVersion = "4.13.2"
   val leveldbJniVersion = "1.8"
   val log4j2Version = "2.17.2"
+  val jdkToolsVersion = "0.1"
   val metricsVersion = "3.2.6"
   val mockitoVersion = "4.11.0"
   val nettyVersion = "4.1.93.Final"
@@ -71,6 +72,7 @@ object Dependencies {
   val commonsIo = "commons-io" % "commons-io" % commonsIoVersion
   val commonsLang3 = "org.apache.commons" % "commons-lang3" % commonsLang3Version
   val commonsLogging = "commons-logging" % "commons-logging" % commonsLoggingVersion
+  val jdkTools = "com.github.olivergondza" % "maven-jdk-tools-wrapper" % jdkToolsVersion
   val findbugsJsr305 = "com.google.code.findbugs" % "jsr305" % findbugsVersion
   val guava = "com.google.guava" % "guava" % guavaVersion excludeAll(
     ExclusionRule("org.checkerframework", "checker-qual"),
@@ -167,6 +169,7 @@ object CelebornCommonSettings {
     Test / javaOptions ++= Seq(
       "-Xmx4g",
       "-XX:+IgnoreUnrecognizedVMOptions",
+      "--add-exports=jdk.internal.jvmstat/sun.jvmstat.monitor=ALL-UNNAMED",
       "--add-opens=java.base/java.lang=ALL-UNNAMED",
       "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
       "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
@@ -322,6 +325,7 @@ object CelebornCommon {
         Dependencies.commonsLang3,
         Dependencies.hadoopClientApi,
         Dependencies.hadoopClientRuntime,
+        Dependencies.jdkTools,
         Dependencies.ratisClient,
         Dependencies.ratisCommon,
         Dependencies.leveldbJniAll,

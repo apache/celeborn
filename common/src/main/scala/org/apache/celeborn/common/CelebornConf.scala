@@ -689,6 +689,21 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
   def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
+  def workerJvmQuakeEnabled: Boolean = get(WORKER_JVM_QUAKE_ENABLED)
+  def workerJvmQuakeCheckInterval: Long = get(WORKER_JVM_QUAKE_CHECK_INTERVAL)
+  def workerJvmQuakeRuntimeWeight: Double = get(WORKER_JVM_QUAKE_RUNTIME_WEIGHT)
+  def workerJvmQuakeDumpEnabled: Boolean = get(WORKER_JVM_QUAKE_DUMP_ENABLED)
+  def workerJvmQuakeDumpPath: String = get(WORKER_JVM_QUAKE_DUMP_PATH)
+
+  def workerJvmQuakeDumpThreshold: Duration =
+    getTimeAsMs(
+      WORKER_JVM_QUAKE_DUMP_THRESHOLD.key,
+      WORKER_JVM_QUAKE_DUMP_THRESHOLD.defaultValueString).microsecond
+  def workerJvmQuakeKillThreshold: Duration =
+    getTimeAsMs(
+      WORKER_JVM_QUAKE_KILL_THRESHOLD.key,
+      WORKER_JVM_QUAKE_KILL_THRESHOLD.defaultValueString).microsecond
+  def workerJvmQuakeExitCode: Int = get(WORKER_JVM_QUAKE_EXIT_CODE)
 
   // //////////////////////////////////////////////////////
   //                 Metrics System                      //
@@ -2895,6 +2910,77 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .longConf
       .createOptional
+
+  val WORKER_JVM_QUAKE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.jvmQuake.enabled")
+      .categories("worker")
+      .version("0.4.0")
+      .doc("When true, Celeborn worker will start the jvm quake to monitor of gc behavior, " +
+        "which enables early detection of memory management issues and facilitates fast failure.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_JVM_QUAKE_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.jvmQuake.check.interval")
+      .categories("worker")
+      .version("0.4.0")
+      .doc("Interval of gc behavior checking for worker jvm quake.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
+
+  val WORKER_JVM_QUAKE_RUNTIME_WEIGHT: ConfigEntry[Double] =
+    buildConf("celeborn.worker.jvmQuake.runtimeWeight")
+      .categories("worker")
+      .version("0.4.0")
+      .doc(
+        "The factor by which to multiply running JVM time, when weighing it against GCing time. " +
+          "'Deficit' is accumulated as `gc_time - runtime * runtime_weight`, and is compared against threshold " +
+          "to determine whether to take action.")
+      .doubleConf
+      .createWithDefault(5)
+
+  val WORKER_JVM_QUAKE_DUMP_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.worker.jvmQuake.dump.threshold")
+      .categories("worker")
+      .version("0.4.0")
+      .doc("The threshold of heap dump for the maximum GC 'deficit' which can be accumulated before jvmquake takes action. " +
+        "Meanwhile, there is no heap dump generated when dump threshold is greater than kill threshold.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val WORKER_JVM_QUAKE_KILL_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.worker.jvmQuake.kill.threshold")
+      .categories("worker")
+      .version("0.4.0")
+      .doc("The threshold of system kill for the maximum GC 'deficit' which can be accumulated before jvmquake takes action.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
+
+  val WORKER_JVM_QUAKE_DUMP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.jvmQuake.dump.enabled")
+      .categories("worker")
+      .version("0.4.0")
+      .doc("Whether to heap dump for the maximum GC 'deficit' during worker jvm quake.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val WORKER_JVM_QUAKE_DUMP_PATH: ConfigEntry[String] =
+    buildConf("celeborn.worker.jvmQuake.dump.path")
+      .categories("worker")
+      .version("0.4.0")
+      .doc("The path of heap dump for the maximum GC 'deficit' during worker jvm quake.")
+      .stringConf
+      .transform(_.replace("<tmp>", System.getProperty("java.io.tmpdir"))
+        .replace("<pid>", Utils.getProcessId))
+      .createWithDefault(s"<tmp>/jvm-quake/dump/<pid>")
+
+  val WORKER_JVM_QUAKE_EXIT_CODE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.jvmQuake.exitCode")
+      .categories("worker")
+      .version("0.4.0")
+      .doc("The exit code of system kill for the maximum GC 'deficit' during worker jvm quake.")
+      .intConf
+      .createWithDefault(502)
 
   val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.application.heartbeatInterval")

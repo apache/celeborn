@@ -122,6 +122,7 @@
 
     <!-- for JDK-17 test-->
     <extraJavaTestArgs>-XX:+IgnoreUnrecognizedVMOptions
+      --add-exports=jdk.internal.jvmstat/sun.jvmstat.monitor=ALL-UNNAMED
       --add-opens=java.base/java.lang=ALL-UNNAMED
       --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
       --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
@@ -1156,6 +1157,13 @@
       <properties>
         <java.version>8</java.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.github.olivergondza</groupId>
+          <artifactId>maven-jdk-tools-wrapper</artifactId>
+          <version>0.1</version>
+        </dependency>
+      </dependencies>
       <build>
         <plugins>
           <!-- Based on https://github.com/google/error-prone/blob/f8e33bc460be82ab22256a7ef8b979d7a2cacaba/docs/installation.md#jdk-8 -->

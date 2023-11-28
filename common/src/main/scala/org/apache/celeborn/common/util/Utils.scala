@@ -1091,4 +1091,6 @@ object Utils extends Logging {
     }
     labelPart(0).trim -> labelPart(1).trim
   }
+
+  def getProcessId: String = ManagementFactory.getRuntimeMXBean.getName.split("@")(0)
 }
