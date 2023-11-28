@@ -28,7 +28,6 @@ import java.util.UUID;
 import scala.collection.mutable.ListBuffer;
 
 import org.apache.spark.SparkConf;
-import org.apache.spark.TaskContext;
 import org.apache.spark.TaskContextImpl;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
