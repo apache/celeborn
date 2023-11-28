@@ -63,7 +63,7 @@ public class SortBasedPusherSuiteJ {
       new TaskMemoryManager(unifiedMemoryManager, 0);
 
   // first attempt -- its successful
-  private final TaskContext taskContext =
+  private final TaskContextImpl taskContext =
       new TaskContextImpl(
           0,
           0,
