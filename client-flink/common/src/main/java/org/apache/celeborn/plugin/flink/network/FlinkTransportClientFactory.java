@@ -18,6 +18,7 @@
 package org.apache.celeborn.plugin.flink.network;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -39,7 +40,7 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
   private final int fetchMaxRetries;
 
   public FlinkTransportClientFactory(TransportContext context, int fetchMaxRetries) {
-    super(context);
+    super(context, Collections.emptyList());
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
     this.fetchMaxRetries = fetchMaxRetries;
     this.pooledAllocator = new UnpooledByteBufAllocator(true);
