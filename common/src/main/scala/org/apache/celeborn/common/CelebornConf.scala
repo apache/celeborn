@@ -778,7 +778,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
-  def clientFetchBufferMaxSize: Int = get(CLIENT_FETCH_BUFFER_MAX_SIZE).toInt
+  def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientFetchThrowsFetchFailure: Boolean = get(CLIENT_FETCH_THROWS_FETCH_FAILURE)
@@ -3214,11 +3214,13 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 
-  val CLIENT_FETCH_BUFFER_MAX_SIZE: ConfigEntry[Long] =
-    buildConf("celeborn.client.fetch.buffer.max.size")
+  val CLIENT_FETCH_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.buffer.size")
       .categories("client")
       .version("0.4.0")
-      .doc("Max size of reducer partition buffer memory for shuffle reader.")
+      .doc("Size of reducer partition buffer memory for shuffle reader. The fetched data " +
+        "will be buffered in memory before consuming. For performance consideration keep " +
+        s"this buffer size not less than `${CLIENT_PUSH_BUFFER_MAX_SIZE.key}`.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64k")
 
