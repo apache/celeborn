@@ -119,14 +119,6 @@ public class TransportContext {
     return createServer(null, port, Collections.emptyList());
   }
 
-  public TransportServer createServer(int port, List<TransportServerBootstrap> bootstraps) {
-    return createServer(null, port, bootstraps);
-  }
-
-  public TransportServer createServer(List<TransportServerBootstrap> bootstraps) {
-    return createServer(0, bootstraps);
-  }
-
   /** For Suite only */
   public TransportServer createServer() {
     return createServer(null, 0, Collections.emptyList());
