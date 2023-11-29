@@ -131,7 +131,7 @@ jobs:
         SPARK_BINARY_VERSION=${{ matrix.spark }}
         SPARK_MAJOR_VERSION=${SPARK_BINARY_VERSION%%.*}
         PROFILES="-Pgoogle-mirror,spark-${{ matrix.spark }}"
-        TEST_MODULES="client-spark/common,client-spark/spark-${SPARK_MAJOR_VERSION},client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it"
+        TEST_MODULES="client-spark/common,client-spark/spark-${SPARK_MAJOR_VERSION},client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it,tests/spark-columnar-shuffle-it"
         build/mvn $PROFILES -pl $TEST_MODULES -am clean install -DskipTests
         build/mvn $PROFILES -pl $TEST_MODULES -Dspark.shuffle.sort.io.plugin.class=${{ matrix.shuffle-plugin-class }} test
     - name: Upload test log
