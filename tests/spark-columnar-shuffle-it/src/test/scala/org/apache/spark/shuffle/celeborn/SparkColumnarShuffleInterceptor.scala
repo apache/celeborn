@@ -42,7 +42,8 @@ object SparkColumnarShuffleInterceptor {
 
     // first, we inject the `schema` field for the class `org.apache.spark.ShuffleDependency`
     val shuffleDependencyClz = new ByteBuddy()
-      .redefine(typePool.describe("org.apache.spark.ShuffleDependency").resolve(), // do not use 'Bar.class'
+      // do not use 'ShuffleDependency.class'
+      .redefine(typePool.describe("org.apache.spark.ShuffleDependency").resolve(),
         ClassFileLocator.ForClassLoader.ofSystemLoader())
       .defineField("schema", classOf[org.apache.spark.sql.types.StructType], Visibility.PUBLIC)
       .make()
@@ -82,7 +83,7 @@ object SparkColumnarShuffleInterceptor {
     // third, intercept the return value of function `ShuffleExchangeExec$.prepareShuffleDependency`
     // and return a new value with `schema`.
     new ByteBuddy()
-      .rebase(typePool.describe("org.apache.spark.sql.execution.exchange.ShuffleExchangeExec$").resolve(), // do not use 'Bar.class'
+      .rebase(typePool.describe("org.apache.spark.sql.execution.exchange.ShuffleExchangeExec$").resolve(),
         ClassFileLocator.ForClassLoader.ofSystemLoader())
       .method(ElementMatchers.named("prepareShuffleDependency"))
       .intercept(MethodDelegation.to(classOf[JavaShuffleExchangeExecInterceptor]))
