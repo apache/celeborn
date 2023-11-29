@@ -19,15 +19,15 @@ package org.apache.spark.shuffle.celeborn
 
 import java.util.{Arrays, List => JList}
 
-import net.bytebuddy.agent.ByteBuddyAgent
-import net.bytebuddy.dynamic.loading.{ClassLoadingStrategy, ClassReloadingStrategy}
-import net.bytebuddy.pool.TypePool
 import net.bytebuddy.ByteBuddy
+import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.description.modifier.Visibility
 import net.bytebuddy.dynamic.ClassFileLocator
+import net.bytebuddy.dynamic.loading.{ClassLoadingStrategy, ClassReloadingStrategy}
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy
 import net.bytebuddy.implementation.{FieldAccessor, MethodCall, MethodDelegation}
 import net.bytebuddy.matcher.ElementMatchers
+import net.bytebuddy.pool.TypePool
 import org.apache.spark.util.Utils
 
 object SparkColumnarShuffleInterceptor {
@@ -43,7 +43,8 @@ object SparkColumnarShuffleInterceptor {
     // first, we inject the `schema` field for the class `org.apache.spark.ShuffleDependency`
     val shuffleDependencyClz = new ByteBuddy()
       // do not use 'ShuffleDependency.class'
-      .redefine(typePool.describe("org.apache.spark.ShuffleDependency").resolve(),
+      .redefine(
+        typePool.describe("org.apache.spark.ShuffleDependency").resolve(),
         ClassFileLocator.ForClassLoader.ofSystemLoader())
       .defineField("schema", classOf[org.apache.spark.sql.types.StructType], Visibility.PUBLIC)
       .make()
@@ -65,7 +66,8 @@ object SparkColumnarShuffleInterceptor {
       classOf[scala.reflect.ClassTag[_]],
       classOf[scala.reflect.ClassTag[_]],
       classOf[scala.reflect.ClassTag[_]])
-    val parameterTypes: JList[Class[_]] = Arrays.asList[Class[_]](columnarShuffleDependencyConstructorParameterTypes: _*)
+    val parameterTypes: JList[Class[_]] =
+      Arrays.asList[Class[_]](columnarShuffleDependencyConstructorParameterTypes: _*)
     new ByteBuddy()
       .subclass(shuffleDependencyClz, ConstructorStrategy.Default.NO_CONSTRUCTORS)
       .name("org.apache.spark.CelebornColumnarShuffleDependency")
@@ -75,15 +77,15 @@ object SparkColumnarShuffleInterceptor {
         MethodCall.invoke(
           Class.forName("org.apache.spark.ShuffleDependency").getDeclaredConstructors.head)
           .withArgument(0, 1, 2, 3, 4, 5, 7, 8, 9, 10)
-          .andThen(FieldAccessor.ofField("schema").setsArgumentAt(6))
-      )
+          .andThen(FieldAccessor.ofField("schema").setsArgumentAt(6)))
       .make()
       .load(Utils.getSparkClassLoader, classReloadingStrategy)
 
     // third, intercept the return value of function `ShuffleExchangeExec$.prepareShuffleDependency`
     // and return a new value with `schema`.
     new ByteBuddy()
-      .rebase(typePool.describe("org.apache.spark.sql.execution.exchange.ShuffleExchangeExec$").resolve(),
+      .rebase(
+        typePool.describe("org.apache.spark.sql.execution.exchange.ShuffleExchangeExec$").resolve(),
         ClassFileLocator.ForClassLoader.ofSystemLoader())
       .method(ElementMatchers.named("prepareShuffleDependency"))
       .intercept(MethodDelegation.to(classOf[JavaShuffleExchangeExecInterceptor]))

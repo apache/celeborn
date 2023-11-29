@@ -17,14 +17,15 @@
 
 package org.apache.celeborn.tests.spark
 
-import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.service.deploy.MiniClusterFeature
-import org.apache.spark.shuffle.celeborn.SparkColumnarShuffleInterceptor
 import org.apache.spark.SparkConf
+import org.apache.spark.shuffle.celeborn.SparkColumnarShuffleInterceptor
 import org.apache.spark.sql.SparkSession
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.funsuite.AnyFunSuite
+
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 trait SparkColumnarShuffleTestBase extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll with BeforeAndAfterEach {
@@ -47,8 +48,7 @@ trait SparkColumnarShuffleTestBase extends AnyFunSuite
       Class.forName("org.apache.spark.ShuffleDependency")
         .getDeclaredFields
         .exists(_.getName == "schema"),
-      "Failed to get schema field"
-    )
+      "Failed to get schema field")
   }
 
   def sparkConf: SparkConf =
@@ -64,5 +64,3 @@ trait SparkColumnarShuffleTestBase extends AnyFunSuite
     .config(sparkConf)
     .getOrCreate()
 }
-
-

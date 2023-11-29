@@ -29,7 +29,8 @@ import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 public class JavaShuffleExchangeExecInterceptor {
   @RuntimeType
-  public static Object intercept(@Argument(1) Object outputAttributes, @SuperCall Callable<Object> shuffleExchangeExec) {
+  public static Object intercept(
+      @Argument(1) Object outputAttributes, @SuperCall Callable<Object> shuffleExchangeExec) {
     try {
       Object shuffleDependency = shuffleExchangeExec.call();
 
@@ -48,8 +49,7 @@ public class JavaShuffleExchangeExecInterceptor {
               getField(shuffleDependency, "shuffleWriterProcessor"),
               scala.reflect.ClassTag.Int(),
               scala.reflect.ClassTag.apply(InternalRow.class),
-              scala.reflect.ClassTag.apply(InternalRow.class)
-          );
+              scala.reflect.ClassTag.apply(InternalRow.class));
     } catch (Exception e) {
       e.printStackTrace();
     }
