@@ -36,6 +36,7 @@ object Dependencies {
   val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
 
   // Dependent library versions
+  val bytebuddyVersion = "1.14.10"
   val commonsCompressVersion = "1.4.1"
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.13.0"
@@ -583,7 +584,7 @@ trait SparkClientProjects {
 
   def modules: Seq[Project] = {
     val seq = Seq(sparkCommon, sparkClient, sparkIt, sparkGroup, sparkClientShade)
-    if (includeColumnarShuffle) seq :+ sparkColumnarShuffle else seq
+    if (includeColumnarShuffle) seq :+ sparkColumnarShuffle :+ sparkColumnarShuffleIt else seq
   }
 
   // for test only, don't use this group for any other projects
@@ -592,6 +593,7 @@ trait SparkClientProjects {
       .aggregate(sparkCommon, sparkClient, sparkIt)
     if (includeColumnarShuffle) {
       p.aggregate(sparkColumnarShuffle)
+      p.aggregate(sparkColumnarShuffleIt)
     } else {
       p
     }
@@ -636,6 +638,28 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
         ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
+      )
+  }
+
+  def sparkColumnarShuffleIt: Project = {
+    Project("celeborn-spark-columnar-shuffle-it", file("tests/spark-columnar-shuffle-it"))
+      // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
+      .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
+      .dependsOn(CelebornMaster.master % "test->test;compile->compile")
+      .dependsOn(CelebornWorker.worker % "test->test;compile->compile")
+      .dependsOn(sparkClient % "test->test;compile->compile")
+      .dependsOn(sparkColumnarShuffle % "test->test;compile->compile")
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "net.bytebuddy" % "byte-buddy" % Dependencies.bytebuddyVersion % "test",
+          "net.bytebuddy" % "byte-buddy-agent" % Dependencies.bytebuddyVersion % "test",
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test",
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test",
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests",
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests"
+        ) ++ commonUnitTestDependencies
       )
   }
 
