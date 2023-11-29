@@ -1046,6 +1046,7 @@
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
+        <module>tests/spark-columnar-shuffle-it</module>
       </modules>
       <properties>
         <lz4-java.version>1.7.1</lz4-java.version>
@@ -1065,6 +1066,7 @@
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
+        <module>tests/spark-columnar-shuffle-it</module>
       </modules>
       <properties>
         <lz4-java.version>1.7.1</lz4-java.version>
@@ -1084,6 +1086,7 @@
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
+        <module>tests/spark-columnar-shuffle-it</module>
       </modules>
       <properties>
         <lz4-java.version>1.7.1</lz4-java.version>
@@ -1102,7 +1105,7 @@
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
-        <module>tests/spark-columnar-it</module>
+        <module>tests/spark-columnar-shuffle-it</module>
       </modules>
       <properties>
         <lz4-java.version>1.8.0</lz4-java.version>
@@ -1121,6 +1124,7 @@
         <module>client-spark/spark-3-columnar-shuffle</module>
         <module>client-spark/spark-3-shaded</module>
         <module>tests/spark-it</module>
+        <module>tests/spark-columnar-shuffle-it</module>
       </modules>
       <properties>
         <lz4-java.version>1.8.0</lz4-java.version>
