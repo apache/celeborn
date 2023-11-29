@@ -109,40 +109,4 @@ class SkewJoinSuite extends AnyFunSuite
     }
   }
 
-  test("aa") {
-//    val conf = new SparkConf().setIfMissing("spark.master", "local[2]")
-//      .setIfMissing(
-//        "spark.shuffle.manager",
-//        "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
-//      //      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", "localhost:9097")
-//      .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
-//      .set("spark.shuffle.service.enabled", "false")
-//      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "true")
-//      .set(s"spark.${CelebornConf.COLUMNAR_SHUFFLE_ENABLED}", "true")
-//      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
-//      .set(s"spark.${CelebornConf.SPARK_SHUFFLE_WRITER_MODE.key}", "hash")
-//      .setAppName("test")
-
-    val spark = SparkSession.builder()
-      .config(
-        "spark.shuffle.manager",
-        "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
-      //      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", "localhost:9097")
-      .config(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
-      .config("spark.shuffle.service.enabled", "false")
-      .config(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "true")
-      .config(s"spark.${CelebornConf.COLUMNAR_SHUFFLE_ENABLED.key}", "true")
-      .config(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
-      .config(s"spark.${CelebornConf.SPARK_SHUFFLE_WRITER_MODE.key}", "hash")
-      .master("local[2]")
-      .getOrCreate()
-
-    import org.apache.spark.sql.functions._
-    val cnt = spark.range(0, 1000, 1, 2)
-      .select(Seq(col("id"), hash(col("id")).cast("string").as("rid")): _*)
-      .repartition(10, Seq(col("id"), col("rid")): _*)
-      .count()
-    println(cnt)
-  }
-
 }

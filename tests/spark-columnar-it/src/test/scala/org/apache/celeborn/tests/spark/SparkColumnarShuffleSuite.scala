@@ -17,9 +17,6 @@
 
 package org.apache.celeborn.tests.spark
 
-import org.apache.celeborn.common.CelebornConf
-import org.apache.spark.sql.SparkSession
-
 class SparkColumnarShuffleSuite extends SparkColumnarShuffleTestBase {
 
   test("columnar shuffle basic") {
