@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import java.util.{Arrays, List => JList}
+
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.dynamic.loading.{ClassLoadingStrategy, ClassReloadingStrategy}
 import net.bytebuddy.pool.TypePool
@@ -35,11 +37,11 @@ object SparkColumnarShuffleInterceptor {
     ByteBuddyAgent
       .install()
 
-
     val typePool = TypePool.Default.ofSystemLoader()
     val classReloadingStrategy = ClassReloadingStrategy.fromInstalledAgent()
 
-    val clz = new ByteBuddy()
+    // first, we inject the `schema` field for the class `org.apache.spark.ShuffleDependency`
+    val shuffleDependencyClz = new ByteBuddy()
       .redefine(typePool.describe("org.apache.spark.ShuffleDependency").resolve(), // do not use 'Bar.class'
         ClassFileLocator.ForClassLoader.ofSystemLoader())
       .defineField("schema", classOf[org.apache.spark.sql.types.StructType], Visibility.PUBLIC)
@@ -47,7 +49,10 @@ object SparkColumnarShuffleInterceptor {
       .load(Utils.getSparkClassLoader, ClassLoadingStrategy.Default.INJECTION)
       .getLoaded
 
-    val types2: Seq[Class[_]] = Seq(
+    // second, define a subclass named `org.apache.spark.CelebornColumnarShuffleDependency` for
+    // `org.apache.spark.ShuffleDependency`, and define the subclass
+    // `CelebornColumnarShuffleDependency`'s constructor
+    val columnarShuffleDependencyConstructorParameterTypes: Seq[Class[_]] = Seq(
       classOf[org.apache.spark.rdd.RDD[_]],
       classOf[org.apache.spark.Partitioner],
       classOf[org.apache.spark.serializer.Serializer],
@@ -59,9 +64,9 @@ object SparkColumnarShuffleInterceptor {
       classOf[scala.reflect.ClassTag[_]],
       classOf[scala.reflect.ClassTag[_]],
       classOf[scala.reflect.ClassTag[_]])
-    val parameterTypes: java.util.List[Class[_]] = java.util.Arrays.asList[Class[_]](types2: _*)
+    val parameterTypes: JList[Class[_]] = Arrays.asList[Class[_]](columnarShuffleDependencyConstructorParameterTypes: _*)
     new ByteBuddy()
-      .subclass(clz, ConstructorStrategy.Default.NO_CONSTRUCTORS)
+      .subclass(shuffleDependencyClz, ConstructorStrategy.Default.NO_CONSTRUCTORS)
       .name("org.apache.spark.CelebornColumnarShuffleDependency")
       .defineConstructor(Visibility.PUBLIC)
       .withParameters(parameterTypes)
@@ -74,7 +79,8 @@ object SparkColumnarShuffleInterceptor {
       .make()
       .load(Utils.getSparkClassLoader, classReloadingStrategy)
 
-
+    // third, intercept the return value of function `ShuffleExchangeExec$.prepareShuffleDependency`
+    // and return a new value with `schema`.
     new ByteBuddy()
       .rebase(typePool.describe("org.apache.spark.sql.execution.exchange.ShuffleExchangeExec$").resolve(), // do not use 'Bar.class'
         ClassFileLocator.ForClassLoader.ofSystemLoader())
@@ -83,5 +89,4 @@ object SparkColumnarShuffleInterceptor {
       .make()
       .load(ClassLoader.getSystemClassLoader(), classReloadingStrategy)
   }
-
 }

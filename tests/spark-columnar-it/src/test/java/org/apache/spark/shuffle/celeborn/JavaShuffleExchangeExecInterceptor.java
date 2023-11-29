@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.spark.shuffle.celeborn;
 
 import java.lang.reflect.Field;
@@ -9,15 +26,8 @@ import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import org.apache.spark.sql.StructTypeHelper;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
-//import org.apache.spark.sql.catalyst.types.DataTypeUtils;
 
-/**
- * @author fchen <cloud.chenfu@gmail.com>
- * @time 2023/11/28 5:43 PM
- */
 public class JavaShuffleExchangeExecInterceptor {
-
-
   @RuntimeType
   public static Object intercept(@Argument(1) Object outputAttributes, @SuperCall Callable<Object> shuffleExchangeExec) {
     try {
@@ -33,7 +43,8 @@ public class JavaShuffleExchangeExecInterceptor {
               getField(shuffleDependency, "aggregator"),
               getField(shuffleDependency, "mapSideCombine"),
               StructTypeHelper.fromAttributes((scala.collection.Seq<Attribute>) outputAttributes),
-              //                              DataTypeUtils.fromAttributes(args(1).asInstanceOf[Seq[Attribute]]),
+              // Spark 3.5
+              // DataTypeUtils.fromAttributes(args(1).asInstanceOf[Seq[Attribute]]),
               getField(shuffleDependency, "shuffleWriterProcessor"),
               scala.reflect.ClassTag.Int(),
               scala.reflect.ClassTag.apply(InternalRow.class),
@@ -51,35 +62,4 @@ public class JavaShuffleExchangeExecInterceptor {
     field.setAccessible(true);
     return field.get(obj);
   }
-
-  //  @RuntimeType
-  //  def intercept(
-  //      //      @Argument(value = 1) outputAttributes: Any,
-  //      @AllArguments args: Array[Any],
-  //      @SuperCall shuffleExchangeExec: Callable[_]): Any = {
-  //    val shuffleDependency = shuffleExchangeExec.call()
-  //    val getField = (name: String) => {
-  //      val f = shuffleExchangeExec.getClass.getDeclaredField(name)
-  //      f.setAccessible(true)
-  //      f.get(shuffleDependency)
-  //    }
-  //    Class.forName("org.apache.spark.CelebornColumnarShuffleDependency")
-  //        .getConstructors
-  //        .head
-  //        .newInstance(
-  //            Seq(
-  //                getField("_rdd"),
-  //                getField("partitioner"),
-  //                getField("serializer"),
-  //                getField("keyOrdering"),
-  //                getField("aggregator"),
-  //                getField("mapSideCombine"),
-  //                DataTypeUtils.fromAttributes(args(1).asInstanceOf[Seq[Attribute]]),
-  //                getField("shuffleWriterProcessor"),
-  //                scala.reflect.ClassTag.Int,
-  //                scala.reflect.classTag[InternalRow],
-  //                scala.reflect.classTag[InternalRow]).map(_.asInstanceOf[Object]): _*
-  //      )
-  //  }
-  //}
 }
