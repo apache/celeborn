@@ -43,7 +43,8 @@ public class JavaShuffleExchangeExecInterceptor {
               getField(shuffleDependency, "keyOrdering"),
               getField(shuffleDependency, "aggregator"),
               getField(shuffleDependency, "mapSideCombine"),
-              StructTypeHelper.fromAttributes((scala.collection.Seq<Attribute>) outputAttributes),
+              StructTypeHelper.fromAttributes(
+                  (scala.collection.immutable.Seq<Attribute>) outputAttributes),
               // Spark 3.5
               // DataTypeUtils.fromAttributes(args(1).asInstanceOf[Seq[Attribute]]),
               getField(shuffleDependency, "shuffleWriterProcessor"),
