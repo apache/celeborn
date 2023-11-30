@@ -17,16 +17,24 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import org.apache.celeborn.common.CelebornConf;
+import java.util.Map;
 
-public class DynamicConfigServiceFactory {
+public class TenantConfig extends DynamicConfig {
+  private final String tenantId;
+  private final ConfigService configService;
 
-  public static ConfigService getConfigService(CelebornConf celebornConf) {
-    String configStoreBackend = celebornConf.dynamicConfigStoreBackend();
-    if ("FS".equals(configStoreBackend)) {
-      return new FsConfigServiceImpl(celebornConf);
-    }
+  public TenantConfig(ConfigService configService, String tenantId, Map<String, String> configs) {
+    this.configService = configService;
+    this.configs.putAll(configs);
+    this.tenantId = tenantId;
+  }
 
-    return null;
+  public String getTenantId() {
+    return tenantId;
+  }
+
+  @Override
+  public DynamicConfig getParentLevelConfig() {
+    return configService.getSystemConfig();
   }
 }
