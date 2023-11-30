@@ -38,7 +38,6 @@ object SparkColumnarShuffleInterceptor {
       .install()
 
     val typePool = TypePool.Default.ofSystemLoader()
-    val classReloadingStrategy = ClassReloadingStrategy.fromInstalledAgent()
 
     // first, we inject the `schema` field for the class `org.apache.spark.ShuffleDependency`
     val shuffleDependencyClz = new ByteBuddy()
@@ -79,7 +78,7 @@ object SparkColumnarShuffleInterceptor {
           .withArgument(0, 1, 2, 3, 4, 5, 7, 8, 9, 10)
           .andThen(FieldAccessor.ofField("schema").setsArgumentAt(6)))
       .make()
-      .load(Utils.getSparkClassLoader, classReloadingStrategy)
+      .load(Utils.getSparkClassLoader, ClassLoadingStrategy.Default.INJECTION)
 
     // third, intercept the return value of function `ShuffleExchangeExec$.prepareShuffleDependency`
     // and return a new value with `schema`.
@@ -90,6 +89,6 @@ object SparkColumnarShuffleInterceptor {
       .method(ElementMatchers.named("prepareShuffleDependency"))
       .intercept(MethodDelegation.to(classOf[JavaShuffleExchangeExecInterceptor]))
       .make()
-      .load(ClassLoader.getSystemClassLoader(), classReloadingStrategy)
+      .load(ClassLoader.getSystemClassLoader(), ClassLoadingStrategy.Default.INJECTION)
   }
 }

@@ -53,7 +53,7 @@ object Dependencies {
   val log4j2Version = "2.17.2"
   val jdkToolsVersion = "0.1"
   val metricsVersion = "3.2.6"
-  val mockitoVersion = "4.11.0"
+  val mockitoVersion = "5.7.0"
   val nettyVersion = "4.1.93.Final"
   val ratisVersion = "2.5.1"
   val roaringBitmapVersion = "0.9.32"
@@ -122,7 +122,6 @@ object Dependencies {
   val junitInterface = "com.github.sbt" % "junit-interface" % junitInterfaceVersion
   val junit = "junit" % "junit" % junitVersion
   val mockitoCore = "org.mockito" % "mockito-core" % mockitoVersion
-  val mockitoInline = "org.mockito" % "mockito-inline" % mockitoVersion
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
 }
@@ -637,7 +636,7 @@ trait SparkClientProjects {
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-        ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
+        ) ++ commonUnitTestDependencies
       )
   }
 
