@@ -17,24 +17,8 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import java.util.Map;
-
-public class TenantConfig extends DynamicConfig {
-  private String tenantId;
-  private ConfigService configService;
-
-  public TenantConfig(ConfigService configService, String tenantId, Map<String, String> configs) {
-    this.configService = configService;
-    this.configs.putAll(configs);
-    this.tenantId = tenantId;
-  }
-
-  public Map<String, String> getConfigs() {
-    return configs;
-  }
-
-  @Override
-  public DynamicConfig getParentLevelConfig() {
-    return configService.getSystemConfig();
-  }
+public enum ConfigStoreBackend {
+  NONE,
+  FS,
+  DB;
 }

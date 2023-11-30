@@ -368,6 +368,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
   def dynamicConfigRefreshTime: Long = get(DYNAMIC_CONFIG_REFRESH_TIME)
+  def dynamicConfigStoreDbJdbcDriver: Option[String] = get(DYNAMIC_CONFIG_STORE_DB_JDBC_DRIVER)
+  def dynamicConfigStoreDbJdbcUrl: Option[String] = get(DYNAMIC_CONFIG_STORE_DB_JDBC_URL)
+  def dynamicConfigStoreDbJdbcUsername: Option[String] = get(DYNAMIC_CONFIG_STORE_DB_JDBC_USERNAME)
+  def dynamicConfigStoreDbJdbcPassword: Option[String] = get(DYNAMIC_CONFIG_STORE_DB_JDBC_PASSWORD)
 
   // //////////////////////////////////////////////////////
   //                      Network                        //
@@ -4166,17 +4170,50 @@ object CelebornConf extends Logging {
   val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")
       .categories("master", "worker")
-      .doc("Store backend for dynamic config, NONE means disabling dynamic config store")
+      .doc("Store backend for dynamic config. Available options: NONE, FS, DB. Note: NONE means disabling dynamic config store.")
       .version("0.4.0")
       .stringConf
-      .checkValues(Set("FS", "NONE"))
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("NONE", "FS", "DB"))
       .createWithDefault("NONE")
 
   val DYNAMIC_CONFIG_REFRESH_TIME: ConfigEntry[Long] =
     buildConf("celeborn.dynamicConfig.refresh.time")
       .categories("master", "worker")
       .version("0.4.0")
-      .doc("The time interval for refreshing the corresponding dynamic config periodically")
+      .doc("The time interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val DYNAMIC_CONFIG_STORE_DB_JDBC_DRIVER: OptionalConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.jdbc.driver")
+      .categories("master", "worker")
+      .version("0.4.0")
+      .doc("The jdbc driver of db store backend for dynamic config.")
+      .stringConf
+      .createOptional
+
+  val DYNAMIC_CONFIG_STORE_DB_JDBC_URL: OptionalConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.jdbc.url")
+      .categories("master", "worker")
+      .version("0.4.0")
+      .doc("The jdbc url of db store backend for dynamic config.")
+      .stringConf
+      .createOptional
+
+  val DYNAMIC_CONFIG_STORE_DB_JDBC_USERNAME: OptionalConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.jdbc.username")
+      .categories("master", "worker")
+      .version("0.4.0")
+      .doc("The jdbc username of db store backend for dynamic config.")
+      .stringConf
+      .createOptional
+
+  val DYNAMIC_CONFIG_STORE_DB_JDBC_PASSWORD: OptionalConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.db.jdbc.password")
+      .categories("master", "worker")
+      .version("0.4.0")
+      .doc("The jdbc password of db store backend for dynamic config.")
+      .stringConf
+      .createOptional
 }

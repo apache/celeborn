@@ -17,14 +17,15 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.internal.config.ConfigEntry;
-
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.internal.config.ConfigEntry;
+
 public class SystemConfig extends DynamicConfig {
-  private CelebornConf celebornConf;
+  private final CelebornConf celebornConf;
+
   public SystemConfig(CelebornConf celebornConf, Map<String, String> configs) {
     this.celebornConf = celebornConf;
     this.configs.putAll(configs);
@@ -40,9 +41,14 @@ public class SystemConfig extends DynamicConfig {
     return null;
   }
 
-  public <T> T getValue(String configKey, ConfigEntry<Object> configEntry, Class<T> finalType, ConfigType configType) {
+  public <T> T getValue(
+      String configKey,
+      ConfigEntry<Object> configEntry,
+      Class<T> finalType,
+      ConfigType configType) {
     String configValue = configs.get(configKey);
-    T formatValue = configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
+    T formatValue =
+        configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
     if (formatValue == null && configEntry != null) {
       return convert(finalType, celebornConf.get(configEntry).toString());
     } else {

@@ -1,0 +1,104 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.celeborn.server.common.service.config;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import scala.concurrent.duration.Duration;
+
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.ThreadUtils;
+
+public abstract class BaseConfigServiceImpl implements ConfigService {
+  protected final CelebornConf celebornConf;
+  protected final AtomicReference<SystemConfig> systemConfigAtomicReference =
+      new AtomicReference<>();
+  protected final AtomicReference<Map<String, TenantConfig>> tenantConfigAtomicReference =
+      new AtomicReference<>(new HashMap<>());
+
+  private final ScheduledExecutorService configRefreshService =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("config-refresh-service");
+
+  protected static final String CONF_TENANT_ID = "tenantId";
+  protected static final String CONF_LEVEL = "level";
+  protected static final String CONF_CONFIG = "config";
+
+  public BaseConfigServiceImpl(CelebornConf celebornConf) {
+    this.celebornConf = celebornConf;
+    this.init();
+    this.refresh();
+    long dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshTime();
+    this.configRefreshService.scheduleWithFixedDelay(
+        this::refresh, dynamicConfigRefreshTime, dynamicConfigRefreshTime, TimeUnit.MILLISECONDS);
+  }
+
+  protected abstract void init();
+
+  protected abstract void refresh();
+
+  protected void refreshConfig(List<Map<String, Object>> dynamicConfigs) {
+    if (dynamicConfigs == null) {
+      return;
+    }
+    SystemConfig systemConfig = null;
+    Map<String, TenantConfig> tenantConfigs = new HashMap<>();
+    for (Map<String, Object> settings : dynamicConfigs) {
+      String tenantId = (String) settings.get(CONF_TENANT_ID);
+      String level = (String) settings.get(CONF_LEVEL);
+      Map<String, String> config =
+          ((Map<String, Object>) settings.get(CONF_CONFIG))
+              .entrySet().stream()
+                  .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+      if (ConfigLevel.SYSTEM.name().equalsIgnoreCase(level)) {
+        systemConfig = new SystemConfig(celebornConf, config);
+      } else if (ConfigLevel.TENANT.name().equalsIgnoreCase(level)) {
+        TenantConfig tenantConfig = new TenantConfig(this, tenantId, config);
+        tenantConfigs.put(tenantId, tenantConfig);
+      }
+    }
+    systemConfigAtomicReference.set(
+        systemConfig == null ? new SystemConfig(celebornConf) : systemConfig);
+    tenantConfigAtomicReference.set(tenantConfigs);
+  }
+
+  @Override
+  public SystemConfig getSystemConfig() {
+    return systemConfigAtomicReference.get();
+  }
+
+  @Override
+  public TenantConfig getRawTenantConfig(String tenantId) {
+    return tenantConfigAtomicReference.get().get(tenantId);
+  }
+
+  @Override
+  public void refreshAllCache() {
+    this.refresh();
+  }
+
+  @Override
+  public void close() {
+    ThreadUtils.shutdown(configRefreshService, Duration.apply("800ms"));
+  }
+}

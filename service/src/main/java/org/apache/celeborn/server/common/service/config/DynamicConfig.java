@@ -17,21 +17,23 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import org.apache.celeborn.common.internal.config.ConfigEntry;
-import org.apache.celeborn.common.util.Utils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.internal.config.ConfigEntry;
+import org.apache.celeborn.common.util.Utils;
+
 /**
- * Dynamic configuration is a type of configuration that can be changed at runtime as needed. It can be used at system level/tenant level.
- * When applying dynamic configuration, the priority order is as follows: tenant level overrides system level,
- * which in turn overrides static configuration(CelebornConf). This means that if a configuration is defined at the tenant level,
- * it will be used instead of the system level or static configuration(CelebornConf). If the tenant-level configuration is missing,
- * the system-level configuration will be used. If the system-level configuration is also missing, CelebornConf
- * will be used as the default value.
+ * Dynamic configuration is a type of configuration that can be changed at runtime as needed. It can
+ * be used at system level/tenant level. When applying dynamic configuration, the priority order is
+ * as follows: tenant level overrides system level, which in turn overrides static
+ * configuration(CelebornConf). This means that if a configuration is defined at the tenant level,
+ * it will be used instead of the system level or static configuration(CelebornConf). If the
+ * tenant-level configuration is missing, the system-level configuration will be used. If the
+ * system-level configuration is also missing, CelebornConf will be used as the default value.
  */
 public abstract class DynamicConfig {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicConfig.class);
@@ -42,7 +44,8 @@ public abstract class DynamicConfig {
   public <T> T getWithDefaultValue(
       String configKey, T defaultValue, Class<T> finalType, ConfigType configType) {
     String configValue = configs.get(configKey);
-    T formatValue = configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
+    T formatValue =
+        configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
     if (formatValue == null) {
       return defaultValue;
     } else {
@@ -50,18 +53,26 @@ public abstract class DynamicConfig {
     }
   }
 
-  public <T> T getValue(String configKey, ConfigEntry<Object> configEntry, Class<T> finalType, ConfigType configType) {
+  public <T> T getValue(
+      String configKey,
+      ConfigEntry<Object> configEntry,
+      Class<T> finalType,
+      ConfigType configType) {
     String configValue = configs.get(configKey);
-    T formatValue = configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
+    T formatValue =
+        configValue != null ? formatValue(configKey, configValue, finalType, configType) : null;
     if (formatValue == null) {
       DynamicConfig parentLevelConfig = getParentLevelConfig();
-      return parentLevelConfig != null? parentLevelConfig.getValue(configKey, configEntry, finalType, configType): null;
+      return parentLevelConfig != null
+          ? parentLevelConfig.getValue(configKey, configEntry, finalType, configType)
+          : null;
     } else {
       return formatValue;
     }
   }
 
-  public <T> T formatValue(String configKey, String configValue, Class<T> finalType, ConfigType configType) {
+  public <T> T formatValue(
+      String configKey, String configValue, Class<T> finalType, ConfigType configType) {
     try {
       if (configValue != null) {
         if (ConfigType.BYTES == configType) {

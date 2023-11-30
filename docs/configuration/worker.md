@@ -19,8 +19,12 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since |
 | --- | ------- | ----------- | ----- |
-| celeborn.dynamicConfig.refresh.time | 120s | The time interval for refreshing the corresponding dynamic config periodically | 0.4.0 | 
-| celeborn.dynamicConfig.store.backend | NONE | Store backend for dynamic config, NONE means disabling dynamic config store | 0.4.0 | 
+| celeborn.dynamicConfig.db.jdbc.password | &lt;undefined&gt; | The jdbc password of db store backend for dynamic config. | 0.4.0 | 
+| celeborn.dynamicConfig.refresh.time | 120s | The time interval for refreshing the corresponding dynamic config periodically. | 0.4.0 | 
+| celeborn.dynamicConfig.store.backend | NONE | Store backend for dynamic config. Available options: NONE, FS, DB. Note: NONE means disabling dynamic config store. | 0.4.0 | 
+| celeborn.dynamicConfig.store.db.jdbc.driver | &lt;undefined&gt; | The jdbc driver of db store backend for dynamic config. | 0.4.0 | 
+| celeborn.dynamicConfig.store.db.jdbc.url | &lt;undefined&gt; | The jdbc url of db store backend for dynamic config. | 0.4.0 | 
+| celeborn.dynamicConfig.store.db.jdbc.username | &lt;undefined&gt; | The jdbc username of db store backend for dynamic config. | 0.4.0 | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 | 
 | celeborn.master.estimatedPartitionSize.minSize | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.3.0 | 
 | celeborn.shuffle.chunk.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 | 

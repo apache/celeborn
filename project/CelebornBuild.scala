@@ -61,6 +61,7 @@ object Dependencies {
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
   val snakeyamlVersion = "1.33"
+  val h2Version = "2.2.224"
 
   // Versions for proto
   val protocVersion = "3.19.2"
@@ -124,6 +125,7 @@ object Dependencies {
   val mockitoInline = "org.mockito" % "mockito-inline" % mockitoVersion
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
+  val h2 = "com.h2database" % "h2" % h2Version
 }
 
 object CelebornCommonSettings {
@@ -223,7 +225,8 @@ object CelebornCommonSettings {
     Dependencies.scalatest % "test",
     Dependencies.junit % "test",
     // https://www.scala-sbt.org/1.x/docs/Testing.html
-    Dependencies.junitInterface % "test")
+    Dependencies.junitInterface % "test",
+    Dependencies.h2 % "test")
 }
 
 object CelebornBuild extends sbt.internal.BuildDef {

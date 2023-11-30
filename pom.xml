@@ -96,6 +96,7 @@
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
     <kubernetes-client.version>6.7.0</kubernetes-client.version>
     <rocksdbjni.version>8.5.3</rocksdbjni.version>
+    <h2.version>2.2.224</h2.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
@@ -457,6 +458,12 @@
         <groupId>io.fabric8</groupId>
         <artifactId>kubernetes-client</artifactId>
         <version>${kubernetes-client.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.h2database</groupId>
+        <artifactId>h2</artifactId>
+        <version>${h2.version}</version>
         <scope>test</scope>
       </dependency>
       <dependency>

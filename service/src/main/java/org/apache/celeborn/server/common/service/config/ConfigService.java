@@ -17,16 +17,20 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import org.apache.celeborn.common.CelebornConf;
+public interface ConfigService extends AutoCloseable {
 
-public class DynamicConfigServiceFactory {
+  SystemConfig getSystemConfig();
 
-  public static ConfigService getConfigService(CelebornConf celebornConf) {
-    String configStoreBackend = celebornConf.dynamicConfigStoreBackend();
-    if ("FS".equals(configStoreBackend)) {
-      return new FsConfigServiceImpl(celebornConf);
+  TenantConfig getRawTenantConfig(String tenantId);
+
+  default DynamicConfig getTenantConfig(String tenantId) {
+    TenantConfig tenantConfig = getRawTenantConfig(tenantId);
+    if (tenantConfig == null || tenantConfig.getConfigs().isEmpty()) {
+      return getSystemConfig();
+    } else {
+      return tenantConfig;
     }
-
-    return null;
   }
+
+  void refreshAllCache();
 }
