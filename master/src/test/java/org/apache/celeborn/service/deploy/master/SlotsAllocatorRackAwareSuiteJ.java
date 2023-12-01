@@ -199,13 +199,9 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
       for (String host : workers.stream().map(WorkerInfo::host).collect(Collectors.toList())) {
         long numReplicas = numReplicaPerHost.getOrDefault(host, 0L);
-        assert numReplicas <= maxReplicaCount
-            : "host = "
-                + host
-                + ", numReplicaPerHost = "
-                + numReplicaPerHost
-                + ", slots = "
-                + slots;
+        Assert.assertTrue(
+            "host = " + host + ", numReplicaPerHost = " + numReplicaPerHost + ", slots = " + slots,
+            numReplicas <= maxReplicaCount);
       }
     }
   }
@@ -246,8 +242,6 @@ public class SlotsAllocatorRackAwareSuiteJ {
         Map.Entry<String, Long> maxEntry =
             Collections.max(numReplicaPerHost.entrySet(), entryComparator);
 
-        assert (null != maxEntry);
-
         if (maxEntry.getValue() > maxValue) {
           maxValue = maxEntry.getValue();
           maxValueWorkers = workers;
@@ -255,13 +249,13 @@ public class SlotsAllocatorRackAwareSuiteJ {
         }
       }
 
-      assert (null != maxValueWorkers);
+      Assert.assertNotNull(maxValueWorkers);
 
       for (String host :
           maxValueWorkers.stream().map(WorkerInfo::host).collect(Collectors.toList())) {
         long numReplicas = maxValueNumReplicaPerHost.getOrDefault(host, 0L);
-        assert numReplicas <= test.getExpectedMaxSlotsPerHost()
-            : "host = "
+        Assert.assertTrue(
+            "host = "
                 + host
                 + ", workerHosts = "
                 + maxValueWorkers.stream().map(WorkerInfo::host).collect(Collectors.toList())
@@ -272,7 +266,8 @@ public class SlotsAllocatorRackAwareSuiteJ {
                 + ", numReplicaPerHost = "
                 + maxValueNumReplicaPerHost
                 + ", test = "
-                + test;
+                + test,
+            numReplicas <= test.getExpectedMaxSlotsPerHost());
       }
     }
   }
