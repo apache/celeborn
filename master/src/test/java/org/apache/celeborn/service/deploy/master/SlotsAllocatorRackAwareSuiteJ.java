@@ -150,12 +150,11 @@ public class SlotsAllocatorRackAwareSuiteJ {
   }
 
   @Test
-  public void testRoundRobinReplicationWithRackAwarenessPatterns() {
+  public void testRackAwareRoundRobinReplicaPatterns() {
     for (Tuple2<Integer, List<WorkerInfo>> tuple :
         Arrays.asList(
-            // This is a specific case we analyzed which results in degenerate behavior with
-            // replicas
-            // with the earlier implementation
+            // This is a specific case we analyzed which was resulting in degenerate
+            // behavior for replicas
             Tuple2.apply(
                 100,
                 Arrays.asList(
@@ -166,8 +165,8 @@ public class SlotsAllocatorRackAwareSuiteJ {
                     WorkersSupplier.initWorker("h4r2", "/rack/r2"),
                     WorkersSupplier.initWorker("h5r2", "/rack/r2"),
                     WorkersSupplier.initWorker("h6r2", "/rack/r2"))),
-            // This is a specific case we observed in production which resulted
-            // in suboptimal replica selection
+            // This is a specific case we observed in production which triggered
+            // suboptimal replica selection
             Tuple2.apply(
                 20,
                 Arrays.asList(
@@ -236,8 +235,6 @@ public class SlotsAllocatorRackAwareSuiteJ {
             SlotsAllocator.offerSlotsRoundRobin(
                 workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
-        // Ensure there is sufficient diversity of hosts. Earlier implementation would result in
-        // only picking h1r1 and h4r2 for the replica - except for the first few cases
         Map<String, Long> numReplicaPerHost =
             slots.entrySet().stream()
                 .flatMap(v -> v.getValue()._2.stream().map(PartitionLocation::getHost))
@@ -249,7 +246,6 @@ public class SlotsAllocatorRackAwareSuiteJ {
         Map.Entry<String, Long> maxEntry =
             Collections.max(numReplicaPerHost.entrySet(), entryComparator);
 
-        // expected
         assert (null != maxEntry);
 
         if (maxEntry.getValue() > maxValue) {
@@ -333,7 +329,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
     WorkersSupplier(int numHostsPerRack, int numRacks) {
       this(
-          String.format("Equals hosts(%d) per rack(%d)", numHostsPerRack, numRacks),
+          String.format("Equal hosts(%d) per rack(%d)", numHostsPerRack, numRacks),
           equalHostsPerRackWorkers(numHostsPerRack, numRacks));
     }
 
