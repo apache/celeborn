@@ -43,7 +43,7 @@ object Dependencies {
   val commonsLang3Version = "3.12.0"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "32.1.3-jre"
-  val hadoopVersion = "3.2.4"
+  val hadoopVersion = "3.3.6"
   val javaxServletVersion = "3.1.0"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
@@ -83,6 +83,7 @@ object Dependencies {
   val hadoopClientApi = "org.apache.hadoop" % "hadoop-client-api" % hadoopVersion
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
   val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(
+    ExclusionRule("io.netty", "netty-transport-native-epoll"),
     ExclusionRule("com.google.guava", "guava"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
