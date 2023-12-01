@@ -318,7 +318,6 @@ public class SlotsAllocator {
         }
       }
     }
-    assert (sortedRackToHosts.isEmpty());
 
     return Collections.unmodifiableList(result);
   }
