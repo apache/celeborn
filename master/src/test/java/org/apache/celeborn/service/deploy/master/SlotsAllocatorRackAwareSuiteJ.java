@@ -270,8 +270,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
                 + ", workerHosts = "
                 + maxValueWorkers.stream().map(WorkerInfo::host).collect(Collectors.toList())
                 + ", replicaHosts = "
-                + SlotsAllocator.generateRackAwareWorkers(maxValueWorkers)
-                    .stream()
+                + SlotsAllocator.generateRackAwareWorkers(maxValueWorkers).stream()
                     .map(WorkerInfo::host)
                     .collect(Collectors.toList())
                 + ", numReplicaPerHost = "
