@@ -379,8 +379,8 @@ public class SlotsAllocator {
       PartitionLocation primaryPartition =
           createLocation(partitionId, workers.get(nextPrimaryInd), null, storageInfo, true);
 
-      int nextReplicaInd = replicaIndex;
       if (shouldReplicate) {
+        int nextReplicaInd = replicaIndex;
         if (slotsRestrictions != null) {
           while (nextReplicaInd == nextPrimaryInd
               || !haveUsableSlots(slotsRestrictions, workers, nextReplicaInd)
