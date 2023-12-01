@@ -953,7 +953,8 @@ object MRClientProjects {
         copyDepsSettings,
         libraryDependencies ++= Seq(
           "org.apache.hadoop" % "hadoop-client-minicluster" % Dependencies.hadoopVersion % "test",
-          "org.apache.hadoop" % "hadoop-mapreduce-examples" % Dependencies.hadoopVersion % "test"
+          "org.apache.hadoop" % "hadoop-mapreduce-examples" % Dependencies.hadoopVersion % "test",
+          "org.bouncycastle" % "bcpkix-jdk15on" % "1.68" % "test"
         ) ++ commonUnitTestDependencies
       )
   }
