@@ -328,18 +328,21 @@ public class SlotsAllocatorRackAwareSuiteJ {
   private static class WorkersSupplier implements Supplier<List<WorkerInfo>> {
     private static final Random RAND = new Random(42);
 
+    private final String message;
     private final List<WorkerInfo> workerList;
 
     WorkersSupplier(int numHostsPerRack, int numRacks) {
-      this(false, equalHostsPerRackWorkers(numHostsPerRack, numRacks));
+      this(
+          String.format("Equals hosts(%d) per rack(%d)", numHostsPerRack, numRacks),
+          equalHostsPerRackWorkers(numHostsPerRack, numRacks));
     }
 
     WorkersSupplier(List<Integer> hostsPerRack) {
-      this(false, specifiedHostsPerRackWorkers(hostsPerRack));
+      this("Hosts per rack = " + hostsPerRack, specifiedHostsPerRackWorkers(hostsPerRack));
     }
 
-    @SuppressWarnings({"unused"})
-    private WorkersSupplier(boolean unused, List<WorkerInfo> workerList) {
+    WorkersSupplier(String message, List<WorkerInfo> workerList) {
+      this.message = message;
       this.workerList = Collections.unmodifiableList(workerList);
     }
 
@@ -380,10 +383,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
     @Override
     public String toString() {
-      return "WorkersSupplier{"
-          + "workerList="
-          + workerList.stream().map(WorkerInfo::host).collect(Collectors.toList())
-          + '}';
+      return "WorkersSupplier{" + message + "}";
     }
 
     private static WorkerInfo initWorker(String host, String rack) {
@@ -430,7 +430,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
                       + 1));
     }
 
-    private SlotReplicaAllocatorTestCase(
+    SlotReplicaAllocatorTestCase(
         Supplier<List<WorkerInfo>> workersSupplier,
         int numPartitions,
         int expectedMaxSlotsPerHost) {
