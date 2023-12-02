@@ -62,7 +62,6 @@ public class TransportRequestHandlerSuiteJ {
 
   @Test
   public void testHandleOneWayMessage() {
-    when(msgHandler.checkRegistered()).thenReturn(true);
     ByteBuf buffer = Unpooled.wrappedBuffer(new byte[] {1});
     OneWayMessage oneWayMessage = new OneWayMessage(new NettyManagedBuffer(buffer));
     requestHandler.handle(oneWayMessage);
@@ -73,7 +72,6 @@ public class TransportRequestHandlerSuiteJ {
 
   @Test
   public void testHandleOtherMessage() {
-    when(msgHandler.checkRegistered()).thenReturn(true);
     ByteBuf buffer = Unpooled.wrappedBuffer(new byte[] {1});
     PushData pushData =
         new PushData((byte) 0, "shuffleKey", "partitionId", new NettyManagedBuffer(buffer));
