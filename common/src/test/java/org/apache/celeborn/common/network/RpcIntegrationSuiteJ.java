@@ -58,7 +58,7 @@ public class RpcIntegrationSuiteJ {
         new BaseMessageHandler() {
           @Override
           public void receive(TransportClient client, RequestMessage message) {
-            assert message instanceof OneWayMessage;
+            assertTrue(message instanceof OneWayMessage);
             String msg;
             try {
               msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
