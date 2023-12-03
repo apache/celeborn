@@ -367,7 +367,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
-  def dynamicConfigRefreshTime: Long = get(DYNAMIC_CONFIG_REFRESH_TIME)
+  def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Network                        //
@@ -4173,11 +4173,11 @@ object CelebornConf extends Logging {
       .checkValues(Set("NONE", "FS"))
       .createWithDefault("NONE")
 
-  val DYNAMIC_CONFIG_REFRESH_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.dynamicConfig.refresh.time")
+  val DYNAMIC_CONFIG_REFRESH_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.refresh.interval")
       .categories("master", "worker")
       .version("0.4.0")
-      .doc("The time interval for refreshing the corresponding dynamic config periodically.")
+      .doc("Interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 }

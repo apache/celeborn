@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-public interface ConfigService extends AutoCloseable {
+public interface ConfigService {
 
   SystemConfig getSystemConfig();
 
@@ -33,4 +33,6 @@ public interface ConfigService extends AutoCloseable {
   }
 
   void refreshAllCache();
+
+  void shutdown();
 }

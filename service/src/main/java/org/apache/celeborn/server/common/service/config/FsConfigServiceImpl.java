@@ -53,7 +53,7 @@ public class FsConfigServiceImpl implements ConfigService {
   public FsConfigServiceImpl(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;
     this.refresh();
-    long dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshTime();
+    long dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshInterval();
     this.configRefreshService.scheduleWithFixedDelay(
         this::refresh, dynamicConfigRefreshTime, dynamicConfigRefreshTime, TimeUnit.MILLISECONDS);
   }
@@ -109,7 +109,7 @@ public class FsConfigServiceImpl implements ConfigService {
   }
 
   @Override
-  public void close() {
+  public void shutdown() {
     ThreadUtils.shutdown(configRefreshService, Duration.apply("800ms"));
   }
 

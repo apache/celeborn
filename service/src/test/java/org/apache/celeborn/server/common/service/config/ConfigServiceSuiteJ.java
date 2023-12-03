@@ -30,9 +30,9 @@ public class ConfigServiceSuiteJ {
     CelebornConf celebornConf = new CelebornConf();
     String file = getClass().getResource("/dynamicConfig.yaml").getFile();
     celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
-    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_TIME(), 5L);
-    try (FsConfigServiceImpl fsConfigService = new FsConfigServiceImpl(celebornConf)) {
-
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 5L);
+    FsConfigServiceImpl fsConfigService = new FsConfigServiceImpl(celebornConf);
+    try {
       verifyConfig(fsConfigService);
 
       // change -> refresh config
@@ -55,6 +55,8 @@ public class ConfigServiceSuiteJ {
               Long.TYPE,
               ConfigType.BYTES);
       Assert.assertEquals(value.longValue(), 1073741824);
+    } finally {
+      fsConfigService.shutdown();
     }
   }
 
