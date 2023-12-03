@@ -409,16 +409,21 @@ public class SlotsAllocatorRackAwareSuiteJ {
     }
 
     SlotReplicaAllocatorTestCase(List<Integer> hostsPerRack, int numPartitions) {
-      this(
-          new WorkersSupplier(hostsPerRack),
-          numPartitions,
-          // 1 + (maxHostsPerRack * numPartitions) / (minHostsPerRack * totalHosts)
+      Collections.sort(hostsPerRack);
+      int maxHostsPerRack = hostsPerRack.get(hostsPerRack.size() - 1);
+      int secondMaxHostsPerRack = hostsPerRack.get(hostsPerRack.size() - 2);
+      int totalHosts = hostsPerRack.stream().mapToInt(Integer::intValue).sum();
+      int expected =
           (int)
               Math.ceil(
-                  ((double) Collections.max(hostsPerRack) * numPartitions)
-                          / (Collections.min(hostsPerRack)
-                              * hostsPerRack.stream().mapToInt(Integer::intValue).sum())
-                      + 1));
+                  ((double) (numPartitions)
+                      / totalHosts
+                      * (1
+                          + ((double) (maxHostsPerRack - secondMaxHostsPerRack + 1))
+                              / (totalHosts - maxHostsPerRack))));
+      this.workersSupplier = new WorkersSupplier(hostsPerRack);
+      this.numPartitions = numPartitions;
+      this.expectedMaxSlotsPerHost = expected;
     }
 
     SlotReplicaAllocatorTestCase(
