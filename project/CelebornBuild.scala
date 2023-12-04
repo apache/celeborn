@@ -235,11 +235,13 @@ object CelebornCommonSettings {
       sys.env.getOrElse("SONATYPE_PASSWORD", "")
     ),
     publishTo := {
-      // val nexus = "https://oss.sonatype.org/"
+      val nexus = "https://oss.sonatype.org/"
       if (isSnapshot.value) {
-        Some(("snapshots" at sys.env.getOrElse("SONATYPE_SNAPSHOTS_URL", "")).withAllowInsecureProtocol(true))
+        val snapshotUrl = sys.env.getOrElse("SONATYPE_SNAPSHOTS_URL", nexus + "content/repositories/snapshots")
+        Some(("snapshots" at snapshotUrl).withAllowInsecureProtocol(true))
       } else {
-        Some(("releases"  at sys.env.getOrElse("SONATYPE_RELEASES_URL", "")).withAllowInsecureProtocol(true))
+        val releaseUrl = sys.env.getOrElse("SONATYPE_RELEASES_URL", nexus + "service/local/staging/deploy/maven2")
+        Some(("releases" at releaseUrl).withAllowInsecureProtocol(true))
       }
     },
     licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
