@@ -230,7 +230,7 @@ object CelebornCommonSettings {
     Test / publishArtifact := false,
     credentials += Credentials(
       "Sonatype Nexus Repository Manager",
-      sys.env.getOrElse("SONATYPE_HOST", ""),
+      sys.env.getOrElse("SONATYPE_HOST", "oss.sonatype.org"),
       sys.env.getOrElse("SONATYPE_USERNAME", ""),
       sys.env.getOrElse("SONATYPE_PASSWORD", "")
     ),
