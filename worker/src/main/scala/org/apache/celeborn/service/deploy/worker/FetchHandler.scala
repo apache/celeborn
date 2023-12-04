@@ -381,7 +381,7 @@ class FetchHandler(
                   s"Sending ChunkFetchSuccess operation succeeded, chunk $streamChunkSlice")
               }
             } else {
-              logError(
+              logWarning(
                 s"Sending ChunkFetchSuccess operation failed, chunk $streamChunkSlice",
                 future.cause())
             }
