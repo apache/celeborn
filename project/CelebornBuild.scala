@@ -218,6 +218,39 @@ object CelebornCommonSettings {
     Test / envVars += ("IS_TESTING", "1")
   )
 
+  /*
+   ********************
+   * Release settings *
+   ********************
+   */
+
+  lazy val releaseSettings = Seq(
+    publishMavenStyle := true,
+    publishArtifact := true,
+    Test / publishArtifact := false,
+    credentials += Credentials(
+      "Sonatype Nexus Repository Manager",
+      sys.env.getOrElse("SONATYPE_HOST", ""),
+      sys.env.getOrElse("SONATYPE_USERNAME", ""),
+      sys.env.getOrElse("SONATYPE_PASSWORD", "")
+    ),
+    publishTo := {
+      // val nexus = "https://oss.sonatype.org/"
+      if (isSnapshot.value) {
+        Some(("snapshots" at sys.env.getOrElse("SONATYPE_SNAPSHOTS_URL", "")).withAllowInsecureProtocol(true))
+      } else {
+        Some(("releases"  at sys.env.getOrElse("SONATYPE_RELEASES_URL", "")).withAllowInsecureProtocol(true))
+      }
+    },
+    licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
+      pomExtra :=
+        <url>https://celeborn.apache.org/</url>
+        <scm>
+          <url>git@github.com:apache/incubator-celeborn.git</url>
+          <connection>scm:git:git@github.com:apache/incubator-celeborn.git</connection>
+        </scm>
+  )
+
   lazy val protoSettings = Seq(
     // Setting version for the protobuf compiler
     PB.protocVersion := Dependencies.protocVersion,
@@ -675,6 +708,7 @@ trait SparkClientProjects {
       .dependsOn(sparkClient)
       .settings (
         commonSettings,
+        releaseSettings,
 
         // align final shaded jar name with maven.
         (assembly / assemblyJarName) := {
@@ -879,6 +913,7 @@ trait FlinkClientProjects {
       .dependsOn(flinkClient)
       .settings (
         commonSettings,
+        releaseSettings,
 
         (assembly / test) := { },
 
@@ -975,6 +1010,7 @@ object MRClientProjects {
       .dependsOn(mrClient)
       .settings(
         commonSettings,
+        releaseSettings,
 
         // align final shaded jar name with maven.
         (assembly / assemblyJarName) := {
