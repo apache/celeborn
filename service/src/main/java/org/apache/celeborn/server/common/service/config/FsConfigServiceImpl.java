@@ -52,6 +52,7 @@ public class FsConfigServiceImpl implements ConfigService {
 
   public FsConfigServiceImpl(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;
+    this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
     this.refresh();
     long dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshInterval();
     this.configRefreshService.scheduleWithFixedDelay(
@@ -89,8 +90,9 @@ public class FsConfigServiceImpl implements ConfigService {
     }
 
     tenantConfigAtomicReference.set(tenantConfs);
-    systemConfigAtomicReference.set(
-        systemConfig == null ? new SystemConfig(celebornConf) : systemConfig);
+    if (systemConfig != null) {
+      systemConfigAtomicReference.set(systemConfig);
+    }
   }
 
   @Override
