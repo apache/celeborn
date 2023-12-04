@@ -35,5 +35,4 @@ public interface ConfigService {
   void refreshAllCache();
 
   void shutdown();
-
 }
