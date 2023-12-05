@@ -42,7 +42,6 @@ import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.FileChannelUtils;
-import org.apache.celeborn.common.util.MemCacheManager;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -87,7 +86,6 @@ public abstract class FileWriter implements DeviceObserver {
   private String shuffleKey;
   private StorageManager storageManager;
   private boolean workerGracefulShutdown;
-  private MemCacheManager cacheManager;
 
   public FileWriter(
       FileInfo fileInfo,
@@ -131,7 +129,6 @@ public abstract class FileWriter implements DeviceObserver {
       }
     }
     source = workerSource;
-    cacheManager = MemCacheManager.getMemCacheManager(conf);
     logger.debug("FileWriter {} split threshold {} mode {}", this, splitThreshold, splitMode);
     if (rangeReadFilter) {
       this.mapIdBitMap = new RoaringBitmap();
@@ -162,15 +159,14 @@ public abstract class FileWriter implements DeviceObserver {
         int numBytes = flushBuffer.readableBytes();
         if (numBytes != 0) {
           notifier.checkException();
-          if (finalFlush
-              && channel != null
-              && fileInfo.getFileLength() == 0
-              && cacheManager.canCache(numBytes)) {
-            cacheManager.putCache(fileInfo.getFilePath(), flushBuffer.copy());
+          boolean cached = false;
+          if (finalFlush && fileInfo.getFileLength() == 0) {
+            cached = MemoryManager.instance().tryCache(fileInfo.getFilePath(), flushBuffer);
             flusher.returnBuffer(flushBuffer);
             logger.debug(
                 "MemCache for " + fileInfo.getFilePath() + ", and total cache size is " + numBytes);
-          } else {
+          }
+          if (!cached) {
             notifier.numPendingFlushes.incrementAndGet();
             FlushTask task = null;
             if (channel != null) {

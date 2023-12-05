@@ -19,9 +19,7 @@ package org.apache.celeborn.service.deploy.worker.memory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
@@ -85,6 +83,12 @@ public class MemoryManager {
 
   private long memoryShuffleStorageThreshold = 0;
 
+  private ConcurrentMap<String, ByteBuf> caches = new ConcurrentHashMap<>();
+  private long cacheCapacity;
+  private boolean cacheEnable;
+  private AtomicLong currentCacheSize = new AtomicLong(0);
+  private Object cacheLock = new Object();
+
   public static MemoryManager initialize(CelebornConf conf) {
     if (_INSTANCE == null) {
       _INSTANCE = new MemoryManager(conf);
@@ -115,6 +119,9 @@ public class MemoryManager {
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
+
+    cacheCapacity = conf.workerMemoryCacheCapacity();
+    cacheEnable = conf.workerMemoryCacheEnabled() && !conf.hasHDFSStorage();
 
     maxDirectorMemory =
         DynMethods.builder("maxDirectMemory")
@@ -440,6 +447,42 @@ public class MemoryManager {
     actionService.shutdown();
     readBufferTargetChangeListeners.clear();
     readBufferDispatcher.close();
+  }
+
+  public boolean tryCache(String file, ByteBuf cache) {
+    int cacheSize = cache.readableBytes();
+    synchronized (cacheLock) {
+      if (cacheEnable && (cacheCapacity > currentCacheSize.get() + cacheSize)) {
+        caches.put(file, cache.copy());
+        currentCacheSize.getAndAdd(cacheSize);
+        return true;
+      } else return false;
+    }
+  }
+
+  public void removeFileCache(String key) {
+    ByteBuf cache = caches.remove(key);
+    if (cache != null) {
+      currentCacheSize.getAndAdd(-1 * cache.readableBytes());
+      cache.release();
+    }
+  }
+
+  public boolean isCacheIn(String key) {
+    if (!cacheEnable) return false;
+    return caches.containsKey(key);
+  }
+
+  public ByteBuf getFileCache(String key) {
+    return caches.get(key);
+  }
+
+  public long getFileCacheSize() {
+    return currentCacheSize.get();
+  }
+
+  public int getFileCacheNum() {
+    return caches.size();
   }
 
   @VisibleForTesting

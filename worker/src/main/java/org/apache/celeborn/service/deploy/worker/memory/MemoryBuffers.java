@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.meta;
+package org.apache.celeborn.service.deploy.worker.memory;
 
 import java.util.List;
 
@@ -23,10 +23,10 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.meta.Buffers;
+import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
-import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.util.MemCacheManager;
 
 public class MemoryBuffers implements Buffers {
   private static final Logger logger = LoggerFactory.getLogger(MemoryBuffers.class);
@@ -35,9 +35,7 @@ public class MemoryBuffers implements Buffers {
   private final int numChunks;
   private final String filePath;
 
-  MemCacheManager memCacheManager;
-
-  public MemoryBuffers(FileInfo fileInfo, TransportConf conf) {
+  public MemoryBuffers(FileInfo fileInfo) {
     filePath = fileInfo.getFilePath();
     numChunks = fileInfo.numChunks();
     if (numChunks > 0) {
@@ -49,7 +47,6 @@ public class MemoryBuffers implements Buffers {
     } else {
       offsets = new long[] {0};
     }
-    memCacheManager = MemCacheManager.getMemCacheManager(conf.getCelebornConf());
   }
 
   public int numChunks() {
@@ -62,10 +59,10 @@ public class MemoryBuffers implements Buffers {
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     assert offset < chunkLength;
     long length = Math.min(chunkLength - offset, len);
-    ByteBuf fileBuffer = memCacheManager.getCache(filePath);
+    ByteBuf fileBuffer = MemoryManager.instance().getFileCache(filePath);
     assert chunkOffset + offset + length <= fileBuffer.readableBytes();
     ByteBuf buffer = fileBuffer.retainedSlice((int) (chunkOffset + offset), (int) length);
-    logger.debug(
+    logger.info(
         "fetch chunk form memory cache for "
             + filePath
             + ", start point is "

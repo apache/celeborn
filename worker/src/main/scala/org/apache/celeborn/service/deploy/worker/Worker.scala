@@ -35,7 +35,7 @@ import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfo, FileManagedBuffers, WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
 import org.apache.celeborn.common.network.TransportContext
@@ -43,7 +43,7 @@ import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerRespo
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, MemCacheManager, ShutdownHookManager, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -76,8 +76,6 @@ private[celeborn] class Worker(
   private val host = rpcEnv.address.host
   private val rpcPort = rpcEnv.address.port
   Utils.checkHost(host)
-
-  private val memCacheManager = MemCacheManager.getMemCacheManager(conf)
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
@@ -341,10 +339,10 @@ private[celeborn] class Worker(
     fetchHandler.totalChunkNum
   }
   workerSource.addGauge(WorkerSource.fileCacheSize) { () =>
-    memCacheManager.getCurrentCacheSize
+    memoryManager.getFileCacheSize
   }
   workerSource.addGauge(WorkerSource.fileCacheNum) { () =>
-    memCacheManager.getCacheFileNum
+    memoryManager.getFileCacheNum
   }
   workerSource.addGauge(WorkerSource.fileCacheHitRate) { () =>
     fetchHandler.getMemCacheHitRate

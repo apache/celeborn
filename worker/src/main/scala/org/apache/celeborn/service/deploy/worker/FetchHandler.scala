@@ -31,14 +31,15 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers, MemoryBuffers}
+import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
 import org.apache.celeborn.common.network.buffer.{ManagedBuffer, NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
-import org.apache.celeborn.common.util.{ExceptionUtils, MemCacheManager, Utils}
+import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
+import org.apache.celeborn.service.deploy.worker.memory.{MemoryBuffers, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
 class FetchHandler(
@@ -55,7 +56,6 @@ class FetchHandler(
     conf.partitionReadBuffersMax,
     conf.creditStreamThreadsPerMountpoint,
     conf.readBuffersToTriggerReadMin)
-  val memCacheManager = MemCacheManager.getMemCacheManager(conf)
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: AtomicBoolean = new AtomicBoolean(false)
@@ -233,8 +233,8 @@ class FetchHandler(
             replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
           } else {
             val buffers =
-              if (memCacheManager.contains(fileInfo.getFilePath))
-                new MemoryBuffers(fileInfo, transportConf)
+              if (MemoryManager.instance.isCacheIn(fileInfo.getFilePath))
+                new MemoryBuffers(fileInfo)
               else new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
             chunkStreamManager.registerStream(
