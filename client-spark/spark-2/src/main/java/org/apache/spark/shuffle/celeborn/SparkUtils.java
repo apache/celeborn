@@ -112,11 +112,21 @@ public class SparkUtils {
   }
 
   public static String appUniqueId(SparkContext context) {
+    return appUniqueId(context, fromSparkConf(context.conf()));
+  }
+
+  public static String appUniqueId(SparkContext context, CelebornConf celebornConf) {
+    String appUniqueId = "";
     if (context.applicationAttemptId().isDefined()) {
-      return context.applicationId() + "_" + context.applicationAttemptId().get();
+      appUniqueId = context.applicationId() + "_" + context.applicationAttemptId().get();
     } else {
-      return context.applicationId();
+      appUniqueId = context.applicationId();
     }
+  }
+
+  public static String appUniqueId(SparkContext context, CelebornConf celebornConf) {
+    String appUniqueId = appUniqueId(context);
+    return celebornConf.appIdWithIdentifierPrefix(appUniqueId);
   }
 
   public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {

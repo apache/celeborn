@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
@@ -89,6 +91,10 @@ public class SparkUtils {
   }
 
   public static String appUniqueId(SparkContext context) {
+    return appUniqueId(context, fromSparkConf(context.conf()));
+  }
+
+  public static String appUniqueId(SparkContext context, CelebornConf celebornConf) {
     return context
         .applicationAttemptId()
         .map(id -> context.applicationId() + "_" + id)
@@ -219,7 +225,9 @@ public class SparkUtils {
               TaskContext.class,
               CelebornConf.class,
               ShuffleReadMetricsReporter.class,
-              ExecutorShuffleIdTracker.class);
+              ExecutorShuffleIdTracker.class,
+              Optional.class,
+              Properties.class);
 
   public static <K, C> CelebornShuffleReader<K, C> createColumnarShuffleReader(
       CelebornShuffleHandle<K, ?, C> handle,
@@ -230,7 +238,9 @@ public class SparkUtils {
       TaskContext context,
       CelebornConf conf,
       ShuffleReadMetricsReporter metrics,
-      ExecutorShuffleIdTracker shuffleIdTracker) {
+      ExecutorShuffleIdTracker shuffleIdTracker,
+      Optional<byte[]> ioCryptoKey,
+      Properties ioCryptoConf) {
     return COLUMNAR_SHUFFLE_READER_CONSTRUCTOR_BUILDER
         .build()
         .invoke(
@@ -243,7 +253,9 @@ public class SparkUtils {
             context,
             conf,
             metrics,
-            shuffleIdTracker);
+            shuffleIdTracker,
+            ioCryptoKey,
+            ioCryptoConf);
   }
 
   // Added in SPARK-32920, for Spark 3.2 and above

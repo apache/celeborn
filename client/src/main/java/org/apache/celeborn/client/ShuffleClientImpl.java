@@ -30,6 +30,7 @@ import scala.reflect.ClassTag$;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.crypto.cipher.CryptoCipher;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
+import org.apache.celeborn.client.security.CryptoUtils;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -156,6 +158,29 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   protected final Map<Integer, ReduceFileGroups> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
+
+  protected Optional<byte[]> ioCryptoKey = Optional.empty();
+
+  protected Properties ioCryptoConf;
+
+  protected byte[] ioCyrptoInitializationVector;
+
+  private ThreadLocal<CryptoCipher> encipherThreadLocal =
+      new ThreadLocal<CryptoCipher>() {
+        @Override
+        protected CryptoCipher initialValue() {
+          CryptoCipher cryptoCipher = null;
+          if (ioCryptoKey.isPresent()) {
+            try {
+              cryptoCipher =
+                  CryptoUtils.getEncipher(ioCryptoKey, ioCryptoConf, ioCyrptoInitializationVector);
+            } catch (IOException e) {
+              logger.error("Failed to init crypto", e);
+            }
+          }
+          return cryptoCipher;
+        }
+      };
 
   public ShuffleClientImpl(String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
     super();
@@ -877,6 +902,23 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
+
+    if (ioCryptoKey.isPresent()) {
+      byte[] encryptData = new byte[length + encipherThreadLocal.get().getBlockSize()];
+      int encryptLength =
+          CryptoUtils.encrypt(encipherThreadLocal.get(), data, offset, length, encryptData);
+      logger.debug(
+          "Push data encryption encryptLength/beforeLength {}/{} for shuffle {} map {} attempt {} partition {}.",
+          encryptLength,
+          length,
+          shuffleId,
+          mapId,
+          attemptId,
+          partitionId);
+      length = encryptLength;
+      data = encryptData;
+      offset = 0;
+    }
 
     if (shuffleCompressionEnabled) {
       // compress data
@@ -1647,6 +1689,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           startMapIndex,
           endMapIndex,
           fetchExcludedWorkers,
+          ioCryptoKey,
+          ioCryptoConf,
+          ioCyrptoInitializationVector,
           metricsCallback);
     }
   }
@@ -1749,5 +1794,20 @@ public class ShuffleClientImpl extends ShuffleClient {
   @VisibleForTesting
   public TransportClientFactory getDataClientFactory() {
     return dataClientFactory;
+  }
+
+  @Override
+  public void setupIoCrypto(
+      Optional<byte[]> ioCryptoKey, Properties ioCryptoConf, byte[] ioCryptoInitializationVector) {
+    this.ioCryptoKey = ioCryptoKey;
+    this.ioCryptoConf = ioCryptoConf;
+    this.ioCyrptoInitializationVector = ioCryptoInitializationVector;
+    if (this.ioCryptoKey.isPresent()) {
+      try {
+        CryptoUtils.getEncipher(this.ioCryptoKey, this.ioCryptoConf, ioCryptoInitializationVector);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to init encipher", e);
+      }
+    }
   }
 }

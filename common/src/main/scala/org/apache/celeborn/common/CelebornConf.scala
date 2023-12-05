@@ -753,6 +753,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeReplicaOnFailureEnabled: Boolean =
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
+  def ioEncryptionEnabled: Boolean = get(CLIENT_IO_ENCRYPTION_ENABLED)
+
+  def ioEncryptionKey: String = get(CLIENT_IO_ENCRYPTION_KEY)
+
+  def ioEncryptionInitializationVector: String = get(CLIENT_IO_ENCRYPTION_INITIALIZATION_VECTOR)
+
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
 
   // //////////////////////////////////////////////////////
@@ -4180,4 +4186,28 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val CLIENT_IO_ENCRYPTION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.io.encryption.enabled")
+      .categories("client")
+      .version("0.3.0")
+      .doc("whether to enable io encryption")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CLIENT_IO_ENCRYPTION_KEY: ConfigEntry[String] =
+    buildConf("celeborn.client.io.encryption.key")
+      .categories("client")
+      .version("0.3.0")
+      .doc("io encryption key")
+      .stringConf
+      .createWithDefault("")
+
+  val CLIENT_IO_ENCRYPTION_INITIALIZATION_VECTOR: ConfigEntry[String] =
+    buildConf("celeborn.client.io.encryption.initialization.vector")
+      .categories("client")
+      .version("0.3.0")
+      .doc("io encryption initialization vector")
+      .stringConf
+      .createWithDefault("")
 }

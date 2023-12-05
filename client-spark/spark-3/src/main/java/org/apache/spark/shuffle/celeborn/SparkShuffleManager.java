@@ -18,13 +18,17 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.spark.*;
+import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
+import org.apache.spark.security.CryptoStreamUtils;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.internal.SQLConf;
@@ -34,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.security.CryptoUtils;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.common.util.ThreadUtils;
@@ -130,7 +135,32 @@ public class SparkShuffleManager implements ShuffleManager {
     return _sortShuffleManager;
   }
 
-  private void initializeLifecycleManager() {
+  private Properties getIoCryptoConf() {
+    if (!celebornConf.ioEncryptionEnabled()) return new Properties();
+    Properties cryptoConf = CryptoStreamUtils.toCryptoConf(conf);
+    cryptoConf.put(
+        CryptoUtils.COMMONS_CRYPTO_CONFIG_TRANSFORMATION,
+        conf.get(package$.MODULE$.IO_CRYPTO_CIPHER_TRANSFORMATION()));
+    return cryptoConf;
+  }
+
+  private Optional<byte[]> getIoCryptoKey() {
+    if (!celebornConf.ioEncryptionEnabled()) return Optional.empty();
+    return SparkEnv.get()
+        .securityManager()
+        .getIOEncryptionKey()
+        .map(key -> Optional.ofNullable(key))
+        .getOrElse(() -> Optional.empty());
+  }
+
+  private byte[] getIoCryptoInitializationVector() {
+    if (!celebornConf.ioEncryptionEnabled()) return null;
+    return conf.getBoolean(package$.MODULE$.IO_ENCRYPTION_ENABLED().key(), false)
+        ? CryptoUtils.createIoCryptoInitializationVector()
+        : null;
+  }
+
+  private void initializeLifecycleManager(byte[] ioCryptoInitializationVector) {
     // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
     // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
     // considered in this place, because if there is one RDD that depends on multiple RDDs
@@ -139,6 +169,16 @@ public class SparkShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
+          shuffleClient =
+              ShuffleClient.get(
+                  appUniqueId,
+                  lifecycleManager.getHost(),
+                  lifecycleManager.getPort(),
+                  celebornConf,
+                  lifecycleManager.getUserIdentifier(),
+                  getIoCryptoKey(),
+                  getIoCryptoConf(),
+                  ioCryptoInitializationVector);
           if (celebornConf.clientFetchThrowsFetchFailure()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
@@ -158,7 +198,8 @@ public class SparkShuffleManager implements ShuffleManager {
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
     appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
-    initializeLifecycleManager();
+    byte[] iv = getIoCryptoInitializationVector();
+    initializeLifecycleManager(iv);
 
     lifecycleManager.registerAppShuffleDeterminate(
         shuffleId,
@@ -187,7 +228,8 @@ public class SparkShuffleManager implements ShuffleManager {
           shuffleId,
           celebornConf.clientFetchThrowsFetchFailure(),
           dependency.rdd().getNumPartitions(),
-          dependency);
+          dependency,
+          iv);
     }
   }
 
@@ -242,7 +284,10 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerHost(),
                 h.lifecycleManagerPort(),
                 celebornConf,
-                h.userIdentifier());
+                h.userIdentifier(),
+                getIoCryptoKey(),
+                getIoCryptoConf(),
+                h.ioCryptoInitializationVector());
         int shuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, true);
         shuffleIdTracker.track(h.shuffleId(), shuffleId);
 
@@ -371,7 +416,9 @@ public class SparkShuffleManager implements ShuffleManager {
           context,
           celebornConf,
           metrics,
-          shuffleIdTracker);
+          shuffleIdTracker,
+          getIoCryptoKey(),
+          getIoCryptoConf());
     } else {
       return new CelebornShuffleReader<>(
           h,
@@ -382,7 +429,9 @@ public class SparkShuffleManager implements ShuffleManager {
           context,
           celebornConf,
           metrics,
-          shuffleIdTracker);
+          shuffleIdTracker,
+          getIoCryptoKey(),
+          getIoCryptoConf());
     }
   }
 
