@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master;
 
 import java.util.*;
+import java.util.function.IntUnaryOperator;
 import java.util.stream.Collectors;
 
 import scala.Double;
@@ -235,11 +236,19 @@ public class SlotsAllocator {
   private static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       locateSlots(
           List<Integer> partitionIds,
-          List<WorkerInfo> workers,
+          List<WorkerInfo> workersList,
           Map<WorkerInfo, List<UsableDiskInfo>> slotRestrictions,
           boolean shouldReplicate,
           boolean shouldRackAware,
           int availableStorageTypes) {
+
+    List<WorkerInfo> workersFromSlotRestrictions = new ArrayList<>(slotRestrictions.keySet());
+    List<WorkerInfo> workers = workersList;
+    if (shouldReplicate && shouldRackAware) {
+      workersFromSlotRestrictions = generateRackAwareWorkers(workersFromSlotRestrictions);
+      workers = generateRackAwareWorkers(workers);
+    }
+
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
 
@@ -247,7 +256,7 @@ public class SlotsAllocator {
         roundRobin(
             slots,
             partitionIds,
-            new LinkedList<>(slotRestrictions.keySet()),
+            workersFromSlotRestrictions,
             slotRestrictions,
             shouldReplicate,
             shouldRackAware,
@@ -269,6 +278,50 @@ public class SlotsAllocator {
     return slots;
   }
 
+  /**
+   * The rack distribution of the input workers list is essentially random, and in degenerate cases
+   * the rack aware slot selection ends up skipping sub list's of hosts (in same rack) - which
+   * results in uneven distribution of replica selection. For example given worker list: [h1r1,
+   * h2r1, h3r1, h4r2, h5r2, h6r2] if primary is h3r1 and replica index is pointing to h1r1, it will
+   * skip both h2r1 and h3r1 in order to pick h4r2; and for the next slot, primary will be h4r2 and
+   * will skip all the r2 hosts in order to pick h1r1. This ends up being suboptimal where some
+   * hosts are picked a lot more than others (due to the worker and worker/rack distribution). In
+   * order to mitigate this, we reorder the worker list by redistributing the workers based on rack
+   * to increase the rack diversity between adjoining workers, so that we minimize skipping over
+   * consecutive hosts.
+   */
+  static List<WorkerInfo> generateRackAwareWorkers(List<WorkerInfo> workers) {
+
+    List<Map.Entry<String, LinkedList<WorkerInfo>>> sortedRackToHosts;
+    {
+      Map<String, LinkedList<WorkerInfo>> map = new HashMap<>();
+      for (WorkerInfo worker : workers) {
+        map.computeIfAbsent(worker.networkLocation(), key -> new LinkedList<>()).add(worker);
+      }
+      sortedRackToHosts = new ArrayList<>(map.entrySet());
+      // reverse sort by number of hosts per rack
+      sortedRackToHosts.sort(
+          (o1, o2) -> Integer.compare(o2.getValue().size(), o1.getValue().size()));
+    }
+
+    ArrayList<WorkerInfo> result = new ArrayList<>(workers.size());
+    int count = 0;
+    final int numWorkers = workers.size();
+    while (count < numWorkers) {
+      Iterator<Map.Entry<String, LinkedList<WorkerInfo>>> iter = sortedRackToHosts.iterator();
+      while (iter.hasNext()) {
+        LinkedList<WorkerInfo> workerList = iter.next().getValue();
+        result.add(workerList.removeFirst());
+        count++;
+        if (workerList.isEmpty()) {
+          iter.remove();
+        }
+      }
+    }
+
+    return Collections.unmodifiableList(result);
+  }
+
   private static List<Integer> roundRobin(
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
       List<Integer> partitionIds,
@@ -281,7 +334,12 @@ public class SlotsAllocator {
     Map<WorkerInfo, Integer> workerDiskIndexForPrimary = new HashMap<>();
     Map<WorkerInfo, Integer> workerDiskIndexForReplica = new HashMap<>();
     List<Integer> partitionIdList = new ArrayList<>(partitionIds);
-    int primaryIndex = rand.nextInt(workers.size());
+
+    final int workerSize = workers.size();
+    final IntUnaryOperator incrementIndex = v -> (v + 1) % workerSize;
+    int primaryIndex = rand.nextInt(workerSize);
+    int replicaIndex = rand.nextInt(workerSize);
+
     Iterator<Integer> iter = partitionIdList.iterator();
     outer:
     while (iter.hasNext()) {
@@ -292,7 +350,7 @@ public class SlotsAllocator {
       if (slotsRestrictions != null && !slotsRestrictions.isEmpty()) {
         // this means that we'll select a mount point
         while (!haveUsableSlots(slotsRestrictions, workers, nextPrimaryInd)) {
-          nextPrimaryInd = (nextPrimaryInd + 1) % workers.size();
+          nextPrimaryInd = incrementIndex.applyAsInt(nextPrimaryInd);
           if (nextPrimaryInd == primaryIndex) {
             break outer;
           }
@@ -307,7 +365,7 @@ public class SlotsAllocator {
       } else {
         if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
           while (!workers.get(nextPrimaryInd).haveDisk()) {
-            nextPrimaryInd = (nextPrimaryInd + 1) % workers.size();
+            nextPrimaryInd = incrementIndex.applyAsInt(nextPrimaryInd);
             if (nextPrimaryInd == primaryIndex) {
               break outer;
             }
@@ -321,12 +379,13 @@ public class SlotsAllocator {
           createLocation(partitionId, workers.get(nextPrimaryInd), null, storageInfo, true);
 
       if (shouldReplicate) {
-        int nextReplicaInd = (nextPrimaryInd + 1) % workers.size();
+        int nextReplicaInd = replicaIndex;
         if (slotsRestrictions != null) {
-          while (!haveUsableSlots(slotsRestrictions, workers, nextReplicaInd)
+          while (nextReplicaInd == nextPrimaryInd
+              || !haveUsableSlots(slotsRestrictions, workers, nextReplicaInd)
               || !satisfyRackAware(shouldRackAware, workers, nextPrimaryInd, nextReplicaInd)) {
-            nextReplicaInd = (nextReplicaInd + 1) % workers.size();
-            if (nextReplicaInd == nextPrimaryInd) {
+            nextReplicaInd = incrementIndex.applyAsInt(nextReplicaInd);
+            if (nextReplicaInd == replicaIndex) {
               break outer;
             }
           }
@@ -338,17 +397,18 @@ public class SlotsAllocator {
                   workerDiskIndexForReplica,
                   availableStorageTypes);
         } else if (shouldRackAware) {
-          while (!satisfyRackAware(true, workers, nextPrimaryInd, nextReplicaInd)) {
-            nextReplicaInd = (nextReplicaInd + 1) % workers.size();
-            if (nextReplicaInd == nextPrimaryInd) {
+          while (nextReplicaInd == nextPrimaryInd
+              || !satisfyRackAware(true, workers, nextPrimaryInd, nextReplicaInd)) {
+            nextReplicaInd = incrementIndex.applyAsInt(nextReplicaInd);
+            if (nextReplicaInd == replicaIndex) {
               break outer;
             }
           }
         } else {
           if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
-            while (!workers.get(nextPrimaryInd).haveDisk()) {
-              nextPrimaryInd = (nextPrimaryInd + 1) % workers.size();
-              if (nextPrimaryInd == primaryIndex) {
+            while (nextReplicaInd == nextPrimaryInd || !workers.get(nextReplicaInd).haveDisk()) {
+              nextReplicaInd = incrementIndex.applyAsInt(nextReplicaInd);
+              if (nextReplicaInd == replicaIndex) {
                 break outer;
               }
             }
@@ -366,13 +426,14 @@ public class SlotsAllocator {
                 workers.get(nextReplicaInd),
                 v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
         locations._2.add(replicaPartition);
+        replicaIndex = incrementIndex.applyAsInt(nextReplicaInd);
       }
 
       Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
           slots.computeIfAbsent(
               workers.get(nextPrimaryInd), v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
       locations._1.add(primaryPartition);
-      primaryIndex = (nextPrimaryInd + 1) % workers.size();
+      primaryIndex = incrementIndex.applyAsInt(nextPrimaryInd);
       iter.remove();
     }
     return partitionIdList;
