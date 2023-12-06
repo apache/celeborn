@@ -64,7 +64,7 @@ private[celeborn] class Worker(
   override def serviceName: String = Service.WORKER
 
   override val metricsSystem: MetricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, conf.get(METRICS_PROMETHEUS_PATH))
+    MetricsSystem.createMetricsSystem(serviceName, conf)
 
   val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,

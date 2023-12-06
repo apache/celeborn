@@ -31,7 +31,6 @@ import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.METRICS_PROMETHEUS_PATH
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -58,7 +57,7 @@ private[celeborn] class Master(
   override def serviceName: String = Service.MASTER
 
   override val metricsSystem: MetricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, conf.get(METRICS_PROMETHEUS_PATH))
+    MetricsSystem.createMetricsSystem(serviceName, conf)
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,

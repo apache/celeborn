@@ -14,33 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.celeborn.common.metrics.sink
 
-import java.util.Properties
-
-import com.codahale.metrics.MetricRegistry
-import io.netty.channel.ChannelHandler.Sharable
-
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.Source
 
-class PrometheusServlet(
-    val property: Properties,
-    val registry: MetricRegistry,
-    val sources: Seq[Source],
-    val servletPath: String) extends AbstractServlet(sources) {
-
-  override def createHttpRequestHandler(): ServletHttpRequestHandler = {
-    new PrometheusHttpRequestHandler(servletPath, this)
+abstract class AbstractServlet(sources: Seq[Source]) extends Sink with Logging {
+  def getHandlers(conf: CelebornConf): Array[ServletHttpRequestHandler] = {
+    Array[ServletHttpRequestHandler](
+      createHttpRequestHandler())
   }
+
+  def createHttpRequestHandler(): ServletHttpRequestHandler
+
+  def getMetricsSnapshot: String = {
+    sources.map(_.getMetrics).mkString
+  }
+
+  override def start(): Unit = {}
+
+  override def stop(): Unit = {}
+
+  override def report(): Unit = {}
 }
 
-@Sharable
-class PrometheusHttpRequestHandler(
-    path: String,
-    prometheusServlet: PrometheusServlet) extends ServletHttpRequestHandler(path) {
+abstract class ServletHttpRequestHandler(path: String) extends Logging {
 
-  override def handleRequest(uri: String): String = {
-    prometheusServlet.getMetricsSnapshot
-  }
+  def handleRequest(uri: String): String
+
+  def getServletPath(): String = path
+
 }
