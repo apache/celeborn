@@ -21,6 +21,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -276,6 +278,59 @@ public class TransportClient implements Closeable {
     } catch (Exception e) {
       throw new IOException("Exception in sendRpcSync to: " + this.getSocketAddress(), e);
     }
+  }
+
+  public ByteBuffer openStream(
+      TransportMessage message, long timeoutMs, long openStreamRetryInterval) throws IOException {
+    BlockingQueue<ByteBuffer> result = new LinkedBlockingQueue(1);
+    BlockingQueue<Throwable> exception = new LinkedBlockingQueue(1);
+    ByteBuffer response = null;
+
+    RpcResponseCallback openStreamCallback =
+        new RpcResponseCallback() {
+          @Override
+          public void onSuccess(ByteBuffer response) {
+            ByteBuffer copy = ByteBuffer.allocate(response.remaining());
+            copy.put(response);
+            // flip "copy" to make it readable
+            copy.flip();
+            result.add(copy);
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            exception.add(e);
+          }
+        };
+    long startOpenTime = System.currentTimeMillis();
+    sendRpc(message.toByteBuffer(), openStreamCallback);
+    while (response == null) {
+      try {
+        response = result.poll(100, TimeUnit.MILLISECONDS);
+        Throwable e = exception.poll();
+        if (response == null) {
+          if (e != null) {
+            if (e.getMessage().contains("FileUnderSortingException")) {
+              logger.info(
+                  "open stream fail cause by "
+                      + e.getMessage()
+                      + " and will reopen it after "
+                      + openStreamRetryInterval
+                      + "ms");
+              Thread.sleep(openStreamRetryInterval);
+            } else throw (IOException) e;
+            if (System.currentTimeMillis() - startOpenTime > timeoutMs) {
+              logger.info("open stream timeout");
+              throw new IOException("open stream timeout!");
+            }
+            sendRpc(message.toByteBuffer(), openStreamCallback);
+          }
+        }
+      } catch (InterruptedException e) {
+        throw new IOException("open stream was interrupt cause by " + e.getMessage());
+      }
+    }
+    return response;
   }
 
   /**

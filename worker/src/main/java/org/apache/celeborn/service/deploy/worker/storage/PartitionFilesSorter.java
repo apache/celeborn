@@ -49,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.FileUnderSortingException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
@@ -176,7 +177,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   // 3. If the sorted file is generated, it returns the sorted FileInfo.
   public FileInfo getSortedFileInfo(
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
-      throws IOException {
+      throws IOException, FileUnderSortingException {
     String fileId = shuffleKey + "-" + fileName;
     UserIdentifier userIdentifier = fileInfo.getUserIdentifier();
     Set<String> sorted =
@@ -215,21 +216,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
     }
 
-    long sortStartTime = System.currentTimeMillis();
     while (!sorted.contains(fileId)) {
       if (sorting.contains(fileId)) {
-        try {
-          Thread.sleep(50);
-          if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
-            logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
-            throw new IOException(
-                "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
-          }
-        } catch (InterruptedException e) {
-          logger.error("Sorter scheduler thread is interrupted means worker is shutting down.", e);
-          throw new IOException(
-              "Sorter scheduler thread is interrupted means worker is shutting down.", e);
-        }
+        throw new FileUnderSortingException(
+            "Sort file " + fileInfo.getFilePath() + " under sorting");
       } else {
         logger.debug("Sorting shuffle file for {} {} failed.", shuffleKey, fileInfo.getFilePath());
         throw new IOException(

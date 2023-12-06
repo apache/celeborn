@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.FileUnderSortingException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.unsafe.Platform;
@@ -132,7 +133,8 @@ public class PartitionFilesSorterSuiteJ {
     JavaUtils.deleteRecursively(new File(shuffleFile.getPath() + ".index"));
   }
 
-  private void check(int mapCount, int startMapIndex, int endMapIndex) throws IOException {
+  private void check(int mapCount, int startMapIndex, int endMapIndex)
+      throws IOException, FileUnderSortingException {
     try {
       long[] partitionSize = prepare(mapCount);
       CelebornConf conf = new CelebornConf();
@@ -160,14 +162,14 @@ public class PartitionFilesSorterSuiteJ {
   }
 
   @Test
-  public void testSmallFile() throws IOException {
+  public void testSmallFile() throws IOException, FileUnderSortingException {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(1000, startMapIndex, endMapIndex);
   }
 
   @Test
-  public void testLargeFile() throws IOException {
+  public void testLargeFile() throws IOException, FileUnderSortingException {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(15000, startMapIndex, endMapIndex);

@@ -794,6 +794,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
+  def clientOpenStreamRetryInterval = get(CLIENT_OPENSTREAM_RETRY_INTERVAL)
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
@@ -3300,6 +3301,14 @@ object CelebornConf extends Logging {
       .doc("Timeout for a task to open stream and fetch chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
+
+  val CLIENT_OPENSTREAM_RETRY_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.openStream.retry.interval")
+      .categories("client")
+      .version("0.4.0")
+      .doc("open stream asynchronously")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
 
   val CLIENT_FETCH_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.buffer.size")

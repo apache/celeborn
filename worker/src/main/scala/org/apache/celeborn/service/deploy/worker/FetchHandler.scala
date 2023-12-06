@@ -29,7 +29,7 @@ import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
-import org.apache.celeborn.common.exception.CelebornIOException
+import org.apache.celeborn.common.exception.{CelebornIOException, FileUnderSortingException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
@@ -264,6 +264,11 @@ class FetchHandler(
     } catch {
       case e: IOException =>
         handleRpcIOException(client, rpcRequestId, shuffleKey, fileName, e)
+      case e: FileUnderSortingException =>
+        client.getChannel.writeAndFlush(new RpcFailure(
+          rpcRequestId,
+          Throwables.getStackTraceAsString(e)))
+
     } finally {
       workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     }

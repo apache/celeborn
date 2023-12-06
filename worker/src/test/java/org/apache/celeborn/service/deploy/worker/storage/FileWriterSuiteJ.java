@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornException;
+import org.apache.celeborn.common.exception.FileUnderSortingException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.TransportContext;
@@ -136,7 +137,7 @@ public class FileWriterSuiteJ {
     MemoryManager.initialize(conf);
   }
 
-  public static void setupChunkServer(FileInfo info) throws IOException {
+  public static void setupChunkServer(FileInfo info) throws IOException, FileUnderSortingException {
     FetchHandler handler =
         new FetchHandler(transConf.getCelebornConf(), transConf, mock(WorkerSource.class)) {
           @Override

@@ -62,6 +62,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final int fetchMaxReqsInFlight;
   private final long fetchTimeoutMs;
+  private final long openStreamRetryInterval;
   private boolean closed = false;
 
   // for test
@@ -83,6 +84,7 @@ public class WorkerPartitionReader implements PartitionReader {
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    openStreamRetryInterval = conf.clientOpenStreamRetryInterval();
     this.metricsCallback = metricsCallback;
     // only add the buffer to results queue if this reader is not closed.
     callback =
@@ -123,7 +125,7 @@ public class WorkerPartitionReader implements PartitionReader {
                 .setEndIndex(endMapIndex)
                 .build()
                 .toByteArray());
-    ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
+    ByteBuffer response = client.openStream(openStreamMsg, fetchTimeoutMs, openStreamRetryInterval);
     streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
 
     this.location = location;
