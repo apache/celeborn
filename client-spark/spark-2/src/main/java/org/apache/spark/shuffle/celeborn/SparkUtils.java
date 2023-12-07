@@ -122,11 +122,7 @@ public class SparkUtils {
     } else {
       appUniqueId = context.applicationId();
     }
-  }
-
-  public static String appUniqueId(SparkContext context, CelebornConf celebornConf) {
-    String appUniqueId = appUniqueId(context);
-    return celebornConf.appIdWithIdentifierPrefix(appUniqueId);
+    return appUniqueId;
   }
 
   public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {

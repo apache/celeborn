@@ -39,6 +39,7 @@ class CelebornShuffleHandle[K, V, C](
       lifecycleManagerPort: Int,
       userIdentifier: UserIdentifier,
       shuffleId: Int,
+      throwsFetchFailure: Boolean,
       numMappers: Int,
       dependency: ShuffleDependency[K, V, C]) = this(
     appUniqueId,
@@ -46,6 +47,7 @@ class CelebornShuffleHandle[K, V, C](
     lifecycleManagerPort,
     userIdentifier,
     shuffleId,
+    throwsFetchFailure,
     numMappers,
     dependency,
     null)
