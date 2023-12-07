@@ -215,8 +215,20 @@ public class FileWriterSuiteJ {
     return message.toByteBuffer();
   }
 
+  public TransportMessage createOpenStreamMessage() {
+    return new TransportMessage(
+        MessageType.OPEN_STREAM,
+        PbOpenStream.newBuilder()
+            .setShuffleKey("shuffleKey")
+            .setFileName("location")
+            .setStartIndex(0)
+            .setEndIndex(Integer.MAX_VALUE)
+            .build()
+            .toByteArray());
+  }
+
   private void setUpConn(TransportClient client) throws IOException, CelebornException {
-    ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
+    ByteBuffer resp = client.openStream(createOpenStreamMessage(), 10000, 5000);
     PbStreamHandler streamHandler = TransportMessage.fromByteBuffer(resp).getParsedPayload();
     streamId = streamHandler.getStreamId();
     numChunks = streamHandler.getNumChunks();

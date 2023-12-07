@@ -47,13 +47,7 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
-import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
-import org.apache.celeborn.common.network.protocol.Message;
-import org.apache.celeborn.common.network.protocol.OpenStream;
-import org.apache.celeborn.common.network.protocol.RpcRequest;
-import org.apache.celeborn.common.network.protocol.RpcResponse;
-import org.apache.celeborn.common.network.protocol.StreamHandle;
-import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
@@ -286,12 +280,26 @@ public class FetchHandlerSuiteJ {
       int startIndex,
       int endIndex)
       throws IOException {
-    ByteBuffer openStreamByteBuffer =
-        new OpenStream(shuffleKey, fileName, startIndex, endIndex).toByteBuffer();
-    fetchHandler.receive(
-        client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)));
-    RpcResponse result = channel.readOutbound();
-    StreamHandle streamHandler = (StreamHandle) Message.decode(result.body().nioByteBuffer());
+    OpenStream openStreamRequest = new OpenStream(shuffleKey, fileName, startIndex, endIndex);
+    ByteBuffer respondBuffer = null;
+    while (respondBuffer == null) {
+      fetchHandler.receive(
+          client,
+          new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamRequest.toByteBuffer())));
+      ResponseMessage result = channel.readOutbound();
+      if (result instanceof RpcFailure) {
+        if (((RpcFailure) result).errorString.contains("FileUnderSortingException")) {
+          try {
+            Thread.sleep(conf.clientOpenStreamRetryInterval());
+          } catch (InterruptedException e) {
+            throw new IOException(e);
+          }
+        } else throw new IOException(((RpcFailure) result).errorString);
+      } else {
+        respondBuffer = result.body().nioByteBuffer();
+      }
+    }
+    StreamHandle streamHandler = (StreamHandle) Message.decode(respondBuffer);
     if (endIndex == Integer.MAX_VALUE) {
       assertEquals(50, streamHandler.numChunks);
     } else {
@@ -306,22 +314,36 @@ public class FetchHandlerSuiteJ {
       int startIndex,
       int endIndex)
       throws IOException {
-    ByteBuffer openStreamByteBuffer =
+    TransportMessage openStreamRequest =
         new TransportMessage(
-                MessageType.OPEN_STREAM,
-                PbOpenStream.newBuilder()
-                    .setShuffleKey(shuffleKey)
-                    .setFileName(fileName)
-                    .setStartIndex(startIndex)
-                    .setEndIndex(endIndex)
-                    .build()
-                    .toByteArray())
-            .toByteBuffer();
-    fetchHandler.receive(
-        client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)));
-    RpcResponse result = channel.readOutbound();
+            MessageType.OPEN_STREAM,
+            PbOpenStream.newBuilder()
+                .setShuffleKey(shuffleKey)
+                .setFileName(fileName)
+                .setStartIndex(startIndex)
+                .setEndIndex(endIndex)
+                .build()
+                .toByteArray());
+    ByteBuffer respondBuffer = null;
+    while (respondBuffer == null) {
+      fetchHandler.receive(
+          client,
+          new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamRequest.toByteBuffer())));
+      ResponseMessage result = channel.readOutbound();
+      if (result instanceof RpcFailure) {
+        if (((RpcFailure) result).errorString.contains("FileUnderSortingException")) {
+          try {
+            Thread.sleep(conf.clientOpenStreamRetryInterval());
+          } catch (InterruptedException e) {
+            throw new IOException(e);
+          }
+        } else throw new IOException(((RpcFailure) result).errorString);
+      } else {
+        respondBuffer = result.body().nioByteBuffer();
+      }
+    }
     PbStreamHandler streamHandler =
-        TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
+        TransportMessage.fromByteBuffer(respondBuffer).getParsedPayload();
     if (endIndex == Integer.MAX_VALUE) {
       assertEquals(50, streamHandler.getNumChunks());
     } else {

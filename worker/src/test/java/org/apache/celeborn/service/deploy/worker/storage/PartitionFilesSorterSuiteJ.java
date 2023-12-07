@@ -133,21 +133,31 @@ public class PartitionFilesSorterSuiteJ {
     JavaUtils.deleteRecursively(new File(shuffleFile.getPath() + ".index"));
   }
 
-  private void check(int mapCount, int startMapIndex, int endMapIndex)
-      throws IOException, FileUnderSortingException {
+  private void check(int mapCount, int startMapIndex, int endMapIndex) throws IOException {
     try {
       long[] partitionSize = prepare(mapCount);
       CelebornConf conf = new CelebornConf();
       conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
       PartitionFilesSorter partitionFilesSorter =
           new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
-      FileInfo info =
-          partitionFilesSorter.getSortedFileInfo(
-              "application-1",
-              originFileName,
-              fileWriter.getFileInfo(),
-              startMapIndex,
-              endMapIndex);
+      FileInfo info = null;
+      while (info == null) {
+        try {
+          info =
+              partitionFilesSorter.getSortedFileInfo(
+                  "application-1",
+                  originFileName,
+                  fileWriter.getFileInfo(),
+                  startMapIndex,
+                  endMapIndex);
+        } catch (FileUnderSortingException sortingException) {
+          try {
+            Thread.sleep(conf.clientOpenStreamRetryInterval());
+          } catch (InterruptedException e) {
+            throw new IOException(e);
+          }
+        }
+      }
       long totalSizeToFetch = 0;
       for (int i = startMapIndex; i < endMapIndex; i++) {
         totalSizeToFetch += partitionSize[i];
@@ -162,14 +172,14 @@ public class PartitionFilesSorterSuiteJ {
   }
 
   @Test
-  public void testSmallFile() throws IOException, FileUnderSortingException {
+  public void testSmallFile() throws IOException {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(1000, startMapIndex, endMapIndex);
   }
 
   @Test
-  public void testLargeFile() throws IOException, FileUnderSortingException {
+  public void testLargeFile() throws IOException {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(15000, startMapIndex, endMapIndex);

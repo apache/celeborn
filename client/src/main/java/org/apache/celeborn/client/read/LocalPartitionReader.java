@@ -92,6 +92,7 @@ public class LocalPartitionReader implements PartitionReader {
     this.location = location;
     this.metricsCallback = metricsCallback;
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    long openStreamInterval = conf.clientOpenStreamRetryInterval();
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort(), 0);
       TransportMessage openStreamMsg =
@@ -105,7 +106,7 @@ public class LocalPartitionReader implements PartitionReader {
                   .setReadLocalShuffle(true)
                   .build()
                   .toByteArray());
-      ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
+      ByteBuffer response = client.openStream(openStreamMsg, fetchTimeoutMs, openStreamInterval);
       streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
     } catch (IOException | InterruptedException e) {
       throw new IOException(
