@@ -760,7 +760,8 @@ trait SparkClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" )
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
           case _ => MergeStrategy.first
-        }
+        },
+        addArtifact(assembly / artifact, assembly)
       )
     if (includeColumnarShuffle) {
         p.dependsOn(sparkColumnarShuffle)
@@ -917,6 +918,8 @@ trait FlinkClientProjects {
         commonSettings,
         releaseSettings,
 
+        moduleName := s"celeborn-client-flink-$flinkMajorVersion-shaded",
+
         (assembly / test) := { },
 
         (assembly / assemblyJarName) := {
@@ -965,7 +968,8 @@ trait FlinkClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" )
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
           case _ => MergeStrategy.first
-        }
+        },
+        addArtifact(assembly / artifact, assembly)
       )
   }
 }
@@ -1067,7 +1071,8 @@ object MRClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so")
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so")
           case _ => MergeStrategy.first
-        }
+        },
+        addArtifact(assembly / artifact, assembly)
       )
   }
 
