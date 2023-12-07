@@ -82,6 +82,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
   private val availableStorageTypes = conf.availableStorageTypes
+  private val UNKNOWN_APP_SHUFFLE_ID = -1
   // app shuffle id -> LinkedHashMap of (app shuffle identifier, (shuffle id, fetch status))
   private val shuffleIdMapping = JavaUtils.newConcurrentHashMap[
     Int,
@@ -653,16 +654,31 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       appShuffleId: Int,
       appShuffleIdentifier: String,
       isWriter: Boolean): Unit = {
-    val shuffleIds = shuffleIdMapping.computeIfAbsent(
-      appShuffleId,
-      new function.Function[Int, scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]() {
-        override def apply(id: Int)
-            : scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)] = {
-          val newShuffleId = shuffleIdGenerator.getAndIncrement()
-          logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
-          scala.collection.mutable.LinkedHashMap(appShuffleIdentifier -> (newShuffleId, true))
-        }
-      })
+    val shuffleIds =
+      if (isWriter) {
+        shuffleIdMapping.computeIfAbsent(
+          appShuffleId,
+          new function.Function[
+            Int,
+            scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]() {
+            override def apply(id: Int)
+                : scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)] = {
+              val newShuffleId = shuffleIdGenerator.getAndIncrement()
+              logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+              scala.collection.mutable.LinkedHashMap(appShuffleIdentifier -> (newShuffleId, true))
+            }
+          })
+      } else {
+        shuffleIdMapping.get(appShuffleId)
+      }
+
+    if (shuffleIds == null) {
+      logWarning(s"unknown appShuffleId $appShuffleId, maybe no shuffle data for this shuffle")
+      val pbGetShuffleIdResponse =
+        PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).build()
+      context.reply(pbGetShuffleIdResponse)
+      return
+    }
 
     def isAllMaptaskEnd(shuffleId: Int): Boolean = {
       !commitManager.getMapperAttempts(shuffleId).exists(_ < 0)

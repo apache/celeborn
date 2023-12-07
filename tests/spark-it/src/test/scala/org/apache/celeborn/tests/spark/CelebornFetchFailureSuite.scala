@@ -220,4 +220,25 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
     sparkSession.stop()
   }
+
+  test("celeborn spark integration test - empty shuffle data") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.shuffle.enabled", "true")
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .getOrCreate()
+
+    sparkSession.sql("create table if not exists t_1 (a bigint) using parquet")
+    sparkSession.sql("create table if not exists t_2 (a bigint) using parquet")
+    sparkSession.sql("create table if not exists t_3 (a bigint) using parquet")
+    val df1 = sparkSession.table("t_1")
+    val df2 = sparkSession.table("t_2")
+    val df3 = sparkSession.table("t_3")
+    df1.union(df2).union(df3).count()
+
+    sparkSession.stop()
+  }
 }
