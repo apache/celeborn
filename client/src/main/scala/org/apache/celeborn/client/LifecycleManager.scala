@@ -93,6 +93,16 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
+  private val reserveSlotThreadPool =
+    if (conf.clientReserveSlotsThreadPoolShare) {
+      Option.apply(ThreadUtils.newDaemonCachedThreadPool(
+        "LifecycleManager-shared-reserveSlot-pool",
+        conf.clientReserveSlotsThreadPoolMax,
+        conf.clientReserveSlotsThreadPoolIdleTime.asInstanceOf[Int]))
+    } else {
+      Option.empty
+    }
+
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
@@ -486,6 +496,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     // Second, for each worker, try to initialize the endpoint.
     val parallelism = Math.min(Math.max(1, slots.size()), conf.clientRpcMaxParallelism)
+
     ThreadUtils.parmap(slots.asScala, "InitWorkerRef", parallelism) { case (workerInfo, _) =>
       try {
         workerInfo.endpoint =
@@ -721,39 +732,76 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val workerPartitionLocations = slots.asScala.filter(p => !p._2._1.isEmpty || !p._2._2.isEmpty)
     val parallelism =
       Math.min(Math.max(1, workerPartitionLocations.size), conf.clientRpcMaxParallelism)
-    ThreadUtils.parmap(workerPartitionLocations, "ReserveSlot", parallelism) {
-      case (workerInfo, (primaryLocations, replicaLocations)) =>
-        val res =
-          if (workerInfo.endpoint == null) {
-            ReserveSlotsResponse(StatusCode.REQUEST_FAILED, s"$workerInfo endpoint is NULL!")
+    if (reserveSlotThreadPool.isDefined) {
+      ThreadUtils.parmap(workerPartitionLocations, reserveSlotThreadPool.get) {
+        case (workerInfo, (primaryLocations, replicaLocations)) =>
+          val res =
+            if (workerInfo.endpoint == null) {
+              ReserveSlotsResponse(StatusCode.REQUEST_FAILED, s"$workerInfo endpoint is NULL!")
+            } else {
+              requestWorkerReserveSlots(
+                workerInfo.endpoint,
+                ReserveSlots(
+                  appUniqueId,
+                  shuffleId,
+                  primaryLocations,
+                  replicaLocations,
+                  partitionSplitThreshold,
+                  partitionSplitMode,
+                  getPartitionType(shuffleId),
+                  rangeReadFilter,
+                  userIdentifier,
+                  conf.pushDataTimeoutMs,
+                  if (getPartitionType(shuffleId) == PartitionType.MAP)
+                    conf.clientShuffleMapPartitionSplitEnabled
+                  else true))
+            }
+          if (res.status.equals(StatusCode.SUCCESS)) {
+            logDebug(s"Successfully allocated " +
+              s"partitions buffer for shuffleId $shuffleId" +
+              s" from worker ${workerInfo.readableAddress()}.")
           } else {
-            requestWorkerReserveSlots(
-              workerInfo.endpoint,
-              ReserveSlots(
-                appUniqueId,
-                shuffleId,
-                primaryLocations,
-                replicaLocations,
-                partitionSplitThreshold,
-                partitionSplitMode,
-                getPartitionType(shuffleId),
-                rangeReadFilter,
-                userIdentifier,
-                conf.pushDataTimeoutMs,
-                if (getPartitionType(shuffleId) == PartitionType.MAP)
-                  conf.clientShuffleMapPartitionSplitEnabled
-                else true))
+            failureInfos.add(s"[reserveSlots] Failed to" +
+              s" reserve buffers for shuffleId $shuffleId" +
+              s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
+            reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
           }
-        if (res.status.equals(StatusCode.SUCCESS)) {
-          logDebug(s"Successfully allocated " +
-            s"partitions buffer for shuffleId $shuffleId" +
-            s" from worker ${workerInfo.readableAddress()}.")
-        } else {
-          failureInfos.add(s"[reserveSlots] Failed to" +
-            s" reserve buffers for shuffleId $shuffleId" +
-            s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
-          reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
-        }
+      }
+    } else {
+      ThreadUtils.parmap(workerPartitionLocations, "ReserveSlot", parallelism) {
+        case (workerInfo, (primaryLocations, replicaLocations)) =>
+          val res =
+            if (workerInfo.endpoint == null) {
+              ReserveSlotsResponse(StatusCode.REQUEST_FAILED, s"$workerInfo endpoint is NULL!")
+            } else {
+              requestWorkerReserveSlots(
+                workerInfo.endpoint,
+                ReserveSlots(
+                  appUniqueId,
+                  shuffleId,
+                  primaryLocations,
+                  replicaLocations,
+                  partitionSplitThreshold,
+                  partitionSplitMode,
+                  getPartitionType(shuffleId),
+                  rangeReadFilter,
+                  userIdentifier,
+                  conf.pushDataTimeoutMs,
+                  if (getPartitionType(shuffleId) == PartitionType.MAP)
+                    conf.clientShuffleMapPartitionSplitEnabled
+                  else true))
+            }
+          if (res.status.equals(StatusCode.SUCCESS)) {
+            logDebug(s"Successfully allocated " +
+              s"partitions buffer for shuffleId $shuffleId" +
+              s" from worker ${workerInfo.readableAddress()}.")
+          } else {
+            failureInfos.add(s"[reserveSlots] Failed to" +
+              s" reserve buffers for shuffleId $shuffleId" +
+              s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
+            reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
+          }
+      }
     }
     if (failureInfos.asScala.nonEmpty) {
       logError(s"Aggregated error of reserveSlots for " +

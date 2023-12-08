@@ -1068,6 +1068,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
+  def clientReserveSlotsThreadPoolShare = get(CLIENT_RESERVESLOTS_THREADPOOL_SHARE)
+  def clientReserveSlotsThreadPoolMax = get(CLIENT_RESERVESLOTS_THREADPOOL_MAX)
+  def clientReserveSlotsThreadPoolIdleTime = get(CLIENT_RESERVESLOTS_THREADPOOL_IDLETIME)
 
   // //////////////////////////////////////////////////////
   //                    kerberos                         //
@@ -4029,6 +4032,31 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_RESERVESLOTS_THREADPOOL_SHARE: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.reserveSlots.threadPool.share")
+      .categories("client")
+      .doc("" +
+        "whther to share thread pool in reserve slots.")
+      .version("0.3.2")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_RESERVESLOTS_THREADPOOL_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.client.reserveSlots.threadPool.max")
+      .categories("client")
+      .doc("The max thread number for thread pool to reserve slots.")
+      .version("0.3.2")
+      .intConf
+      .createWithDefault(512)
+
+  val CLIENT_RESERVESLOTS_THREADPOOL_IDLETIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.reserveSlots.threadPool.idleTime")
+      .categories("client")
+      .doc("The max idle time for a thread in thread pool to be freeed.")
+      .version("0.3.2")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("30s")
 
   val MAX_DEFAULT_NETTY_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.io.maxDefaultNettyThreads")

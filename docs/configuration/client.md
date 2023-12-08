@@ -73,6 +73,9 @@ license: |
 | celeborn.client.reserveSlots.maxRetries | 3 | Max retry times for client to reserve slots. | 0.3.0 | 
 | celeborn.client.reserveSlots.rackaware.enabled | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.1 | 
 | celeborn.client.reserveSlots.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.3.0 | 
+| celeborn.client.reserveSlots.threadPool.idleTime | 30s | The max idle time for a thread in thread pool to be freeed. | 0.3.2 | 
+| celeborn.client.reserveSlots.threadPool.max | 512 | The max thread number for thread pool to reserve slots. | 0.3.2 | 
+| celeborn.client.reserveSlots.threadPool.share | false | whther to share thread pool in reserve slots. | 0.3.2 | 
 | celeborn.client.rpc.cache.concurrencyLevel | 32 | The number of write locks to update rpc cache. | 0.3.0 | 
 | celeborn.client.rpc.cache.expireTime | 15s | The time before a cache item is removed. | 0.3.0 | 
 | celeborn.client.rpc.cache.size | 256 | The max cache items count for rpc cache. | 0.3.0 | 
