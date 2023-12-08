@@ -73,9 +73,6 @@ license: |
 | celeborn.client.reserveSlots.maxRetries | 3 | Max retry times for client to reserve slots. | 0.3.0 | 
 | celeborn.client.reserveSlots.rackaware.enabled | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.1 | 
 | celeborn.client.reserveSlots.retryWait | 3s | Wait time before next retry if reserve slots failed. | 0.3.0 | 
-| celeborn.client.reserveSlots.threadPool.idleTime | 30s | The max idle time for a thread in thread pool to be freeed. | 0.3.2 | 
-| celeborn.client.reserveSlots.threadPool.max | 512 | The max thread number for thread pool to reserve slots. | 0.3.2 | 
-| celeborn.client.reserveSlots.threadPool.share | false | whther to share thread pool in reserve slots. | 0.3.2 | 
 | celeborn.client.rpc.cache.concurrencyLevel | 32 | The number of write locks to update rpc cache. | 0.3.0 | 
 | celeborn.client.rpc.cache.expireTime | 15s | The time before a cache item is removed. | 0.3.0 | 
 | celeborn.client.rpc.cache.size | 256 | The max cache items count for rpc cache. | 0.3.0 | 
@@ -84,6 +81,9 @@ license: |
 | celeborn.client.rpc.registerShuffle.askTimeout | &lt;value of celeborn.&lt;module&gt;.io.connectionTimeout&gt; | Timeout for ask operations during register shuffle. During this process, there are two times for retry opportunities for requesting slots, one request for establishing a connection with Worker and `celeborn.client.reserveSlots.maxRetries` times for retry opportunities for reserving slots. User can customize this value according to your setting. By default, the value is the max timeout value `celeborn.<module>.io.connectionTimeout`. | 0.3.0 | 
 | celeborn.client.rpc.requestPartition.askTimeout | &lt;value of celeborn.&lt;module&gt;.io.connectionTimeout&gt; | Timeout for ask operations during requesting change partition location, such as reviving or splitting partition. During this process, there are `celeborn.client.reserveSlots.maxRetries` times for retry opportunities for reserving slots. User can customize this value according to your setting. By default, the value is the max timeout value `celeborn.<module>.io.connectionTimeout`. | 0.2.0 | 
 | celeborn.client.rpc.reserveSlots.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | Timeout for LifecycleManager request reserve slots. | 0.3.0 | 
+| celeborn.client.rpc.threadPool.idleTime | 30s | The max idle time for a thread in thread pool to be freed. | 0.3.2 | 
+| celeborn.client.rpc.threadPool.max | 256 | The max thread number for thread pool to reserve slots. | 0.3.2 | 
+| celeborn.client.rpc.threadPool.share | true | whether to share thread pool for processing RPCs in lifecycle manager. | 0.3.2 | 
 | celeborn.client.shuffle.batchHandleChangePartition.interval | 100ms | Interval for LifecycleManager to schedule handling change partition requests in batch. | 0.3.0 | 
 | celeborn.client.shuffle.batchHandleChangePartition.threads | 8 | Threads number for LifecycleManager to handle change partition request in batch. | 0.3.0 | 
 | celeborn.client.shuffle.batchHandleCommitPartition.interval | 5s | Interval for LifecycleManager to schedule handling commit partition requests in batch. | 0.3.0 | 

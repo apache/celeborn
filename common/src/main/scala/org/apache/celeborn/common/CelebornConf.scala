@@ -1068,9 +1068,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientShuffleMapPartitionSplitEnabled = get(CLIENT_SHUFFLE_MAPPARTITION_SPLIT_ENABLED)
-  def clientReserveSlotsThreadPoolShare = get(CLIENT_RESERVESLOTS_THREADPOOL_SHARE)
-  def clientReserveSlotsThreadPoolMax = get(CLIENT_RESERVESLOTS_THREADPOOL_MAX)
-  def clientReserveSlotsThreadPoolIdleTime = get(CLIENT_RESERVESLOTS_THREADPOOL_IDLETIME)
+  def clientRPCThreadPoolShare = get(CLIENT_RPC_THREADPOOL_SHARE)
+  def clientRPCThreadPoolMax = get(CLIENT_RPC_THREADPOOL_MAX)
+  def clientRPCThreadPoolIdleTime = get(CLIENT_RPC_THREADPOOL_IDLETIME)
 
   // //////////////////////////////////////////////////////
   //                    kerberos                         //
@@ -4033,27 +4033,27 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val CLIENT_RESERVESLOTS_THREADPOOL_SHARE: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.reserveSlots.threadPool.share")
+  val CLIENT_RPC_THREADPOOL_SHARE: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.rpc.threadPool.share")
       .categories("client")
       .doc("" +
-        "whther to share thread pool in reserve slots.")
+        "whether to share thread pool for processing RPCs in lifecycle manager.")
       .version("0.3.2")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
-  val CLIENT_RESERVESLOTS_THREADPOOL_MAX: ConfigEntry[Int] =
-    buildConf("celeborn.client.reserveSlots.threadPool.max")
+  val CLIENT_RPC_THREADPOOL_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.client.rpc.threadPool.max")
       .categories("client")
       .doc("The max thread number for thread pool to reserve slots.")
       .version("0.3.2")
       .intConf
-      .createWithDefault(512)
+      .createWithDefault(256)
 
-  val CLIENT_RESERVESLOTS_THREADPOOL_IDLETIME: ConfigEntry[Long] =
-    buildConf("celeborn.client.reserveSlots.threadPool.idleTime")
+  val CLIENT_RPC_THREADPOOL_IDLETIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.rpc.threadPool.idleTime")
       .categories("client")
-      .doc("The max idle time for a thread in thread pool to be freeed.")
+      .doc("The max idle time for a thread in thread pool to be freed.")
       .version("0.3.2")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("30s")

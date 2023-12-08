@@ -93,12 +93,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
-  private val reserveSlotThreadPool =
-    if (conf.clientReserveSlotsThreadPoolShare) {
+  private val sharedRPCThreadPool =
+    if (conf.clientRPCThreadPoolShare) {
       Option.apply(ThreadUtils.newDaemonCachedThreadPool(
         "LifecycleManager-shared-reserveSlot-pool",
-        conf.clientReserveSlotsThreadPoolMax,
-        conf.clientReserveSlotsThreadPoolIdleTime.asInstanceOf[Int]))
+        conf.clientRPCThreadPoolMax,
+        conf.clientRPCThreadPoolIdleTime.asInstanceOf[Int]))
     } else {
       Option.empty
     }
@@ -741,7 +741,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       workerPartitionLocations,
       "ReserveSlot",
       parallelism,
-      reserveSlotThreadPool) {
+      sharedRPCThreadPool) {
       case (workerInfo, (primaryLocations, replicaLocations)) =>
         val res =
           if (workerInfo.endpoint == null) {
