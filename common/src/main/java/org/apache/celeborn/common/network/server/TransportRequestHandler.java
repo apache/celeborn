@@ -76,7 +76,9 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
 
   @Override
   public void handle(RequestMessage request) {
-    logger.trace("Received request {} from {}", request.getClass().getName(), reverseClient);
+    if (logger.isTraceEnabled()) {
+      logger.trace("Received request {} from {}", request.getClass().getName(), reverseClient);
+    }
     if (checkRegistered(request)) {
       if (request instanceof RpcRequest) {
         processRpcRequest((RpcRequest) request);
