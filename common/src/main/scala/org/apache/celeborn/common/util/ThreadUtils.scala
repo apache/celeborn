@@ -371,20 +371,32 @@ object ThreadUtils {
    */
   def parmap[I, O](in: Iterable[I], prefix: String, maxThreads: Int)(f: I => O): Iterable[O] = {
     val pool = newForkJoinPool(prefix, maxThreads)
-    parmap(in, pool)(f)
+    try {
+      parmap(in, pool)(f)
+    } finally {
+      pool.shutdownNow()
+    }
+  }
+
+  def parmap[I, O](
+      in: Iterable[I],
+      prefix: String,
+      maxThreads: Int,
+      executors: Option[ExecutorService])(f: I => O): Iterable[O] = {
+    if (executors.isDefined) {
+      parmap(in, executors.get)(f)
+    } else {
+      parmap(in, prefix, maxThreads)(f)
+    }
   }
 
   def parmap[I, O](in: Iterable[I], executors: ExecutorService)(f: I => O): Iterable[O] = {
-    try {
-      implicit val ec = ExecutionContext.fromExecutor(executors)
+    implicit val ec = ExecutionContext.fromExecutor(executors)
 
-      val futures = in.map(x => Future(f(x)))
-      val futureSeq = Future.sequence(futures)
+    val futures = in.map(x => Future(f(x)))
+    val futureSeq = Future.sequence(futures)
 
-      awaitResult(futureSeq, Duration.Inf)
-    } finally {
-      executors.shutdownNow()
-    }
+    awaitResult(futureSeq, Duration.Inf)
   }
 }
 
