@@ -4037,7 +4037,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.rpc.threadPool.share")
       .categories("client")
       .doc("" +
-        "whether to share thread pool for processing RPCs in lifecycle manager.")
+        "whether to share thread pool for processing RPC in lifecycle manager.")
       .version("0.3.2")
       .booleanConf
       .createWithDefault(true)
@@ -4045,7 +4045,7 @@ object CelebornConf extends Logging {
   val CLIENT_RPC_THREADPOOL_MAX: ConfigEntry[Int] =
     buildConf("celeborn.client.rpc.threadPool.max")
       .categories("client")
-      .doc("The max thread number for thread pool to reserve slots.")
+      .doc("The max thread number for thread pool to process RPC.")
       .version("0.3.2")
       .intConf
       .createWithDefault(256)
@@ -4053,7 +4053,7 @@ object CelebornConf extends Logging {
   val CLIENT_RPC_THREADPOOL_IDLETIME: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.threadPool.idleTime")
       .categories("client")
-      .doc("The max idle time for a thread in thread pool to be freed.")
+      .doc("The max idle time for a thread in the shared RPC thread pool to be freed.")
       .version("0.3.2")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("30s")

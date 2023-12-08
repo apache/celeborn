@@ -497,7 +497,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     // Second, for each worker, try to initialize the endpoint.
     val parallelism = Math.min(Math.max(1, slots.size()), conf.clientRpcMaxParallelism)
 
-    ThreadUtils.parmap(slots.asScala.filter(_._1.endpoint == null), "InitWorkerRef", parallelism) {
+    ThreadUtils.parmap(
+      slots.asScala.filter(_._1.endpoint == null),
+      "InitWorkerRef",
+      parallelism,
+      sharedRPCThreadPool) {
       case (workerInfo, _) =>
         try {
           workerInfo.endpoint =
