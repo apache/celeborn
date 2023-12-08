@@ -20,7 +20,7 @@ package org.apache.celeborn.client
 import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
-import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledFuture, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Consumer
 
@@ -93,7 +93,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
-  private val sharedRPCThreadPool =
+  val sharedRPCThreadPool: Option[ThreadPoolExecutor] =
     if (conf.clientRPCThreadPoolShare) {
       Option.apply(ThreadUtils.newDaemonCachedThreadPool(
         "LifecycleManager-shared-reserveSlot-pool",

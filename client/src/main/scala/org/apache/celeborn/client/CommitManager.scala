@@ -119,7 +119,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                         ThreadUtils.parmap(
                           workerToRequests,
                           "CommitFiles",
-                          parallelism) {
+                          parallelism,
+                          lifecycleManager.sharedRPCThreadPool) {
                           case (worker, requests) =>
                             val workerInfo =
                               lifecycleManager.shuffleAllocatedWorkers
@@ -277,13 +278,15 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               conf,
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
-              lifecycleManager.workerStatusTracker)
+              lifecycleManager.workerStatusTracker,
+              lifecycleManager.sharedRPCThreadPool)
           case PartitionType.MAP => new MapPartitionCommitHandler(
               appUniqueId,
               conf,
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
-              lifecycleManager.workerStatusTracker)
+              lifecycleManager.workerStatusTracker,
+              lifecycleManager.sharedRPCThreadPool)
           case _ => throw new UnsupportedOperationException(
               s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
         }

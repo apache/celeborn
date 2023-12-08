@@ -18,7 +18,7 @@
 package org.apache.celeborn.client.commit
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
@@ -47,7 +47,8 @@ abstract class CommitHandler(
     appUniqueId: String,
     conf: CelebornConf,
     committedPartitionInfo: CommittedPartitionInfo,
-    workerStatusTracker: WorkerStatusTracker) extends Logging {
+    workerStatusTracker: WorkerStatusTracker,
+    sharedRPCThreadPool: Option[ThreadPoolExecutor]) extends Logging {
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles
@@ -199,7 +200,8 @@ abstract class CommitHandler(
     ThreadUtils.parmap(
       workerPartitionLocations,
       "CommitFiles",
-      parallelism) { case (worker, partitionLocationInfo) =>
+      parallelism,
+      sharedRPCThreadPool) { case (worker, partitionLocationInfo) =>
       val primaryParts =
         partitionLocationInfo.getPrimaryPartitions(partitionIdOpt)
       val replicaParts = partitionLocationInfo.getReplicaPartitions(partitionIdOpt)
