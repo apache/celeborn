@@ -218,11 +218,9 @@ object CelebornCommonSettings {
     Test / envVars += ("IS_TESTING", "1")
   )
 
-  /*
-   ********************
-   * Release settings *
-   ********************
-   */
+  ////////////////////////////////////////////////////////
+  //                 Release settings                   //
+  ////////////////////////////////////////////////////////
 
   lazy val releaseSettings = Seq(
     publishMavenStyle := true,
@@ -845,13 +843,6 @@ trait FlinkClientProjects {
   //   1.14.6 -> 1.14
   lazy val flinkMajorVersion: String = flinkVersion.split("\\.").take(2).reduce(_ + "." + _)
 
-  // the output would be something like: celeborn-client-flink-1.17_2.12-0.4.0-SNAPSHOT.jar
-  def flinkClientJarName(
-      module: ModuleID,
-      artifact: Artifact,
-      scalaBinaryVersionString: String): String =
-    s"celeborn-client-flink-${flinkMajorVersion}_$scalaBinaryVersionString" + "-" + module.revision + "." + artifact.extension
-
   // the output would be something like: celeborn-client-flink-1.17-shaded_2.12-0.4.0-SNAPSHOT.jar
   def flinkClientShadeJarName(
       revision: String,
@@ -876,12 +867,7 @@ trait FlinkClientProjects {
       .settings (
         commonSettings,
 
-        // 1. reference for modifying the jar name.
-        // https://stackoverflow.com/questions/52771831/how-to-modify-jar-name-generate-by-cmd-sbt-package
-        // 2. since SBT doesn't allow using `.` in the project name, explicitly setting the artifact Name
-        artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
-          flinkClientJarName(module, artifact, scalaBinaryVersion.value)
-        },
+        moduleName := s"celeborn-client-flink-$flinkMajorVersion",
 
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
