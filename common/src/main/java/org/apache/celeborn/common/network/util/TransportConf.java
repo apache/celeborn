@@ -153,4 +153,9 @@ public class TransportConf {
   public long clientHeartbeatInterval() {
     return celebornConf.clientHeartbeatInterval(module);
   }
+
+  /** Timeout for a single round trip of sasl message exchange, in milliseconds. */
+  public int saslTimeoutMs() {
+    return celebornConf.networkIoSaslTimoutMs(module);
+  }
 }
