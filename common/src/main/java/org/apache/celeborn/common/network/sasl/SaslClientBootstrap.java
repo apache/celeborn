@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network.sasl;
 
+import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeoutException;
@@ -35,8 +37,6 @@ import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbAuthType;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
 import org.apache.celeborn.common.protocol.PbSaslResponse;
-
-import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
 
 /**
  * Bootstraps a {@link TransportClient} by performing SASL authentication on the connection. The

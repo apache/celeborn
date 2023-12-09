@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network.sasl;
 
+import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
+
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -35,8 +37,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
 
 /**
  * A SASL Client for Celeborn which simply keeps track of the state of a single SASL session, from

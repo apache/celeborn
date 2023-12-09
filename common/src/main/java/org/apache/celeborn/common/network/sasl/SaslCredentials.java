@@ -19,9 +19,7 @@ package org.apache.celeborn.common.network.sasl;
 
 import com.google.common.base.Preconditions;
 
-/**
- * A class to encapsulate SASL credentials.
- */
+/** A class to encapsulate SASL credentials. */
 public class SaslCredentials {
   private final String userId;
   private final String password;
