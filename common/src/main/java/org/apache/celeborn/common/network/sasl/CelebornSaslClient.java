@@ -73,7 +73,7 @@ public class CelebornSaslClient {
       try {
         return saslClient.evaluateChallenge(new byte[0]);
       } catch (SaslException e) {
-        throw Throwables.propagate(e);
+        throw new RuntimeException(e);
       }
     } else {
       return new byte[0];

@@ -18,15 +18,13 @@
 package org.apache.celeborn.common.network.sasl;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 import javax.security.sasl.Sasl;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.base64.Base64;
 
 public class SaslUtils {
   /** Sasl Mechanisms */
@@ -43,31 +41,14 @@ public class SaslUtils {
   /* Encode a byte[] identifier as a Base64-encoded string. */
   static String encodeIdentifier(String identifier) {
     Preconditions.checkNotNull(identifier, "User cannot be null if SASL is enabled");
-    return getBase64EncodedString(identifier);
+    return Base64.getEncoder().encodeToString(identifier.getBytes(StandardCharsets.UTF_8));
   }
 
   /** Encode a password as a base64-encoded char[] array. */
   static char[] encodePassword(String password) {
     Preconditions.checkNotNull(password, "Password cannot be null if SASL is enabled");
-    return getBase64EncodedString(password).toCharArray();
-  }
-
-  /** Return a Base64-encoded string. */
-  private static String getBase64EncodedString(String str) {
-    ByteBuf byteBuf = null;
-    ByteBuf encodedByteBuf = null;
-    try {
-      byteBuf = Unpooled.wrappedBuffer(str.getBytes(StandardCharsets.UTF_8));
-      encodedByteBuf = Base64.encode(byteBuf);
-      return encodedByteBuf.toString(StandardCharsets.UTF_8);
-    } finally {
-      // The release is called to suppress the memory leak error messages raised by netty.
-      if (byteBuf != null) {
-        byteBuf.release();
-        if (encodedByteBuf != null) {
-          encodedByteBuf.release();
-        }
-      }
-    }
+    return Base64.getEncoder()
+        .encodeToString(password.getBytes(StandardCharsets.UTF_8))
+        .toCharArray();
   }
 }
