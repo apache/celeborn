@@ -42,6 +42,10 @@ import org.slf4j.LoggerFactory;
  * A SASL Client for Celeborn which simply keeps track of the state of a single SASL session, from
  * the initial state to the "authenticated" state. This client initializes the protocol via a
  * firstToken, which is then followed by a set of challenges and responses.
+ *
+ * <p>TODO: Currently, we have hardcoded Sasl mechanism to be DIGEST-MD5 for connection auth. We
+ * should make this configurable in the future (see:
+ * https://issues.apache.org/jira/browse/CELEBORN-1158).
  */
 public class CelebornSaslClient {
   private static final Logger logger = LoggerFactory.getLogger(CelebornSaslClient.class);
