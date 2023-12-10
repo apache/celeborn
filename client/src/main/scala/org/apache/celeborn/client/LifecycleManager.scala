@@ -494,6 +494,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         return
       case StatusCode.SUCCESS =>
         logInfo(s"OfferSlots for $shuffleId Success!Slots Info: ${res.workerResource}")
+      case StatusCode.WORKER_EXCLUDED =>
+        logInfo(s"OfferSlots for $shuffleId failed due to all workers be excluded!")
+        replyRegisterShuffle(RegisterShuffleResponse(StatusCode.WORKER_EXCLUDED, Array.empty))
+        return
       case _ => // won't happen
         throw new UnsupportedOperationException()
     }
@@ -1228,7 +1232,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def requestMasterRequestSlotsWithRetry(
+  def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
     val req =
@@ -1241,7 +1245,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         pushRackAwareEnabled,
         userIdentifier,
         slotsAssignMaxWorkers,
-        availableStorageTypes)
+        availableStorageTypes,
+        workerStatusTracker.excludedWorkers.asScala.keys.toSet)
     val res = requestMasterRequestSlots(req)
     if (res.status != StatusCode.SUCCESS) {
       requestMasterRequestSlots(req)
