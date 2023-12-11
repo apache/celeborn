@@ -318,7 +318,7 @@ object CelebornCommon {
       commonSettings,
       protoSettings,
       libraryDependencies ++= Seq(
-        Dependencies.protobufJava % "protobuf",
+        Dependencies.protobufJava,
         Dependencies.findbugsJsr305,
         Dependencies.guava,
         Dependencies.commonsIo,
