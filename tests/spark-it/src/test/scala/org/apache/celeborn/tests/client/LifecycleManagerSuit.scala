@@ -41,7 +41,8 @@ class LifecycleManagerSuit extends WithShuffleClientSuite with MiniClusterFeatur
     setUpMiniCluster(masterConf, workerConf)
   }
 
-  test("CELEBORN-1151: test request slots with client blacklist worker") {
+  test("CELEBORN-1151: test request slots with client blacklist worker with filter enabled") {
+    celebornConf.set(CelebornConf.REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED, true)
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
 
     val arrayList = new util.ArrayList[Integer]()
@@ -74,6 +75,29 @@ class LifecycleManagerSuit extends WithShuffleClientSuite with MiniClusterFeatur
     val status = lifecycleManager.requestMasterRequestSlotsWithRetry(2, arrayList).status
     assert(status == StatusCode.WORKER_EXCLUDED)
 
+    lifecycleManager.stop()
+  }
+
+  test("CELEBORN-1151: test request slots with client blacklist worker with filter not enabled") {
+    celebornConf.set(CelebornConf.REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED, false)
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
+
+    val arrayList = new util.ArrayList[Integer]()
+    (0 to 10).foreach(i => {
+      arrayList.add(i)
+    })
+
+    // test request slots with all workers excluded, response should not excluded any worker
+    val commitFilesFailedWorkers = new LifecycleManager.ShuffleFailedWorkers()
+    workerInfos.keySet.foreach(worker =>
+      commitFilesFailedWorkers.put(
+        worker.workerInfo,
+        (StatusCode.PUSH_DATA_TIMEOUT_PRIMARY, System.currentTimeMillis())))
+    lifecycleManager.workerStatusTracker.recordWorkerFailure(commitFilesFailedWorkers)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(0, arrayList)
+      .workerResource.keySet()
+    assert(res.size() == workerInfos.size)
+    assert(res.contains(workerInfos.keySet.head.workerInfo))
     lifecycleManager.stop()
   }
 
