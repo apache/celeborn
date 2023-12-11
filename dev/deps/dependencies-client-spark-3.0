@@ -71,7 +71,7 @@ netty-transport-sctp/4.1.93.Final//netty-transport-sctp-4.1.93.Final.jar
 netty-transport-udt/4.1.93.Final//netty-transport-udt-4.1.93.Final.jar
 netty-transport/4.1.93.Final//netty-transport-4.1.93.Final.jar
 paranamer/2.8//paranamer-2.8.jar
-protobuf-java/3.19.2//protobuf-java-3.19.2.jar
+protobuf-java/3.21.7//protobuf-java-3.21.7.jar
 ratis-client/2.5.1//ratis-client-2.5.1.jar
 ratis-common/2.5.1//ratis-common-2.5.1.jar
 ratis-proto/2.5.1//ratis-proto-2.5.1.jar
