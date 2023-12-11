@@ -28,7 +28,7 @@ import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
-import org.apache.celeborn.client.commit.{CommitHandler, MapPartitionCommitHandler, ReducePartitionCommitHandler}
+import org.apache.celeborn.client.commit.{CommitFileParam, CommitHandler, MapPartitionCommitHandler, ReducePartitionCommitHandler}
 import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -113,13 +113,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
 
                     if (workerToRequests.nonEmpty) {
                       val commitFilesFailedWorkers = new ShuffleFailedWorkers()
-                      val parallelism =
-                        Math.min(workerToRequests.size, conf.clientRpcMaxParallelism)
                       try {
-                        ThreadUtils.parmap(
-                          workerToRequests,
-                          "CommitFiles",
-                          parallelism) {
+
+                        val params = new util.ArrayList[CommitFileParam]()
+                        workerToRequests.foreach({
                           case (worker, requests) =>
                             val workerInfo =
                               lifecycleManager.shuffleAllocatedWorkers
@@ -141,15 +138,22 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                                 .toList
                                 .asJava
 
-                            commitHandler.commitFiles(
+                            params.add(CommitFileParam(
                               appUniqueId,
                               shuffleId,
                               shuffleCommittedInfo,
                               workerInfo,
                               primaryIds,
                               replicaIds,
-                              commitFilesFailedWorkers)
-                        }
+                              commitFilesFailedWorkers))
+                        })
+
+                        commitHandler.doParallelCommitFiles(
+                          shuffleCommittedInfo,
+                          params,
+                          commitFilesFailedWorkers,
+                          shuffleId)
+
                         lifecycleManager.workerStatusTracker.recordWorkerFailure(
                           commitFilesFailedWorkers)
                       } finally {
