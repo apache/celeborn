@@ -48,6 +48,7 @@ import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNet
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
+import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
 
 object LifecycleManager {
   // shuffle id -> partition id -> partition locations
@@ -82,7 +83,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
   private val availableStorageTypes = conf.availableStorageTypes
-  private val UNKNOWN_APP_SHUFFLE_ID = -1
   // app shuffle id -> LinkedHashMap of (app shuffle identifier, (shuffle id, fetch status))
   private val shuffleIdMapping = JavaUtils.newConcurrentHashMap[
     Int,
