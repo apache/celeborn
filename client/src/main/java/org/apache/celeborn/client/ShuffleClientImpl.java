@@ -1629,6 +1629,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       int endMapIndex,
       MetricsCallback metricsCallback)
       throws IOException {
+    if (partitionId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
+      logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
+      return CelebornInputStream.empty();
+    }
     ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
 
     if (fileGroups.partitionGroups.isEmpty()
