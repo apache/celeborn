@@ -373,7 +373,8 @@ class FetchHandler(
       }
     }
 
-    workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+    val reqStr = req.toString
+    workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
     val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(streamChunkSlice.streamId)
     val fetchBeginTime = System.nanoTime()
     try {
@@ -400,7 +401,7 @@ class FetchHandler(
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
             }
-            workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+            workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
           }
         })
     } catch {
@@ -412,7 +413,7 @@ class FetchHandler(
         client.getChannel.writeAndFlush(new ChunkFetchFailure(
           streamChunkSlice,
           Throwables.getStackTraceAsString(e)))
-        workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+        workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
     }
   }
 
