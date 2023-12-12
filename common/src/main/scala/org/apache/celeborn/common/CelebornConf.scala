@@ -3701,13 +3701,13 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
 
-  val CLIENT_RPC_SHARED_THREADS: ConfigEntry[Long] =
+  val CLIENT_RPC_SHARED_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.rpc.shared.threads")
       .categories("client")
       .version("0.4.0")
       .doc("Number of shared rpc threads in LifecycleManager.")
       .intConf
-      .createWithDefaultString(8)
+      .createWithDefault(8)
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.reserveSlots.rackaware.enabled")
