@@ -115,7 +115,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                       val commitFilesFailedWorkers = new ShuffleFailedWorkers()
                       try {
                         val params = new util.ArrayList[CommitFilesParam](workerToRequests.size)
-                        workerToRequests.foreach({
+                        workerToRequests.foreach {
                           case (worker, requests) =>
                             val workerInfo =
                               lifecycleManager.shuffleAllocatedWorkers
@@ -141,7 +141,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                               workerInfo,
                               primaryIds,
                               replicaIds))
-                        })
+                        }
 
                         commitHandler.doParallelCommitFiles(
                           shuffleId,

@@ -205,21 +205,21 @@ abstract class CommitHandler(
     def processResponse(res: CommitFilesResponse, worker: WorkerInfo): Unit = {
       shuffleCommittedInfo.synchronized {
         // record committed partitionIds
-        res.committedPrimaryIds.asScala.foreach({
+        res.committedPrimaryIds.asScala.foreach {
           case commitPrimaryId =>
             val partitionUniqueIdList = shuffleCommittedInfo.committedPrimaryIds.computeIfAbsent(
               Utils.splitPartitionLocationUniqueId(commitPrimaryId)._1,
               (k: Int) => new util.ArrayList[String]())
             partitionUniqueIdList.add(commitPrimaryId)
-        })
+        }
 
-        res.committedReplicaIds.asScala.foreach({
+        res.committedReplicaIds.asScala.foreach {
           case commitReplicaId =>
             val partitionUniqueIdList = shuffleCommittedInfo.committedReplicaIds.computeIfAbsent(
               Utils.splitPartitionLocationUniqueId(commitReplicaId)._1,
               (k: Int) => new util.ArrayList[String]())
             partitionUniqueIdList.add(commitReplicaId)
-        })
+        }
 
         // record committed partitions storage hint and disk hint
         shuffleCommittedInfo.committedPrimaryStorageInfos.putAll(res.committedPrimaryStorageInfos)
