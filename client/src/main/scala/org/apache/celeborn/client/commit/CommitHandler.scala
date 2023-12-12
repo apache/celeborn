@@ -286,7 +286,7 @@ abstract class CommitHandler(
             case scala.util.Failure(e) =>
               val worker = status.commitFilesParam.worker
               logError(
-                s"AskSync worker($worker) CommitFiles for $shuffleId failed" +
+                s"Ask worker($worker) CommitFiles for $shuffleId failed" +
                   s" (attempt ${status.retriedTimes}/$maxRetries).",
                 e)
               if (status.retriedTimes < maxRetries) {
@@ -321,7 +321,7 @@ abstract class CommitHandler(
     while (iter.hasNext) {
       val status = iter.next()
       logError(
-        s"AskSync worker(${status.commitFilesParam.worker}) CommitFiles for $shuffleId timed out")
+        s"Ask worker(${status.commitFilesParam.worker}) CommitFiles for $shuffleId timed out")
       val res = CommitFilesResponse(
         StatusCode.REQUEST_FAILED,
         List.empty.asJava,
