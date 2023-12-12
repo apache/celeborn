@@ -162,9 +162,14 @@ public abstract class FileWriter implements DeviceObserver {
           boolean cached = false;
           if (finalFlush && fileInfo.getFileLength() == 0) {
             cached = MemoryManager.instance().tryCache(fileInfo.getFilePath(), flushBuffer);
-            flusher.returnBuffer(flushBuffer);
-            logger.debug(
-                "MemCache for " + fileInfo.getFilePath() + ", and total cache size is " + numBytes);
+            if (cached) {
+              flusher.returnBuffer(flushBuffer);
+              logger.debug(
+                  "MemCache for "
+                      + fileInfo.getFilePath()
+                      + ", and total cache size is "
+                      + numBytes);
+            }
           }
           if (!cached) {
             notifier.numPendingFlushes.incrementAndGet();
