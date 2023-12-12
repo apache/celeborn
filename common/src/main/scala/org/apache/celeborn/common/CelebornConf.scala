@@ -825,6 +825,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushStageEndTimeout: Long = get(CLIENT_PUSH_STAGE_END_TIMEOUT)
   def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
+  def clientRpcSharedThreads: Int = get(CLIENT_RPC_SHARED_THREADS)
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
@@ -3699,6 +3700,14 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
+
+  val CLIENT_RPC_SHARED_THREADS: ConfigEntry[Long] =
+    buildConf("celeborn.client.rpc.shared.threads")
+      .categories("client")
+      .version("0.4.0")
+      .doc("Number of shared rpc threads in LifecycleManager.")
+      .intConf
+      .createWithDefaultString(8)
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.reserveSlots.rackaware.enabled")

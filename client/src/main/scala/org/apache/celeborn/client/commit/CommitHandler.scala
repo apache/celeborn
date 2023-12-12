@@ -18,13 +18,13 @@
 package org.apache.celeborn.client.commit
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.Duration
 
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
@@ -36,9 +36,10 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
-import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
+import org.apache.celeborn.common.util.ThreadUtils.awaitResult
 
 case class CommitFilesParam(
     worker: WorkerInfo,
@@ -59,7 +60,8 @@ abstract class CommitHandler(
     appUniqueId: String,
     conf: CelebornConf,
     committedPartitionInfo: CommittedPartitionInfo,
-    workerStatusTracker: WorkerStatusTracker) extends Logging {
+    workerStatusTracker: WorkerStatusTracker,
+    val sharedRpcPool: ThreadPoolExecutor) extends Logging {
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val testRetryCommitFiles = conf.testRetryCommitFiles
@@ -68,6 +70,8 @@ abstract class CommitHandler(
   private val totalWritten = new LongAdder
   private val fileCount = new LongAdder
   protected val reducerFileGroupsMap = new ShuffleFileGroups
+
+  implicit val ec = ExecutionContext.fromExecutor(sharedRpcPool)
 
   def getPartitionType(): PartitionType
 
@@ -237,9 +241,10 @@ abstract class CommitHandler(
 
     val futures = new util.LinkedList[FutureWithStatus]()
 
-    params.asScala.foreach { param =>
-      if (!CollectionUtils.isEmpty(param.primaryIds) ||
-        !CollectionUtils.isEmpty(param.replicaIds)) {
+    val outFutures = params.asScala.filter(param =>
+      !CollectionUtils.isEmpty(param.primaryIds) ||
+        !CollectionUtils.isEmpty(param.replicaIds)) map { param =>
+      Future {
         val future = commitFiles(
           appUniqueId,
           shuffleId,
@@ -250,6 +255,8 @@ abstract class CommitHandler(
         futures.add(FutureWithStatus(future, param, 1))
       }
     }
+    val futureSeq = Future.sequence(outFutures)
+    awaitResult(futureSeq, Duration.Inf)
 
     val maxRetries = conf.clientRequestCommitFilesMaxRetries
     var timeout = conf.rpcAskTimeout.duration.toMillis * maxRetries
