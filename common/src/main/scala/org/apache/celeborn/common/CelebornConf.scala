@@ -880,6 +880,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def readLocalShuffleThreads: Int = get(READ_LOCAL_SHUFFLE_THREADS)
   def readStreamCreatorPoolThreads: Int = get(READ_STREAM_CREATOR_POOL_THREADS)
 
+  def registerShuffleFilterExcludedWorkerEnabled: Boolean =
+    get(REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED)
+
   // //////////////////////////////////////////////////////
   //                       Worker                        //
   // //////////////////////////////////////////////////////
@@ -4198,4 +4201,12 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.register.filterExcludedWorker.enabled")
+      .categories("client")
+      .version("0.4.0")
+      .doc("Whether to filter excluded worker when register shuffle.")
+      .booleanConf
+      .createWithDefault(false)
 }

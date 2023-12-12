@@ -357,7 +357,7 @@ private[celeborn] class Master(
       // keep it for compatible reason
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
@@ -664,8 +664,14 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
-    val availableWorkers = workersAvailable()
+    val availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
     val numAvailableWorkers = availableWorkers.size()
+
+    if (numAvailableWorkers == 0) {
+      logError(s"Offer slots for $shuffleKey failed due to all workers are excluded!")
+      context.reply(RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource()))
+    }
+
     val numWorkers = Math.min(
       Math.max(
         if (requestSlots.shouldReplicate) 2 else 1,
