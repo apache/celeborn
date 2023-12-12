@@ -247,7 +247,7 @@ abstract class CommitHandler(
           param.primaryIds,
           param.replicaIds)
 
-        futures.add(FutureWithStatus(future, param, 0))
+        futures.add(FutureWithStatus(future, param, 1))
       }
     }
 
