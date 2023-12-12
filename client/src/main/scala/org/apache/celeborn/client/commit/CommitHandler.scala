@@ -20,10 +20,12 @@ package org.apache.celeborn.client.commit
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicLong, LongAdder}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
+
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleFailedWorkers, ShuffleFileGroups}
@@ -35,7 +37,6 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles,
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.{RpcCallContext, RpcEndpointRef}
 import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils, Utils}
-
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
@@ -349,7 +350,7 @@ abstract class CommitHandler(
     val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
 
     val params = new util.ArrayList[CommitFilesParam](workerPartitionLocations.size)
-    workerPartitionLocations.foreach({ case (worker, partitionLocationInfo) =>
+    workerPartitionLocations.foreach { case (worker, partitionLocationInfo) =>
       val primaryParts =
         partitionLocationInfo.getPrimaryPartitions(partitionIdOpt)
       val replicaParts = partitionLocationInfo.getReplicaPartitions(partitionIdOpt)
@@ -380,7 +381,7 @@ abstract class CommitHandler(
         worker,
         primaryIds,
         replicaIds))
-    })
+    }
 
     doParallelCommitFiles(shuffleId, shuffleCommittedInfo, params, commitFilesFailedWorkers)
 
