@@ -501,6 +501,8 @@ abstract class CommitHandler(
           endpoint.ask[CommitFilesResponse](message)
           Thread.sleep(1000)
           throw new Exception("Mock fail for CommitFiles")
+        } else {
+          return endpoint.askSync[CommitFilesResponse](message)
         }
       } catch {
         case e: Throwable =>

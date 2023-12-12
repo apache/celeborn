@@ -46,6 +46,7 @@ class RetryReviveTest extends AnyFunSuite
   test("celeborn spark integration test - retry revive as configured times") {
     val sparkConf = new SparkConf()
       .set(s"spark.${CelebornConf.TEST_CLIENT_RETRY_REVIVE.key}", "true")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}", "3")
       .setAppName("celeborn-demo").setMaster("local[2]")
     val ss = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
