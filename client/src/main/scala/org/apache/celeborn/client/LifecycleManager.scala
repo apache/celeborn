@@ -27,7 +27,6 @@ import java.util.function.Consumer
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.Random
@@ -39,7 +38,6 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
-import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -520,17 +518,49 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
-    val parallelism = Math.min(Math.max(1, slots.size()), conf.clientRpcMaxParallelism)
-    ThreadUtils.parmap(slots.asScala, "InitWorkerRef", parallelism) { case (workerInfo, _) =>
-      try {
-        workerInfo.endpoint =
-          rpcEnv.setupEndpointRef(RpcAddress.apply(workerInfo.host, workerInfo.rpcPort), WORKER_EP)
-      } catch {
-        case t: Throwable =>
-          logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.", t)
-          connectFailedWorkers.put(
-            workerInfo,
-            (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
+    val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
+    slots.asScala foreach { case (workerInfo, _) =>
+      val future = rpcEnv.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
+        RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
+        WORKER_EP))
+      futures.add((future, workerInfo))
+    }
+
+    var timeout = conf.rpcAskTimeout.duration.toMillis
+    val delta = 50
+    while (timeout > 0 && !futures.isEmpty) {
+      val iter = futures.iterator
+      while (iter.hasNext) {
+        val (future, workerInfo) = iter.next()
+        if (future.isCompleted) {
+          future.value.get match {
+            case scala.util.Success(endpointRef) =>
+              workerInfo.endpoint = endpointRef
+            case scala.util.Failure(e) =>
+              logError(
+                s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.",
+                e)
+              connectFailedWorkers.put(
+                workerInfo,
+                (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
+          }
+          iter.remove()
+        }
+      }
+
+      if (!futures.isEmpty) {
+        Thread.sleep(delta)
+        timeout -= delta
+      }
+    }
+    if (!futures.isEmpty) {
+      val iter = futures.iterator()
+      while (iter.hasNext) {
+        val (_, workerInfo) = iter.next()
+        logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots, reason: Timeout.")
+        connectFailedWorkers.put(
+          workerInfo,
+          (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
       }
     }
 
