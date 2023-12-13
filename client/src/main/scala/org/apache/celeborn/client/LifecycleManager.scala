@@ -895,7 +895,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
     val workerPartitionLocations = slots.asScala.filter(p => !p._2._1.isEmpty || !p._2._2.isEmpty)
 
-    val start = System.currentTimeMillis()
     val (locsWithNullEndpoint, locs) = workerPartitionLocations.partition(_._1.endpoint == null)
     val futures = new LinkedBlockingQueue[(Future[ReserveSlotsResponse], WorkerInfo)]()
     val outFutures = locs.map { case (workerInfo, (primaryLocations, replicaLocations)) =>
@@ -977,14 +976,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     locsWithNullEndpoint.foreach { case (workerInfo, (_, _)) =>
       failureInfos.add(s"[reserveSlots] Failed to" +
         s" reserve buffers for shuffleId $shuffleId" +
-        s" from worker ${workerInfo.readableAddress()}. Reason: Timeout")
+        s" from worker ${workerInfo.readableAddress()}. Reason: null endpoint")
       reserveSlotFailedWorkers.put(
         workerInfo,
         (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
     }
-
-    val end = System.currentTimeMillis()
-    logWarning(s"[LifecycleManager] parallel reserve slots costs ${end - start}ms")
 
     if (failureInfos.asScala.nonEmpty) {
       logError(s"Aggregated error of reserveSlots for " +
