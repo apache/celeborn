@@ -862,6 +862,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                   Client Shuffle                    //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SPARK_SHUFFLE_WRITER_MODE))
+  def shuffleWriteModeByPartitionCountEnable =
+    get(CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLE)
+  def shuffleWriteModeByPartitionCountThreshold =
+    get(CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
@@ -3769,6 +3773,26 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
       .createWithDefault(ShuffleMode.HASH.name)
+
+  val CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.client.spark.push.writer.modeByPartitionCount.threshold")
+      .withAlternative("celeborn.push.writer.modeByPartitionCount.threshold")
+      .categories("client")
+      .doc("Threshold of shuffle partition count for push writer mode by partition count.")
+      .version("0.4.0")
+      .intConf
+      .createWithDefault(2000)
+
+  val CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLE: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.writer.modeByPartitionCount.enable")
+      .withAlternative("celeborn.push.writer.modeByPartitionCount.enable")
+      .categories("client")
+      .doc("Whether to enable push writer mode by partition count. If true, Celeborn will use sort-based " +
+        "shuffle writer when shuffle partition count is greater than " +
+        s"`${CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD.key}`.")
+      .version("0.4.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.unsafeRow.fastWrite.enabled")
