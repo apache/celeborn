@@ -22,7 +22,9 @@ import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadPoolE
 import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
+import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
@@ -71,7 +73,7 @@ abstract class CommitHandler(
   private val fileCount = new LongAdder
   protected val reducerFileGroupsMap = new ShuffleFileGroups
 
-  implicit val ec = ExecutionContext.fromExecutor(sharedRpcPool)
+  val ec = ExecutionContext.fromExecutor(sharedRpcPool)
 
   def getPartitionType(): PartitionType
 
@@ -199,7 +201,7 @@ abstract class CommitHandler(
   def doParallelCommitFiles(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo,
-      params: util.ArrayList[CommitFilesParam],
+      params: ArrayBuffer[CommitFilesParam],
       commitFilesFailedWorkers: ShuffleFailedWorkers): Unit = {
 
     def processResponse(res: CommitFilesResponse, worker: WorkerInfo): Unit = {
@@ -241,7 +243,7 @@ abstract class CommitHandler(
 
     val futures = new LinkedBlockingQueue[FutureWithStatus]()
 
-    val outFutures = params.asScala.filter(param =>
+    val outFutures = params.filter(param =>
       !CollectionUtils.isEmpty(param.primaryIds) ||
         !CollectionUtils.isEmpty(param.replicaIds)) map { param =>
       Future {
@@ -253,9 +255,12 @@ abstract class CommitHandler(
           param.replicaIds)
 
         futures.add(FutureWithStatus(future, param, 1))
-      }
+      }(ec)
     }
-    val futureSeq = Future.sequence(outFutures)
+    val cbf =
+      implicitly[
+        CanBuildFrom[ArrayBuffer[Future[Boolean]], Boolean, ArrayBuffer[Boolean]]]
+    val futureSeq = Future.sequence(outFutures)(cbf, ec)
     awaitResult(futureSeq, Duration.Inf)
 
     val maxRetries = conf.clientRequestCommitFilesMaxRetries
@@ -349,7 +354,7 @@ abstract class CommitHandler(
     val commitFileStartTime = System.nanoTime()
     val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
 
-    val params = new util.ArrayList[CommitFilesParam](workerPartitionLocations.size)
+    val params = new ArrayBuffer[CommitFilesParam](workerPartitionLocations.size)
     workerPartitionLocations.foreach { case (worker, partitionLocationInfo) =>
       val primaryParts =
         partitionLocationInfo.getPrimaryPartitions(partitionIdOpt)
@@ -377,10 +382,10 @@ abstract class CommitHandler(
             .map(_.getUniqueId).toList.asJava)
       }
 
-      params.add(CommitFilesParam(
+      params += CommitFilesParam(
         worker,
         primaryIds,
-        replicaIds))
+        replicaIds)
     }
 
     doParallelCommitFiles(shuffleId, shuffleCommittedInfo, params, commitFilesFailedWorkers)
@@ -410,12 +415,14 @@ abstract class CommitHandler(
 
       if (conf.clientCommitFilesIgnoreExcludedWorkers &&
         workerStatusTracker.excludedWorkers.containsKey(worker)) {
-        Future(CommitFilesResponse(
-          StatusCode.WORKER_EXCLUDED,
-          List.empty.asJava,
-          List.empty.asJava,
-          primaryIds,
-          replicaIds))
+        Future {
+          CommitFilesResponse(
+            StatusCode.WORKER_EXCLUDED,
+            List.empty.asJava,
+            List.empty.asJava,
+            primaryIds,
+            replicaIds)
+        }(ec)
       } else {
         worker.endpoint.ask[CommitFilesResponse](commitFiles)
       }
@@ -454,7 +461,7 @@ abstract class CommitHandler(
         res1.totalWritten + res2.totalWritten,
         res1.fileCount + res2.fileCount)
 
-      Future(res)
+      Future { res }(ec)
     }
   }
 

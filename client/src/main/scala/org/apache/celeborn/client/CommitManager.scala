@@ -22,6 +22,7 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, Schedu
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
 
 import org.roaringbitmap.RoaringBitmap
@@ -114,7 +115,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                     if (workerToRequests.nonEmpty) {
                       val commitFilesFailedWorkers = new ShuffleFailedWorkers()
                       try {
-                        val params = new util.ArrayList[CommitFilesParam](workerToRequests.size)
+                        val params = new ArrayBuffer[CommitFilesParam](workerToRequests.size)
                         workerToRequests.foreach {
                           case (worker, requests) =>
                             val workerInfo =
@@ -137,10 +138,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                                 .toList
                                 .asJava
 
-                            params.add(CommitFilesParam(
+                            params += CommitFilesParam(
                               workerInfo,
                               primaryIds,
-                              replicaIds))
+                              replicaIds)
                         }
 
                         commitHandler.doParallelCommitFiles(
@@ -277,14 +278,14 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
               lifecycleManager.workerStatusTracker,
-              lifecycleManager.rpcSharedThreads)
+              lifecycleManager.rpcSharedThreadPool)
           case PartitionType.MAP => new MapPartitionCommitHandler(
               appUniqueId,
               conf,
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
               lifecycleManager.workerStatusTracker,
-              lifecycleManager.rpcSharedThreads)
+              lifecycleManager.rpcSharedThreadPool)
           case _ => throw new UnsupportedOperationException(
               s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
         }
