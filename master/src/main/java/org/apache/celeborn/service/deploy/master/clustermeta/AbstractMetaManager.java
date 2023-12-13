@@ -245,6 +245,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void restoreMetaFromFile(File file) throws IOException {
     try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file))) {
       PbSnapshotMetaInfo snapshotMetaInfo = PbSnapshotMetaInfo.parseFrom(in);
+      cleanUpState();
 
       estimatedPartitionSize = snapshotMetaInfo.getEstimatedPartitionSize();
 
@@ -293,9 +294,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet()));
 
-      partitionTotalWritten.reset();
       partitionTotalWritten.add(snapshotMetaInfo.getPartitionTotalWritten());
-      partitionTotalFileCount.reset();
       partitionTotalFileCount.add(snapshotMetaInfo.getPartitionTotalFileCount());
       appDiskUsageMetric.restoreFromSnapshot(
           snapshotMetaInfo.getAppDiskUsageMetricSnapshotsList().stream()
@@ -316,6 +315,19 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         excludedWorkers.size());
     workers.forEach(workerInfo -> LOG.info(workerInfo.toString()));
     registeredShuffle.forEach(shuffle -> LOG.info("RegisteredShuffle {}", shuffle));
+  }
+
+  private void cleanUpState() {
+    registeredShuffle.clear();
+    hostnameSet.clear();
+    workers.clear();
+    lostWorkers.clear();
+    appHeartbeatTime.clear();
+    excludedWorkers.clear();
+    shutdownWorkers.clear();
+    workerLostEvents.clear();
+    partitionTotalWritten.reset();
+    partitionTotalFileCount.reset();
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {

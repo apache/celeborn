@@ -180,13 +180,19 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     AppDiskUsageSnapShot originCurrentSnapshot =
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get();
 
+    masterStatusSystem.workers.add(new WorkerInfo(host1, 9095, 9094, 9093, 9092));
+    masterStatusSystem.workers.add(new WorkerInfo(host2, 9095, 9094, 9093, 9092));
+    masterStatusSystem.workers.add(new WorkerInfo(host3, 9095, 9094, 9093, 9092));
+
     masterStatusSystem.writeMetaInfoToFile(tmpFile);
 
     masterStatusSystem.hostnameSet.clear();
     masterStatusSystem.excludedWorkers.clear();
+    masterStatusSystem.workers.clear();
 
     masterStatusSystem.restoreMetaFromFile(tmpFile);
 
+    Assert.assertEquals(3, masterStatusSystem.workers.size());
     Assert.assertEquals(3, masterStatusSystem.excludedWorkers.size());
     Assert.assertEquals(3, masterStatusSystem.hostnameSet.size());
     Assert.assertEquals(
@@ -197,6 +203,9 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
         masterStatusSystem.appDiskUsageMetric.currentSnapShot().get().topNItems().length);
     Assert.assertEquals(
         originCurrentSnapshot, masterStatusSystem.appDiskUsageMetric.currentSnapShot().get());
-    Assert.assertEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
+    Assert.assertArrayEquals(originSnapshots, masterStatusSystem.appDiskUsageMetric.snapShots());
+
+    masterStatusSystem.restoreMetaFromFile(tmpFile);
+    Assert.assertEquals(3, masterStatusSystem.workers.size());
   }
 }
