@@ -1459,23 +1459,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def requestWorkerDestroySlots(
-      endpoint: RpcEndpointRef,
-      message: DestroyWorkerSlots): DestroyWorkerSlotsResponse = {
-    try {
-      endpoint.askSync[DestroyWorkerSlotsResponse](message)
-    } catch {
-      case e: Exception =>
-        logError(
-          s"AskSync worker(${endpoint.address}) Destroy for ${message.shuffleKey} failed.",
-          e)
-        DestroyWorkerSlotsResponse(
-          StatusCode.REQUEST_FAILED,
-          message.primaryLocations,
-          message.replicaLocations)
-    }
-  }
-
   private def requestMasterUnregisterShuffle(message: PbUnregisterShuffle)
       : PbUnregisterShuffleResponse = {
     try {
