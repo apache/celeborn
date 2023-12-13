@@ -522,7 +522,7 @@ abstract class CommitHandler(
         case e: Throwable =>
           retryTimes += 1
           logError(
-            s"AskSync worker(${endpoint.address}) CommitFiles for ${message.shuffleId} failed" +
+            s"Ask worker(${endpoint.address}) CommitFiles for ${message.shuffleId} failed" +
               s" (attempt $retryTimes/$maxRetries).",
             e)
       }
