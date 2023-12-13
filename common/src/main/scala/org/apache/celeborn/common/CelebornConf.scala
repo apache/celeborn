@@ -3707,7 +3707,7 @@ object CelebornConf extends Logging {
       .version("0.4.0")
       .doc("Number of shared rpc threads in LifecycleManager.")
       .intConf
-      .createWithDefault(8)
+      .createWithDefault(16)
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.reserveSlots.rackaware.enabled")
