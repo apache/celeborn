@@ -831,6 +831,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
   def clientRpcSharedThreads: Int = get(CLIENT_RPC_SHARED_THREADS)
+  def clientRpcMaxRetries: Int = get(CLIENT_RPC_MAX_RETIRES)
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
@@ -3716,6 +3717,14 @@ object CelebornConf extends Logging {
       .doc("Number of shared rpc threads in LifecycleManager.")
       .intConf
       .createWithDefault(16)
+
+  val CLIENT_RPC_MAX_RETIRES: ConfigEntry[Int] =
+    buildConf("celeborn.client.rpc.maxRetries")
+      .categories("client")
+      .version("0.3.2")
+      .doc("Max RPC retry times in LifecycleManager.")
+      .intConf
+      .createWithDefault(2)
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.reserveSlots.rackaware.enabled")
