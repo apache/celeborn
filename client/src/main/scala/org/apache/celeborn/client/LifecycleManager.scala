@@ -1361,11 +1361,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 iter.remove()
               }
           }
-        } else if (currentTime - futureWithStatus.startTime > timeout && retryTimes < rpcMaxRetires) {
-          logDebug(
-            s"Request $message failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
-              s"will retry.")
-          retryDestory(futureWithStatus)
+        } else if (currentTime - futureWithStatus.startTime > timeout) {
+          if (retryTimes < rpcMaxRetires) {
+            logDebug(
+              s"Request $message failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
+                s"will retry.")
+            retryDestory(futureWithStatus)
+          } else {
+            iter.remove()
+          }
         }
       }
 

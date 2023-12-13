@@ -346,6 +346,7 @@ abstract class CommitHandler(
       logError(
         s"Ask worker(${status.commitFilesParam.worker}) CommitFiles for $shuffleId timed out")
       val res = createFailResponse(status)
+      processResponse(res, status.commitFilesParam.worker)
       iter.remove()
     }
   }
