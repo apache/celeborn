@@ -26,10 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -90,14 +87,7 @@ public class MetaHandler {
     try {
       String shuffleKey;
       String appId;
-      String host;
-      int rpcPort;
-      int pushPort;
-      int fetchPort;
-      int replicatePort;
-      Map<String, DiskInfo> diskInfos;
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
-      Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
+      List<Map<String, Integer>> slots = new ArrayList<>();
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
@@ -143,87 +133,61 @@ public class MetaHandler {
           break;
 
         case WorkerLost:
-          host = request.getWorkerLostRequest().getHost();
-          rpcPort = request.getWorkerLostRequest().getRpcPort();
-          pushPort = request.getWorkerLostRequest().getPushPort();
-          fetchPort = request.getWorkerLostRequest().getFetchPort();
-          replicatePort = request.getWorkerLostRequest().getReplicatePort();
-          LOG.debug("Handle worker lost for {} {}", host, pushPort);
-          metaSystem.updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+          WorkerInfo lostWorker =
+              new WorkerInfo(
+                  request.getWorkerLostRequest().getHost(),
+                  request.getWorkerLostRequest().getRpcPort(),
+                  request.getWorkerLostRequest().getPushPort(),
+                  request.getWorkerLostRequest().getFetchPort(),
+                  request.getWorkerLostRequest().getReplicatePort());
+          LOG.debug("Handle worker lost for {}", lostWorker.toUniqueId());
+          metaSystem.updateWorkerLostMeta(lostWorker);
           break;
 
         case WorkerRemove:
-          host = request.getWorkerRemoveRequest().getHost();
-          rpcPort = request.getWorkerRemoveRequest().getRpcPort();
-          pushPort = request.getWorkerRemoveRequest().getPushPort();
-          fetchPort = request.getWorkerRemoveRequest().getFetchPort();
-          replicatePort = request.getWorkerRemoveRequest().getReplicatePort();
-          LOG.debug("Handle worker remove for {} {}", host, pushPort);
-          metaSystem.updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+          WorkerInfo workerToRemove =
+              new WorkerInfo(
+                  request.getWorkerRemoveRequest().getHost(),
+                  request.getWorkerRemoveRequest().getRpcPort(),
+                  request.getWorkerRemoveRequest().getPushPort(),
+                  request.getWorkerRemoveRequest().getFetchPort(),
+                  request.getWorkerRemoveRequest().getReplicatePort());
+          LOG.debug("Handle worker remove for {}", workerToRemove.toUniqueId());
+          metaSystem.updateWorkerRemoveMeta(workerToRemove);
           break;
 
         case WorkerHeartbeat:
-          host = request.getWorkerHeartbeatRequest().getHost();
-          rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
-          pushPort = request.getWorkerHeartbeatRequest().getPushPort();
-          fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
-          diskInfos = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
-          userResourceConsumption =
-              MetaUtil.fromPbUserResourceConsumption(
-                  request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap());
-          estimatedAppDiskUsage.putAll(
-              request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap());
-          replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
-          boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
-          LOG.debug(
-              "Handle worker heartbeat for {} {} {} {} {} {} {}",
-              host,
-              rpcPort,
-              pushPort,
-              fetchPort,
-              replicatePort,
-              diskInfos,
-              userResourceConsumption);
+          WorkerInfo heartbeatWorker =
+              new WorkerInfo(
+                  request.getWorkerHeartbeatRequest().getHost(),
+                  request.getWorkerHeartbeatRequest().getRpcPort(),
+                  request.getWorkerHeartbeatRequest().getPushPort(),
+                  request.getWorkerHeartbeatRequest().getFetchPort(),
+                  request.getWorkerHeartbeatRequest().getReplicatePort(),
+                  MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap()),
+                  MetaUtil.fromPbUserResourceConsumption(
+                      request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap()));
+          LOG.debug("Handle worker heartbeat for {}", heartbeatWorker);
           metaSystem.updateWorkerHeartbeatMeta(
-              host,
-              rpcPort,
-              pushPort,
-              fetchPort,
-              replicatePort,
-              diskInfos,
-              userResourceConsumption,
-              estimatedAppDiskUsage,
+              heartbeatWorker,
+              new HashMap<>(request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap()),
               request.getWorkerHeartbeatRequest().getTime(),
-              highWorkload);
+              request.getWorkerHeartbeatRequest().getHighWorkload());
           break;
 
         case RegisterWorker:
-          host = request.getRegisterWorkerRequest().getHost();
-          rpcPort = request.getRegisterWorkerRequest().getRpcPort();
-          pushPort = request.getRegisterWorkerRequest().getPushPort();
-          fetchPort = request.getRegisterWorkerRequest().getFetchPort();
-          replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
-          diskInfos = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
-          userResourceConsumption =
-              MetaUtil.fromPbUserResourceConsumption(
-                  request.getRegisterWorkerRequest().getUserResourceConsumptionMap());
-          LOG.debug(
-              "Handle worker register for {} {} {} {} {} {} {}",
-              host,
-              rpcPort,
-              pushPort,
-              fetchPort,
-              replicatePort,
-              diskInfos,
-              userResourceConsumption);
-          metaSystem.updateRegisterWorkerMeta(
-              host,
-              rpcPort,
-              pushPort,
-              fetchPort,
-              replicatePort,
-              diskInfos,
-              userResourceConsumption);
+          WorkerInfo workerToRegister =
+              new WorkerInfo(
+                  request.getRegisterWorkerRequest().getHost(),
+                  request.getRegisterWorkerRequest().getRpcPort(),
+                  request.getRegisterWorkerRequest().getPushPort(),
+                  request.getRegisterWorkerRequest().getFetchPort(),
+                  request.getRegisterWorkerRequest().getReplicatePort(),
+                  MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap()),
+                  MetaUtil.fromPbUserResourceConsumption(
+                      request.getWorkerHeartbeatRequest().getUserResourceConsumptionMap()));
+          LOG.debug("Handle worker register {}", workerToRegister);
+          metaSystem.updateRegisterWorkerMeta(workerToRegister);
           break;
 
         case ReportWorkerUnavailable:

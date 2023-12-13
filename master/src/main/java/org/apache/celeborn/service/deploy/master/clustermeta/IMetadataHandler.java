@@ -20,10 +20,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.quota.ResourceConsumption;
 
 public interface IMetadataHandler {
   void handleRequestSlots(
@@ -42,36 +39,20 @@ public interface IMetadataHandler {
   void handleWorkerExclude(
       List<WorkerInfo> workersToAdd, List<WorkerInfo> workersToRemove, String requestId);
 
-  void handleWorkerLost(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
+  void handleWorkerLost(WorkerInfo lostWorker, String requestId);
 
-  void handleWorkerRemove(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId);
+  void handleWorkerRemove(WorkerInfo targetWorker, String requestId);
 
   void handleRemoveWorkersUnavailableInfo(List<WorkerInfo> unavailableWorkers, String requestId);
 
   void handleWorkerHeartbeat(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      WorkerInfo workerInfo,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       boolean highWorkload,
       String requestId);
 
-  void handleRegisterWorker(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      String requestId);
+  void handleRegisterWorker(WorkerInfo workerInfo, String requestId);
 
   void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId);
 

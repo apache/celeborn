@@ -27,11 +27,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
-import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
@@ -171,8 +168,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerLost(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
+  public void handleWorkerLost(WorkerInfo lostWorker, String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -180,22 +176,21 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setRequestId(requestId)
               .setWorkerLostRequest(
                   ResourceProtos.WorkerLostRequest.newBuilder()
-                      .setHost(host)
-                      .setRpcPort(rpcPort)
-                      .setPushPort(pushPort)
-                      .setFetchPort(fetchPort)
-                      .setReplicatePort(replicatePort)
+                      .setHost(lostWorker.host())
+                      .setRpcPort(lostWorker.rpcPort())
+                      .setPushPort(lostWorker.pushPort())
+                      .setFetchPort(lostWorker.fetchPort())
+                      .setReplicatePort(lostWorker.replicatePort())
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle worker lost for {} failed!", host, e);
+      LOG.error("Handle worker lost for {} failed!", lostWorker.toUniqueId(), e);
       throw e;
     }
   }
 
   @Override
-  public void handleWorkerRemove(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
+  public void handleWorkerRemove(WorkerInfo targetWorker, String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -203,15 +198,15 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setRequestId(requestId)
               .setWorkerRemoveRequest(
                   ResourceProtos.WorkerRemoveRequest.newBuilder()
-                      .setHost(host)
-                      .setRpcPort(rpcPort)
-                      .setPushPort(pushPort)
-                      .setFetchPort(fetchPort)
-                      .setReplicatePort(replicatePort)
+                      .setHost(targetWorker.host())
+                      .setRpcPort(targetWorker.rpcPort())
+                      .setPushPort(targetWorker.pushPort())
+                      .setFetchPort(targetWorker.fetchPort())
+                      .setReplicatePort(targetWorker.replicatePort())
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle worker lost for {} failed!", host, e);
+      LOG.error("Handle worker lost for {} failed!", targetWorker.toUniqueId(), e);
       throw e;
     }
   }
@@ -239,13 +234,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerHeartbeat(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      WorkerInfo targetWorker,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       boolean highWorkload,
@@ -257,35 +246,28 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setRequestId(requestId)
               .setWorkerHeartbeatRequest(
                   ResourceProtos.WorkerHeartbeatRequest.newBuilder()
-                      .setHost(host)
-                      .setRpcPort(rpcPort)
-                      .setPushPort(pushPort)
-                      .setFetchPort(fetchPort)
-                      .setReplicatePort(replicatePort)
-                      .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .setHost(targetWorker.host())
+                      .setRpcPort(targetWorker.rpcPort())
+                      .setPushPort(targetWorker.pushPort())
+                      .setFetchPort(targetWorker.fetchPort())
+                      .setReplicatePort(targetWorker.replicatePort())
+                      .putAllDisks(MetaUtil.toPbDiskInfos(targetWorker.diskInfos()))
                       .putAllUserResourceConsumption(
-                          MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
+                          MetaUtil.toPbUserResourceConsumption(
+                              targetWorker.userResourceConsumption()))
                       .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
                       .setTime(time)
                       .setHighWorkload(highWorkload)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle worker heartbeat for {} failed!", host, e);
+      LOG.error("Handle worker heartbeat for {} failed!", targetWorker.toUniqueId(), e);
       throw e;
     }
   }
 
   @Override
-  public void handleRegisterWorker(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      String requestId) {
+  public void handleRegisterWorker(WorkerInfo targetWorker, String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -293,18 +275,19 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .setRequestId(requestId)
               .setRegisterWorkerRequest(
                   ResourceProtos.RegisterWorkerRequest.newBuilder()
-                      .setHost(host)
-                      .setRpcPort(rpcPort)
-                      .setPushPort(pushPort)
-                      .setFetchPort(fetchPort)
-                      .setReplicatePort(replicatePort)
-                      .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .setHost(targetWorker.host())
+                      .setRpcPort(targetWorker.rpcPort())
+                      .setPushPort(targetWorker.pushPort())
+                      .setFetchPort(targetWorker.fetchPort())
+                      .setReplicatePort(targetWorker.replicatePort())
+                      .putAllDisks(MetaUtil.toPbDiskInfos(targetWorker.diskInfos()))
                       .putAllUserResourceConsumption(
-                          MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
+                          MetaUtil.toPbUserResourceConsumption(
+                              targetWorker.userResourceConsumption()))
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle worker register for {} failed!", host, e);
+      LOG.error("Handle worker register for {} failed!", targetWorker.toUniqueId(), e);
       throw e;
     }
   }

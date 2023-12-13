@@ -40,14 +40,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
-import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
@@ -119,28 +115,24 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workersToRemove.forEach(manuallyExcludedWorkers::remove);
   }
 
-  public void updateWorkerLostMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
-    workerLostEvents.add(worker);
+  public void updateWorkerLostMeta(WorkerInfo lostWorker) {
+    workerLostEvents.add(lostWorker);
     // remove worker from workers
     synchronized (workers) {
-      workers.remove(worker);
-      lostWorkers.put(worker, System.currentTimeMillis());
+      workers.remove(lostWorker);
+      lostWorkers.put(lostWorker, System.currentTimeMillis());
     }
-    excludedWorkers.remove(worker);
-    workerLostEvents.remove(worker);
+    excludedWorkers.remove(lostWorker);
+    workerLostEvents.remove(lostWorker);
   }
 
-  public void updateWorkerRemoveMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
+  public void updateWorkerRemoveMeta(WorkerInfo lostWorker) {
     // remove worker from workers
     synchronized (workers) {
-      workers.remove(worker);
-      lostWorkers.put(worker, System.currentTimeMillis());
+      workers.remove(lostWorker);
+      lostWorkers.put(lostWorker, System.currentTimeMillis());
     }
-    excludedWorkers.remove(worker);
+    excludedWorkers.remove(lostWorker);
   }
 
   public void removeWorkersUnavailableInfoMeta(List<WorkerInfo> unavailableWorkers) {
@@ -155,58 +147,40 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateWorkerHeartbeatMeta(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      WorkerInfo workerInfo,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       boolean highWorkload) {
-    WorkerInfo worker =
-        new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
     AtomicLong availableSlots = new AtomicLong();
-    LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
+    LOG.debug("update worker {} heartbeat {}", workerInfo.toUniqueId());
     synchronized (workers) {
-      Optional<WorkerInfo> workerInfo = workers.stream().filter(w -> w.equals(worker)).findFirst();
-      workerInfo.ifPresent(
+      Optional<WorkerInfo> lastInfo =
+          workers.stream().filter(w -> w.equals(workerInfo)).findFirst();
+      lastInfo.ifPresent(
           info -> {
-            info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
-            info.updateThenGetUserResourceConsumption(userResourceConsumption);
+            info.updateThenGetDiskInfos(
+                workerInfo.diskInfos(), Option.apply(estimatedPartitionSize));
+            info.updateThenGetUserResourceConsumption(workerInfo.userResourceConsumption());
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
           });
     }
     appDiskUsageMetric.update(estimatedAppDiskUsage);
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
-    long healthyDiskNum =
-        disks.values().stream().filter(s -> s.status().equals(DiskStatus.HEALTHY)).count();
-    if (!excludedWorkers.contains(worker)
-        && (((disks.isEmpty() || healthyDiskNum <= 0) && !conf.hasHDFSStorage()) || highWorkload)) {
-      LOG.debug("Worker: {} num total slots is 0, add to excluded list", worker);
-      excludedWorkers.add(worker);
+    if (!excludedWorkers.contains(workerInfo)
+        && (((!workerInfo.haveDisk() || workerInfo.healthyDiskNum() <= 0) && !conf.hasHDFSStorage())
+            || highWorkload)) {
+      LOG.debug("Worker: {} num total slots is 0, add to excluded list", workerInfo.toUniqueId());
+      excludedWorkers.add(workerInfo);
     } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage()) && !highWorkload) {
       // only unblack if numSlots larger than 0
-      excludedWorkers.remove(worker);
+      excludedWorkers.remove(workerInfo);
     }
   }
 
-  public void updateRegisterWorkerMeta(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
-    WorkerInfo workerInfo =
-        new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
+  public void updateRegisterWorkerMeta(WorkerInfo workerInfo) {
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
-    workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
+    workerInfo.networkLocation_$eq(rackResolver.resolve(workerInfo.host()).getNetworkLocation());
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);
     synchronized (workers) {
       if (!workers.contains(workerInfo)) {

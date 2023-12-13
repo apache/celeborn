@@ -24,11 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
@@ -76,15 +73,13 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
-  public void handleWorkerLost(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
-    updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+  public void handleWorkerLost(WorkerInfo lostWorker, String requestId) {
+    updateWorkerLostMeta(lostWorker);
   }
 
   @Override
-  public void handleWorkerRemove(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
-    updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+  public void handleWorkerRemove(WorkerInfo lostWorker, String requestId) {
+    updateWorkerRemoveMeta(lostWorker);
   }
 
   @Override
@@ -95,42 +90,17 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerHeartbeat(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      WorkerInfo workerInfo,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       boolean highWorkload,
       String requestId) {
-    updateWorkerHeartbeatMeta(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        disks,
-        userResourceConsumption,
-        estimatedAppDiskUsage,
-        time,
-        highWorkload);
+    updateWorkerHeartbeatMeta(workerInfo, estimatedAppDiskUsage, time, highWorkload);
   }
 
   @Override
-  public void handleRegisterWorker(
-      String host,
-      int rpcPort,
-      int pushPort,
-      int fetchPort,
-      int replicatePort,
-      Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
-      String requestId) {
-    updateRegisterWorkerMeta(
-        host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
+  public void handleRegisterWorker(WorkerInfo workerInfo, String requestId) {
+    updateRegisterWorkerMeta(workerInfo);
   }
 
   @Override

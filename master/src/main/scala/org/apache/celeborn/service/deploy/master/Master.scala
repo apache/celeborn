@@ -293,10 +293,11 @@ private[celeborn] class Master(
       val fetchPort = pb.getFetchPort
       val replicatePort = pb.getReplicatePort
       val requestId = pb.getRequestId
-      logDebug(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+      val lostWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
+      logDebug(s"Received worker lost ${lostWorker.toUniqueId()}.")
       executeWithLeaderChecker(
         null,
-        handleWorkerLost(null, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
+        handleWorkerLost(null, lostWorker, requestId))
     case pb: PbRemoveWorkersUnavailableInfo =>
       val unavailableWorkers = new util.ArrayList[WorkerInfo](pb.getWorkerInfoList
         .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
@@ -327,30 +328,23 @@ private[celeborn] class Master(
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
-      val host = pbRegisterWorker.getHost
-      val rpcPort = pbRegisterWorker.getRpcPort
-      val pushPort = pbRegisterWorker.getPushPort
-      val fetchPort = pbRegisterWorker.getFetchPort
-      val replicatePort = pbRegisterWorker.getReplicatePort
-      val disks = pbRegisterWorker.getDisksList.asScala
-        .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
-        .toMap.asJava
-      val userResourceConsumption =
-        PbSerDeUtils.fromPbUserResourceConsumption(pbRegisterWorker.getUserResourceConsumptionMap)
-
-      logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
-        s" $disks.")
+      val workerToRegister = new WorkerInfo(
+        pbRegisterWorker.getHost,
+        pbRegisterWorker.getRpcPort,
+        pbRegisterWorker.getPushPort,
+        pbRegisterWorker.getFetchPort,
+        pbRegisterWorker.getReplicatePort,
+        pbRegisterWorker.getDisksList.asScala
+          .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
+          .toMap.asJava,
+        PbSerDeUtils.fromPbUserResourceConsumption(pbRegisterWorker.getUserResourceConsumptionMap))
+      logDebug(s"Received RegisterWorker request $requestId, ${workerToRegister.toUniqueId()}:" +
+        s" ${workerToRegister.diskInfos}.")
       executeWithLeaderChecker(
         context,
         handleRegisterWorker(
           context,
-          host,
-          rpcPort,
-          pushPort,
-          fetchPort,
-          replicatePort,
-          disks,
-          userResourceConsumption,
+          workerToRegister,
           requestId))
 
     case ReleaseSlots(_, _, _, _, _) =>
@@ -387,19 +381,21 @@ private[celeborn] class Master(
           estimatedAppDiskUsage,
           highWorkload,
           requestId) =>
+      val heartbeatWorker = new WorkerInfo(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
+        userResourceConsumption)
       logDebug(s"Received heartbeat from" +
-        s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
+        s" worker $heartbeatWorker.toUniqueId() with ${heartbeatWorker.diskInfos}.")
       executeWithLeaderChecker(
         context,
         handleHeartbeatFromWorker(
           context,
-          host,
-          rpcPort,
-          pushPort,
-          fetchPort,
-          replicatePort,
-          disks,
-          userResourceConsumption,
+          heartbeatWorker,
           activeShuffleKey,
           estimatedAppDiskUsage,
           highWorkload,
@@ -424,16 +420,17 @@ private[celeborn] class Master(
           pb.getRequestId))
 
     case pb: PbWorkerLost =>
-      val host = pb.getHost
-      val rpcPort = pb.getRpcPort
-      val pushPort = pb.getPushPort
-      val fetchPort = pb.getFetchPort
-      val replicatePort = pb.getReplicatePort
       val requestId = pb.getRequestId
-      logInfo(s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+      val lostWorker = new WorkerInfo(
+        pb.getHost,
+        pb.getRpcPort,
+        pb.getPushPort,
+        pb.getFetchPort,
+        pb.getReplicatePort)
+      logInfo(s"Received worker lost ${lostWorker.toUniqueId()}.")
       executeWithLeaderChecker(
         context,
-        handleWorkerLost(context, host, rpcPort, pushPort, fetchPort, replicatePort, requestId))
+        handleWorkerLost(context, lostWorker, requestId))
 
     case CheckQuota(userIdentifier) =>
       executeWithLeaderChecker(context, handleCheckQuota(userIdentifier, context))
@@ -509,31 +506,17 @@ private[celeborn] class Master(
 
   private def handleHeartbeatFromWorker(
       context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      disks: Seq[DiskInfo],
-      userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
+      targetWorker: WorkerInfo,
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       highWorkload: Boolean,
       requestId: String): Unit = {
-    val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = workersSnapShot.asScala.contains(targetWorker)
     if (!registered) {
-      logWarning(s"Received heartbeat from unknown worker " +
-        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+      logWarning(s"Received heartbeat from unknown worker ${targetWorker.toUniqueId()}.")
     } else {
       statusSystem.handleWorkerHeartbeat(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
-        userResourceConsumption,
+        targetWorker,
         estimatedAppDiskUsage,
         System.currentTimeMillis(),
         highWorkload,
@@ -544,7 +527,7 @@ private[celeborn] class Master(
     activeShuffleKeys.asScala.foreach { shuffleKey =>
       if (!statusSystem.registeredShuffle.contains(shuffleKey)) {
         logWarning(
-          s"Shuffle $shuffleKey expired on $host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+          s"Shuffle $shuffleKey expired on ${targetWorker.toUniqueId()}.")
         expiredShuffleKeys.add(shuffleKey)
       }
     }
@@ -567,29 +550,17 @@ private[celeborn] class Master(
 
   private def handleWorkerLost(
       context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
+      targetWorker: WorkerInfo,
       requestId: String): Unit = {
-    val targetWorker = new WorkerInfo(
-      host,
-      rpcPort,
-      pushPort,
-      fetchPort,
-      replicatePort,
-      new util.HashMap[String, DiskInfo](),
-      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
     val worker: WorkerInfo = workersSnapShot
       .asScala
       .find(_ == targetWorker)
       .orNull
     if (worker == null) {
-      logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort" +
+      logWarning(s"Unknown worker ${targetWorker.toUniqueId()}" +
         s" for WorkerLost handler!")
     } else {
-      statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
+      statusSystem.handleWorkerLost(targetWorker, requestId)
     }
     if (context != null) {
       context.reply(WorkerLostResponse(true))
@@ -598,37 +569,16 @@ private[celeborn] class Master(
 
   def handleRegisterWorker(
       context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
-      disks: util.Map[String, DiskInfo],
-      userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
+      workerToRegister: WorkerInfo,
       requestId: String): Unit = {
-    val workerToRegister =
-      new WorkerInfo(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        disks,
-        userResourceConsumption)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
-        s" ${workerToRegister.toString()} already exists, re-register.")
+        s" $workerToRegister already exists, re-register.")
       // TODO: remove `WorkerRemove` because we have improve register logic to cover `WorkerRemove`
-      statusSystem.handleWorkerRemove(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
+      statusSystem.handleWorkerRemove(workerToRegister, requestId)
       val newRequestId = MasterClient.genRequestId()
       statusSystem.handleRegisterWorker(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        disks,
-        userResourceConsumption,
+        workerToRegister,
         newRequestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
@@ -636,24 +586,12 @@ private[celeborn] class Master(
         s"in workerLostEvents.")
       statusSystem.workerLostEvents.remove(workerToRegister)
       statusSystem.handleRegisterWorker(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        disks,
-        userResourceConsumption,
+        workerToRegister,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
     } else {
       statusSystem.handleRegisterWorker(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
-        disks,
-        userResourceConsumption,
+        workerToRegister,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))

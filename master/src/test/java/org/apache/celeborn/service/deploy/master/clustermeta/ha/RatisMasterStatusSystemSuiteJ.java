@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import scala.Option;
+
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -217,21 +219,17 @@ public class RatisMasterStatusSystemSuiteJ {
     }
   }
 
+  private WorkerInfo workerInfo1 = null;
+  private WorkerInfo workerInfo2 = null;
+  private WorkerInfo workerInfo3 = null;
+
   @Test
   public void testRaftSystemException() throws Exception {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
     try {
       stopNoneLeaderRaftServer(RATISSERVER1, RATISSERVER2, RATISSERVER3);
-      statusSystem.handleRegisterWorker(
-          HOSTNAME1,
-          RPCPORT1,
-          PUSHPORT1,
-          FETCHPORT1,
-          REPLICATEPORT1,
-          disks1,
-          userResourceConsumption1,
-          getNewReqeustId());
+      statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
       Assert.fail();
     } catch (CelebornRuntimeException e) {
       Assert.assertTrue(true);
@@ -245,36 +243,11 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
     Thread.sleep(3000L);
 
-    Assert.assertEquals(STATUSSYSTEM1.workers.size(), 3);
     Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
@@ -285,43 +258,8 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    WorkerInfo workerInfo1 =
-        new WorkerInfo(
-            HOSTNAME1,
-            RPCPORT1,
-            PUSHPORT1,
-            FETCHPORT1,
-            REPLICATEPORT1,
-            disks1,
-            userResourceConsumption1);
-    WorkerInfo workerInfo2 =
-        new WorkerInfo(
-            HOSTNAME2,
-            RPCPORT2,
-            PUSHPORT2,
-            FETCHPORT2,
-            REPLICATEPORT2,
-            disks2,
-            userResourceConsumption2);
-
-    statusSystem.handleRegisterWorker(
-        workerInfo1.host(),
-        workerInfo1.rpcPort(),
-        workerInfo1.pushPort(),
-        workerInfo1.fetchPort(),
-        workerInfo1.replicatePort(),
-        workerInfo1.diskInfos(),
-        workerInfo1.userResourceConsumption(),
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        workerInfo2.host(),
-        workerInfo2.rpcPort(),
-        workerInfo2.pushPort(),
-        workerInfo2.fetchPort(),
-        workerInfo2.replicatePort(),
-        workerInfo2.diskInfos(),
-        workerInfo2.userResourceConsumption(),
-        getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
 
     statusSystem.handleWorkerExclude(
         Arrays.asList(workerInfo1, workerInfo2), Collections.emptyList(), getNewReqeustId());
@@ -345,36 +283,11 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
 
-    statusSystem.handleWorkerLost(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
+    statusSystem.handleWorkerLost(workerInfo1, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(2, STATUSSYSTEM1.workers.size());
@@ -387,61 +300,9 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
-
-    WorkerInfo workerInfo1 =
-        new WorkerInfo(
-            HOSTNAME1,
-            RPCPORT1,
-            PUSHPORT1,
-            FETCHPORT1,
-            REPLICATEPORT1,
-            disks1,
-            userResourceConsumption1);
-    WorkerInfo workerInfo2 =
-        new WorkerInfo(
-            HOSTNAME2,
-            RPCPORT2,
-            PUSHPORT2,
-            FETCHPORT2,
-            REPLICATEPORT2,
-            disks2,
-            userResourceConsumption2);
-    WorkerInfo workerInfo3 =
-        new WorkerInfo(
-            HOSTNAME3,
-            RPCPORT3,
-            PUSHPORT3,
-            FETCHPORT3,
-            REPLICATEPORT3,
-            disks3,
-            userResourceConsumption3);
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocation1 = new HashMap<>();
@@ -486,33 +347,9 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
@@ -570,53 +407,12 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
 
     Thread.sleep(3000L);
-    WorkerInfo workerInfo1 =
-        new WorkerInfo(
-            HOSTNAME1,
-            RPCPORT1,
-            PUSHPORT1,
-            FETCHPORT1,
-            REPLICATEPORT1,
-            disks1,
-            userResourceConsumption1);
-    WorkerInfo workerInfo2 =
-        new WorkerInfo(
-            HOSTNAME2,
-            RPCPORT2,
-            PUSHPORT2,
-            FETCHPORT2,
-            REPLICATEPORT2,
-            disks2,
-            userResourceConsumption2);
+
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 5);
@@ -643,52 +439,9 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
-
-    WorkerInfo workerInfo1 =
-        new WorkerInfo(
-            HOSTNAME1,
-            RPCPORT1,
-            PUSHPORT1,
-            FETCHPORT1,
-            REPLICATEPORT1,
-            disks1,
-            userResourceConsumption1);
-    WorkerInfo workerInfo2 =
-        new WorkerInfo(
-            HOSTNAME2,
-            RPCPORT2,
-            PUSHPORT2,
-            FETCHPORT2,
-            REPLICATEPORT2,
-            disks2,
-            userResourceConsumption2);
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
 
     Map<String, Map<String, Integer>> workersToAllocate = new HashMap<>();
     Map<String, Integer> allocations = new HashMap<>();
@@ -741,64 +494,20 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
 
-    statusSystem.handleWorkerHeartbeat(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        new HashMap<>(),
-        userResourceConsumption1,
-        new HashMap<>(),
-        1,
-        false,
-        getNewReqeustId());
+    workerInfo1.updateThenGetDiskInfos(new HashMap<>(), Option.empty());
+    statusSystem.handleWorkerHeartbeat(workerInfo1, new HashMap<>(), 1, false, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
 
-    statusSystem.handleWorkerHeartbeat(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        new HashMap<>(),
-        userResourceConsumption2,
-        new HashMap<>(),
-        1,
-        false,
-        getNewReqeustId());
+    workerInfo2.updateThenGetDiskInfos(new HashMap<>(), Option.empty());
+    statusSystem.handleWorkerHeartbeat(workerInfo2, new HashMap<>(), 1, false, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(2, statusSystem.excludedWorkers.size());
@@ -806,18 +515,9 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
 
-    statusSystem.handleWorkerHeartbeat(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        new HashMap<>(),
-        1,
-        false,
-        getNewReqeustId());
+    workerInfo1.updateThenGetDiskInfos(disks1, Option.empty());
+
+    statusSystem.handleWorkerHeartbeat(workerInfo1, new HashMap<>(), 1, false, getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(1, statusSystem.excludedWorkers.size());
@@ -825,18 +525,7 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
 
-    statusSystem.handleWorkerHeartbeat(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        new HashMap<>(),
-        1,
-        true,
-        getNewReqeustId());
+    statusSystem.handleWorkerHeartbeat(workerInfo1, new HashMap<>(), 1, true, getNewReqeustId());
     Thread.sleep(3000L);
     Assert.assertEquals(2, statusSystem.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
@@ -884,43 +573,8 @@ public class RatisMasterStatusSystemSuiteJ {
     disks3.put("disk2", new DiskInfo("disk2", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
     disks3.put("disk3", new DiskInfo("disk3", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
     disks3.put("disk4", new DiskInfo("disk4", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
-  }
 
-  @Test
-  public void testHandleReportWorkerFailure() throws InterruptedException {
-    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
-    Assert.assertNotNull(statusSystem);
-
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
-
-    List<WorkerInfo> failedWorkers = new ArrayList<>();
-    failedWorkers.add(
+    workerInfo1 =
         new WorkerInfo(
             HOSTNAME1,
             RPCPORT1,
@@ -928,7 +582,38 @@ public class RatisMasterStatusSystemSuiteJ {
             FETCHPORT1,
             REPLICATEPORT1,
             disks1,
-            userResourceConsumption1));
+            userResourceConsumption1);
+    workerInfo2 =
+        new WorkerInfo(
+            HOSTNAME2,
+            RPCPORT2,
+            PUSHPORT2,
+            FETCHPORT2,
+            REPLICATEPORT2,
+            disks2,
+            userResourceConsumption2);
+    workerInfo3 =
+        new WorkerInfo(
+            HOSTNAME3,
+            RPCPORT3,
+            PUSHPORT3,
+            FETCHPORT3,
+            REPLICATEPORT3,
+            disks3,
+            userResourceConsumption3);
+  }
+
+  @Test
+  public void testHandleReportWorkerFailure() throws InterruptedException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
+
+    List<WorkerInfo> failedWorkers = new ArrayList<>();
+    failedWorkers.add(workerInfo1);
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
     Thread.sleep(3000L);
@@ -945,49 +630,14 @@ public class RatisMasterStatusSystemSuiteJ {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
 
-    statusSystem.handleRegisterWorker(
-        HOSTNAME1,
-        RPCPORT1,
-        PUSHPORT1,
-        FETCHPORT1,
-        REPLICATEPORT1,
-        disks1,
-        userResourceConsumption1,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME2,
-        RPCPORT2,
-        PUSHPORT2,
-        FETCHPORT2,
-        REPLICATEPORT2,
-        disks2,
-        userResourceConsumption2,
-        getNewReqeustId());
-    statusSystem.handleRegisterWorker(
-        HOSTNAME3,
-        RPCPORT3,
-        PUSHPORT3,
-        FETCHPORT3,
-        REPLICATEPORT3,
-        disks3,
-        userResourceConsumption3,
-        getNewReqeustId());
-
-    WorkerInfo workerInfo1 =
-        new WorkerInfo(
-            HOSTNAME1,
-            RPCPORT1,
-            PUSHPORT1,
-            FETCHPORT1,
-            REPLICATEPORT1,
-            disks1,
-            userResourceConsumption1);
+    statusSystem.handleRegisterWorker(workerInfo1, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo2, getNewReqeustId());
+    statusSystem.handleRegisterWorker(workerInfo3, getNewReqeustId());
 
     List<WorkerInfo> unavailableWorkers = new ArrayList<>();
     unavailableWorkers.add(workerInfo1);
 
-    statusSystem.handleWorkerLost(
-        HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
+    statusSystem.handleWorkerLost(workerInfo1, getNewReqeustId());
     statusSystem.handleReportWorkerUnavailable(unavailableWorkers, getNewReqeustId());
 
     Thread.sleep(3000L);
