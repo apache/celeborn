@@ -22,13 +22,14 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, Schedu
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
 
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
-import org.apache.celeborn.client.commit.{CommitHandler, MapPartitionCommitHandler, ReducePartitionCommitHandler}
+import org.apache.celeborn.client.commit.{CommitFilesParam, CommitHandler, MapPartitionCommitHandler, ReducePartitionCommitHandler}
 import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -113,13 +114,9 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
 
                     if (workerToRequests.nonEmpty) {
                       val commitFilesFailedWorkers = new ShuffleFailedWorkers()
-                      val parallelism =
-                        Math.min(workerToRequests.size, conf.clientRpcMaxParallelism)
                       try {
-                        ThreadUtils.parmap(
-                          workerToRequests,
-                          "CommitFiles",
-                          parallelism) {
+                        val params = new ArrayBuffer[CommitFilesParam](workerToRequests.size)
+                        workerToRequests.foreach {
                           case (worker, requests) =>
                             val workerInfo =
                               lifecycleManager.shuffleAllocatedWorkers
@@ -141,15 +138,18 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                                 .toList
                                 .asJava
 
-                            commitHandler.commitFiles(
-                              appUniqueId,
-                              shuffleId,
-                              shuffleCommittedInfo,
+                            params += CommitFilesParam(
                               workerInfo,
                               primaryIds,
-                              replicaIds,
-                              commitFilesFailedWorkers)
+                              replicaIds)
                         }
+
+                        commitHandler.doParallelCommitFiles(
+                          shuffleId,
+                          shuffleCommittedInfo,
+                          params,
+                          commitFilesFailedWorkers)
+
                         lifecycleManager.workerStatusTracker.recordWorkerFailure(
                           commitFilesFailedWorkers)
                       } finally {
@@ -277,13 +277,15 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               conf,
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
-              lifecycleManager.workerStatusTracker)
+              lifecycleManager.workerStatusTracker,
+              lifecycleManager.rpcSharedThreadPool)
           case PartitionType.MAP => new MapPartitionCommitHandler(
               appUniqueId,
               conf,
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
-              lifecycleManager.workerStatusTracker)
+              lifecycleManager.workerStatusTracker,
+              lifecycleManager.rpcSharedThreadPool)
           case _ => throw new UnsupportedOperationException(
               s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
         }

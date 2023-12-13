@@ -19,7 +19,7 @@ package org.apache.celeborn.client.commit
 
 import java.util
 import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
@@ -52,8 +52,9 @@ class MapPartitionCommitHandler(
     conf: CelebornConf,
     shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
     committedPartitionInfo: CommittedPartitionInfo,
-    workerStatusTracker: WorkerStatusTracker)
-  extends CommitHandler(appId, conf, committedPartitionInfo, workerStatusTracker)
+    workerStatusTracker: WorkerStatusTracker,
+    sharedRpcPool: ThreadPoolExecutor)
+  extends CommitHandler(appId, conf, committedPartitionInfo, workerStatusTracker, sharedRpcPool)
   with Logging {
 
   private val shuffleSucceedPartitionIds = JavaUtils.newConcurrentHashMap[Int, util.Set[Integer]]()
