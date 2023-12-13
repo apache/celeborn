@@ -3528,7 +3528,7 @@ object CelebornConf extends Logging {
   val CLIENT_RPC_SHARED_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.rpc.shared.threads")
       .categories("client")
-      .version("0.4.0")
+      .version("0.3.2")
       .doc("Number of shared rpc threads in LifecycleManager.")
       .intConf
       .createWithDefault(16)
