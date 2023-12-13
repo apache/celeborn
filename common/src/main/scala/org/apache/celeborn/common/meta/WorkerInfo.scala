@@ -254,8 +254,8 @@ class WorkerInfo(
       p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
   }
 
-  def healthyDiskNum(): Long = {
-    diskInfos.values.stream.filter((s) => s.status.equals(DiskStatus.HEALTHY)).count
+  def healthyDiskNum(): Int = {
+    diskInfos.values.asScala.count(s => s.status.equals(DiskStatus.HEALTHY))
   }
 }
 
