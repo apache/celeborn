@@ -974,14 +974,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       iter.remove()
     }
 
-    locsWithNullEndpoint.foreach {
-      case (workerInfo, (_, _)) =>
-        failureInfos.add(s"[reserveSlots] Failed to" +
-          s" reserve buffers for shuffleId $shuffleId" +
-          s" from worker ${workerInfo.readableAddress()}. Reason: Timeout")
-        reserveSlotFailedWorkers.put(
-          workerInfo,
-          (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
+    locsWithNullEndpoint.foreach { case (workerInfo, (_, _)) =>
+      failureInfos.add(s"[reserveSlots] Failed to" +
+        s" reserve buffers for shuffleId $shuffleId" +
+        s" from worker ${workerInfo.readableAddress()}. Reason: Timeout")
+      reserveSlotFailedWorkers.put(
+        workerInfo,
+        (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
     }
 
     val end = System.currentTimeMillis()
