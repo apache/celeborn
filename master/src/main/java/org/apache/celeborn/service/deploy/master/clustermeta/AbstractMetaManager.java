@@ -126,13 +126,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.remove(lostWorker);
   }
 
-  public void updateWorkerRemoveMeta(WorkerInfo lostWorker) {
+  public void updateWorkerRemoveMeta(WorkerInfo workerToRemove) {
     // remove worker from workers
     synchronized (workers) {
-      workers.remove(lostWorker);
-      lostWorkers.put(lostWorker, System.currentTimeMillis());
+      workers.remove(workerToRemove);
+      lostWorkers.put(workerToRemove, System.currentTimeMillis());
     }
-    excludedWorkers.remove(lostWorker);
+    excludedWorkers.remove(workerToRemove);
   }
 
   public void removeWorkersUnavailableInfoMeta(List<WorkerInfo> unavailableWorkers) {
