@@ -20,12 +20,16 @@ package org.apache.celeborn.client
 import java.nio.ByteBuffer
 import java.util
 import java.util.{function, List => JList}
-import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{Callable, ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Consumer
 
 import scala.collection.JavaConverters._
+import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.Duration
 import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
@@ -48,6 +52,7 @@ import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNet
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
+import org.apache.celeborn.common.util.ThreadUtils.awaitResult
 import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
 
 object LifecycleManager {
@@ -137,6 +142,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
   val rpcSharedThreadPool =
     ThreadUtils.newDaemonCachedThreadPool("shared-rpc-pool", conf.clientRpcSharedThreads, 30)
+  val ec = ExecutionContext.fromExecutor(rpcSharedThreadPool)
 
   // init driver celeborn LifecycleManager rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
@@ -888,42 +894,94 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val reserveSlotFailedWorkers = new ShuffleFailedWorkers()
     val failureInfos = new util.concurrent.CopyOnWriteArrayList[String]()
     val workerPartitionLocations = slots.asScala.filter(p => !p._2._1.isEmpty || !p._2._2.isEmpty)
-    val parallelism =
-      Math.min(Math.max(1, workerPartitionLocations.size), conf.clientRpcMaxParallelism)
-    ThreadUtils.parmap(workerPartitionLocations, "ReserveSlot", parallelism) {
-      case (workerInfo, (primaryLocations, replicaLocations)) =>
-        val res =
-          if (workerInfo.endpoint == null) {
-            ReserveSlotsResponse(StatusCode.REQUEST_FAILED, s"$workerInfo endpoint is NULL!")
-          } else {
-            requestWorkerReserveSlots(
-              workerInfo.endpoint,
-              ReserveSlots(
-                appUniqueId,
-                shuffleId,
-                primaryLocations,
-                replicaLocations,
-                partitionSplitThreshold,
-                partitionSplitMode,
-                getPartitionType(shuffleId),
-                rangeReadFilter,
-                userIdentifier,
-                conf.pushDataTimeoutMs,
-                if (getPartitionType(shuffleId) == PartitionType.MAP)
-                  conf.clientShuffleMapPartitionSplitEnabled
-                else true))
-          }
-        if (res.status.equals(StatusCode.SUCCESS)) {
-          logDebug(s"Successfully allocated " +
-            s"partitions buffer for shuffleId $shuffleId" +
-            s" from worker ${workerInfo.readableAddress()}.")
-        } else {
-          failureInfos.add(s"[reserveSlots] Failed to" +
-            s" reserve buffers for shuffleId $shuffleId" +
-            s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
-          reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
-        }
+
+    val (locsWithNullEndpoint, locs) = workerPartitionLocations.partition(_._1.endpoint == null)
+    val futures = new LinkedBlockingQueue[(Future[ReserveSlotsResponse], WorkerInfo)]()
+    val outFutures = locs.map { case (workerInfo, (primaryLocations, replicaLocations)) =>
+      Future {
+        val future = workerInfo.endpoint.ask[ReserveSlotsResponse](
+          ReserveSlots(
+            appUniqueId,
+            shuffleId,
+            primaryLocations,
+            replicaLocations,
+            partitionSplitThreshold,
+            partitionSplitMode,
+            getPartitionType(shuffleId),
+            rangeReadFilter,
+            userIdentifier,
+            conf.pushDataTimeoutMs,
+            if (getPartitionType(shuffleId) == PartitionType.MAP)
+              conf.clientShuffleMapPartitionSplitEnabled
+            else true))
+        futures.add((future, workerInfo))
+      }(ec)
     }
+    val cbf =
+      implicitly[
+        CanBuildFrom[mutable.Iterable[Future[Boolean]], Boolean, mutable.Iterable[Boolean]]]
+    val futureSeq = Future.sequence(outFutures)(cbf, ec)
+    awaitResult(futureSeq, Duration.Inf)
+
+    var timeout = conf.rpcAskTimeout.duration.toMillis
+    val delta = 50
+    while (timeout >= 0 && !futures.isEmpty) {
+      val iter = futures.iterator()
+      while (iter.hasNext) {
+        val (future, workerInfo) = iter.next()
+        if (future.isCompleted) {
+          future.value.get match {
+            case scala.util.Success(res) =>
+              if (res.status.equals(StatusCode.SUCCESS)) {
+                logDebug(s"Successfully allocated " +
+                  s"partitions buffer for shuffleId $shuffleId" +
+                  s" from worker ${workerInfo.readableAddress()}.")
+              } else {
+                failureInfos.add(s"[reserveSlots] Failed to" +
+                  s" reserve buffers for shuffleId $shuffleId" +
+                  s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
+                reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
+              }
+            case scala.util.Failure(e) =>
+              failureInfos.add(s"[reserveSlots] Failed to" +
+                s" reserve buffers for shuffleId $shuffleId" +
+                s" from worker ${workerInfo.readableAddress()}. Reason: $e")
+              reserveSlotFailedWorkers.put(
+                workerInfo,
+                (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
+          }
+          iter.remove()
+        }
+      }
+
+      if (!futures.isEmpty) {
+        Thread.sleep(delta)
+      }
+      timeout = timeout - delta
+    }
+
+    val iter = futures.iterator()
+    while (iter.hasNext) {
+      val futureStatus = iter.next()
+      val workerInfo = futureStatus._2
+      failureInfos.add(s"[reserveSlots] Failed to" +
+        s" reserve buffers for shuffleId $shuffleId" +
+        s" from worker ${workerInfo.readableAddress()}. Reason: Timeout")
+      reserveSlotFailedWorkers.put(
+        workerInfo,
+        (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
+      iter.remove()
+    }
+
+    locsWithNullEndpoint.foreach { case (workerInfo, (_, _)) =>
+      failureInfos.add(s"[reserveSlots] Failed to" +
+        s" reserve buffers for shuffleId $shuffleId" +
+        s" from worker ${workerInfo.readableAddress()}. Reason: null endpoint")
+      reserveSlotFailedWorkers.put(
+        workerInfo,
+        (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
+    }
+
     if (failureInfos.asScala.nonEmpty) {
       logError(s"Aggregated error of reserveSlots for " +
         s"shuffleId $shuffleId " +
