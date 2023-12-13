@@ -21,7 +21,10 @@ import com.google.common.base.Preconditions;
 
 /** A class to encapsulate SASL credentials. */
 public class SaslCredentials {
+
+  /** For client to service authentication, this should be set to unique applicationId. */
   private final String userId;
+
   private final String password;
 
   public SaslCredentials(String userId, String password) {

@@ -34,7 +34,6 @@ import javax.security.sasl.SaslClient;
 import javax.security.sasl.SaslException;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,7 +103,7 @@ public class CelebornSaslClient {
     try {
       return saslClient != null ? saslClient.evaluateChallenge(token) : new byte[0];
     } catch (SaslException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 

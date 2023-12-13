@@ -36,7 +36,7 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbAuthType;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
-import org.apache.celeborn.common.protocol.PbSaslResponse;
+import org.apache.celeborn.common.util.JavaUtils;
 
 /**
  * Bootstraps a {@link TransportClient} by performing SASL authentication on the connection. The
@@ -49,6 +49,14 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
   private final String appId;
   private final SaslCredentials saslCredentials;
 
+  /**
+   * Creates a new SaslClientBootstrap. When this is used for authenticating a client connection,
+   * the user id in the saslCredentials should be the same as the appId.
+   *
+   * @param conf transport conf
+   * @param appId application id
+   * @param saslCredentials sasl userId and password.
+   */
   public SaslClientBootstrap(TransportConf conf, String appId, SaslCredentials saslCredentials) {
     this.conf = conf;
     this.appId = appId;
@@ -78,7 +86,6 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
             new TransportMessage(
                 MessageType.SASL_REQUEST,
                 PbSaslRequest.newBuilder()
-                    .setAppId(appId)
                     .setMethod(DIGEST)
                     .setAuthType(PbAuthType.CONNECTION_AUTH)
                     .setPayload(ByteString.copyFrom(payload))
@@ -95,8 +102,8 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
             throw ex;
           }
         }
-        PbSaslResponse saslResponse = TransportMessage.fromByteBuffer(response).getParsedPayload();
-        payload = saslClient.response(saslResponse.getPayload().toByteArray());
+        // The response of a SaslMessage is either a RpcResponse or a RpcFailure.
+        payload = saslClient.response(JavaUtils.bufferToArray(response));
       }
       client.setClientId(appId);
     } catch (IOException ioe) {
