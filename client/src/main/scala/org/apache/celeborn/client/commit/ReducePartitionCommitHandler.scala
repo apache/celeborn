@@ -19,7 +19,7 @@ package org.apache.celeborn.client.commit
 
 import java.nio.ByteBuffer
 import java.util
-import java.util.concurrent.{Callable, ConcurrentHashMap, TimeUnit}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -51,8 +51,14 @@ class ReducePartitionCommitHandler(
     conf: CelebornConf,
     shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
     committedPartitionInfo: CommittedPartitionInfo,
-    workerStatusTracker: WorkerStatusTracker)
-  extends CommitHandler(appUniqueId, conf, committedPartitionInfo, workerStatusTracker)
+    workerStatusTracker: WorkerStatusTracker,
+    sharedRpcPool: ThreadPoolExecutor)
+  extends CommitHandler(
+    appUniqueId,
+    conf,
+    committedPartitionInfo,
+    workerStatusTracker,
+    sharedRpcPool)
   with Logging {
 
   private val getReducerFileGroupRequest =

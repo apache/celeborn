@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
+import com.google.common.base.Throwables;
+import io.netty.channel.Channel;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -46,11 +48,13 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
+import org.apache.celeborn.common.network.protocol.RpcFailure;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.RpcResponse;
 import org.apache.celeborn.common.network.protocol.StreamHandle;
@@ -292,7 +296,9 @@ public class FetchHandlerSuiteJ {
     ByteBuffer openStreamByteBuffer =
         new OpenStream(shuffleKey, fileName, startIndex, endIndex).toByteBuffer();
     fetchHandler.receive(
-        client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)));
+        client,
+        new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)),
+        createRpcResponseCallback(channel));
     RpcResponse result = channel.readOutbound();
     StreamHandle streamHandler = (StreamHandle) Message.decode(result.body().nioByteBuffer());
     if (endIndex == Integer.MAX_VALUE) {
@@ -321,7 +327,9 @@ public class FetchHandlerSuiteJ {
                     .toByteArray())
             .toByteBuffer();
     fetchHandler.receive(
-        client, new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)));
+        client,
+        new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)),
+        createRpcResponseCallback(channel));
     RpcResponse result = channel.readOutbound();
     PbStreamHandler streamHandler =
         TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
@@ -355,7 +363,8 @@ public class FetchHandlerSuiteJ {
                                       .setLen(Integer.MAX_VALUE))
                               .build()
                               .toByteArray())
-                      .toByteBuffer())));
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
       ChunkFetchSuccess chunkFetchSuccess = channel.readOutbound();
       chunkFetchSuccess.body().retain();
       // chunk size 8m
@@ -375,7 +384,8 @@ public class FetchHandlerSuiteJ {
                 .toByteArray());
     fetchHandler.receive(
         client,
-        new RpcRequest(dummyRequestId, new NioManagedBuffer(bufferStreamEnd.toByteBuffer())));
+        new RpcRequest(dummyRequestId, new NioManagedBuffer(bufferStreamEnd.toByteBuffer())),
+        createRpcResponseCallback(client.getChannel()));
   }
 
   private void checkOriginFileBeDeleted(FileInfo fileInfo) {
@@ -405,5 +415,19 @@ public class FetchHandlerSuiteJ {
     }
     Collections.shuffle(ids);
     return ids;
+  }
+
+  private RpcResponseCallback createRpcResponseCallback(Channel channel) {
+    return new RpcResponseCallback() {
+      @Override
+      public void onSuccess(ByteBuffer response) {
+        channel.writeAndFlush(new RpcResponse(dummyRequestId, new NioManagedBuffer(response)));
+      }
+
+      @Override
+      public void onFailure(Throwable e) {
+        channel.writeAndFlush(new RpcFailure(dummyRequestId, Throwables.getStackTraceAsString(e)));
+      }
+    };
   }
 }

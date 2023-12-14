@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-import org.apache.celeborn.common.util.ThreadUtils;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.HashMap;
@@ -30,19 +28,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import scala.concurrent.duration.Duration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import org.apache.celeborn.common.CelebornConf;
-
-import scala.concurrent.duration.Duration;
+import org.apache.celeborn.common.util.ThreadUtils;
 
 public class FsConfigServiceImpl implements ConfigService {
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
-  private CelebornConf celebornConf;
+  private final CelebornConf celebornConf;
   private final AtomicReference<SystemConfig> systemConfigAtomicReference = new AtomicReference<>();
-  private final AtomicReference<Map<String, TenantConfig>> tenantConfigAtomicReference = new AtomicReference<>(new HashMap<>());
+  private final AtomicReference<Map<String, TenantConfig>> tenantConfigAtomicReference =
+      new AtomicReference<>(new HashMap<>());
   private static final String CONF_TENANT_ID = "tenantId";
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
@@ -52,13 +52,11 @@ public class FsConfigServiceImpl implements ConfigService {
 
   public FsConfigServiceImpl(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;
+    this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
     this.refresh();
-    long dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshTime();
+    long dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshInterval();
     this.configRefreshService.scheduleWithFixedDelay(
-        () -> refresh(),
-        dynamicConfigRefreshTime,
-        dynamicConfigRefreshTime,
-        TimeUnit.MILLISECONDS);
+        this::refresh, dynamicConfigRefreshTime, dynamicConfigRefreshTime, TimeUnit.MILLISECONDS);
   }
 
   private synchronized void refresh() {
@@ -78,7 +76,7 @@ public class FsConfigServiceImpl implements ConfigService {
         Map<String, String> config =
             ((Map<String, Object>) settings.get(CONF_CONFIG))
                 .entrySet().stream()
-                .collect(Collectors.toMap(a -> a.getKey(), a -> a.getValue().toString()));
+                    .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
         if (ConfigLevel.TENANT.name().equals(level)) {
           TenantConfig tenantConfig = new TenantConfig(this, tenantId, config);
           tenantConfs.put(tenantId, tenantConfig);
@@ -88,10 +86,13 @@ public class FsConfigServiceImpl implements ConfigService {
       }
     } catch (Exception e) {
       LOG.warn("Refresh dynamic config error: {}", e.getMessage(), e);
+      return;
     }
 
     tenantConfigAtomicReference.set(tenantConfs);
-    systemConfigAtomicReference.set(systemConfig == null ? new SystemConfig(celebornConf) : systemConfig);
+    if (systemConfig != null) {
+      systemConfigAtomicReference.set(systemConfig);
+    }
   }
 
   @Override

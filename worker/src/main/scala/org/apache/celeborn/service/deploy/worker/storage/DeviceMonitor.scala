@@ -298,9 +298,9 @@ object DeviceMonitor extends Logging {
             bufferReader = new BufferedReader(inputStreamReader)
             bufferReader.readLine()
           } finally {
-            bufferReader.close()
-            inputStreamReader.close()
-            fileInputStream.close()
+            Option(bufferReader).foreach(_.close())
+            Option(inputStreamReader).foreach(_.close())
+            Option(fileInputStream).foreach(_.close())
           }
           FileUtils.forceDelete(file)
           false

@@ -144,6 +144,7 @@ These metrics are exposed by Celeborn worker.
         - The time for a worker to handle a pushData RPC sent from a celeborn client.
     - ReplicaPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
+    - FetchChunkFailCount
     - WriteDataFailCount
     - ReplicateDataFailCount
     - ReplicateDataWriteFailCount

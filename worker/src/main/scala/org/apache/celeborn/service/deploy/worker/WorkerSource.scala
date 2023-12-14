@@ -26,6 +26,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   import WorkerSource._
   // add counters
+  addCounter(FETCH_CHUNK_FAIL_COUNT)
   addCounter(WRITE_DATA_FAIL_COUNT)
   addCounter(REPLICATE_DATA_FAIL_COUNT)
   addCounter(REPLICATE_DATA_WRITE_FAIL_COUNT)
@@ -72,7 +73,10 @@ object WorkerSource {
   val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
   val FLUSH_DATA_TIME = "FlushDataTime"
   val OPEN_STREAM_TIME = "OpenStreamTime"
+
+  // fetch data
   val FETCH_CHUNK_TIME = "FetchChunkTime"
+  val FETCH_CHUNK_FAIL_COUNT = "FetchChunkFailCount"
 
   // push data
   val PRIMARY_PUSH_DATA_TIME = "PrimaryPushDataTime"

@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.common.network;
 
+import java.util.Collections;
+import java.util.List;
+
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -27,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.client.TransportClient;
+import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.MessageEncoder;
@@ -93,35 +97,52 @@ public class TransportContext {
     this(conf, msgHandler, false, false, null);
   }
 
+  public TransportClientFactory createClientFactory(List<TransportClientBootstrap> bootstraps) {
+    return new TransportClientFactory(this, bootstraps);
+  }
+
   public TransportClientFactory createClientFactory() {
-    return new TransportClientFactory(this);
+    return createClientFactory(Collections.emptyList());
   }
 
   /** Create a server which will attempt to bind to a specific host and port. */
   public TransportServer createServer(String host, int port) {
-    return new TransportServer(this, host, port, source);
+    return new TransportServer(this, host, port, source, msgHandler, Collections.emptyList());
+  }
+
+  public TransportServer createServer(
+      String host, int port, List<TransportServerBootstrap> bootstraps) {
+    return new TransportServer(this, host, port, source, msgHandler, bootstraps);
   }
 
   public TransportServer createServer(int port) {
-    return createServer(null, port);
+    return createServer(null, port, Collections.emptyList());
   }
 
   /** For Suite only */
   public TransportServer createServer() {
-    return createServer(null, 0);
-  }
-
-  public TransportChannelHandler initializePipeline(SocketChannel channel) {
-    return initializePipeline(channel, new TransportFrameDecoder());
+    return createServer(null, 0, Collections.emptyList());
   }
 
   public TransportChannelHandler initializePipeline(
       SocketChannel channel, ChannelInboundHandlerAdapter decoder) {
+    return initializePipeline(channel, decoder, msgHandler);
+  }
+
+  public TransportChannelHandler initializePipeline(
+      SocketChannel channel, BaseMessageHandler resolvedMsgHandler) {
+    return initializePipeline(channel, new TransportFrameDecoder(), resolvedMsgHandler);
+  }
+
+  public TransportChannelHandler initializePipeline(
+      SocketChannel channel,
+      ChannelInboundHandlerAdapter decoder,
+      BaseMessageHandler resolvedMsgHandler) {
     try {
       if (channelsLimiter != null) {
         channel.pipeline().addLast("limiter", channelsLimiter);
       }
-      TransportChannelHandler channelHandler = createChannelHandler(channel, msgHandler);
+      TransportChannelHandler channelHandler = createChannelHandler(channel, resolvedMsgHandler);
       channel
           .pipeline()
           .addLast("encoder", ENCODER)

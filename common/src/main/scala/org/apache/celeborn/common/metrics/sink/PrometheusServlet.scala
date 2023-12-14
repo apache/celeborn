@@ -22,41 +22,25 @@ import java.util.Properties
 import com.codahale.metrics.MetricRegistry
 import io.netty.channel.ChannelHandler.Sharable
 
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.Source
 
 class PrometheusServlet(
     val property: Properties,
     val registry: MetricRegistry,
     val sources: Seq[Source],
-    val servletPath: String) extends Sink with Logging {
+    val servletPath: String) extends AbstractServlet(sources) {
 
-  def getHandler(conf: CelebornConf): PrometheusHttpRequestHandler = {
+  override def createHttpRequestHandler(): ServletHttpRequestHandler = {
     new PrometheusHttpRequestHandler(servletPath, this)
   }
-
-  def getMetricsSnapshot: String = {
-    sources.map(_.getMetrics).mkString
-  }
-
-  override def start(): Unit = {}
-
-  override def stop(): Unit = {}
-
-  override def report(): Unit = {}
 }
 
 @Sharable
 class PrometheusHttpRequestHandler(
     path: String,
-    prometheusServlet: PrometheusServlet) extends Logging {
+    prometheusServlet: PrometheusServlet) extends ServletHttpRequestHandler(path) {
 
-  def handleRequest(uri: String): String = {
-    if (uri == path) {
-      prometheusServlet.getMetricsSnapshot
-    } else {
-      s"Unknown path $uri!"
-    }
+  override def handleRequest(uri: String): String = {
+    prometheusServlet.getMetricsSnapshot
   }
 }

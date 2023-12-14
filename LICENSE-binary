@@ -280,6 +280,11 @@ org.scala-lang:scala-reflect
 org.slf4j:jcl-over-slf4j
 org.yaml:snakeyaml
 org.rocksdb:rocksdbjni
+com.fasterxml.jackson.module:jackson-module-scala
+com.fasterxml.jackson.core:jackson-databind
+com.fasterxml.jackson.core:jackson-annotations
+com.fasterxml.jackson.core:jackson-core
+com.thoughtworks.paranamer:paranamer
 
 
 ------------------------------------------------------------------------------------

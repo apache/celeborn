@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.network.server;
 
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 
@@ -24,6 +25,10 @@ import org.apache.celeborn.common.network.protocol.RequestMessage;
 public class BaseMessageHandler {
 
   public void receive(TransportClient client, RequestMessage msg) {
+    throw new UnsupportedOperationException();
+  }
+
+  public void receive(TransportClient client, RequestMessage msg, RpcResponseCallback callback) {
     throw new UnsupportedOperationException();
   }
 

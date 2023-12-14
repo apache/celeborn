@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.client
 
-import java.util.{HashSet => JHashSet, List => JList, Set => JSet}
+import java.util.{HashSet => JHashSet, Set => JSet}
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._

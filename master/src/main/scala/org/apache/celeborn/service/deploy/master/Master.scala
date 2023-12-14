@@ -31,7 +31,6 @@ import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.METRICS_PROMETHEUS_PATH
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -58,7 +57,7 @@ private[celeborn] class Master(
   override def serviceName: String = Service.MASTER
 
   override val metricsSystem: MetricsSystem =
-    MetricsSystem.createMetricsSystem(serviceName, conf, conf.get(METRICS_PROMETHEUS_PATH))
+    MetricsSystem.createMetricsSystem(serviceName, conf)
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,
@@ -358,7 +357,7 @@ private[celeborn] class Master(
       // keep it for compatible reason
       context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
@@ -665,8 +664,14 @@ private[celeborn] class Master(
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
-    val availableWorkers = workersAvailable()
+    val availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
     val numAvailableWorkers = availableWorkers.size()
+
+    if (numAvailableWorkers == 0) {
+      logError(s"Offer slots for $shuffleKey failed due to all workers are excluded!")
+      context.reply(RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource()))
+    }
+
     val numWorkers = Math.min(
       Math.max(
         if (requestSlots.shouldReplicate) 2 else 1,

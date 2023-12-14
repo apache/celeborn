@@ -171,6 +171,7 @@ object ControlMessages extends Logging {
       userIdentifier: UserIdentifier,
       maxWorkers: Int,
       availableStorageTypes: Int,
+      excludedWorkerSet: Set[WorkerInfo] = Set.empty,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -555,6 +556,7 @@ object ControlMessages extends Logging {
           userIdentifier,
           maxWorkers,
           availableStorageTypes,
+          excludedWorkerSet,
           requestId) =>
       val payload = PbRequestSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -567,6 +569,7 @@ object ControlMessages extends Logging {
         .setRequestId(requestId)
         .setAvailableStorageTypes(availableStorageTypes)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
+        .addAllExcludedWorkerSet(excludedWorkerSet.map(PbSerDeUtils.toPbWorkerInfo(_, true)).asJava)
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
@@ -930,6 +933,8 @@ object ControlMessages extends Logging {
       case REQUEST_SLOTS_VALUE =>
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)
         val userIdentifier = PbSerDeUtils.fromPbUserIdentifier(pbRequestSlots.getUserIdentifier)
+        val excludedWorkerInfoSet =
+          pbRequestSlots.getExcludedWorkerSetList.asScala.map(PbSerDeUtils.fromPbWorkerInfo).toSet
         RequestSlots(
           pbRequestSlots.getApplicationId,
           pbRequestSlots.getShuffleId,
@@ -940,6 +945,7 @@ object ControlMessages extends Logging {
           userIdentifier,
           pbRequestSlots.getMaxWorkers,
           pbRequestSlots.getAvailableStorageTypes,
+          excludedWorkerInfoSet,
           pbRequestSlots.getRequestId)
 
       case REQUEST_SLOTS_RESPONSE_VALUE =>

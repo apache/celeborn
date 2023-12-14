@@ -367,7 +367,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
-  def dynamicConfigRefreshTime: Long = get(DYNAMIC_CONFIG_REFRESH_TIME)
+  def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //                      Network                        //
@@ -721,6 +721,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
   def metricsWorkerForceAppendPauseSpentTimeThreshold: Int =
     get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
+  def metricsJsonPrettyEnabled: Boolean = get(METRICS_JSON_PRETTY_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -793,6 +794,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
+  def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientFetchThrowsFetchFailure: Boolean = get(CLIENT_FETCH_THROWS_FETCH_FAILURE)
@@ -823,6 +825,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushStageEndTimeout: Long = get(CLIENT_PUSH_STAGE_END_TIMEOUT)
   def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
+  def clientRpcSharedThreads: Int = get(CLIENT_RPC_SHARED_THREADS)
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
@@ -877,6 +880,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def enableReadLocalShuffleFile: Boolean = get(READ_LOCAL_SHUFFLE_FILE)
   def readLocalShuffleThreads: Int = get(READ_LOCAL_SHUFFLE_THREADS)
   def readStreamCreatorPoolThreads: Int = get(READ_STREAM_CREATOR_POOL_THREADS)
+
+  def registerShuffleFilterExcludedWorkerEnabled: Boolean =
+    get(REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                       Worker                        //
@@ -3299,6 +3305,16 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 
+  val CLIENT_FETCH_BUFFER_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.buffer.size")
+      .categories("client")
+      .version("0.4.0")
+      .doc("Size of reducer partition buffer memory for shuffle reader. The fetched data " +
+        "will be buffered in memory before consuming. For performance consideration keep " +
+        s"this buffer size not less than `${CLIENT_PUSH_BUFFER_MAX_SIZE.key}`.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64k")
+
   val CLIENT_FETCH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
     buildConf("celeborn.client.fetch.maxReqsInFlight")
       .withAlternative("celeborn.fetch.maxReqsInFlight")
@@ -3688,6 +3704,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
 
+  val CLIENT_RPC_SHARED_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.client.rpc.shared.threads")
+      .categories("client")
+      .version("0.3.2")
+      .doc("Number of shared rpc threads in LifecycleManager.")
+      .intConf
+      .createWithDefault(16)
+
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.reserveSlots.rackaware.enabled")
       .withAlternative("celeborn.client.reserveSlots.rackware.enabled")
@@ -3888,6 +3912,23 @@ object CelebornConf extends Logging {
       .stringConf
       .checkValue(path => path.startsWith("/"), "Context path must start with '/'")
       .createWithDefault("/metrics/prometheus")
+
+  val METRICS_JSON_PATH: ConfigEntry[String] =
+    buildConf("celeborn.metrics.json.path")
+      .categories("metrics")
+      .doc("URI context path of json metrics HTTP server.")
+      .version("0.4.0")
+      .stringConf
+      .checkValue(path => path.startsWith("/"), "Context path must start with '/'")
+      .createWithDefault("/metrics/json")
+
+  val METRICS_JSON_PRETTY_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.json.pretty.enabled")
+      .categories("metrics")
+      .doc("When true, view metrics in json pretty format")
+      .version("0.4.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val QUOTA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.quota.enabled")
@@ -4155,17 +4196,26 @@ object CelebornConf extends Logging {
   val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")
       .categories("master", "worker")
-      .doc("Store backend for dynamic config, NONE means disabling dynamic config store")
+      .doc("Store backend for dynamic config. Available options: NONE, FS. Note: NONE means disabling dynamic config store.")
       .version("0.4.0")
       .stringConf
-      .checkValues(Set("FS", "NONE"))
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("NONE", "FS"))
       .createWithDefault("NONE")
 
-  val DYNAMIC_CONFIG_REFRESH_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.dynamicConfig.refresh.time")
+  val DYNAMIC_CONFIG_REFRESH_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.refresh.interval")
       .categories("master", "worker")
       .version("0.4.0")
-      .doc("The time interval for refreshing the corresponding dynamic config periodically")
+      .doc("Interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.register.filterExcludedWorker.enabled")
+      .categories("client")
+      .version("0.4.0")
+      .doc("Whether to filter excluded worker when register shuffle.")
+      .booleanConf
+      .createWithDefault(false)
 }

@@ -1020,6 +1020,8 @@ object Utils extends Logging {
   val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
   val COMPATIBLE_HDFS_REGEX = "^[a-zA-Z0-9]+://.*"
 
+  val UNKNOWN_APP_SHUFFLE_ID = -1
+
   def isHdfsPath(path: String): Boolean = {
     path.matches(COMPATIBLE_HDFS_REGEX)
   }

@@ -215,6 +215,7 @@ message PbRequestSlots {
   bool shouldRackAware = 9;
   int32 maxWorkers = 10;
   int32 availableStorageTypes = 11;
+  repeated PbWorkerInfo excludedWorkerSet = 12;
 }
 
 message PbSlotInfo {
