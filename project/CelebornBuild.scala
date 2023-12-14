@@ -559,7 +559,7 @@ object Spark34 extends SparkClientProjects {
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.12.17"
 
-  val sparkVersion = "3.4.1"
+  val sparkVersion = "3.4.2"
   val zstdJniVersion = "1.5.2-5"
 
   override val includeColumnarShuffle: Boolean = true
