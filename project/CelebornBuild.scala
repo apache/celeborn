@@ -62,6 +62,7 @@ object Dependencies {
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
   val snakeyamlVersion = "1.33"
+  val snappyVersion = "1.1.10.5"
 
   // Versions for proto
   val protocVersion = "3.19.2"
@@ -120,6 +121,7 @@ object Dependencies {
   val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
   val slf4jJclOverSlf4j = "org.slf4j" % "jcl-over-slf4j" % slf4jVersion
   val snakeyaml = "org.yaml" % "snakeyaml" % snakeyamlVersion
+  val snappyJava = "org.xerial.snappy" % "snappy-java" % snappyVersion
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
 
   // Test dependencies
@@ -340,6 +342,7 @@ object CelebornCommon {
         Dependencies.slf4jJulToSlf4j,
         Dependencies.slf4jApi,
         Dependencies.snakeyaml,
+        Dependencies.snappyJava,
         Dependencies.jacksonModule,
         Dependencies.jacksonCore,
         Dependencies.jacksonDatabind,
