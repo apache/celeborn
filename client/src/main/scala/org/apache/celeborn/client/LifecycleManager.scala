@@ -1314,7 +1314,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       slotsToDestroy: WorkerResource): Unit = {
     val shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId)
 
-    def retryDestory(status: DestroyFutureWithStatus): Unit = {
+    def retryDestroy(status: DestroyFutureWithStatus): Unit = {
       status.retryTimes += 1
       status.future =
         status.endpoint.ask[DestroyWorkerSlotsResponse](status.message)
@@ -1346,8 +1346,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               if (res.status != StatusCode.SUCCESS && retryTimes < rpcMaxRetires) {
                 logDebug(
                   s"Request $message return ${res.status} for $shuffleKey $retryTimes/$rpcMaxRetires, " +
-                    s"will retry.")
-                retryDestory(futureWithStatus)
+                    "will retry.")
+                retryDestroy(futureWithStatus)
               } else {
                 iter.remove()
               }
@@ -1355,8 +1355,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               if (retryTimes < rpcMaxRetires) {
                 logDebug(
                   s"Request $message failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: $e, " +
-                    s"will retry.")
-                retryDestory(futureWithStatus)
+                    "will retry.")
+                retryDestroy(futureWithStatus)
               } else {
                 iter.remove()
               }
@@ -1366,7 +1366,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             logDebug(
               s"Request $message failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
                 s"will retry.")
-            retryDestory(futureWithStatus)
+            retryDestroy(futureWithStatus)
           } else {
             iter.remove()
           }
