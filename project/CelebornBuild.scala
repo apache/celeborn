@@ -235,8 +235,8 @@ object CelebornCommonSettings {
       Credentials(
         "Sonatype Nexus Repository Manager",
         host,
-        sys.env.getOrElse("SONATYPE_USERNAME", ""),
-        sys.env.getOrElse("SONATYPE_PASSWORD", "")),
+        sys.env.getOrElse("ASF_USERNAME", ""),
+        sys.env.getOrElse("ASF_PASSWORD", "")),
     },
     publishTo := {
       if (isSnapshot.value) {

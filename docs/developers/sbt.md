@@ -286,21 +286,19 @@ SBT supports publishing shade clients (Spark/Flink/MapReduce) to an internal Mav
 
 Before executing the publish command, ensure that the following environment variables are correctly set:
 
-| Environment Variable   | Description                                                                                                                      |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| SONATYPE_HOST          | Sonatype repository host address, default is "oss.sonatype.org"                                                                  |
-| SONATYPE_USERNAME      | Sonatype repository username                                                                                                     |
-| SONATYPE_PASSWORD      | Sonatype repository password                                                                                                     |
-| SONATYPE_SNAPSHOTS_URL | Sonatype repository URL for snapshot version releases, default is "https://oss.sonatype.org/content/repositories/snapshots"      |
-| SONATYPE_RELEASES_URL  | Sonatype repository URL for official release versions, default is "https://oss.sonatype.org/service/local/staging/deploy/maven2" |
+| Environment Variable   | Description                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| ASF_USERNAME           | Sonatype repository username                                                                                                          |
+| ASF_PASSWORD           | Sonatype repository password                                                                                                          |
+| SONATYPE_SNAPSHOTS_URL | Sonatype repository URL for snapshot version releases, default is "https://repository.apache.org/content/repositories/snapshots"      |
+| SONATYPE_RELEASES_URL  | Sonatype repository URL for official release versions, default is "https://repository.apache.org/service/local/staging/deploy/maven2" |
 
 For example:
 ```shell
 export SONATYPE_SNAPSHOTS_URL=http://192.168.3.46:8081/repository/maven-snapshots/
 export SONATYPE_RELEASES_URL=http://192.168.3.46:8081/repository/maven-releases/
-export SONATYPE_HOST=192.168.3.46
-export SONATYPE_USERNAME=admin
-export SONATYPE_PASSWORD=123456
+export ASF_USERNAME=admin
+export ASF_PASSWORD=123456
 ```
 
 Publish the shade client for Spark 3.5:
