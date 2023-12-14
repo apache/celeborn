@@ -205,8 +205,9 @@ abstract class CommitHandler(
       params: ArrayBuffer[CommitFilesParam],
       commitFilesFailedWorkers: ShuffleFailedWorkers): Unit = {
 
-    def retryCommitFiles(status: CommitFutureWithStatus): Unit = {
+    def retryCommitFiles(status: CommitFutureWithStatus, currentTime: Long): Unit = {
       status.retriedTimes = status.retriedTimes + 1
+      status.startTime = currentTime
       status.future = commitFiles(
         appUniqueId,
         shuffleId,
@@ -318,7 +319,7 @@ abstract class CommitHandler(
                   s" (attempt ${status.retriedTimes}/$maxRetries).",
                 e)
               if (status.retriedTimes < maxRetries) {
-                retryCommitFiles(status)
+                retryCommitFiles(status, currentTime)
               } else {
                 val res = createFailResponse(status)
                 processResponse(res, status.commitFilesParam.worker)
@@ -327,7 +328,7 @@ abstract class CommitHandler(
           }
         } else if (currentTime - status.startTime > timeout) {
           if (status.retriedTimes < maxRetries) {
-            retryCommitFiles(status)
+            retryCommitFiles(status, currentTime)
           } else {
             iter.remove()
           }
