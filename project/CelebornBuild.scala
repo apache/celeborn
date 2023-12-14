@@ -226,20 +226,25 @@ object CelebornCommonSettings {
     publishMavenStyle := true,
     publishArtifact := true,
     Test / publishArtifact := false,
-    credentials += Credentials(
-      "Sonatype Nexus Repository Manager",
-      sys.env.getOrElse("SONATYPE_HOST", "oss.sonatype.org"),
-      sys.env.getOrElse("SONATYPE_USERNAME", ""),
-      sys.env.getOrElse("SONATYPE_PASSWORD", "")
-    ),
+    credentials += {
+      val host = publishTo.value.map {
+        case repo: MavenRepo => scala.util.Try(new java.net.URL(repo.root)).map(_.getHost).getOrElse("repository.apache.org")
+        case _ => "repository.apache.org"
+      }.get
+
+      Credentials(
+        "Sonatype Nexus Repository Manager",
+        host,
+        sys.env.getOrElse("SONATYPE_USERNAME", ""),
+        sys.env.getOrElse("SONATYPE_PASSWORD", "")),
+    },
     publishTo := {
-      val nexus = "https://oss.sonatype.org/"
       if (isSnapshot.value) {
-        val snapshotUrl = sys.env.getOrElse("SONATYPE_SNAPSHOTS_URL", nexus + "content/repositories/snapshots")
-        Some(("snapshots" at snapshotUrl).withAllowInsecureProtocol(true))
+        val publishUrl = sys.env.getOrElse("SONATYPE_SNAPSHOTS_URL", "https://repository.apache.org/content/repositories/snapshots")
+        Some(("snapshots" at publishUrl).withAllowInsecureProtocol(true))
       } else {
-        val releaseUrl = sys.env.getOrElse("SONATYPE_RELEASES_URL", nexus + "service/local/staging/deploy/maven2")
-        Some(("releases" at releaseUrl).withAllowInsecureProtocol(true))
+        val publishUrl = sys.env.getOrElse("SONATYPE_RELEASES_URL", "https://repository.apache.org/service/local/staging/deploy/maven2")
+        Some(("releases" at publishUrl).withAllowInsecureProtocol(true))
       }
     },
     licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
@@ -345,6 +350,8 @@ object Utils {
     require(ALL_SCALA_VERSIONS.contains(v), s"found not allow scala version: $v")
     v
   }
+
+
 }
 
 object CelebornCommon {
@@ -759,7 +766,8 @@ trait SparkClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
           case _ => MergeStrategy.first
         },
-        addArtifact(assembly / artifact, assembly)
+
+        Compile / packageBin / artifact := (assembly / artifact).value
       )
     if (includeColumnarShuffle) {
         p.dependsOn(sparkColumnarShuffle)
@@ -955,7 +963,7 @@ trait FlinkClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
           case _ => MergeStrategy.first
         },
-        addArtifact(assembly / artifact, assembly)
+        Compile / packageBin / artifact := (assembly / artifact).value
       )
   }
 }
@@ -1058,7 +1066,8 @@ object MRClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so")
           case _ => MergeStrategy.first
         },
-        addArtifact(assembly / artifact, assembly)
+
+        Compile / packageBin / artifact := (assembly / artifact).value
       )
   }
 
