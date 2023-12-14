@@ -41,6 +41,7 @@ import org.apache.celeborn.common.protocol.PbRegionFinish;
 import org.apache.celeborn.common.protocol.PbRegionStart;
 import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailure;
 import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailureResponse;
+import org.apache.celeborn.common.protocol.PbSaslRequest;
 import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.PbTransportableError;
@@ -102,6 +103,8 @@ public class TransportMessage implements Serializable {
         return (T) PbReportShuffleFetchFailure.parseFrom(payload);
       case REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE_VALUE:
         return (T) PbReportShuffleFetchFailureResponse.parseFrom(payload);
+      case SASL_REQUEST_VALUE:
+        return (T) PbSaslRequest.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }
