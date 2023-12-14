@@ -97,6 +97,7 @@
     <kubernetes-client.version>6.7.0</kubernetes-client.version>
     <rocksdbjni.version>8.5.3</rocksdbjni.version>
     <jackson.version>2.15.3</jackson.version>
+    <snappy.version>1.1.10.5</snappy.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
@@ -484,6 +485,11 @@
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-core</artifactId>
         <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
