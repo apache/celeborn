@@ -1366,7 +1366,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           if (retryTimes < rpcMaxRetires) {
             logDebug(
               s"Request $message failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
-                s"will retry.")
+                "will retry.")
             retryDestroy(futureWithStatus, currentTime)
           } else {
             iter.remove()
