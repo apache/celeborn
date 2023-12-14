@@ -350,8 +350,6 @@ object Utils {
     require(ALL_SCALA_VERSIONS.contains(v), s"found not allow scala version: $v")
     v
   }
-
-
 }
 
 object CelebornCommon {
