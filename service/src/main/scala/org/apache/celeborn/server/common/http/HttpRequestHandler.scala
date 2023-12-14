@@ -24,7 +24,7 @@ import io.netty.handler.codec.http._
 import io.netty.util.CharsetUtil
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.sink.PrometheusHttpRequestHandler
+import org.apache.celeborn.common.metrics.sink.{JsonHttpRequestHandler, ServletHttpRequestHandler}
 import org.apache.celeborn.server.common.HttpService
 
 /**
@@ -36,7 +36,7 @@ import org.apache.celeborn.server.common.HttpService
 @Sharable
 class HttpRequestHandler(
     service: HttpService,
-    prometheusHttpRequestHandler: PrometheusHttpRequestHandler)
+    servletHttpRequestHandlers: Array[ServletHttpRequestHandler])
   extends SimpleChannelInboundHandler[FullHttpRequest] with Logging {
 
   override def channelReadComplete(ctx: ChannelHandlerContext): Unit = {
@@ -47,21 +47,31 @@ class HttpRequestHandler(
     val uri = req.uri()
     val (path, parameters) = HttpUtils.parseUri(uri)
     val msg = HttpUtils.handleRequest(service, path, parameters)
-    val response = msg match {
+    val textType = "text/plain; charset=UTF-8"
+    val jsonType = "application/json"
+    val (response, contentType) = msg match {
       case Invalid.invalid =>
-        if (prometheusHttpRequestHandler != null) {
-          prometheusHttpRequestHandler.handleRequest(uri)
+        if (servletHttpRequestHandlers != null) {
+          servletHttpRequestHandlers.find(servlet =>
+            uri == servlet.getServletPath()).map {
+            case jsonHandler: JsonHttpRequestHandler =>
+              (jsonHandler.handleRequest(uri), jsonType)
+            case handler: ServletHttpRequestHandler =>
+              (handler.handleRequest(uri), textType)
+          }.getOrElse((s"Unknown path $uri!", textType))
         } else {
-          s"${Invalid.description(service.serviceName)} ${HttpUtils.help(service.serviceName)}"
+          (
+            s"${Invalid.description(service.serviceName)} ${HttpUtils.help(service.serviceName)}",
+            textType)
         }
-      case _ => msg
+      case _ => (msg, textType)
     }
 
     val res = new DefaultFullHttpResponse(
       HttpVersion.HTTP_1_1,
       HttpResponseStatus.OK,
       Unpooled.copiedBuffer(response, CharsetUtil.UTF_8))
-    res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8")
+    res.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType)
     ctx.writeAndFlush(res).addListener(ChannelFutureListener.CLOSE)
   }
 }

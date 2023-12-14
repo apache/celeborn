@@ -138,7 +138,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     }
   }
 
-  protected def counters(): List[NamedCounter] = {
+  def counters(): List[NamedCounter] = {
     namedCounters.values().asScala.toList
   }
 
@@ -146,11 +146,11 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedGauges.asScala.toList
   }
 
-  protected def histograms(): List[NamedHistogram] = {
+  def histograms(): List[NamedHistogram] = {
     List.empty[NamedHistogram]
   }
 
-  protected def timers(): List[NamedTimer] = {
+  def timers(): List[NamedTimer] = {
     namedTimers.values().asScala.toList.map(_._1)
   }
 
@@ -401,7 +401,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     s"metrics_${key.replaceAll("[^a-zA-Z0-9]", "_")}_"
   }
 
-  protected def reportNanosAsMills(value: Double): Double = {
+  def reportNanosAsMills(value: Double): Double = {
     BigDecimal(value / 1000000).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 

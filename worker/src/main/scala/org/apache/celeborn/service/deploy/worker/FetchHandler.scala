@@ -33,7 +33,7 @@ import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
-import org.apache.celeborn.common.network.client.TransportClient
+import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
@@ -87,6 +87,13 @@ class FetchHandler(
     fileInfo
   }
 
+  override def receive(
+      client: TransportClient,
+      msg: RequestMessage,
+      callback: RpcResponseCallback): Unit = {
+    handleRpcRequest(client, msg.asInstanceOf[RpcRequest], callback)
+  }
+
   override def receive(client: TransportClient, msg: RequestMessage): Unit = {
     msg match {
       case r: BufferStreamEnd =>
@@ -95,54 +102,55 @@ class FetchHandler(
         handleReadAddCredit(r.getCredit, r.getStreamId)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r.streamChunkSlice, r)
-      case r: RpcRequest =>
-        handleRpcRequest(client, r)
       case unknown: RequestMessage =>
         throw new IllegalArgumentException(s"Unknown message type id: ${unknown.`type`.id}")
     }
   }
 
-  private def handleRpcRequest(client: TransportClient, rpcRequest: RpcRequest): Unit = {
+  private def handleRpcRequest(
+      client: TransportClient,
+      rpcRequest: RpcRequest,
+      callback: RpcResponseCallback): Unit = {
+    var message: GeneratedMessageV3 = null
     try {
-      var message: GeneratedMessageV3 = null
-      try {
-        message = TransportMessage.fromByteBuffer(rpcRequest.body().nioByteBuffer())
-          .getParsedPayload[GeneratedMessageV3]
-      } catch {
-        case exception: CelebornIOException =>
-          logWarning("Handle request with legacy RPCs", exception)
-          return handleLegacyRpcMessage(client, rpcRequest)
-      }
-      message match {
-        case openStream: PbOpenStream =>
-          handleOpenStreamInternal(
-            client,
-            openStream.getShuffleKey,
-            openStream.getFileName,
-            openStream.getStartIndex,
-            openStream.getEndIndex,
-            openStream.getInitialCredit,
-            rpcRequest.requestId,
-            isLegacy = false,
-            openStream.getReadLocalShuffle)
-        case bufferStreamEnd: PbBufferStreamEnd =>
-          handleEndStreamFromClient(bufferStreamEnd.getStreamId, bufferStreamEnd.getStreamType)
-        case readAddCredit: PbReadAddCredit =>
-          handleReadAddCredit(readAddCredit.getCredit, readAddCredit.getStreamId)
-        case chunkFetchRequest: PbChunkFetchRequest =>
-          handleChunkFetchRequest(
-            client,
-            StreamChunkSlice.fromProto(chunkFetchRequest.getStreamChunkSlice),
-            rpcRequest)
-        case message: GeneratedMessageV3 =>
-          logError(s"Unknown message $message")
-      }
-    } finally {
-      rpcRequest.body().release()
+      message = TransportMessage.fromByteBuffer(rpcRequest.body().nioByteBuffer())
+        .getParsedPayload[GeneratedMessageV3]
+    } catch {
+      case exception: CelebornIOException =>
+        logWarning("Handle request with legacy RPCs", exception)
+        return handleLegacyRpcMessage(client, rpcRequest, callback)
+    }
+    message match {
+      case openStream: PbOpenStream =>
+        handleOpenStreamInternal(
+          client,
+          openStream.getShuffleKey,
+          openStream.getFileName,
+          openStream.getStartIndex,
+          openStream.getEndIndex,
+          openStream.getInitialCredit,
+          rpcRequest.requestId,
+          isLegacy = false,
+          openStream.getReadLocalShuffle,
+          callback)
+      case bufferStreamEnd: PbBufferStreamEnd =>
+        handleEndStreamFromClient(bufferStreamEnd.getStreamId, bufferStreamEnd.getStreamType)
+      case readAddCredit: PbReadAddCredit =>
+        handleReadAddCredit(readAddCredit.getCredit, readAddCredit.getStreamId)
+      case chunkFetchRequest: PbChunkFetchRequest =>
+        handleChunkFetchRequest(
+          client,
+          StreamChunkSlice.fromProto(chunkFetchRequest.getStreamChunkSlice),
+          rpcRequest)
+      case message: GeneratedMessageV3 =>
+        logError(s"Unknown message $message")
     }
   }
 
-  private def handleLegacyRpcMessage(client: TransportClient, rpcRequest: RpcRequest): Unit = {
+  private def handleLegacyRpcMessage(
+      client: TransportClient,
+      rpcRequest: RpcRequest,
+      callback: RpcResponseCallback): Unit = {
     try {
       val message = Message.decode(rpcRequest.body().nioByteBuffer())
       message.`type`() match {
@@ -158,7 +166,8 @@ class FetchHandler(
             rpcRequestId = rpcRequest.requestId,
             isLegacy = true,
             // legacy [[OpenStream]] doesn't support read local shuffle
-            readLocalShuffle = false)
+            readLocalShuffle = false,
+            callback)
         case Message.Type.OPEN_STREAM_WITH_CREDIT =>
           val openStreamWithCredit = message.asInstanceOf[OpenStreamWithCredit]
           handleOpenStreamInternal(
@@ -170,7 +179,8 @@ class FetchHandler(
             openStreamWithCredit.initialCredit,
             rpcRequestId = rpcRequest.requestId,
             isLegacy = true,
-            readLocalShuffle = false)
+            readLocalShuffle = false,
+            callback)
         case _ =>
           logError(s"Received an unknown message type id: ${message.`type`.id}")
       }
@@ -190,7 +200,8 @@ class FetchHandler(
       initialCredit: Int,
       rpcRequestId: Long,
       isLegacy: Boolean,
-      readLocalShuffle: Boolean = false): Unit = {
+      readLocalShuffle: Boolean = false,
+      callback: RpcResponseCallback): Unit = {
     workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
       var fileInfo = getRawFileInfo(shuffleKey, fileName)
@@ -263,7 +274,7 @@ class FetchHandler(
       }
     } catch {
       case e: IOException =>
-        handleRpcIOException(client, rpcRequestId, shuffleKey, fileName, e)
+        handleRpcIOException(client, rpcRequestId, shuffleKey, fileName, e, callback)
     } finally {
       workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     }
@@ -304,23 +315,23 @@ class FetchHandler(
       requestId: Long,
       shuffleKey: String,
       fileName: String,
-      ioe: IOException): Unit = {
+      ioe: IOException,
+      rpcCallback: RpcResponseCallback): Unit = {
     // if open stream rpc failed, this IOException actually should be FileNotFoundException
     // we wrapper this IOException(Other place may have other exception like FileCorruptException) unify to
     // PartitionUnRetryableException for reader can give up this partition and choose to regenerate the partition data
     logError(
       s"Read file: $fileName with shuffleKey: $shuffleKey error from ${NettyUtils.getRemoteAddress(client.getChannel)}",
       ioe)
-    handleRpcException(client, requestId, ioe)
+    handleRpcException(client, requestId, ioe, rpcCallback)
   }
 
   private def handleRpcException(
       client: TransportClient,
       requestId: Long,
-      ioe: IOException): Unit = {
-    client.getChannel.writeAndFlush(new RpcFailure(
-      requestId,
-      Throwables.getStackTraceAsString(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))))
+      ioe: IOException,
+      rpcResponseCallback: RpcResponseCallback): Unit = {
+    rpcResponseCallback.onFailure(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))
   }
 
   def handleEndStreamFromClient(streamId: Long): Unit = {
@@ -357,12 +368,14 @@ class FetchHandler(
           s"$chunksBeingTransferred exceeds ${MAX_CHUNKS_BEING_TRANSFERRED.key} " +
           s"${Utils.bytesToString(threshold)}."
         logError(message)
+        workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
         client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
         return
       }
     }
 
-    workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+    val reqStr = req.toString
+    workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
     val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(streamChunkSlice.streamId)
     val fetchBeginTime = System.nanoTime()
     try {
@@ -381,7 +394,7 @@ class FetchHandler(
                   s"Sending ChunkFetchSuccess operation succeeded, chunk $streamChunkSlice")
               }
             } else {
-              logError(
+              logWarning(
                 s"Sending ChunkFetchSuccess operation failed, chunk $streamChunkSlice",
                 future.cause())
             }
@@ -389,7 +402,7 @@ class FetchHandler(
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
             }
-            workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+            workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
           }
         })
     } catch {
@@ -398,10 +411,11 @@ class FetchHandler(
           s"Error opening block $streamChunkSlice for request from " +
             NettyUtils.getRemoteAddress(client.getChannel),
           e)
+        workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
         client.getChannel.writeAndFlush(new ChunkFetchFailure(
           streamChunkSlice,
           Throwables.getStackTraceAsString(e)))
-        workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, req.toString)
+        workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
     }
   }
 

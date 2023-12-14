@@ -57,6 +57,7 @@ object Dependencies {
   val ratisVersion = "2.5.1"
   val roaringBitmapVersion = "0.9.32"
   val rocksdbJniVersion = "8.5.3"
+  val jacksonVersion = "2.15.3"
   val scalatestMockitoVersion = "1.17.14"
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
@@ -110,6 +111,10 @@ object Dependencies {
     ExclusionRule("org.slf4j", "slf4j-simple"))
   val roaringBitmap = "org.roaringbitmap" % "RoaringBitmap" % roaringBitmapVersion
   val rocksdbJni = "org.rocksdb" % "rocksdbjni" % rocksdbJniVersion
+  val jacksonDatabind = "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
+  val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion
+  val jacksonAnnotations = "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion
+  val jacksonModule = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
   val scalaReflect = "org.scala-lang" % "scala-reflect" % projectScalaVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
@@ -262,7 +267,6 @@ object Utils {
       }
       profiles
   }
-
   val SPARK_VERSION = profiles.filter(_.startsWith("spark")).headOption
 
   lazy val sparkClientProjects = SPARK_VERSION match {
@@ -314,7 +318,7 @@ object CelebornCommon {
       commonSettings,
       protoSettings,
       libraryDependencies ++= Seq(
-        Dependencies.protobufJava % "protobuf",
+        Dependencies.protobufJava,
         Dependencies.findbugsJsr305,
         Dependencies.guava,
         Dependencies.commonsIo,
@@ -336,6 +340,10 @@ object CelebornCommon {
         Dependencies.slf4jJulToSlf4j,
         Dependencies.slf4jApi,
         Dependencies.snakeyaml,
+        Dependencies.jacksonModule,
+        Dependencies.jacksonCore,
+        Dependencies.jacksonDatabind,
+        Dependencies.jacksonAnnotations,
         Dependencies.log4jSlf4jImpl % "test",
         Dependencies.log4j12Api % "test"
       ) ++ commonUnitTestDependencies,

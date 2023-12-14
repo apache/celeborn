@@ -36,7 +36,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client._
-import org.apache.celeborn.common.network.protocol.{OneWayMessage => NOneWayMessage, RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest, RpcResponse}
+import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest}
 import org.apache.celeborn.common.network.server._
 import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.rpc._
@@ -530,53 +530,29 @@ private[celeborn] class NettyRpcHandler(
   override def receive(
       client: TransportClient,
       requestMessage: NRequestMessage): Unit = {
-    requestMessage match {
-      case r: RpcRequest =>
-        processRpc(client, r)
-      case r: NOneWayMessage =>
-        processOnewayMessage(client, r)
-    }
-  }
-
-  private def processRpc(client: TransportClient, r: RpcRequest): Unit = {
-    val callback = new RpcResponseCallback {
-      override def onSuccess(response: ByteBuffer): Unit = {
-        client.getChannel.writeAndFlush(new RpcResponse(
-          r.requestId,
-          new NioManagedBuffer(response)))
-      }
-
-      override def onFailure(e: Throwable): Unit = {
-        client.getChannel.writeAndFlush(new NRpcFailure(
-          r.requestId,
-          Throwables.getStackTraceAsString(e)))
-      }
-    }
     try {
-      val message = r.body().nioByteBuffer()
-      val messageToDispatch = internalReceive(client, message)
-      dispatcher.postRemoteMessage(messageToDispatch, callback)
-    } catch {
-      case e: Exception =>
-        logError("Error while invoking RpcHandler#receive() on RPC id " + r.requestId, e)
-        client.getChannel.writeAndFlush(new NRpcFailure(
-          r.requestId,
-          Throwables.getStackTraceAsString(e)))
-    } finally {
-      r.body().release()
-    }
-  }
-
-  private def processOnewayMessage(client: TransportClient, r: NOneWayMessage): Unit = {
-    try {
-      val message = r.body().nioByteBuffer()
+      val message = requestMessage.body().nioByteBuffer()
       val messageToDispatch = internalReceive(client, message)
       dispatcher.postOneWayMessage(messageToDispatch)
     } catch {
       case e: Exception =>
-        logError("Error while invoking RpcHandler#receive() for one-way message.", e)
-    } finally {
-      r.body().release()
+        logError("Error while invoking NettyRpcHandler#receive() for one-way message.", e)
+    }
+  }
+
+  override def receive(
+      client: TransportClient,
+      requestMessage: NRequestMessage,
+      callback: RpcResponseCallback): Unit = {
+    try {
+      val message = requestMessage.body().nioByteBuffer()
+      val messageToDispatch = internalReceive(client, message)
+      dispatcher.postRemoteMessage(messageToDispatch, callback)
+    } catch {
+      case e: Exception =>
+        val rpcReq = requestMessage.asInstanceOf[RpcRequest]
+        logError("Error while invoking NettyRpcHandler#receive() on RPC id " + rpcReq.requestId, e)
+        callback.onFailure(e)
     }
   }
 

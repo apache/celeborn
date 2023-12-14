@@ -79,7 +79,7 @@ abstract class HttpService extends Service with Logging {
   def startHttpServer(): Unit = {
     val handlers =
       if (metricsSystem.running) {
-        new HttpRequestHandler(this, metricsSystem.getPrometheusHandler)
+        new HttpRequestHandler(this, metricsSystem.getServletHandlers)
       } else {
         new HttpRequestHandler(this, null)
       }

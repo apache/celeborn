@@ -96,6 +96,7 @@
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
     <kubernetes-client.version>6.7.0</kubernetes-client.version>
     <rocksdbjni.version>8.5.3</rocksdbjni.version>
+    <jackson.version>2.15.3</jackson.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
@@ -463,6 +464,26 @@
         <groupId>org.rocksdb</groupId>
         <artifactId>rocksdbjni</artifactId>
         <version>${rocksdbjni.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-annotations</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>${jackson.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

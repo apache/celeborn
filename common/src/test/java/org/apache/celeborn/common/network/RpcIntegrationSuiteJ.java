@@ -25,7 +25,6 @@ import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -34,7 +33,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -60,32 +58,21 @@ public class RpcIntegrationSuiteJ {
         new BaseMessageHandler() {
           @Override
           public void receive(TransportClient client, RequestMessage message) {
-            if (message instanceof RpcRequest) {
-              String msg;
-              RpcRequest r = (RpcRequest) message;
-              RpcResponseCallback callback =
-                  new RpcResponseCallback() {
-                    @Override
-                    public void onSuccess(ByteBuffer response) {
-                      client
-                          .getChannel()
-                          .writeAndFlush(
-                              new RpcResponse(r.requestId, new NioManagedBuffer(response)));
-                    }
+            assertTrue(message instanceof OneWayMessage);
+            String msg;
+            try {
+              msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+            oneWayMsgs.add(msg);
+          }
 
-                    @Override
-                    public void onFailure(Throwable e) {
-                      client
-                          .getChannel()
-                          .writeAndFlush(
-                              new RpcFailure(r.requestId, Throwables.getStackTraceAsString(e)));
-                    }
-                  };
-              try {
-                msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
+          @Override
+          public void receive(
+              TransportClient client, RequestMessage requestMessage, RpcResponseCallback callback) {
+            try {
+              String msg = JavaUtils.bytesToString(requestMessage.body().nioByteBuffer());
               String[] parts = msg.split("/");
               if (parts[0].equals("hello")) {
                 callback.onSuccess(JavaUtils.stringToBytes("Hello, " + parts[1] + "!"));
@@ -94,14 +81,8 @@ public class RpcIntegrationSuiteJ {
               } else if (parts[0].equals("throw error")) {
                 callback.onFailure(new RuntimeException("Thrown: " + parts[1]));
               }
-            } else if (message instanceof OneWayMessage) {
-              String msg;
-              try {
-                msg = JavaUtils.bytesToString(message.body().nioByteBuffer());
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-              oneWayMsgs.add(msg);
+            } catch (Exception e) {
+              throw new RuntimeException(e);
             }
           }
 

@@ -95,6 +95,7 @@ Here is an example of Grafana dashboard importing.
 |             FetchChunkTime             |      worker       |                      FetchChunk means read a chunk from a shuffle file and send to client.                      |
 |          PrimaryPushDataTime           |      worker       |                      PrimaryPushData means handle pushdata of primary partition location.                       |
 |          ReplicaPushDataTime           |      worker       |                      ReplicaPushData means handle pushdata of replica partition location.                       |
+|          FetchChunkFailCount           |      worker       |                              The count of fetching chunk failed in current worker.                              |
 |           WriteDataFailCount           |      worker       |                    The count of writing PushData or PushMergedData failed in current worker.                    |
 |         ReplicateDataFailCount         |      worker       |                  The count of replicating PushData or PushMergedData failed in current worker.                  |
 |      ReplicateDataWriteFailCount       |      worker       |       The count of replicating PushData or PushMergedData failed caused by write failure in peer worker.        |
@@ -151,6 +152,8 @@ Here is an example of Grafana dashboard importing.
 |      jvm_thread_terminated_count       |        JVM        |                             The current number of threads having terminated state.                              |
 |     jvm_thread_timed_waiting_count     |        JVM        |                            The current number of threads having timed_waiting state.                            |
 |        jvm_thread_waiting_count        |        JVM        |                               The current number of threads having waiting state.                               |
+|         jvm_classloader_loaded         |        JVM        |                         The total number of classes loaded since the start of the JVM.                          |
+|        jvm_classloader_unloaded        |        JVM        |                        The total number of classes unloaded since the start of the JVM.                         |
 |               JVMCPUTime               |      system       |                                             The JVM costs cpu time.                                             |
 |          AvailableProcessors           |      system       |                                   The amount of system available processors.                                    |
 |          LastMinuteSystemLoad          |      system       |                                         The last minute load of system.                                         |

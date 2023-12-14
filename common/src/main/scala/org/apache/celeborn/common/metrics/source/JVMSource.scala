@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import com.codahale.metrics.{Gauge, MetricRegistry}
-import com.codahale.metrics.jvm.{BufferPoolMetricSet, GarbageCollectorMetricSet, MemoryUsageGaugeSet, ThreadStatesGaugeSet}
+import com.codahale.metrics.jvm.{BufferPoolMetricSet, ClassLoadingGaugeSet, GarbageCollectorMetricSet, MemoryUsageGaugeSet, ThreadStatesGaugeSet}
 
 import org.apache.celeborn.common.CelebornConf
 
@@ -92,6 +92,12 @@ class JVMSource(conf: CelebornConf, role: String) extends AbstractSource(conf, r
     case (name, metric) => new IllegalArgumentException(s"Unknown metric type: $name: $metric")
   })
 
+  Seq(new ClassLoadingGaugeSet()).map(_.getMetrics.asScala.map {
+    case (name: String, metric: Gauge[_]) =>
+      addGauge(MetricRegistry.name(JVM_METRIC_CLASSLOADER_PREFIX, name), metric)
+    case (name, metric) => new IllegalArgumentException(s"Unknown metric type: $name: $metric")
+  })
+
   // start cleaner
   startCleaner()
 }
@@ -100,6 +106,7 @@ object JVMSource {
   private val JVM_METRIC_PREFIX = "jvm"
   private val JVM_METRIC_MEMORY_PREFIX = JVM_METRIC_PREFIX + ".memory"
   private val JVM_METRIC_THREAD_PREFIX = JVM_METRIC_PREFIX + ".thread"
+  private val JVM_METRIC_CLASSLOADER_PREFIX = JVM_METRIC_PREFIX + ".classloader"
 
   private val WHITESPACE = "\\s+".r.pattern
 }

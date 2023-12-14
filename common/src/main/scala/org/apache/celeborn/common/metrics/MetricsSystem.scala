@@ -27,30 +27,34 @@ import scala.util.matching.Regex
 import com.codahale.metrics.{Metric, MetricFilter, MetricRegistry}
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.{METRICS_JSON_PATH, METRICS_PROMETHEUS_PATH}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.sink.{PrometheusHttpRequestHandler, PrometheusServlet, Sink}
+import org.apache.celeborn.common.metrics.sink.{JsonServlet, PrometheusServlet, ServletHttpRequestHandler, Sink}
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.util.Utils
 
 class MetricsSystem(
     val instance: String,
-    conf: CelebornConf,
-    val servletPath: String) extends Logging {
+    conf: CelebornConf) extends Logging {
   private[this] val metricsConfig = new MetricsConfig(conf)
 
   private val sinks = new ArrayBuffer[Sink]
   private val sources = new CopyOnWriteArrayList[Source]
   private val registry = new MetricRegistry()
+  private val prometheusServletPath = conf.get(METRICS_PROMETHEUS_PATH)
+  private val jsonServletPath = conf.get(METRICS_JSON_PATH)
 
   private var prometheusServlet: Option[PrometheusServlet] = None
+  private var jsonServlet: Option[JsonServlet] = None
 
   var running: Boolean = false
 
   metricsConfig.initialize()
 
-  def getPrometheusHandler: PrometheusHttpRequestHandler = {
+  def getServletHandlers: Array[ServletHttpRequestHandler] = {
     require(running, "Can only call getServletHandlers on a running MetricsSystem")
-    prometheusServlet.map(_.getHandler(conf)).orNull
+    prometheusServlet.map(_.getHandlers(conf)).getOrElse(Array()) ++
+      jsonServlet.map(_.getHandlers(conf)).getOrElse(Array())
   }
 
   def start(registerStaticSources: Boolean = true) {
@@ -132,8 +136,25 @@ class MetricsSystem(
                 classOf[MetricRegistry],
                 classOf[Seq[Source]],
                 classOf[String])
-              .newInstance(kv._2, registry, sources.asScala, servletPath)
-            prometheusServlet = Some(servlet.asInstanceOf[PrometheusServlet])
+            prometheusServlet = Some(servlet.newInstance(
+              kv._2,
+              registry,
+              sources.asScala,
+              prometheusServletPath).asInstanceOf[PrometheusServlet])
+          } else if (kv._1 == "jsonServlet") {
+            val servlet = Utils.classForName(classPath)
+              .getConstructor(
+                classOf[Properties],
+                classOf[MetricRegistry],
+                classOf[Seq[Source]],
+                classOf[String],
+                classOf[Boolean])
+            jsonServlet = Some(servlet.newInstance(
+              kv._2,
+              registry,
+              sources.asScala,
+              jsonServletPath,
+              conf.metricsJsonPrettyEnabled.asInstanceOf[Object]).asInstanceOf[JsonServlet])
           } else {
             val sink = Utils.classForName(classPath)
               .getConstructor(classOf[Properties], classOf[MetricRegistry])
@@ -171,8 +192,7 @@ object MetricsSystem {
 
   def createMetricsSystem(
       instance: String,
-      conf: CelebornConf,
-      servletPath: String): MetricsSystem = {
-    new MetricsSystem(instance, conf, servletPath)
+      conf: CelebornConf): MetricsSystem = {
+    new MetricsSystem(instance, conf)
   }
 }

@@ -16,3 +16,4 @@
 #
 
 *.sink.prometheusServlet.class=org.apache.celeborn.common.metrics.sink.PrometheusServlet
+*.sink.jsonServlet.class=org.apache.celeborn.common.metrics.sink.JsonServlet

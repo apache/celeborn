@@ -68,12 +68,15 @@ hadoop-yarn-server-nodemanager/3.3.6//hadoop-yarn-server-nodemanager-3.3.6.jar
 hadoop-yarn-server-web-proxy/3.3.6//hadoop-yarn-server-web-proxy-3.3.6.jar
 httpclient/4.5.13//httpclient-4.5.13.jar
 httpcore/4.4.13//httpcore-4.4.13.jar
+jackson-annotations/2.15.3//jackson-annotations-2.15.3.jar
 jackson-core-asl/1.9.13//jackson-core-asl-1.9.13.jar
-jackson-core/2.12.7//jackson-core-2.12.7.jar
+jackson-core/2.15.3//jackson-core-2.15.3.jar
+jackson-databind/2.15.3//jackson-databind-2.15.3.jar
 jackson-jaxrs-base/2.12.7//jackson-jaxrs-base-2.12.7.jar
 jackson-jaxrs-json-provider/2.12.7//jackson-jaxrs-json-provider-2.12.7.jar
 jackson-mapper-asl/1.9.13//jackson-mapper-asl-1.9.13.jar
 jackson-module-jaxb-annotations/2.12.7//jackson-module-jaxb-annotations-2.12.7.jar
+jackson-module-scala_2.12/2.15.3//jackson-module-scala_2.12-2.15.3.jar
 jakarta.activation-api/1.2.1//jakarta.activation-api-1.2.1.jar
 jakarta.xml.bind-api/2.3.2//jakarta.xml.bind-api-2.3.2.jar
 javax-websocket-client-impl/9.4.51.v20230217//javax-websocket-client-impl-9.4.51.v20230217.jar
@@ -174,7 +177,7 @@ netty/3.10.6.Final//netty-3.10.6.Final.jar
 nimbus-jose-jwt/9.8.1//nimbus-jose-jwt-9.8.1.jar
 okhttp/4.9.3//okhttp-4.9.3.jar
 okio/2.8.0//okio-2.8.0.jar
-paranamer/2.3//paranamer-2.3.jar
+paranamer/2.8//paranamer-2.8.jar
 protobuf-java/3.19.2//protobuf-java-3.19.2.jar
 ratis-client/2.5.1//ratis-client-2.5.1.jar
 ratis-common/2.5.1//ratis-common-2.5.1.jar
@@ -188,7 +191,7 @@ shims/0.9.32//shims-0.9.32.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
 slf4j-reload4j/1.7.36//slf4j-reload4j-1.7.36.jar
 snakeyaml/1.33//snakeyaml-1.33.jar
-snappy-java/1.1.8.2//snappy-java-1.1.8.2.jar
+snappy-java/1.1.10.5//snappy-java-1.1.10.5.jar
 stax2-api/4.2.1//stax2-api-4.2.1.jar
 token-provider/1.0.1//token-provider-1.0.1.jar
 websocket-api/9.4.51.v20230217//websocket-api-9.4.51.v20230217.jar
