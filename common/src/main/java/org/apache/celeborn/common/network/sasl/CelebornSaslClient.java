@@ -22,6 +22,7 @@ import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
 import java.util.Map;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.NameCallback;
@@ -49,6 +50,7 @@ import org.slf4j.LoggerFactory;
 public class CelebornSaslClient {
   private static final Logger logger = LoggerFactory.getLogger(CelebornSaslClient.class);
 
+  @GuardedBy("this")
   private SaslClient saslClient;
 
   public CelebornSaslClient(
@@ -66,7 +68,7 @@ public class CelebornSaslClient {
               saslProps,
               authCallbackHandler);
     } catch (SaslException e) {
-      throw new RuntimeException(e);
+      throw new IllegalArgumentException(e);
     }
   }
 
@@ -74,12 +76,12 @@ public class CelebornSaslClient {
   public synchronized byte[] firstToken() {
     if (saslClient != null && saslClient.hasInitialResponse()) {
       try {
-        return saslClient.evaluateChallenge(new byte[0]);
+        return saslClient.evaluateChallenge(EMPTY_BYTE_ARRAY);
       } catch (SaslException e) {
-        throw new RuntimeException(e);
+        throw new IllegalArgumentException(e);
       }
     } else {
-      return new byte[0];
+      return EMPTY_BYTE_ARRAY;
     }
   }
 
@@ -89,7 +91,7 @@ public class CelebornSaslClient {
   }
 
   /** Returns the value of a negotiated property. */
-  public Object getNegotiatedProperty(String name) {
+  public synchronized Object getNegotiatedProperty(String name) {
     return saslClient.getNegotiatedProperty(name);
   }
 
@@ -101,7 +103,7 @@ public class CelebornSaslClient {
    */
   public synchronized byte[] response(byte[] token) {
     try {
-      return saslClient != null ? saslClient.evaluateChallenge(token) : new byte[0];
+      return saslClient != null ? saslClient.evaluateChallenge(token) : EMPTY_BYTE_ARRAY;
     } catch (SaslException e) {
       throw new RuntimeException(e);
     }
@@ -155,7 +157,7 @@ public class CelebornSaslClient {
         } else if (callback instanceof RealmChoiceCallback) {
           // ignore (?)
         } else {
-          throw new UnsupportedCallbackException(callback, "Unrecognized SASL DIGEST-MD5 Callback");
+          throw new UnsupportedCallbackException(callback, "Unrecognized callback: " + callback);
         }
       }
     }

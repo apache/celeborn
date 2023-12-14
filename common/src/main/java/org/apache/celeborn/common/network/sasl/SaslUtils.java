@@ -27,8 +27,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 public class SaslUtils {
+  static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+
   /** Sasl Mechanisms */
-  static final String DIGEST = "DIGEST-MD5";
+  static final String DIGEST_MD5 = "DIGEST-MD5";
 
   /** Quality of protection value that does not include encryption. */
   static final String QOP_AUTH = "auth";

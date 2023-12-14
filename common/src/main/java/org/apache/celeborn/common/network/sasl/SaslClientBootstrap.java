@@ -74,23 +74,22 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
     // should be configurable in the future.
     CelebornSaslClient saslClient =
         new CelebornSaslClient(
-            DIGEST,
+            DIGEST_MD5,
             DEFAULT_SASL_CLIENT_PROPS,
             new CelebornSaslClient.ClientCallbackHandler(
                 saslCredentials.getUserId(), saslCredentials.getPassword()));
     try {
       byte[] payload = saslClient.firstToken();
-
+      boolean firstToken = true;
       while (!saslClient.isComplete()) {
+        PbSaslRequest.Builder builder = PbSaslRequest.newBuilder();
+        if (firstToken) {
+          builder.setMethod(DIGEST_MD5).setAuthType(PbAuthType.CONNECTION_AUTH);
+        }
         TransportMessage msg =
             new TransportMessage(
                 MessageType.SASL_REQUEST,
-                PbSaslRequest.newBuilder()
-                    .setMethod(DIGEST)
-                    .setAuthType(PbAuthType.CONNECTION_AUTH)
-                    .setPayload(ByteString.copyFrom(payload))
-                    .build()
-                    .toByteArray());
+                builder.setPayload(ByteString.copyFrom(payload)).build().toByteArray());
         ByteBuffer response;
         try {
           response = client.sendRpcSync(msg.toByteBuffer(), conf.saslTimeoutMs());
@@ -104,6 +103,7 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
         }
         // The response of a SaslMessage is either a RpcResponse or a RpcFailure.
         payload = saslClient.response(JavaUtils.bufferToArray(response));
+        firstToken = false;
       }
       client.setClientId(appId);
     } catch (IOException ioe) {
