@@ -247,7 +247,7 @@ object CelebornCommonSettings {
         Some(("releases" at publishUrl).withAllowInsecureProtocol(true))
       }
     },
-    licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
+    licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")),
       pomExtra :=
         <url>https://celeborn.apache.org/</url>
         <scm>
