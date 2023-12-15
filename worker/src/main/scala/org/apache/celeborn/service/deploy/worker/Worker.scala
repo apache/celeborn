@@ -462,6 +462,7 @@ private[celeborn] class Worker(
       replicateServer.shutdown(exitKind)
       fetchServer.shutdown(exitKind)
       pushServer.shutdown(exitKind)
+      metricsSystem.stop()
 
       super.stop(exitKind)
 

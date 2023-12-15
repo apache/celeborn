@@ -724,7 +724,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
-  def clientRpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
@@ -801,6 +800,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
   def clientRpcSharedThreads: Int = get(CLIENT_RPC_SHARED_THREADS)
+  def clientRpcMaxRetries: Int = get(CLIENT_RPC_MAX_RETIRES)
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
@@ -1048,6 +1048,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_CLIENT_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_CLIENT_RETRY_COMMIT_FILE)
+  def testMockDestroySlotsFailure: Boolean = get(TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE)
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
@@ -2895,6 +2896,15 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.mockDestroySlotsFailure")
+      .internal
+      .categories("test", "client")
+      .doc("Fail destroy slots request for test")
+      .version("0.3.2")
+      .booleanConf
+      .createWithDefault(false)
+
   val CLIENT_PUSH_REPLICATE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.push.replicate.enabled")
       .withAlternative("celeborn.push.replicate.enabled")
@@ -3449,15 +3459,6 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
-  val CLIENT_RPC_MAX_PARALLELISM: ConfigEntry[Int] =
-    buildConf("celeborn.client.rpc.maxParallelism")
-      .withAlternative("celeborn.rpc.maxParallelism")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Max parallelism of client on sending RPC requests.")
-      .intConf
-      .createWithDefault(1024)
-
   val CLIENT_RESERVE_SLOTS_RPC_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.reserveSlots.askTimeout")
       .categories("client")
@@ -3532,6 +3533,14 @@ object CelebornConf extends Logging {
       .doc("Number of shared rpc threads in LifecycleManager.")
       .intConf
       .createWithDefault(16)
+
+  val CLIENT_RPC_MAX_RETIRES: ConfigEntry[Int] =
+    buildConf("celeborn.client.rpc.maxRetries")
+      .categories("client")
+      .version("0.3.2")
+      .doc("Max RPC retry times in LifecycleManager.")
+      .intConf
+      .createWithDefault(3)
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.reserveSlots.rackaware.enabled")

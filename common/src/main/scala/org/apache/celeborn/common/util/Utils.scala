@@ -971,6 +971,8 @@ object Utils extends Logging {
         StatusCode.FETCH_DATA_TIMEOUT
       case 47 =>
         StatusCode.REVIVE_INITIALIZED
+      case 48 =>
+        StatusCode.DESTROY_SLOTS_MOCK_FAILED
       case _ =>
         null
     }
