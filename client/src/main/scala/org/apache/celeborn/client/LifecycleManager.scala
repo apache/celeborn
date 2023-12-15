@@ -320,6 +320,57 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       handleGetReducerFileGroup(context, shuffleId)
   }
 
+  def setupEndpoints(
+      slots: WorkerResource,
+      shuffleId: Int,
+      connectFailedWorkers: ShuffleFailedWorkers): Unit = {
+    val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
+    slots.asScala foreach { case (workerInfo, _) =>
+      val future = rpcEnv.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
+        RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
+        WORKER_EP))
+      futures.add((future, workerInfo))
+    }
+
+    var timeout = conf.rpcAskTimeout.duration.toMillis
+    val delta = 50
+    while (timeout > 0 && !futures.isEmpty) {
+      val iter = futures.iterator
+      while (iter.hasNext) {
+        val (future, workerInfo) = iter.next()
+        if (future.isCompleted) {
+          future.value.get match {
+            case scala.util.Success(endpointRef) =>
+              workerInfo.endpoint = endpointRef
+            case scala.util.Failure(e) =>
+              logError(
+                s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.",
+                e)
+              connectFailedWorkers.put(
+                workerInfo,
+                (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
+          }
+          iter.remove()
+        }
+      }
+
+      if (!futures.isEmpty) {
+        Thread.sleep(delta)
+        timeout -= delta
+      }
+    }
+    if (!futures.isEmpty) {
+      val iter = futures.iterator()
+      while (iter.hasNext) {
+        val (_, workerInfo) = iter.next()
+        logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots, reason: Timeout.")
+        connectFailedWorkers.put(
+          workerInfo,
+          (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
+      }
+    }
+  }
+
   private def offerAndReserveSlots(
       context: RegisterCallContext,
       shuffleId: Int,
@@ -491,51 +542,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
-    val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
-    slots.asScala foreach { case (workerInfo, _) =>
-      val future = rpcEnv.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
-        RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
-        WORKER_EP))
-      futures.add((future, workerInfo))
-    }
-
-    var timeout = conf.rpcAskTimeout.duration.toMillis
-    val delta = 50
-    while (timeout > 0 && !futures.isEmpty) {
-      val iter = futures.iterator
-      while (iter.hasNext) {
-        val (future, workerInfo) = iter.next()
-        if (future.isCompleted) {
-          future.value.get match {
-            case scala.util.Success(endpointRef) =>
-              workerInfo.endpoint = endpointRef
-            case scala.util.Failure(e) =>
-              logError(
-                s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.",
-                e)
-              connectFailedWorkers.put(
-                workerInfo,
-                (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
-          }
-          iter.remove()
-        }
-      }
-
-      if (!futures.isEmpty) {
-        Thread.sleep(delta)
-        timeout -= delta
-      }
-    }
-    if (!futures.isEmpty) {
-      val iter = futures.iterator()
-      while (iter.hasNext) {
-        val (_, workerInfo) = iter.next()
-        logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots, reason: Timeout.")
-        connectFailedWorkers.put(
-          workerInfo,
-          (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
-      }
-    }
+    setupEndpoints(slots, shuffleId, connectFailedWorkers)
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
