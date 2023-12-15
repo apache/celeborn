@@ -20,16 +20,19 @@ package org.apache.celeborn.tests.client
 import java.util
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
+import org.apache.celeborn.client.commit.CommitFilesParam
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.worker.CommitInfo
 
-class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with MiniClusterFeature {
+class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniClusterFeature {
   private val masterPort = 19097
 
   celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
@@ -46,10 +49,10 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
     setUpMiniCluster(masterConf, workerConf)
   }
 
-  test("test destroy workers without mocking failure") {
+  test("test commit files without mocking failure") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
-    conf.set(CelebornConf.TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE.key, "false")
+    conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "false")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ids = new util.ArrayList[Integer](10)
     0 until 10 foreach {
@@ -67,28 +70,39 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
       res.workerResource,
       updateEpoch = false)
 
-    val slotsToDestroy = new WorkerResource
-    val destroyWorkers = workerInfos.keySet.take(2)
-    destroyWorkers.foreach { worker =>
-      val entry = res.workerResource.entrySet().asScala.filter(_.getKey == worker.workerInfo).head
-      slotsToDestroy.put(entry.getKey, entry.getValue)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
+    0 until 10 foreach { partitionId =>
+      lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
-    lifecycleManager.destroySlotsWithRetry(shuffleId, slotsToDestroy)
 
-    destroyWorkers.foreach { worker =>
-      assert(worker.controller.partitionLocationInfo.emptyShuffle(Utils.makeShuffleKey(
-        APP,
-        shuffleId)))
+    val commitHandler = lifecycleManager.commitManager.getCommitHandler(shuffleId)
+    val params = new ArrayBuffer[CommitFilesParam](res.workerResource.size())
+    res.workerResource.asScala.foreach { case (workerInfo, (primaryIds, replicaIds)) =>
+      params += (CommitFilesParam(
+        workerInfo,
+        primaryIds.asScala.map(_.getUniqueId).toList.asJava,
+        replicaIds.asScala.map(_.getUniqueId).toList.asJava))
+    }
+    commitHandler.doParallelCommitFiles(
+      shuffleId,
+      lifecycleManager.commitManager.committedPartitionInfo.get(shuffleId),
+      params,
+      new ShuffleFailedWorkers)
+
+    workerInfos.keySet.foreach { worker =>
+      worker.controller.shuffleCommitInfos.get(
+        Utils.makeShuffleKey(APP, shuffleId)).values().asScala.foreach { commitInfo =>
+        commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED
+      }
     }
 
     lifecycleManager.stop()
   }
 
-  test("test destroy workers with mocking failure") {
+  test("test commit files with mocking failure") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
-    conf.set(CelebornConf.TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE.key, "true")
-      .set(CelebornConf.CLIENT_RPC_MAX_RETIRES.key, "5")
+    conf.set(CelebornConf.TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE.key, "true")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ids = new util.ArrayList[Integer](10)
     0 until 10 foreach {
@@ -106,63 +120,31 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
       res.workerResource,
       updateEpoch = false)
 
-    val slotsToDestroy = new WorkerResource
-    val destroyWorkers = workerInfos.keySet.take(2)
-    destroyWorkers.foreach { worker =>
-      val entry = res.workerResource.entrySet().asScala.filter(_.getKey == worker.workerInfo).head
-      slotsToDestroy.put(entry.getKey, entry.getValue)
+    lifecycleManager.commitManager.registerShuffle(shuffleId, 1)
+    0 until 10 foreach { partitionId =>
+      lifecycleManager.commitManager.finishMapperAttempt(shuffleId, 0, 0, 1, partitionId)
     }
 
-    lifecycleManager.destroySlotsWithRetry(shuffleId, slotsToDestroy)
-
-    destroyWorkers.foreach { worker =>
-      assert(worker.controller.partitionLocationInfo.emptyShuffle(Utils.makeShuffleKey(
-        APP,
-        shuffleId)))
+    val commitHandler = lifecycleManager.commitManager.getCommitHandler(shuffleId)
+    val params = new ArrayBuffer[CommitFilesParam](res.workerResource.size())
+    res.workerResource.asScala.foreach { case (workerInfo, (primaryIds, replicaIds)) =>
+      params += (CommitFilesParam(
+        workerInfo,
+        primaryIds.asScala.map(_.getUniqueId).toList.asJava,
+        replicaIds.asScala.map(_.getUniqueId).toList.asJava))
     }
-
-    lifecycleManager.stop()
-  }
-
-  test("test destroy workers with one worker down") {
-    val shuffleId = nextShuffleId
-    val conf = celebornConf.clone
-    conf.set(CelebornConf.TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE.key, "false")
-    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
-    assert(res.status == StatusCode.SUCCESS)
-    assert(res.workerResource.keySet().size() == 3)
-
-    lifecycleManager.setupEndpoints(res.workerResource, shuffleId, new ShuffleFailedWorkers())
-
-    lifecycleManager.reserveSlotsWithRetry(
+    commitHandler.doParallelCommitFiles(
       shuffleId,
-      new util.HashSet(res.workerResource.keySet()),
-      res.workerResource,
-      updateEpoch = false)
+      lifecycleManager.commitManager.committedPartitionInfo.get(shuffleId),
+      params,
+      new ShuffleFailedWorkers)
 
-    val slotsToDestroy = new WorkerResource
-    val destroyWorkers = workerInfos.keySet.take(2)
-    destroyWorkers.foreach { worker =>
-      val entry = res.workerResource.entrySet().asScala.filter(_.getKey == worker.workerInfo).head
-      slotsToDestroy.put(entry.getKey, entry.getValue)
+    workerInfos.keySet.foreach { worker =>
+      worker.controller.shuffleCommitInfos.get(
+        Utils.makeShuffleKey(APP, shuffleId)).values().asScala.foreach { commitInfo =>
+        commitInfo.status == CommitInfo.COMMIT_INPROCESS || commitInfo.status == CommitInfo.COMMIT_FINISHED
+      }
     }
-
-    destroyWorkers.head.stop(CelebornExitKind.EXIT_IMMEDIATELY)
-    destroyWorkers.head.rpcEnv.shutdown()
-
-    lifecycleManager.destroySlotsWithRetry(shuffleId, slotsToDestroy)
-
-    assert(!destroyWorkers.head.controller.partitionLocationInfo.emptyShuffle(Utils.makeShuffleKey(
-      APP,
-      shuffleId)))
-    assert(destroyWorkers.last.controller.partitionLocationInfo.emptyShuffle(Utils.makeShuffleKey(
-      APP,
-      shuffleId)))
 
     lifecycleManager.stop()
   }

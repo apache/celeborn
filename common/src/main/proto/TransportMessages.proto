@@ -410,6 +410,7 @@ message PbCommitFiles {
   repeated string replicaIds = 4;
   repeated int32 mapAttempts = 5;
   int64 epoch = 6;
+  bool mockFailure = 7;
 }
 
 message PbCommitFilesResponse {
