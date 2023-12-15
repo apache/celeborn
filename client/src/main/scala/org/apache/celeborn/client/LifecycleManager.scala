@@ -1355,7 +1355,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                     "will retry.")
                 retryDestroy(futureWithStatus, currentTime)
               } else {
-                if (retryTimes == rpcMaxRetires) {
+                if (res.status != StatusCode.SUCCESS && retryTimes == rpcMaxRetires) {
                   logError(
                     s"Request $message to ${futureWithStatus.endpoint} return ${res.status} for $shuffleKey $retryTimes/$rpcMaxRetires, " +
                       "will not retry.")
