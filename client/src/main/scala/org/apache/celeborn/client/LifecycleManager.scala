@@ -1257,7 +1257,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def requestMasterRequestSlotsWithRetry(
+  def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
     val req =
