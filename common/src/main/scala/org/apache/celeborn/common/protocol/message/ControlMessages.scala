@@ -435,7 +435,8 @@ object ControlMessages extends Logging {
       primaryIds: util.List[String],
       replicaIds: util.List[String],
       mapAttempts: Array[Int],
-      epoch: Long)
+      epoch: Long,
+      var mockFailure: Boolean = false)
     extends WorkerMessage
 
   case class CommitFilesResponse(
@@ -784,7 +785,14 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS_RESPONSE, payload)
 
-    case CommitFiles(applicationId, shuffleId, primaryIds, replicaIds, mapAttempts, epoch) =>
+    case CommitFiles(
+          applicationId,
+          shuffleId,
+          primaryIds,
+          replicaIds,
+          mapAttempts,
+          epoch,
+          mockFailure) =>
       val payload = PbCommitFiles.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
@@ -792,6 +800,7 @@ object ControlMessages extends Logging {
         .addAllReplicaIds(replicaIds)
         .addAllMapAttempts(mapAttempts.map(Integer.valueOf).toIterable.asJava)
         .setEpoch(epoch)
+        .setMockFailure(mockFailure)
         .build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES, payload)
 
@@ -1106,7 +1115,8 @@ object ControlMessages extends Logging {
           pbCommitFiles.getPrimaryIdsList,
           pbCommitFiles.getReplicaIdsList,
           pbCommitFiles.getMapAttemptsList.asScala.map(_.toInt).toArray,
-          pbCommitFiles.getEpoch)
+          pbCommitFiles.getEpoch,
+          pbCommitFiles.getMockFailure)
 
       case COMMIT_FILES_RESPONSE_VALUE =>
         val pbCommitFilesResponse = PbCommitFilesResponse.parseFrom(message.getPayload)

@@ -50,7 +50,8 @@ case class CommitFilesParam(
 
 case class CommitFutureWithStatus(
     var future: Future[CommitFilesResponse],
-    commitFilesParam: CommitFilesParam,
+    message: CommitFiles,
+    workerInfo: WorkerInfo,
     var retriedTimes: Int,
     var startTime: Long)
 
@@ -67,7 +68,6 @@ abstract class CommitHandler(
     val sharedRpcPool: ThreadPoolExecutor) extends Logging {
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
-  private val testRetryCommitFiles = conf.testRetryCommitFiles
 
   private val commitEpoch = new AtomicLong()
   private val totalWritten = new LongAdder
@@ -75,6 +75,9 @@ abstract class CommitHandler(
   protected val reducerFileGroupsMap = new ShuffleFileGroups
 
   val ec = ExecutionContext.fromExecutor(sharedRpcPool)
+
+  val maxRetries = conf.clientRequestCommitFilesMaxRetries
+  val mockCommitFilesFailure = conf.testMockCommitFilesFailure
 
   def getPartitionType(): PartitionType
 
@@ -208,12 +211,12 @@ abstract class CommitHandler(
     def retryCommitFiles(status: CommitFutureWithStatus, currentTime: Long): Unit = {
       status.retriedTimes = status.retriedTimes + 1
       status.startTime = currentTime
+      val mockFailure = status.message.mockFailure && (status.retriedTimes < maxRetries)
+      val msg =
+        status.message.copy(epoch = commitEpoch.incrementAndGet(), mockFailure = mockFailure)
       status.future = commitFiles(
-        appUniqueId,
-        shuffleId,
-        status.commitFilesParam.worker,
-        status.commitFilesParam.primaryIds,
-        status.commitFilesParam.replicaIds)
+        status.workerInfo,
+        msg)
     }
 
     def createFailResponse(status: CommitFutureWithStatus): CommitFilesResponse = {
@@ -221,8 +224,8 @@ abstract class CommitHandler(
         StatusCode.REQUEST_FAILED,
         List.empty.asJava,
         List.empty.asJava,
-        status.commitFilesParam.primaryIds,
-        status.commitFilesParam.replicaIds)
+        status.message.primaryIds,
+        status.message.replicaIds)
     }
 
     def processResponse(res: CommitFilesResponse, worker: WorkerInfo): Unit = {
@@ -269,14 +272,17 @@ abstract class CommitHandler(
       !CollectionUtils.isEmpty(param.primaryIds) ||
         !CollectionUtils.isEmpty(param.replicaIds)) map { param =>
       Future {
-        val future = commitFiles(
+        val msg = CommitFiles(
           appUniqueId,
           shuffleId,
-          param.worker,
           param.primaryIds,
-          param.replicaIds)
+          param.replicaIds,
+          getMapperAttempts(shuffleId),
+          commitEpoch.incrementAndGet(),
+          mockCommitFilesFailure)
+        val future = commitFiles(param.worker, msg)
 
-        futures.add(CommitFutureWithStatus(future, param, 1, startTime))
+        futures.add(CommitFutureWithStatus(future, msg, param.worker, 1, startTime))
       }(ec)
     }
     val cbf =
@@ -285,7 +291,6 @@ abstract class CommitHandler(
     val futureSeq = Future.sequence(outFutures)(cbf, ec)
     awaitResult(futureSeq, Duration.Inf)
 
-    val maxRetries = conf.clientRequestCommitFilesMaxRetries
     val timeout = conf.rpcAskTimeout.duration.toMillis
     var remainingTime = timeout * maxRetries
     val delta = 50
@@ -294,42 +299,64 @@ abstract class CommitHandler(
       val iter = futures.iterator()
       while (iter.hasNext) {
         val status = iter.next()
+        val worker = status.workerInfo
         if (status.future.isCompleted) {
           status.future.value.get match {
             case scala.util.Success(res) =>
-              val worker = status.commitFilesParam.worker
               res.status match {
-                case StatusCode.SUCCESS => // do nothing
-                case StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED =>
-                  logInfo(s"Request commitFiles return ${res.status} for " +
+                case StatusCode.SUCCESS | StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED =>
+                  logError(s"Request commitFiles return ${res.status} for " +
                     s"${Utils.makeShuffleKey(appUniqueId, shuffleId)}")
-                  if (res.status != StatusCode.WORKER_EXCLUDED) {
+                  if (res.status != StatusCode.SUCCESS && res.status != StatusCode.WORKER_EXCLUDED) {
                     commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
+                  }
+                  processResponse(res, worker)
+                  iter.remove()
+                case StatusCode.COMMIT_FILES_MOCK_FAILURE =>
+                  if (status.retriedTimes < maxRetries) {
+                    logError(s"Request commitFiles return ${res.status} for " +
+                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} for ${status.retriedTimes}/$maxRetries, will retry")
+                    retryCommitFiles(status, currentTime)
+                  } else {
+                    logError(
+                      s"Request commitFiles return ${StatusCode.COMMIT_FILES_MOCK_FAILURE} for " +
+                        s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} for ${status.retriedTimes}/$maxRetries, will not retry")
+                    val res = createFailResponse(status)
+                    processResponse(res, status.workerInfo)
+                    iter.remove()
                   }
                 case _ =>
                   logError(s"Should never reach here! commit files response status ${res.status}")
               }
 
-              processResponse(res, worker)
-              iter.remove()
             case scala.util.Failure(e) =>
-              val worker = status.commitFilesParam.worker
-              logError(
-                s"Ask worker($worker) CommitFiles for $shuffleId failed" +
-                  s" (attempt ${status.retriedTimes}/$maxRetries).",
-                e)
+              val worker = status.workerInfo
               if (status.retriedTimes < maxRetries) {
+                logError(
+                  s"Ask worker($worker) CommitFiles for $shuffleId failed" +
+                    s" (attempt ${status.retriedTimes}/$maxRetries), will retry.",
+                  e)
                 retryCommitFiles(status, currentTime)
               } else {
+                logError(
+                  s"Ask worker($worker) CommitFiles for $shuffleId failed" +
+                    s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.",
+                  e)
                 val res = createFailResponse(status)
-                processResponse(res, status.commitFilesParam.worker)
+                processResponse(res, status.workerInfo)
                 iter.remove()
               }
           }
         } else if (currentTime - status.startTime > timeout) {
           if (status.retriedTimes < maxRetries) {
+            logError(
+              s"Ask worker($worker) CommitFiles for $shuffleId failed because of Timeout" +
+                s" (attempt ${status.retriedTimes}/$maxRetries), will retry.")
             retryCommitFiles(status, currentTime)
           } else {
+            logError(
+              s"Ask worker($worker) CommitFiles for $shuffleId failed because of Timeout" +
+                s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.")
             iter.remove()
           }
         }
@@ -345,9 +372,9 @@ abstract class CommitHandler(
     while (iter.hasNext) {
       val status = iter.next()
       logError(
-        s"Ask worker(${status.commitFilesParam.worker}) CommitFiles for $shuffleId timed out")
+        s"Ask worker(${status.workerInfo}) CommitFiles for $shuffleId timed out")
       val res = createFailResponse(status)
-      processResponse(res, status.commitFilesParam.worker)
+      processResponse(res, status.workerInfo)
       iter.remove()
     }
   }
@@ -412,70 +439,21 @@ abstract class CommitHandler(
   }
 
   def commitFiles(
-      applicationId: String,
-      shuffleId: Int,
       worker: WorkerInfo,
-      primaryIds: util.List[String],
-      replicaIds: util.List[String]): Future[CommitFilesResponse] = {
+      message: CommitFiles): Future[CommitFilesResponse] = {
 
-    if (!testRetryCommitFiles) {
-      val commitFiles = CommitFiles(
-        applicationId,
-        shuffleId,
-        primaryIds,
-        replicaIds,
-        getMapperAttempts(shuffleId),
-        commitEpoch.incrementAndGet())
-
-      if (conf.clientCommitFilesIgnoreExcludedWorkers &&
-        workerStatusTracker.excludedWorkers.containsKey(worker)) {
-        Future {
-          CommitFilesResponse(
-            StatusCode.WORKER_EXCLUDED,
-            List.empty.asJava,
-            List.empty.asJava,
-            primaryIds,
-            replicaIds)
-        }(ec)
-      } else {
-        worker.endpoint.ask[CommitFilesResponse](commitFiles)
-      }
+    if (conf.clientCommitFilesIgnoreExcludedWorkers &&
+      workerStatusTracker.excludedWorkers.containsKey(worker)) {
+      Future {
+        CommitFilesResponse(
+          StatusCode.WORKER_EXCLUDED,
+          List.empty.asJava,
+          List.empty.asJava,
+          message.primaryIds,
+          message.replicaIds)
+      }(ec)
     } else {
-      // for test
-      val commitFiles1 = CommitFiles(
-        applicationId,
-        shuffleId,
-        primaryIds.subList(0, primaryIds.size() / 2),
-        replicaIds.subList(0, replicaIds.size() / 2),
-        getMapperAttempts(shuffleId),
-        commitEpoch.incrementAndGet())
-      val res1 = requestCommitFilesWithRetryForTest(worker.endpoint, commitFiles1)
-
-      val commitFiles = CommitFiles(
-        applicationId,
-        shuffleId,
-        primaryIds.subList(primaryIds.size() / 2, primaryIds.size()),
-        replicaIds.subList(replicaIds.size() / 2, replicaIds.size()),
-        getMapperAttempts(shuffleId),
-        commitEpoch.incrementAndGet())
-      val res2 = requestCommitFilesWithRetryForTest(worker.endpoint, commitFiles)
-
-      res1.committedPrimaryStorageInfos.putAll(res2.committedPrimaryStorageInfos)
-      res1.committedReplicaStorageInfos.putAll(res2.committedReplicaStorageInfos)
-      res1.committedMapIdBitMap.putAll(res2.committedMapIdBitMap)
-      val res = CommitFilesResponse(
-        status = if (res1.status == StatusCode.SUCCESS) res2.status else res1.status,
-        (res1.committedPrimaryIds.asScala ++ res2.committedPrimaryIds.asScala).toList.asJava,
-        (res1.committedReplicaIds.asScala ++ res2.committedReplicaIds.asScala).toList.asJava,
-        (res1.failedPrimaryIds.asScala ++ res2.failedPrimaryIds.asScala).toList.asJava,
-        (res1.failedReplicaIds.asScala ++ res2.failedReplicaIds.asScala).toList.asJava,
-        res1.committedPrimaryStorageInfos,
-        res1.committedReplicaStorageInfos,
-        res1.committedMapIdBitMap,
-        res1.totalWritten + res2.totalWritten,
-        res1.fileCount + res2.fileCount)
-
-      Future { res }(ec)
+      worker.endpoint.ask[CommitFilesResponse](message)
     }
   }
 
@@ -516,38 +494,6 @@ abstract class CommitHandler(
         (k: Integer) => new util.HashSet[PartitionLocation]())
       partitionLocations.add(partition)
     }
-  }
-
-  private def requestCommitFilesWithRetryForTest(
-      endpoint: RpcEndpointRef,
-      message: CommitFiles): CommitFilesResponse = {
-    val maxRetries = conf.clientRequestCommitFilesMaxRetries
-    var retryTimes = 0
-    while (retryTimes < maxRetries) {
-      try {
-        if (retryTimes < maxRetries - 1) {
-          endpoint.ask[CommitFilesResponse](message)
-          Thread.sleep(1000)
-          throw new Exception("Mock fail for CommitFiles")
-        } else {
-          return endpoint.askSync[CommitFilesResponse](message)
-        }
-      } catch {
-        case e: Throwable =>
-          retryTimes += 1
-          logError(
-            s"Ask worker(${endpoint.address}) CommitFiles for ${message.shuffleId} failed" +
-              s" (attempt $retryTimes/$maxRetries).",
-            e)
-      }
-    }
-
-    CommitFilesResponse(
-      StatusCode.REQUEST_FAILED,
-      List.empty.asJava,
-      List.empty.asJava,
-      message.primaryIds,
-      message.replicaIds)
   }
 
   def checkDataLost(
