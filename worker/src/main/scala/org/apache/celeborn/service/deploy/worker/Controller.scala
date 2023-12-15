@@ -122,8 +122,8 @@ private[deploy] class Controller(
       logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
         s"$commitFilesTimeMs ms.")
 
-    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations) =>
-      handleDestroy(context, shuffleKey, primaryLocations, replicaLocations)
+    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations, mockFailure) =>
+      handleDestroy(context, shuffleKey, primaryLocations, replicaLocations, mockFailure)
   }
 
   private def handleReserveSlots(
@@ -615,7 +615,16 @@ private[deploy] class Controller(
       context: RpcCallContext,
       shuffleKey: String,
       primaryLocations: jList[String],
-      replicaLocations: jList[String]): Unit = {
+      replicaLocations: jList[String],
+      mockDestroyFailure: Boolean): Unit = {
+    if (mockDestroyFailure) {
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.DESTROY_SLOTS_MOCK_FAILED,
+          primaryLocations,
+          replicaLocations))
+      return
+    }
     // check whether shuffleKey has registered
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logWarning(s"Shuffle $shuffleKey not registered!")

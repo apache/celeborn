@@ -25,7 +25,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.PartitionLocation
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils}
 
 class WorkerPartitionLocationInfo extends Logging {
 
@@ -44,6 +44,11 @@ class WorkerPartitionLocationInfo extends Logging {
   def containsShuffle(shuffleKey: String): Boolean = {
     primaryPartitionLocations.containsKey(shuffleKey) ||
     replicaPartitionLocations.containsKey(shuffleKey)
+  }
+
+  def emptyShuffle(shuffleKey: String): Boolean = {
+    CollectionUtils.isEmpty(primaryPartitionLocations.get(shuffleKey)) &&
+    CollectionUtils.isEmpty(replicaPartitionLocations.get(shuffleKey))
   }
 
   def addPrimaryPartitions(

@@ -1084,6 +1084,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_CLIENT_FETCH_FAILURE)
   def testRetryCommitFiles: Boolean = get(TEST_CLIENT_RETRY_COMMIT_FILE)
+  def testMockDestroySlotsFailure: Boolean = get(TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE)
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
@@ -3049,6 +3050,15 @@ object CelebornConf extends Logging {
       .categories("test", "client")
       .doc("Fail commitFile request for test")
       .version("0.3.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.mockDestroySlotsFailure")
+      .internal
+      .categories("test", "client")
+      .doc("Fail destroy slots request for test")
+      .version("0.3.2")
       .booleanConf
       .createWithDefault(false)
 
