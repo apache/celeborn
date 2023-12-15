@@ -456,7 +456,8 @@ object ControlMessages extends Logging {
   case class DestroyWorkerSlots(
       shuffleKey: String,
       primaryLocations: util.List[String],
-      replicaLocations: util.List[String])
+      replicaLocations: util.List[String],
+      var mockFailure: Boolean = false)
     extends WorkerMessage
 
   case class DestroyWorkerSlotsResponse(
@@ -823,11 +824,12 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.COMMIT_FILES_RESPONSE, payload)
 
-    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations) =>
+    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations, mockFailure) =>
       val payload = PbDestroyWorkerSlots.newBuilder()
         .setShuffleKey(shuffleKey)
         .addAllPrimaryLocations(primaryLocations)
         .addAllReplicaLocation(replicaLocations)
+        .setMockFailure(mockFailure)
         .build().toByteArray
       new TransportMessage(MessageType.DESTROY, payload)
 
@@ -1135,7 +1137,8 @@ object ControlMessages extends Logging {
         DestroyWorkerSlots(
           pbDestroy.getShuffleKey,
           pbDestroy.getPrimaryLocationsList,
-          pbDestroy.getReplicaLocationList)
+          pbDestroy.getReplicaLocationList,
+          pbDestroy.getMockFailure)
 
       case DESTROY_RESPONSE_VALUE =>
         val pbDestroyResponse = PbDestroyWorkerSlotsResponse.parseFrom(message.getPayload)

@@ -48,10 +48,11 @@ case class CommitFilesParam(
     primaryIds: util.List[String],
     replicaIds: util.List[String])
 
-case class FutureWithStatus(
+case class CommitFutureWithStatus(
     var future: Future[CommitFilesResponse],
     commitFilesParam: CommitFilesParam,
-    var retriedTimes: Int)
+    var retriedTimes: Int,
+    var startTime: Long)
 
 case class CommitResult(
     primaryPartitionLocationMap: ConcurrentHashMap[String, PartitionLocation],
@@ -204,6 +205,26 @@ abstract class CommitHandler(
       params: ArrayBuffer[CommitFilesParam],
       commitFilesFailedWorkers: ShuffleFailedWorkers): Unit = {
 
+    def retryCommitFiles(status: CommitFutureWithStatus, currentTime: Long): Unit = {
+      status.retriedTimes = status.retriedTimes + 1
+      status.startTime = currentTime
+      status.future = commitFiles(
+        appUniqueId,
+        shuffleId,
+        status.commitFilesParam.worker,
+        status.commitFilesParam.primaryIds,
+        status.commitFilesParam.replicaIds)
+    }
+
+    def createFailResponse(status: CommitFutureWithStatus): CommitFilesResponse = {
+      CommitFilesResponse(
+        StatusCode.REQUEST_FAILED,
+        List.empty.asJava,
+        List.empty.asJava,
+        status.commitFilesParam.primaryIds,
+        status.commitFilesParam.replicaIds)
+    }
+
     def processResponse(res: CommitFilesResponse, worker: WorkerInfo): Unit = {
       shuffleCommittedInfo.synchronized {
         // record committed partitionIds
@@ -241,8 +262,9 @@ abstract class CommitHandler(
       }
     }
 
-    val futures = new LinkedBlockingQueue[FutureWithStatus]()
+    val futures = new LinkedBlockingQueue[CommitFutureWithStatus]()
 
+    val startTime = System.currentTimeMillis()
     val outFutures = params.filter(param =>
       !CollectionUtils.isEmpty(param.primaryIds) ||
         !CollectionUtils.isEmpty(param.replicaIds)) map { param =>
@@ -254,7 +276,7 @@ abstract class CommitHandler(
           param.primaryIds,
           param.replicaIds)
 
-        futures.add(FutureWithStatus(future, param, 1))
+        futures.add(CommitFutureWithStatus(future, param, 1, startTime))
       }(ec)
     }
     val cbf =
@@ -264,9 +286,11 @@ abstract class CommitHandler(
     awaitResult(futureSeq, Duration.Inf)
 
     val maxRetries = conf.clientRequestCommitFilesMaxRetries
-    var timeout = conf.rpcAskTimeout.duration.toMillis * maxRetries
+    val timeout = conf.rpcAskTimeout.duration.toMillis
+    var remainingTime = timeout * maxRetries
     val delta = 50
-    while (timeout >= 0 && !futures.isEmpty) {
+    while (remainingTime >= 0 && !futures.isEmpty) {
+      val currentTime = System.currentTimeMillis()
       val iter = futures.iterator()
       while (iter.hasNext) {
         val status = iter.next()
@@ -295,23 +319,18 @@ abstract class CommitHandler(
                   s" (attempt ${status.retriedTimes}/$maxRetries).",
                 e)
               if (status.retriedTimes < maxRetries) {
-                status.retriedTimes = status.retriedTimes + 1
-                status.future = commitFiles(
-                  appUniqueId,
-                  shuffleId,
-                  status.commitFilesParam.worker,
-                  status.commitFilesParam.primaryIds,
-                  status.commitFilesParam.replicaIds)
+                retryCommitFiles(status, currentTime)
               } else {
-                val res = CommitFilesResponse(
-                  StatusCode.REQUEST_FAILED,
-                  List.empty.asJava,
-                  List.empty.asJava,
-                  status.commitFilesParam.primaryIds,
-                  status.commitFilesParam.replicaIds)
+                val res = createFailResponse(status)
                 processResponse(res, status.commitFilesParam.worker)
                 iter.remove()
               }
+          }
+        } else if (currentTime - status.startTime > timeout) {
+          if (status.retriedTimes < maxRetries) {
+            retryCommitFiles(status, currentTime)
+          } else {
+            iter.remove()
           }
         }
       }
@@ -319,7 +338,7 @@ abstract class CommitHandler(
       if (!futures.isEmpty) {
         Thread.sleep(delta)
       }
-      timeout = timeout - delta
+      remainingTime -= delta
     }
 
     val iter = futures.iterator()
@@ -327,12 +346,7 @@ abstract class CommitHandler(
       val status = iter.next()
       logError(
         s"Ask worker(${status.commitFilesParam.worker}) CommitFiles for $shuffleId timed out")
-      val res = CommitFilesResponse(
-        StatusCode.REQUEST_FAILED,
-        List.empty.asJava,
-        List.empty.asJava,
-        status.commitFilesParam.primaryIds,
-        status.commitFilesParam.replicaIds)
+      val res = createFailResponse(status)
       processResponse(res, status.commitFilesParam.worker)
       iter.remove()
     }

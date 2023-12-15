@@ -24,7 +24,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
-class LifecycleManagerSuit extends WithShuffleClientSuite with MiniClusterFeature {
+class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeature {
   private val masterPort = 19097
 
   celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")

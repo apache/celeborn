@@ -97,6 +97,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val rpcCacheSize = conf.clientRpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
+  private val rpcMaxRetires = conf.clientRpcMaxRetries
 
   private val excludedWorkersFilter = conf.registerShuffleFilterExcludedWorkerEnabled
 
@@ -105,6 +106,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     .expireAfterAccess(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
+
+  private val mockDestroyFailure = conf.testMockDestroySlotsFailure
 
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
@@ -343,6 +346,57 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       handleReportShuffleFetchFailure(context, appShuffleId, shuffleId)
   }
 
+  def setupEndpoints(
+      slots: WorkerResource,
+      shuffleId: Int,
+      connectFailedWorkers: ShuffleFailedWorkers): Unit = {
+    val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
+    slots.asScala foreach { case (workerInfo, _) =>
+      val future = rpcEnv.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
+        RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
+        WORKER_EP))
+      futures.add((future, workerInfo))
+    }
+
+    var timeout = conf.rpcAskTimeout.duration.toMillis
+    val delta = 50
+    while (timeout > 0 && !futures.isEmpty) {
+      val iter = futures.iterator
+      while (iter.hasNext) {
+        val (future, workerInfo) = iter.next()
+        if (future.isCompleted) {
+          future.value.get match {
+            case scala.util.Success(endpointRef) =>
+              workerInfo.endpoint = endpointRef
+            case scala.util.Failure(e) =>
+              logError(
+                s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.",
+                e)
+              connectFailedWorkers.put(
+                workerInfo,
+                (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
+          }
+          iter.remove()
+        }
+      }
+
+      if (!futures.isEmpty) {
+        Thread.sleep(delta)
+        timeout -= delta
+      }
+    }
+    if (!futures.isEmpty) {
+      val iter = futures.iterator()
+      while (iter.hasNext) {
+        val (_, workerInfo) = iter.next()
+        logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots, reason: Timeout.")
+        connectFailedWorkers.put(
+          workerInfo,
+          (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
+      }
+    }
+  }
+
   private def offerAndReserveSlots(
       context: RegisterCallContext,
       shuffleId: Int,
@@ -518,51 +572,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val connectFailedWorkers = new ShuffleFailedWorkers()
 
     // Second, for each worker, try to initialize the endpoint.
-    val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
-    slots.asScala foreach { case (workerInfo, _) =>
-      val future = rpcEnv.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
-        RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
-        WORKER_EP))
-      futures.add((future, workerInfo))
-    }
-
-    var timeout = conf.rpcAskTimeout.duration.toMillis
-    val delta = 50
-    while (timeout > 0 && !futures.isEmpty) {
-      val iter = futures.iterator
-      while (iter.hasNext) {
-        val (future, workerInfo) = iter.next()
-        if (future.isCompleted) {
-          future.value.get match {
-            case scala.util.Success(endpointRef) =>
-              workerInfo.endpoint = endpointRef
-            case scala.util.Failure(e) =>
-              logError(
-                s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots.",
-                e)
-              connectFailedWorkers.put(
-                workerInfo,
-                (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
-          }
-          iter.remove()
-        }
-      }
-
-      if (!futures.isEmpty) {
-        Thread.sleep(delta)
-        timeout -= delta
-      }
-    }
-    if (!futures.isEmpty) {
-      val iter = futures.iterator()
-      while (iter.hasNext) {
-        val (_, workerInfo) = iter.next()
-        logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots, reason: Timeout.")
-        connectFailedWorkers.put(
-          workerInfo,
-          (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
-      }
-    }
+    setupEndpoints(slots, shuffleId, connectFailedWorkers)
 
     candidatesWorkers.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
     workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
@@ -1286,6 +1296,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     slots
   }
 
+  case class DestroyFutureWithStatus(
+      var future: Future[DestroyWorkerSlotsResponse],
+      message: DestroyWorkerSlots,
+      endpoint: RpcEndpointRef,
+      var retryTimes: Int,
+      var startTime: Long)
+
   /**
    * For the slots that need to be destroyed, LifecycleManager will ask the corresponding worker
    * to destroy related FileWriter.
@@ -1298,24 +1315,91 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleId: Int,
       slotsToDestroy: WorkerResource): Unit = {
     val shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId)
-    val parallelism = Math.min(Math.max(1, slotsToDestroy.size()), conf.clientRpcMaxParallelism)
-    ThreadUtils.parmap(
-      slotsToDestroy.asScala,
-      "DestroySlot",
-      parallelism) { case (workerInfo, (primaryLocations, replicaLocations)) =>
-      val destroy = DestroyWorkerSlots(
-        shuffleKey,
-        primaryLocations.asScala.map(_.getUniqueId).asJava,
-        replicaLocations.asScala.map(_.getUniqueId).asJava)
-      var res = requestWorkerDestroySlots(workerInfo.endpoint, destroy)
-      if (res.status != StatusCode.SUCCESS) {
-        logDebug(s"Request $destroy return ${res.status} for $shuffleKey, " +
-          s"will retry request destroy.")
-        res = requestWorkerDestroySlots(
-          workerInfo.endpoint,
-          DestroyWorkerSlots(shuffleKey, res.failedPrimarys, res.failedReplicas))
+
+    def retryDestroy(status: DestroyFutureWithStatus, currentTime: Long): Unit = {
+      status.retryTimes += 1
+      status.startTime = currentTime
+      // mock failure if mockDestroyFailure is true and this is not the last retry
+      status.message.mockFailure =
+        status.message.mockFailure && (status.retryTimes != rpcMaxRetires)
+      status.future =
+        status.endpoint.ask[DestroyWorkerSlotsResponse](status.message)
+    }
+
+    val startTime = System.currentTimeMillis()
+    val futures = new util.LinkedList[DestroyFutureWithStatus]()
+    slotsToDestroy.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
+      val primaryIds = primaryLocations.asScala.map(_.getUniqueId).asJava
+      val replicaIds = replicaLocations.asScala.map(_.getUniqueId).asJava
+      val destroy = DestroyWorkerSlots(shuffleKey, primaryIds, replicaIds, mockDestroyFailure)
+      val future = workerInfo.endpoint.ask[DestroyWorkerSlotsResponse](destroy)
+      futures.add(DestroyFutureWithStatus(future, destroy, workerInfo.endpoint, 1, startTime))
+    }
+
+    val timeout = conf.rpcAskTimeout.duration.toMillis
+    var remainingTime = timeout * rpcMaxRetires
+    val delta = 50
+    while (remainingTime > 0 && !futures.isEmpty) {
+      val currentTime = System.currentTimeMillis()
+      val iter = futures.iterator()
+      while (iter.hasNext) {
+        val futureWithStatus = iter.next()
+        val message = futureWithStatus.message
+        val retryTimes = futureWithStatus.retryTimes
+        if (futureWithStatus.future.isCompleted) {
+          futureWithStatus.future.value.get match {
+            case scala.util.Success(res) =>
+              if (res.status != StatusCode.SUCCESS && retryTimes < rpcMaxRetires) {
+                logError(
+                  s"Request $message to ${futureWithStatus.endpoint} return ${res.status} for $shuffleKey $retryTimes/$rpcMaxRetires, " +
+                    "will retry.")
+                retryDestroy(futureWithStatus, currentTime)
+              } else {
+                if (res.status != StatusCode.SUCCESS && retryTimes == rpcMaxRetires) {
+                  logError(
+                    s"Request $message to ${futureWithStatus.endpoint} return ${res.status} for $shuffleKey $retryTimes/$rpcMaxRetires, " +
+                      "will not retry.")
+                }
+                iter.remove()
+              }
+            case scala.util.Failure(e) =>
+              if (retryTimes < rpcMaxRetires) {
+                logError(
+                  s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: $e, " +
+                    "will retry.")
+                retryDestroy(futureWithStatus, currentTime)
+              } else {
+                if (retryTimes == rpcMaxRetires) {
+                  logError(
+                    s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: $e, " +
+                      "will not retry.")
+                }
+                iter.remove()
+              }
+          }
+        } else if (currentTime - futureWithStatus.startTime > timeout) {
+          if (retryTimes < rpcMaxRetires) {
+            logError(
+              s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
+                "will retry.")
+            retryDestroy(futureWithStatus, currentTime)
+          } else {
+            if (retryTimes == rpcMaxRetires) {
+              logError(
+                s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
+                  "will retry.")
+            }
+            iter.remove()
+          }
+        }
+      }
+
+      if (!futures.isEmpty) {
+        Thread.sleep(delta)
+        remainingTime -= delta
       }
     }
+    futures.clear()
   }
 
   private def removeExpiredShuffle(): Unit = {
@@ -1393,23 +1477,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             s"on worker $endpoint."
         logError(msg, e)
         ReserveSlotsResponse(StatusCode.REQUEST_FAILED, msg + s" ${e.getMessage}")
-    }
-  }
-
-  private def requestWorkerDestroySlots(
-      endpoint: RpcEndpointRef,
-      message: DestroyWorkerSlots): DestroyWorkerSlotsResponse = {
-    try {
-      endpoint.askSync[DestroyWorkerSlotsResponse](message)
-    } catch {
-      case e: Exception =>
-        logError(
-          s"AskSync worker(${endpoint.address}) Destroy for ${message.shuffleKey} failed.",
-          e)
-        DestroyWorkerSlotsResponse(
-          StatusCode.REQUEST_FAILED,
-          message.primaryLocations,
-          message.replicaLocations)
     }
   }
 

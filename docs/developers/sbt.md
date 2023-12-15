@@ -279,3 +279,41 @@ Similarly, if your objective involves compiling and packaging within an intranet
 ```
 
 For more details on sbt repository configuration, please refer to the [SBT documentation](https://www.scala-sbt.org/1.x/docs/Proxy-Repositories.html).
+
+## Publish
+
+SBT supports publishing shade clients (Spark/Flink/MapReduce) to an internal Maven private repository, such as [Sonatype Nexus](https://www.sonatype.com/) or [JFrog](https://jfrog.com/help/r/jfrog-artifactory-documentation/maven-repository).
+
+Before executing the publish command, ensure that the following environment variables are correctly set:
+
+| Environment Variable   | Description                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| ASF_USERNAME           | Sonatype repository username                                                                                                          |
+| ASF_PASSWORD           | Sonatype repository password                                                                                                          |
+| SONATYPE_SNAPSHOTS_URL | Sonatype repository URL for snapshot version releases, default is "https://repository.apache.org/content/repositories/snapshots"      |
+| SONATYPE_RELEASES_URL  | Sonatype repository URL for official release versions, default is "https://repository.apache.org/service/local/staging/deploy/maven2" |
+
+For example:
+```shell
+export SONATYPE_SNAPSHOTS_URL=http://192.168.3.46:8081/repository/maven-snapshots/
+export SONATYPE_RELEASES_URL=http://192.168.3.46:8081/repository/maven-releases/
+export ASF_USERNAME=admin
+export ASF_PASSWORD=123456
+```
+
+Publish the shade client for Spark 3.5:
+```shell
+$ ./build/sbt -Pspark-3.5 celeborn-client-spark-3-shaded/publish
+```
+
+Publish the shade client for Flink 1.18:
+```shell
+$ ./build/sbt -Pflink-1.18 celeborn-client-flink-1_18-shaded/publish
+```
+
+Publish the shade client for MapReduce:
+```shell
+$ ./build/sbt -Pmr celeborn-client-mr-shaded/publish
+```
+
+Make sure to complete the necessary build and testing before executing the publish commands.
