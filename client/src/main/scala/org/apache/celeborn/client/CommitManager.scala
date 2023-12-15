@@ -73,8 +73,9 @@ object CommitManager {
 class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManager: LifecycleManager)
   extends Logging {
 
+  // exposed for test
   // shuffle id -> ShuffleCommittedInfo
-  private val committedPartitionInfo = new CommittedPartitionInfo
+  val committedPartitionInfo = new CommittedPartitionInfo
   private val batchHandleCommitPartitionEnabled = conf.batchHandleCommitPartitionEnabled
   private val batchHandleCommitPartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "celeborn-lifecycle-manager-commit-partition-executor",
@@ -266,7 +267,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId)
   }
 
-  private def getCommitHandler(shuffleId: Int): CommitHandler = {
+  // exposed for test
+  def getCommitHandler(shuffleId: Int): CommitHandler = {
     val partitionType = lifecycleManager.getPartitionType(shuffleId)
     commitHandlers.computeIfAbsent(
       partitionType,

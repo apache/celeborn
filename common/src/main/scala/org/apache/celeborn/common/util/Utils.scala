@@ -972,7 +972,9 @@ object Utils extends Logging {
       case 47 =>
         StatusCode.REVIVE_INITIALIZED
       case 48 =>
-        StatusCode.DESTROY_SLOTS_MOCK_FAILED
+        StatusCode.DESTROY_SLOTS_MOCK_FAILURE
+      case 49 =>
+        StatusCode.COMMIT_FILES_MOCK_FAILURE
       case _ =>
         null
     }
