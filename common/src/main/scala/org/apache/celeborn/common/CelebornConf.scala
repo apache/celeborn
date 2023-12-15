@@ -3724,7 +3724,7 @@ object CelebornConf extends Logging {
       .version("0.3.2")
       .doc("Max RPC retry times in LifecycleManager.")
       .intConf
-      .createWithDefault(2)
+      .createWithDefault(3)
 
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.reserveSlots.rackaware.enabled")
