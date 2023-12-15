@@ -457,7 +457,7 @@ object ControlMessages extends Logging {
       shuffleKey: String,
       primaryLocations: util.List[String],
       replicaLocations: util.List[String],
-      mockFailure: Boolean = false)
+      var mockFailure: Boolean = false)
     extends WorkerMessage
 
   case class DestroyWorkerSlotsResponse(

@@ -1319,13 +1319,16 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     def retryDestroy(status: DestroyFutureWithStatus, currentTime: Long): Unit = {
       status.retryTimes += 1
       status.startTime = currentTime
+      // mock failure if mockDestroyFailure is true and this is not the last retry
+      status.message.mockFailure =
+        status.message.mockFailure && (status.retryTimes != rpcMaxRetires)
       status.future =
         status.endpoint.ask[DestroyWorkerSlotsResponse](status.message)
     }
 
     val startTime = System.currentTimeMillis()
     val futures = new util.LinkedList[DestroyFutureWithStatus]()
-    slotsToDestroy.asScala foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
+    slotsToDestroy.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
       val primaryIds = primaryLocations.asScala.map(_.getUniqueId).asJava
       val replicaIds = replicaLocations.asScala.map(_.getUniqueId).asJava
       val destroy = DestroyWorkerSlots(shuffleKey, primaryIds, replicaIds, mockDestroyFailure)
@@ -1352,6 +1355,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                     "will retry.")
                 retryDestroy(futureWithStatus, currentTime)
               } else {
+                if (retryTimes == rpcMaxRetires) {
+                  logError(
+                    s"Request $message to ${futureWithStatus.endpoint} return ${res.status} for $shuffleKey $retryTimes/$rpcMaxRetires, " +
+                      "will not retry.")
+                }
                 iter.remove()
               }
             case scala.util.Failure(e) =>
@@ -1361,6 +1369,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                     "will retry.")
                 retryDestroy(futureWithStatus, currentTime)
               } else {
+                if (retryTimes == rpcMaxRetires) {
+                  logError(
+                    s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: $e, " +
+                      "will not retry.")
+                }
                 iter.remove()
               }
           }
@@ -1371,6 +1384,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 "will retry.")
             retryDestroy(futureWithStatus, currentTime)
           } else {
+            if (retryTimes == rpcMaxRetires) {
+              logError(
+                s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
+                  "will retry.")
+            }
             iter.remove()
           }
         }

@@ -87,7 +87,8 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
   test("test destroy workers with mocking failure") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
-    conf.set(s"spark.${CelebornConf.TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE.key}", "true")
+    conf.set(CelebornConf.TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE.key, "true")
+      .set(CelebornConf.CLIENT_RPC_MAX_RETIRES.key, "5")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ids = new util.ArrayList[Integer](10)
     0 until 10 foreach {
