@@ -50,7 +50,7 @@ netty-codec-smtp/4.1.101.Final//netty-codec-smtp-4.1.101.Final.jar
 netty-codec-socks/4.1.101.Final//netty-codec-socks-4.1.101.Final.jar
 netty-codec-stomp/4.1.101.Final//netty-codec-stomp-4.1.101.Final.jar
 netty-codec-xml/4.1.101.Final//netty-codec-xml-4.1.101.Final.jar
-netty-codec/44.1.101.Final//netty-codec-4.1.101.Final.jar
+netty-codec/4.1.101.Final//netty-codec-4.1.101.Final.jar
 netty-common/4.1.101.Final//netty-common-4.1.101.Final.jar
 netty-handler-proxy/4.1.101.Final//netty-handler-proxy-4.1.101.Final.jar
 netty-handler/4.1.101.Final//netty-handler-4.1.101.Final.jar
