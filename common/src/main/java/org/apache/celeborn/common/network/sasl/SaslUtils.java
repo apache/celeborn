@@ -35,15 +35,31 @@ public class SaslUtils {
   /** Quality of protection value that does not include encryption. */
   static final String QOP_AUTH = "auth";
 
+  /** Quality of protection value that includes encryption. */
+  static final String QOP_AUTH_CONF = "auth-conf";
+
   static final String DEFAULT_REALM = "default";
 
   static final Map<String, String> DEFAULT_SASL_CLIENT_PROPS =
       ImmutableMap.<String, String>builder().put(Sasl.QOP, QOP_AUTH).build();
 
+  static final Map<String, String> DEFAULT_SASL_SERVER_PROPS =
+      ImmutableMap.<String, String>builder()
+          .put(Sasl.SERVER_AUTH, "true")
+          .put(Sasl.QOP, String.format("%s,%s", QOP_AUTH_CONF, QOP_AUTH))
+          .build();
+
   /* Encode a byte[] identifier as a Base64-encoded string. */
   static String encodeIdentifier(String identifier) {
     Preconditions.checkNotNull(identifier, "User cannot be null if SASL is enabled");
     return Base64.getEncoder().encodeToString(identifier.getBytes(StandardCharsets.UTF_8));
+  }
+
+  static String decodeIdentifier(String identifier) {
+    Preconditions.checkNotNull(identifier, "User cannot be null if SASL is enabled");
+    return new String(
+        Base64.getDecoder().decode(identifier.getBytes(StandardCharsets.UTF_8)),
+        StandardCharsets.UTF_8);
   }
 
   /** Encode a password as a base64-encoded char[] array. */
