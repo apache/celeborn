@@ -53,7 +53,7 @@ object Dependencies {
   val jdkToolsVersion = "0.1"
   val metricsVersion = "3.2.6"
   val mockitoVersion = "4.11.0"
-  val nettyVersion = "4.1.93.Final"
+  val nettyVersion = "4.1.101.Final"
   val ratisVersion = "2.5.1"
   val roaringBitmapVersion = "0.9.32"
   val rocksdbJniVersion = "8.5.3"
