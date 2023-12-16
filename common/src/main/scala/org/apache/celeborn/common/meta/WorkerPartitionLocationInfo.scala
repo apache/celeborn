@@ -180,6 +180,14 @@ class WorkerPartitionLocationInfo extends Logging {
       replicaPartitionLocations.asScala.values.forall(_.isEmpty))
   }
 
+  def toStringSimplified: String = {
+    s"""
+       | Partition Location Info:
+       | primary: ${primaryPartitionLocations.values().asScala.map(_.keySet().asScala)}
+       | replica: ${replicaPartitionLocations.values().asScala.map(_.keySet().asScala)}
+       |""".stripMargin
+  }
+
   override def toString: String = {
     s"""
        | Partition Location Info:
