@@ -410,6 +410,7 @@ message PbCommitFiles {
   repeated string replicaIds = 4;
   repeated int32 mapAttempts = 5;
   int64 epoch = 6;
+  bool mockFailure = 7;
 }
 
 message PbCommitFilesResponse {
@@ -429,6 +430,7 @@ message PbDestroyWorkerSlots {
   string shuffleKey = 1;
   repeated string primaryLocations = 2;
   repeated string replicaLocation = 3;
+  bool mockFailure = 4;
 }
 
 message PbDestroyWorkerSlotsResponse {

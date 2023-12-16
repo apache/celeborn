@@ -42,7 +42,12 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
   private var lifecycleManager: LifecycleManager = _
   private var shuffleClient: ShuffleClientImpl = _
-  private var shuffleId = 0
+
+  var _shuffleId = 0
+  def nextShuffleId: Int = {
+    _shuffleId += 1
+    _shuffleId
+  }
 
   override protected def afterEach() {
     if (lifecycleManager != null) {
@@ -56,7 +61,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
   test("test register map partition task") {
     prepareService()
-    shuffleId = 1
+    val shuffleId = nextShuffleId
     var location =
       shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, 1)
     Assert.assertEquals(location.getId, 1)
@@ -95,10 +100,10 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   }
 
   test("test batch release partition") {
-    shuffleId = 2
+    val shuffleId = nextShuffleId
     celebornConf.set(CelebornConf.CLIENT_BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "true")
     prepareService()
-    registerAndFinishPartition()
+    registerAndFinishPartition(shuffleId)
 
     val partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
 
@@ -115,11 +120,11 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   }
 
   test("test release single partition") {
-    shuffleId = 3
+    val shuffleId = nextShuffleId
     celebornConf.set(CelebornConf.CLIENT_BATCH_HANDLE_RELEASE_PARTITION_ENABLED.key, "false")
     celebornConf.set(CelebornConf.CLIENT_BATCH_HANDLED_RELEASE_PARTITION_INTERVAL.key, "1s")
     prepareService()
-    registerAndFinishPartition()
+    registerAndFinishPartition(shuffleId)
 
     val partitionLocationInfos = lifecycleManager.workerSnapshots(shuffleId).values().asScala
 
@@ -134,9 +139,9 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   }
 
   test("test map end & get reducer file group") {
-    shuffleId = 4
+    val shuffleId = nextShuffleId
     prepareService()
-    registerAndFinishPartition()
+    registerAndFinishPartition(shuffleId)
 
     // reduce file group size (for empty partitions)
     Assert.assertEquals(shuffleClient.getReduceFileGroupsMap.size(), 0)
@@ -161,7 +166,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
   }
 
-  private def registerAndFinishPartition(): Unit = {
+  private def registerAndFinishPartition(shuffleId: Int): Unit = {
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, 1)
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 1, attemptId, 2)
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 2, attemptId, 3)
