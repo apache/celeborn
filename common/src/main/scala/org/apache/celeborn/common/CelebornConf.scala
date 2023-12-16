@@ -4236,7 +4236,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.<module>.io.saslTimeout")
       .categories("network")
       .doc("Timeout for a single round trip of auth message exchange, in milliseconds.")
-      .version("0.4.0")
+      .version("0.5.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 }
