@@ -1167,7 +1167,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         candidates.removeAll(reserveFailedWorkers)
         // Find out all failed partition locations and remove failed worker's partition location
         // from slots.
-        val failedPartitionLocations = getFailedPartitionLocations(reserveFailedWorkers, requestSlots)
+        val failedPartitionLocations =
+          getFailedPartitionLocations(reserveFailedWorkers, requestSlots)
         // When enable replicate, if one of the partition location reserve slots failed, we also
         // need to release another corresponding partition location and remove it from slots.
         if (pushReplicateEnabled && failedPartitionLocations.nonEmpty && !slots.isEmpty) {
