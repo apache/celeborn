@@ -35,9 +35,6 @@ public class SaslUtils {
   /** Quality of protection value that does not include encryption. */
   static final String QOP_AUTH = "auth";
 
-  /** Quality of protection value that includes encryption. */
-  static final String QOP_AUTH_CONF = "auth-conf";
-
   static final String DEFAULT_REALM = "default";
 
   static final Map<String, String> DEFAULT_SASL_CLIENT_PROPS =
@@ -46,7 +43,7 @@ public class SaslUtils {
   static final Map<String, String> DEFAULT_SASL_SERVER_PROPS =
       ImmutableMap.<String, String>builder()
           .put(Sasl.SERVER_AUTH, "true")
-          .put(Sasl.QOP, String.format("%s,%s", QOP_AUTH_CONF, QOP_AUTH))
+          .put(Sasl.QOP, QOP_AUTH)
           .build();
 
   /* Encode a byte[] identifier as a Base64-encoded string. */

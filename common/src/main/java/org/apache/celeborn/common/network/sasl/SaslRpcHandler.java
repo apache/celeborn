@@ -89,14 +89,13 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
         callback.onFailure(e);
         return false;
       }
-      assert saslMessage != null;
       if (saslServer == null) {
-        CelebornSaslServer.DigestCallbackHandler digestCallbackHandler =
-            getDigestCallbackHandler(client);
         saslServer =
-            new CelebornSaslServer(DIGEST_MD5, DEFAULT_SASL_SERVER_PROPS, digestCallbackHandler);
+            new CelebornSaslServer(
+                DIGEST_MD5,
+                DEFAULT_SASL_SERVER_PROPS,
+                new CelebornSaslServer.DigestCallbackHandler(secretRegistry));
       }
-
       byte[] response = saslServer.response(saslMessage.getPayload().toByteArray());
       callback.onSuccess(ByteBuffer.wrap(response));
     }
@@ -108,39 +107,25 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
     return false;
   }
 
-  private CelebornSaslServer.DigestCallbackHandler getDigestCallbackHandler(
-      TransportClient client) {
-    CelebornSaslServer.SaslUserNameNotifier userNameNotifier =
-        id -> {
-          if (client.getClientId() != null && !client.getClientId().equals(id)) {
-            throw new IllegalStateException(
-                "Client tried to change user ID from " + client.getClientId() + " to " + id);
-          }
-          if (client.getClientId() == null) {
-            client.setClientId(id);
-          }
-        };
-
-    return new CelebornSaslServer.DigestCallbackHandler(userNameNotifier, secretRegistry);
-  }
-
   @Override
   public void channelInactive(TransportClient client) {
-    try {
-      super.channelInactive(client);
-    } finally {
-      if (saslServer != null) {
-        saslServer.dispose();
-      }
-    }
+    super.channelInactive(client);
+    cleanup();
   }
 
   private void complete() {
-    try {
-      saslServer.dispose();
-    } catch (RuntimeException e) {
-      logger.error("Error while disposing SASL server", e);
+    cleanup();
+  }
+
+  private void cleanup() {
+    if (null != saslServer) {
+      try {
+        saslServer.dispose();
+      } catch (RuntimeException e) {
+        logger.error("Error while disposing SASL server", e);
+      } finally {
+        saslServer = null;
+      }
     }
-    saslServer = null;
   }
 }

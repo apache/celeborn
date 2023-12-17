@@ -20,8 +20,8 @@ package org.apache.celeborn.common.network.sasl;
 /** Interface for getting a secret key associated with some application. */
 public interface SecretRegistry {
 
-  /** Gets an appropriate SASL secret key for the given userName. */
-  String getSecretKey(String userName);
+  /** Gets an appropriate SASL secret key for the given appId. */
+  String getSecretKey(String appId);
 
   boolean isRegistered(String appId);
 }

@@ -33,21 +33,21 @@ public class SecretRegistryImpl implements SecretRegistry {
 
   private final ConcurrentHashMap<String, String> secrets = new ConcurrentHashMap<>();
 
-  public void register(String userName, String secret) {
-    secrets.put(userName, secret);
+  public void register(String appId, String secret) {
+    secrets.put(appId, secret);
   }
 
-  public void unregister(String userName) {
-    secrets.remove(userName);
+  public void unregister(String appId) {
+    secrets.remove(appId);
   }
 
-  public boolean isRegistered(String userName) {
-    return secrets.containsKey(userName);
+  public boolean isRegistered(String appId) {
+    return secrets.containsKey(appId);
   }
 
-  /** Gets an appropriate SASL secret key for the given userName. */
+  /** Gets an appropriate SASL secret key for the given appId. */
   @Override
-  public String getSecretKey(String userName) {
-    return secrets.get(userName);
+  public String getSecretKey(String appId) {
+    return secrets.get(appId);
   }
 }

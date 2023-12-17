@@ -64,8 +64,7 @@ public class CelebornSaslSuiteJ {
         new CelebornSaslServer(
             DIGEST_MD5,
             DEFAULT_SASL_SERVER_PROPS,
-            new CelebornSaslServer.DigestCallbackHandler(
-                userName -> assertEquals(TEST_USER, userName), SecretRegistryImpl.getInstance()));
+            new CelebornSaslServer.DigestCallbackHandler(SecretRegistryImpl.getInstance()));
 
     assertFalse(client.isComplete());
     assertFalse(server.isComplete());
@@ -90,13 +89,12 @@ public class CelebornSaslSuiteJ {
         new CelebornSaslClient(
             DIGEST_MD5,
             DEFAULT_SASL_CLIENT_PROPS,
-            new CelebornSaslClient.ClientCallbackHandler(TEST_USER, "my-secret"));
+            new CelebornSaslClient.ClientCallbackHandler(TEST_USER, "invalid" + TEST_SECRET));
     CelebornSaslServer server =
         new CelebornSaslServer(
             DIGEST_MD5,
             DEFAULT_SASL_SERVER_PROPS,
-            new CelebornSaslServer.DigestCallbackHandler(
-                userName -> assertEquals(TEST_USER, userName), SecretRegistryImpl.getInstance()));
+            new CelebornSaslServer.DigestCallbackHandler(SecretRegistryImpl.getInstance()));
 
     assertFalse(client.isComplete());
     assertFalse(server.isComplete());

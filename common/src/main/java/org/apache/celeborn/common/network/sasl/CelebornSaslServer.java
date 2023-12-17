@@ -104,13 +104,16 @@ public class CelebornSaslServer {
    * Implementation of javax.security.auth.callback.CallbackHandler for SASL DIGEST-MD5 mechanism.
    */
   static class DigestCallbackHandler implements CallbackHandler {
-    private final SaslUserNameNotifier userNameNotifier;
     private final SecretRegistry secretKeyHolder;
 
+    /**
+     * The use of 'volatile' is not necessary here because the 'handle' invocation includes both the
+     * NameCallback and PasswordCallback (with the name preceding the password), all within the same
+     * thread.
+     */
     private String userName = null;
 
-    DigestCallbackHandler(SaslUserNameNotifier userNameNotifier, SecretRegistry secretRegistry) {
-      this.userNameNotifier = Preconditions.checkNotNull(userNameNotifier);
+    DigestCallbackHandler(SecretRegistry secretRegistry) {
       this.secretKeyHolder = Preconditions.checkNotNull(secretRegistry);
     }
 
@@ -125,7 +128,6 @@ public class CelebornSaslServer {
             throw new SaslException("No username provided by client");
           }
           userName = decodeIdentifier(encodedName);
-          userNameNotifier.notifySaslUserName(userName);
         } else if (callback instanceof PasswordCallback) {
           logger.trace("SASL server callback: setting password");
           PasswordCallback pc = (PasswordCallback) callback;
@@ -153,10 +155,5 @@ public class CelebornSaslServer {
         }
       }
     }
-  }
-
-  /** Notifies the registered {@link SaslUserNameNotifier} of the SASL user name. */
-  interface SaslUserNameNotifier {
-    void notifySaslUserName(String userName);
   }
 }
