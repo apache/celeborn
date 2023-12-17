@@ -594,7 +594,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logError(s"reserve buffer for $shuffleId failed, reply to all.")
       replyRegisterShuffle(RegisterShuffleResponse(StatusCode.RESERVE_SLOTS_FAILED, Array.empty))
     } else {
-      logInfo(s"ReserveSlots for $shuffleId success with details:$slots!")
+      if (log.isDebugEnabled()) {
+        logDebug(s"ReserveSlots for $shuffleId success with details:$slots!")
+      }
       // Forth, register shuffle success, update status
       val allocatedWorkers =
         JavaUtils.newConcurrentHashMap[WorkerInfo, ShufflePartitionLocationInfo]()
@@ -1336,12 +1338,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     val startTime = System.currentTimeMillis()
     val futures = new util.LinkedList[DestroyFutureWithStatus]()
-    slotsToDestroy.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
-      val primaryIds = primaryLocations.asScala.map(_.getUniqueId).asJava
-      val replicaIds = replicaLocations.asScala.map(_.getUniqueId).asJava
-      val destroy = DestroyWorkerSlots(shuffleKey, primaryIds, replicaIds, mockDestroyFailure)
-      val future = workerInfo.endpoint.ask[DestroyWorkerSlotsResponse](destroy)
-      futures.add(DestroyFutureWithStatus(future, destroy, workerInfo.endpoint, 1, startTime))
+    slotsToDestroy.asScala.filter(_._1.endpoint != null).foreach {
+      case (workerInfo, (primaryLocations, replicaLocations)) =>
+        val primaryIds = primaryLocations.asScala.map(_.getUniqueId).asJava
+        val replicaIds = replicaLocations.asScala.map(_.getUniqueId).asJava
+        val destroy = DestroyWorkerSlots(shuffleKey, primaryIds, replicaIds, mockDestroyFailure)
+        val future = workerInfo.endpoint.ask[DestroyWorkerSlotsResponse](destroy)
+        futures.add(DestroyFutureWithStatus(future, destroy, workerInfo.endpoint, 1, startTime))
     }
 
     val timeout = conf.rpcAskTimeout.duration.toMillis
