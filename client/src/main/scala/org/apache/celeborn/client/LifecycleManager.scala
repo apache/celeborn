@@ -1043,13 +1043,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * @param slots                    allocated WorkerResource
    * @param failedPartitionLocations reserve slot failed partition location
    */
-  private def releasePeerPartitionLocation(
+  private def releasePartitionLocation(
       shuffleId: Int,
       slots: WorkerResource,
-      failedPartitionLocations: mutable.HashMap[Int, PartitionLocation]): Unit = {
+      failedPartitionLocations: mutable.HashMap[Int, PartitionLocation],
+      releasePeer: Boolean = false): Unit = {
     val destroyResource = new WorkerResource
     failedPartitionLocations.values
-      .flatMap { partition => Option(partition.getPeer) }
+      .flatMap { partition => if (releasePeer) Option(partition.getPeer) else Option(partition) }
       .foreach { partition =>
         var destroyWorkerInfo = partition.getWorker
         val workerInfoWithRpcRef = slots.keySet().asScala.find(_.equals(destroyWorkerInfo))
@@ -1057,7 +1058,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             logWarning(s"Cannot find workInfo for $shuffleId from previous success workResource:" +
               s" ${destroyWorkerInfo.readableAddress()}, init according to partition info")
             try {
-              if (workerStatusTracker.workerAvailable(destroyWorkerInfo)) {
+              if (!workerStatusTracker.workerExcluded(destroyWorkerInfo)) {
                 destroyWorkerInfo.endpoint = rpcEnv.setupEndpointRef(
                   RpcAddress.apply(destroyWorkerInfo.host, destroyWorkerInfo.rpcPort),
                   WORKER_EP)
@@ -1095,8 +1096,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     if (!destroyResource.isEmpty) {
       destroySlotsWithRetry(shuffleId, destroyResource)
-      logInfo(s"Destroyed peer partitions for reserve buffer failed workers " +
-        s"shuffleId $shuffleId, $destroyResource")
+      val msg = destroyResource.asScala.map(entry =>
+        s"${entry._1.endpoint}, ${entry._2._1.asScala.map(
+          _.getUniqueId)}, ${entry._2._2.asScala.map(_.getUniqueId)}")
+      logWarning(s"Destroyed partitions for reserve buffer failed workers " +
+        s"shuffleId $shuffleId, $msg")
     }
   }
 
@@ -1105,7 +1109,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * and remove failed worker's partition locations from total slots.
    * For each reduce id, we only need to maintain one of the pair locations
    * even if enabling replicate. If Celeborn wants to release the failed partition location,
-   * the corresponding peers will be handled in [[releasePeerPartitionLocation]]
+   * the corresponding peers will be handled in [[releasePartitionLocation]]
    *
    * @param reserveFailedWorkers reserve slot failed WorkerInfo list of slots
    * @param slots                the slots tried to reserve a slot
@@ -1116,7 +1120,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       slots: WorkerResource): mutable.HashMap[Int, PartitionLocation] = {
     val failedPartitionLocations = new mutable.HashMap[Int, PartitionLocation]()
     reserveFailedWorkers.asScala.foreach { workerInfo =>
-      val (failedPrimaryLocations, failedReplicaLocations) = slots.remove(workerInfo)
+      val (failedPrimaryLocations, failedReplicaLocations) = slots.get(workerInfo)
       if (null != failedPrimaryLocations) {
         failedPrimaryLocations.asScala.foreach { failedPrimaryLocation =>
           failedPartitionLocations += (failedPrimaryLocation.getId -> failedPrimaryLocation)
@@ -1167,11 +1171,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         candidates.removeAll(reserveFailedWorkers)
         // Find out all failed partition locations and remove failed worker's partition location
         // from slots.
-        val failedPartitionLocations = getFailedPartitionLocations(reserveFailedWorkers, slots)
+        val failedPartitionLocations =
+          getFailedPartitionLocations(reserveFailedWorkers, slots)
         // When enable replicate, if one of the partition location reserve slots failed, we also
         // need to release another corresponding partition location and remove it from slots.
+        if (failedPartitionLocations.nonEmpty && !slots.isEmpty) {
+          releasePartitionLocation(shuffleId, slots, failedPartitionLocations)
+        }
         if (pushReplicateEnabled && failedPartitionLocations.nonEmpty && !slots.isEmpty) {
-          releasePeerPartitionLocation(shuffleId, slots, failedPartitionLocations)
+          releasePartitionLocation(shuffleId, slots, failedPartitionLocations, true)
         }
         if (retryTimes < reserveSlotsMaxRetries) {
           // get retryCandidates resource and retry reserve buffer
@@ -1211,7 +1219,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (!success) {
       // Reserve slot failed workers' partition location and corresponding peer partition location
       // has been removed from slots by call [[getFailedPartitionLocations]] and
-      // [[releasePeerPartitionLocation]]. Now in the slots are all the successful partition
+      // [[releasePartitionLocation]]. Now in the slots are all the successful partition
       // locations.
       logWarning(s"Reserve buffers for $shuffleId still fail after retrying, clear buffers.")
       destroySlotsWithRetry(shuffleId, slots)
