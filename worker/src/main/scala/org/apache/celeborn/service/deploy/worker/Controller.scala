@@ -656,6 +656,10 @@ private[deploy] class Controller(
           replicaLocations))
       return
     }
+    if (log.isDebugEnabled()) {
+      logDebug(
+        s"[handleDestroy] primaryIds: ${primaryLocations.asScala}, replicaIds: ${replicaLocations.asScala}")
+    }
 
     val failedPrimaries = new jArrayList[String]()
     val failedReplicas = new jArrayList[String]()

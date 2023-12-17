@@ -645,6 +645,8 @@ private[celeborn] class Worker(
     while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
+      logWarning(
+        s"Wait partitionLocation empty, current ${partitionLocationInfo.toStringSimplified}")
     }
     if (partitionLocationInfo.isEmpty) {
       logInfo(s"Waiting for all PartitionLocation released cost ${waitTime}ms.")
