@@ -904,9 +904,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     final int nextBatchId = pushState.nextBatchId();
 
     if (ioCryptoKey.isPresent()) {
-      byte[] encryptData = new byte[length + encipherThreadLocal.get().getBlockSize()];
-      int encryptLength =
-          CryptoUtils.encrypt(encipherThreadLocal.get(), data, offset, length, encryptData);
+      CryptoCipher encipher = encipherThreadLocal.get();
+      byte[] encryptData = new byte[length + encipher.getBlockSize()];
+      int encryptLength = CryptoUtils.encrypt(encipher, data, offset, length, encryptData);
       logger.debug(
           "Push data encryption encryptLength/beforeLength {}/{} for shuffle {} map {} attempt {} partition {}.",
           encryptLength,
