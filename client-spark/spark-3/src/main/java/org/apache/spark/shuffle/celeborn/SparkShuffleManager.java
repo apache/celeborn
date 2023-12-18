@@ -136,7 +136,7 @@ public class SparkShuffleManager implements ShuffleManager {
   }
 
   private Properties getIoCryptoConf() {
-    if (!celebornConf.ioEncryptionEnabled()) return new Properties();
+    if (!celebornConf.sparkIoEncryptionEnabled()) return new Properties();
     Properties cryptoConf = CryptoStreamUtils.toCryptoConf(conf);
     cryptoConf.put(
         CryptoUtils.COMMONS_CRYPTO_CONFIG_TRANSFORMATION,
@@ -145,7 +145,7 @@ public class SparkShuffleManager implements ShuffleManager {
   }
 
   private Optional<byte[]> getIoCryptoKey() {
-    if (!celebornConf.ioEncryptionEnabled()) return Optional.empty();
+    if (!celebornConf.sparkIoEncryptionEnabled()) return Optional.empty();
     return SparkEnv.get()
         .securityManager()
         .getIOEncryptionKey()
@@ -154,7 +154,7 @@ public class SparkShuffleManager implements ShuffleManager {
   }
 
   private byte[] getIoCryptoInitializationVector() {
-    if (!celebornConf.ioEncryptionEnabled()) return null;
+    if (!celebornConf.sparkIoEncryptionEnabled()) return null;
     return conf.getBoolean(package$.MODULE$.IO_ENCRYPTION_ENABLED().key(), false)
         ? CryptoUtils.createIoCryptoInitializationVector()
         : null;
@@ -169,16 +169,6 @@ public class SparkShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
-          shuffleClient =
-              ShuffleClient.get(
-                  appUniqueId,
-                  lifecycleManager.getHost(),
-                  lifecycleManager.getPort(),
-                  celebornConf,
-                  lifecycleManager.getUserIdentifier(),
-                  getIoCryptoKey(),
-                  getIoCryptoConf(),
-                  ioCryptoInitializationVector);
           if (celebornConf.clientFetchThrowsFetchFailure()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();

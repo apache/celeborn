@@ -91,10 +91,6 @@ public class SparkUtils {
   }
 
   public static String appUniqueId(SparkContext context) {
-    return appUniqueId(context, fromSparkConf(context.conf()));
-  }
-
-  public static String appUniqueId(SparkContext context, CelebornConf celebornConf) {
     return context
         .applicationAttemptId()
         .map(id -> context.applicationId() + "_" + id)

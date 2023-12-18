@@ -41,9 +41,6 @@ license: |
 | celeborn.client.flink.resultPartition.memory | 64m | Memory reserved for a result partition. | 0.3.0 | 
 | celeborn.client.flink.resultPartition.minMemory | 8m | Min memory reserved for a result partition. | 0.3.0 | 
 | celeborn.client.flink.resultPartition.supportFloatingBuffer | true | Whether to support floating buffer for result partitions. | 0.3.0 | 
-| celeborn.client.io.encryption.enabled | true | whether to enable io encryption | 0.3.0 | 
-| celeborn.client.io.encryption.initialization.vector |  | io encryption initialization vector | 0.3.0 | 
-| celeborn.client.io.encryption.key |  | io encryption key | 0.3.0 | 
 | celeborn.client.mr.pushData.max | 32m | Max size for a push data sent from mr client. | 0.4.0 | 
 | celeborn.client.push.buffer.initial.size | 8k |  | 0.3.0 | 
 | celeborn.client.push.buffer.max.size | 64k | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. | 0.3.0 | 
@@ -105,6 +102,9 @@ license: |
 | celeborn.client.shuffle.register.filterExcludedWorker.enabled | false | Whether to filter excluded worker when register shuffle. | 0.4.0 | 
 | celeborn.client.slot.assign.maxWorkers | 10000 | Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one from Master side and Client side, see `celeborn.master.slot.assign.maxWorkers`. | 0.3.1 | 
 | celeborn.client.spark.fetch.throwsFetchFailure | false | client throws FetchFailedException instead of CelebornIOException | 0.4.0 | 
+| celeborn.client.spark.io.encryption.enabled | true | whether to enable io encryption | 0.4.0 | 
+| celeborn.client.spark.io.encryption.initialization.vector |  | io encryption initialization vector | 0.4.0 | 
+| celeborn.client.spark.io.encryption.key |  | io encryption key | 0.4.0 | 
 | celeborn.client.spark.push.sort.memory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. If the pipeline push feature is enabled (`celeborn.client.spark.push.sort.pipeline.enabled=true`), the SortBasedPusher will trigger a data push when the memory usage exceeds half of the threshold(by default, 32m). | 0.3.0 | 
 | celeborn.client.spark.push.sort.pipeline.enabled | false | Whether to enable pipelining for sort based shuffle writer. If true, double buffering will be used to pipeline push | 0.3.0 | 
 | celeborn.client.spark.push.unsafeRow.fastWrite.enabled | true | This is Celeborn's optimization on UnsafeRow for Spark and it's true by default. If you have changed UnsafeRow's memory layout set this to false. | 0.2.2 | 
