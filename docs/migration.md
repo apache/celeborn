@@ -21,6 +21,12 @@ license: |
 
 # Migration Guide
 
+## Upgrading from 0.4.0 to 0.4.1
+
+- Since 0.4.1, Celeborn master metrics `PartitionWritten` is renamed as `ActiveShuffleSize`.
+
+- Since 0.4.1, Celeborn master metrics `PartitionFileCount` is renamed as `ActiveShuffleFileCount`.
+
 ## Upgrading from 0.3 to 0.4
 
 - Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.

@@ -626,13 +626,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PartitionWritten_Value",
+              "expr": "metrics_ActiveShuffleSize_Value{role=\"Master\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_PartitionWritten_Value",
+          "title": "metrics_ActiveShuffleSize_Value",
           "type": "timeseries"
         },
         {
@@ -718,13 +718,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PartitionFileCount_Value",
+              "expr": "metrics_ActiveShuffleFileCount_Value{role=\"Master\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_PartitionFileCount_Value",
+          "title": "metrics_ActiveShuffleFileCount_Value",
           "type": "timeseries"
         },
         {
@@ -1845,7 +1845,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_ActiveShuffleSize_Value",
+              "expr": "metrics_ActiveShuffleSize_Value{role=\"Worker\"}",
               "legendFormat": "${baseLegend}",
               "instant": false,
               "range": true,
@@ -1964,7 +1964,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_ActiveShuffleFileCount_Value",
+              "expr": "metrics_ActiveShuffleFileCount_Value{role=\"Worker\"}",
               "legendFormat": "${baseLegend}",
               "instant": false,
               "range": true,
