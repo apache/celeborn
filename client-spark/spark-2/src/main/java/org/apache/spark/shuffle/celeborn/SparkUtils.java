@@ -112,13 +112,11 @@ public class SparkUtils {
   }
 
   public static String appUniqueId(SparkContext context) {
-    String appUniqueId = "";
     if (context.applicationAttemptId().isDefined()) {
-      appUniqueId = context.applicationId() + "_" + context.applicationAttemptId().get();
+      return context.applicationId() + "_" + context.applicationAttemptId().get();
     } else {
-      appUniqueId = context.applicationId();
+      return context.applicationId();
     }
-    return appUniqueId;
   }
 
   public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {
