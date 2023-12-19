@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
+import java.util.{Optional, Properties}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
@@ -44,8 +45,31 @@ class CelebornShuffleReader[K, C](
     context: TaskContext,
     conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter,
-    shuffleIdTracker: ExecutorShuffleIdTracker)
+    shuffleIdTracker: ExecutorShuffleIdTracker,
+    ioCryptoKey: Optional[Array[Byte]],
+    ioCryptoConf: Properties)
   extends ShuffleReader[K, C] with Logging {
+
+  def this(
+      handle: CelebornShuffleHandle[K, _, C],
+      startPartition: Int,
+      endPartition: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      context: TaskContext,
+      conf: CelebornConf,
+      metrics: ShuffleReadMetricsReporter) = this(
+    handle,
+    startPartition,
+    endPartition,
+    startMapIndex,
+    endMapIndex,
+    context,
+    conf,
+    metrics,
+    null,
+    Optional.empty(),
+    null)
 
   private val dep = handle.dependency
   private val shuffleClient = ShuffleClient.get(
@@ -53,7 +77,10 @@ class CelebornShuffleReader[K, C](
     handle.lifecycleManagerHost,
     handle.lifecycleManagerPort,
     conf,
-    handle.userIdentifier)
+    handle.userIdentifier,
+    ioCryptoKey,
+    ioCryptoConf,
+    handle.ioCryptoInitializationVector)
 
   private val exceptionRef = new AtomicReference[IOException]
 
