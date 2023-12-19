@@ -190,7 +190,7 @@ scala-reflect/2.12.15//scala-reflect-2.12.15.jar
 shims/0.9.32//shims-0.9.32.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
 slf4j-reload4j/1.7.36//slf4j-reload4j-1.7.36.jar
-snakeyaml/1.33//snakeyaml-1.33.jar
+snakeyaml/2.2//snakeyaml-2.2.jar
 snappy-java/1.1.10.5//snappy-java-1.1.10.5.jar
 stax2-api/4.2.1//stax2-api-4.2.1.jar
 token-provider/1.0.1//token-provider-1.0.1.jar

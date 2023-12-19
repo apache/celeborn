@@ -61,7 +61,7 @@ object Dependencies {
   val scalatestMockitoVersion = "1.17.14"
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
-  val snakeyamlVersion = "1.33"
+  val snakeyamlVersion = "2.2"
   val snappyVersion = "1.1.10.5"
 
   // Versions for proto

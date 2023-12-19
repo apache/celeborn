@@ -80,6 +80,6 @@ scala-library/2.12.15//scala-library-2.12.15.jar
 scala-reflect/2.12.15//scala-reflect-2.12.15.jar
 shims/0.9.32//shims-0.9.32.jar
 slf4j-api/1.7.36//slf4j-api-1.7.36.jar
-snakeyaml/1.33//snakeyaml-1.33.jar
+snakeyaml/2.2//snakeyaml-2.2.jar
 snappy-java/1.1.10.5//snappy-java-1.1.10.5.jar
 zstd-jni/1.5.2-1//zstd-jni-1.5.2-1.jar
