@@ -30,5 +30,25 @@ class CelebornShuffleHandle[K, V, C](
     shuffleId: Int,
     val throwsFetchFailure: Boolean,
     numMappers: Int,
-    dependency: ShuffleDependency[K, V, C])
-  extends BaseShuffleHandle(shuffleId, numMappers, dependency)
+    dependency: ShuffleDependency[K, V, C],
+    val ioCryptoInitializationVector: Array[Byte])
+  extends BaseShuffleHandle(shuffleId, numMappers, dependency) {
+  def this(
+      appUniqueId: String,
+      lifecycleManagerHost: String,
+      lifecycleManagerPort: Int,
+      userIdentifier: UserIdentifier,
+      shuffleId: Int,
+      throwsFetchFailure: Boolean,
+      numMappers: Int,
+      dependency: ShuffleDependency[K, V, C]) = this(
+    appUniqueId,
+    lifecycleManagerHost,
+    lifecycleManagerPort,
+    userIdentifier,
+    shuffleId,
+    throwsFetchFailure,
+    numMappers,
+    dependency,
+    null)
+}

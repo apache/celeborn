@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
+import java.util.{Optional, Properties}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
