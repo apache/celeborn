@@ -154,8 +154,7 @@ public class RemoteShuffleInputGateDelegation {
 
     try {
       String appUniqueId =
-          ((RemoteShuffleDescriptor) (gateDescriptor.getShuffleDescriptors()[0]))
-              .getCelebornAppId();
+          ((RemoteShuffleDescriptor) gateDescriptor.getShuffleDescriptors()[0]).getCelebornAppId();
       this.shuffleClient =
           FlinkShuffleClientImpl.get(
               appUniqueId,

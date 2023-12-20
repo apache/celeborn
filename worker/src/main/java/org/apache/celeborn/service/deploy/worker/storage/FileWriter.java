@@ -401,15 +401,18 @@ public abstract class FileWriter implements DeviceObserver {
     }
   }
 
+  @Override
   public int hashCode() {
     return fileInfo.getFilePath().hashCode();
   }
 
+  @Override
   public boolean equals(Object obj) {
     return (obj instanceof FileWriter)
         && fileInfo.getFilePath().equals(((FileWriter) obj).fileInfo.getFilePath());
   }
 
+  @Override
   public String toString() {
     return fileInfo.getFilePath();
   }

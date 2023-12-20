@@ -41,6 +41,7 @@ public class SecretRegistryImpl implements SecretRegistry {
     secrets.remove(appId);
   }
 
+  @Override
   public boolean isRegistered(String appId) {
     return secrets.containsKey(appId);
   }

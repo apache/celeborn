@@ -80,7 +80,7 @@ public final class RegionFinish extends RequestMessage {
       RegionFinish o = (RegionFinish) other;
       return mode == o.mode
           && shuffleKey.equals(o.shuffleKey)
-          && partitionUniqueId.equals((o.partitionUniqueId))
+          && partitionUniqueId.equals(o.partitionUniqueId)
           && attemptId == o.attemptId
           && super.equals(o);
     }

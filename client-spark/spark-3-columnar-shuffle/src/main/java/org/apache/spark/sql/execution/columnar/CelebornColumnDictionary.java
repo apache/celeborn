@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.columnar;
 
+import java.nio.charset.StandardCharsets;
+
 import org.apache.spark.sql.execution.vectorized.Dictionary;
 
 public class CelebornColumnDictionary implements Dictionary {
@@ -58,6 +60,6 @@ public class CelebornColumnDictionary implements Dictionary {
 
   @Override
   public byte[] decodeToBinary(int id) {
-    return stringDictionary[id].getBytes();
+    return stringDictionary[id].getBytes(StandardCharsets.UTF_8);
   }
 }

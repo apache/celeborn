@@ -407,6 +407,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
+  // Added in SPARK-32917, for Spark 3.2 and above
   public long[] getPartitionLengths() {
     throw new UnsupportedOperationException(
         "Celeborn is not compatible with Spark push mode, please set spark.shuffle.push.enabled to false");

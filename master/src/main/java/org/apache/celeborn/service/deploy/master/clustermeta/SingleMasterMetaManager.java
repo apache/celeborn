@@ -138,6 +138,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     updateMetaByReportWorkerUnavailable(failedNodes);
   }
 
+  @Override
   public void handleUpdatePartitionSize() {
     updatePartitionSize();
   }

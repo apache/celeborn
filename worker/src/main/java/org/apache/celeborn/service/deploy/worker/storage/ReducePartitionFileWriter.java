@@ -62,6 +62,7 @@ public final class ReducePartitionFileWriter extends FileWriter {
     this.nextBoundary = this.shuffleChunkSize;
   }
 
+  @Override
   protected void flush(boolean finalFlush) throws IOException {
     super.flush(finalFlush);
     maybeSetChunkOffsets(finalFlush);
@@ -87,6 +88,7 @@ public final class ReducePartitionFileWriter extends FileWriter {
     return fileInfo.getLastChunkOffset() == fileInfo.getFileLength();
   }
 
+  @Override
   public synchronized long close() throws IOException {
     return super.close(
         () -> {
