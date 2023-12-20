@@ -78,8 +78,10 @@ class SparkShuffleManagerSuite extends Logging {
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.shuffle.useOldFetchProtocol", "true")
       .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "false")
-      .set(s"spark.${CelebornConf.CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLED.key}", "true")
-      .set(s"spark.${CelebornConf.CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD}", "15")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key}", "true")
+      .set(
+        s"spark.${CelebornConf.CLIENT_PUSH_DYNAMIC_WRITE_MODE_PARTITION_NUM_THRESHOLD.key}",
+        "15")
       .setAppName("test")
     val sc = new SparkContext(conf)
     // scalastyle:off println
