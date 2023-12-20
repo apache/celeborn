@@ -58,8 +58,6 @@ class CreateFileContext(
     val partitionSplitEnabled: Boolean)
 
 class CreateFileResult(
-    val filePath: String,
-    val mountPointFile: File,
     val flusher: Flusher,
     val fileInfo: NonMemoryFileInfo)
 
@@ -830,8 +828,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           hdfsFileInfo)
         return new CreateFileResult(
-          hdfsFilePath,
-          null,
           hdfsFlusher.get,
           hdfsFileInfo)
       } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
@@ -873,8 +869,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             nonMemoryFileInfo.getFilePath,
             partitionDataWriter)
           return new CreateFileResult(
-            filePath,
-            dir,
             localFlushers.get(mountPoint),
             nonMemoryFileInfo)
         } catch {

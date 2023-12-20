@@ -48,8 +48,7 @@ public class PartitionDataWriterSuiteUtils {
 
     StorageManager storageManager = Mockito.mock(StorageManager.class);
     CreateFileContext createFileContext = Mockito.mock(CreateFileContext.class);
-    Mockito.doAnswer(
-            invocation -> new CreateFileResult(file.getAbsolutePath(), null, flusher, fileInfo))
+    Mockito.doAnswer(invocation -> new CreateFileResult(flusher, fileInfo))
         .when(storageManager)
         .createFile(Mockito.any(), Mockito.any());
     return new Tuple3<>(storageManager, createFileContext, fileInfo);

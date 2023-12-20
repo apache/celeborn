@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReduceFileMeta implements FileMeta {
-  List<Long> chunkOffsets;
-  AtomicBoolean sorted = new AtomicBoolean(false);
+  private List<Long> chunkOffsets;
+  private AtomicBoolean sorted = new AtomicBoolean(false);
 
   public ReduceFileMeta() {
     this.chunkOffsets = new ArrayList<>();
@@ -35,12 +35,12 @@ public class ReduceFileMeta implements FileMeta {
   }
 
   @Override
-  public List<Long> getChunkOffsets() {
+  public synchronized List<Long> getChunkOffsets() {
     return chunkOffsets;
   }
 
   @Override
-  public void addChunkOffset(long offset) {
+  public synchronized void addChunkOffset(long offset) {
     chunkOffsets.add(offset);
   }
 
@@ -50,7 +50,9 @@ public class ReduceFileMeta implements FileMeta {
 
   @Override
   public void setSorted() {
-    sorted.set(true);
+    synchronized (sorted) {
+      sorted.set(true);
+    }
   }
 
   @Override

@@ -18,9 +18,9 @@
 package org.apache.celeborn.common.meta;
 
 public class MapFileMeta implements FileMeta {
-  int bufferSize;
-  int numSubPartitions;
-  String mountPoint;
+  private int bufferSize;
+  private int numSubPartitions;
+  private String mountPoint;
 
   public MapFileMeta() {}
 

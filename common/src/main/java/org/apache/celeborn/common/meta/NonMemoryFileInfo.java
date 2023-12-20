@@ -94,10 +94,6 @@ public class NonMemoryFileInfo extends FileInfo {
     }
   }
 
-  public synchronized void addChunkOffset(long bytesFlushed) {
-    fileMeta.getChunkOffsets().add(bytesFlushed);
-  }
-
   public synchronized int numChunks() {
     if (!fileMeta.getChunkOffsets().isEmpty()) {
       return fileMeta.getChunkOffsets().size() - 1;
