@@ -88,8 +88,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
   protected final long reservedMemoryPerPartition;
-  private boolean gracefulShutdown;
-  private long partitionSorterShutdownAwaitTime;
+  private final boolean gracefulShutdown;
+  private final long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
 
   protected final AbstractSource source;
@@ -230,10 +230,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
             logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
             throw new IOException(
-                "Sort file "
-                    + ((NonMemoryFileInfo) fileInfo).getFilePath()
-                    + " timeout after "
-                    + sortTimeout);
+                "Sort file " + fileInfo.getFilePath() + " timeout after " + sortTimeout);
           }
         } catch (InterruptedException e) {
           logger.error("Sorter scheduler thread is interrupted means worker is shutting down.", e);
@@ -241,16 +238,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               "Sorter scheduler thread is interrupted means worker is shutting down.", e);
         }
       } else {
-        logger.debug(
-            "Sorting shuffle file for {} {} failed.",
-            shuffleKey,
-            ((NonMemoryFileInfo) fileInfo).getFilePath());
+        logger.debug("Sorting shuffle file for {} {} failed.", shuffleKey, fileInfo.getFilePath());
         throw new IOException(
-            "Sorting shuffle file for "
-                + shuffleKey
-                + " "
-                + ((NonMemoryFileInfo) fileInfo).getFilePath()
-                + " failed.");
+            "Sorting shuffle file for " + shuffleKey + " " + fileInfo.getFilePath() + " failed.");
       }
     }
 
@@ -543,11 +533,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private FileChannel originFileChannel = null;
     private FileChannel sortedFileChannel = null;
 
-    FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
+    FileSorter(NonMemoryFileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
       this.originFileInfo = fileInfo;
-      this.originFilePath = ((NonMemoryFileInfo) fileInfo).getFilePath();
+      this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
-      this.isHdfs = ((NonMemoryFileInfo) fileInfo).isHdfs();
+      this.isHdfs = fileInfo.isHdfs();
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
@@ -562,13 +552,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexFile.delete();
         }
       } else {
-        if (StorageManager.hadoopFs().exists(((NonMemoryFileInfo) fileInfo).getHdfsSortedPath())) {
-          StorageManager.hadoopFs()
-              .delete(((NonMemoryFileInfo) fileInfo).getHdfsSortedPath(), false);
+        if (StorageManager.hadoopFs().exists(fileInfo.getHdfsSortedPath())) {
+          StorageManager.hadoopFs().delete(fileInfo.getHdfsSortedPath(), false);
         }
-        if (StorageManager.hadoopFs().exists(((NonMemoryFileInfo) fileInfo).getHdfsIndexPath())) {
-          StorageManager.hadoopFs()
-              .delete(((NonMemoryFileInfo) fileInfo).getHdfsIndexPath(), false);
+        if (StorageManager.hadoopFs().exists(fileInfo.getHdfsIndexPath())) {
+          StorageManager.hadoopFs().delete(fileInfo.getHdfsIndexPath(), false);
         }
       }
     }
