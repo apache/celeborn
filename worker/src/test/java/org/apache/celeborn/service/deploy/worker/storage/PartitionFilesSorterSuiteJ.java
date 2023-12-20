@@ -51,7 +51,7 @@ public class PartitionFilesSorterSuiteJ {
 
   private Random random = new Random();
   private File shuffleFile;
-  private FileInfo fileInfo;
+  private NonMemoryFileInfo fileInfo;
   private String originFileName;
   private long originFileLen;
   private PartitionDataWriter partitionDataWriter;
@@ -121,6 +121,7 @@ public class PartitionFilesSorterSuiteJ {
     partitionDataWriter = Mockito.mock(PartitionDataWriter.class);
     when(partitionDataWriter.getFile()).thenAnswer(i -> shuffleFile);
     when(partitionDataWriter.getFileInfo()).thenAnswer(i -> fileInfo);
+    when(partitionDataWriter.getNonMemoryFileInfo()).thenAnswer(i -> fileInfo);
     return partitionSize;
   }
 
