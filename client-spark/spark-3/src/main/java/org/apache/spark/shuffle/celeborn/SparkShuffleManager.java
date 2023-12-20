@@ -111,7 +111,7 @@ public class SparkShuffleManager implements ShuffleManager {
     this.cores = executorCores(conf);
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
     if ((ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
-            || celebornConf.shuffleWriteModeByPartitionCountEnabled())
+            || celebornConf.dynamicWriteModeEnabled())
         && celebornConf.clientPushSortPipelineEnabled()) {
       asyncPushers = new ExecutorService[cores];
       for (int i = 0; i < asyncPushers.length; i++) {
@@ -283,15 +283,15 @@ public class SparkShuffleManager implements ShuffleManager {
         shuffleIdTracker.track(h.shuffleId(), shuffleId);
 
         ShuffleMode shuffleMode = celebornConf.shuffleWriterMode();
-        if (celebornConf.shuffleWriteModeByPartitionCountEnabled()) {
+        if (celebornConf.dynamicWriteModeEnabled()) {
           int partitionCount = h.dependency().partitioner().numPartitions();
-          if (partitionCount > celebornConf.shuffleWriteModeByPartitionCountThreshold()) {
+          if (partitionCount > celebornConf.dynamicWriteModePartitionNumThreshold()) {
             logger.info(
                 "Shuffle {} write mode is changed to SORT because  "
                     + "partition count {} is greater than threshold {}",
                 shuffleId,
                 partitionCount,
-                celebornConf.shuffleWriteModeByPartitionCountThreshold());
+                celebornConf.dynamicWriteModePartitionNumThreshold());
             shuffleMode = ShuffleMode.SORT;
           } else {
             logger.info(
@@ -299,7 +299,7 @@ public class SparkShuffleManager implements ShuffleManager {
                     + "partition count {} is less than threshold {}",
                 shuffleId,
                 partitionCount,
-                celebornConf.shuffleWriteModeByPartitionCountThreshold());
+                celebornConf.dynamicWriteModePartitionNumThreshold());
             shuffleMode = ShuffleMode.HASH;
           }
         }

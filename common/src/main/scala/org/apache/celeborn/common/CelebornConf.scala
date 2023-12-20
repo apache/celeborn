@@ -862,10 +862,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                   Client Shuffle                    //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SPARK_SHUFFLE_WRITER_MODE))
-  def shuffleWriteModeByPartitionCountEnabled =
-    get(CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLED)
-  def shuffleWriteModeByPartitionCountThreshold =
-    get(CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD)
+  def dynamicWriteModeEnabled =
+    get(CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED)
+  def dynamicWriteModePartitionNumThreshold =
+    get(CLIENT_PUSH_WRITER_MODE_BY_PARTITION_NUM_THRESHOLD)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
@@ -3774,23 +3774,26 @@ object CelebornConf extends Logging {
       .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
       .createWithDefault(ShuffleMode.HASH.name)
 
-  val CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD: ConfigEntry[Int] =
-    buildConf("celeborn.client.spark.push.writer.modeByPartitionCount.threshold")
+  val CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.dynamicWriteMode.enabled")
       .categories("client")
-      .doc("Threshold of shuffle partition count for push writer mode by partition count.")
-      .version("0.4.0")
-      .intConf
-      .createWithDefault(2000)
-
-  val CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.push.writer.modeByPartitionCount.enabled")
-      .categories("client")
-      .doc("Whether to enable push writer mode by partition count. If true, Celeborn will use sort-based " +
-        "shuffle writer when shuffle partition count is greater than " +
-        s"`${CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD.key}`.")
+      .doc("Whether to dynamically switch push write mode based on conditions.If true, " +
+        s"shuffle mode will be is determined by partition count," +
+        s"not ${SPARK_SHUFFLE_WRITER_MODE.key}")
       .version("0.4.0")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_PUSH_WRITER_MODE_BY_PARTITION_NUM_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.client.spark.push.dynamicWriteMode.partitionNum.threshold")
+      .categories("client")
+      .doc("Threshold of shuffle partition count for push writer mode by partition count." +
+        s"If ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is true, Celeborn will use sort-based " +
+        s"shuffle writer when partition count is greater than this value," +
+        s"and used hash-based shuffle writer otherwise.")
+      .version("0.4.0")
+      .intConf
+      .createWithDefault(2000)
 
   val CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.unsafeRow.fastWrite.enabled")
