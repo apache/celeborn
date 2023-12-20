@@ -134,10 +134,12 @@ public class WorkerPartitionReader implements PartitionReader {
     ShuffleClient.incrementTotalReadCounter();
   }
 
+  @Override
   public boolean hasNext() {
     return returnedChunks < streamHandler.getNumChunks();
   }
 
+  @Override
   public ByteBuf next() throws IOException, InterruptedException {
     checkException();
     if (chunkIndex < streamHandler.getNumChunks()) {
@@ -160,6 +162,7 @@ public class WorkerPartitionReader implements PartitionReader {
     return chunk;
   }
 
+  @Override
   public void close() {
     synchronized (this) {
       closed = true;

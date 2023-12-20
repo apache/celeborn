@@ -21,8 +21,10 @@ import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.NET_TOPOLOGY_NO
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -55,7 +57,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
     conf.set(CelebornConf.CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED().key(), "true");
 
     File mapFile = File.createTempFile("testResolve1", ".txt");
-    FileWriter mapFileWriter = new FileWriter(mapFile);
+    Writer mapFileWriter = Files.newBufferedWriter(mapFile.toPath(), StandardCharsets.UTF_8);
     mapFileWriter.write(
         "host1 /default/rack1\nhost2 /default/rack1\nhost3 /default/rack1\n"
             + "host4 /default/rack2\nhost5 /default/rack2\nhost6 /default/rack2\n");
@@ -82,6 +84,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
     Consumer<PartitionLocation> assertCustomer =
         new Consumer<PartitionLocation>() {
+          @Override
           public void accept(PartitionLocation location) {
             Assert.assertNotEquals(
                 resolver.resolve(location.getHost()).getNetworkLocation(),
@@ -118,6 +121,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
     Consumer<PartitionLocation> assertConsumer =
         new Consumer<PartitionLocation>() {
+          @Override
           public void accept(PartitionLocation location) {
             Assert.assertEquals(
                 NetworkTopology.DEFAULT_RACK,
@@ -141,6 +145,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
     workers.forEach(
         new Consumer<WorkerInfo>() {
+          @Override
           public void accept(WorkerInfo workerInfo) {
             workerInfo.networkLocation_$eq(
                 resolver.resolve(workerInfo.host()).getNetworkLocation());
@@ -416,7 +421,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
       int expected =
           (int)
               Math.ceil(
-                  ((double) (numPartitions)
+                  ((double) numPartitions
                       / totalHosts
                       * (1
                           + ((double) (maxHostsPerRack - secondMaxHostsPerRack + 1))

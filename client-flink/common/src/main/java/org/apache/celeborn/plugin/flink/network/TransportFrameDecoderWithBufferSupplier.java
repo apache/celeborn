@@ -167,6 +167,7 @@ public class TransportFrameDecoderWithBufferSupplier extends ChannelInboundHandl
     }
   }
 
+  @Override
   public void channelRead(ChannelHandlerContext ctx, Object data) {
     io.netty.buffer.ByteBuf nettyBuf = (io.netty.buffer.ByteBuf) data;
     try {

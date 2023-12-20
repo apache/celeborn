@@ -195,6 +195,7 @@ public class CelebornSaslSuiteJ {
       }
     }
 
+    @Override
     public void close() {
       if (client != null) {
         client.close();

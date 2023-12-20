@@ -98,7 +98,7 @@ public final class RegionStart extends RequestMessage {
       RegionStart o = (RegionStart) other;
       return mode == o.mode
           && shuffleKey.equals(o.shuffleKey)
-          && partitionUniqueId.equals((o.partitionUniqueId))
+          && partitionUniqueId.equals(o.partitionUniqueId)
           && attemptId == o.attemptId
           && currentRegionIndex == o.currentRegionIndex
           && isBroadcast == o.isBroadcast

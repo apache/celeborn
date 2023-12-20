@@ -504,7 +504,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
 
-  @VisibleForTesting
+  @Override
   public PartitionLocation registerMapPartitionTask(
       int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException {
     logger.info(
@@ -1277,6 +1277,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         false);
   }
 
+  @Override
   public void pushMergedData(int shuffleId, int mapId, int attemptId) throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.get(mapKey);
@@ -1791,8 +1792,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private boolean connectFail(String message) {
     return (message.startsWith("Connection from ") && message.endsWith(" closed"))
-        || (message.equals("Connection reset by peer"))
-        || (message.startsWith("Failed to send RPC "));
+        || message.equals("Connection reset by peer")
+        || message.startsWith("Failed to send RPC ");
   }
 
   @VisibleForTesting

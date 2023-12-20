@@ -91,6 +91,7 @@ public final class MapPartitionFileWriter extends FileWriter {
     }
   }
 
+  @Override
   public void write(ByteBuf data) throws IOException {
     data.markReaderIndex();
     int partitionId = data.readInt();
@@ -155,13 +156,14 @@ public final class MapPartitionFileWriter extends FileWriter {
               deleted = true;
             } else {
               StorageManager.hadoopFs()
-                  .create(new Path(Utils.getWriteSuccessFilePath((fileInfo.getIndexPath()))))
+                  .create(new Path(Utils.getWriteSuccessFilePath(fileInfo.getIndexPath())))
                   .close();
             }
           }
         });
   }
 
+  @Override
   public synchronized void destroy(IOException ioException) {
     destroyIndex();
     super.destroy(ioException);

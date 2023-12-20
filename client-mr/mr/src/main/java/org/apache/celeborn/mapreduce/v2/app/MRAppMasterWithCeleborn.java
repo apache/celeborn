@@ -135,7 +135,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
       ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
       if (applicationAttemptId != null) {
         CallerContext.setCurrent(
-            (new CallerContext.Builder("mr_app_master_with_celeborn_" + applicationAttemptId))
+            new CallerContext.Builder("mr_app_master_with_celeborn_" + applicationAttemptId)
                 .build());
       }
 
