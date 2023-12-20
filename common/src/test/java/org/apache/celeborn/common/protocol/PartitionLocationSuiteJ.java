@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.protocol;
 
+import static org.junit.Assert.assertEquals;
+
 import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -46,13 +48,13 @@ public class PartitionLocationSuiteJ {
     byte primaryMode = 0;
     byte replicaMode = 1;
 
-    assert PartitionLocation.getMode(primaryMode) == PartitionLocation.Mode.PRIMARY;
-    assert PartitionLocation.getMode(replicaMode) == PartitionLocation.Mode.REPLICA;
+    assertEquals(PartitionLocation.Mode.PRIMARY, PartitionLocation.getMode(primaryMode));
+    assertEquals(PartitionLocation.Mode.REPLICA, PartitionLocation.getMode(replicaMode));
 
     for (int i = 2; i < 255; ++i) {
       byte otherMode = (byte) i;
       // Should we return replica mode when the parameter passed in is neither 0 nor 1?
-      assert PartitionLocation.getMode(otherMode) == PartitionLocation.Mode.REPLICA;
+      assertEquals(PartitionLocation.Mode.REPLICA, PartitionLocation.getMode(otherMode));
     }
   }
 
@@ -225,9 +227,9 @@ public class PartitionLocationSuiteJ {
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
             + "  storage hint:StorageInfo{type=MEMORY, mountPoint='/mnt/disk/0', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{1,2,3}]";
-    assert exp1.equals(location1.toString());
-    assert exp2.equals(location2.toString());
-    assert exp3.equals(location3.toString());
+    assertEquals(exp1, location1.toString());
+    assertEquals(exp2, location2.toString());
+    assertEquals(exp3, location3.toString());
   }
 
   private void checkEqual(
@@ -242,6 +244,6 @@ public class PartitionLocationSuiteJ {
             + "equal, but "
             + (shouldEqual ? "not " : "")
             + "equal.";
-    assert location1.equals(location2) == shouldEqual : errorMessage;
+    assertEquals(errorMessage, shouldEqual, location1.equals(location2));
   }
 }
