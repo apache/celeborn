@@ -17,13 +17,13 @@
 
 package org.apache.celeborn.service.deploy.master;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.function.Consumer;
@@ -57,7 +57,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
     conf.set(CelebornConf.CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED().key(), "true");
 
     File mapFile = File.createTempFile("testResolve1", ".txt");
-    Writer mapFileWriter = Files.newBufferedWriter(mapFile.toPath(), UTF_8);
+    Writer mapFileWriter = Files.newBufferedWriter(mapFile.toPath(), StandardCharsets.UTF_8);
     mapFileWriter.write(
         "host1 /default/rack1\nhost2 /default/rack1\nhost3 /default/rack1\n"
             + "host4 /default/rack2\nhost5 /default/rack2\nhost6 /default/rack2\n");
