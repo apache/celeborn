@@ -95,7 +95,7 @@ public final class PushDataHandShake extends RequestMessage {
       PushDataHandShake o = (PushDataHandShake) other;
       return mode == o.mode
           && shuffleKey.equals(o.shuffleKey)
-          && partitionUniqueId.equals((o.partitionUniqueId))
+          && partitionUniqueId.equals(o.partitionUniqueId)
           && attemptId == o.attemptId
           && numPartitions == o.numPartitions
           && bufferSize == o.bufferSize

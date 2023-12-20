@@ -156,7 +156,7 @@ public final class MapPartitionFileWriter extends FileWriter {
               deleted = true;
             } else {
               StorageManager.hadoopFs()
-                  .create(new Path(Utils.getWriteSuccessFilePath((fileInfo.getIndexPath()))))
+                  .create(new Path(Utils.getWriteSuccessFilePath(fileInfo.getIndexPath())))
                   .close();
             }
           }

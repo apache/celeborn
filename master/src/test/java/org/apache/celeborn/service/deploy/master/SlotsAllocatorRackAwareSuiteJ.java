@@ -421,7 +421,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
       int expected =
           (int)
               Math.ceil(
-                  ((double) (numPartitions)
+                  ((double) numPartitions
                       / totalHosts
                       * (1
                           + ((double) (maxHostsPerRack - secondMaxHostsPerRack + 1))
