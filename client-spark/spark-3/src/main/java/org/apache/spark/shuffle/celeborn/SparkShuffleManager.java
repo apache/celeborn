@@ -287,7 +287,7 @@ public class SparkShuffleManager implements ShuffleManager {
           int partitionCount = h.dependency().partitioner().numPartitions();
           if (partitionCount > celebornConf.dynamicWriteModePartitionNumThreshold()) {
             logger.info(
-                "Shuffle {} write mode is changed to SORT because  "
+                "Shuffle {} write mode is changed to SORT because "
                     + "partition count {} is greater than threshold {}",
                 shuffleId,
                 partitionCount,
