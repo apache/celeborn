@@ -765,7 +765,7 @@ trait SparkClientProjects {
           case _ => MergeStrategy.first
         },
 
-        Compile / packageBin / artifact := (assembly / artifact).value
+        Compile / packageBin := assembly.value
       )
     if (includeColumnarShuffle) {
         p.dependsOn(sparkColumnarShuffle)
@@ -961,7 +961,8 @@ trait FlinkClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
           case _ => MergeStrategy.first
         },
-        Compile / packageBin / artifact := (assembly / artifact).value
+
+        Compile / packageBin := assembly.value
       )
   }
 }
@@ -1065,7 +1066,7 @@ object MRClientProjects {
           case _ => MergeStrategy.first
         },
 
-        Compile / packageBin / artifact := (assembly / artifact).value
+        Compile / packageBin := assembly.value
       )
   }
 
