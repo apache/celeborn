@@ -557,6 +557,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     this.dataClientFactory = dataClientFactory;
   }
 
+  @Override
   @VisibleForTesting
   public TransportClientFactory getDataClientFactory() {
     return flinkTransportClientFactory;

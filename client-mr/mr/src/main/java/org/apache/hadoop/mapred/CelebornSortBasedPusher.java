@@ -295,6 +295,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     }
   }
 
+  @Override
   public void flush() {
     logger.info("Sort based pusher called flush");
     try {
@@ -305,6 +306,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     }
   }
 
+  @Override
   public void close() {
     flush();
     try {

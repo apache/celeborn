@@ -27,6 +27,7 @@ public interface DBIterator extends Iterator<Map.Entry<byte[], byte[]>>, Closeab
   /** Position at the first entry in the source whose `key` is at target. */
   void seek(byte[] key);
 
+  @Override
   default void remove() {
     throw new UnsupportedOperationException();
   }

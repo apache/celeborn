@@ -504,7 +504,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
   }
 
-  @VisibleForTesting
+  @Override
   public PartitionLocation registerMapPartitionTask(
       int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException {
     logger.info(
@@ -1277,6 +1277,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         false);
   }
 
+  @Override
   public void pushMergedData(int shuffleId, int mapId, int attemptId) throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = pushStates.get(mapKey);

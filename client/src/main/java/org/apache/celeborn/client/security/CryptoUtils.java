@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.client.security;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Optional;
@@ -50,7 +52,7 @@ public class CryptoUtils {
       CryptoRandomFactory.getCryptoRandom(new Properties()).nextBytes(iv);
     } catch (GeneralSecurityException e) {
       logger.warn("Failed to create crypto Initialization Vector", e);
-      iv = "1234567890123456".getBytes();
+      iv = "1234567890123456".getBytes(UTF_8);
     }
     long initialIVFinish = System.nanoTime();
     long initialIVTime = TimeUnit.NANOSECONDS.toMillis(initialIVFinish - initialIVStart);

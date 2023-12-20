@@ -113,6 +113,7 @@ public class RemoteBufferStreamReader extends CreditListener {
     return isOpened;
   }
 
+  @Override
   public void notifyAvailableCredits(int numCredits) {
     if (!closed) {
       bufferStream.addCredit(
