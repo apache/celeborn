@@ -111,7 +111,7 @@ public class SparkShuffleManager implements ShuffleManager {
     this.cores = executorCores(conf);
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
     if ((ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
-            || celebornConf.shuffleWriteModeByPartitionCountEnable())
+            || celebornConf.shuffleWriteModeByPartitionCountEnabled())
         && celebornConf.clientPushSortPipelineEnabled()) {
       asyncPushers = new ExecutorService[cores];
       for (int i = 0; i < asyncPushers.length; i++) {
@@ -282,7 +282,8 @@ public class SparkShuffleManager implements ShuffleManager {
         int shuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, true);
         shuffleIdTracker.track(h.shuffleId(), shuffleId);
 
-        if (celebornConf.shuffleWriteModeByPartitionCountEnable()) {
+        ShuffleMode shuffleMode = celebornConf.shuffleWriterMode();
+        if (celebornConf.shuffleWriteModeByPartitionCountEnabled()) {
           int partitionCount = h.dependency().partitioner().numPartitions();
           if (partitionCount > celebornConf.shuffleWriteModeByPartitionCountThreshold()) {
             logger.info(
@@ -291,19 +292,7 @@ public class SparkShuffleManager implements ShuffleManager {
                 shuffleId,
                 partitionCount,
                 celebornConf.shuffleWriteModeByPartitionCountThreshold());
-            ExecutorService pushThread =
-                celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
-            return new SortBasedShuffleWriter<>(
-                shuffleId,
-                h.dependency(),
-                h.numMappers(),
-                context,
-                celebornConf,
-                shuffleClient,
-                metrics,
-                pushThread,
-                SendBufferPool.get(
-                    cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
+            shuffleMode = ShuffleMode.SORT;
           } else {
             logger.info(
                 "Shuffle {} write mode is changed to HASH because "
@@ -311,45 +300,36 @@ public class SparkShuffleManager implements ShuffleManager {
                 shuffleId,
                 partitionCount,
                 celebornConf.shuffleWriteModeByPartitionCountThreshold());
-            SendBufferPool pool =
-                SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout);
-            if (COLUMNAR_SHUFFLE_CLASSES_PRESENT && celebornConf.columnarShuffleEnabled()) {
-              return SparkUtils.createColumnarHashBasedShuffleWriter(
-                  shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
-            } else {
-              return new HashBasedShuffleWriter<>(
-                  shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
-            }
+            shuffleMode = ShuffleMode.HASH;
+          }
+        }
+
+        if (ShuffleMode.SORT.equals(shuffleMode)) {
+          ExecutorService pushThread =
+              celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
+          return new SortBasedShuffleWriter<>(
+              shuffleId,
+              h.dependency(),
+              h.numMappers(),
+              context,
+              celebornConf,
+              shuffleClient,
+              metrics,
+              pushThread,
+              SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
+        } else if (ShuffleMode.HASH.equals(shuffleMode)) {
+          SendBufferPool pool =
+              SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout);
+          if (COLUMNAR_SHUFFLE_CLASSES_PRESENT && celebornConf.columnarShuffleEnabled()) {
+            return SparkUtils.createColumnarHashBasedShuffleWriter(
+                shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
+          } else {
+            return new HashBasedShuffleWriter<>(
+                shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
           }
         } else {
-          if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
-            ExecutorService pushThread =
-                celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
-            return new SortBasedShuffleWriter<>(
-                shuffleId,
-                h.dependency(),
-                h.numMappers(),
-                context,
-                celebornConf,
-                shuffleClient,
-                metrics,
-                pushThread,
-                SendBufferPool.get(
-                    cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
-          } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
-            SendBufferPool pool =
-                SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout);
-            if (COLUMNAR_SHUFFLE_CLASSES_PRESENT && celebornConf.columnarShuffleEnabled()) {
-              return SparkUtils.createColumnarHashBasedShuffleWriter(
-                  shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
-            } else {
-              return new HashBasedShuffleWriter<>(
-                  shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
-            }
-          } else {
-            throw new UnsupportedOperationException(
-                "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
-          }
+          throw new UnsupportedOperationException(
+              "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
         }
       } else {
         sortShuffleIds.add(handle.shuffleId());

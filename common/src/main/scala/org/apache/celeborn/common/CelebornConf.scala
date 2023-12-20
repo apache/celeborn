@@ -862,8 +862,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                   Client Shuffle                    //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SPARK_SHUFFLE_WRITER_MODE))
-  def shuffleWriteModeByPartitionCountEnable =
-    get(CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLE)
+  def shuffleWriteModeByPartitionCountEnabled =
+    get(CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLED)
   def shuffleWriteModeByPartitionCountThreshold =
     get(CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
@@ -3776,16 +3776,14 @@ object CelebornConf extends Logging {
 
   val CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.client.spark.push.writer.modeByPartitionCount.threshold")
-      .withAlternative("celeborn.push.writer.modeByPartitionCount.threshold")
       .categories("client")
       .doc("Threshold of shuffle partition count for push writer mode by partition count.")
       .version("0.4.0")
       .intConf
       .createWithDefault(2000)
 
-  val CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLE: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.push.writer.modeByPartitionCount.enable")
-      .withAlternative("celeborn.push.writer.modeByPartitionCount.enable")
+  val CLIENT_PUSH_WRITER_MODE_BY_PARTITION_COUNT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.writer.modeByPartitionCount.enabled")
       .categories("client")
       .doc("Whether to enable push writer mode by partition count. If true, Celeborn will use sort-based " +
         "shuffle writer when shuffle partition count is greater than " +
