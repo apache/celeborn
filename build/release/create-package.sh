@@ -42,9 +42,7 @@ EOF
 PROJECT_DIR="$(cd "$(dirname "$0")"/../..; pwd)"
 RELEASE_DIR="${PROJECT_DIR}/tmp"
 
-RELEASE_VERSION=$(grep '<project.version>.*</project.version>' "${PROJECT_DIR}/pom.xml" -o \
-                | head -n 1 \
-                | sed 's/<\/*project.version>//g')
+RELEASE_VERSION=$(awk -F'"' '/ThisBuild \/ version/ {print $2}' version.sbt)
 
 SHASUM="sha512sum"
 if [ "$(uname)" == "Darwin" ]; then
@@ -77,7 +75,7 @@ package_binary() {
 
   echo "Creating binary release tarball ${BIN_TGZ_FILE}"
 
-  ${PROJECT_DIR}/build/make-distribution.sh --release
+  ${PROJECT_DIR}/build/make-distribution.sh --sbt-enabled --release
 
   cp "${BIN_TGZ_FILE}" "${RELEASE_DIR}"
 
