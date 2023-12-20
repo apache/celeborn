@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.client;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -106,12 +107,12 @@ public class ShuffleClientSuiteJ {
               1);
 
       if (codec.equals(CompressionCodec.NONE)) {
-        assert (pushDataLen == TEST_BUF1.length + BATCH_HEADER_SIZE);
+        assertEquals(TEST_BUF1.length + BATCH_HEADER_SIZE, pushDataLen);
       } else {
         Compressor compressor = Compressor.getCompressor(conf);
         compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
         final int compressedTotalSize = compressor.getCompressedTotalSize();
-        assert (pushDataLen == compressedTotalSize + BATCH_HEADER_SIZE);
+        assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, pushDataLen);
       }
     }
   }
@@ -134,12 +135,12 @@ public class ShuffleClientSuiteJ {
               1);
 
       if (codec.equals(CompressionCodec.NONE)) {
-        assert (mergeSize == TEST_BUF1.length + BATCH_HEADER_SIZE);
+        assertEquals(TEST_BUF1.length + BATCH_HEADER_SIZE, mergeSize);
       } else {
         Compressor compressor = Compressor.getCompressor(conf);
         compressor.compress(TEST_BUF1, 0, TEST_BUF1.length);
         final int compressedTotalSize = compressor.getCompressedTotalSize();
-        assert (mergeSize == compressedTotalSize + BATCH_HEADER_SIZE);
+        assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, mergeSize);
       }
 
       byte[] buf1k = RandomStringUtils.random(4000).getBytes(StandardCharsets.UTF_8);
@@ -156,12 +157,12 @@ public class ShuffleClientSuiteJ {
               1);
 
       if (codec.equals(CompressionCodec.NONE)) {
-        assert (largeMergeSize == buf1k.length + BATCH_HEADER_SIZE);
+        assertEquals(buf1k.length + BATCH_HEADER_SIZE, largeMergeSize);
       } else {
         Compressor compressor = Compressor.getCompressor(conf);
         compressor.compress(buf1k, 0, buf1k.length);
         final int compressedTotalSize = compressor.getCompressedTotalSize();
-        assert (largeMergeSize == compressedTotalSize + BATCH_HEADER_SIZE);
+        assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, largeMergeSize);
       }
     }
   }
