@@ -49,10 +49,17 @@ public class ReduceFileMeta implements FileMeta {
   }
 
   @Override
-  public void setSorted() {
-    synchronized (sorted) {
-      sorted.set(true);
+  public synchronized int getNumChunks() {
+    if (chunkOffsets.isEmpty()) {
+      return 0;
+    } else {
+      return chunkOffsets.size() - 1;
     }
+  }
+
+  @Override
+  public synchronized void setSorted() {
+    sorted.set(true);
   }
 
   @Override

@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.CelebornExitKind;
@@ -141,7 +140,7 @@ public class PartitionFilesSorterSuiteJ {
       conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
       PartitionFilesSorter partitionFilesSorter =
           new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
-      FileInfo info =
+      NonMemoryFileInfo info =
           partitionFilesSorter.getSortedFileInfo(
               "application-1",
               originFileName,
@@ -154,8 +153,7 @@ public class PartitionFilesSorterSuiteJ {
       }
       long numChunks = totalSizeToFetch / conf.shuffleChunkSize() + 1;
       Assert.assertTrue(
-          0 < ((NonMemoryFileInfo) info).numChunks()
-              && ((NonMemoryFileInfo) info).numChunks() <= numChunks);
+          0 < info.getFileMeta().getNumChunks() && info.getFileMeta().getNumChunks() <= numChunks);
       long actualTotalChunkSize =
           info.getFileMeta().getLastChunkOffset() - info.getFileMeta().getChunkOffsets().get(0);
       Assert.assertTrue(totalSizeToFetch == actualTotalChunkSize);

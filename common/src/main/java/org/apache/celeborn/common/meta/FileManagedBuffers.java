@@ -33,7 +33,7 @@ public class FileManagedBuffers {
 
   public FileManagedBuffers(NonMemoryFileInfo fileInfo, TransportConf conf) {
     file = fileInfo.getFile();
-    numChunks = fileInfo.numChunks();
+    numChunks = fileInfo.getFileMeta().getNumChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];
       List<Long> chunkOffsets = fileInfo.getChunkOffsets();

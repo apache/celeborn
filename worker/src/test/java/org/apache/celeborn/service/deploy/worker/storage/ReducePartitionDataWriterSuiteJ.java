@@ -549,12 +549,10 @@ public class ReducePartitionDataWriterSuiteJ {
             false);
     partitionDataWriter.write(generateData(8 * 1024 * 1024));
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 1);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 8 * 1024 * 1024);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 1);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 8 * 1024 * 1024);
     assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(1)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(0),
-        8 * 1024 * 1024);
+        pctx._3().getChunkOffsets().get(1) - pctx._3().getChunkOffsets().get(0), 8 * 1024 * 1024);
 
     // case 2: write 1024B
     pctx =
@@ -574,12 +572,9 @@ public class ReducePartitionDataWriterSuiteJ {
       partitionDataWriter.write(generateData(128));
     }
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 1);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 1024);
-    assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(1)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(0),
-        1024);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 1);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 1024);
+    assertEquals(pctx._3().getChunkOffsets().get(1) - pctx._3().getChunkOffsets().get(0), 1024);
 
     // case 3: write 1023B
     pctx =
@@ -599,12 +594,9 @@ public class ReducePartitionDataWriterSuiteJ {
     partitionDataWriter.write(generateData(1020));
     partitionDataWriter.write(generateData(3));
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 1);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 1023);
-    assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(1)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(0),
-        1023);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 1);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 1023);
+    assertEquals(pctx._3().getChunkOffsets().get(1) - pctx._3().getChunkOffsets().get(0), 1023);
 
     // case 4: write 1025B
     pctx =
@@ -626,12 +618,9 @@ public class ReducePartitionDataWriterSuiteJ {
     }
     partitionDataWriter.write(generateData(1));
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 2);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 1025);
-    assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(1)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(0),
-        1024);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 2);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 1025);
+    assertEquals(pctx._3().getChunkOffsets().get(1) - pctx._3().getChunkOffsets().get(0), 1024);
 
     // case 5: write 2048B
     pctx =
@@ -651,12 +640,9 @@ public class ReducePartitionDataWriterSuiteJ {
       partitionDataWriter.write(generateData(128));
     }
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 2);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 2048);
-    assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(1)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(0),
-        1024);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 2);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 2048);
+    assertEquals(pctx._3().getChunkOffsets().get(1) - pctx._3().getChunkOffsets().get(0), 1024);
 
     // case 5.1: write 2048B with trim; without PR #1702 this case will fail
     pctx =
@@ -679,12 +665,9 @@ public class ReducePartitionDataWriterSuiteJ {
     // mock trim
     partitionDataWriter.flush(false);
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 2);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 2048);
-    assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(1)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(0),
-        1024);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 2);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 2048);
+    assertEquals(pctx._3().getChunkOffsets().get(1) - pctx._3().getChunkOffsets().get(0), 1024);
 
     // case 6: write 2049B
     pctx =
@@ -706,12 +689,9 @@ public class ReducePartitionDataWriterSuiteJ {
     }
     partitionDataWriter.write(generateData(1));
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 3);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 2049);
-    assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(2)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(1),
-        1024);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 3);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 2049);
+    assertEquals(pctx._3().getChunkOffsets().get(2) - pctx._3().getChunkOffsets().get(1), 1024);
 
     // case 7: write 4097B with 3 chunks
     pctx =
@@ -734,12 +714,9 @@ public class ReducePartitionDataWriterSuiteJ {
     }
     partitionDataWriter.write(generateData(1920));
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 3);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 4096);
-    assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(3)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(2),
-        2048);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 3);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 4096);
+    assertEquals(pctx._3().getChunkOffsets().get(3) - pctx._3().getChunkOffsets().get(2), 2048);
 
     // case 7.2: write 4097B with 3 chunks with trim; without PR #1702 this case will fail
     pctx =
@@ -765,12 +742,9 @@ public class ReducePartitionDataWriterSuiteJ {
     // mock trim
     partitionDataWriter.flush(false);
     partitionDataWriter.close();
-    assertEquals(((NonMemoryFileInfo) pctx._3()).numChunks(), 3);
-    assertEquals(((NonMemoryFileInfo) pctx._3()).getLastChunkOffset(), 4096);
-    assertEquals(
-        ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(3)
-            - ((NonMemoryFileInfo) pctx._3()).getChunkOffsets().get(2),
-        2048);
+    assertEquals(pctx._3().getFileMeta().getNumChunks(), 3);
+    assertEquals(pctx._3().getFileMeta().getLastChunkOffset(), 4096);
+    assertEquals(pctx._3().getChunkOffsets().get(3) - pctx._3().getChunkOffsets().get(2), 2048);
   }
 
   private File getTemporaryFile() throws IOException {

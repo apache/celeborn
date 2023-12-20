@@ -230,7 +230,7 @@ class FetchHandler(
               client,
               rpcRequestId,
               -1,
-              fileInfo.numChunks(),
+              fileInfo.getFileMeta.getNumChunks(),
               isLegacy,
               fileInfo.getChunkOffsets,
               fileInfo.getFilePath)
@@ -247,19 +247,19 @@ class FetchHandler(
               buffers,
               fileName,
               fetchTimeMetrics)
-            if (fileInfo.numChunks() == 0)
+            if (fileInfo.getFileMeta.getNumChunks() == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
+              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.getFileMeta.getNumChunks()}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             replyStreamHandler(
               client,
               rpcRequestId,
               streamId,
-              fileInfo.numChunks(),
+              fileInfo.getFileMeta.getNumChunks(),
               isLegacy)
           }
         case mMeta: MapFileMeta =>

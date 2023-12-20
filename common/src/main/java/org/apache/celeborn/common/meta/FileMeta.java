@@ -81,4 +81,9 @@ public interface FileMeta {
     throw new NotImplementedException(
         this.getClass().getSimpleName() + " did not implement this method");
   }
+
+  default int getNumChunks() {
+    throw new NotImplementedException(
+        this.getClass().getSimpleName() + " did not implement this method");
+  }
 }
