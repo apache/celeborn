@@ -27,9 +27,7 @@ ASF_USERNAME=${ASF_USERNAME:?"ASF_USERNAME is required"}
 ASF_PASSWORD=${ASF_PASSWORD:?"ASF_PASSWORD is required"}
 RELEASE_RC_NO=${RELEASE_RC_NO:?"RELEASE_RC_NO is required, e.g. 0"}
 
-RELEASE_VERSION=$(grep '<project.version>.*</project.version>' "${PROJECT_DIR}/pom.xml" -o \
-                | head -n 1 \
-                | sed 's/<\/*project.version>//g')
+RELEASE_VERSION=$(awk -F'"' '/ThisBuild \/ version/ {print $2}' version.sbt)
 
 exit_with_usage() {
   local NAME=$(basename $0)
