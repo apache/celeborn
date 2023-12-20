@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
@@ -121,11 +121,11 @@ public class MapPartitionDataWriterSuiteJ {
 
   @Test
   public void testMultiThreadWrite() throws IOException {
-    Tuple3<StorageManager, CreateFileContext, FileInfo> context =
+    Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> context =
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, false);
-    MapPartitionPartitionDataWriter fileWriter =
-        new MapPartitionPartitionDataWriter(
+    MapPartitionDataWriter fileWriter =
+        new MapPartitionDataWriter(
             context._1(),
             context._2(),
             source,

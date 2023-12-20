@@ -26,7 +26,6 @@ import scala.Tuple3;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 
@@ -38,7 +37,7 @@ public class PartitionDataWriterSuiteUtils {
     return temporaryFile;
   }
 
-  public static Tuple3<StorageManager, CreateFileContext, FileInfo> prepareTestFileContext(
+  public static Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> prepareTestFileContext(
       File tempDir, UserIdentifier userIdentifier, Flusher flusher, boolean reduceMeta)
       throws IOException {
     File file = getTemporaryFile(tempDir);

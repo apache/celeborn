@@ -54,8 +54,8 @@ import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
 import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
 import org.apache.celeborn.service.deploy.worker.memory.RecyclableBuffer;
 
-public class MapDataPartitionReader implements Comparable<MapDataPartitionReader> {
-  private static final Logger logger = LoggerFactory.getLogger(MapDataPartitionReader.class);
+public class MapPartitionDataReader implements Comparable<MapPartitionDataReader> {
+  private static final Logger logger = LoggerFactory.getLogger(MapPartitionDataReader.class);
 
   private final ByteBuffer indexBuffer;
   private final ByteBuffer headerBuffer;
@@ -102,7 +102,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   private AtomicInteger numInUseBuffers = new AtomicInteger(0);
   private boolean isOpen = false;
 
-  public MapDataPartitionReader(
+  public MapPartitionDataReader(
       int startPartitionIndex,
       int endPartitionIndex,
       FileInfo fileInfo,
@@ -426,7 +426,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   @Override
-  public int compareTo(MapDataPartitionReader that) {
+  public int compareTo(MapPartitionDataReader that) {
     return Long.compare(getPriority(), that.getPriority());
   }
 

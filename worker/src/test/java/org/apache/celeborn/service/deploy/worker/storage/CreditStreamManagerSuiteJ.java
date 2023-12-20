@@ -96,20 +96,20 @@ public class CreditStreamManagerSuiteJ {
     creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
     creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
 
-    MapDataPartition mapDataPartition1 =
+    MapPartitionData mapPartitionData1 =
         creditStreamManager.getStreams().get(registerStream1).getMapDataPartition();
-    MapDataPartition mapDataPartition2 =
+    MapPartitionData mapPartitionData2 =
         creditStreamManager.getStreams().get(registerStream2).getMapDataPartition();
-    Assert.assertEquals(mapDataPartition1, mapDataPartition2);
+    Assert.assertEquals(mapPartitionData1, mapPartitionData2);
 
-    mapDataPartition1.getStreamReader(registerStream1).recycle();
+    mapPartitionData1.getStreamReader(registerStream1).recycle();
 
     timeOutOrMeetCondition(() -> creditStreamManager.numStreamStates() == 3);
     Assert.assertEquals(creditStreamManager.numRecycleStreams(), 0);
 
     // registerStream2 can't be cleaned as registerStream2 is not finished
     AtomicInteger numInFlightRequests =
-        mapDataPartition2.getStreamReader(registerStream2).getNumInUseBuffers();
+        mapPartitionData2.getStreamReader(registerStream2).getNumInUseBuffers();
     numInFlightRequests.incrementAndGet();
 
     creditStreamManager.cleanResource(registerStream2);

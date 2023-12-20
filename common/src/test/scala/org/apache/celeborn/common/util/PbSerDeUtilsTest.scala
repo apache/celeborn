@@ -150,8 +150,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     val restoredFileInfo = PbSerDeUtils.fromPbFileInfo(pbFileInfo)
 
     assert(
-      restoredFileInfo.asInstanceOf[NonMemoryFileInfo].getFilePath.equals(fileInfo1.getFilePath))
-    assert(restoredFileInfo.asInstanceOf[NonMemoryFileInfo].getChunkOffsets.equals(
+      restoredFileInfo.getFilePath.equals(fileInfo1.getFilePath))
+    assert(restoredFileInfo.getChunkOffsets.equals(
       fileInfo1.getChunkOffsets))
     assert(restoredFileInfo.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
   }
@@ -164,13 +164,13 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
     assert(restoredFileInfoMap.size().equals(fileInfoMap.size()))
     assert(
-      restoredFileInfo1.asInstanceOf[NonMemoryFileInfo].getFilePath.equals(fileInfo1.getFilePath))
-    assert(restoredFileInfo1.asInstanceOf[NonMemoryFileInfo].getChunkOffsets.equals(
+      restoredFileInfo1.getFilePath.equals(fileInfo1.getFilePath))
+    assert(restoredFileInfo1.getChunkOffsets.equals(
       fileInfo1.getChunkOffsets))
     assert(restoredFileInfo1.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
     assert(
-      restoredFileInfo2.asInstanceOf[NonMemoryFileInfo].getFilePath.equals(fileInfo2.getFilePath))
-    assert(restoredFileInfo2.asInstanceOf[NonMemoryFileInfo].getChunkOffsets.equals(
+      restoredFileInfo2.getFilePath.equals(fileInfo2.getFilePath))
+    assert(restoredFileInfo2.getChunkOffsets.equals(
       fileInfo2.getChunkOffsets))
     assert(restoredFileInfo2.getUserIdentifier.equals(fileInfo2.getUserIdentifier))
   }

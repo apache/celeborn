@@ -40,9 +40,8 @@ import org.apache.celeborn.common.util.Utils;
 /*
  * map partition file writer, it will create index for each partition
  */
-public final class MapPartitionPartitionDataWriter extends PartitionDataWriter {
-  private static final Logger logger =
-      LoggerFactory.getLogger(MapPartitionPartitionDataWriter.class);
+public final class MapPartitionDataWriter extends PartitionDataWriter {
+  private static final Logger logger = LoggerFactory.getLogger(MapPartitionDataWriter.class);
 
   private int numSubpartitions;
   private int currentDataRegionIndex;
@@ -55,7 +54,7 @@ public final class MapPartitionPartitionDataWriter extends PartitionDataWriter {
   private FileChannel indexChannel;
   private volatile boolean isRegionFinished = true;
 
-  public MapPartitionPartitionDataWriter(
+  public MapPartitionDataWriter(
       StorageManager storageManager,
       CreateFileContext createFileContext,
       AbstractSource workerSource,
@@ -319,5 +318,18 @@ public final class MapPartitionPartitionDataWriter extends PartitionDataWriter {
 
   public boolean isRegionFinished() {
     return isRegionFinished;
+  }
+
+  public boolean checkPartitionRegionFinished(long timeout) throws InterruptedException {
+    long delta = 100;
+    int times = 0;
+    while (delta * times < timeout) {
+      if (this.isRegionFinished) {
+        return true;
+      }
+      Thread.sleep(delta);
+      times += 1;
+    }
+    return false;
   }
 }

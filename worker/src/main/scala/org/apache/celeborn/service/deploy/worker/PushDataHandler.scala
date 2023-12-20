@@ -45,7 +45,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{DiskUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
-import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionPartitionDataWriter, PartitionDataWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, StorageManager}
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
@@ -985,7 +985,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
     // This should before return exception to make current push request revive and retry.
     val isPartitionSplitEnabled = fileWriter.asInstanceOf[
-      MapPartitionPartitionDataWriter].getFileInfo.isPartitionSplitEnabled
+      MapPartitionDataWriter].getFileInfo.isPartitionSplitEnabled
 
     if (shutdown.get() && (messageType == Type.REGION_START || messageType ==
         Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled) {
@@ -1013,7 +1013,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               (
                 pbMsg.asInstanceOf[PbPushDataHandShake].getNumPartitions,
                 pbMsg.asInstanceOf[PbPushDataHandShake].getBufferSize)
-          fileWriter.asInstanceOf[MapPartitionPartitionDataWriter].pushDataHandShake(
+          fileWriter.asInstanceOf[MapPartitionDataWriter].pushDataHandShake(
             numPartitions,
             bufferSize)
         case Type.REGION_START =>
@@ -1026,11 +1026,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               (
                 pbMsg.asInstanceOf[PbRegionStart].getCurrentRegionIndex,
                 pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast)
-          fileWriter.asInstanceOf[MapPartitionPartitionDataWriter].regionStart(
+          fileWriter.asInstanceOf[MapPartitionDataWriter].regionStart(
             currentRegionIndex,
             isBroadcast)
         case Type.REGION_FINISH =>
-          fileWriter.asInstanceOf[MapPartitionPartitionDataWriter].regionFinish()
+          fileWriter.asInstanceOf[MapPartitionDataWriter].regionFinish()
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for primary , send data to replica

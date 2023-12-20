@@ -144,7 +144,7 @@ public class PartitionFilesSorterSuiteJ {
           partitionFilesSorter.getSortedFileInfo(
               "application-1",
               originFileName,
-              partitionDataWriter.getFileInfo(),
+              partitionDataWriter.getNonMemoryFileInfo(),
               startMapIndex,
               endMapIndex);
       long totalSizeToFetch = 0;

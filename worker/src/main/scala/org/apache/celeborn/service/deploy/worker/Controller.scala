@@ -38,7 +38,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionPartitionDataWriter, PartitionDataWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionDataWriter, PartitionDataWriter, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -330,19 +330,14 @@ private[deploy] class Controller(
   private def waitMapPartitionRegionFinished(
       fileWriter: PartitionDataWriter,
       waitTimeout: Long): Unit = {
-    if (fileWriter.isInstanceOf[MapPartitionPartitionDataWriter]) {
-      val delta = 100
-      var times = 0
-      while (delta * times < waitTimeout) {
-        if (fileWriter.asInstanceOf[MapPartitionPartitionDataWriter].isRegionFinished) {
-          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
-          return
-        }
-        Thread.sleep(delta)
-        times += 1
+    if (fileWriter.isInstanceOf[MapPartitionDataWriter]) {
+      if (fileWriter.asInstanceOf[MapPartitionDataWriter].checkPartitionRegionFinished(
+          waitTimeout)) {
+        logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+      } else {
+        logWarning(
+          s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
       }
-      logWarning(
-        s"CommitFile faield to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
     }
   }
 

@@ -138,7 +138,7 @@ public class ReducePartitionDataWriterSuiteJ {
     MemoryManager.initialize(conf);
   }
 
-  public static void setupChunkServer(FileInfo info) throws IOException {
+  public static void setupChunkServer(NonMemoryFileInfo info) throws IOException {
     FetchHandler handler =
         new FetchHandler(transConf.getCelebornConf(), transConf, mock(WorkerSource.class)) {
           @Override
@@ -147,7 +147,7 @@ public class ReducePartitionDataWriterSuiteJ {
           }
 
           @Override
-          public FileInfo getRawFileInfo(String shuffleKey, String fileName) {
+          public NonMemoryFileInfo getRawNonMemoryFileInfo(String shuffleKey, String fileName) {
             return info;
           }
 
@@ -263,13 +263,13 @@ public class ReducePartitionDataWriterSuiteJ {
   @Test
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
-    Tuple3<StorageManager, CreateFileContext, FileInfo> context =
+    Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> context =
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, true);
     FileInfo fileInfo = context._3();
 
     PartitionDataWriter partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             context._1(),
             context._2(),
             source,
@@ -311,12 +311,12 @@ public class ReducePartitionDataWriterSuiteJ {
   public void testMultiThreadWriteDuringClose()
       throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
-    Tuple3<StorageManager, CreateFileContext, FileInfo> context =
+    Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> context =
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, true);
 
     PartitionDataWriter partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             context._1(),
             context._2(),
             source,
@@ -359,12 +359,12 @@ public class ReducePartitionDataWriterSuiteJ {
   public void testAfterStressfulWriteWillReadCorrect()
       throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
-    Tuple3<StorageManager, CreateFileContext, FileInfo> context =
+    Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> context =
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, true);
 
     PartitionDataWriter partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             context._1(),
             context._2(),
             source,
@@ -421,13 +421,13 @@ public class ReducePartitionDataWriterSuiteJ {
   @Test
   public void testWriteAndChunkRead() throws Exception {
     final int threadsNum = 16;
-    Tuple3<StorageManager, CreateFileContext, FileInfo> context =
+    Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> context =
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, true);
-    FileInfo fileInfo = context._3();
+    NonMemoryFileInfo fileInfo = context._3();
 
     PartitionDataWriter partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             context._1(),
             context._2(),
             source,
@@ -534,11 +534,11 @@ public class ReducePartitionDataWriterSuiteJ {
     conf.set(CelebornConf.WORKER_FLUSHER_BUFFER_SIZE().key(), "128B");
 
     // case 1: write 8MiB
-    Tuple3<StorageManager, CreateFileContext, FileInfo> pctx =
+    Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> pctx =
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, true);
     PartitionDataWriter partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,
@@ -561,7 +561,7 @@ public class ReducePartitionDataWriterSuiteJ {
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, true);
     partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,
@@ -587,7 +587,7 @@ public class ReducePartitionDataWriterSuiteJ {
             tempDir, userIdentifier, localFlusher, true);
 
     partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,
@@ -612,7 +612,7 @@ public class ReducePartitionDataWriterSuiteJ {
             tempDir, userIdentifier, localFlusher, true);
 
     partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,
@@ -638,7 +638,7 @@ public class ReducePartitionDataWriterSuiteJ {
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, true);
     partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,
@@ -664,7 +664,7 @@ public class ReducePartitionDataWriterSuiteJ {
             tempDir, userIdentifier, localFlusher, true);
 
     partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,
@@ -692,7 +692,7 @@ public class ReducePartitionDataWriterSuiteJ {
             tempDir, userIdentifier, localFlusher, true);
 
     partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,
@@ -719,7 +719,7 @@ public class ReducePartitionDataWriterSuiteJ {
             tempDir, userIdentifier, localFlusher, true);
 
     partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,
@@ -747,7 +747,7 @@ public class ReducePartitionDataWriterSuiteJ {
             tempDir, userIdentifier, localFlusher, true);
 
     partitionDataWriter =
-        new ReducePartitionPartitionDataWriter(
+        new ReducePartitionDataWriter(
             pctx._1(),
             pctx._2(),
             source,

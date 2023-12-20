@@ -371,7 +371,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val writer =
       try {
         partitionType match {
-          case PartitionType.MAP => new MapPartitionPartitionDataWriter(
+          case PartitionType.MAP => new MapPartitionDataWriter(
               this,
               new CreateFileContext(
                 location,
@@ -387,7 +387,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               splitThreshold,
               splitMode,
               rangeReadFilter)
-          case PartitionType.REDUCE => new ReducePartitionPartitionDataWriter(
+          case PartitionType.REDUCE => new ReducePartitionDataWriter(
               this,
               new CreateFileContext(
                 location,
@@ -417,7 +417,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     writer
   }
 
-  def getFileInfo(shuffleKey: String, fileName: String): FileInfo = {
+  def getNonMemoryFileInfo(shuffleKey: String, fileName: String): NonMemoryFileInfo = {
     val shuffleMap = nonMemoryFileInfos.get(shuffleKey)
     if (shuffleMap ne null) {
       shuffleMap.get(fileName)
@@ -454,9 +454,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
-    val fileInfo = getFileInfo(shuffleKey, fileName)
+    val fileInfo = getNonMemoryFileInfo(shuffleKey, fileName)
     if (fileInfo != null) {
-      cleanFileInternal(shuffleKey, fileInfo.asInstanceOf[NonMemoryFileInfo])
+      cleanFileInternal(shuffleKey, fileInfo)
     }
   }
 

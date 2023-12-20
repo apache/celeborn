@@ -74,11 +74,11 @@ class FetchHandler(
     this.registered = worker.registered
   }
 
-  def getRawFileInfo(
+  def getRawNonMemoryFileInfo(
       shuffleKey: String,
-      fileName: String): FileInfo = {
+      fileName: String): NonMemoryFileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
+    val fileInfo = storageManager.getNonMemoryFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
       val errMsg = s"Could not find file $fileName for $shuffleKey."
       logWarning(errMsg)
@@ -204,7 +204,7 @@ class FetchHandler(
       callback: RpcResponseCallback): Unit = {
     workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
-      var fileInfo = getRawFileInfo(shuffleKey, fileName)
+      var fileInfo = getRawNonMemoryFileInfo(shuffleKey, fileName)
       fileInfo.getFileMeta match {
         case rmeta: ReduceFileMeta =>
           logDebug(s"Received open stream request $shuffleKey $fileName $startIndex " +
@@ -216,8 +216,7 @@ class FetchHandler(
           // 1. when the current request is a non-range openStream, but the original unsorted file
           //    has been deleted by another range's openStream request.
           // 2. when the current request is a range openStream request.
-          if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue && !fileInfo.asInstanceOf[
-              NonMemoryFileInfo].addStream(
+          if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue && !fileInfo.addStream(
               streamId))) {
             fileInfo = partitionsSorter.getSortedFileInfo(
               shuffleKey,
@@ -231,37 +230,36 @@ class FetchHandler(
               client,
               rpcRequestId,
               -1,
-              fileInfo.asInstanceOf[NonMemoryFileInfo].numChunks(),
+              fileInfo.numChunks(),
               isLegacy,
-              fileInfo.asInstanceOf[NonMemoryFileInfo].getChunkOffsets,
-              fileInfo.asInstanceOf[NonMemoryFileInfo].getFilePath)
-          } else if (fileInfo.asInstanceOf[NonMemoryFileInfo].isHdfs) {
+              fileInfo.getChunkOffsets,
+              fileInfo.getFilePath)
+          } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
           } else {
             val buffers =
-              new FileManagedBuffers(fileInfo.asInstanceOf[NonMemoryFileInfo], transportConf)
+              new FileManagedBuffers(fileInfo, transportConf)
             val fetchTimeMetrics =
-              storageManager.getFetchTimeMetric(fileInfo.asInstanceOf[NonMemoryFileInfo].getFile)
+              storageManager.getFetchTimeMetric(fileInfo.getFile)
             chunkStreamManager.registerStream(
               streamId,
               shuffleKey,
               buffers,
               fileName,
               fetchTimeMetrics)
-            if (fileInfo.asInstanceOf[NonMemoryFileInfo].numChunks() == 0)
+            if (fileInfo.numChunks() == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.asInstanceOf[
-                NonMemoryFileInfo].numChunks()}, " +
+              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             replyStreamHandler(
               client,
               rpcRequestId,
               streamId,
-              fileInfo.asInstanceOf[NonMemoryFileInfo].numChunks(),
+              fileInfo.numChunks(),
               isLegacy)
           }
         case mMeta: MapFileMeta =>
@@ -350,7 +348,8 @@ class FetchHandler(
     streamType match {
       case StreamType.ChunkStream =>
         val (shuffleKey, fileName) = chunkStreamManager.getShuffleKeyAndFileName(streamId)
-        getRawFileInfo(shuffleKey, fileName).asInstanceOf[NonMemoryFileInfo].closeStream(streamId)
+        getRawNonMemoryFileInfo(shuffleKey, fileName).closeStream(
+          streamId)
       case StreamType.CreditStream =>
         creditStreamManager.notifyStreamEndByClient(streamId)
       case _ =>

@@ -148,6 +148,13 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     return fileInfo;
   }
 
+  public NonMemoryFileInfo getNonMemoryFileInfo() {
+    if (!(fileInfo instanceof NonMemoryFileInfo)) {
+      throw new IllegalStateException("File info " + fileInfo + " is not non memory file info.");
+    }
+    return (NonMemoryFileInfo) fileInfo;
+  }
+
   public File getFile() {
     return ((NonMemoryFileInfo) fileInfo).getFile();
   }

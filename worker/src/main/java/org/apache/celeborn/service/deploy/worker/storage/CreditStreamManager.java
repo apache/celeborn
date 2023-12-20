@@ -39,7 +39,7 @@ public class CreditStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(CreditStreamManager.class);
   private final AtomicLong nextStreamId;
   private final ConcurrentHashMap<Long, StreamState> streams;
-  private final ConcurrentHashMap<FileInfo, MapDataPartition> activeMapPartitions;
+  private final ConcurrentHashMap<FileInfo, MapPartitionData> activeMapPartitions;
   private final HashMap<String, ExecutorService> storageFetcherPool = new HashMap<>();
   private int minReadBuffers;
   private int maxReadBuffers;
@@ -88,14 +88,14 @@ public class CreditStreamManager {
         fileInfo);
 
     AtomicReference<IOException> exception = new AtomicReference();
-    MapDataPartition mapDataPartition =
+    MapPartitionData mapPartitionData =
         activeMapPartitions.compute(
             fileInfo,
             (k, v) -> {
               if (v == null) {
                 try {
                   v =
-                      new MapDataPartition(
+                      new MapPartitionData(
                           minReadBuffers,
                           maxReadBuffers,
                           storageFetcherPool,
@@ -115,7 +115,7 @@ public class CreditStreamManager {
     if (exception.get() != null) {
       throw exception.get();
     }
-    mapDataPartition.tryRequestBufferOrRead();
+    mapPartitionData.tryRequestBufferOrRead();
 
     notifyStreamHandlerCallback.accept(streamId);
     addCredit(initialCredit, streamId);
@@ -131,18 +131,18 @@ public class CreditStreamManager {
       int endSubIndex,
       FileInfo fileInfo,
       long streamId,
-      MapDataPartition mapDataPartition) {
+      MapPartitionData mapPartitionData) {
     StreamState streamState =
-        new StreamState(channel, fileInfo.getFileMeta().getBufferSize(), mapDataPartition);
+        new StreamState(channel, fileInfo.getFileMeta().getBufferSize(), mapPartitionData);
     streams.put(streamId, streamState);
-    mapDataPartition.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
+    mapPartitionData.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
   }
 
-  private void addCredit(MapDataPartition mapDataPartition, int numCredit, long streamId) {
+  private void addCredit(MapPartitionData mapPartitionData, int numCredit, long streamId) {
     logger.debug("streamId: {}, add credit: {}", streamId, numCredit);
     try {
-      if (mapDataPartition != null && numCredit > 0) {
-        mapDataPartition.addReaderCredit(numCredit, streamId);
+      if (mapPartitionData != null && numCredit > 0) {
+        mapPartitionData.addReaderCredit(numCredit, streamId);
       }
     } catch (Throwable e) {
       logger.error("streamId: {}, add credit end: {}", streamId, numCredit);
@@ -150,8 +150,8 @@ public class CreditStreamManager {
   }
 
   public void addCredit(int numCredit, long streamId) {
-    MapDataPartition mapDataPartition = streams.get(streamId).getMapDataPartition();
-    addCredit(mapDataPartition, numCredit, streamId);
+    MapPartitionData mapPartitionData = streams.get(streamId).getMapDataPartition();
+    addCredit(mapPartitionData, numCredit, streamId);
   }
 
   public void connectionTerminated(Channel channel) {
@@ -214,12 +214,12 @@ public class CreditStreamManager {
   public void cleanResource(Long streamId) {
     logger.debug("received clean stream: {}", streamId);
     if (streams.containsKey(streamId)) {
-      MapDataPartition mapDataPartition = streams.get(streamId).getMapDataPartition();
-      if (mapDataPartition != null) {
-        if (mapDataPartition.releaseReader(streamId)) {
+      MapPartitionData mapPartitionData = streams.get(streamId).getMapDataPartition();
+      if (mapPartitionData != null) {
+        if (mapPartitionData.releaseReader(streamId)) {
           streams.remove(streamId);
-          if (mapDataPartition.getReaders().isEmpty()) {
-            FileInfo fileInfo = mapDataPartition.getFileInfo();
+          if (mapPartitionData.getReaders().isEmpty()) {
+            FileInfo fileInfo = mapPartitionData.getFileInfo();
             activeMapPartitions.compute(
                 fileInfo,
                 (k, v) -> {
@@ -249,13 +249,13 @@ public class CreditStreamManager {
   protected class StreamState {
     private Channel associatedChannel;
     private int bufferSize;
-    private MapDataPartition mapDataPartition;
+    private MapPartitionData mapPartitionData;
 
     public StreamState(
-        Channel associatedChannel, int bufferSize, MapDataPartition mapDataPartition) {
+        Channel associatedChannel, int bufferSize, MapPartitionData mapPartitionData) {
       this.associatedChannel = associatedChannel;
       this.bufferSize = bufferSize;
-      this.mapDataPartition = mapDataPartition;
+      this.mapPartitionData = mapPartitionData;
     }
 
     public Channel getAssociatedChannel() {
@@ -266,8 +266,8 @@ public class CreditStreamManager {
       return bufferSize;
     }
 
-    public MapDataPartition getMapDataPartition() {
-      return mapDataPartition;
+    public MapPartitionData getMapDataPartition() {
+      return mapPartitionData;
     }
   }
 

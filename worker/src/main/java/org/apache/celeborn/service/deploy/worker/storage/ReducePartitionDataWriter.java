@@ -32,14 +32,13 @@ import org.apache.celeborn.common.protocol.PartitionType;
 /*
  * reduce partition file writer, it will create chunk index
  */
-public final class ReducePartitionPartitionDataWriter extends PartitionDataWriter {
-  private static final Logger logger =
-      LoggerFactory.getLogger(ReducePartitionPartitionDataWriter.class);
+public final class ReducePartitionDataWriter extends PartitionDataWriter {
+  private static final Logger logger = LoggerFactory.getLogger(ReducePartitionDataWriter.class);
 
   private long nextBoundary;
   private final long shuffleChunkSize;
 
-  public ReducePartitionPartitionDataWriter(
+  public ReducePartitionDataWriter(
       StorageManager storageManager,
       CreateFileContext createFileContext,
       AbstractSource workerSource,

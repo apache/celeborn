@@ -177,8 +177,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   // 2. If the FileSorter task is already in the sorting queue but the sorted file has not been
   //    generated, it awaits until a timeout occurs (default 220 seconds).
   // 3. If the sorted file is generated, it returns the sorted FileInfo.
-  public FileInfo getSortedFileInfo(
-      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
+  public NonMemoryFileInfo getSortedFileInfo(
+      String shuffleKey,
+      String fileName,
+      NonMemoryFileInfo fileInfo,
+      int startMapIndex,
+      int endMapIndex)
       throws IOException {
     String fileId = shuffleKey + "-" + fileName;
     UserIdentifier userIdentifier = fileInfo.getUserIdentifier();
@@ -187,8 +191,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     Set<String> sorting =
         sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
-    String sortedFilePath = Utils.getSortedFilePath(((NonMemoryFileInfo) fileInfo).getFilePath());
-    String indexFilePath = Utils.getIndexFilePath(((NonMemoryFileInfo) fileInfo).getFilePath());
+    String sortedFilePath = Utils.getSortedFilePath(fileInfo.getFilePath());
+    String indexFilePath = Utils.getIndexFilePath(fileInfo.getFilePath());
     synchronized (sorting) {
       if (sorted.contains(fileId)) {
         return resolve(
@@ -467,7 +471,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return transferredSize;
   }
 
-  public FileInfo resolve(
+  public NonMemoryFileInfo resolve(
       String shuffleKey,
       String fileId,
       UserIdentifier userIdentifier,
