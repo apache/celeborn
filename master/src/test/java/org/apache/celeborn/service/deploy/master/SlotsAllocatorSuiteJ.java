@@ -17,12 +17,15 @@
 
 package org.apache.celeborn.service.deploy.master;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.util.*;
 
 import scala.Option;
 import scala.Tuple2;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -244,13 +247,14 @@ public class SlotsAllocatorSuiteJ {
               v._1.forEach(
                   i -> {
                     String uniqueId = i.getUniqueId();
-                    assert !locationDuplicationSet.contains(uniqueId);
+                    assertFalse(locationDuplicationSet.contains(uniqueId));
                     locationDuplicationSet.add(uniqueId);
                     for (PartitionLocation location : v._1) {
-                      assert location.getHost().equals(k.host())
-                          && location.getRpcPort() == k.rpcPort()
-                          && location.getPushPort() == k.pushPort()
-                          && location.getFetchPort() == k.fetchPort();
+                      assertTrue(
+                          location.getHost().equals(k.host())
+                              && location.getRpcPort() == k.rpcPort()
+                              && location.getPushPort() == k.pushPort()
+                              && location.getFetchPort() == k.fetchPort());
                     }
                   });
             });
@@ -271,14 +275,14 @@ public class SlotsAllocatorSuiteJ {
         allocateToDiskSlots += worker.usedSlots();
       }
       if (shouldReplicate) {
-        Assert.assertTrue(partitionIds.size() * 2 >= unknownDiskSlots + allocateToDiskSlots);
+        assertTrue(partitionIds.size() * 2 >= unknownDiskSlots + allocateToDiskSlots);
       } else {
-        Assert.assertTrue(partitionIds.size() >= unknownDiskSlots + allocateToDiskSlots);
+        assertTrue(partitionIds.size() >= unknownDiskSlots + allocateToDiskSlots);
       }
-      Assert.assertEquals(0, unknownDiskSlots);
+      assertEquals(0, unknownDiskSlots);
     } else {
-      assert slots.isEmpty()
-          : "Expect to fail to offer slots, but return " + slots.size() + " slots.";
+      assertTrue(
+          "Expect to fail to offer slots, but return " + slots.size() + " slots.", slots.isEmpty());
     }
   }
 
@@ -322,16 +326,9 @@ public class SlotsAllocatorSuiteJ {
       allocatedPartitionCount += primaryLocs.size();
       allocatedPartitionCount += replicaLocs.size();
     }
-    if (expectSuccess) {
-      Assert.assertEquals(slots.isEmpty(), false);
-    } else {
-      Assert.assertEquals(slots.isEmpty(), true);
-    }
-    if (shouldReplicate) {
-      Assert.assertEquals(allocatedPartitionCount, partitionIds.size() * 2);
-    } else {
-      Assert.assertEquals(allocatedPartitionCount, partitionIds.size());
-    }
+    assertEquals(expectSuccess, !slots.isEmpty());
+    assertEquals(
+        shouldReplicate ? partitionIds.size() * 2 : partitionIds.size(), allocatedPartitionCount);
   }
 
   @Test

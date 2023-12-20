@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common.network.server;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
 import io.netty.buffer.ByteBuf;
@@ -57,7 +58,7 @@ public class TransportRequestHandlerSuiteJ {
     requestHandler.handle(rpcRequest);
     verify(msgHandler).receive(eq(reverseClient), eq(rpcRequest), any());
     verify(msgHandler, times(0)).receive(eq(reverseClient), eq(rpcRequest));
-    assert buffer.refCnt() == 0;
+    assertEquals(0, buffer.refCnt());
   }
 
   @Test
@@ -67,7 +68,7 @@ public class TransportRequestHandlerSuiteJ {
     requestHandler.handle(oneWayMessage);
     verify(msgHandler).receive(eq(reverseClient), eq(oneWayMessage));
     verify(msgHandler, times(0)).receive(eq(reverseClient), eq(oneWayMessage), any());
-    assert buffer.refCnt() == 0;
+    assertEquals(0, buffer.refCnt());
   }
 
   @Test
@@ -78,6 +79,6 @@ public class TransportRequestHandlerSuiteJ {
     requestHandler.handle(pushData);
     verify(msgHandler).receive(eq(reverseClient), eq(pushData));
     verify(msgHandler, times(0)).receive(eq(reverseClient), eq(pushData), any());
-    assert buffer.refCnt() == 0;
+    assertEquals(0, buffer.refCnt());
   }
 }
