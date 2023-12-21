@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master.network
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 import com.google.common.base.Strings
@@ -54,6 +55,10 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
     coreResolve(hostNames)
   }
 
+  def resolveToMap(hostNames: Seq[String]): Map[String, Node] = {
+    hostNames.zip(resolve(hostNames)).toMap
+  }
+
   private def coreResolve(hostNames: Seq[String]): Seq[Node] = {
     if (hostNames.isEmpty) {
       return Seq.empty
@@ -80,8 +85,8 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
   }
 
   def isOnSameRack(primaryHost: String, replicaHost: String): Boolean = {
-    val primaryNode = resolve(primaryHost)
-    val replicaNode = resolve(replicaHost)
+    val nodes = resolve(Seq(primaryHost, replicaHost))
+    val (primaryNode, replicaNode) = (nodes.head, nodes.last)
     if (primaryNode == null || replicaNode == null) {
       false
     } else {

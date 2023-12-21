@@ -34,7 +34,10 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import scala.Option;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
+import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -281,25 +284,28 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             }
           });
 
-      workers.addAll(
+      Set<WorkerInfo> workerInfoSet =
           snapshotMetaInfo.getWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
-              .collect(Collectors.toSet())
-              .stream()
-              .map(
+              .collect(Collectors.toSet());
+      Seq<String> workerHostSeq =
+          JavaConverters.asScalaIterator(workerInfoSet.stream().map(WorkerInfo::host).iterator())
+              .toSeq();
+      scala.collection.immutable.Map<String, Node> resolveMap =
+          rackResolver.resolveToMap(workerHostSeq);
+      workers.addAll(
+          workerInfoSet.stream()
+              .peek(
                   workerInfo -> {
                     // Reset worker's network location with current master's configuration.
                     workerInfo.networkLocation_$eq(
-                        rackResolver.resolve(workerInfo.host()).getNetworkLocation());
-                    return workerInfo;
+                        resolveMap.get(workerInfo.host()).get().getNetworkLocation());
                   })
               .collect(Collectors.toSet()));
 
       snapshotMetaInfo
           .getLostWorkersMap()
-          .entrySet()
-          .forEach(
-              entry -> lostWorkers.put(WorkerInfo.fromUniqueId(entry.getKey()), entry.getValue()));
+          .forEach((key, value) -> lostWorkers.put(WorkerInfo.fromUniqueId(key), value));
 
       shutdownWorkers.addAll(
           snapshotMetaInfo.getShutdownWorkersList().stream()

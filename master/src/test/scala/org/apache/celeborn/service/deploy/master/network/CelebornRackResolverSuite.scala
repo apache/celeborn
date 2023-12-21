@@ -53,6 +53,11 @@ class CelebornRackResolverSuite extends AnyFunSuite {
     assertEquals(names.size, result.size)
     assertEquals("/rack1", result(0).getNetworkLocation)
     assertEquals("/rack2", result(1).getNetworkLocation)
+
+    val resultMap: Map[String, Node] = resolver.resolveToMap(names)
+    assertEquals(names.size, resultMap.size)
+    assertEquals("/rack1", resultMap(hostName1).getNetworkLocation)
+    assertEquals("/rack2", resultMap(hostName2).getNetworkLocation)
   }
 
   test("CELEBORN-446: RackResolver support getDistance") {
