@@ -164,12 +164,14 @@ public class InFlightRequestTracker {
     if (times <= 0) {
       logger.error(
           "After waiting for {} ms, "
-              + "there are still {} batches in flight "
-              + "for hostAndPushPort {}, "
+              + "there are still {} in flight, "
               + "which exceeds the current limit 0.",
           waitInflightTimeoutMs,
-          totalInflightReqs.sum(),
-          inflightBatchesPerAddress.keySet().stream().collect(Collectors.joining(", ", "[", "]")));
+          inflightBatchesPerAddress.entrySet().stream()
+              .filter(c -> c.getValue().size() > 0)
+              .map(c -> c.getValue().size() + " batches for hostAndPushPort " + c.getKey())
+              .collect(Collectors.joining(", ", "[", "]"))
+      );
     }
 
     if (pushState.exception.get() != null) {
