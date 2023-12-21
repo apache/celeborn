@@ -3761,26 +3761,12 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val SPARK_SHUFFLE_WRITER_MODE: ConfigEntry[String] =
-    buildConf("celeborn.client.spark.shuffle.writer")
-      .withAlternative("celeborn.shuffle.writer")
-      .categories("client")
-      .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
-        "works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
-        "when memory pressure is high or shuffle partition count is huge.")
-      .version("0.3.0")
-      .stringConf
-      .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
-      .createWithDefault(ShuffleMode.HASH.name)
-
   val CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.dynamicWriteMode.enabled")
       .categories("client")
       .doc("Whether to dynamically switch push write mode based on conditions.If true, " +
-        s"shuffle mode will be is determined by partition count," +
-        s"not ${SPARK_SHUFFLE_WRITER_MODE.key}")
-      .version("0.4.0")
+        s"shuffle mode will be only determined by partition count")
+      .version("0.5.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -3791,9 +3777,23 @@ object CelebornConf extends Logging {
         s"If ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is true, Celeborn will use sort-based " +
         s"shuffle writer when partition count is greater than this value," +
         s"and used hash-based shuffle writer otherwise.")
-      .version("0.4.0")
+      .version("0.5.0")
       .intConf
       .createWithDefault(2000)
+
+  val SPARK_SHUFFLE_WRITER_MODE: ConfigEntry[String] =
+    buildConf("celeborn.client.spark.shuffle.writer")
+      .withAlternative("celeborn.shuffle.writer")
+      .categories("client")
+      .doc(s"Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
+        s"works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
+        s"when memory pressure is high or shuffle partition count is huge." +
+        s"This configuration only takes effect when ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is false")
+      .version("0.3.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(ShuffleMode.HASH.name, ShuffleMode.SORT.name))
+      .createWithDefault(ShuffleMode.HASH.name)
 
   val CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.unsafeRow.fastWrite.enabled")
