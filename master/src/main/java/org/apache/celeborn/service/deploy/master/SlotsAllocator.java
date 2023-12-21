@@ -218,7 +218,8 @@ public class SlotsAllocator {
                 diskInfos[diskIndex].mountPoint(),
                 diskInfos[diskIndex].storageType(),
                 availableStorageTypes);
-        workerDiskIndex.put(selectedWorker, (diskIndex + 1) % diskInfos.length);
+        diskIndex = (diskIndex + 1) % diskInfos.length;
+        workerDiskIndex.put(selectedWorker, diskIndex);
       } else {
         storageInfo = new StorageInfo("", StorageInfo.Type.HDFS, availableStorageTypes);
       }
