@@ -26,7 +26,7 @@ commons-beanutils/1.9.4//commons-beanutils-1.9.4.jar
 commons-cli/1.2//commons-cli-1.2.jar
 commons-codec/1.15//commons-codec-1.15.jar
 commons-collections/3.2.2//commons-collections-3.2.2.jar
-commons-compress/1.4.1//commons-compress-1.4.1.jar
+commons-compress/1.22//commons-compress-1.22.jar
 commons-configuration2/2.8.0//commons-configuration2-2.8.0.jar
 commons-crypto/1.0.0//commons-crypto-1.0.0.jar
 commons-daemon/1.0.13//commons-daemon-1.0.13.jar
@@ -192,10 +192,12 @@ snakeyaml/1.33//snakeyaml-1.33.jar
 snappy-java/1.1.10.5//snappy-java-1.1.10.5.jar
 stax2-api/4.2.1//stax2-api-4.2.1.jar
 token-provider/1.0.1//token-provider-1.0.1.jar
+websocket-api/9.4.51.v20230217//websocket-api-9.4.51.v20230217.jar
+websocket-client/9.4.51.v20230217//websocket-client-9.4.51.v20230217.jar
+websocket-common/9.4.51.v20230217//websocket-common-9.4.51.v20230217.jar
 websocket-server/9.4.51.v20230217//websocket-server-9.4.51.v20230217.jar
 websocket-servlet/9.4.51.v20230217//websocket-servlet-9.4.51.v20230217.jar
 woodstox-core/5.4.0//woodstox-core-5.4.0.jar
-xz/1.0//xz-1.0.jar
 zookeeper-jute/3.6.3//zookeeper-jute-3.6.3.jar
 zookeeper/3.6.3//zookeeper-3.6.3.jar
 zstd-jni/1.5.2-1//zstd-jni-1.5.2-1.jar
