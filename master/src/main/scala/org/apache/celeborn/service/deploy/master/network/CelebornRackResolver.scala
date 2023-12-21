@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.master.network
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 import com.google.common.base.Strings
