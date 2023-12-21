@@ -67,4 +67,26 @@ class SparkShuffleManagerSuite extends Logging {
     // scalastyle:on println
     sc.stop()
   }
+
+  def testChangeWriteModeByPartitionCount(): Unit = {
+    val conf = new SparkConf().setIfMissing("spark.master", "local")
+      .setIfMissing(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
+      .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", "localhost:9097")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
+      .set("spark.shuffle.service.enabled", "false")
+      .set("spark.shuffle.useOldFetchProtocol", "true")
+      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "false")
+      .set(s"spark.${CelebornConf.CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key}", "true")
+      .set(
+        s"spark.${CelebornConf.CLIENT_PUSH_DYNAMIC_WRITE_MODE_PARTITION_NUM_THRESHOLD.key}",
+        "15")
+      .setAppName("test")
+    val sc = new SparkContext(conf)
+    // scalastyle:off println
+    sc.parallelize(1 to 1000, 10).repartition(20).repartition(10).count()
+    // scalastyle:on println
+    sc.stop()
+  }
 }
