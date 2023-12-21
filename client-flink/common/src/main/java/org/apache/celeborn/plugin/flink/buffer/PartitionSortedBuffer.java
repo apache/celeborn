@@ -325,7 +325,7 @@ public class PartitionSortedBuffer implements SortBuffer {
       // skip the data already read if there is remaining partial record after the previous
       // copy
       long position = (long) sourceSegmentOffset + (recordLength - recordRemainingBytes);
-      sourceSegmentIndex += (position / bufferSize);
+      sourceSegmentIndex = (int) (sourceSegmentIndex + (position / bufferSize));
       sourceSegmentOffset = (int) (position % bufferSize);
     } else {
       recordRemainingBytes = recordLength;

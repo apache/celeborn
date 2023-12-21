@@ -107,16 +107,16 @@ public abstract class CelebornShuffleWriterSuiteBase {
       new TaskMemoryManager(UnifiedMemoryManager.apply(sparkConf, 1), 0);
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  protected TaskContext taskContext = null;
+  protected TaskContext taskContext;
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  protected ShuffleDependency<Integer, String, String> dependency = null;
+  protected ShuffleDependency<Integer, String, String> dependency;
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  private SparkEnv env = null;
+  private SparkEnv env;
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  private BlockManager blockManager = null;
+  private BlockManager blockManager;
 
   protected TaskMetrics metrics = null;
 

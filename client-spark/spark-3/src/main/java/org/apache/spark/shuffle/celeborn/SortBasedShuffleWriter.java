@@ -360,6 +360,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   // Added in SPARK-32917, for Spark 3.2 and above
+  @SuppressWarnings("MissingOverride")
   public long[] getPartitionLengths() {
     throw new UnsupportedOperationException(
         "Celeborn is not compatible with push-based shuffle, please set spark.shuffle.push.enabled to false");
