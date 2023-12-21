@@ -3773,10 +3773,11 @@ object CelebornConf extends Logging {
   val CLIENT_PUSH_DYNAMIC_WRITE_MODE_PARTITION_NUM_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.client.spark.push.dynamicWriteMode.partitionNum.threshold")
       .categories("client")
-      .doc("Threshold of shuffle partition count for push writer mode by partition count." +
-        s"If ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is true, Celeborn will use sort-based " +
-        s"shuffle writer when partition count is greater than this value," +
-        s"and used hash-based shuffle writer otherwise.")
+      .doc(s"Threshold of shuffle partition number for dynamically switching push writer mode. " +
+        s"When the shuffle partition number is greater than this value, " +
+        s"use the sort-based shuffle writer for memory efficiency; " +
+        s"otherwise use the hash-based shuffle writer for speed. " +
+        s"This configuration only takes effect when ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is true.")
       .version("0.5.0")
       .intConf
       .createWithDefault(2000)
@@ -3787,8 +3788,8 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc(s"Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
         s"works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
-        s"when memory pressure is high or shuffle partition count is huge." +
-        s"This configuration only takes effect when ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is false")
+        s"when memory pressure is high or shuffle partition count is huge. " +
+        s"This configuration only takes effect when ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is false.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
