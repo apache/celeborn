@@ -512,6 +512,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def maxDefaultNettyThreads: Int = get(MAX_DEFAULT_NETTY_THREADS)
 
+  def networkIoSaslTimoutMs(module: String): Int = {
+    val key = NETWORK_IO_SASL_TIMEOUT.key.replace("<module>", module)
+    getTimeAsMs(key, s"${networkTimeout.duration.toMillis}ms").toInt
+  }
+
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
@@ -744,7 +749,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
-  def clientRpcMaxParallelism: Int = get(CLIENT_RPC_MAX_PARALLELISM)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def hdfsExpireDirsTimeoutMS: Long = get(HDFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
@@ -754,6 +758,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeReplicaOnFailureEnabled: Boolean =
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
+
+  def sparkIoEncryptionEnabled: Boolean = get(SPARK_CLIENT_IO_ENCRYPTION_ENABLED)
+  def sparkIoEncryptionKey: String = get(SPARK_CLIENT_IO_ENCRYPTION_KEY)
+  def sparkIoEncryptionInitializationVector: String =
+    get(SPARK_CLIENT_IO_ENCRYPTION_INITIALIZATION_VECTOR)
+
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
 
   // //////////////////////////////////////////////////////
@@ -826,6 +836,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
   def clientRpcSharedThreads: Int = get(CLIENT_RPC_SHARED_THREADS)
+  def clientRpcMaxRetries: Int = get(CLIENT_RPC_MAX_RETIRES)
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
@@ -851,6 +862,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                   Client Shuffle                    //
   // //////////////////////////////////////////////////////
   def shuffleWriterMode: ShuffleMode = ShuffleMode.valueOf(get(SPARK_SHUFFLE_WRITER_MODE))
+  def dynamicWriteModeEnabled =
+    get(CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED)
+  def dynamicWriteModePartitionNumThreshold =
+    get(CLIENT_PUSH_DYNAMIC_WRITE_MODE_PARTITION_NUM_THRESHOLD)
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
@@ -1077,7 +1092,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      test                           //
   // //////////////////////////////////////////////////////
   def testFetchFailure: Boolean = get(TEST_CLIENT_FETCH_FAILURE)
-  def testRetryCommitFiles: Boolean = get(TEST_CLIENT_RETRY_COMMIT_FILE)
+  def testMockDestroySlotsFailure: Boolean = get(TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE)
+  def testMockCommitFilesFailure: Boolean = get(TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE)
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
@@ -3036,13 +3052,21 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val TEST_CLIENT_RETRY_COMMIT_FILE: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.client.retryCommitFiles")
-      .withAlternative("celeborn.test.retryCommitFiles")
+  val TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.mockDestroySlotsFailure")
       .internal
       .categories("test", "client")
-      .doc("Fail commitFile request for test")
-      .version("0.3.0")
+      .doc("Fail destroy slots request for test")
+      .version("0.3.2")
+      .booleanConf
+      .createWithDefault(false)
+
+  val TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.mockCommitFilesFailure")
+      .internal
+      .categories("test", "client")
+      .doc("Fail commit files request for test")
+      .version("0.3.2")
       .booleanConf
       .createWithDefault(false)
 
@@ -3628,15 +3652,6 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .fallbackConf(NETWORK_IO_CONNECTION_TIMEOUT)
 
-  val CLIENT_RPC_MAX_PARALLELISM: ConfigEntry[Int] =
-    buildConf("celeborn.client.rpc.maxParallelism")
-      .withAlternative("celeborn.rpc.maxParallelism")
-      .categories("client")
-      .version("0.3.0")
-      .doc("Max parallelism of client on sending RPC requests.")
-      .intConf
-      .createWithDefault(1024)
-
   val CLIENT_RESERVE_SLOTS_RPC_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.rpc.reserveSlots.askTimeout")
       .categories("client")
@@ -3712,6 +3727,14 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(16)
 
+  val CLIENT_RPC_MAX_RETIRES: ConfigEntry[Int] =
+    buildConf("celeborn.client.rpc.maxRetries")
+      .categories("client")
+      .version("0.3.2")
+      .doc("Max RPC retry times in LifecycleManager.")
+      .intConf
+      .createWithDefault(3)
+
   val CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.reserveSlots.rackaware.enabled")
       .withAlternative("celeborn.client.reserveSlots.rackware.enabled")
@@ -3738,13 +3761,35 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
+  val CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.push.dynamicWriteMode.enabled")
+      .categories("client")
+      .doc("Whether to dynamically switch push write mode based on conditions.If true, " +
+        s"shuffle mode will be only determined by partition count")
+      .version("0.5.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_PUSH_DYNAMIC_WRITE_MODE_PARTITION_NUM_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.client.spark.push.dynamicWriteMode.partitionNum.threshold")
+      .categories("client")
+      .doc(s"Threshold of shuffle partition number for dynamically switching push writer mode. " +
+        s"When the shuffle partition number is greater than this value, " +
+        s"use the sort-based shuffle writer for memory efficiency; " +
+        s"otherwise use the hash-based shuffle writer for speed. " +
+        s"This configuration only takes effect when ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is true.")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(2000)
+
   val SPARK_SHUFFLE_WRITER_MODE: ConfigEntry[String] =
     buildConf("celeborn.client.spark.shuffle.writer")
       .withAlternative("celeborn.shuffle.writer")
       .categories("client")
-      .doc("Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
-        "works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
-        "when memory pressure is high or shuffle partition count is huge.")
+      .doc(s"Celeborn supports the following kind of shuffle writers. 1. hash: hash-based shuffle writer " +
+        s"works fine when shuffle partition count is normal; 2. sort: sort-based shuffle writer works fine " +
+        s"when memory pressure is high or shuffle partition count is huge. " +
+        s"This configuration only takes effect when ${CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key} is false.")
       .version("0.3.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
@@ -4218,4 +4263,36 @@ object CelebornConf extends Logging {
       .doc("Whether to filter excluded worker when register shuffle.")
       .booleanConf
       .createWithDefault(false)
+
+  val NETWORK_IO_SASL_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.<module>.io.saslTimeout")
+      .categories("network")
+      .doc("Timeout for a single round trip of auth message exchange, in milliseconds.")
+      .version("0.5.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val SPARK_CLIENT_IO_ENCRYPTION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.io.encryption.enabled")
+      .categories("client")
+      .version("0.4.0")
+      .doc("whether to enable io encryption")
+      .booleanConf
+      .createWithDefault(true)
+
+  val SPARK_CLIENT_IO_ENCRYPTION_KEY: ConfigEntry[String] =
+    buildConf("celeborn.client.spark.io.encryption.key")
+      .categories("client")
+      .version("0.4.0")
+      .doc("io encryption key")
+      .stringConf
+      .createWithDefault("")
+
+  val SPARK_CLIENT_IO_ENCRYPTION_INITIALIZATION_VECTOR: ConfigEntry[String] =
+    buildConf("celeborn.client.spark.io.encryption.initialization.vector")
+      .categories("client")
+      .version("0.4.0")
+      .doc("io encryption initialization vector")
+      .stringConf
+      .createWithDefault("")
 }

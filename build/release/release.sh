@@ -27,9 +27,7 @@ ASF_USERNAME=${ASF_USERNAME:?"ASF_USERNAME is required"}
 ASF_PASSWORD=${ASF_PASSWORD:?"ASF_PASSWORD is required"}
 RELEASE_RC_NO=${RELEASE_RC_NO:?"RELEASE_RC_NO is required, e.g. 0"}
 
-RELEASE_VERSION=$(grep '<project.version>.*</project.version>' "${PROJECT_DIR}/pom.xml" -o \
-                | head -n 1 \
-                | sed 's/<\/*project.version>//g')
+RELEASE_VERSION=$(awk -F'"' '/ThisBuild \/ version/ {print $2}' version.sbt)
 
 exit_with_usage() {
   local NAME=$(basename $0)
@@ -98,52 +96,28 @@ upload_svn_staging() {
 
 upload_nexus_staging() {
   echo "Deploying celeborn-client-spark-2-shaded_2.11"
-  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,spark-2.4 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-spark-2-shaded_2.11 -am
-  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,spark-2.4 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-spark-2-shaded_2.11
+  ${PROJECT_DIR}/build/sbt -Pspark-2.4 "clean;celeborn-client-spark-2-shaded/publishSigned"
 
   echo "Deploying celeborn-client-spark-3-shaded_2.12"
-  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,spark-3.3 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-spark-3-shaded_2.12 -am
-  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,spark-3.3 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-spark-3-shaded_2.12
+  ${PROJECT_DIR}/build/sbt -Pspark-3.4 "clean;celeborn-client-spark-3-shaded/publishSigned"
+
+  echo "Deploying celeborn-client-spark-3-shaded_2.13"
+  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13 "clean;celeborn-client-spark-3-shaded/publishSigned"
 
   echo "Deploying celeborn-client-flink-1.14-shaded_2.12"
-  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,flink-1.14 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-flink-1.14-shaded_2.12 -am
-  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.14 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-flink-1.14-shaded_2.12
+  ${PROJECT_DIR}/build/sbt -Pflink-1.14 "clean;celeborn-client-flink-1_14-shaded/publishSigned"
 
   echo "Deploying celeborn-client-flink-1.15-shaded_2.12"
-  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,flink-1.15 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-flink-1.15-shaded_2.12 -am
-  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.15 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-flink-1.15-shaded_2.12
+  ${PROJECT_DIR}/build/sbt -Pflink-1.15 "clean;celeborn-client-flink-1_15-shaded/publishSigned"
 
   echo "Deploying celeborn-client-flink-1.17-shaded_2.12"
-  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,flink-1.17 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-flink-1.17-shaded_2.12 -am
-  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.17 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-flink-1.17-shaded_2.12
+  ${PROJECT_DIR}/build/sbt -Pflink-1.17 "clean;celeborn-client-flink-1_17-shaded/publishSigned"
 
   echo "Deploying celeborn-client-flink-1.18-shaded_2.12"
-  ${PROJECT_DIR}/build/mvn clean install -DskipTests -Papache-release,flink-1.18 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-flink-1.18-shaded_2.12 -am
-  ${PROJECT_DIR}/build/mvn deploy -DskipTests -Papache-release,flink-1.18 \
-    -s "${PROJECT_DIR}/build/release/asf-settings.xml" \
-    -pl :celeborn-client-flink-1.18-shaded_2.12
+  ${PROJECT_DIR}/build/sbt -Pflink-1.18 "clean;celeborn-client-flink-1_18-shaded/publishSigned"
+
+  echo "Deploying celeborn-client-mr-shaded_2.12"
+  ${PROJECT_DIR}/build/sbt -Pmr "clean;celeborn-client-mr-shaded/publishSigned"
 }
 
 finalize_svn() {

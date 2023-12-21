@@ -62,8 +62,6 @@ private[deploy] class Controller(
   var shutdown: AtomicBoolean = _
   val defaultPushdataTimeout = conf.pushDataTimeoutMs
 
-  val testRetryCommitFiles = conf.testRetryCommitFiles
-
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
     shufflePartitionType = worker.shufflePartitionType
@@ -112,18 +110,32 @@ private[deploy] class Controller(
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
-    case CommitFiles(applicationId, shuffleId, primaryIds, replicaIds, mapAttempts, epoch) =>
+    case CommitFiles(
+          applicationId,
+          shuffleId,
+          primaryIds,
+          replicaIds,
+          mapAttempts,
+          epoch,
+          mockFailure) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       logDebug(s"Received CommitFiles request, $shuffleKey, primary files" +
         s" ${primaryIds.asScala.mkString(",")}; replica files ${replicaIds.asScala.mkString(",")}.")
       val commitFilesTimeMs = Utils.timeIt({
-        handleCommitFiles(context, shuffleKey, primaryIds, replicaIds, mapAttempts, epoch)
+        handleCommitFiles(
+          context,
+          shuffleKey,
+          primaryIds,
+          replicaIds,
+          mapAttempts,
+          epoch,
+          mockFailure)
       })
       logDebug(s"Done processed CommitFiles request with shuffleKey $shuffleKey, in " +
         s"$commitFilesTimeMs ms.")
 
-    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations) =>
-      handleDestroy(context, shuffleKey, primaryLocations, replicaLocations)
+    case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations, mockFailure) =>
+      handleDestroy(context, shuffleKey, primaryLocations, replicaLocations, mockFailure)
   }
 
   private def handleReserveSlots(
@@ -347,7 +359,19 @@ private[deploy] class Controller(
       primaryIds: jList[String],
       replicaIds: jList[String],
       mapAttempts: Array[Int],
-      epoch: Long): Unit = {
+      epoch: Long,
+      mockFailure: Boolean): Unit = {
+    if (mockFailure) {
+      logError(s"Mock commit files failure for Shuffle $shuffleKey!")
+      context.reply(
+        CommitFilesResponse(
+          StatusCode.COMMIT_FILES_MOCK_FAILURE,
+          List.empty.asJava,
+          List.empty.asJava,
+          primaryIds,
+          replicaIds))
+      return
+    }
 
     def alreadyCommitted(shuffleKey: String, epoch: Long): Boolean = {
       shuffleCommitInfos.containsKey(shuffleKey) && shuffleCommitInfos.get(shuffleKey).containsKey(
@@ -538,9 +562,6 @@ private[deploy] class Controller(
             totalSize,
             fileCount)
         }
-      if (testRetryCommitFiles) {
-        Thread.sleep(5000)
-      }
       commitInfo.synchronized {
         commitInfo.response = response
         commitInfo.status = CommitInfo.COMMIT_FINISHED
@@ -612,7 +633,16 @@ private[deploy] class Controller(
       context: RpcCallContext,
       shuffleKey: String,
       primaryLocations: jList[String],
-      replicaLocations: jList[String]): Unit = {
+      replicaLocations: jList[String],
+      mockDestroyFailure: Boolean): Unit = {
+    if (mockDestroyFailure) {
+      context.reply(
+        DestroyWorkerSlotsResponse(
+          StatusCode.DESTROY_SLOTS_MOCK_FAILURE,
+          primaryLocations,
+          replicaLocations))
+      return
+    }
     // check whether shuffleKey has registered
     if (!partitionLocationInfo.containsShuffle(shuffleKey)) {
       logWarning(s"Shuffle $shuffleKey not registered!")
@@ -622,6 +652,10 @@ private[deploy] class Controller(
           primaryLocations,
           replicaLocations))
       return
+    }
+    if (log.isDebugEnabled()) {
+      logDebug(
+        s"[handleDestroy] primaryIds: ${primaryLocations.asScala}, replicaIds: ${replicaLocations.asScala}")
     }
 
     val failedPrimaries = new jArrayList[String]()

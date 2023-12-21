@@ -96,6 +96,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     }
   }
 
+  @Override
   public void write(ByteBuf data) throws IOException {
     data.markReaderIndex();
     int partitionId = data.readInt();
@@ -174,6 +175,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
         });
   }
 
+  @Override
   public synchronized void destroy(IOException ioException) {
     destroyIndex();
     super.destroy(ioException);

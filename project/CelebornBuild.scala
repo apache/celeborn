@@ -53,7 +53,7 @@ object Dependencies {
   val jdkToolsVersion = "0.1"
   val metricsVersion = "3.2.6"
   val mockitoVersion = "4.11.0"
-  val nettyVersion = "4.1.93.Final"
+  val nettyVersion = "4.1.101.Final"
   val ratisVersion = "2.5.1"
   val roaringBitmapVersion = "0.9.32"
   val rocksdbJniVersion = "8.5.3"
@@ -61,11 +61,12 @@ object Dependencies {
   val scalatestMockitoVersion = "1.17.14"
   val scalatestVersion = "3.2.16"
   val slf4jVersion = "1.7.36"
-  val snakeyamlVersion = "1.33"
+  val snakeyamlVersion = "2.2"
+  val snappyVersion = "1.1.10.5"
 
   // Versions for proto
-  val protocVersion = "3.19.2"
-  val protoVersion = "3.19.2"
+  val protocVersion = "3.21.7"
+  val protoVersion = "3.21.7"
   
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
@@ -120,6 +121,7 @@ object Dependencies {
   val slf4jJulToSlf4j = "org.slf4j" % "jul-to-slf4j" % slf4jVersion
   val slf4jJclOverSlf4j = "org.slf4j" % "jcl-over-slf4j" % slf4jVersion
   val snakeyaml = "org.yaml" % "snakeyaml" % snakeyamlVersion
+  val snappyJava = "org.xerial.snappy" % "snappy-java" % snappyVersion
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
 
   // Test dependencies
@@ -214,6 +216,44 @@ object CelebornCommonSettings {
     ),
 
     Test / envVars += ("IS_TESTING", "1")
+  )
+
+  ////////////////////////////////////////////////////////
+  //                 Release settings                   //
+  ////////////////////////////////////////////////////////
+
+  lazy val releaseSettings = Seq(
+    publishMavenStyle := true,
+    publishArtifact := true,
+    Test / publishArtifact := false,
+    credentials += {
+      val host = publishTo.value.map {
+        case repo: MavenRepo => scala.util.Try(new java.net.URL(repo.root)).map(_.getHost).getOrElse("repository.apache.org")
+        case _ => "repository.apache.org"
+      }.get
+
+      Credentials(
+        "Sonatype Nexus Repository Manager",
+        host,
+        sys.env.getOrElse("ASF_USERNAME", ""),
+        sys.env.getOrElse("ASF_PASSWORD", "")),
+    },
+    publishTo := {
+      if (isSnapshot.value) {
+        val publishUrl = sys.env.getOrElse("SONATYPE_SNAPSHOTS_URL", "https://repository.apache.org/content/repositories/snapshots")
+        Some(("snapshots" at publishUrl).withAllowInsecureProtocol(true))
+      } else {
+        val publishUrl = sys.env.getOrElse("SONATYPE_RELEASES_URL", "https://repository.apache.org/service/local/staging/deploy/maven2")
+        Some(("releases" at publishUrl).withAllowInsecureProtocol(true))
+      }
+    },
+    licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")),
+      pomExtra :=
+        <url>https://celeborn.apache.org/</url>
+        <scm>
+          <url>git@github.com:apache/incubator-celeborn.git</url>
+          <connection>scm:git:git@github.com:apache/incubator-celeborn.git</connection>
+        </scm>
   )
 
   lazy val protoSettings = Seq(
@@ -340,6 +380,7 @@ object CelebornCommon {
         Dependencies.slf4jJulToSlf4j,
         Dependencies.slf4jApi,
         Dependencies.snakeyaml,
+        Dependencies.snappyJava,
         Dependencies.jacksonModule,
         Dependencies.jacksonCore,
         Dependencies.jacksonDatabind,
@@ -556,7 +597,7 @@ object Spark34 extends SparkClientProjects {
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.12.17"
 
-  val sparkVersion = "3.4.1"
+  val sparkVersion = "3.4.2"
   val zstdJniVersion = "1.5.2-5"
 
   override val includeColumnarShuffle: Boolean = true
@@ -672,6 +713,7 @@ trait SparkClientProjects {
       .dependsOn(sparkClient)
       .settings (
         commonSettings,
+        releaseSettings,
 
         // align final shaded jar name with maven.
         (assembly / assemblyJarName) := {
@@ -721,7 +763,9 @@ trait SparkClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" )
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
           case _ => MergeStrategy.first
-        }
+        },
+
+        Compile / packageBin := assembly.value
       )
     if (includeColumnarShuffle) {
         p.dependsOn(sparkColumnarShuffle)
@@ -805,13 +849,6 @@ trait FlinkClientProjects {
   //   1.14.6 -> 1.14
   lazy val flinkMajorVersion: String = flinkVersion.split("\\.").take(2).reduce(_ + "." + _)
 
-  // the output would be something like: celeborn-client-flink-1.17_2.12-0.4.0-SNAPSHOT.jar
-  def flinkClientJarName(
-      module: ModuleID,
-      artifact: Artifact,
-      scalaBinaryVersionString: String): String =
-    s"celeborn-client-flink-${flinkMajorVersion}_$scalaBinaryVersionString" + "-" + module.revision + "." + artifact.extension
-
   // the output would be something like: celeborn-client-flink-1.17-shaded_2.12-0.4.0-SNAPSHOT.jar
   def flinkClientShadeJarName(
       revision: String,
@@ -836,12 +873,7 @@ trait FlinkClientProjects {
       .settings (
         commonSettings,
 
-        // 1. reference for modifying the jar name.
-        // https://stackoverflow.com/questions/52771831/how-to-modify-jar-name-generate-by-cmd-sbt-package
-        // 2. since SBT doesn't allow using `.` in the project name, explicitly setting the artifact Name
-        artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
-          flinkClientJarName(module, artifact, scalaBinaryVersion.value)
-        },
+        moduleName := s"celeborn-client-flink-$flinkMajorVersion",
 
         libraryDependencies ++= Seq(
           "org.apache.flink" % "flink-runtime" % flinkVersion % "provided",
@@ -876,6 +908,9 @@ trait FlinkClientProjects {
       .dependsOn(flinkClient)
       .settings (
         commonSettings,
+        releaseSettings,
+
+        moduleName := s"celeborn-client-flink-$flinkMajorVersion-shaded",
 
         (assembly / test) := { },
 
@@ -925,7 +960,9 @@ trait FlinkClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so" )
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename( _ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" )
           case _ => MergeStrategy.first
-        }
+        },
+
+        Compile / packageBin := assembly.value
       )
   }
 }
@@ -972,6 +1009,7 @@ object MRClientProjects {
       .dependsOn(mrClient)
       .settings(
         commonSettings,
+        releaseSettings,
 
         // align final shaded jar name with maven.
         (assembly / assemblyJarName) := {
@@ -1026,7 +1064,9 @@ object MRClientProjects {
           case "META-INF/native/libnetty_transport_native_epoll_x86_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_x86_64.so")
           case "META-INF/native/libnetty_transport_native_epoll_aarch_64.so" => CustomMergeStrategy.rename(_ => "META-INF/native/liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so")
           case _ => MergeStrategy.first
-        }
+        },
+
+        Compile / packageBin := assembly.value
       )
   }
 

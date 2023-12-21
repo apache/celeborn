@@ -115,6 +115,10 @@ public class TransportContext {
     return new TransportServer(this, host, port, source, msgHandler, bootstraps);
   }
 
+  public TransportServer createServer(List<TransportServerBootstrap> bootstraps) {
+    return createServer(null, 0, bootstraps);
+  }
+
   public TransportServer createServer(int port) {
     return createServer(null, port, Collections.emptyList());
   }

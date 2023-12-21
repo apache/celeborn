@@ -52,6 +52,10 @@ class WorkerStatusTracker(
     }
   }
 
+  def workerExcluded(worker: WorkerInfo): Boolean = {
+    excludedWorkers.containsKey(worker)
+  }
+
   def workerAvailable(worker: WorkerInfo): Boolean = {
     !excludedWorkers.containsKey(worker) && !shuttingWorkers.contains(worker)
   }

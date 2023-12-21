@@ -99,7 +99,7 @@ public final class PushData extends RequestMessage {
       return requestId == o.requestId
           && mode == o.mode
           && shuffleKey.equals(o.shuffleKey)
-          && partitionUniqueId.equals((o.partitionUniqueId))
+          && partitionUniqueId.equals(o.partitionUniqueId)
           && super.equals(o);
     }
     return false;

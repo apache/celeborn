@@ -91,6 +91,7 @@ enum MessageType {
   REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE = 68;
   GET_SHUFFLE_ID = 69;
   GET_SHUFFLE_ID_RESPONSE = 70;
+  SASL_REQUEST = 71;
 }
 
 enum StreamType {
@@ -409,6 +410,7 @@ message PbCommitFiles {
   repeated string replicaIds = 4;
   repeated int32 mapAttempts = 5;
   int64 epoch = 6;
+  bool mockFailure = 7;
 }
 
 message PbCommitFilesResponse {
@@ -428,6 +430,7 @@ message PbDestroyWorkerSlots {
   string shuffleKey = 1;
   repeated string primaryLocations = 2;
   repeated string replicaLocation = 3;
+  bool mockFailure = 4;
 }
 
 message PbDestroyWorkerSlotsResponse {
@@ -631,4 +634,20 @@ message PbChunkFetchRequest {
 message PbTransportableError {
   int64 streamId = 1;
   string message = 2;
+}
+
+enum PbAuthType {
+  CLIENT_AUTH = 0;
+  CONNECTION_AUTH = 1;
+}
+
+message PbSaslMechanism {
+  string mechanism = 1;
+  repeated PbAuthType authTypes = 2;
+}
+
+message PbSaslRequest {
+  string method = 1;
+  PbAuthType authType = 2;
+  bytes payload = 3;
 }

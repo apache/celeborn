@@ -424,10 +424,12 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
   }
 
+  @Override
   public int hashCode() {
     return ((NonMemoryFileInfo) fileInfo).getFilePath().hashCode();
   }
 
+  @Override
   public boolean equals(Object obj) {
     return (obj instanceof PartitionDataWriter)
         && ((NonMemoryFileInfo) fileInfo)
@@ -435,6 +437,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             .equals(((NonMemoryFileInfo) ((PartitionDataWriter) obj).fileInfo).getFilePath());
   }
 
+  @Override
   public String toString() {
     return ((NonMemoryFileInfo) fileInfo).getFilePath();
   }

@@ -53,6 +53,7 @@ public final class StreamChunkSlice implements Encodable {
     return 20;
   }
 
+  @Override
   public void encode(ByteBuf buffer) {
     buffer.writeLong(streamId);
     buffer.writeInt(chunkIndex);

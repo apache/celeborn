@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.service.deploy.worker;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,11 +43,11 @@ public class WorkingPartitionSuiteJ {
     WorkingPartition pd2 = new WorkingPartition(p2, null);
     list.add(pd1);
     list.add(pd2);
-    assert list.size() == 2;
+    assertEquals(2, list.size());
     list.remove(p1);
-    assert list.size() == 1;
+    assertEquals(1, list.size());
     list.remove(p2);
-    assert list.size() == 0;
+    assertEquals(0, list.size());
 
     Map<PartitionLocation, PartitionLocation> map = new HashMap<>();
     map.put(pd1, pd1);
@@ -52,12 +55,12 @@ public class WorkingPartitionSuiteJ {
 
     PartitionLocation p =
         new PartitionLocation(0, 0, "host1", 10, 9, 8, 11, PartitionLocation.Mode.REPLICA);
-    assert map.containsKey(p);
+    assertTrue(map.containsKey(p));
 
     map.remove(p1);
-    assert map.size() == 1;
+    assertEquals(1, map.size());
     map.put(p2, p2);
-    assert map.size() == 1;
+    assertEquals(1, map.size());
 
     Map<PartitionLocation, PartitionLocation> map2 = new HashMap<>();
     PartitionLocation p3 =
@@ -69,6 +72,6 @@ public class WorkingPartitionSuiteJ {
     PartitionLocation p4 =
         new PartitionLocation(
             2, 1, "30.225.12.48", 9096, 9097, 9098, 9099, PartitionLocation.Mode.REPLICA);
-    assert map2.containsKey(p4);
+    assertTrue(map2.containsKey(p4));
   }
 }

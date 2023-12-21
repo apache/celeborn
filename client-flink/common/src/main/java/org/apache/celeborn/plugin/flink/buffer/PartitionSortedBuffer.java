@@ -368,7 +368,7 @@ public class PartitionSortedBuffer implements SortBuffer {
   }
 
   private int getSegmentOffsetFromPointer(long value) {
-    return (int) (value);
+    return (int) value;
   }
 
   @Override

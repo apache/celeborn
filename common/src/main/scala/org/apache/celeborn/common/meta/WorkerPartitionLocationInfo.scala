@@ -25,7 +25,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.PartitionLocation
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils}
 
 class WorkerPartitionLocationInfo extends Logging {
 
@@ -44,6 +44,11 @@ class WorkerPartitionLocationInfo extends Logging {
   def containsShuffle(shuffleKey: String): Boolean = {
     primaryPartitionLocations.containsKey(shuffleKey) ||
     replicaPartitionLocations.containsKey(shuffleKey)
+  }
+
+  def emptyShuffle(shuffleKey: String): Boolean = {
+    CollectionUtils.isEmpty(primaryPartitionLocations.get(shuffleKey)) &&
+    CollectionUtils.isEmpty(replicaPartitionLocations.get(shuffleKey))
   }
 
   def addPrimaryPartitions(
@@ -173,6 +178,14 @@ class WorkerPartitionLocationInfo extends Logging {
       primaryPartitionLocations.asScala.values.forall(_.isEmpty)) &&
     (replicaPartitionLocations.isEmpty ||
       replicaPartitionLocations.asScala.values.forall(_.isEmpty))
+  }
+
+  def toStringSimplified: String = {
+    s"""
+       | Partition Location Info:
+       | primary: ${primaryPartitionLocations.values().asScala.map(_.keySet().asScala)}
+       | replica: ${replicaPartitionLocations.values().asScala.map(_.keySet().asScala)}
+       |""".stripMargin
   }
 
   override def toString: String = {

@@ -27,12 +27,14 @@ import java.util.concurrent.atomic.LongAdder;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.crypto.cipher.CryptoCipher;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.compress.Decompressor;
+import org.apache.celeborn.client.security.CryptoUtils;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -59,6 +61,37 @@ public abstract class CelebornInputStream extends InputStream {
       ConcurrentHashMap<String, Long> fetchExcludedWorkers,
       MetricsCallback metricsCallback)
       throws IOException {
+    return create(
+        conf,
+        clientFactory,
+        shuffleKey,
+        locations,
+        attempts,
+        attemptNumber,
+        startMapIndex,
+        endMapIndex,
+        fetchExcludedWorkers,
+        Optional.empty(),
+        null,
+        null,
+        metricsCallback);
+  }
+
+  public static CelebornInputStream create(
+      CelebornConf conf,
+      TransportClientFactory clientFactory,
+      String shuffleKey,
+      PartitionLocation[] locations,
+      int[] attempts,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex,
+      ConcurrentHashMap<String, Long> fetchExcludedWorkers,
+      Optional<byte[]> ioCryptoKey,
+      Properties ioCryptoProp,
+      byte[] ioCryptoInitializationVector,
+      MetricsCallback metricsCallback)
+      throws IOException {
     if (locations == null || locations.length == 0) {
       return emptyInputStream;
     } else {
@@ -72,6 +105,9 @@ public abstract class CelebornInputStream extends InputStream {
           startMapIndex,
           endMapIndex,
           fetchExcludedWorkers,
+          ioCryptoKey,
+          ioCryptoProp,
+          ioCryptoInitializationVector,
           metricsCallback);
     }
   }
@@ -149,6 +185,9 @@ public abstract class CelebornInputStream extends InputStream {
     private boolean shuffleCompressionEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private final ConcurrentHashMap<String, Long> fetchExcludedWorkers;
+    private Optional<byte[]> encryptKey;
+    private Properties encryptProp;
+    private CryptoCipher decipher;
 
     private boolean containLocalRead = false;
 
@@ -162,6 +201,9 @@ public abstract class CelebornInputStream extends InputStream {
         int startMapIndex,
         int endMapIndex,
         ConcurrentHashMap<String, Long> fetchExcludedWorkers,
+        Optional<byte[]> ioCryptoKey,
+        Properties ioCryptoProp,
+        byte[] ioCryptoInitializationVector,
         MetricsCallback metricsCallback)
         throws IOException {
       this.conf = conf;
@@ -202,6 +244,12 @@ public abstract class CelebornInputStream extends InputStream {
       retryWaitMs = transportConf.ioRetryWaitTimeMs();
       this.callback = metricsCallback;
       moveToNextReader();
+
+      this.encryptKey = ioCryptoKey;
+      this.encryptProp = ioCryptoProp;
+      if (ioCryptoKey.isPresent()) {
+        decipher = CryptoUtils.getDecipher(ioCryptoKey, ioCryptoProp, ioCryptoInitializationVector);
+      }
     }
 
     private boolean skipLocation(int startMapIndex, int endMapIndex, PartitionLocation location) {
@@ -570,6 +618,7 @@ public abstract class CelebornInputStream extends InputStream {
             callback.incBytesRead(BATCH_HEADER_SIZE + size);
             if (shuffleCompressionEnabled) {
               // decompress data
+
               int originalLength = decompressor.getOriginalLen(compressedBuf);
               if (rawDataBuf.length < originalLength) {
                 rawDataBuf = new byte[originalLength];
@@ -578,6 +627,23 @@ public abstract class CelebornInputStream extends InputStream {
             } else {
               limit = size;
             }
+
+            if (decipher != null) {
+              byte[] decryptBuf = new byte[limit];
+              int decryptLength = CryptoUtils.decrypt(decipher, rawDataBuf, 0, limit, decryptBuf);
+              logger.debug(
+                  "fetch data decryption shuffleKey: {}, mapId: {}, attempId: {}, batchId: {}, decryptLength/originLength: {}/{}",
+                  shuffleKey,
+                  mapId,
+                  attemptId,
+                  batchId,
+                  decryptLength,
+                  limit);
+              limit = decryptLength;
+              System.arraycopy(decryptBuf, 0, rawDataBuf, 0, limit);
+              decryptBuf = null;
+            }
+
             position = 0;
             hasData = true;
             break;

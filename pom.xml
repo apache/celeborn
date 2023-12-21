@@ -52,7 +52,7 @@
   </distributionManagement>
 
   <properties>
-    <project.version>0.4.0-SNAPSHOT</project.version>
+    <project.version>0.5.0-SNAPSHOT</project.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
@@ -86,17 +86,18 @@
     <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
-    <netty.version>4.1.93.Final</netty.version>
-    <protobuf.version>3.19.2</protobuf.version>
+    <netty.version>4.1.101.Final</netty.version>
+    <protobuf.version>3.21.7</protobuf.version>
     <ratis.version>2.5.1</ratis.version>
     <scalatest.version>3.2.16</scalatest.version>
     <slf4j.version>1.7.36</slf4j.version>
     <roaringbitmap.version>0.9.32</roaringbitmap.version>
-    <snakeyaml.version>1.33</snakeyaml.version>
+    <snakeyaml.version>2.2</snakeyaml.version>
     <zstd-jni.version>1.5.2-1</zstd-jni.version>
     <kubernetes-client.version>6.7.0</kubernetes-client.version>
     <rocksdbjni.version>8.5.3</rocksdbjni.version>
     <jackson.version>2.15.3</jackson.version>
+    <snappy.version>1.1.10.5</snappy.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
@@ -484,6 +485,11 @@
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-core</artifactId>
         <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -923,7 +929,7 @@
             <fork>true</fork>
             <compilerArgs>
               <arg>-XDcompilePolicy=simple</arg>
-              <arg>-Xplugin:ErrorProne</arg>
+              <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/protobuf/.* -Xep:FutureReturnValueIgnored:OFF -Xep:TypeParameterUnusedInFormals:OFF -Xep:UnusedVariable:OFF</arg>
             </compilerArgs>
             <annotationProcessorPaths>
               <path>
@@ -1146,7 +1152,7 @@
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.17</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.4.1</spark.version>
+        <spark.version>3.4.2</spark.version>
         <zstd-jni.version>1.5.2-5</zstd-jni.version>
       </properties>
     </profile>
