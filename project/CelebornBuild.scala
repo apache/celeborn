@@ -44,6 +44,7 @@ object Dependencies {
   val findbugsVersion = "1.3.9"
   val guavaVersion = "32.1.3-jre"
   val hadoopVersion = "3.3.6"
+  val avroVersion = "1.11.3"
   val javaxServletVersion = "3.1.0"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
@@ -91,7 +92,9 @@ object Dependencies {
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
     ExclusionRule("jline", "jline"),
     ExclusionRule("log4j", "log4j"),
-    ExclusionRule("org.slf4j", "slf4j-log4j12"))
+    ExclusionRule("org.slf4j", "slf4j-log4j12"),
+    ExclusionRule("org.apache.avro", "avro"))
+  val avro = "org.apache.avro" % "avro" % avroVersion
   val ioDropwizardMetricsCore = "io.dropwizard.metrics" % "metrics-core" % metricsVersion
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
@@ -979,7 +982,8 @@ object MRClientProjects {
         libraryDependencies ++= Seq(
           Dependencies.hadoopClientApi,
           Dependencies.hadoopClientRuntime,
-          Dependencies.hadoopMapreduceClientApp
+          Dependencies.hadoopMapreduceClientApp,
+          Dependencies.avro
         ) ++ commonUnitTestDependencies
       )
   }

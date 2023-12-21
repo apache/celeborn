@@ -98,6 +98,7 @@
     <rocksdbjni.version>8.5.3</rocksdbjni.version>
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
+    <avro.version>1.11.3</avro.version>
 
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
@@ -422,6 +423,10 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -490,6 +495,11 @@
         <groupId>org.xerial.snappy</groupId>
         <artifactId>snappy-java</artifactId>
         <version>${snappy.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro</artifactId>
+        <version>${avro.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
