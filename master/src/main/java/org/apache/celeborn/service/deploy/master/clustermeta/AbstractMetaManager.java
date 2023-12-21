@@ -34,7 +34,6 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import scala.Option;
-import scala.collection.JavaConverters;
 
 import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
@@ -287,11 +286,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           snapshotMetaInfo.getWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet());
-      scala.collection.Seq<String> workerHostSeq =
-          JavaConverters.asScalaIterator(workerInfoSet.stream().map(WorkerInfo::host).iterator())
-              .toSeq();
+      List<String> workerHostList =
+          workerInfoSet.stream().map(WorkerInfo::host).collect(Collectors.toList());
       scala.collection.immutable.Map<String, Node> resolveMap =
-          rackResolver.resolveToMap(workerHostSeq);
+          rackResolver.resolveToMap(workerHostList);
       workers.addAll(
           workerInfoSet.stream()
               .peek(

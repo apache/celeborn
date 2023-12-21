@@ -54,6 +54,10 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
     coreResolve(hostNames)
   }
 
+  def resolveToMap(hostNames: java.util.List[String]): Map[String, Node] = {
+    resolveToMap(hostNames.asScala.toSeq)
+  }
+
   def resolveToMap(hostNames: Seq[String]): Map[String, Node] = {
     hostNames.zip(resolve(hostNames)).toMap
   }
