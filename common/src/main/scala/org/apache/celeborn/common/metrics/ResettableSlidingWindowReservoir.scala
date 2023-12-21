@@ -55,5 +55,7 @@ class ResettableSlidingWindowReservoir(size: Int) extends Reservoir {
 
   def reset(): Unit = this.synchronized {
     util.Arrays.fill(measurements, 0)
+    full = false
+    index = 0
   }
 }
