@@ -170,8 +170,7 @@ public class InFlightRequestTracker {
           inflightBatchesPerAddress.entrySet().stream()
               .filter(c -> c.getValue().size() > 0)
               .map(c -> c.getValue().size() + " batches for hostAndPushPort " + c.getKey())
-              .collect(Collectors.joining(", ", "[", "]"))
-      );
+              .collect(Collectors.joining(", ", "[", "]")));
     }
 
     if (pushState.exception.get() != null) {
