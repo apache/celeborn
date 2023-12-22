@@ -46,9 +46,9 @@ object MasterSource {
 
   val PARTITION_SIZE = "PartitionSize"
 
-  val PARTITION_WRITTEN = "PartitionWritten"
+  val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
 
-  val PARTITION_FILE_COUNT = "PartitionFileCount"
+  val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
 }

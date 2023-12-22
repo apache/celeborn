@@ -81,13 +81,13 @@ Here is an example of Grafana dashboard importing.
 |        RunningApplicationCount         |      master       |                                The count of running applications in the cluster.                                |
 |             OfferSlotsTime             |      master       |                                            The time of offer slots.                                             |
 |             PartitionSize              |      master       |          The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.           |
-|            PartitionWritten            |      master       |                                            The active shuffle size.                                             |
-|           PartitionFileCount           |      master       |                                       The active shuffle partition count.                                       |
+|         RegisteredShuffleCount         | master and worker |                                  The value means count of registered shuffle.                                   |
+|           ActiveShuffleSize            | master and worker |   The value means the active shuffle size for workers or a worker including master replica and slave replica.   |
+|         ActiveShuffleFileCount         | master and worker |   The value means the active shuffle size for workers or a worker including master replica and slave replica.   |
 |             diskFileCount              | master and worker |                                The count of disk files consumption by each user.                                |
 |            diskBytesWritten            | master and worker |                               The amount of disk files consumption by each user.                                |
 |             hdfsFileCount              | master and worker |                                The count of hdfs files consumption by each user.                                |
 |            hdfsBytesWritten            | master and worker |                               The amount of hdfs files consumption by each user.                                |
-|         RegisteredShuffleCount         | master and worker |                                  The value means count of registered shuffle.                                   |
 |            CommitFilesTime             |      worker       |                           CommitFiles means flush and close a shuffle partition file.                           |
 |            ReserveSlotsTime            |      worker       |                     ReserveSlots means acquire a disk buffer and record partition location.                     |
 |             FlushDataTime              |      worker       |                                  FlushData means flush a disk buffer to disk.                                   |
@@ -113,8 +113,6 @@ Here is an example of Grafana dashboard importing.
 |               DiskBuffer               |      worker       | Disk buffers are part of netty used memory, means data need to write to disk but haven't been written to disk.  |
 |             PausePushData              |      worker       |                   PausePushData means the count of worker stopped receiving data from client.                   |
 |       PausePushDataAndReplicate        |      worker       |    PausePushDataAndReplicate means the count of worker stopped receiving data from client and other workers.    |
-|           ActiveShuffleSize            |      worker       |                 The active shuffle size of a worker including master replica and slave replica.                 |
-|         ActiveShuffleFileCount         |      worker       |              The active shuffle file count of a worker including master replica and slave replica.              |
 |              jvm_gc_count              |        JVM        |                                     The GC count of each garbage collector.                                     |
 |              jvm_gc_time               |        JVM        |                                   The GC cost time of each garbage collector.                                   |
 |          jvm_memory_heap_init          |        JVM        |                                         The amount of heap init memory.                                         |

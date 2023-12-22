@@ -168,7 +168,7 @@ private[celeborn] class Master(
     statusSystem.appHeartbeatTime.size
   }
   masterSource.addGauge(MasterSource.PARTITION_SIZE) { () => statusSystem.estimatedPartitionSize }
-  masterSource.addGauge(MasterSource.PARTITION_WRITTEN) { () =>
+  masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_SIZE) { () =>
     statusSystem.workers.parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
@@ -178,7 +178,7 @@ private[celeborn] class Master(
             }).sum()
       }).sum()
   }
-  masterSource.addGauge(MasterSource.PARTITION_FILE_COUNT) { () =>
+  masterSource.addGauge(MasterSource.ACTIVE_SHUFFLE_FILE_COUNT) { () =>
     statusSystem.workers.parallelStream()
       .mapToLong(new ToLongFunction[WorkerInfo]() {
         override def applyAsLong(value: WorkerInfo): Long =
