@@ -285,6 +285,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.REGISTERED_SHUFFLE_COUNT) { () =>
     workerInfo.getShuffleKeySet.size
   }
+  workerSource.addGauge(WorkerSource.RUNNING_APPLICATION_COUNT) { () =>
+    workerInfo.getApplicationIdSet.size
+  }
   workerSource.addGauge(WorkerSource.SORT_MEMORY) { () =>
     memoryManager.getSortMemoryCounter.get()
   }
@@ -603,6 +606,15 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("========================= Worker ThreadDump ==========================\n")
     sb.append(Utils.getThreadDump()).append("\n")
+    sb.toString()
+  }
+
+  override def getApplicationList: String = {
+    val sb = new StringBuilder
+    sb.append("================= LifecycleManager Application List ======================\n")
+    workerInfo.getApplicationIdSet.asScala.foreach { appId =>
+      sb.append(s"$appId\n")
+    }
     sb.toString()
   }
 

@@ -163,6 +163,7 @@ These metrics are exposed by Celeborn worker.
     - TakeBufferTime
         - The time for a worker to take out a buffer from a disk flusher.
     - RegisteredShuffleCount
+    - RunningApplicationCount
     - SlotsAllocated
     - NettyMemory
         - The total amount of off-heap memory used by celeborn worker.
@@ -330,6 +331,7 @@ API path listed as below:
 | /conf                      | List the conf setting of the worker.                                                                                                |
 | /workerInfo                | List the worker information of the worker.                                                                                          |
 | /threadDump                | List the current thread dump of the worker.                                                                                         |
+| /applications              | List all running application's ids of the worker. It only return application ids running in that worker.                            |
 | /shuffles                  | List all the running shuffle keys of the worker. It only return keys of shuffles running in that worker.                            |
 | /listTopDiskUsedApps       | List the top disk usage application ids. It only return application ids running in that worker.                                     |
 | /listPartitionLocationInfo | List all the living PartitionLocation information in that worker.                                                                   |

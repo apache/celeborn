@@ -103,6 +103,8 @@ object WorkerSource {
 
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
 
+  val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
+
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
 

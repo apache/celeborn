@@ -19,6 +19,7 @@ package org.apache.celeborn.common.meta
 
 import java.io.File
 import java.util
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -84,6 +85,7 @@ class DiskInfo(
   var storageType: StorageInfo.Type = StorageInfo.Type.SSD
   var maxSlots: Long = 0
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
+  lazy val applicationAllocations = new util.HashMap[String, Integer]()
 
   def setStorageType(storageType: StorageInfo.Type) = {
     this.storageType = storageType
@@ -121,28 +123,38 @@ class DiskInfo(
   }
 
   def allocateSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
-    val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
-    shuffleAllocations.put(shuffleKey, allocated + slots)
+    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+    val shuffleAllocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
+    val applicationAllocated = applicationAllocations.getOrDefault(applicationId, 0)
+    shuffleAllocations.put(shuffleKey, shuffleAllocated + slots)
+    applicationAllocations.put(applicationId, applicationAllocated + slots)
     activeSlots = activeSlots + slots
   }
 
   def releaseSlots(shuffleKey: String, slots: Int): Unit = this.synchronized {
-    val allocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
-    if (allocated < slots) {
-      logError(s"allocated $allocated is less than to release $slots !")
-    }
-    val delta = Math.min(allocated, slots)
-    activeSlots = activeSlots - delta
-    if (allocated > slots) {
-      shuffleAllocations.put(shuffleKey, allocated - slots)
+    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+    val shuffleAllocated = shuffleAllocations.getOrDefault(shuffleKey, 0)
+    val applicationAllocated = applicationAllocations.getOrDefault(applicationId, 0)
+    if (shuffleAllocated < slots) {
+      logError(s"allocated $shuffleAllocated is less than to release $slots !")
     } else {
-      shuffleAllocations.put(shuffleKey, 0)
+      shuffleAllocations.put(shuffleKey, shuffleAllocated - slots)
+      applicationAllocations.put(applicationId, applicationAllocated - slots)
     }
+    activeSlots = activeSlots - Math.min(shuffleAllocated, slots)
   }
 
   def releaseSlots(shuffleKey: String): Unit = this.synchronized {
     val allocated = shuffleAllocations.remove(shuffleKey)
     if (allocated != null) {
+      val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+      var applicationAllocated = applicationAllocations.getOrDefault(applicationId, 0)
+      applicationAllocated = applicationAllocated - allocated
+      if (applicationAllocated <= 0) {
+        applicationAllocations.remove(applicationId)
+      } else {
+        applicationAllocations.put(applicationId, applicationAllocated)
+      }
       activeSlots = activeSlots - allocated
     }
   }
@@ -151,10 +163,15 @@ class DiskInfo(
     new util.HashSet(shuffleAllocations.keySet())
   }
 
+  def getApplicationIdSet(): util.HashSet[String] = this.synchronized {
+    new util.HashSet(applicationAllocations.keySet())
+  }
+
   override def toString: String = this.synchronized {
     val (emptyShuffles, nonEmptyShuffles) = shuffleAllocations.asScala.partition(_._2 == 0)
     s"DiskInfo(maxSlots: $maxSlots," +
-      s" committed shuffles ${emptyShuffles.size}" +
+      s" committed shuffles ${emptyShuffles.size}," +
+      s" running applications ${applicationAllocations.size}," +
       s" shuffleAllocations: ${nonEmptyShuffles.toMap}," +
       s" mountPoint: $mountPoint," +
       s" usableSpace: ${Utils.bytesToString(actualUsableSpace)}," +
