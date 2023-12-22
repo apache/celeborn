@@ -514,9 +514,8 @@ message PbNonMemoryFile {
   bool partitionSplitEnabled = 2;
   PbMapFileMeta mapFileMeta = 3;
   PbReduceFileMeta reduceFileMeta = 4;
-  string filePath = 5;
-  PbStorageInfo storageInfo = 6;
-  int64 bytesFlusher = 7;
+  PbStorageInfo storageInfo = 5;
+  int64 bytesFlushed = 6;
 }
 
 message PbFileInfoMap {

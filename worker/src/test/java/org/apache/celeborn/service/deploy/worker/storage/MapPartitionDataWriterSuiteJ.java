@@ -29,7 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
-import scala.Tuple3;
+import scala.Tuple4;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.Unpooled;
@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.NonMemoryFileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
@@ -121,19 +121,21 @@ public class MapPartitionDataWriterSuiteJ {
 
   @Test
   public void testMultiThreadWrite() throws IOException {
-    Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> context =
+    Tuple4<StorageManager, Flusher, DiskFileInfo, File> context =
         PartitionDataWriterSuiteUtils.prepareTestFileContext(
             tempDir, userIdentifier, localFlusher, false);
     MapPartitionDataWriter fileWriter =
         new MapPartitionDataWriter(
             context._1(),
+            context._3(),
             context._2(),
             source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
-            false);
+            false,
+            "app1-1");
     fileWriter.pushDataHandShake(2, 32 * 1024);
     fileWriter.regionStart(0, false);
     byte[] partData0 = generateData(0);

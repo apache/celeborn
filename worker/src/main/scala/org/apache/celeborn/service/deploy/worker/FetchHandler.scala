@@ -31,7 +31,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers, MapFileMeta, NonMemoryFileInfo, ReduceFileMeta}
+import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, FileManagedBuffers, MapFileMeta, ReduceFileMeta}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
@@ -76,7 +76,7 @@ class FetchHandler(
 
   def getRawNonMemoryFileInfo(
       shuffleKey: String,
-      fileName: String): NonMemoryFileInfo = {
+      fileName: String): DiskFileInfo = {
     // find FileWriter responsible for the data
     val fileInfo = storageManager.getNonMemoryFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
@@ -232,7 +232,7 @@ class FetchHandler(
               -1,
               rmeta.getNumChunks(),
               isLegacy,
-              fileInfo.getFileMeta.getChunkOffsets,
+              rmeta.getChunkOffsets,
               fileInfo.getFilePath)
           } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
@@ -247,19 +247,19 @@ class FetchHandler(
               buffers,
               fileName,
               fetchTimeMetrics)
-            if (fileInfo.getFileMeta.getNumChunks() == 0)
+            if (rmeta.getNumChunks() == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.getFileMeta.getNumChunks()}, " +
+              s"StreamId $streamId, fileName $fileName, numChunks ${rmeta.getNumChunks()}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             replyStreamHandler(
               client,
               rpcRequestId,
               streamId,
-              fileInfo.getFileMeta.getNumChunks(),
+              rmeta.getNumChunks(),
               isLegacy)
           }
         case mMeta: MapFileMeta =>

@@ -32,7 +32,7 @@ import io.netty.buffer.ByteBuf
 
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskStatus, NonMemoryFileInfo, WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{DiskFileInfo, DiskStatus, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
@@ -261,7 +261,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     if (fileWriter.isClosed) {
       logWarning(
-        s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.asInstanceOf[NonMemoryFileInfo].getFilePath}")
+        s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return;
@@ -310,7 +310,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     Option(CongestionController.instance()) match {
                       case Some(congestionController) =>
                         if (congestionController.isUserCongested(
-                            fileWriter.getFileInfo.getUserIdentifier)) {
+                            fileWriter.getDiskFileInfo.getUserIdentifier)) {
                           // Check whether primary congest the data though the replicas doesn't congest
                           // it(the response is empty)
                           callbackWithTimer.onSuccess(
@@ -385,7 +385,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             Option(CongestionController.instance()) match {
               case Some(congestionController) =>
                 if (congestionController.isUserCongested(
-                    fileWriter.getFileInfo.getUserIdentifier)) {
+                    fileWriter.getDiskFileInfo.getUserIdentifier)) {
                   if (isPrimary) {
                     callbackWithTimer.onSuccess(
                       ByteBuffer.wrap(
@@ -526,7 +526,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val closedFileWriter = fileWriters.find(_.isClosed)
     if (closedFileWriter.isDefined) {
       logWarning(
-        s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getFileInfo.asInstanceOf[NonMemoryFileInfo].getFilePath}")
+        s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriters.foreach(_.decrementPendingWrites())
       return
@@ -570,7 +570,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     Option(CongestionController.instance()) match {
                       case Some(congestionController) if fileWriters.nonEmpty =>
                         if (congestionController.isUserCongested(
-                            fileWriters.head.getFileInfo.getUserIdentifier)) {
+                            fileWriters.head.getDiskFileInfo.getUserIdentifier)) {
                           // Check whether primary congest the data though the replicas doesn't congest
                           // it(the response is empty)
                           callbackWithTimer.onSuccess(
@@ -642,7 +642,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           Option(CongestionController.instance()) match {
             case Some(congestionController) if fileWriters.nonEmpty =>
               if (congestionController.isUserCongested(
-                  fileWriters.head.getFileInfo.getUserIdentifier)) {
+                  fileWriters.head.getDiskFileInfo.getUserIdentifier)) {
                 if (isPrimary) {
                   callbackWithTimer.onSuccess(
                     ByteBuffer.wrap(
@@ -796,7 +796,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     if (fileWriter.isClosed) {
       logWarning(
-        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getFileInfo.asInstanceOf[NonMemoryFileInfo].getFilePath}")
+        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}")
       callback.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return;
@@ -985,7 +985,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
     // This should before return exception to make current push request revive and retry.
     val isPartitionSplitEnabled = fileWriter.asInstanceOf[
-      MapPartitionDataWriter].getFileInfo.isPartitionSplitEnabled
+      MapPartitionDataWriter].getDiskFileInfo.isPartitionSplitEnabled
 
     if (shutdown.get() && (messageType == Type.REGION_START || messageType ==
         Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled) {
@@ -1187,13 +1187,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |diskFull:$diskFull,
          |partitionSplitMinimumSize:$partitionSplitMinimumSize,
          |splitThreshold:${fileWriter.getSplitThreshold()},
-         |fileLength:${fileWriter.getFileInfo.getFileLength}
-         |fileName:${fileWriter.getFileInfo.asInstanceOf[NonMemoryFileInfo].getFilePath}
+         |fileLength:${fileWriter.getDiskFileInfo.getFileLength}
+         |fileName:${fileWriter.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}
          |""".stripMargin)
-    if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getFileInfo.getFileLength > partitionSplitMinimumSize) ||
-        (isPrimary && fileWriter.getFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
+    if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getDiskFileInfo.getFileLength > partitionSplitMinimumSize) ||
+        (isPrimary && fileWriter.getDiskFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
-        (fileWriter.getFileInfo.getFileLength < partitionSplitMaximumSize)) {
+        (fileWriter.getDiskFileInfo.getFileLength < partitionSplitMaximumSize)) {
         softSplit.set(true)
       } else {
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
@@ -1203,8 +1203,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
              |diskFull:$diskFull,
              |partitionSplitMinimumSize:$partitionSplitMinimumSize,
              |splitThreshold:${fileWriter.getSplitThreshold()},
-             |fileLength:${fileWriter.getFileInfo.getFileLength},
-             |fileName:${fileWriter.getFileInfo.asInstanceOf[NonMemoryFileInfo].getFilePath}
+             |fileLength:${fileWriter.getDiskFileInfo.getFileLength},
+             |fileName:${fileWriter.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}
              |""".stripMargin)
         return true
       }

@@ -31,12 +31,13 @@ public class FileManagedBuffers {
 
   private final TransportConf conf;
 
-  public FileManagedBuffers(NonMemoryFileInfo fileInfo, TransportConf conf) {
+  public FileManagedBuffers(DiskFileInfo fileInfo, TransportConf conf) {
     file = fileInfo.getFile();
-    numChunks = fileInfo.getFileMeta().getNumChunks();
+    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileInfo.getFileMeta();
+    numChunks = reduceFileMeta.getNumChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];
-      List<Long> chunkOffsets = fileInfo.getFileMeta().getChunkOffsets();
+      List<Long> chunkOffsets = reduceFileMeta.getChunkOffsets();
       for (int i = 0; i <= numChunks; i++) {
         offsets[i] = chunkOffsets.get(i);
       }

@@ -31,7 +31,9 @@ import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
@@ -78,7 +80,7 @@ public class CreditStreamManager {
       int initialCredit,
       int startSubIndex,
       int endSubIndex,
-      FileInfo fileInfo)
+      DiskFileInfo fileInfo)
       throws IOException {
     long streamId = nextStreamId.getAndIncrement();
     logger.debug(
@@ -133,7 +135,8 @@ public class CreditStreamManager {
       long streamId,
       MapPartitionData mapPartitionData) {
     StreamState streamState =
-        new StreamState(channel, fileInfo.getFileMeta().getBufferSize(), mapPartitionData);
+        new StreamState(
+            channel, ((MapFileMeta) fileInfo.getFileMeta()).getBufferSize(), mapPartitionData);
     streams.put(streamId, streamState);
     mapPartitionData.setupDataPartitionReader(startSubIndex, endSubIndex, streamId, channel);
   }
@@ -219,7 +222,7 @@ public class CreditStreamManager {
         if (mapPartitionData.releaseReader(streamId)) {
           streams.remove(streamId);
           if (mapPartitionData.getReaders().isEmpty()) {
-            FileInfo fileInfo = mapPartitionData.getFileInfo();
+            FileInfo fileInfo = mapPartitionData.getDiskFileInfo();
             activeMapPartitions.compute(
                 fileInfo,
                 (k, v) -> {

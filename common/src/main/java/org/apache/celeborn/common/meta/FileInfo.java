@@ -20,7 +20,7 @@ package org.apache.celeborn.common.meta;
 import org.apache.celeborn.common.identity.UserIdentifier;
 
 public abstract class FileInfo {
-  private UserIdentifier userIdentifier;
+  private final UserIdentifier userIdentifier;
   // whether to split is decided by client side.
   // now it's just used for mappartition to compatible with old client which can't support split
   private boolean partitionSplitEnabled;

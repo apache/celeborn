@@ -32,14 +32,17 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.Utils;
 
-public class NonMemoryFileInfo extends FileInfo {
-  private static Logger logger = LoggerFactory.getLogger(NonMemoryFileInfo.class);
+/*
+ * This class will describe shuffle files located on local disks, HDFS and other remote storage.
+ * */
+public class DiskFileInfo extends FileInfo {
+  private static Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
   private final Set<Long> streams = ConcurrentHashMap.newKeySet();
   private String filePath;
   private StorageInfo.Type storageType;
   private volatile long bytesFlushed;
 
-  public NonMemoryFileInfo(
+  public DiskFileInfo(
       UserIdentifier userIdentifier,
       boolean partitionSplitEnabled,
       FileMeta fileMeta,
@@ -50,7 +53,7 @@ public class NonMemoryFileInfo extends FileInfo {
     this.storageType = storageType;
   }
 
-  public NonMemoryFileInfo(
+  public DiskFileInfo(
       UserIdentifier userIdentifier,
       boolean partitionSplitEnabled,
       FileMeta fileMeta,
@@ -61,7 +64,7 @@ public class NonMemoryFileInfo extends FileInfo {
     this.storageType = StorageInfo.Type.HDD;
   }
 
-  public NonMemoryFileInfo(File file, UserIdentifier userIdentifier) {
+  public DiskFileInfo(File file, UserIdentifier userIdentifier) {
     this(
         userIdentifier,
         true,
@@ -71,8 +74,9 @@ public class NonMemoryFileInfo extends FileInfo {
   }
 
   public boolean addStream(long streamId) {
-    synchronized (fileMeta) {
-      if (fileMeta.getSorted()) {
+    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
+    synchronized (reduceFileMeta.getSorted()) {
+      if (reduceFileMeta.getSorted().get()) {
         return false;
       } else {
         streams.add(streamId);
@@ -82,13 +86,15 @@ public class NonMemoryFileInfo extends FileInfo {
   }
 
   public void closeStream(long streamId) {
-    synchronized (fileMeta) {
+    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
+    synchronized (reduceFileMeta.getSorted()) {
       streams.remove(streamId);
     }
   }
 
   public boolean isStreamsEmpty() {
-    synchronized (fileMeta) {
+    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
+    synchronized (reduceFileMeta.getSorted()) {
       return streams.isEmpty();
     }
   }
@@ -163,11 +169,11 @@ public class NonMemoryFileInfo extends FileInfo {
   }
 
   public String getMountPoint() {
-    return fileMeta.getMountPoint();
+    return ((MapFileMeta) fileMeta).getMountPoint();
   }
 
   public void setMountPoint(String mountPoint) {
-    fileMeta.setMountPoint(mountPoint);
+    ((MapFileMeta) fileMeta).setMountPoint(mountPoint);
   }
 
   public long getBytesFlushed() {

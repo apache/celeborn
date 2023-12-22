@@ -22,7 +22,7 @@ import java.util
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, FileInfo, NonMemoryFileInfo, ReduceFileMeta, WorkerInfo}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerInfo}
 import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -54,14 +54,14 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   val chunkOffsets1 = util.Arrays.asList[java.lang.Long](1000L, 2000L, 3000L)
   val chunkOffsets2 = util.Arrays.asList[java.lang.Long](2000L, 4000L, 6000L)
 
-  val fileInfo1 = new NonMemoryFileInfo(
+  val fileInfo1 = new DiskFileInfo(
     userIdentifier1,
     true,
     new ReduceFileMeta(chunkOffsets1),
     file1.getAbsolutePath)
   // "/tmp/1", chunkOffsets1, userIdentifier1)
   //  val fileInfo1 = new FileInfo("/tmp/1", chunkOffsets1, userIdentifier1)
-  val fileInfo2 = new NonMemoryFileInfo(
+  val fileInfo2 = new DiskFileInfo(
     userIdentifier2,
     true,
     new ReduceFileMeta(chunkOffsets2),
@@ -151,8 +151,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
     assert(
       restoredFileInfo.getFilePath.equals(fileInfo1.getFilePath))
-    assert(restoredFileInfo.getFileMeta.getChunkOffsets.equals(
-      fileInfo1.getFileMeta.getChunkOffsets))
+    assert(restoredFileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.equals(
+      fileInfo1.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets))
     assert(restoredFileInfo.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
   }
 
@@ -165,13 +165,13 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredFileInfoMap.size().equals(fileInfoMap.size()))
     assert(
       restoredFileInfo1.getFilePath.equals(fileInfo1.getFilePath))
-    assert(restoredFileInfo1.getFileMeta.getChunkOffsets.equals(
-      fileInfo1.getFileMeta.getChunkOffsets))
+    assert(restoredFileInfo1.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.equals(
+      fileInfo1.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets))
     assert(restoredFileInfo1.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
     assert(
       restoredFileInfo2.getFilePath.equals(fileInfo2.getFilePath))
-    assert(restoredFileInfo2.getFileMeta.getChunkOffsets.equals(
-      fileInfo2.getFileMeta.getChunkOffsets))
+    assert(restoredFileInfo2.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.equals(
+      fileInfo2.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets))
     assert(restoredFileInfo2.getUserIdentifier.equals(fileInfo2.getUserIdentifier))
   }
 

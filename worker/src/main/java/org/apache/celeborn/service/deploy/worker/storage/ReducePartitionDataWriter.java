@@ -24,7 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.meta.NonMemoryFileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -40,24 +41,28 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
 
   public ReducePartitionDataWriter(
       StorageManager storageManager,
-      CreateFileContext createFileContext,
+      DiskFileInfo diskFileInfo,
+      Flusher flusher,
       AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
-      boolean rangeReadFilter)
+      boolean rangeReadFilter,
+      String shuffleKey)
       throws IOException {
     super(
         storageManager,
-        createFileContext,
+        diskFileInfo,
+        flusher,
         workerSource,
         conf,
         deviceMonitor,
         splitThreshold,
         splitMode,
         PartitionType.REDUCE,
-        rangeReadFilter);
+        rangeReadFilter,
+        shuffleKey);
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.nextBoundary = this.shuffleChunkSize;
   }
@@ -69,9 +74,9 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
   }
 
   private void maybeSetChunkOffsets(boolean forceSet) {
-    long bytesFlushed = fileInfo.getFileLength();
+    long bytesFlushed = diskFileInfo.getFileLength();
     if (bytesFlushed >= nextBoundary || forceSet) {
-      fileInfo.getFileMeta().addChunkOffset(bytesFlushed);
+      ((ReduceFileMeta) diskFileInfo.getFileMeta()).addChunkOffset(bytesFlushed);
       nextBoundary = bytesFlushed + shuffleChunkSize;
     }
   }
@@ -85,7 +90,8 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return fileInfo.getFileMeta().getLastChunkOffset() == fileInfo.getFileLength();
+    return ((ReduceFileMeta) diskFileInfo.getFileMeta()).getLastChunkOffset()
+        == diskFileInfo.getFileLength();
   }
 
   @Override
@@ -97,20 +103,17 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
           }
         },
         () -> {
-          if (((NonMemoryFileInfo) fileInfo).isHdfs()) {
-            if (StorageManager.hadoopFs()
-                .exists(((NonMemoryFileInfo) fileInfo).getHdfsPeerWriterSuccessPath())) {
-              StorageManager.hadoopFs().delete(((NonMemoryFileInfo) fileInfo).getHdfsPath(), false);
+          if (diskFileInfo.isHdfs()) {
+            if (StorageManager.hadoopFs().exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
+              StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
               deleted = true;
             } else {
-              StorageManager.hadoopFs()
-                  .create(((NonMemoryFileInfo) fileInfo).getHdfsWriterSuccessPath())
-                  .close();
+              StorageManager.hadoopFs().create(diskFileInfo.getHdfsWriterSuccessPath()).close();
               FSDataOutputStream indexOutputStream =
-                  StorageManager.hadoopFs()
-                      .create(((NonMemoryFileInfo) fileInfo).getHdfsIndexPath());
-              indexOutputStream.writeInt(fileInfo.getFileMeta().getChunkOffsets().size());
-              for (Long offset : fileInfo.getFileMeta().getChunkOffsets()) {
+                  StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath());
+              indexOutputStream.writeInt(
+                  ((ReduceFileMeta) diskFileInfo.getFileMeta()).getChunkOffsets().size());
+              for (Long offset : ((ReduceFileMeta) diskFileInfo.getFileMeta()).getChunkOffsets()) {
                 indexOutputStream.writeLong(offset);
               }
               indexOutputStream.close();

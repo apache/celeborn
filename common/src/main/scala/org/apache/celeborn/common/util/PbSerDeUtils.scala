@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, DiskInfo, FileInfo, MapFileMeta, NonMemoryFileInfo, ReduceFileMeta, WorkerInfo}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerInfo}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -86,7 +86,7 @@ object PbSerDeUtils {
       .setStorageType(diskInfo.storageType.getValue)
       .build
 
-  def fromPbFileInfo(pbFileInfo: PbFileInfo): NonMemoryFileInfo =
+  def fromPbFileInfo(pbFileInfo: PbFileInfo): DiskFileInfo =
     fromPbFileInfo(pbFileInfo, fromPbUserIdentifier(pbFileInfo.getUserIdentifier))
 
   def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) = {
@@ -98,26 +98,28 @@ object PbSerDeUtils {
       case PartitionType.MAPGROUP =>
         throw new NotImplementedError("Map group is not implemented")
     }
-    new NonMemoryFileInfo(
+    new DiskFileInfo(
       userIdentifier,
       pbFileInfo.getPartitionSplitEnabled,
       meta,
       pbFileInfo.getFilePath)
   }
 
-  def toPbFileInfo(fileInfo: NonMemoryFileInfo): PbFileInfo = {
+  def toPbFileInfo(fileInfo: DiskFileInfo): PbFileInfo = {
     val builder = PbFileInfo.newBuilder
       .setFilePath(fileInfo.getFilePath)
       .setUserIdentifier(toPbUserIdentifier(fileInfo.getUserIdentifier))
       .setBytesFlushed(fileInfo.getFileLength)
       .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
     if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
+      val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
       builder.setPartitionType(PartitionType.MAP.getValue)
-      builder.setBufferSize(fileInfo.getFileMeta.getBufferSize)
-      builder.setNumSubpartitions(fileInfo.getFileMeta.getNumSubpartitions)
+      builder.setBufferSize(mapFileMeta.getBufferSize)
+      builder.setNumSubpartitions(mapFileMeta.getNumSubpartitions)
     } else {
+      val reduceFileMeta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
       builder.setPartitionType(PartitionType.REDUCE.getValue)
-      builder.addAllChunkOffsets(fileInfo.getFileMeta.getChunkOffsets)
+      builder.addAllChunkOffsets(reduceFileMeta.getChunkOffsets)
     }
     builder.build
   }
@@ -125,10 +127,9 @@ object PbSerDeUtils {
   @throws[InvalidProtocolBufferException]
   def fromPbFileInfoMap(
       data: Array[Byte],
-      cache: ConcurrentHashMap[String, UserIdentifier])
-      : ConcurrentHashMap[String, NonMemoryFileInfo] = {
+      cache: ConcurrentHashMap[String, UserIdentifier]): ConcurrentHashMap[String, DiskFileInfo] = {
     val pbFileInfoMap = PbFileInfoMap.parseFrom(data)
-    val fileInfoMap = JavaUtils.newConcurrentHashMap[String, NonMemoryFileInfo]
+    val fileInfoMap = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]
     pbFileInfoMap.getValuesMap.entrySet().asScala.foreach { entry =>
       val fileName = entry.getKey
       val pbFileInfo = entry.getValue
@@ -149,7 +150,7 @@ object PbSerDeUtils {
   def toPbFileInfoMap(fileInfoMap: ConcurrentHashMap[String, FileInfo]): Array[Byte] = {
     val pbFileInfoMap = JavaUtils.newConcurrentHashMap[String, PbFileInfo]()
     fileInfoMap.entrySet().asScala.foreach { entry =>
-      pbFileInfoMap.put(entry.getKey, toPbFileInfo(entry.getValue.asInstanceOf[NonMemoryFileInfo]))
+      pbFileInfoMap.put(entry.getKey, toPbFileInfo(entry.getValue.asInstanceOf[DiskFileInfo]))
     }
     PbFileInfoMap.newBuilder.putAllValues(pbFileInfoMap).build.toByteArray
   }

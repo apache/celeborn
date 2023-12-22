@@ -22,12 +22,13 @@ import java.io.IOException;
 import java.util.UUID;
 
 import scala.Tuple3;
+import scala.Tuple4;
 
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
-import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 
 public class PartitionDataWriterSuiteUtils {
   public static File getTemporaryFile(File tempDir) throws IOException {
@@ -37,20 +38,25 @@ public class PartitionDataWriterSuiteUtils {
     return temporaryFile;
   }
 
-  public static Tuple3<StorageManager, CreateFileContext, NonMemoryFileInfo> prepareTestFileContext(
+  public static Tuple4<StorageManager, Flusher, DiskFileInfo, File> prepareTestFileContext(
       File tempDir, UserIdentifier userIdentifier, Flusher flusher, boolean reduceMeta)
       throws IOException {
     File file = getTemporaryFile(tempDir);
-    NonMemoryFileInfo fileInfo = new NonMemoryFileInfo(file, userIdentifier);
+    DiskFileInfo fileInfo = new DiskFileInfo(file, userIdentifier);
     if (!reduceMeta) {
       fileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
     }
-
     StorageManager storageManager = Mockito.mock(StorageManager.class);
-    CreateFileContext createFileContext = Mockito.mock(CreateFileContext.class);
-    Mockito.doAnswer(invocation -> new CreateFileResult(flusher, fileInfo))
+    Mockito.doAnswer(invocation -> new Tuple3<Flusher, DiskFileInfo, File>(flusher, fileInfo, null))
         .when(storageManager)
-        .createFile(Mockito.any(), Mockito.any());
-    return new Tuple3<>(storageManager, createFileContext, fileInfo);
+        .createFile(
+            Mockito.any(),
+            Mockito.any(),
+            Mockito.anyInt(),
+            Mockito.any(),
+            Mockito.any(),
+            Mockito.any(),
+            Mockito.anyBoolean());
+    return new Tuple4<>(storageManager, flusher, fileInfo, null);
   }
 }

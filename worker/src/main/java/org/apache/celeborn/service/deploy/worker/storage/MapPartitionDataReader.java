@@ -35,8 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.FileCorruptedException;
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.meta.NonMemoryFileInfo;
+import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
@@ -67,6 +68,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   private long dataConsumingOffset;
   private volatile long currentPartitionRemainingBytes;
   private FileInfo fileInfo;
+  private MapFileMeta mapFileMeta;
   private int INDEX_ENTRY_SIZE = 16;
   private long streamId;
   protected final Object lock = new Object();
@@ -121,6 +123,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     this.recycleStream = recycleStream;
 
     this.fileInfo = fileInfo;
+    this.mapFileMeta = ((MapFileMeta) fileInfo.getFileMeta());
     this.readFinished = false;
   }
 
@@ -130,7 +133,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       this.dataFileChannel = dataFileChannel;
       this.indexFileChannel = indexFileChannel;
       // index is (offset,length)
-      long indexRegionSize = fileInfo.getFileMeta().getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
+      long indexRegionSize = mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
       this.numRegions = Utils.checkedDownCast(indexSize / indexRegionSize);
 
       updateConsumingOffset();
@@ -253,7 +256,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   }
 
   private long getIndexRegionSize() {
-    return fileInfo.getFileMeta().getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
+    return mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
   }
 
   private void readHeaderOrIndexBuffer(FileChannel channel, ByteBuffer buffer, int length)
@@ -325,7 +328,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
           || dataConsumingOffset + currentPartitionRemainingBytes > dataFileChannel.size()
           || currentPartitionRemainingBytes < 0) {
         throw new FileCorruptedException(
-            "File " + ((NonMemoryFileInfo) fileInfo).getFilePath() + " is corrupted");
+            "File " + ((DiskFileInfo) fileInfo).getFilePath() + " is corrupted");
       }
     }
   }
@@ -336,7 +339,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
 
       int readSize =
           readBuffer(
-              ((NonMemoryFileInfo) fileInfo).getFilePath(),
+              ((DiskFileInfo) fileInfo).getFilePath(),
               dataFileChannel,
               headerBuffer,
               buffer,
@@ -349,7 +352,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
           currentPartitionRemainingBytes,
           readSize,
           dataConsumingOffset,
-          ((NonMemoryFileInfo) fileInfo).getFilePath(),
+          ((DiskFileInfo) fileInfo).getFilePath(),
           System.identityHashCode(buffer));
 
       // if this check fails, the partition file must be corrupted
@@ -404,7 +407,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   private void notifyError(Throwable throwable) {
     logger.error(
         "Read file: {} error from {}, stream id {}",
-        ((NonMemoryFileInfo) fileInfo).getFilePath(),
+        ((DiskFileInfo) fileInfo).getFilePath(),
         NettyUtils.getRemoteAddress(this.associatedChannel),
         streamId,
         throwable);

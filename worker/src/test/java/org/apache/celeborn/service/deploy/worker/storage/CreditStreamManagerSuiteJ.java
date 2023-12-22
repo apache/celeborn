@@ -36,9 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
-import org.apache.celeborn.common.meta.NonMemoryFileInfo;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -76,25 +75,25 @@ public class CreditStreamManagerSuiteJ {
   public void testStreamRegisterAndCleanup() throws Exception {
     CreditStreamManager creditStreamManager = new CreditStreamManager(10, 10, 1, 32);
     Channel channel = Mockito.mock(Channel.class);
-    FileInfo fileInfo =
-        new NonMemoryFileInfo(
+    DiskFileInfo diskFileInfo =
+        new DiskFileInfo(
             createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"));
     MapFileMeta mapFileMeta = new MapFileMeta(1024, 10);
-    fileInfo.replaceFileMeta(mapFileMeta);
+    diskFileInfo.replaceFileMeta(mapFileMeta);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);
 
     long registerStream1 =
-        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
     Assert.assertTrue(registerStream1 > 0);
     Assert.assertEquals(1, creditStreamManager.numStreamStates());
 
     long registerStream2 =
-        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
     Assert.assertNotEquals(registerStream1, registerStream2);
     Assert.assertEquals(2, creditStreamManager.numStreamStates());
 
-    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
-    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
+    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
 
     MapPartitionData mapPartitionData1 =
         creditStreamManager.getStreams().get(registerStream1).getMapDataPartition();

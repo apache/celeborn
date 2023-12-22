@@ -29,37 +29,30 @@ public class MapFileMeta implements FileMeta {
     this.numSubPartitions = numSubPartitions;
   }
 
-  @Override
   public int getBufferSize() {
     return bufferSize;
   }
 
-  @Override
   public int getNumSubPartitions() {
     return numSubPartitions;
   }
 
-  @Override
   public void setNumSubpartitions(int numSubpartitions) {
     this.numSubPartitions = numSubpartitions;
   }
 
-  @Override
   public void setBufferSize(int bufferSize) {
     this.bufferSize = bufferSize;
   }
 
-  @Override
   public void setMountPoint(String mountPoint) {
     this.mountPoint = mountPoint;
   }
 
-  @Override
   public String getMountPoint() {
     return mountPoint;
   }
 
-  @Override
   public int getNumSubpartitions() {
     return numSubPartitions;
   }

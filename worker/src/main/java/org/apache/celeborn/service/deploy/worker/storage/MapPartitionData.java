@@ -36,8 +36,8 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.meta.FileInfo;
-import org.apache.celeborn.common.meta.NonMemoryFileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -47,7 +47,8 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 // this means active data partition
 class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
   public static final Logger logger = LoggerFactory.getLogger(MapPartitionData.class);
-  private final FileInfo fileInfo;
+  private final DiskFileInfo diskFileInfo;
+  private final MapFileMeta mapFileMeta;
   private final ExecutorService readExecutor;
   private final ConcurrentHashMap<Long, MapPartitionDataReader> readers =
       JavaUtils.newConcurrentHashMap();
@@ -69,12 +70,13 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
       int maxReadBuffers,
       HashMap<String, ExecutorService> storageFetcherPool,
       int threadsPerMountPoint,
-      FileInfo fileInfo,
+      DiskFileInfo diskFileInfo,
       Consumer<Long> recycleStream,
       int minBuffersToTriggerRead)
       throws IOException {
     this.recycleStream = recycleStream;
-    this.fileInfo = fileInfo;
+    this.diskFileInfo = diskFileInfo;
+    this.mapFileMeta = (MapFileMeta) diskFileInfo.getFileMeta();
 
     this.minReadBuffers = minReadBuffers;
     this.maxReadBuffers = maxReadBuffers;
@@ -82,29 +84,29 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
     updateBuffersTarget((this.minReadBuffers + this.maxReadBuffers) / 2 + 1);
     logger.debug(
         "read map partition {} with {} {}",
-        ((NonMemoryFileInfo) fileInfo).getFilePath(),
+        ((DiskFileInfo) diskFileInfo).getFilePath(),
         bufferQueue.getLocalBuffersTarget(),
-        fileInfo.getFileMeta().getBufferSize());
+        mapFileMeta.getBufferSize());
 
     this.minBuffersToTriggerRead = minBuffersToTriggerRead;
 
     readExecutor =
         storageFetcherPool.computeIfAbsent(
-            fileInfo.getFileMeta().getMountPoint(),
+            mapFileMeta.getMountPoint(),
             k ->
                 Executors.newFixedThreadPool(
                     threadsPerMountPoint,
                     new ThreadFactoryBuilder()
-                        .setNameFormat(fileInfo.getFileMeta().getMountPoint() + "-reader-thread-%d")
+                        .setNameFormat(mapFileMeta.getMountPoint() + "-reader-thread-%d")
                         .setUncaughtExceptionHandler(
                             (t1, t2) -> {
                               logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
                             })
                         .build()));
     this.dataFileChanel =
-        FileChannelUtils.openReadableFileChannel(((NonMemoryFileInfo) fileInfo).getFilePath());
+        FileChannelUtils.openReadableFileChannel(((DiskFileInfo) diskFileInfo).getFilePath());
     this.indexChannel =
-        FileChannelUtils.openReadableFileChannel(((NonMemoryFileInfo) fileInfo).getIndexPath());
+        FileChannelUtils.openReadableFileChannel(((DiskFileInfo) diskFileInfo).getIndexPath());
     this.indexSize = indexChannel.size();
 
     MemoryManager.instance().addReadBufferTargetChangeListener(this);
@@ -127,7 +129,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
         new MapPartitionDataReader(
             startSubIndex,
             endSubIndex,
-            fileInfo,
+            diskFileInfo,
             streamId,
             channel,
             () -> recycleStream.accept(streamId));
@@ -138,7 +140,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
     if (bufferQueueInitialized.compareAndSet(false, true)) {
       bufferQueue.tryApplyNewBuffers(
           readers.size(),
-          fileInfo.getFileMeta().getBufferSize(),
+          mapFileMeta.getBufferSize(),
           (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
     } else {
       triggerRead();
@@ -176,7 +178,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
 
     bufferQueue.tryApplyNewBuffers(
         readers.size(),
-        fileInfo.getFileMeta().getBufferSize(),
+        mapFileMeta.getBufferSize(),
         (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
   }
 
@@ -247,7 +249,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
   }
 
   public void close() {
-    logger.debug("release map data partition {}", fileInfo);
+    logger.debug("release map data partition {}", diskFileInfo);
     bufferQueue.release();
     isReleased = true;
 
@@ -259,21 +261,20 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
 
   @Override
   public String toString() {
-    return "MapDataPartition{" + "fileInfo=" + ((NonMemoryFileInfo) fileInfo).getFilePath() + '}';
+    return "MapDataPartition{" + "fileInfo=" + ((DiskFileInfo) diskFileInfo).getFilePath() + '}';
   }
 
   public ConcurrentHashMap<Long, MapPartitionDataReader> getReaders() {
     return readers;
   }
 
-  public FileInfo getFileInfo() {
-    return fileInfo;
+  public DiskFileInfo getDiskFileInfo() {
+    return diskFileInfo;
   }
 
   @Override
   public void onChange(long newMemoryTarget) {
-    updateBuffersTarget(
-        (int) Math.ceil(newMemoryTarget * 1.0 / fileInfo.getFileMeta().getBufferSize()));
+    updateBuffersTarget((int) Math.ceil(newMemoryTarget * 1.0 / mapFileMeta.getBufferSize()));
     bufferQueue.trim();
   }
 }
