@@ -117,7 +117,7 @@ object PbSerDeUtils {
       builder.setNumSubpartitions(fileInfo.getFileMeta.getNumSubpartitions)
     } else {
       builder.setPartitionType(PartitionType.REDUCE.getValue)
-      builder.addAllChunkOffsets(fileInfo.getChunkOffsets)
+      builder.addAllChunkOffsets(fileInfo.getFileMeta.getChunkOffsets)
     }
     builder.build
   }

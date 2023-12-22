@@ -230,9 +230,9 @@ class FetchHandler(
               client,
               rpcRequestId,
               -1,
-              fileInfo.getFileMeta.getNumChunks(),
+              rmeta.getNumChunks(),
               isLegacy,
-              fileInfo.getChunkOffsets,
+              fileInfo.getFileMeta.getChunkOffsets,
               fileInfo.getFilePath)
           } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)

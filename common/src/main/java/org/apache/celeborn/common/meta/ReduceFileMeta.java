@@ -44,6 +44,7 @@ public class ReduceFileMeta implements FileMeta {
     chunkOffsets.add(offset);
   }
 
+  @Override
   public synchronized long getLastChunkOffset() {
     return chunkOffsets.get(chunkOffsets.size() - 1);
   }
@@ -65,13 +66,5 @@ public class ReduceFileMeta implements FileMeta {
   @Override
   public boolean getSorted() {
     return sorted.get();
-  }
-
-  public synchronized int numChunks() {
-    if (!chunkOffsets.isEmpty()) {
-      return chunkOffsets.size() - 1;
-    } else {
-      return 0;
-    }
   }
 }

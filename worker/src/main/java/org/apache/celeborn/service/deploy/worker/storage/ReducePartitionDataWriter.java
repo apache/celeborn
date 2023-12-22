@@ -109,8 +109,8 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
               FSDataOutputStream indexOutputStream =
                   StorageManager.hadoopFs()
                       .create(((NonMemoryFileInfo) fileInfo).getHdfsIndexPath());
-              indexOutputStream.writeInt(((NonMemoryFileInfo) fileInfo).getChunkOffsets().size());
-              for (Long offset : ((NonMemoryFileInfo) fileInfo).getChunkOffsets()) {
+              indexOutputStream.writeInt(fileInfo.getFileMeta().getChunkOffsets().size());
+              for (Long offset : fileInfo.getFileMeta().getChunkOffsets()) {
                 indexOutputStream.writeLong(offset);
               }
               indexOutputStream.close();

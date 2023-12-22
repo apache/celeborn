@@ -151,8 +151,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
     assert(
       restoredFileInfo.getFilePath.equals(fileInfo1.getFilePath))
-    assert(restoredFileInfo.getChunkOffsets.equals(
-      fileInfo1.getChunkOffsets))
+    assert(restoredFileInfo.getFileMeta.getChunkOffsets.equals(
+      fileInfo1.getFileMeta.getChunkOffsets))
     assert(restoredFileInfo.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
   }
 
@@ -165,13 +165,13 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredFileInfoMap.size().equals(fileInfoMap.size()))
     assert(
       restoredFileInfo1.getFilePath.equals(fileInfo1.getFilePath))
-    assert(restoredFileInfo1.getChunkOffsets.equals(
-      fileInfo1.getChunkOffsets))
+    assert(restoredFileInfo1.getFileMeta.getChunkOffsets.equals(
+      fileInfo1.getFileMeta.getChunkOffsets))
     assert(restoredFileInfo1.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
     assert(
       restoredFileInfo2.getFilePath.equals(fileInfo2.getFilePath))
-    assert(restoredFileInfo2.getChunkOffsets.equals(
-      fileInfo2.getChunkOffsets))
+    assert(restoredFileInfo2.getFileMeta.getChunkOffsets.equals(
+      fileInfo2.getFileMeta.getChunkOffsets))
     assert(restoredFileInfo2.getUserIdentifier.equals(fileInfo2.getUserIdentifier))
   }
 

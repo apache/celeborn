@@ -1083,13 +1083,6 @@ object Utils extends Logging {
     }
   }
 
-  def getShortFormattedFileName(fileInfo: FileInfo): String = {
-    val parentFile = fileInfo.asInstanceOf[NonMemoryFileInfo].getFile.getParent
-    parentFile.substring(
-      parentFile.lastIndexOf("/"),
-      parentFile.length) + "/" + fileInfo.asInstanceOf[NonMemoryFileInfo].getFile.getName
-  }
-
   def parseMetricLabels(label: String): (String, String) = {
     val labelPart = label.split("=")
     if (labelPart.size != 2) {

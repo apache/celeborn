@@ -36,7 +36,7 @@ public class FileManagedBuffers {
     numChunks = fileInfo.getFileMeta().getNumChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];
-      List<Long> chunkOffsets = fileInfo.getChunkOffsets();
+      List<Long> chunkOffsets = fileInfo.getFileMeta().getChunkOffsets();
       for (int i = 0; i <= numChunks; i++) {
         offsets[i] = chunkOffsets.get(i);
       }

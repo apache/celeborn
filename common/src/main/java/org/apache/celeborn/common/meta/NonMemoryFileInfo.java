@@ -20,7 +20,6 @@ package org.apache.celeborn.common.meta;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -177,9 +176,5 @@ public class NonMemoryFileInfo extends FileInfo {
 
   public boolean isHdfs() {
     return Utils.isHdfsPath(filePath);
-  }
-
-  public synchronized List<Long> getChunkOffsets() {
-    return fileMeta.getChunkOffsets();
   }
 }

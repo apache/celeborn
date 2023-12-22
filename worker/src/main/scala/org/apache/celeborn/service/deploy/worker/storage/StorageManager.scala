@@ -368,17 +368,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
     val writer =
       try {
+        val createFileCtx = new CreateFileContext(
+          location,
+          appId,
+          shuffleId,
+          location.getFileName,
+          userIdentifier,
+          partitionType,
+          partitionSplitEnabled)
         partitionType match {
           case PartitionType.MAP => new MapPartitionDataWriter(
               this,
-              new CreateFileContext(
-                location,
-                appId,
-                shuffleId,
-                location.getFileName,
-                userIdentifier,
-                partitionType,
-                partitionSplitEnabled),
+              createFileCtx,
               workerSource,
               conf,
               deviceMonitor,
@@ -387,14 +388,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               rangeReadFilter)
           case PartitionType.REDUCE => new ReducePartitionDataWriter(
               this,
-              new CreateFileContext(
-                location,
-                appId,
-                shuffleId,
-                location.getFileName,
-                userIdentifier,
-                partitionType,
-                partitionSplitEnabled),
+              createFileCtx,
               workerSource,
               conf,
               deviceMonitor,

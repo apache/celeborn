@@ -499,7 +499,7 @@ message PbFileInfo {
   bool partitionSplitEnabled = 8;
 }
 
-message PbMapFileMeta{
+message PbMapFileMeta {
   int32 bufferSize = 1;
   int32 numSubPartitions = 2;
 }
@@ -509,7 +509,7 @@ message PbReduceFileMeta {
   bool sorted = 2;
 }
 
-message PbNonMemoryFile{
+message PbNonMemoryFile {
   PbUserIdentifier userIdentifier = 1;
   bool partitionSplitEnabled = 2;
   PbMapFileMeta mapFileMeta = 3;
