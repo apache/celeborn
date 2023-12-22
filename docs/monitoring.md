@@ -99,9 +99,9 @@ These metrics are exposed by Celeborn master.
     - IsActiveMaster
     - PartitionSize
         - The size of estimated shuffle partition.
-    - PartitionWritten
+    - ActiveShuffleSize
         - The active shuffle size of workers.
-    - PartitionFileCount
+    - ActiveShuffleFileCount
         - The active shuffle file count of workers.
     - OfferSlotsTime
         - The time for masters to handle `RequestSlots` request when registering shuffle.
