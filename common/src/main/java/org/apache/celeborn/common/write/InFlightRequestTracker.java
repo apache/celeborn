@@ -168,7 +168,7 @@ public class InFlightRequestTracker {
               + "which exceeds the current limit 0.",
           waitInflightTimeoutMs,
           inflightBatchesPerAddress.entrySet().stream()
-              .filter(c -> c.getValue().size() > 0)
+              .filter(c -> !c.getValue().isEmpty())
               .map(c -> c.getValue().size() + " batches for hostAndPushPort " + c.getKey())
               .collect(Collectors.joining(", ", "[", "]")));
     }
