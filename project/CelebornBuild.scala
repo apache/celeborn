@@ -162,7 +162,7 @@ object CelebornCommonSettings {
     crossScalaVersions := ALL_SCALA_VERSIONS,
     fork := true,
     scalacOptions ++= Seq("-target:jvm-1.8"),
-    javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8"),
+    javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8", "-g"),
   
     // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
