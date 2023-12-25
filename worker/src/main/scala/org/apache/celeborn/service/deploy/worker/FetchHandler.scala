@@ -206,7 +206,7 @@ class FetchHandler(
     try {
       var fileInfo = getRawNonMemoryFileInfo(shuffleKey, fileName)
       fileInfo.getFileMeta match {
-        case rmeta: ReduceFileMeta =>
+        case _: ReduceFileMeta =>
           logDebug(s"Received open stream request $shuffleKey $fileName $startIndex " +
             s"$endIndex get file name $fileName from client channel " +
             s"${NettyUtils.getRemoteAddress(client.getChannel)}")
@@ -230,9 +230,9 @@ class FetchHandler(
               client,
               rpcRequestId,
               -1,
-              rmeta.getNumChunks(),
+              fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks,
               isLegacy,
-              rmeta.getChunkOffsets,
+              fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets,
               fileInfo.getFilePath)
           } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
@@ -247,22 +247,23 @@ class FetchHandler(
               buffers,
               fileName,
               fetchTimeMetrics)
-            if (rmeta.getNumChunks() == 0)
+            if (fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId, fileName $fileName, numChunks ${rmeta.getNumChunks()}, " +
+              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.getFileMeta.asInstanceOf[
+                ReduceFileMeta].getNumChunks()}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             replyStreamHandler(
               client,
               rpcRequestId,
               streamId,
-              rmeta.getNumChunks(),
+              fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks,
               isLegacy)
           }
-        case mMeta: MapFileMeta =>
+        case _: MapFileMeta =>
           val creditStreamHandler =
             new Consumer[java.lang.Long] {
               override def accept(streamId: java.lang.Long): Unit = {
