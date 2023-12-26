@@ -167,6 +167,13 @@ object CelebornCommonSettings {
     // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
 
+    // Add the LICENSE/NOTICE files from the project's root directory to the
+    // META-INF directory in the generated JAR package for each subproject
+    Compile / packageBin / mappings += {
+      ((LocalRootProject / baseDirectory).value / "LICENSE") -> "META-INF/LICENSE",
+      ((LocalRootProject / baseDirectory).value / "NOTICE") -> "META-INF/NOTICE"
+    }
+
     dependencyOverrides := Seq(
       Dependencies.commonsCompress,
       Dependencies.commonsLogging,
