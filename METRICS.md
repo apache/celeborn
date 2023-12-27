@@ -78,10 +78,10 @@ Here is an example of Grafana dashboard importing.
 |:--------------------------------------:|:-----------------:|:---------------------------------------------------------------------------------------------------------------:|
 |              WorkerCount               |      master       |                                          The count of active workers.                                           |
 |          ExcludedWorkerCount           |      master       |                                     The count of workers in excluded list.                                      |
-|        RunningApplicationCount         |      master       |                                The count of running applications in the cluster.                                |
 |             OfferSlotsTime             |      master       |                                            The time of offer slots.                                             |
 |             PartitionSize              |      master       |          The estimated partition size of last 20 flush window whose length is 15 seconds by defaults.           |
 |         RegisteredShuffleCount         | master and worker |                                  The value means count of registered shuffle.                                   |
+|        RunningApplicationCount         | master and worker |                                 The value means count of running applications.                                  |
 |           ActiveShuffleSize            | master and worker |   The value means the active shuffle size for workers or a worker including master replica and slave replica.   |
 |         ActiveShuffleFileCount         | master and worker |   The value means the active shuffle size for workers or a worker including master replica and slave replica.   |
 |             diskFileCount              | master and worker |                                The count of disk files consumption by each user.                                |
