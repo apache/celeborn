@@ -874,8 +874,10 @@ public class ShuffleClientImpl extends ShuffleClient {
           new RpcResponseCallback() {
             @Override
             public void onSuccess(ByteBuffer response) {
-              if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
-                stageEndShuffleSet.add(shuffleId);
+              if (response.remaining() > 0 && response.get() == StatusCode.MAP_ENDED.getValue()) {
+                mapperEndMap
+                    .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
+                    .add(mapId);
               }
               logger.debug(
                   "Push data to {} success for shuffle {} map {} attempt {} partition {} batch {}.",
@@ -1269,8 +1271,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                 groupedBatchId,
                 Arrays.toString(batchIds));
             pushState.removeBatch(groupedBatchId, hostPort);
-            if (response.remaining() > 0 && response.get() == StatusCode.STAGE_ENDED.getValue()) {
-              stageEndShuffleSet.add(shuffleId);
+            if (response.remaining() > 0 && response.get() == StatusCode.MAP_ENDED.getValue()) {
+              mapperEndMap
+                  .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
+                  .add(mapId);
             }
           }
 
