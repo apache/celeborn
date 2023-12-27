@@ -169,10 +169,10 @@ object CelebornCommonSettings {
 
     // Add the LICENSE/NOTICE files from the project's root directory to the
     // META-INF directory in the generated JAR package for each subproject
-    Compile / packageBin / mappings ++= Seq(
+    Compile / packageBin / mappings += {
       ((LocalRootProject / baseDirectory).value / "LICENSE") -> "META-INF/LICENSE",
       ((LocalRootProject / baseDirectory).value / "NOTICE") -> "META-INF/NOTICE"
-    ),
+    }
 
     dependencyOverrides := Seq(
       Dependencies.commonsCompress,
