@@ -76,6 +76,19 @@ case object Shuffles extends HttpEndpoint {
     service.getShuffleList
 }
 
+case object Applications extends HttpEndpoint {
+  override def path: String = "/applications"
+
+  override def description(service: String): String =
+    if (service == Service.MASTER)
+      "List all running application's ids of the cluster."
+    else
+      "List all running application's ids of the worker. It only return application ids running in that worker."
+
+  override def handle(service: HttpService, parameters: Map[String, String]): String =
+    service.getApplicationList
+}
+
 case object ListTopDiskUsedApps extends HttpEndpoint {
   override def path: String = "/listTopDiskUsedApps"
 
@@ -156,16 +169,6 @@ case object Hostnames extends HttpEndpoint {
 
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.getHostnameList
-}
-
-case object Applications extends HttpEndpoint {
-  override def path: String = "/applications"
-
-  override def description(service: String): String =
-    "List all running application's ids of the cluster."
-
-  override def handle(service: HttpService, parameters: Map[String, String]): String =
-    service.getApplicationList
 }
 
 case object Exclude extends HttpEndpoint {

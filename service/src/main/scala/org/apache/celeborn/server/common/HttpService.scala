@@ -49,6 +49,8 @@ abstract class HttpService extends Service with Logging {
 
   def getShuffleList: String
 
+  def getApplicationList: String
+
   def listTopDiskUseApps: String
 
   def getMasterGroupInfo: String = throw new UnsupportedOperationException()
@@ -60,8 +62,6 @@ abstract class HttpService extends Service with Logging {
   def getExcludedWorkers: String = throw new UnsupportedOperationException()
 
   def getHostnameList: String = throw new UnsupportedOperationException()
-
-  def getApplicationList: String = throw new UnsupportedOperationException()
 
   def exclude(addWorkers: String, removeWorkers: String): String =
     throw new UnsupportedOperationException()

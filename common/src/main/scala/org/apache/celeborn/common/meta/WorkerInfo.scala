@@ -103,6 +103,14 @@ class WorkerInfo(
     shuffleKeySet
   }
 
+  def getApplicationIdSet: util.HashSet[String] = this.synchronized {
+    val applicationIdSet = new util.HashSet[String]()
+    diskInfos.values().asScala.foreach { diskInfo =>
+      applicationIdSet.addAll(diskInfo.getApplicationIdSet())
+    }
+    applicationIdSet
+  }
+
   def hasSameInfoWith(other: WorkerInfo): Boolean = {
     rpcPort == other.rpcPort &&
     pushPort == other.pushPort &&

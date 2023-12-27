@@ -77,6 +77,7 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
          |""".stripMargin)
     assert(HttpUtils.help(Service.WORKER) ==
       s"""Available API providers include:
+         |/applications              List all running application's ids of the worker. It only return application ids running in that worker.
          |/conf                      List the conf setting of the worker.
          |/exit                      Trigger this worker to exit. Legal types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.
          |/help                      List the available API providers of the worker.
