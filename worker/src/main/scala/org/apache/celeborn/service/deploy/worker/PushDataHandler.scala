@@ -205,7 +205,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           logInfo(
             s"[Case1] Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
               s" attempt $attemptId), but this mapper has already been ended.")
-          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+          callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.MAP_ENDED.getValue)))
         } else {
           logInfo(
             s"Receive push data for committed hard split partition of (shuffle $shuffleKey, " +
@@ -470,7 +470,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId), " +
               s"but this mapper has already been ended.")
             callbackWithTimer.onSuccess(
-              ByteBuffer.wrap(Array[Byte](StatusCode.STAGE_ENDED.getValue)))
+              ByteBuffer.wrap(Array[Byte](StatusCode.MAP_ENDED.getValue)))
           } else {
             logInfo(s"[Case1] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
