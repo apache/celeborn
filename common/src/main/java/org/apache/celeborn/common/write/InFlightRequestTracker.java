@@ -188,6 +188,7 @@ public class InFlightRequestTracker {
     if (!inflightBatchesPerAddress.isEmpty()) {
       logger.warn("Clear {}", this.getClass().getSimpleName());
       inflightBatchesPerAddress.clear();
+      totalInflightReqs.reset();
     }
     pushStrategy.clear();
   }
