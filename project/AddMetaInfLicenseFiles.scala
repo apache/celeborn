@@ -19,7 +19,7 @@ import sbt.Keys._
 import sbt._
 
 /**
- * Copies LICENSE and NOTICE files into jar META-INF dir
+ * Generate LICENSE and NOTICE files into jar META-INF dir
  */
 object AddMetaInfLicenseFiles extends AutoPlugin {
 
