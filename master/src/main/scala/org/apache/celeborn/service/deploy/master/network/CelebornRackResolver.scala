@@ -54,6 +54,14 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
     coreResolve(hostNames)
   }
 
+  def resolveToMap(hostNames: java.util.List[String]): Map[String, Node] = {
+    resolveToMap(hostNames.asScala.toSeq)
+  }
+
+  def resolveToMap(hostNames: Seq[String]): Map[String, Node] = {
+    hostNames.zip(resolve(hostNames)).toMap
+  }
+
   private def coreResolve(hostNames: Seq[String]): Seq[Node] = {
     if (hostNames.isEmpty) {
       return Seq.empty
@@ -80,8 +88,8 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
   }
 
   def isOnSameRack(primaryHost: String, replicaHost: String): Boolean = {
-    val primaryNode = resolve(primaryHost)
-    val replicaNode = resolve(replicaHost)
+    val nodes = resolve(Seq(primaryHost, replicaHost))
+    val (primaryNode, replicaNode) = (nodes.head, nodes.last)
     if (primaryNode == null || replicaNode == null) {
       false
     } else {

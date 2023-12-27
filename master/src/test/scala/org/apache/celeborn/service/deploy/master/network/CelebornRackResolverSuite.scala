@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.network
 
 import java.io.{File, FileWriter}
 import java.nio.charset.StandardCharsets
+import java.util
 
 import com.google.common.io.Files
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY}
@@ -53,6 +54,20 @@ class CelebornRackResolverSuite extends AnyFunSuite {
     assertEquals(names.size, result.size)
     assertEquals("/rack1", result(0).getNetworkLocation)
     assertEquals("/rack2", result(1).getNetworkLocation)
+
+    val resultMap: Map[String, Node] = resolver.resolveToMap(names)
+    assertEquals(names.size, resultMap.size)
+    assertEquals("/rack1", resultMap(hostName1).getNetworkLocation)
+    assertEquals("/rack2", resultMap(hostName2).getNetworkLocation)
+
+    val hostNamesList = new util.ArrayList[String]()
+    hostNamesList.add(hostName1)
+    hostNamesList.add(hostName2)
+    val resultMap2: Map[String, Node] = resolver.resolveToMap(hostNamesList)
+    assertEquals(hostNamesList.size, resultMap2.size)
+    assertEquals("/rack1", resultMap2(hostName1).getNetworkLocation)
+    assertEquals("/rack2", resultMap2(hostName2).getNetworkLocation)
+
   }
 
   test("CELEBORN-446: RackResolver support getDistance") {
