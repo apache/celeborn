@@ -357,8 +357,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val appShuffleId = pb.getAppShuffleId
       val appShuffleIdentifier = pb.getAppShuffleIdentifier
       val isWriter = pb.getIsShuffleWriter
-      logDebug(s"Received GetShuffleId request, appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier" +
-        s" isWriter $isWriter.")
+      logDebug(s"Received GetShuffleId request, appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter.")
       handleGetShuffleIdForApp(context, appShuffleId, appShuffleIdentifier, isWriter)
 
     case pb: PbReportShuffleFetchFailure =>
@@ -725,8 +724,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       context: RpcCallContext,
       shuffleId: Int): Unit = {
     if (!registeredShuffle.contains(shuffleId)) {
-      logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this " +
-        s"stage.")
+      logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this stage.")
       context.reply(GetReducerFileGroupResponse(
         StatusCode.SHUFFLE_NOT_REGISTERED,
         JavaUtils.newConcurrentHashMap(),
@@ -751,8 +749,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             override def apply(id: Int)
                 : scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)] = {
               val newShuffleId = shuffleIdGenerator.getAndIncrement()
-              logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier " +
-                s"$appShuffleIdentifier")
+              logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
               scala.collection.mutable.LinkedHashMap(appShuffleIdentifier -> (newShuffleId, true))
             }
           })
@@ -790,13 +787,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               val shuffleId: Integer =
                 if (determinate && candidateShuffle.isDefined) {
                   val id = candidateShuffle.get._1
-                  logInfo(s"reuse existing shuffleId $id for appShuffleId $appShuffleId appShuffleIdentifier " +
-                    s"$appShuffleIdentifier")
+                  logInfo(s"reuse existing shuffleId $id for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
                   id
                 } else {
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
-                  logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier " +
-                    s"$appShuffleIdentifier")
+                  logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
                   newShuffleId
                 }
@@ -812,8 +807,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           case Some(shuffleId) =>
             val pbGetShuffleIdResponse = {
               logDebug(
-                s"get shuffleId $shuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier " +
-                  s"isWriter $isWriter")
+                s"get shuffleId $shuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
               PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).build()
             }
             context.reply(pbGetShuffleIdResponse)
@@ -1148,8 +1142,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             } catch {
               case t: Throwable =>
                 logError(
-                  s"Init rpc client failed for $shuffleId on ${destroyWorkerInfo.readableAddress()} during release " +
-                    s"peer partition.",
+                  s"Init rpc client failed for $shuffleId on ${destroyWorkerInfo.readableAddress()} during release peer partition.",
                   t)
                 destroyWorkerInfo = null
             }
@@ -1442,15 +1435,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             case scala.util.Success(res) =>
               if (res.status != StatusCode.SUCCESS && retryTimes < rpcMaxRetires) {
                 logError(
-                  s"Request $message to ${futureWithStatus.endpoint} return ${res.status} for $shuffleKey " +
-                    s"$retryTimes/$rpcMaxRetires, " +
+                  s"Request $message to ${futureWithStatus.endpoint} return ${res.status} for $shuffleKey $retryTimes/$rpcMaxRetires, " +
                     "will retry.")
                 retryDestroy(futureWithStatus, currentTime)
               } else {
                 if (res.status != StatusCode.SUCCESS && retryTimes == rpcMaxRetires) {
                   logError(
-                    s"Request $message to ${futureWithStatus.endpoint} return ${res.status} for $shuffleKey " +
-                      s"$retryTimes/$rpcMaxRetires, " +
+                    s"Request $message to ${futureWithStatus.endpoint} return ${res.status} for $shuffleKey $retryTimes/$rpcMaxRetires, " +
                       "will not retry.")
                 }
                 iter.remove()
@@ -1458,15 +1449,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             case scala.util.Failure(e) =>
               if (retryTimes < rpcMaxRetires) {
                 logError(
-                  s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for " +
-                    s"$shuffleKey, reason: $e, " +
+                  s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: $e, " +
                     "will retry.")
                 retryDestroy(futureWithStatus, currentTime)
               } else {
                 if (retryTimes == rpcMaxRetires) {
                   logError(
-                    s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for " +
-                      s"$shuffleKey, reason: $e, " +
+                    s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: $e, " +
                       "will not retry.")
                 }
                 iter.remove()
@@ -1475,15 +1464,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         } else if (currentTime - futureWithStatus.startTime > timeout) {
           if (retryTimes < rpcMaxRetires) {
             logError(
-              s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, " +
-                s"reason: Timeout, " +
+              s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
                 "will retry.")
             retryDestroy(futureWithStatus, currentTime)
           } else {
             if (retryTimes == rpcMaxRetires) {
               logError(
-                s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey," +
-                  s" reason: Timeout, " +
+                s"Request $message to ${futureWithStatus.endpoint} failed $retryTimes/$rpcMaxRetires for $shuffleKey, reason: Timeout, " +
                   "will retry.")
             }
             iter.remove()
