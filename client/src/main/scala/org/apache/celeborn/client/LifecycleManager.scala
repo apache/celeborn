@@ -99,12 +99,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
   private val rpcMaxRetires = conf.clientRpcMaxRetries
 
+  private val shuffleClientCacheSize = conf.clientShuffleClientCacheSize
+  private val shuffleClientCacheConcurrencyLevel = conf.clientShuffleClientCacheConcurrencyLevel
+  private val shuffleClientCacheExpireTime = conf.clientShuffleClientCacheExpireTime
+
   private val excludedWorkersFilter = conf.registerShuffleFilterExcludedWorkerEnabled
 
+  // here to avoid memory leak, due to executor OOM
   private val registerShuffleClientCache = CacheBuilder.newBuilder()
-    .concurrencyLevel(rpcCacheConcurrencyLevel)
-    .expireAfterAccess(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
-    .maximumSize(rpcCacheSize)
+    .concurrencyLevel(shuffleClientCacheConcurrencyLevel)
+    .expireAfterAccess(shuffleClientCacheExpireTime, TimeUnit.MILLISECONDS)
+    .maximumSize(shuffleClientCacheSize)
     .build[String, Set[String]]
 
   private val registerShuffleResponseRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()

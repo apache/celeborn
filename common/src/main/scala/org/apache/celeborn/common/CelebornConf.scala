@@ -780,6 +780,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(
       get(CLIENT_RESERVE_SLOTS_RPC_TIMEOUT).milli,
       CLIENT_RESERVE_SLOTS_RPC_TIMEOUT.key)
+  def clientShuffleClientCacheSize: Int = get(CLIENT_SHUFFLE_CLIENT_CACHE_SIZE)
+  def clientShuffleClientCacheConcurrencyLevel: Int =
+    get(CLIENT_SHUFFLE_CLIENT_CACHE_CONCURRENCY_LEVEL)
+  def clientShuffleClientCacheExpireTime: Long = get(CLIENT_SHUFFLE_CLIENT_CACHE_EXPIRE_TIME)
 
   def clientRpcRegisterShuffleRpcAskTimeout: RpcTimeout =
     new RpcTimeout(
@@ -3824,6 +3828,30 @@ object CelebornConf extends Logging {
       .doc("The time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
+
+  val CLIENT_SHUFFLE_CLIENT_CACHE_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.client.shuffleClient.cache.size")
+      .categories("client")
+      .version("0.5.0")
+      .doc("The max cache items count for register shuffle client.")
+      .intConf
+      .createWithDefault(2048)
+
+  val CLIENT_SHUFFLE_CLIENT_CACHE_CONCURRENCY_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.client.shuffleClient.cache.concurrencyLevel")
+      .categories("client")
+      .version("0.5.0")
+      .doc("The number of write locks to update register shuffle client cache.")
+      .intConf
+      .createWithDefault(32)
+
+  val CLIENT_SHUFFLE_CLIENT_CACHE_EXPIRE_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.shuffleClient.cache.expireTime")
+      .categories("client")
+      .version("0.5.0")
+      .doc("The time before a register shuffle client cache item is removed.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1h")
 
   val CLIENT_RPC_SHARED_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.rpc.shared.threads")

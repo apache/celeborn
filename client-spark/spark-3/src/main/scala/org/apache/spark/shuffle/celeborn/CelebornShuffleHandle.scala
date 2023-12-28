@@ -17,6 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import org.apache.spark.MapOutputTrackerMaster
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.shuffle.BaseShuffleHandle
 
@@ -38,8 +39,6 @@ class CelebornShuffleHandle[K, V, C](
     @transient lifecycleManagerRef: RpcEndpointRef = null)
   extends BaseShuffleHandle(shuffleId, dependency) {
 
-  import org.apache.spark.MapOutputTrackerMaster
-
   def this(
       appUniqueId: String,
       lifecycleManagerHost: String,
@@ -60,7 +59,7 @@ class CelebornShuffleHandle[K, V, C](
     null,
     null)
 
-  // will be called by MapOutputTrackerMaster
+  // will be called by MapOutputTrackerMaster, return partition location
   def getReduceTaskPreferLocation(
       tracker: MapOutputTrackerMaster,
       dep: ShuffleDependency[_, _, _],
