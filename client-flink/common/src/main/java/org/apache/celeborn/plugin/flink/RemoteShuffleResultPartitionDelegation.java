@@ -216,7 +216,7 @@ public class RemoteShuffleResultPartitionDelegation {
       }
     }
     BufferHeader bufferHeader = new BufferHeader(
-            buffer.getDataType(), Utils.checkNotNull(compressedBuffer).isCompressed(), buffer.getSize());
+            buffer.getDataType(), compressedBuffer != null && compressedBuffer.isCompressed(), buffer.getSize());
     bufferHeader.setSubPartitionId(targetSubpartition);
     outputGate.write(buffer, bufferHeader);
   }

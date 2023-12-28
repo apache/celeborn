@@ -39,7 +39,7 @@ import org.apache.celeborn.common.network.client.{RpcResponseCallback, Transport
 import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse, TransportMessage}
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbRegionFinish, PbRegionStart}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbRegionFinish, PbRegionStart, PbSegmentStart}
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
@@ -886,6 +886,16 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             rf.getShuffleKey,
             rf.getPartitionUniqueId,
             false)
+        case ss: PbSegmentStart =>
+          (
+            msg,
+            null,
+            false,
+            Type.SEGMENT_START,
+            ss.getMode,
+            ss.getShuffleKey,
+            ss.getPartitionUniqueId,
+            false)
       }
     } catch {
       case _: Exception =>
@@ -1034,6 +1044,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             isBroadcast)
         case Type.REGION_FINISH =>
           fileWriter.asInstanceOf[MapPartitionFileWriter].regionFinish()
+        case Type.SEGMENT_START =>
+          val (partitionId, segmentId) =
+            (pbMsg.asInstanceOf[PbSegmentStart].getPartitionId,
+              pbMsg.asInstanceOf[PbSegmentStart].getSegmentId)
+          fileWriter.asInstanceOf[MapPartitionFileWriter].segmentStart(partitionId, segmentId)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for primary , send data to replica

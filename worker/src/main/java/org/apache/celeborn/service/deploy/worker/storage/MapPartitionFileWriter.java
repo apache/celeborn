@@ -241,6 +241,10 @@ public final class MapPartitionFileWriter extends FileWriter {
     isRegionFinished = true;
   }
 
+  public void segmentStart(int partitionId, int segmentId) {
+    // TODO, start the segment
+  }
+
   private synchronized void destroyIndex() {
     try {
       if (indexChannel != null) {
