@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -58,7 +59,8 @@ public class PartitionDataWriterSuiteUtils {
     File file = getTemporaryFile(tempDir);
     DiskFileInfo fileInfo = new DiskFileInfo(file, userIdentifier, conf);
     if (!reduceMeta) {
-      fileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
+      fileInfo.replaceFileMeta(
+          new MapFileMeta(32 * 1024, 10, false, Collections.emptyMap(), Collections.emptyList()));
     }
     StorageManager storageManager = Mockito.mock(StorageManager.class);
     Mockito.doAnswer(
@@ -78,7 +80,8 @@ public class PartitionDataWriterSuiteUtils {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
     MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
     if (!reduceMeta) {
-      memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
+      memoryFileInfo.replaceFileMeta(
+          new MapFileMeta(32 * 1024, 10, false, Collections.emptyMap(), Collections.emptyList()));
     }
 
     Mockito.doAnswer(
@@ -99,7 +102,8 @@ public class PartitionDataWriterSuiteUtils {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
     MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
     if (!reduceMeta) {
-      memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
+      memoryFileInfo.replaceFileMeta(
+          new MapFileMeta(32 * 1024, 10, false, Collections.emptyMap(), Collections.emptyList()));
     }
 
     File tempDir = Files.createTempDir();
@@ -107,7 +111,8 @@ public class PartitionDataWriterSuiteUtils {
     File file = getTemporaryFile(tempDir);
     DiskFileInfo fileInfo = new DiskFileInfo(file, userIdentifier, celebornConf);
     if (!reduceMeta) {
-      fileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
+      fileInfo.replaceFileMeta(
+          new MapFileMeta(32 * 1024, 10, false, Collections.emptyMap(), Collections.emptyList()));
     }
 
     AbstractSource source = Mockito.mock(WorkerSource.class);

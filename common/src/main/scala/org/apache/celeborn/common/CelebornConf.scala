@@ -68,6 +68,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     loadFromMap(Utils.getSystemProperties, false)
   }
 
+  def set(props: java.util.Map[String, String]): CelebornConf = {
+    settings.synchronized {
+      for (entry <- props.entrySet().asScala) {
+        set(entry.getKey, entry.getValue, false)
+      }
+    }
+
+    if (loadDefaults) {
+      loadFromMap(Utils.getSystemProperties, false)
+    }
+    this
+  }
+
   /** Set a configuration variable. */
   def set(key: String, value: String): CelebornConf = {
     set(key, value, false)

@@ -72,6 +72,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   addTimer(REPLICA_REGION_START_TIME)
   addTimer(PRIMARY_REGION_FINISH_TIME)
   addTimer(REPLICA_REGION_FINISH_TIME)
+  addTimer(PRIMARY_SEGMENT_START_TIME)
+  addTimer(REPLICA_SEGMENT_START_TIME)
 
   addTimer(FETCH_CHUNK_TIME)
   addTimer(OPEN_STREAM_TIME)
@@ -151,12 +153,15 @@ object WorkerSource {
   val PUSH_DATA_HANDSHAKE_FAIL_COUNT = "PushDataHandshakeFailCount"
   val REGION_START_FAIL_COUNT = "RegionStartFailCount"
   val REGION_FINISH_FAIL_COUNT = "RegionFinishFailCount"
+  val SEGMENT_START_FAIL_COUNT = "SegmentStartFailCount"
   val PRIMARY_PUSH_DATA_HANDSHAKE_TIME = "PrimaryPushDataHandshakeTime"
   val REPLICA_PUSH_DATA_HANDSHAKE_TIME = "ReplicaPushDataHandshakeTime"
   val PRIMARY_REGION_START_TIME = "PrimaryRegionStartTime"
   val REPLICA_REGION_START_TIME = "ReplicaRegionStartTime"
   val PRIMARY_REGION_FINISH_TIME = "PrimaryRegionFinishTime"
   val REPLICA_REGION_FINISH_TIME = "ReplicaRegionFinishTime"
+  val PRIMARY_SEGMENT_START_TIME = "PrimarySegmentStartTime"
+  val REPLICA_SEGMENT_START_TIME = "ReplicaSegmentStartTime"
 
   // pause push data
   val PAUSE_PUSH_DATA_TIME = "PausePushDataTime"

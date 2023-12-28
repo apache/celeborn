@@ -39,6 +39,7 @@ import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.protocol.ReadData;
+import org.apache.celeborn.plugin.flink.protocol.SubPartitionReadData;
 
 public class ReadClientHandler extends BaseMessageHandler {
   private static Logger logger = LoggerFactory.getLogger(ReadClientHandler.class);
@@ -65,6 +66,8 @@ public class ReadClientHandler extends BaseMessageHandler {
     } else {
       if (msg != null && msg instanceof ReadData) {
         ((ReadData) msg).getFlinkBuffer().release();
+      } else if (msg != null && msg instanceof SubPartitionReadData) {
+        ((SubPartitionReadData) msg).getFlinkBuffer().release();
       }
 
       logger.warn("Unexpected streamId received: {}", streamId);
@@ -82,6 +85,10 @@ public class ReadClientHandler extends BaseMessageHandler {
       case READ_DATA:
         ReadData readData = (ReadData) msg;
         processMessageInternal(readData.getStreamId(), readData);
+        break;
+      case SUBPARTITION_READ_DATA:
+        SubPartitionReadData subPartitionReadData = (SubPartitionReadData) msg;
+        processMessageInternal(subPartitionReadData.getStreamId(), subPartitionReadData);
         break;
       case BACKLOG_ANNOUNCEMENT:
         BacklogAnnouncement backlogAnnouncement = (BacklogAnnouncement) msg;

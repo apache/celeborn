@@ -185,7 +185,8 @@ class ReducePartitionCommitHandler(
         getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds),
         getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds),
         parallelCommitResult.primaryPartitionLocationMap,
-        parallelCommitResult.replicaPartitionLocationMap)
+        parallelCommitResult.replicaPartitionLocationMap,
+        hasSegments = false)
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)
@@ -253,8 +254,12 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  override def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
-    super.registerShuffle(shuffleId, numMappers)
+  override def registerShuffle(
+      shuffleId: Int,
+      numMappers: Int,
+      hasSegments: Boolean,
+      partitionLocations: Array[PartitionLocation]): Unit = {
+    super.registerShuffle(shuffleId, numMappers, hasSegments, partitionLocations)
     getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
     initMapperAttempts(shuffleId, numMappers)
   }

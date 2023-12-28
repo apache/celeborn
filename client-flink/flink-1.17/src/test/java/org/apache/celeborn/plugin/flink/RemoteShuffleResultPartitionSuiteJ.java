@@ -61,6 +61,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.DataBuffer;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
@@ -465,7 +466,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     }
 
     @Override
-    public void write(Buffer buffer, int subIdx) {
+    public void write(Buffer buffer, BufferHeader bufferHeader) {
+      int subIdx = bufferHeader.getSubPartitionId();
       if (currentIsBroadcast) {
         assertEquals(0, subIdx);
         ByteBuffer byteBuffer = buffer.getNioBufferReadable();

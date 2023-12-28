@@ -54,6 +54,14 @@ public class BufferHeader {
     this.size = size;
   }
 
+  public void setSubPartitionId(int subPartitionId) {
+    this.subPartitionId = subPartitionId;
+  }
+
+  public int getSubPartitionId() {
+    return subPartitionId;
+  }
+
   public Buffer.DataType getDataType() {
     return dataType;
   }

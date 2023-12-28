@@ -739,7 +739,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
       partitionDataWriter.write(generateDataWithHeader(128));
     }
     // mock trim
-    partitionDataWriter.flush(false, false);
+    partitionDataWriter.flush(false, false, false);
     partitionDataWriter.close();
     reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 2);
@@ -830,11 +830,11 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     partitionDataWriter.write(generateDataWithHeader(1024));
     for (int i = 0; i < 9; i++) {
       partitionDataWriter.write(generateDataWithHeader(128));
-      partitionDataWriter.flush(false, false);
+      partitionDataWriter.flush(false, false, false);
     }
     partitionDataWriter.write(generateDataWithHeader(1920));
     // mock trim
-    partitionDataWriter.flush(false, false);
+    partitionDataWriter.flush(false, false, false);
     partitionDataWriter.close();
     reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 3);

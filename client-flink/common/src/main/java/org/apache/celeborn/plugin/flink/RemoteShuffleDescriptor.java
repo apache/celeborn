@@ -22,9 +22,10 @@ import java.util.Optional;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
-public class RemoteShuffleDescriptor implements ShuffleDescriptor {
+public class RemoteShuffleDescriptor implements ShuffleDescriptor, TierShuffleDescriptor {
   private final String celebornAppId;
   private final JobID jobId;
   // jobId-datasetId

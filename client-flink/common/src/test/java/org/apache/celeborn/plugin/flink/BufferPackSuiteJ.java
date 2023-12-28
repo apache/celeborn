@@ -18,22 +18,30 @@
 package org.apache.celeborn.plugin.flink;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.END_OF_SEGMENT;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.EVENT_BUFFER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.api.EndOfSegmentEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
@@ -66,11 +74,12 @@ public class BufferPackSuiteJ {
     Integer subIdx = 2;
 
     List<ByteBuf> output = new ArrayList<>();
-    BufferPacker.BiConsumerWithException<ByteBuf, Integer, InterruptedException> ripeBufferHandler =
-        (ripe, sub) -> {
-          assertEquals(subIdx, sub);
-          output.add(ripe);
-        };
+    BufferPacker.BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
+        ripeBufferHandler =
+            (ripe, header) -> {
+              assertEquals(subIdx, Integer.valueOf(header.getSubPartitionId()));
+              output.add(ripe);
+            };
 
     BufferPacker packer = new BufferPacker(ripeBufferHandler);
     packer.process(buffers.get(0), subIdx);
@@ -89,8 +98,8 @@ public class BufferPackSuiteJ {
     setDataType(buffers, EVENT_BUFFER, DATA_BUFFER, DATA_BUFFER);
 
     List<Pair<ByteBuf, Integer>> output = new ArrayList<>();
-    BufferPacker.BiConsumerWithException<ByteBuf, Integer, InterruptedException> ripeBufferHandler =
-        (ripe, sub) -> output.add(Pair.of(ripe, sub));
+    BufferPacker.BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
+        ripeBufferHandler = (ripe, header) -> output.add(Pair.of(ripe, header.getSubPartitionId()));
     BufferPacker packer = new BufferPacker(ripeBufferHandler);
     fillBuffers(buffers, 0, 1, 2);
 
@@ -123,8 +132,8 @@ public class BufferPackSuiteJ {
     setDataType(buffers, EVENT_BUFFER, DATA_BUFFER, DATA_BUFFER);
 
     List<Pair<ByteBuf, Integer>> output = new ArrayList<>();
-    BufferPacker.BiConsumerWithException<ByteBuf, Integer, InterruptedException> ripeBufferHandler =
-        (ripe, sub) -> output.add(Pair.of(ripe, sub));
+    BufferPacker.BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
+        ripeBufferHandler = (ripe, header) -> output.add(Pair.of(ripe, header.getSubPartitionId()));
     BufferPacker packer = new BufferPacker(ripeBufferHandler);
     fillBuffers(buffers, 0, 1, 2);
 
@@ -158,8 +167,8 @@ public class BufferPackSuiteJ {
     setDataType(buffers, EVENT_BUFFER, DATA_BUFFER, DATA_BUFFER);
 
     List<Pair<ByteBuf, Integer>> output = new ArrayList<>();
-    BufferPacker.BiConsumerWithException<ByteBuf, Integer, InterruptedException> ripeBufferHandler =
-        (ripe, sub) -> output.add(Pair.of(ripe, sub));
+    BufferPacker.BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
+        ripeBufferHandler = (ripe, header) -> output.add(Pair.of(ripe, header.getSubPartitionId()));
     BufferPacker packer = new BufferPacker(ripeBufferHandler);
     fillBuffers(buffers, 0, 1, 2);
 
@@ -187,17 +196,103 @@ public class BufferPackSuiteJ {
   }
 
   @Test
+  public void testPackMultipleBuffers() throws Exception {
+    int numBuffers = 7;
+    List<Buffer> buffers = new ArrayList<>();
+    buffers.add(buildSomeBuffer(100));
+    buffers.addAll(requestBuffers(numBuffers - 1));
+    setCompressed(buffers, true, true, true, false, false, false, true);
+    setDataType(
+        buffers,
+        EVENT_BUFFER,
+        DATA_BUFFER,
+        DATA_BUFFER,
+        EVENT_BUFFER,
+        DATA_BUFFER,
+        DATA_BUFFER,
+        EVENT_BUFFER);
+
+    List<Pair<ByteBuf, Integer>> output = new ArrayList<>();
+    BufferPacker.BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
+        ripeBufferHandler = (ripe, header) -> output.add(Pair.of(ripe, header.getSubPartitionId()));
+    BufferPacker packer = new BufferPacker(ripeBufferHandler);
+    fillBuffers(buffers, 0, 1, 2, 3, 4, 5, 6, 7);
+
+    for (int i = 0; i < buffers.size(); i++) {
+      packer.process(buffers.get(i), 0);
+    }
+    packer.drain();
+
+    List<Buffer> unpacked = new ArrayList<>();
+    for (int i = 0; i < output.size(); i++) {
+      Pair<ByteBuf, Integer> pair = output.get(i);
+      assertEquals(Integer.valueOf(0), pair.getRight());
+      unpacked.addAll(BufferPacker.unpack(pair.getLeft()));
+    }
+    assertEquals(7, unpacked.size());
+
+    checkIfCompressed(unpacked, true, true, true, false, false, false, true);
+    checkDataType(
+        unpacked,
+        EVENT_BUFFER,
+        DATA_BUFFER,
+        DATA_BUFFER,
+        EVENT_BUFFER,
+        DATA_BUFFER,
+        DATA_BUFFER,
+        EVENT_BUFFER);
+    verifyBuffers(unpacked, 0, 1, 2, 3, 4, 5, 6, 7);
+    unpacked.forEach(Buffer::recycleBuffer);
+  }
+
+  @Test
+  public void testPackEndOfSegmentEvent() throws Exception {
+    MemorySegment memorySegment =
+        MemorySegmentFactory.wrap(
+            EventSerializer.toSerializedEvent(EndOfSegmentEvent.INSTANCE).array());
+    Buffer buffer = bufferPool.requestBuffer();
+    MemorySegment target = buffer.getMemorySegment();
+    memorySegment.copyTo(0, target, 0, memorySegment.size());
+    List<Buffer> buffers = Collections.singletonList(buffer);
+    setCompressed(buffers, false);
+    setDataType(buffers, END_OF_SEGMENT);
+
+    List<Pair<ByteBuf, Integer>> output = new ArrayList<>();
+    BufferPacker.BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
+        ripeBufferHandler = (ripe, header) -> output.add(Pair.of(ripe, header.getSubPartitionId()));
+    BufferPacker packer = new BufferPacker(ripeBufferHandler);
+    fillBuffers(buffers, 0);
+
+    packer.process(buffers.get(0), 2);
+    packer.drain();
+    assertEquals(1, output.size());
+
+    List<Buffer> unpacked = new ArrayList<>();
+    System.out.println(output.get(0).getLeft());
+    output.forEach(
+        pair -> {
+          assertEquals(Integer.valueOf(2), pair.getRight());
+          unpacked.addAll(BufferPacker.unpack(pair.getLeft()));
+        });
+    checkIfCompressed(unpacked, false);
+    checkDataType(unpacked, END_OF_SEGMENT);
+    verifyBuffers(unpacked, 0);
+    unpacked.forEach(Buffer::recycleBuffer);
+  }
+
+  @Test
   public void testFailedToHandleRipeBufferAndClose() throws Exception {
     List<Buffer> buffers = requestBuffers(1);
     setCompressed(buffers, false);
     setDataType(buffers, DATA_BUFFER);
     fillBuffers(buffers, 0);
 
-    BufferPacker.BiConsumerWithException<ByteBuf, Integer, InterruptedException> ripeBufferHandler =
-        (ripe, sub) -> {
-          // ripe.release();
-          throw new RuntimeException("Test");
-        };
+    BufferPacker.BiConsumerWithException<ByteBuf, BufferHeader, InterruptedException>
+        ripeBufferHandler =
+            (ripe, header) -> {
+              // ripe.release();
+              throw new RuntimeException("Test");
+            };
     BufferPacker packer = new BufferPacker(ripeBufferHandler);
     System.out.println(buffers.get(0).refCnt());
     packer.process(buffers.get(0), 0);
@@ -259,5 +354,10 @@ public class BufferPackSuiteJ {
       ByteBuf actual = buffers.get(i).asByteBuf();
       assertEquals(expects[i], actual.getInt(0));
     }
+  }
+
+  public static Buffer buildSomeBuffer(int size) {
+    final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(size);
+    return new NetworkBuffer(seg, MemorySegment::free, Buffer.DataType.DATA_BUFFER, size);
   }
 }

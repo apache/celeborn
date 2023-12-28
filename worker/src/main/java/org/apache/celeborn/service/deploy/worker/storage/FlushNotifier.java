@@ -22,10 +22,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class FlushNotifier {
-  final AtomicInteger numPendingFlushes = new AtomicInteger();
+  public final AtomicInteger numPendingFlushes = new AtomicInteger();
   final AtomicReference<IOException> exception = new AtomicReference<>();
 
-  void setException(IOException e) {
+  public void setException(IOException e) {
     exception.set(e);
   }
 
@@ -33,7 +33,7 @@ public class FlushNotifier {
     return exception.get() != null;
   }
 
-  void checkException() throws IOException {
+  public void checkException() throws IOException {
     IOException e = exception.get();
     if (e != null) {
       throw e;

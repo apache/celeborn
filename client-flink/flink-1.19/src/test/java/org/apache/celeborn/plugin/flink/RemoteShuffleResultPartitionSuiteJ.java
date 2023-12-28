@@ -42,6 +42,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -61,6 +62,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.DataBuffer;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
@@ -68,11 +70,15 @@ import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class RemoteShuffleResultPartitionSuiteJ {
   private final int networkBufferSize = 32 * 1024;
-  private final BufferCompressor bufferCompressor = new BufferCompressor(networkBufferSize, "lz4");
+  private final NettyShuffleEnvironmentOptions.CompressionCodec COMPRESSION_CODEC =
+      NettyShuffleEnvironmentOptions.CompressionCodec.valueOf("LZ4");
+  private final BufferCompressor bufferCompressor =
+      new BufferCompressor(networkBufferSize, COMPRESSION_CODEC);
   private final RemoteShuffleOutputGate remoteShuffleOutputGate =
       mock(RemoteShuffleOutputGate.class);
   private final CelebornConf conf = new CelebornConf();
-  BufferDecompressor bufferDecompressor = new BufferDecompressor(networkBufferSize, "LZ4");
+  BufferDecompressor bufferDecompressor =
+      new BufferDecompressor(networkBufferSize, COMPRESSION_CODEC);
 
   private static final int totalBuffers = 1000;
 
@@ -467,7 +473,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     }
 
     @Override
-    public void write(Buffer buffer, int subIdx) {
+    public void write(Buffer buffer, BufferHeader bufferHeader) {
+      int subIdx = bufferHeader.getSubPartitionId();
       if (currentIsBroadcast) {
         assertEquals(0, subIdx);
         ByteBuffer byteBuffer = buffer.getNioBufferReadable();

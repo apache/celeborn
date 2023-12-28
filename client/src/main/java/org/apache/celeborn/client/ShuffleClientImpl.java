@@ -530,6 +530,12 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public PartitionLocation registerMapPartitionTask(
       int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException {
+    return registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, partitionId, false);
+  }
+
+  public PartitionLocation registerMapPartitionTask(
+      int shuffleId, int numMappers, int mapId, int attemptId, int partitionId, boolean hasSegments)
+      throws IOException {
     logger.info(
         "Register MapPartition task for shuffle {} map {} attempt {} partition {} with {} mapper.",
         shuffleId,
@@ -545,7 +551,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             () ->
                 lifecycleManagerRef.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
-                        shuffleId, numMappers, mapId, attemptId, partitionId),
+                        shuffleId, numMappers, mapId, attemptId, partitionId, hasSegments),
                     conf.clientRpcRegisterShuffleAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
 
@@ -1628,7 +1634,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     return true;
   }
 
-  protected Tuple2<ReduceFileGroups, String> loadFileGroupInternal(int shuffleId) {
+  protected Tuple2<ReduceFileGroups, String> loadFileGroupInternal(
+      int shuffleId, boolean hasSegments) {
     {
       long getReducerFileGroupStartTime = System.nanoTime();
       String exceptionMsg = null;
@@ -1637,7 +1644,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           exceptionMsg = "Driver endpoint is null!";
           logger.warn(exceptionMsg);
         } else {
-          GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId);
+          GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId, hasSegments);
 
           GetReducerFileGroupResponse response =
               lifecycleManagerRef.askSync(
@@ -1688,13 +1695,18 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+          throws CelebornIOException {
+    return updateFileGroup(shuffleId, partitionId, false);
+  }
+
+  public ReduceFileGroups updateFileGroup(int shuffleId, int partitionId, boolean hasSegments)
       throws CelebornIOException {
     Tuple2<ReduceFileGroups, String> fileGroupTuple =
         reduceFileGroupsMap.compute(
             shuffleId,
             (id, existsTuple) -> {
               if (existsTuple == null || existsTuple._1 == null) {
-                return loadFileGroupInternal(shuffleId);
+                return loadFileGroupInternal(shuffleId, hasSegments);
               } else {
                 return existsTuple;
               }
@@ -1703,7 +1715,14 @@ public class ShuffleClientImpl extends ShuffleClient {
       throw new CelebornIOException(
           loadFileGroupException(shuffleId, partitionId, (fileGroupTuple._2)));
     } else {
-      return fileGroupTuple._1;
+      Tuple2<ReduceFileGroups, String> fileGroups = loadFileGroupInternal(shuffleId, hasSegments);
+      ReduceFileGroups newGroups = fileGroups._1;
+      if (newGroups == null) {
+        throw new CelebornIOException(
+            loadFileGroupException(shuffleId, partitionId, fileGroups._2));
+      }
+      reduceFileGroupsMap.put(shuffleId, fileGroups);
+      return newGroups;
     }
   }
 
@@ -1738,7 +1757,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // CelebornShuffleReader, which means `updateFileGroup` is already called and
     // batch open stream has been tried
     if (mapAttempts == null) {
-      ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
+      ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId, false);
       mapAttempts = fileGroups.mapAttempts;
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         locations = new ArrayList(fileGroups.partitionGroups.get(partitionId));

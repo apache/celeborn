@@ -49,6 +49,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
+import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
@@ -404,7 +405,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType,
       rangeReadFilter,
       userIdentifier,
-      true)
+      true,
+      hasSegments = false)
   }
 
   @throws[IOException]
@@ -417,7 +419,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
-      partitionSplitEnabled: Boolean): PartitionDataWriter = {
+      partitionSplitEnabled: Boolean,
+      hasSegments: Boolean): PartitionDataWriter = {
     if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage && !hasS3Storage) {
       throw new IOException("No available working dirs!")
     }
@@ -435,7 +438,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val writer =
       try {
         partitionType match {
-          case PartitionType.MAP => new MapPartitionDataWriter(
+          case PartitionType.MAP =>
+            if (hasSegments) new SegmentMapPartitionFileWriter(
+              this,
+              workerSource,
+              conf,
+              deviceMonitor,
+              partitionDataWriterContext)
+            else new MapPartitionDataWriter(
               this,
               workerSource,
               conf,

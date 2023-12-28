@@ -40,7 +40,7 @@ import org.apache.celeborn.common.network.client.{RpcResponseCallback, Transport
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbOpenStreamList, PbOpenStreamListResponse, PbReadAddCredit, PbStreamHandler, PbStreamHandlerOpt, StreamType}
+import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbNotifyRequiredSegment, PbOpenStream, PbOpenStreamList, PbOpenStreamListResponse, PbReadAddCredit, PbStreamHandler, PbStreamHandlerOpt, StreamType}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
@@ -139,6 +139,7 @@ class FetchHandler(
           rpcRequest.requestId,
           isLegacy = false,
           openStream.getReadLocalShuffle,
+          openStream.getRequireSubpartitionId,
           callback)
       case openStreamList: PbOpenStreamList =>
         val shuffleKey = openStreamList.getShuffleKey()
@@ -174,6 +175,12 @@ class FetchHandler(
           bufferStreamEnd.getStreamType)
       case readAddCredit: PbReadAddCredit =>
         handleReadAddCredit(client, readAddCredit.getCredit, readAddCredit.getStreamId)
+      case notifyRequiredSegment: PbNotifyRequiredSegment =>
+        handleNotifyRequiredSegment(
+          client,
+          notifyRequiredSegment.getRequiredSegmentId,
+          notifyRequiredSegment.getStreamId,
+          notifyRequiredSegment.getSubPartitionId)
       case chunkFetchRequest: PbChunkFetchRequest =>
         handleChunkFetchRequest(
           client,
@@ -204,6 +211,7 @@ class FetchHandler(
             isLegacy = true,
             // legacy [[OpenStream]] doesn't support read local shuffle
             readLocalShuffle = false,
+            requireSubpartitionId = false,
             callback)
         case Message.Type.OPEN_STREAM_WITH_CREDIT =>
           val openStreamWithCredit = message.asInstanceOf[OpenStreamWithCredit]
@@ -217,6 +225,7 @@ class FetchHandler(
             rpcRequestId = rpcRequest.requestId,
             isLegacy = true,
             readLocalShuffle = false,
+            requireSubpartitionId = false,
             callback)
         case _ =>
           logError(s"Received an unknown message type id: ${message.`type`.id}")
@@ -338,6 +347,7 @@ class FetchHandler(
       rpcRequestId: Long,
       isLegacy: Boolean,
       readLocalShuffle: Boolean = false,
+      requireSubpartitionId: Boolean = false,
       callback: RpcResponseCallback): Unit = {
     checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
     workerSource.recordAppActiveConnection(client, shuffleKey)
@@ -378,7 +388,8 @@ class FetchHandler(
             initialCredit,
             startIndex,
             endIndex,
-            fileInfo.asInstanceOf[DiskFileInfo])
+            fileInfo.asInstanceOf[DiskFileInfo],
+            requireSubpartitionId)
       }
       workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
     } catch {
@@ -484,6 +495,21 @@ class FetchHandler(
         client,
         shuffleKey)
       creditStreamManager.addCredit(credit, streamId)
+    }
+  }
+
+  def handleNotifyRequiredSegment(
+      client: TransportClient,
+      requiredSegmentId: Int,
+      streamId: Long,
+      subPartitionId: Int): Unit = {
+    logDebug(s"NotifyRequiredSegment streamId: $streamId, requiredSegmentId: $requiredSegmentId")
+    val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
+    if (shuffleKey != null) {
+      workerSource.recordAppActiveConnection(
+        client,
+        shuffleKey)
+      creditStreamManager.notifyRequiredSegment(requiredSegmentId, streamId, subPartitionId)
     }
   }
 

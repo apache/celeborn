@@ -20,8 +20,13 @@ package org.apache.celeborn.service.deploy.worker.memory;
 import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BufferRecycler {
+
+  private static Logger LOG = LoggerFactory.getLogger(BufferRecycler.class);
 
   private Consumer<ByteBuf> recycleConsumer;
 
@@ -30,6 +35,15 @@ public class BufferRecycler {
   }
 
   public void recycle(ByteBuf byteBuf) {
-    recycleConsumer.accept(byteBuf);
+    if (byteBuf instanceof CompositeByteBuf) {
+      CompositeByteBuf compositeByteBuf = (CompositeByteBuf) byteBuf;
+      if (compositeByteBuf.numComponents() != 2) {
+        LOG.error("Try to recycle an incorrect byteBuf {}", byteBuf);
+      }
+      recycleConsumer.accept(compositeByteBuf.component(1));
+      compositeByteBuf.release();
+    } else {
+      recycleConsumer.accept(byteBuf);
+    }
   }
 }

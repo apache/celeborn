@@ -17,9 +17,12 @@
 
 package org.apache.celeborn.plugin.flink;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -28,6 +31,7 @@ import com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -126,6 +130,15 @@ public class ShuffleResourceTrackerSuiteJ {
           Collection<ResultPartitionID> collection) {
         return CompletableFuture.completedFuture(null);
       }
+
+      @Override
+      public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+          Duration duration, Set<ResultPartitionID> set) {
+        return CompletableFuture.completedFuture(Collections.emptySet());
+      }
+
+      @Override
+      public void notifyPartitionRecoveryStarted() {}
     };
   }
 

@@ -33,6 +33,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.DriverChangedException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
@@ -207,13 +208,13 @@ public class RemoteShuffleOutputGate {
   }
 
   /** Writes a piece of data to a subpartition. */
-  public void write(ByteBuf byteBuf, int subIdx) {
+  public void write(ByteBuf byteBuf, BufferHeader bufferHeader) {
     try {
       flinkShuffleClient.pushDataToLocation(
           shuffleId,
           mapId,
           attemptId,
-          subIdx,
+          bufferHeader.getSubPartitionId(),
           io.netty.buffer.Unpooled.wrappedBuffer(byteBuf.nioBuffer()),
           partitionLocation,
           () -> byteBuf.release());
