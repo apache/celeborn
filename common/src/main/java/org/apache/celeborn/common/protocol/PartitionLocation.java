@@ -92,6 +92,30 @@ public class PartitionLocation implements Serializable {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      Mode mode) {
+    this(
+        id,
+        epoch,
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        mode,
+        null,
+        new StorageInfo(),
+        new RoaringBitmap(),
+        host);
+  }
+
+  public PartitionLocation(
+      int id,
+      int epoch,
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
       Mode mode,
       String topologyLocation) {
     this(
@@ -248,7 +272,9 @@ public class PartitionLocation implements Serializable {
     return id + "-" + epoch;
   }
 
-  /** @see PartitionLocation#getFileName */
+  /**
+   * @see PartitionLocation#getFileName
+   */
   public String getFileName() {
     return id + "-" + epoch + "-" + mode.mode;
   }
