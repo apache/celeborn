@@ -272,9 +272,7 @@ public class PartitionLocation implements Serializable {
     return id + "-" + epoch;
   }
 
-  /**
-   * @see PartitionLocation#getFileName
-   */
+  /** @see PartitionLocation#getFileName */
   public String getFileName() {
     return id + "-" + epoch + "-" + mode.mode;
   }
