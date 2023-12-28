@@ -1,0 +1,186 @@
+diff --git a/core/src/main/scala/org/apache/spark/MapOutputTracker.scala b/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
+index b1974948430..69c5923b032 100644
+--- a/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
++++ b/core/src/main/scala/org/apache/spark/MapOutputTracker.scala
+@@ -1026,24 +1026,19 @@ private[spark] class MapOutputTrackerMaster(
+       if (preferredLoc.nonEmpty) {
+         preferredLoc
+       } else {
+-        if (shuffleLocalityEnabled && dep.rdd.partitions.length < SHUFFLE_PREF_MAP_THRESHOLD &&
+-          dep.partitioner.numPartitions < SHUFFLE_PREF_REDUCE_THRESHOLD) {
+-          val blockManagerIds = getLocationsWithLargestOutputs(dep.shuffleId, partitionId,
+-            dep.partitioner.numPartitions, REDUCER_PREF_LOCS_FRACTION)
+-          if (blockManagerIds.nonEmpty) {
+-            blockManagerIds.get.map(_.host)
+-          } else {
+-            Nil
+-          }
+-        } else {
+-          Nil
+-        }
++        // allow custom shuffle manager to specify locations of preferred locations
++        dep.shuffleHandle.getReduceTaskPreferLocation(this, dep, partitionId)
+       }
+     } else {
+       Nil
+     }
+   }
+ 
++  def shouldGetLocationsWithLargestOutputs(mapTaskNum: Int, reduceTaskNum: Int): Boolean = {
++    shuffleLocalityEnabled && mapTaskNum < SHUFFLE_PREF_MAP_THRESHOLD &&
++       reduceTaskNum < SHUFFLE_PREF_REDUCE_THRESHOLD
++  }
++
+   /**
+    * Return a list of locations that each have fraction of map output greater than the specified
+    * threshold.
+@@ -1058,7 +1053,7 @@ private[spark] class MapOutputTrackerMaster(
+       shuffleId: Int,
+       reducerId: Int,
+       numReducers: Int,
+-      fractionThreshold: Double)
++      fractionThreshold: Double = REDUCER_PREF_LOCS_FRACTION)
+     : Option[Array[BlockManagerId]] = {
+ 
+     val shuffleStatus = shuffleStatuses.get(shuffleId).orNull
+@@ -1127,6 +1122,22 @@ private[spark] class MapOutputTrackerMaster(
+     }
+   }
+ 
++  // Called by ShuffledRowRDD, call shuffle handler to get the map output locations.
++  def getMapLocation(
++      dep: ShuffleDependency[_, _, _],
++      startMapIndex: Int,
++      endMapIndex: Int,
++      startPartition: Int,
++      endPartition: Int): Seq[String] = {
++    dep.shuffleHandle.getMapLocation(
++      this,
++      dep,
++      startMapIndex,
++      endMapIndex,
++      startPartition,
++      endPartition)
++  }
++
+   def incrementEpoch(): Unit = {
+     epochLock.synchronized {
+       epoch += 1
+diff --git a/core/src/main/scala/org/apache/spark/shuffle/BaseShuffleHandle.scala b/core/src/main/scala/org/apache/spark/shuffle/BaseShuffleHandle.scala
+index 6fe183c0780..2d6e9b97a04 100644
+--- a/core/src/main/scala/org/apache/spark/shuffle/BaseShuffleHandle.scala
++++ b/core/src/main/scala/org/apache/spark/shuffle/BaseShuffleHandle.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.shuffle
+ 
++import org.apache.spark.MapOutputTrackerMaster
+ import org.apache.spark.ShuffleDependency
+ 
+ /**
+@@ -25,4 +26,33 @@ import org.apache.spark.ShuffleDependency
+ private[spark] class BaseShuffleHandle[K, V, C](
+     shuffleId: Int,
+     val dependency: ShuffleDependency[K, V, C])
+-  extends ShuffleHandle(shuffleId)
++  extends ShuffleHandle(shuffleId) {
++
++  def getReduceTaskPreferLocation(
++      tracker: MapOutputTrackerMaster,
++      dep: ShuffleDependency[_, _, _],
++      partitionId: Int): Seq[String] = {
++    if (tracker.shouldGetLocationsWithLargestOutputs(
++      dep.rdd.partitions.length,
++      dep.partitioner.numPartitions)) {
++      val blockManagerIds = tracker.getLocationsWithLargestOutputs(
++        dep.shuffleId,
++        partitionId,
++        dep.partitioner.numPartitions)
++      if (blockManagerIds.nonEmpty) {
++        return blockManagerIds.get.map(_.host)
++      }
++    }
++    Nil
++  }
++
++  def getMapLocation(
++      tracker: MapOutputTrackerMaster,
++      dep: ShuffleDependency[_, _, _],
++      startMapIndex: Int,
++      endMapIndex: Int,
++      startPartition: Int,
++      endPartition: Int): Seq[String] = {
++    tracker.getMapLocation(dep, startMapIndex, endMapIndex)
++  }
++}
+diff --git a/core/src/main/scala/org/apache/spark/shuffle/ShuffleHandle.scala b/core/src/main/scala/org/apache/spark/shuffle/ShuffleHandle.scala
+index e04c97fe618..bcc308a1547 100644
+--- a/core/src/main/scala/org/apache/spark/shuffle/ShuffleHandle.scala
++++ b/core/src/main/scala/org/apache/spark/shuffle/ShuffleHandle.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.shuffle
+ 
++import org.apache.spark.{MapOutputTrackerMaster, ShuffleDependency}
+ import org.apache.spark.annotation.DeveloperApi
+ 
+ /**
+@@ -25,4 +26,18 @@ import org.apache.spark.annotation.DeveloperApi
+  * @param shuffleId ID of the shuffle
+  */
+ @DeveloperApi
+-abstract class ShuffleHandle(val shuffleId: Int) extends Serializable {}
++abstract class ShuffleHandle(val shuffleId: Int) extends Serializable {
++
++  def getReduceTaskPreferLocation(
++      tracker: MapOutputTrackerMaster,
++      dep: ShuffleDependency[_, _, _],
++      partitionId: Int): Seq[String]
++
++  def getMapLocation(
++      tracker: MapOutputTrackerMaster,
++      dep: ShuffleDependency[_, _, _],
++      startMapIndex: Int,
++      endMapIndex: Int,
++      startPartition: Int,
++      endPartition: Int): Seq[String]
++}
+diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/ShuffledRowRDD.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/ShuffledRowRDD.scala
+index 47d61196fe8..be1cae5b70f 100644
+--- a/sql/core/src/main/scala/org/apache/spark/sql/execution/ShuffledRowRDD.scala
++++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/ShuffledRowRDD.scala
+@@ -182,14 +182,29 @@ class ShuffledRowRDD(
+           tracker.getPreferredLocationsForShuffle(dependency, reducerIndex)
+         }
+ 
+-      case PartialReducerPartitionSpec(_, startMapIndex, endMapIndex, _) =>
+-        tracker.getMapLocation(dependency, startMapIndex, endMapIndex)
++      case PartialReducerPartitionSpec(reducerIndex, startMapIndex, endMapIndex, _) =>
++        tracker.getMapLocation(
++          dependency,
++          startMapIndex,
++          endMapIndex,
++          reducerIndex,
++          reducerIndex + 1)
+ 
+-      case PartialMapperPartitionSpec(mapIndex, _, _) =>
+-        tracker.getMapLocation(dependency, mapIndex, mapIndex + 1)
++      case PartialMapperPartitionSpec(mapIndex, startReducerIndex, endReducerIndex) =>
++        tracker.getMapLocation(
++          dependency,
++          mapIndex,
++          mapIndex + 1,
++          startReducerIndex,
++          endReducerIndex)
+ 
+       case CoalescedMapperPartitionSpec(startMapIndex, endMapIndex, numReducers) =>
+-        tracker.getMapLocation(dependency, startMapIndex, endMapIndex)
++        tracker.getMapLocation(
++          dependency,
++          startMapIndex,
++          endMapIndex,
++          0,
++          numReducers)
+     }
+   }
+ 
