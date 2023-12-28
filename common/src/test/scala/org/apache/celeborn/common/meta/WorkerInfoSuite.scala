@@ -198,7 +198,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
   }
 
   test("WorkerInfo toString output") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, "topology")
     val worker2 = new WorkerInfo("h2", 20001, 20002, 20003, 2000, null, null)
 
     val worker3 = new WorkerInfo(
