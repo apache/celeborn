@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -214,7 +215,10 @@ public class RemoteShuffleResultPartitionDelegation {
         compressedBuffer.recycleBuffer();
       }
     }
-    outputGate.write(buffer, targetSubpartition);
+    BufferHeader bufferHeader = new BufferHeader(
+            buffer.getDataType(), Utils.checkNotNull(compressedBuffer).isCompressed(), buffer.getSize());
+    bufferHeader.setSubPartitionId(targetSubpartition);
+    outputGate.write(buffer, bufferHeader);
   }
 
   /** Spills the large record into {@link RemoteShuffleOutputGate}. */

@@ -23,6 +23,7 @@ import static org.mockito.Mockito.*;
 import java.io.IOException;
 import java.util.Optional;
 
+import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -67,7 +68,9 @@ public class RemoteShuffleOutputGateSuiteJ {
         .thenAnswer(t -> Optional.empty());
     remoteShuffleOutputGate.regionStart(false);
 
-    remoteShuffleOutputGate.write(bufferPool.requestBuffer(), 0);
+    BufferHeader bufferHeader = new BufferHeader(Buffer.DataType.DATA_BUFFER, false, 0);
+    bufferHeader.setSubPartitionId(0);
+    remoteShuffleOutputGate.write(bufferPool.requestBuffer(), bufferHeader);
 
     doNothing()
         .when(remoteShuffleOutputGate.flinkShuffleClient)

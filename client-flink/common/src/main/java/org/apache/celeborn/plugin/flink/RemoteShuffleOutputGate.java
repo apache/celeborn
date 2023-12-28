@@ -20,6 +20,7 @@ package org.apache.celeborn.plugin.flink;
 import java.io.IOException;
 import java.util.Optional;
 
+import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -136,8 +137,8 @@ public class RemoteShuffleOutputGate {
   }
 
   /** Writes a {@link Buffer} to a subpartition. */
-  public void write(Buffer buffer, int subIdx) throws InterruptedException {
-    bufferPacker.process(buffer, subIdx);
+  public void write(Buffer buffer, BufferHeader bufferHeader) throws InterruptedException {
+    bufferPacker.process(buffer, bufferHeader.getSubPartitionId());
   }
 
   /**
@@ -207,13 +208,13 @@ public class RemoteShuffleOutputGate {
   }
 
   /** Writes a piece of data to a subpartition. */
-  public void write(ByteBuf byteBuf, int subIdx) {
+  public void write(ByteBuf byteBuf, BufferHeader bufferHeader) {
     try {
       flinkShuffleClient.pushDataToLocation(
           shuffleId,
           mapId,
           attemptId,
-          subIdx,
+          bufferHeader.getSubPartitionId(),
           io.netty.buffer.Unpooled.wrappedBuffer(byteBuf.nioBuffer()),
           partitionLocation,
           () -> byteBuf.release());

@@ -41,6 +41,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -465,7 +466,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     }
 
     @Override
-    public void write(Buffer buffer, int subIdx) {
+    public void write(Buffer buffer, BufferHeader bufferHeader) {
+      int subIdx = bufferHeader.getSubPartitionId();
       if (currentIsBroadcast) {
         assertEquals(0, subIdx);
         ByteBuffer byteBuffer = buffer.getNioBufferReadable();
