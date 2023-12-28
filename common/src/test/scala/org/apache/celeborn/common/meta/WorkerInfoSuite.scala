@@ -192,7 +192,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
   }
 
   test("WorkerInfo equals when endpoint different") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null, "topology")
     val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, null, null)
     assertEquals(worker1, worker2)
   }
@@ -245,6 +245,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |LastHeartbeat: 0
            |Disks: empty
            |UserResourceConsumption: empty
+           |TopologyLocation: topology
            |WorkerRef: null
            |""".stripMargin
 
@@ -259,6 +260,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
           |LastHeartbeat: 0
           |Disks: empty
           |UserResourceConsumption: empty
+          |TopologyLocation: h2
           |WorkerRef: null
           |""".stripMargin
       val exp3 =
@@ -272,6 +274,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |LastHeartbeat: 0
            |Disks: empty
            |UserResourceConsumption: empty
+           |TopologyLocation: h3
            |WorkerRef: null
            |""".stripMargin
       val exp4 =
@@ -289,6 +292,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2048.0 MiB, avgFlushTime: 2 ns, avgFetchTime: 2 ns, activeSlots: 20, storageType: SSD) status: HEALTHY dirs $placeholder
            |UserResourceConsumption: $placeholder
            |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1)
+           |TopologyLocation: h4
            |WorkerRef: null
            |""".stripMargin;
 
