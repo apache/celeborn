@@ -689,6 +689,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
   def partitionSorterThreads: Int =
     get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
+  def partitionSorterIndexCacheSize: Int = get(PARTITION_SORTER_INDEX_CACHE_SIZE)
+  def partitionSorterIndexExpire: Long = get(PARTITION_SORTER_INDEX_CACHE_EXPIRE)
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
@@ -2418,6 +2420,22 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .createOptional
+
+  val PARTITION_SORTER_INDEX_CACHE_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.sortPartition.indexCache.size")
+      .categories("worker")
+      .doc("PartitionSorter's cache size for index buffer.")
+      .version("0.4.0")
+      .intConf
+      .createWithDefault(256)
+
+  val PARTITION_SORTER_INDEX_CACHE_EXPIRE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.sortPartition.indexCache.expire")
+      .categories("worker")
+      .doc("PartitionSorter's cache item expire time.")
+      .version("0.4.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
 
   val WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.reservedMemoryPerPartition")
