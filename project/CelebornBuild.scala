@@ -711,6 +711,7 @@ trait SparkClientProjects {
   def sparkClientShade: Project = {
     val p = Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
       .dependsOn(sparkClient)
+      .disablePlugins(AddMetaInfLicenseFiles)
       .settings (
         commonSettings,
         releaseSettings,
@@ -906,6 +907,7 @@ trait FlinkClientProjects {
   def flinkClientShade: Project = {
     Project(flinkClientShadedProjectName, file(flinkClientShadedProjectPath))
       .dependsOn(flinkClient)
+      .disablePlugins(AddMetaInfLicenseFiles)
       .settings (
         commonSettings,
         releaseSettings,
@@ -1007,6 +1009,7 @@ object MRClientProjects {
   def mrClientShade: Project = {
     Project("celeborn-client-mr-shaded", file("client-mr/mr-shaded"))
       .dependsOn(mrClient)
+      .disablePlugins(AddMetaInfLicenseFiles)
       .settings(
         commonSettings,
         releaseSettings,

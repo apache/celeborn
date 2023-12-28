@@ -27,8 +27,11 @@ object AddMetaInfLicenseFiles extends AutoPlugin {
 
   override lazy val projectSettings = Seq(
     Compile / resourceGenerators += Def.task {
+      val log = streams.value.log
+      log.info(s"generate META-INF/LICENSE for project ${name.value}")
       val licenseFile = (Compile / resourceManaged).value / "META-INF" / "LICENSE"
       IO.write(licenseFile, license)
+      log.info(s"generate META-INF/NOTICE for project ${name.value}")
       val noticeFile = (Compile / resourceManaged).value / "META-INF" / "NOTICE"
       IO.write(noticeFile, notice)
       Seq(licenseFile, noticeFile)
