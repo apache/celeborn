@@ -77,6 +77,7 @@ private[celeborn] class Worker(
   private val host = rpcEnv.address.host
   private val rpcPort = rpcEnv.address.port
   Utils.checkHost(host)
+  private val topologyLocation = Option(System.getenv("KUBERNETES_NODE_NAME")).getOrElse(host)
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
@@ -226,7 +227,8 @@ private[celeborn] class Worker(
       fetchPort,
       replicatePort,
       diskInfos,
-      userResourceConsumption)
+      userResourceConsumption,
+      topologyLocation)
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
@@ -508,6 +510,7 @@ private[celeborn] class Worker(
               // StorageManager have update the disk info.
               workerInfo.diskInfos.asScala.toMap,
               handleResourceConsumption().asScala.toMap,
+              topologyLocation,
               MasterClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {

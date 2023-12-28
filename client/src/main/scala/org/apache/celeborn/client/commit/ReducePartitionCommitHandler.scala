@@ -316,6 +316,21 @@ class ReducePartitionCommitHandler(
     }
   }
 
+  override def handleGetPartitionLocation(
+      shuffleId: Int,
+      partitionId: Int): Seq[String] = {
+    val partitionMap = reducerFileGroupsMap.get(shuffleId)
+    if (partitionMap == null) {
+      return Seq.empty
+    }
+    val locSet = partitionMap.get(partitionId)
+    if (locSet == null) {
+      return Seq.empty
+    }
+    val hosts = locSet.asScala.map(loc => loc.getTopologyLocation).toSeq
+    hosts
+  }
+
   override def waitStageEnd(shuffleId: Int): (Boolean, Long) = {
     var timeout = stageEndTimeout
     val delta = 100

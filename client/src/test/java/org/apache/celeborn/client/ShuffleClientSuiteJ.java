@@ -74,7 +74,8 @@ public class ShuffleClientSuiteJ {
           PRIMARY_PUSH_PORT,
           PRIMARY_FETCH_PORT,
           PRIMARY_REPLICATE_PORT,
-          PartitionLocation.Mode.PRIMARY);
+          PartitionLocation.Mode.PRIMARY,
+          "localhost");
   private static final PartitionLocation replicaLocation =
       new PartitionLocation(
           0,
@@ -84,7 +85,8 @@ public class ShuffleClientSuiteJ {
           REPLICA_PUSH_PORT,
           REPLICA_FETCH_PORT,
           REPLICA_REPLICATE_PORT,
-          PartitionLocation.Mode.REPLICA);
+          PartitionLocation.Mode.REPLICA,
+          "localhost");
 
   private static final byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);
   private final int BATCH_HEADER_SIZE = 4 * 4;

@@ -175,6 +175,11 @@ abstract class CommitHandler(
    */
   def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit
 
+  /**
+   * Call to get list of Worker's topologyLocation where hold the partition file
+   */
+  def handleGetPartitionLocation(shuffleId: Int, partitionId: Int): Seq[String]
+
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     reducerFileGroupsMap.remove(shuffleId)
   }

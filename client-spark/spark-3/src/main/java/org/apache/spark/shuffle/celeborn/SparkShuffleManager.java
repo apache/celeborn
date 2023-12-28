@@ -90,10 +90,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key(), true)) {
-      logger.warn(
-          "Detected {} (default is true) is enabled, it's highly recommended to disable it when "
-              + "use Celeborn as Remote Shuffle Service to avoid performance degradation.",
-          SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key());
+      SparkUtils.printSparkAQELocalShuffleReadRecommend();
     }
     if ((Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED())) {
       String key = package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key();
@@ -184,7 +181,9 @@ public class SparkShuffleManager implements ShuffleManager {
           shuffleId,
           celebornConf.clientFetchThrowsFetchFailure(),
           dependency.rdd().getNumPartitions(),
-          dependency);
+          dependency,
+          null, null,
+          lifecycleManager.self());
     }
   }
 

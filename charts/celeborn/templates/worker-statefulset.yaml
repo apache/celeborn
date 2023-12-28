@@ -128,6 +128,10 @@ spec:
           - name: {{ $key }}
             value: {{ $val | quote }}
           {{- end}}
+          - name: KUBERNETES_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
       terminationGracePeriodSeconds: 30
       volumes:
         - configMap:

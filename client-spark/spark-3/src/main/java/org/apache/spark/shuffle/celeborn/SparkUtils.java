@@ -34,6 +34,7 @@ import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
+import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -272,5 +273,12 @@ public class SparkUtils {
     }
     throw new UnsupportedOperationException(
         "unexpected! neither methods unregisterAllMapAndMergeOutput/unregisterAllMapOutput are found in MapOutputTrackerMaster");
+  }
+
+  public static void printSparkAQELocalShuffleReadRecommend() {
+    LOG.warn(
+        "Detected {} (default is true) is enabled, it's highly recommended to disable it when "
+            + "use Celeborn as Remote Shuffle Service to avoid performance degradation.",
+        SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key());
   }
 }

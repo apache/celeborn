@@ -65,7 +65,8 @@ public abstract class ShuffleClientBaseSuiteJ {
           PRIMARY_PUSH_PORT,
           PRIMARY_FETCH_PORT,
           PRIMARY_REPLICATE_PORT,
-          PartitionLocation.Mode.PRIMARY);
+          PartitionLocation.Mode.PRIMARY,
+          "localhost");
   protected static final PartitionLocation replicaLocation =
       new PartitionLocation(
           0,
@@ -75,7 +76,8 @@ public abstract class ShuffleClientBaseSuiteJ {
           REPLICA_PUSH_PORT,
           REPLICA_FETCH_PORT,
           REPLICA_REPLICATE_PORT,
-          PartitionLocation.Mode.REPLICA);
+          PartitionLocation.Mode.REPLICA,
+          "localhost");
 
   protected final int BATCH_HEADER_SIZE = 4 * 4;
   protected ChannelFuture mockedFuture = mock(ChannelFuture.class);

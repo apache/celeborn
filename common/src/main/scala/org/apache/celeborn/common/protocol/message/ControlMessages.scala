@@ -88,6 +88,7 @@ object ControlMessages extends Logging {
         replicatePort: Int,
         disks: Map[String, DiskInfo],
         userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
+        topologyLocation: String,
         requestId: String): PbRegisterWorker = {
       val pbDisks = disks.values.map(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceConsumption =
@@ -100,6 +101,7 @@ object ControlMessages extends Logging {
         .setReplicatePort(replicatePort)
         .addAllDisks(pbDisks)
         .putAllUserResourceConsumption(pbUserResourceConsumption)
+        .setTopologyLocation(topologyLocation)
         .setRequestId(requestId)
         .build()
     }
@@ -132,6 +134,20 @@ object ControlMessages extends Logging {
         .setNumMappers(numMappers)
         .setNumPartitions(numPartitions)
         .build()
+  }
+
+  object RegisterShuffleClient {
+    def apply(topologyLocation: String, bindAddress: String): PbRegisterShuffleClient =
+      PbRegisterShuffleClient.newBuilder()
+        .setTopologyLocation(topologyLocation)
+        .setBindAddress(bindAddress).build()
+  }
+
+  object UnRegisterShuffleClient {
+    def apply(topologyLocation: String, bindAddress: String): PbUnRegisterShuffleClient = {
+      PbUnRegisterShuffleClient.newBuilder().setTopologyLocation(topologyLocation)
+        .setBindAddress(bindAddress).build()
+    }
   }
 
   object RegisterMapPartitionTask {
@@ -296,6 +312,9 @@ object ControlMessages extends Logging {
         .setSuccess(success)
         .build()
   }
+
+  case class GetPartitionLocation(shuffleId: Int, partitionId: Int) extends MasterMessage
+  case class GetPartitionLocationResponse(hosts: Seq[String]) extends MasterMessage
 
   object WorkerLost {
     def apply(
@@ -861,6 +880,12 @@ object ControlMessages extends Logging {
 
     case pb: PbCheckWorkersAvailableResponse =>
       new TransportMessage(MessageType.CHECK_WORKERS_AVAILABLE_RESPONSE, pb.toByteArray)
+
+    case pb: PbRegisterShuffleClient =>
+      new TransportMessage(MessageType.REGISTER_SHUFFLE_CLIENT, pb.toByteArray)
+
+    case pb: PbUnRegisterShuffleClient =>
+      new TransportMessage(MessageType.UNREGISTER_SHUFFLE_CLIENT, pb.toByteArray)
   }
 
   // TODO change return type to GeneratedMessageV3
@@ -1194,6 +1219,12 @@ object ControlMessages extends Logging {
 
       case CHECK_WORKERS_AVAILABLE_RESPONSE_VALUE =>
         PbCheckWorkersAvailableResponse.parseFrom(message.getPayload)
+
+      case REGISTER_SHUFFLE_CLIENT_VALUE =>
+        PbRegisterShuffleClient.parseFrom(message.getPayload)
+
+      case UNREGISTER_SHUFFLE_CLIENT_VALUE =>
+        PbUnRegisterShuffleClient.parseFrom(message.getPayload)
     }
   }
 }

@@ -337,7 +337,7 @@ private[celeborn] class Master(
         .toMap.asJava
       val userResourceConsumption =
         PbSerDeUtils.fromPbUserResourceConsumption(pbRegisterWorker.getUserResourceConsumptionMap)
-
+      val topologyLocation = pbRegisterWorker.getTopologyLocation
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")
       executeWithLeaderChecker(
@@ -351,6 +351,7 @@ private[celeborn] class Master(
           replicatePort,
           disks,
           userResourceConsumption,
+          topologyLocation,
           requestId))
 
     case ReleaseSlots(_, _, _, _, _) =>
@@ -605,6 +606,7 @@ private[celeborn] class Master(
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
+      topologyLocation: String,
       requestId: String): Unit = {
     val workerToRegister =
       new WorkerInfo(
@@ -614,7 +616,8 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         disks,
-        userResourceConsumption)
+        userResourceConsumption,
+        topologyLocation)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
@@ -629,6 +632,7 @@ private[celeborn] class Master(
         replicatePort,
         disks,
         userResourceConsumption,
+        topologyLocation,
         newRequestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
@@ -643,6 +647,7 @@ private[celeborn] class Master(
         replicatePort,
         disks,
         userResourceConsumption,
+        topologyLocation,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
     } else {
@@ -654,6 +659,7 @@ private[celeborn] class Master(
         replicatePort,
         disks,
         userResourceConsumption,
+        topologyLocation,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))
@@ -1015,7 +1021,8 @@ private[celeborn] class Master(
       MasterClient.genRequestId()))
     if (workerExcludeResponse.getSuccess) {
       sb.append(
-        s"Excluded workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")} successfully.\n")
+        s"Excluded workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")} successfully" +
+          s".\n")
     } else {
       sb.append(
         s"Failed to Exclude workers add ${workersToAdd.mkString(",")} and remove ${workersToRemove.mkString(",")}.\n")

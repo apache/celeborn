@@ -224,6 +224,21 @@ class MapPartitionCommitHandler(
       succeedPartitionIds))
   }
 
+  override def handleGetPartitionLocation(
+      shuffleId: Int,
+      partitionId: Int): Seq[String] = {
+    val partitionMap = reducerFileGroupsMap.get(shuffleId)
+    if (partitionMap == null) {
+      Seq.empty
+    }
+    val locSet = partitionMap.get(partitionId)
+    if (locSet == null) {
+      Seq.empty
+    }
+    val hosts = locSet.asScala.map(loc => loc.getTopologyLocation).toSeq
+    hosts
+  }
+
   override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
     val succeedPartitionIds = shuffleSucceedPartitionIds.get(shuffleId)
     if (succeedPartitionIds != null) {

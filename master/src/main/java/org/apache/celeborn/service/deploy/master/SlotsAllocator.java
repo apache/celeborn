@@ -625,7 +625,8 @@ public class SlotsAllocator {
         isPrimary ? PartitionLocation.Mode.PRIMARY : PartitionLocation.Mode.REPLICA,
         peer,
         storageInfo,
-        new RoaringBitmap());
+        new RoaringBitmap(),
+        workerInfo.topologyLocation());
   }
 
   public static Map<WorkerInfo, Map<String, Integer>> slotsToDiskAllocations(

@@ -35,9 +35,10 @@ public class WorkingPartitionSuiteJ {
     List<WorkingPartition> list = new ArrayList<>();
 
     PartitionLocation p1 =
-        new PartitionLocation(0, 0, "host1", 10, 9, 8, 14, PartitionLocation.Mode.REPLICA);
+        new PartitionLocation(0, 0, "host1", 10, 9, 8, 14, PartitionLocation.Mode.REPLICA, "host1");
     PartitionLocation p2 =
-        new PartitionLocation(1, 1, "host1", 11, 12, 13, 15, PartitionLocation.Mode.REPLICA);
+        new PartitionLocation(
+            1, 1, "host1", 11, 12, 13, 15, PartitionLocation.Mode.REPLICA, "host1");
 
     WorkingPartition pd1 = new WorkingPartition(p1, null);
     WorkingPartition pd2 = new WorkingPartition(p2, null);
@@ -54,7 +55,7 @@ public class WorkingPartitionSuiteJ {
     map.put(pd2, pd2);
 
     PartitionLocation p =
-        new PartitionLocation(0, 0, "host1", 10, 9, 8, 11, PartitionLocation.Mode.REPLICA);
+        new PartitionLocation(0, 0, "host1", 10, 9, 8, 11, PartitionLocation.Mode.REPLICA, "host1");
     assertTrue(map.containsKey(p));
 
     map.remove(p1);
@@ -66,12 +67,28 @@ public class WorkingPartitionSuiteJ {
     PartitionLocation p3 =
         new WorkingPartition(
             new PartitionLocation(
-                2, 1, "30.225.12.48", 9096, 9097, 9098, 9099, PartitionLocation.Mode.PRIMARY),
+                2,
+                1,
+                "30.225.12.48",
+                9096,
+                9097,
+                9098,
+                9099,
+                PartitionLocation.Mode.PRIMARY,
+                "30.225.12.48"),
             null);
     map2.put(p3, p3);
     PartitionLocation p4 =
         new PartitionLocation(
-            2, 1, "30.225.12.48", 9096, 9097, 9098, 9099, PartitionLocation.Mode.REPLICA);
+            2,
+            1,
+            "30.225.12.48",
+            9096,
+            9097,
+            9098,
+            9099,
+            PartitionLocation.Mode.REPLICA,
+            "30.225.12.48");
     assertTrue(map2.containsKey(p4));
   }
 }

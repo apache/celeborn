@@ -63,6 +63,27 @@ public interface IMetadataHandler {
       boolean highWorkload,
       String requestId);
 
+  default void handleRegisterWorker(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      String requestId) {
+    handleRegisterWorker(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        disks,
+        userResourceConsumption,
+        host,
+        requestId);
+  }
+
   void handleRegisterWorker(
       String host,
       int rpcPort,
@@ -71,6 +92,7 @@ public interface IMetadataHandler {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      String topologyLocation,
       String requestId);
 
   void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId);

@@ -138,9 +138,15 @@ public class DefaultMetaSystemSuiteJ {
         REPLICATEPORT3,
         disks3,
         userResourceConsumption3,
+        "topologyLocation",
         getNewReqeustId());
 
     assertEquals(3, statusSystem.workers.size());
+    assertEquals(
+        1,
+        statusSystem.workers.stream()
+            .filter(w -> "topologyLocation".equals(w.topologyLocation()))
+            .count());
   }
 
   @Test

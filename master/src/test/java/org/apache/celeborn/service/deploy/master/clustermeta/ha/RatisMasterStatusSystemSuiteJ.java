@@ -271,6 +271,7 @@ public class RatisMasterStatusSystemSuiteJ {
         REPLICATEPORT3,
         disks3,
         userResourceConsumption3,
+        "topologyLocation",
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -278,6 +279,12 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(3, STATUSSYSTEM1.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM2.workers.size());
     Assert.assertEquals(3, STATUSSYSTEM3.workers.size());
+
+    Assert.assertEquals(
+        1,
+        statusSystem.workers.stream()
+            .filter(worker -> "topologyLocation".equals(worker.topologyLocation()))
+            .count());
   }
 
   @Test

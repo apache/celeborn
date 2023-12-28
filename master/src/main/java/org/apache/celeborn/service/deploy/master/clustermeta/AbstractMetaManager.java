@@ -201,10 +201,18 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
-      Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      String topologyLocation) {
     WorkerInfo workerInfo =
         new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            disks,
+            userResourceConsumption,
+            topologyLocation);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);

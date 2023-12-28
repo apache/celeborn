@@ -58,8 +58,8 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
     worker = new Worker(conf, workerArgs)
 
-    val pl1 = new PartitionLocation(0, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY)
-    val pl2 = new PartitionLocation(1, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.REPLICA)
+    val pl1 = new PartitionLocation(0, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY, "12")
+    val pl2 = new PartitionLocation(1, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.REPLICA, "12")
 
     worker.storageManager.createPartitionDataWriter(
       "1",

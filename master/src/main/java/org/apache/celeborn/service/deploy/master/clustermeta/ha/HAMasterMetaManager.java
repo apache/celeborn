@@ -285,6 +285,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int replicatePort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      String topologyLocation,
       String requestId) {
     try {
       ratisServer.submitRequest(
@@ -301,6 +302,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
                       .putAllUserResourceConsumption(
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
+                      .setTopologyLocation(topologyLocation)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {

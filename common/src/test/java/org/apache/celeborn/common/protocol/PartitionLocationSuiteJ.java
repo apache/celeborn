@@ -41,7 +41,8 @@ public class PartitionLocationSuiteJ {
           pushPort,
           fetchPort,
           replicatePort,
-          PartitionLocation.Mode.REPLICA);
+          PartitionLocation.Mode.REPLICA,
+          host);
 
   @Test
   public void testGetCorrectMode() {
@@ -176,7 +177,7 @@ public class PartitionLocationSuiteJ {
   public void testToStringOutput() {
     PartitionLocation location1 =
         new PartitionLocation(
-            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, host);
     PartitionLocation location2 =
         new PartitionLocation(
             partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode, peer);
@@ -201,7 +202,8 @@ public class PartitionLocationSuiteJ {
             mode,
             peer,
             storageInfo,
-            bitmap);
+            bitmap,
+            host);
 
     String exp1 =
         "PartitionLocation[\n"
