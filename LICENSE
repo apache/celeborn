@@ -210,4 +210,38 @@ for text of these licenses.
 Apache License 2.0
 --------------------------------------
 
-common/src/main/java/org/apache/celeborn/common/network/util/LimitedInputStream.java
+Apache Spark
+./client-spark/spark-2/src/main/java/org/apache/spark/shuffle/celeborn/SparkUtils.java
+./client-spark/spark-3/src/main/java/org/apache/spark/shuffle/celeborn/SparkUtils.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DB.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DBIterator.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/LevelDB.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/LevelDBProvider.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/RocksDBIterator.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/StoreVersion.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DBBackend.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DBProvider.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/LevelDBIterator.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/RocksDB.java
+./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/RocksDBProvider.java
+
+Apache Kyuubi
+./common/src/main/java/org/apache/celeborn/reflect/DynClasses.java
+./common/src/main/java/org/apache/celeborn/reflect/DynConstructors.java
+./common/src/main/java/org/apache/celeborn/reflect/DynFields.java
+./common/src/main/java/org/apache/celeborn/reflect/DynMethods.java
+./dev/checkout_pr.sh
+
+Guava
+./common/src/main/java/org/apache/celeborn/common/network/util/LimitedInputStream.java
+
+Remote Shuffle Service for Flink
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/Buffer.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/BufferHeader.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/BufferPacker.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/BufferRecycler.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/utils/BufferUtils.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/CreditListener.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/PartitionSortedBuffer.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/SortBuffer.java
+./client-flink/common/src/main/java/org/apache/celeborn/plugin/flink/buffer/TransferBufferPool.java
