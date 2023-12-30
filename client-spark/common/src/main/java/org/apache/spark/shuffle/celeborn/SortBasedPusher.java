@@ -19,7 +19,6 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
@@ -69,12 +68,8 @@ public class SortBasedPusher extends MemoryConsumer {
   private final int numPartitions;
   private final Consumer<Integer> afterPush;
   private final LongAdder[] mapStatusLengths;
-  // this lock is shared between different SortBasedPushers to synchronize pushData
-  private final Object sharedPushLock;
-  private volatile boolean asyncPushing = false;
   private int[] shuffledPartitions = null;
   private int[] inversedShuffledPartitions = null;
-  private final ExecutorService executorService;
   private final SendBufferPool sendBufferPool;
 
   public SortBasedPusher(
@@ -91,8 +86,6 @@ public class SortBasedPusher extends MemoryConsumer {
       Consumer<Integer> afterPush,
       LongAdder[] mapStatusLengths,
       long pushSortMemoryThreshold,
-      Object sharedPushLock,
-      ExecutorService executorService,
       SendBufferPool sendBufferPool) {
     super(
         memoryManager,
@@ -144,83 +137,74 @@ public class SortBasedPusher extends MemoryConsumer {
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
     this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);
     this.peakMemoryUsedBytes = getMemoryUsage();
-    this.sharedPushLock = sharedPushLock;
-    this.executorService = executorService;
   }
 
   public long pushData() throws IOException {
-    // pushData should be synchronized between pushers
-    synchronized (sharedPushLock) {
-      final ShuffleInMemorySorter.ShuffleSorterIterator sortedRecords =
-          inMemSorter.getSortedIterator();
+    final ShuffleInMemorySorter.ShuffleSorterIterator sortedRecords =
+        inMemSorter.getSortedIterator();
 
-      byte[] dataBuf = new byte[pushBufferMaxSize];
-      int offSet = 0;
-      int currentPartition = -1;
-      while (sortedRecords.hasNext()) {
-        sortedRecords.loadNext();
-        final int partition =
-            shuffledPartitions != null
-                ? inversedShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()]
-                : sortedRecords.packedRecordPointer.getPartitionId();
-        if (partition != currentPartition) {
-          if (currentPartition == -1) {
-            currentPartition = partition;
-          } else {
-            int bytesWritten =
-                shuffleClient.mergeData(
-                    shuffleId,
-                    mapId,
-                    attemptNumber,
-                    currentPartition,
-                    dataBuf,
-                    0,
-                    offSet,
-                    numMappers,
-                    numPartitions);
-            mapStatusLengths[currentPartition].add(bytesWritten);
-            afterPush.accept(bytesWritten);
-            currentPartition = partition;
-            offSet = 0;
-          }
-        }
-        final long recordPointer = sortedRecords.packedRecordPointer.getRecordPointer();
-        final Object recordPage = taskMemoryManager.getPage(recordPointer);
-        final long recordOffsetInPage = taskMemoryManager.getOffsetInPage(recordPointer);
-        int recordSize = UnsafeAlignedOffset.getSize(recordPage, recordOffsetInPage);
-
-        if (offSet + recordSize > dataBuf.length) {
-          try {
-            dataPusher.addTask(partition, dataBuf, offSet);
-          } catch (InterruptedException e) {
-            TaskInterruptedHelper.throwTaskKillException();
-          }
+    byte[] dataBuf = new byte[pushBufferMaxSize];
+    int offSet = 0;
+    int currentPartition = -1;
+    while (sortedRecords.hasNext()) {
+      sortedRecords.loadNext();
+      final int partition =
+          shuffledPartitions != null
+              ? inversedShuffledPartitions[sortedRecords.packedRecordPointer.getPartitionId()]
+              : sortedRecords.packedRecordPointer.getPartitionId();
+      if (partition != currentPartition) {
+        if (currentPartition == -1) {
+          currentPartition = partition;
+        } else {
+          int bytesWritten =
+              shuffleClient.mergeData(
+                  shuffleId,
+                  mapId,
+                  attemptNumber,
+                  currentPartition,
+                  dataBuf,
+                  0,
+                  offSet,
+                  numMappers,
+                  numPartitions);
+          mapStatusLengths[currentPartition].add(bytesWritten);
+          afterPush.accept(bytesWritten);
+          currentPartition = partition;
           offSet = 0;
         }
-
-        long recordReadPosition = recordOffsetInPage + UAO_SIZE;
-        Platform.copyMemory(
-            recordPage,
-            recordReadPosition,
-            dataBuf,
-            Platform.BYTE_ARRAY_OFFSET + offSet,
-            recordSize);
-        offSet += recordSize;
       }
-      if (offSet > 0) {
+      final long recordPointer = sortedRecords.packedRecordPointer.getRecordPointer();
+      final Object recordPage = taskMemoryManager.getPage(recordPointer);
+      final long recordOffsetInPage = taskMemoryManager.getOffsetInPage(recordPointer);
+      int recordSize = UnsafeAlignedOffset.getSize(recordPage, recordOffsetInPage);
+
+      if (offSet + recordSize > dataBuf.length) {
         try {
-          dataPusher.addTask(currentPartition, dataBuf, offSet);
+          dataPusher.addTask(partition, dataBuf, offSet);
         } catch (InterruptedException e) {
           TaskInterruptedHelper.throwTaskKillException();
         }
+        offSet = 0;
       }
 
-      long freedBytes = freeMemory();
-      inMemSorter.freeMemory();
-      taskContext.taskMetrics().incMemoryBytesSpilled(freedBytes);
-
-      return freedBytes;
+      long recordReadPosition = recordOffsetInPage + UAO_SIZE;
+      Platform.copyMemory(
+          recordPage, recordReadPosition, dataBuf, Platform.BYTE_ARRAY_OFFSET + offSet, recordSize);
+      offSet += recordSize;
     }
+    if (offSet > 0) {
+      try {
+        dataPusher.addTask(currentPartition, dataBuf, offSet);
+      } catch (InterruptedException e) {
+        TaskInterruptedHelper.throwTaskKillException();
+      }
+    }
+
+    long freedBytes = freeMemory();
+    inMemSorter.freeMemory();
+    taskContext.taskMetrics().incMemoryBytesSpilled(freedBytes);
+
+    return freedBytes;
   }
 
   public boolean insertRecord(
@@ -269,38 +253,6 @@ public class SortBasedPusher extends MemoryConsumer {
     }
 
     return true;
-  }
-
-  public void triggerPush() throws IOException {
-    asyncPushing = true;
-    dataPusher.checkException();
-    executorService.submit(
-        () -> {
-          try {
-            pushData();
-            asyncPushing = false;
-          } catch (IOException ie) {
-            dataPusher.setException(ie);
-          }
-        });
-  }
-
-  /**
-   * Since this method and pushData() are synchronized When this method returns, it means pushData
-   * has released lock
-   *
-   * @throws IOException
-   */
-  public void waitPushFinish() throws IOException {
-    dataPusher.checkException();
-    while (asyncPushing) {
-      try {
-        Thread.sleep(50);
-      } catch (InterruptedException e) {
-        logger.error("SortBasedPusher thread interrupted while waiting push finished.");
-        TaskInterruptedHelper.throwTaskKillException();
-      }
-    }
   }
 
   private void growPointerArrayIfNecessary() throws IOException {

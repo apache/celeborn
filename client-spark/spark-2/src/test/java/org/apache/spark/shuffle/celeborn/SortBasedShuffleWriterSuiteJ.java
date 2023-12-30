@@ -40,7 +40,6 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
         context,
         conf,
         client,
-        null,
         SendBufferPool.get(4, 30, 60));
   }
 }
