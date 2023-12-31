@@ -15,4 +15,4 @@
  * limitations under the License.
  */
 
-ThisBuild / version := "0.4.1-SNAPSHOT"
+ThisBuild / version := "0.4.0-incubating"
