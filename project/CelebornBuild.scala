@@ -753,7 +753,13 @@ trait SparkClientProjects {
   
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
-          case "META-INF/LICENSE" | "META-INF/NOTICE" => MergeStrategy.preferProject
+          // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
+          case m @ ("META-INF/LICENSE" | "META-INF/NOTICE") => CustomMergeStrategy("LicenseAndNoticeMergeStrategy") { conflicts =>
+            val entry = conflicts.head
+            val projectLicenseFile = (Compile / resourceDirectory).value / entry.target
+            val stream = () => new java.io.BufferedInputStream(new java.io.FileInputStream(projectLicenseFile))
+            Right(Vector(JarEntry(entry.target, stream)))
+          }
           case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
@@ -951,7 +957,13 @@ trait FlinkClientProjects {
   
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
-          case "META-INF/LICENSE" | "META-INF/NOTICE" => MergeStrategy.preferProject
+          // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
+          case m @ ("META-INF/LICENSE" | "META-INF/NOTICE") => CustomMergeStrategy("LicenseAndNoticeMergeStrategy") { conflicts =>
+            val entry = conflicts.head
+            val projectLicenseFile = (Compile / resourceDirectory).value / entry.target
+            val stream = () => new java.io.BufferedInputStream(new java.io.FileInputStream(projectLicenseFile))
+            Right(Vector(JarEntry(entry.target, stream)))
+          }
           case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
@@ -1056,7 +1068,13 @@ object MRClientProjects {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
           // For netty-3.x.y.Final.jar
           case m if m.startsWith("META-INF/license/") => MergeStrategy.discard
-          case "META-INF/LICENSE" | "META-INF/NOTICE" => MergeStrategy.preferProject
+          // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
+          case m @ ("META-INF/LICENSE" | "META-INF/NOTICE") => CustomMergeStrategy("LicenseAndNoticeMergeStrategy") { conflicts =>
+            val entry = conflicts.head
+            val projectLicenseFile = (Compile / resourceDirectory).value / entry.target
+            val stream = () => new java.io.BufferedInputStream(new java.io.FileInputStream(projectLicenseFile))
+            Right(Vector(JarEntry(entry.target, stream)))
+          }
           case PathList(ps@_*) if Assembly.isLicenseFile(ps.last) => MergeStrategy.discard
           // Drop all proto files that are not needed as artifacts of the build.
           case m if m.toLowerCase(Locale.ROOT).endsWith(".proto") => MergeStrategy.discard
