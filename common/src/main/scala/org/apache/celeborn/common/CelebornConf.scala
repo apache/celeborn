@@ -828,7 +828,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
   def clientPushReviveBatchSize: Int = get(CLIENT_PUSH_REVIVE_BATCHSIZE)
   def clientPushSortMemoryThreshold: Long = get(CLIENT_PUSH_SORT_MEMORY_THRESHOLD)
-  def clientPushSortPipelineEnabled: Boolean = get(CLIENT_PUSH_SORT_PIPELINE_ENABLED)
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
@@ -3824,24 +3823,11 @@ object CelebornConf extends Logging {
       .longConf
       .createWithDefault(Int.MaxValue)
 
-  val CLIENT_PUSH_SORT_PIPELINE_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.push.sort.pipeline.enabled")
-      .withAlternative("celeborn.push.sort.pipeline.enabled")
-      .categories("client")
-      .doc("Whether to enable pipelining for sort based shuffle writer. If true, double buffering" +
-        " will be used to pipeline push")
-      .version("0.3.0")
-      .booleanConf
-      .createWithDefault(false)
-
   val CLIENT_PUSH_SORT_MEMORY_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.client.spark.push.sort.memory.threshold")
       .withAlternative("celeborn.push.sortMemory.threshold")
       .categories("client")
-      .doc("When SortBasedPusher use memory over the threshold, will trigger push data. If the" +
-        s" pipeline push feature is enabled (`${CLIENT_PUSH_SORT_PIPELINE_ENABLED.key}=true`)," +
-        " the SortBasedPusher will trigger a data push when the memory usage exceeds half of the" +
-        " threshold(by default, 32m).")
+      .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64m")
