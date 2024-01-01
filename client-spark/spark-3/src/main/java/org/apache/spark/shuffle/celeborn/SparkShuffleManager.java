@@ -19,8 +19,6 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
@@ -36,7 +34,6 @@ import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
-import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.reflect.DynMethods;
 
 /**
@@ -85,9 +82,6 @@ public class SparkShuffleManager implements ShuffleManager {
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
 
-  private final ExecutorService[] asyncPushers;
-  private AtomicInteger pusherIdx = new AtomicInteger(0);
-
   private long sendBufferPoolCheckInterval;
   private long sendBufferPoolExpireTimeout;
 
@@ -105,15 +99,6 @@ public class SparkShuffleManager implements ShuffleManager {
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     this.cores = executorCores(conf);
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
-    if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())
-        && celebornConf.clientPushSortPipelineEnabled()) {
-      asyncPushers = new ExecutorService[cores];
-      for (int i = 0; i < asyncPushers.length; i++) {
-        asyncPushers[i] = ThreadUtils.newDaemonSingleThreadExecutor("async-pusher-" + i);
-      }
-    } else {
-      asyncPushers = null;
-    }
     this.sendBufferPoolCheckInterval = celebornConf.clientPushSendBufferPoolExpireCheckInterval();
     this.sendBufferPoolExpireTimeout = celebornConf.clientPushSendBufferPoolExpireTimeout();
   }
@@ -248,8 +233,6 @@ public class SparkShuffleManager implements ShuffleManager {
         shuffleIdTracker.track(h.shuffleId(), shuffleId);
 
         if (ShuffleMode.SORT.equals(celebornConf.shuffleWriterMode())) {
-          ExecutorService pushThread =
-              celebornConf.clientPushSortPipelineEnabled() ? getPusherThread() : null;
           return new SortBasedShuffleWriter<>(
               shuffleId,
               h.dependency(),
@@ -258,7 +241,6 @@ public class SparkShuffleManager implements ShuffleManager {
               celebornConf,
               shuffleClient,
               metrics,
-              pushThread,
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout));
         } else if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
           SendBufferPool pool =
@@ -387,12 +369,6 @@ public class SparkShuffleManager implements ShuffleManager {
           metrics,
           shuffleIdTracker);
     }
-  }
-
-  private ExecutorService getPusherThread() {
-    ExecutorService pusherThread = asyncPushers[pusherIdx.get() % asyncPushers.length];
-    pusherIdx.incrementAndGet();
-    return pusherThread;
   }
 
   private int executorCores(SparkConf conf) {

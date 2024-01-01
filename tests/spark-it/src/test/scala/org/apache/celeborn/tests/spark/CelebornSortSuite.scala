@@ -26,7 +26,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 
-class CelebornNonPipelineSortSuite extends AnyFunSuite
+class CelebornSortSuite extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
@@ -40,7 +40,6 @@ class CelebornNonPipelineSortSuite extends AnyFunSuite
 
   test("celeborn spark integration test - non pipeline sort") {
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
-      .set(s"spark.${CelebornConf.CLIENT_PUSH_SORT_PIPELINE_ENABLED.key}", "false")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED.key}", "false")
     val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
     val combineResult = combine(sparkSession)

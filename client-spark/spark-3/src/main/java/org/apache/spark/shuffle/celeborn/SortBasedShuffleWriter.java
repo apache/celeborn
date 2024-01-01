@@ -18,7 +18,6 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Option;
@@ -69,11 +68,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final int numPartitions;
 
   private final long pushBufferMaxSize;
-  // this lock is shared between different SortBasedPushers to synchronize pushData
-  private final Object sharedPushLock = new Object();
-  private final boolean pipelined;
-  private final SortBasedPusher[] pushers = new SortBasedPusher[2];
-  private SortBasedPusher currentPusher;
+
+  private final SortBasedPusher pusher;
   private long peakMemoryUsedBytes = 0;
 
   private final OpenByteArrayOutputStream serBuffer;
@@ -101,7 +97,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      ExecutorService executorService,
       SendBufferPool sendBufferPool)
       throws IOException {
     this.mapId = taskContext.partitionId();
@@ -126,50 +121,23 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     tmpRecords = new long[numPartitions];
 
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
-    pipelined = conf.clientPushSortPipelineEnabled();
 
-    if (pipelined) {
-      for (int i = 0; i < pushers.length; i++) {
-        pushers[i] =
-            new SortBasedPusher(
-                taskContext.taskMemoryManager(),
-                shuffleClient,
-                taskContext,
-                shuffleId,
-                mapId,
-                taskContext.attemptNumber(),
-                taskContext.taskAttemptId(),
-                numMappers,
-                numPartitions,
-                conf,
-                writeMetrics::incBytesWritten,
-                mapStatusLengths,
-                conf.clientPushSortMemoryThreshold() / 2,
-                sharedPushLock,
-                executorService,
-                sendBufferPool);
-      }
-      currentPusher = pushers[0];
-    } else {
-      currentPusher =
-          new SortBasedPusher(
-              taskContext.taskMemoryManager(),
-              shuffleClient,
-              taskContext,
-              shuffleId,
-              mapId,
-              taskContext.attemptNumber(),
-              taskContext.taskAttemptId(),
-              numMappers,
-              numPartitions,
-              conf,
-              writeMetrics::incBytesWritten,
-              mapStatusLengths,
-              conf.clientPushSortMemoryThreshold(),
-              sharedPushLock,
-              null,
-              sendBufferPool);
-    }
+    pusher =
+        new SortBasedPusher(
+            taskContext.taskMemoryManager(),
+            shuffleClient,
+            taskContext,
+            shuffleId,
+            mapId,
+            taskContext.attemptNumber(),
+            taskContext.taskAttemptId(),
+            numMappers,
+            numPartitions,
+            conf,
+            writeMetrics::incBytesWritten,
+            mapStatusLengths,
+            conf.clientPushSortMemoryThreshold(),
+            sendBufferPool);
   }
 
   public SortBasedShuffleWriter(
@@ -178,7 +146,6 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       CelebornConf conf,
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
-      ExecutorService executorService,
       SendBufferPool sendBufferPool)
       throws IOException {
     this(
@@ -189,28 +156,13 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         conf,
         client,
         metrics,
-        executorService,
         sendBufferPool);
   }
 
   private void updatePeakMemoryUsed() {
-    // sorter can be null if this writer is closed
-    if (pipelined) {
-      for (SortBasedPusher pusher : pushers) {
-        if (pusher != null) {
-          long mem = pusher.getPeakMemoryUsedBytes();
-          if (mem > peakMemoryUsedBytes) {
-            peakMemoryUsedBytes = mem;
-          }
-        }
-      }
-    } else {
-      if (currentPusher != null) {
-        long mem = currentPusher.getPeakMemoryUsedBytes();
-        if (mem > peakMemoryUsedBytes) {
-          peakMemoryUsedBytes = mem;
-        }
-      }
+    long mem = pusher.getPeakMemoryUsedBytes();
+    if (mem > peakMemoryUsedBytes) {
+      peakMemoryUsedBytes = mem;
     }
   }
 
@@ -275,12 +227,12 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         pushGiantRecord(partitionId, giantBuffer, serializedRecordSize);
       } else {
         boolean success =
-            currentPusher.insertRecord(
+            pusher.insertRecord(
                 row.getBaseObject(), row.getBaseOffset(), rowSize, partitionId, true);
         if (!success) {
-          pushAndSwitch();
+          doPush();
           success =
-              currentPusher.insertRecord(
+              pusher.insertRecord(
                   row.getBaseObject(), row.getBaseOffset(), rowSize, partitionId, true);
           if (!success) {
             throw new CelebornIOException("Unable to push after switching pusher!");
@@ -291,15 +243,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
-  private void pushAndSwitch() throws IOException {
+  private void doPush() throws IOException {
     long start = System.nanoTime();
-    if (pipelined) {
-      currentPusher.triggerPush();
-      currentPusher = (currentPusher == pushers[0] ? pushers[1] : pushers[0]);
-      currentPusher.waitPushFinish();
-    } else {
-      currentPusher.pushData();
-    }
+    pusher.pushData();
     writeMetrics.incWriteTime(System.nanoTime() - start);
   }
 
@@ -322,16 +268,16 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
       } else {
         boolean success =
-            currentPusher.insertRecord(
+            pusher.insertRecord(
                 serBuffer.getBuf(),
                 Platform.BYTE_ARRAY_OFFSET,
                 serializedRecordSize,
                 partitionId,
                 false);
         if (!success) {
-          pushAndSwitch();
+          doPush();
           success =
-              currentPusher.insertRecord(
+              pusher.insertRecord(
                   serBuffer.getBuf(),
                   Platform.BYTE_ARRAY_OFFSET,
                   serializedRecordSize,
@@ -364,23 +310,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void close() throws IOException {
-    if (pipelined) {
-      logger.info(
-          "Memory used {}", Utils.bytesToString((pushers[0].getUsed() + pushers[1].getUsed())));
-    } else {
-      logger.info("Memory used {}", Utils.bytesToString(currentPusher.getUsed()));
-    }
+    logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
-    if (pipelined) {
-      for (SortBasedPusher pusher : pushers) {
-        pusher.waitPushFinish();
-        pusher.pushData();
-        pusher.close();
-      }
-    } else {
-      currentPusher.pushData();
-      currentPusher.close();
-    }
+    pusher.pushData();
+    pusher.close();
 
     shuffleClient.pushMergedData(shuffleId, mapId, taskContext.attemptNumber());
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
