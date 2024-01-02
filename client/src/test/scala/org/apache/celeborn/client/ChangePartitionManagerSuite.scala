@@ -23,7 +23,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.StatusCode
 
-class ChangePartitionManagerTest extends AnyFunSuite {
+class ChangePartitionManagerSuite extends AnyFunSuite {
 
   test("testPendingPartitionChangeRequests") {
 
@@ -58,5 +58,6 @@ class ChangePartitionManagerTest extends AnyFunSuite {
     assert(changeRequests.contains(request))
 
     manager.stop()
+    lifecycleManager.stop()
   }
 }

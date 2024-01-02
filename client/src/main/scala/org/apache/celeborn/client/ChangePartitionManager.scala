@@ -372,6 +372,7 @@ class ChangePartitionManager(
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     changePartitionRequests.remove(shuffleId)
+    pendingPartitionChangeRequests.remove(shuffleId)
     inBatchPartitions.remove(shuffleId)
   }
 }
