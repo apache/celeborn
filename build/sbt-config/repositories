@@ -17,7 +17,7 @@
 
 [repositories]
   local
-  mavenLocal: file://${user.home}/.m2/repository/
+  # mavenLocal: file://${user.home}/.m2/repository/
   local-preloaded-ivy: file:///${sbt.preloaded-${sbt.global.base-${user.home}/.sbt}/preloaded/}, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]
   local-preloaded: file:///${sbt.preloaded-${sbt.global.base-${user.home}/.sbt}/preloaded/}
   # The system property value of `celeborn.sbt.default.artifact.repository` is
