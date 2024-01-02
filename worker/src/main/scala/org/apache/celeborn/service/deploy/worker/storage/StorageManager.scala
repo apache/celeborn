@@ -192,7 +192,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   // shuffleKey -> (fileName -> file info)
-  private val nonMemoryFileInfos =
+  private val diskFileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
   private val RECOVERY_FILE_NAME_PREFIX = "recovery"
   private var RECOVERY_FILE_NAME = "recovery.ldb"
@@ -264,7 +264,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           try {
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache)
             logDebug(s"Reload DB: $shuffleKey -> $files")
-            nonMemoryFileInfos.put(shuffleKey, files)
+            diskFileInfos.put(shuffleKey, files)
             db.delete(entry.getKey)
           } catch {
             case exception: Exception =>
@@ -394,8 +394,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           logError("Create partition data writer failed", e)
           throw e
       }
-    if (writer.getDiskFileInfo.isInstanceOf[DiskFileInfo] && !(writer.getDiskFileInfo.asInstanceOf[
-        DiskFileInfo].isHdfs)) {
+    if (!(writer.getDiskFileInfo.asInstanceOf[DiskFileInfo].isHdfs)) {
       deviceMonitor.registerFileWriter(writer)
       workingDirWriters.computeIfAbsent(workingDir, workingDirWriterListFunc).put(
         diskFileInfo.getFilePath,
@@ -405,7 +404,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def getNonMemoryFileInfo(shuffleKey: String, fileName: String): DiskFileInfo = {
-    val shuffleMap = nonMemoryFileInfos.get(shuffleKey)
+    val shuffleMap = diskFileInfos.get(shuffleKey)
     if (shuffleMap ne null) {
       shuffleMap.get(fileName)
     } else {
@@ -424,12 +423,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def shuffleKeySet(): util.HashSet[String] = {
     val hashSet = new util.HashSet[String]()
-    hashSet.addAll(nonMemoryFileInfos.keySet())
+    hashSet.addAll(diskFileInfos.keySet())
     hashSet
   }
 
   def topAppDiskUsage: util.Map[String, Long] = {
-    nonMemoryFileInfos.asScala.map { keyedWriters =>
+    diskFileInfos.asScala.map { keyedWriters =>
       {
         keyedWriters._1 -> keyedWriters._2.values().asScala.map(_.getFileLength).sum
       }
@@ -479,8 +478,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       cleanDB: Boolean = true): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      if (nonMemoryFileInfos.containsKey(shuffleKey)) {
-        val removedFileInfos = nonMemoryFileInfos.remove(shuffleKey)
+      if (diskFileInfos.containsKey(shuffleKey)) {
+        val removedFileInfos = diskFileInfos.remove(shuffleKey)
         var isHdfsExpired = false
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
@@ -730,9 +729,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def userResourceConsumptionSnapshot(): Map[UserIdentifier, ResourceConsumption] = {
-    nonMemoryFileInfos.synchronized {
+    diskFileInfos.synchronized {
       // shuffleId -> (fileName -> fileInfo)
-      nonMemoryFileInfos
+      diskFileInfos
         .asScala
         .toList
         .flatMap { case (_, fileInfoMaps) =>
@@ -769,11 +768,11 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def getActiveShuffleSize(): Long = {
-    nonMemoryFileInfos.values().asScala.map(_.values().asScala.map(_.getBytesFlushed).sum).sum
+    diskFileInfos.values().asScala.map(_.values().asScala.map(_.getBytesFlushed).sum).sum
   }
 
   def getActiveShuffleFileCount(): Long = {
-    nonMemoryFileInfos.asScala.values.map(_.size()).sum
+    diskFileInfos.asScala.values.map(_.size()).sum
   }
 
   def createFile(
@@ -813,7 +812,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           new ReduceFileMeta(),
           hdfsFilePath,
           StorageInfo.Type.HDFS)
-        nonMemoryFileInfos.computeIfAbsent(shuffleKey, nonMemoryFileInfoMapFunc).put(
+        diskFileInfos.computeIfAbsent(shuffleKey, nonMemoryFileInfoMapFunc).put(
           fileName,
           hdfsFileInfo)
         return (hdfsFlusher.get, hdfsFileInfo, null)
@@ -849,7 +848,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             fileMeta,
             filePath,
             StorageInfo.Type.HDD)
-          nonMemoryFileInfos.computeIfAbsent(shuffleKey, nonMemoryFileInfoMapFunc).put(
+          diskFileInfos.computeIfAbsent(shuffleKey, nonMemoryFileInfoMapFunc).put(
             fileName,
             nonMemoryFileInfo)
           return (

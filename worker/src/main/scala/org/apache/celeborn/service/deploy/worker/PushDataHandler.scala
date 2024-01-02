@@ -261,7 +261,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     if (fileWriter.isClosed) {
       logWarning(
-        s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}")
+        s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getDiskFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return;
@@ -526,7 +526,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val closedFileWriter = fileWriters.find(_.isClosed)
     if (closedFileWriter.isDefined) {
       logWarning(
-        s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}")
+        s"[handlePushMergedData] FileWriter is already closed! File path ${closedFileWriter.get.getDiskFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriters.foreach(_.decrementPendingWrites())
       return
@@ -796,7 +796,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     if (fileWriter.isClosed) {
       logWarning(
-        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}")
+        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getDiskFileInfo.getFilePath}")
       callback.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
       return;
@@ -1188,7 +1188,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |partitionSplitMinimumSize:$partitionSplitMinimumSize,
          |splitThreshold:${fileWriter.getSplitThreshold()},
          |fileLength:${fileWriter.getDiskFileInfo.getFileLength}
-         |fileName:${fileWriter.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}
+         |fileName:${fileWriter.getDiskFileInfo.getFilePath}
          |""".stripMargin)
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getDiskFileInfo.getFileLength > partitionSplitMinimumSize) ||
         (isPrimary && fileWriter.getDiskFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
@@ -1204,7 +1204,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
              |partitionSplitMinimumSize:$partitionSplitMinimumSize,
              |splitThreshold:${fileWriter.getSplitThreshold()},
              |fileLength:${fileWriter.getDiskFileInfo.getFileLength},
-             |fileName:${fileWriter.getDiskFileInfo.asInstanceOf[DiskFileInfo].getFilePath}
+             |fileName:${fileWriter.getDiskFileInfo.getFilePath}
              |""".stripMargin)
         return true
       }

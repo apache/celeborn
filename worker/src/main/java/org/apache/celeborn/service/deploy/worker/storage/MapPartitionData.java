@@ -84,7 +84,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
     updateBuffersTarget((this.minReadBuffers + this.maxReadBuffers) / 2 + 1);
     logger.debug(
         "read map partition {} with {} {}",
-        ((DiskFileInfo) diskFileInfo).getFilePath(),
+        diskFileInfo.getFilePath(),
         bufferQueue.getLocalBuffersTarget(),
         mapFileMeta.getBufferSize());
 
@@ -103,10 +103,8 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
                               logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
                             })
                         .build()));
-    this.dataFileChanel =
-        FileChannelUtils.openReadableFileChannel(((DiskFileInfo) diskFileInfo).getFilePath());
-    this.indexChannel =
-        FileChannelUtils.openReadableFileChannel(((DiskFileInfo) diskFileInfo).getIndexPath());
+    this.dataFileChanel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getFilePath());
+    this.indexChannel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getIndexPath());
     this.indexSize = indexChannel.size();
 
     MemoryManager.instance().addReadBufferTargetChangeListener(this);
@@ -261,7 +259,7 @@ class MapPartitionData implements MemoryManager.ReadBufferTargetChangeListener {
 
   @Override
   public String toString() {
-    return "MapDataPartition{" + "fileInfo=" + ((DiskFileInfo) diskFileInfo).getFilePath() + '}';
+    return "MapDataPartition{" + "fileInfo=" + diskFileInfo.getFilePath() + '}';
   }
 
   public ConcurrentHashMap<Long, MapPartitionDataReader> getReaders() {

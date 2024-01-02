@@ -102,7 +102,8 @@ object PbSerDeUtils {
       userIdentifier,
       pbFileInfo.getPartitionSplitEnabled,
       meta,
-      pbFileInfo.getFilePath)
+      pbFileInfo.getFilePath,
+      pbFileInfo.getBytesFlushed)
   }
 
   def toPbFileInfo(fileInfo: DiskFileInfo): PbFileInfo = {

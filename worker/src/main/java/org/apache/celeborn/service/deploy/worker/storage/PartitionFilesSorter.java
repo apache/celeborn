@@ -54,7 +54,6 @@ import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
@@ -504,14 +503,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         IOUtils.closeQuietly(hdfsIndexStream, null);
       }
     }
-    return new DiskFileInfo(
-        userIdentifier,
-        true,
+    ReduceFileMeta reduceFileMeta =
         new ReduceFileMeta(
             ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                startMapIndex, endMapIndex, shuffleChunkSize, indexMap)),
-        sortedFilePath,
-        StorageInfo.Type.HDD);
+                startMapIndex, endMapIndex, shuffleChunkSize, indexMap));
+    return new DiskFileInfo(userIdentifier, reduceFileMeta, sortedFilePath);
   }
 
   class FileSorter {

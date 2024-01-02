@@ -67,7 +67,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   private int currentDataRegion = -1;
   private long dataConsumingOffset;
   private volatile long currentPartitionRemainingBytes;
-  private FileInfo fileInfo;
+  private DiskFileInfo fileInfo;
   private MapFileMeta mapFileMeta;
   private int INDEX_ENTRY_SIZE = 16;
   private long streamId;
@@ -107,7 +107,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   public MapPartitionDataReader(
       int startPartitionIndex,
       int endPartitionIndex,
-      FileInfo fileInfo,
+      DiskFileInfo fileInfo,
       long streamId,
       Channel associatedChannel,
       Runnable recycleStream) {
@@ -327,8 +327,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       if (dataConsumingOffset < 0
           || dataConsumingOffset + currentPartitionRemainingBytes > dataFileChannel.size()
           || currentPartitionRemainingBytes < 0) {
-        throw new FileCorruptedException(
-            "File " + ((DiskFileInfo) fileInfo).getFilePath() + " is corrupted");
+        throw new FileCorruptedException("File " + fileInfo.getFilePath() + " is corrupted");
       }
     }
   }
@@ -339,7 +338,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
 
       int readSize =
           readBuffer(
-              ((DiskFileInfo) fileInfo).getFilePath(),
+              fileInfo.getFilePath(),
               dataFileChannel,
               headerBuffer,
               buffer,
@@ -352,7 +351,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
           currentPartitionRemainingBytes,
           readSize,
           dataConsumingOffset,
-          ((DiskFileInfo) fileInfo).getFilePath(),
+          fileInfo.getFilePath(),
           System.identityHashCode(buffer));
 
       // if this check fails, the partition file must be corrupted
@@ -407,7 +406,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   private void notifyError(Throwable throwable) {
     logger.error(
         "Read file: {} error from {}, stream id {}",
-        ((DiskFileInfo) fileInfo).getFilePath(),
+        fileInfo.getFilePath(),
         NettyUtils.getRemoteAddress(this.associatedChannel),
         streamId,
         throwable);

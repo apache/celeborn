@@ -53,15 +53,17 @@ public class DiskFileInfo extends FileInfo {
     this.storageType = storageType;
   }
 
+  // only called when restore from pb or in UT
   public DiskFileInfo(
       UserIdentifier userIdentifier,
       boolean partitionSplitEnabled,
       FileMeta fileMeta,
-      String filePath) {
+      String filePath,
+      long bytesFlushed) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
-    // assume that a fileinfo reloaded from pb is local file
     this.storageType = StorageInfo.Type.HDD;
+    this.bytesFlushed = bytesFlushed;
   }
 
   public DiskFileInfo(File file, UserIdentifier userIdentifier) {
@@ -71,6 +73,12 @@ public class DiskFileInfo extends FileInfo {
         new ReduceFileMeta(new ArrayList(Arrays.asList(0L))),
         file.getAbsolutePath(),
         StorageInfo.Type.HDD);
+  }
+
+  public DiskFileInfo(UserIdentifier userIdentifier, FileMeta fileMeta, String filePath) {
+    super(userIdentifier, true, fileMeta);
+    this.filePath = filePath;
+    this.storageType = StorageInfo.Type.HDD;
   }
 
   public boolean addStream(long streamId) {

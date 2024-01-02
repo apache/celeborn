@@ -509,7 +509,7 @@ message PbReduceFileMeta {
   bool sorted = 2;
 }
 
-message PbNonMemoryFile {
+message PbDiskFileInfo {
   PbUserIdentifier userIdentifier = 1;
   bool partitionSplitEnabled = 2;
   PbMapFileMeta mapFileMeta = 3;

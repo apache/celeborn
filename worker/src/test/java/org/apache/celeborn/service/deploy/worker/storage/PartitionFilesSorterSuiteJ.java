@@ -121,7 +121,7 @@ public class PartitionFilesSorterSuiteJ {
     partitionDataWriter = Mockito.mock(PartitionDataWriter.class);
     when(partitionDataWriter.getFile()).thenAnswer(i -> shuffleFile);
     when(partitionDataWriter.getDiskFileInfo()).thenAnswer(i -> fileInfo);
-    when(partitionDataWriter.getNonMemoryFileInfo()).thenAnswer(i -> fileInfo);
+    when(partitionDataWriter.getDiskFileInfo()).thenAnswer(i -> fileInfo);
     return partitionSize;
   }
 
@@ -145,7 +145,7 @@ public class PartitionFilesSorterSuiteJ {
           partitionFilesSorter.getSortedFileInfo(
               "application-1",
               originFileName,
-              partitionDataWriter.getNonMemoryFileInfo(),
+              partitionDataWriter.getDiskFileInfo(),
               startMapIndex,
               endMapIndex);
       long totalSizeToFetch = 0;

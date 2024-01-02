@@ -58,15 +58,14 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     userIdentifier1,
     true,
     new ReduceFileMeta(chunkOffsets1),
-    file1.getAbsolutePath)
-  // "/tmp/1", chunkOffsets1, userIdentifier1)
-  //  val fileInfo1 = new FileInfo("/tmp/1", chunkOffsets1, userIdentifier1)
+    file1.getAbsolutePath,
+    3000L)
   val fileInfo2 = new DiskFileInfo(
     userIdentifier2,
     true,
     new ReduceFileMeta(chunkOffsets2),
-    file2.getAbsolutePath)
-  // "/tmp/2", chunkOffsets2, userIdentifier2)
+    file2.getAbsolutePath,
+    6000L)
   val fileInfoMap = JavaUtils.newConcurrentHashMap[String, FileInfo]()
   fileInfoMap.put("file1", fileInfo1)
   fileInfoMap.put("file2", fileInfo2)
@@ -154,6 +153,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredFileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.equals(
       fileInfo1.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets))
     assert(restoredFileInfo.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
+    assert(restoredFileInfo.getFileMeta.isInstanceOf[ReduceFileMeta])
   }
 
   test("fromAndToPbFileInfoMap") {

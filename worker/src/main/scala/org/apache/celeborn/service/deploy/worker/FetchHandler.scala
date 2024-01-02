@@ -31,13 +31,13 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, FileManagedBuffers, MapFileMeta, ReduceFileMeta}
+import org.apache.celeborn.common.meta.{DiskFileInfo, FileManagedBuffers, MapFileMeta, ReduceFileMeta}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
+import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
@@ -74,7 +74,7 @@ class FetchHandler(
     this.registered = worker.registered
   }
 
-  def getRawNonMemoryFileInfo(
+  def getRawDiskFileInfo(
       shuffleKey: String,
       fileName: String): DiskFileInfo = {
     // find FileWriter responsible for the data
@@ -204,7 +204,7 @@ class FetchHandler(
       callback: RpcResponseCallback): Unit = {
     workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
-      var fileInfo = getRawNonMemoryFileInfo(shuffleKey, fileName)
+      var fileInfo = getRawDiskFileInfo(shuffleKey, fileName)
       fileInfo.getFileMeta match {
         case _: ReduceFileMeta =>
           logDebug(s"Received open stream request $shuffleKey $fileName $startIndex " +
@@ -349,7 +349,7 @@ class FetchHandler(
     streamType match {
       case StreamType.ChunkStream =>
         val (shuffleKey, fileName) = chunkStreamManager.getShuffleKeyAndFileName(streamId)
-        getRawNonMemoryFileInfo(shuffleKey, fileName).closeStream(
+        getRawDiskFileInfo(shuffleKey, fileName).closeStream(
           streamId)
       case StreamType.CreditStream =>
         creditStreamManager.notifyStreamEndByClient(streamId)

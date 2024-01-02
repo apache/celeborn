@@ -36,7 +36,6 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.AlreadyClosedException;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
-import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -141,15 +140,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     takeBuffer();
   }
 
-  public FileInfo getDiskFileInfo() {
-    return diskFileInfo;
-  }
-
-  public DiskFileInfo getNonMemoryFileInfo() {
-    if (!(diskFileInfo instanceof DiskFileInfo)) {
-      throw new IllegalStateException(
-          "File info " + diskFileInfo + " is not non memory file info.");
-    }
+  public DiskFileInfo getDiskFileInfo() {
     return diskFileInfo;
   }
 
