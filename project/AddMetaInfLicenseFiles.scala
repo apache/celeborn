@@ -248,7 +248,7 @@ object AddMetaInfLicenseFiles extends AutoPlugin {
   val notice =
     """
       |Apache Celeborn
-      |Copyright 2022-2023 The Apache Software Foundation.
+      |Copyright 2022-2024 The Apache Software Foundation.
       |
       |This product includes software developed at
       |The Apache Software Foundation (http://www.apache.org/).
