@@ -394,7 +394,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           logError("Create partition data writer failed", e)
           throw e
       }
-    if (!(writer.getDiskFileInfo.asInstanceOf[DiskFileInfo].isHdfs)) {
+    if (!(writer.getDiskFileInfo.isHdfs)) {
       deviceMonitor.registerFileWriter(writer)
       workingDirWriters.computeIfAbsent(workingDir, workingDirWriterListFunc).put(
         diskFileInfo.getFilePath,
