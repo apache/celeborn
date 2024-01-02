@@ -46,7 +46,7 @@ class ChangePartitionManager(
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   // shuffleId -> (partitionId -> set of ChangePartition)
-  val changePartitionRequests =
+  private val changePartitionRequests =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
 
   private val pendingPartitionChangeRequests =
@@ -157,6 +157,16 @@ class ChangePartitionManager(
           }
         }
       }
+    }
+  }
+
+  // for testing
+  def getAllPartitionRequests(shuffleId: Int): util.Set[ChangePartitionRequest] = {
+    val requests = changePartitionRequests.get(shuffleId)
+    if (requests == null) {
+      new util.HashSet[ChangePartitionRequest]()
+    } else {
+      requests.values().asScala.flatMap(_.asScala).toSet.asJava
     }
   }
 

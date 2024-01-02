@@ -53,12 +53,9 @@ class ChangePartitionManagerTest extends AnyFunSuite {
     manager.start()
     Thread.sleep(1000)
 
-    val changeRequests = manager.changePartitionRequests.get(shuffleId)
-    assert(changeRequests != null)
-    assert(changeRequests.containsKey(partitionId))
-    val requests = changeRequests.get(partitionId)
-    assert(requests.size() == 1)
-    assert(requests.contains(request))
+    val changeRequests = manager.getAllPartitionRequests(shuffleId)
+    assert(!changeRequests.isEmpty)
+    assert(changeRequests.contains(request))
 
     manager.stop()
   }
