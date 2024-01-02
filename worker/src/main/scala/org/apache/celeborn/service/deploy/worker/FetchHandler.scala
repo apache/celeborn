@@ -225,14 +225,15 @@ class FetchHandler(
               startIndex,
               endIndex)
           }
+          val meta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
           if (readLocalShuffle) {
             replyStreamHandler(
               client,
               rpcRequestId,
               -1,
-              fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks,
+              meta.getNumChunks,
               isLegacy,
-              fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets,
+              meta.getChunkOffsets,
               fileInfo.getFilePath)
           } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
@@ -247,20 +248,19 @@ class FetchHandler(
               buffers,
               fileName,
               fetchTimeMetrics)
-            if (fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks == 0)
+            if (meta.getNumChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.getFileMeta.asInstanceOf[
-                ReduceFileMeta].getNumChunks()}, " +
+              s"StreamId $streamId, fileName $fileName, numChunks ${meta.getNumChunks()}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             replyStreamHandler(
               client,
               rpcRequestId,
               streamId,
-              fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getNumChunks,
+              meta.getNumChunks,
               isLegacy)
           }
         case _: MapFileMeta =>
