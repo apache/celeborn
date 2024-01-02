@@ -276,7 +276,10 @@ Similarly, if your objective involves compiling and packaging within an intranet
   mavenLocal: file://${user.home}/.m2/repository/
   private: ${celeborn.sbt.default.artifact.repository-file:///dev/null}
   private-central: https://example.com/repository/maven/
+  private-central-http: http://example.com/repository/maven/, allowInsecureProtocol
 ```
+
+If you need to use the http protocol repository, you should add `allowInsecureProtocol`, otherwise an error will be reported (`insecure HTTP request is unsupported`), please refer to the [sbt Launcher Configuration](https://www.scala-sbt.org/1.x/docs/Launcher-Configuration.html).
 
 For more details on sbt repository configuration, please refer to the [SBT documentation](https://www.scala-sbt.org/1.x/docs/Proxy-Repositories.html).
 
