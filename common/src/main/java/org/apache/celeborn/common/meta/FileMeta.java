@@ -15,21 +15,6 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker;
+package org.apache.celeborn.common.meta;
 
-import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter;
-
-public class WorkingPartition extends PartitionLocation {
-  private final transient PartitionDataWriter partitionDataWriter;
-
-  public WorkingPartition(
-      PartitionLocation partitionLocation, PartitionDataWriter partitionDataWriter) {
-    super(partitionLocation);
-    this.partitionDataWriter = partitionDataWriter;
-  }
-
-  public PartitionDataWriter getFileWriter() {
-    return partitionDataWriter;
-  }
-}
+public interface FileMeta {}

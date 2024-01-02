@@ -45,7 +45,9 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -91,7 +93,7 @@ public class FetchHandlerSuiteJ {
     byte[] batchHeader = new byte[16];
     File shuffleFile = File.createTempFile("celeborn", UUID.randomUUID().toString());
 
-    FileInfo fileInfo = new FileInfo(shuffleFile, userIdentifier);
+    FileInfo fileInfo = new DiskFileInfo(shuffleFile, userIdentifier);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -130,21 +132,23 @@ public class FetchHandlerSuiteJ {
     for (long offset = conf.shuffleChunkSize();
         offset <= originFileLen;
         offset += conf.shuffleChunkSize()) {
-      fileInfo.getChunkOffsets().add(offset);
+      ((ReduceFileMeta) fileInfo.getFileMeta()).getChunkOffsets().add(offset);
     }
     // update sorted fileInfo chunk offsets
-    fileInfo.updateBytesFlushed(originFileLen);
+    ((DiskFileInfo) fileInfo).updateBytesFlushed(originFileLen);
     return fileInfo;
   }
 
   public void cleanup(FileInfo fileInfo) throws IOException {
     if (fileInfo != null) {
       // origin file
-      JavaUtils.deleteRecursively(fileInfo.getFile());
+      JavaUtils.deleteRecursively(((DiskFileInfo) fileInfo).getFile());
       // sorted file
-      JavaUtils.deleteRecursively(new File(fileInfo.getFile().getPath() + ".sorted"));
+      JavaUtils.deleteRecursively(
+          new File(((DiskFileInfo) fileInfo).getFile().getPath() + ".sorted"));
       // index file
-      JavaUtils.deleteRecursively(new File(fileInfo.getFile().getPath() + ".index"));
+      JavaUtils.deleteRecursively(
+          new File(((DiskFileInfo) fileInfo).getFile().getPath() + ".index"));
     }
   }
 
@@ -274,7 +278,7 @@ public class FetchHandlerSuiteJ {
     Mockito.doReturn(partitionFilesSorter).when(worker).partitionsSorter();
     fetchHandler0.init(worker);
     FetchHandler fetchHandler = spy(fetchHandler0);
-    Mockito.doReturn(fileInfo).when(fetchHandler).getRawFileInfo(anyString(), anyString());
+    Mockito.doReturn(fileInfo).when(fetchHandler).getRawDiskFileInfo(anyString(), anyString());
     return fetchHandler;
   }
 
@@ -386,12 +390,12 @@ public class FetchHandlerSuiteJ {
   }
 
   private void checkOriginFileBeDeleted(FileInfo fileInfo) {
-    assertTrue(!fileInfo.getFilePath().endsWith(".sorted"));
+    assertTrue(!((DiskFileInfo) fileInfo).getFilePath().endsWith(".sorted"));
     long startTs = System.currentTimeMillis();
     boolean deleted = false;
     long timeout = 5 * 1000; // 5s
     while (!deleted) {
-      deleted = !fileInfo.getFile().exists();
+      deleted = !((DiskFileInfo) fileInfo).getFile().exists();
       if (System.currentTimeMillis() - startTs > timeout) {
         fail("Origin file was not deleted within the expected timeout of 5 seconds.");
       }

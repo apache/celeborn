@@ -50,7 +50,9 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.*;
@@ -85,8 +87,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
   protected final long reservedMemoryPerPartition;
-  private boolean gracefulShutdown;
-  private long partitionSorterShutdownAwaitTime;
+  private final boolean gracefulShutdown;
+  private final long partitionSorterShutdownAwaitTime;
   private DB sortedFilesDb;
 
   protected final AbstractSource source;
@@ -174,8 +176,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   // 2. If the FileSorter task is already in the sorting queue but the sorted file has not been
   //    generated, it awaits until a timeout occurs (default 220 seconds).
   // 3. If the sorted file is generated, it returns the sorted FileInfo.
-  public FileInfo getSortedFileInfo(
-      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
+  public DiskFileInfo getSortedFileInfo(
+      String shuffleKey, String fileName, DiskFileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     String fileId = shuffleKey + "-" + fileName;
     UserIdentifier userIdentifier = fileInfo.getUserIdentifier();
@@ -454,7 +456,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return transferredSize;
   }
 
-  public FileInfo resolve(
+  public DiskFileInfo resolve(
       String shuffleKey,
       String fileId,
       UserIdentifier userIdentifier,
@@ -501,11 +503,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         IOUtils.closeQuietly(hdfsIndexStream, null);
       }
     }
-    return new FileInfo(
-        sortedFilePath,
-        ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-            startMapIndex, endMapIndex, shuffleChunkSize, indexMap),
-        userIdentifier);
+    ReduceFileMeta reduceFileMeta =
+        new ReduceFileMeta(
+            ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
+                startMapIndex, endMapIndex, shuffleChunkSize, indexMap));
+    return new DiskFileInfo(userIdentifier, reduceFileMeta, sortedFilePath);
   }
 
   class FileSorter {
@@ -523,7 +525,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private FileChannel originFileChannel = null;
     private FileChannel sortedFileChannel = null;
 
-    FileSorter(FileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
+    FileSorter(DiskFileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
       this.originFileInfo = fileInfo;
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
@@ -607,7 +609,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
         writeIndex(sortedBlockInfoMap, indexFilePath, isHdfs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
-        originFileInfo.setSorted();
+        ((ReduceFileMeta) originFileInfo.getFileMeta()).setSorted();
         cleaner.add(this);
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
       } catch (Exception e) {
@@ -748,11 +750,11 @@ class PartitionFilesCleaner {
                     while (it.hasNext()) {
                       PartitionFilesSorter.FileSorter sorter = it.next();
                       try {
-                        if (sorter.getOriginFileInfo().isStreamsEmpty()) {
+                        if (((DiskFileInfo) sorter.getOriginFileInfo()).isStreamsEmpty()) {
                           logger.debug(
                               "Deleting the original files for shuffle key {}: {}",
                               sorter.getShuffleKey(),
-                              sorter.getOriginFileInfo().getFilePath());
+                              ((DiskFileInfo) sorter.getOriginFileInfo()).getFilePath());
                           sorter.deleteOriginFiles();
                           queue.remove(sorter);
                         }

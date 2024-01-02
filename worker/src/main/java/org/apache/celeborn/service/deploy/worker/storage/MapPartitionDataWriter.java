@@ -30,7 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -40,8 +41,8 @@ import org.apache.celeborn.common.util.Utils;
 /*
  * map partition file writer, it will create index for each partition
  */
-public final class MapPartitionFileWriter extends FileWriter {
-  private static final Logger logger = LoggerFactory.getLogger(MapPartitionFileWriter.class);
+public final class MapPartitionDataWriter extends PartitionDataWriter {
+  private static final Logger logger = LoggerFactory.getLogger(MapPartitionDataWriter.class);
 
   private int numSubpartitions;
   private int currentDataRegionIndex;
@@ -54,18 +55,21 @@ public final class MapPartitionFileWriter extends FileWriter {
   private FileChannel indexChannel;
   private volatile boolean isRegionFinished = true;
 
-  public MapPartitionFileWriter(
-      FileInfo fileInfo,
+  public MapPartitionDataWriter(
+      StorageManager storageManager,
+      DiskFileInfo diskFileInfo,
       Flusher flusher,
       AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
-      boolean rangeReadFilter)
+      boolean rangeReadFilter,
+      String shuffleKey)
       throws IOException {
     super(
-        fileInfo,
+        storageManager,
+        diskFileInfo,
         flusher,
         workerSource,
         conf,
@@ -73,12 +77,13 @@ public final class MapPartitionFileWriter extends FileWriter {
         splitThreshold,
         splitMode,
         PartitionType.MAP,
-        rangeReadFilter);
-    if (!fileInfo.isHdfs()) {
-      indexChannel = FileChannelUtils.createWritableFileChannel(fileInfo.getIndexPath());
+        rangeReadFilter,
+        shuffleKey);
+    if (!diskFileInfo.isHdfs()) {
+      indexChannel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath());
     } else {
       try {
-        StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath(), true).close();
+        StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath(), true).close();
       } catch (IOException e) {
         try {
           // If create file failed, wait 10 ms and retry
@@ -86,7 +91,7 @@ public final class MapPartitionFileWriter extends FileWriter {
         } catch (InterruptedException ex) {
           throw new RuntimeException(ex);
         }
-        StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath(), true).close();
+        StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath(), true).close();
       }
     }
   }
@@ -102,7 +107,7 @@ public final class MapPartitionFileWriter extends FileWriter {
     data.resetReaderIndex();
     logger.debug(
         "mappartition filename:{} write partition:{} attemptId:{} batchId:{} size:{}",
-        fileInfo.getFilePath(),
+        diskFileInfo.getFilePath(),
         partitionId,
         attemptId,
         batchId,
@@ -133,12 +138,12 @@ public final class MapPartitionFileWriter extends FileWriter {
           flushIndex();
         },
         () -> {
-          if (fileInfo.isHdfs()) {
-            if (StorageManager.hadoopFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
-              StorageManager.hadoopFs().delete(fileInfo.getHdfsPath(), false);
+          if (diskFileInfo.isHdfs()) {
+            if (StorageManager.hadoopFs().exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
+              StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
               deleted = true;
             } else {
-              StorageManager.hadoopFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
+              StorageManager.hadoopFs().create(diskFileInfo.getHdfsWriterSuccessPath()).close();
             }
           }
         },
@@ -146,17 +151,17 @@ public final class MapPartitionFileWriter extends FileWriter {
           if (indexChannel != null) {
             indexChannel.close();
           }
-          if (fileInfo.isHdfs()) {
+          if (diskFileInfo.isHdfs()) {
             if (StorageManager.hadoopFs()
                 .exists(
                     new Path(
                         Utils.getWriteSuccessFilePath(
-                            Utils.getPeerPath(fileInfo.getIndexPath()))))) {
-              StorageManager.hadoopFs().delete(fileInfo.getHdfsIndexPath(), false);
+                            Utils.getPeerPath(diskFileInfo.getIndexPath()))))) {
+              StorageManager.hadoopFs().delete(diskFileInfo.getHdfsIndexPath(), false);
               deleted = true;
             } else {
               StorageManager.hadoopFs()
-                  .create(new Path(Utils.getWriteSuccessFilePath(fileInfo.getIndexPath())))
+                  .create(new Path(Utils.getWriteSuccessFilePath((diskFileInfo.getIndexPath()))))
                   .close();
             }
           }
@@ -172,20 +177,21 @@ public final class MapPartitionFileWriter extends FileWriter {
   public void pushDataHandShake(int numSubpartitions, int bufferSize) {
     logger.debug(
         "FileWriter:{} pushDataHandShake numReducePartitions:{} bufferSize:{}",
-        fileInfo.getFilePath(),
+        diskFileInfo.getFilePath(),
         numSubpartitions,
         bufferSize);
 
     this.numSubpartitions = numSubpartitions;
     numSubpartitionBytes = new long[numSubpartitions];
-    fileInfo.setBufferSize(bufferSize);
-    fileInfo.setNumSubpartitions(numSubpartitions);
+    MapFileMeta mapFileMeta = (MapFileMeta) diskFileInfo.getFileMeta();
+    mapFileMeta.setBufferSize(bufferSize);
+    mapFileMeta.setNumSubpartitions(numSubpartitions);
   }
 
   public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
     logger.debug(
         "FileWriter:{} regionStart currentDataRegionIndex:{} isBroadcastRegion:{}",
-        fileInfo.getFilePath(),
+        diskFileInfo.getFilePath(),
         currentDataRegionIndex,
         isBroadcastRegion);
 
@@ -195,7 +201,7 @@ public final class MapPartitionFileWriter extends FileWriter {
   }
 
   public void regionFinish() throws IOException {
-    logger.debug("FileWriter:{} regionFinish", fileInfo.getFilePath());
+    logger.debug("FileWriter:{} regionFinish", diskFileInfo.getFilePath());
     if (regionStartingOffset == totalBytes) {
       return;
     }
@@ -211,7 +217,7 @@ public final class MapPartitionFileWriter extends FileWriter {
       if (!isBroadcastRegion) {
         logger.debug(
             "flush index filename:{} region:{} partitionid:{} flush index fileOffset:{}, size:{} ",
-            fileInfo.getFilePath(),
+            diskFileInfo.getFilePath(),
             currentDataRegionIndex,
             partitionIndex,
             fileOffset,
@@ -222,7 +228,7 @@ public final class MapPartitionFileWriter extends FileWriter {
       } else {
         logger.debug(
             "flush index broadcast filename:{} region:{} partitionid:{}  fileOffset:{}, size:{} ",
-            fileInfo.getFilePath(),
+            diskFileInfo.getFilePath(),
             currentDataRegionIndex,
             partitionIndex,
             fileOffset,
@@ -249,14 +255,14 @@ public final class MapPartitionFileWriter extends FileWriter {
     } catch (IOException e) {
       logger.warn(
           "Close channel failed for file {} caused by {}.",
-          fileInfo.getIndexPath(),
+          diskFileInfo.getIndexPath(),
           e.getMessage());
     }
   }
 
   private void flushIndex() throws IOException {
     if (indexBuffer != null) {
-      logger.debug("flushIndex start:{}", fileInfo.getIndexPath());
+      logger.debug("flushIndex start:{}", diskFileInfo.getIndexPath());
       long startTime = System.currentTimeMillis();
       indexBuffer.flip();
       notifier.checkException();
@@ -267,9 +273,9 @@ public final class MapPartitionFileWriter extends FileWriter {
             while (indexBuffer.hasRemaining()) {
               indexChannel.write(indexBuffer);
             }
-          } else if (fileInfo.isHdfs()) {
+          } else if (diskFileInfo.isHdfs()) {
             FSDataOutputStream hdfsStream =
-                StorageManager.hadoopFs().append(fileInfo.getHdfsIndexPath());
+                StorageManager.hadoopFs().append(diskFileInfo.getHdfsIndexPath());
             hdfsStream.write(indexBuffer.array());
             hdfsStream.close();
           }
@@ -278,7 +284,7 @@ public final class MapPartitionFileWriter extends FileWriter {
       } finally {
         logger.debug(
             "flushIndex end:{}, cost:{}",
-            fileInfo.getIndexPath(),
+            diskFileInfo.getIndexPath(),
             System.currentTimeMillis() - startTime);
       }
     }
@@ -308,5 +314,18 @@ public final class MapPartitionFileWriter extends FileWriter {
 
   public boolean isRegionFinished() {
     return isRegionFinished;
+  }
+
+  public boolean checkPartitionRegionFinished(long timeout) throws InterruptedException {
+    long delta = 100;
+    int times = 0;
+    while (delta * times < timeout) {
+      if (this.isRegionFinished) {
+        return true;
+      }
+      Thread.sleep(delta);
+      times += 1;
+    }
+    return false;
   }
 }

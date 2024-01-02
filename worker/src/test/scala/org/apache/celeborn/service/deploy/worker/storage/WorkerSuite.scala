@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.File
+import java.nio.file.{Files, Paths}
 import java.util
 import java.util.{HashSet => JHashSet}
 
@@ -52,13 +53,15 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
   }
 
   test("clean up") {
-    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
     worker = new Worker(conf, workerArgs)
 
     val pl1 = new PartitionLocation(0, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY)
     val pl2 = new PartitionLocation(1, 0, "12", 0, 0, 0, 0, PartitionLocation.Mode.REPLICA)
 
-    worker.storageManager.createWriter(
+    worker.storageManager.createPartitionDataWriter(
       "1",
       1,
       pl1,
@@ -67,7 +70,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
       PartitionType.REDUCE,
       true,
       new UserIdentifier("1", "2"))
-    worker.storageManager.createWriter(
+    worker.storageManager.createPartitionDataWriter(
       "2",
       2,
       pl2,
@@ -96,8 +99,8 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
     worker = new Worker(conf, workerArgs)
     val dir = new File("/tmp")
-    val allWriters = new util.HashSet[FileWriter]()
-    val map = JavaUtils.newConcurrentHashMap[String, FileWriter]()
+    val allWriters = new util.HashSet[PartitionDataWriter]()
+    val map = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
     worker.storageManager.workingDirWriters.put(dir, map)
     worker.storageManager.workingDirWriters.asScala.foreach { case (_, writers) =>
       writers.synchronized {
@@ -107,7 +110,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     }
     Assert.assertEquals(0, allWriters.size())
 
-    val fileWriter = mock[FileWriter]
+    val fileWriter = mock[PartitionDataWriter]
     when(fileWriter.getException).thenReturn(null)
     map.put("1", fileWriter)
     worker.storageManager.workingDirWriters.asScala.foreach { case (_, writers) =>

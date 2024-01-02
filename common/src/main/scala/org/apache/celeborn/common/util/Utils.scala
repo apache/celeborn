@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.util
 
-import java.io.{File, FileInputStream, InputStream, InputStreamReader, IOException}
+import java.io._
 import java.lang.management.ManagementFactory
 import java.math.{MathContext, RoundingMode}
 import java.net._
@@ -44,7 +44,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.PORT_MAX_RETRY
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskStatus, FileInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, TransportModuleConstants}
@@ -1081,13 +1081,6 @@ object Utils extends Logging {
         s"File remaining bytes not not enough, remaining: ${remainingBytes}, wanted: ${length}.")
       throw new RuntimeException(s"File is corrupted ${fileChannel}")
     }
-  }
-
-  def getShortFormattedFileName(fileInfo: FileInfo): String = {
-    val parentFile = fileInfo.getFile.getParent
-    parentFile.substring(
-      parentFile.lastIndexOf("/"),
-      parentFile.length) + "/" + fileInfo.getFile.getName
   }
 
   def parseMetricLabels(label: String): (String, String) = {

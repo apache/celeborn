@@ -35,7 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.FileCorruptedException;
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.BacklogAnnouncement;
@@ -53,8 +55,8 @@ import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
 import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
 import org.apache.celeborn.service.deploy.worker.memory.RecyclableBuffer;
 
-public class MapDataPartitionReader implements Comparable<MapDataPartitionReader> {
-  private static final Logger logger = LoggerFactory.getLogger(MapDataPartitionReader.class);
+public class MapPartitionDataReader implements Comparable<MapPartitionDataReader> {
+  private static final Logger logger = LoggerFactory.getLogger(MapPartitionDataReader.class);
 
   private final ByteBuffer indexBuffer;
   private final ByteBuffer headerBuffer;
@@ -65,7 +67,8 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   private int currentDataRegion = -1;
   private long dataConsumingOffset;
   private volatile long currentPartitionRemainingBytes;
-  private FileInfo fileInfo;
+  private DiskFileInfo fileInfo;
+  private MapFileMeta mapFileMeta;
   private int INDEX_ENTRY_SIZE = 16;
   private long streamId;
   protected final Object lock = new Object();
@@ -101,10 +104,10 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   private AtomicInteger numInUseBuffers = new AtomicInteger(0);
   private boolean isOpen = false;
 
-  public MapDataPartitionReader(
+  public MapPartitionDataReader(
       int startPartitionIndex,
       int endPartitionIndex,
-      FileInfo fileInfo,
+      DiskFileInfo fileInfo,
       long streamId,
       Channel associatedChannel,
       Runnable recycleStream) {
@@ -120,6 +123,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     this.recycleStream = recycleStream;
 
     this.fileInfo = fileInfo;
+    this.mapFileMeta = ((MapFileMeta) fileInfo.getFileMeta());
     this.readFinished = false;
   }
 
@@ -129,7 +133,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       this.dataFileChannel = dataFileChannel;
       this.indexFileChannel = indexFileChannel;
       // index is (offset,length)
-      long indexRegionSize = fileInfo.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
+      long indexRegionSize = mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
       this.numRegions = Utils.checkedDownCast(indexSize / indexRegionSize);
 
       updateConsumingOffset();
@@ -252,7 +256,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   private long getIndexRegionSize() {
-    return fileInfo.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
+    return mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
   }
 
   private void readHeaderOrIndexBuffer(FileChannel channel, ByteBuffer buffer, int length)
@@ -424,7 +428,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   }
 
   @Override
-  public int compareTo(MapDataPartitionReader that) {
+  public int compareTo(MapPartitionDataReader that) {
     return Long.compare(getPriority(), that.getPriority());
   }
 

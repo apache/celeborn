@@ -24,7 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
@@ -32,24 +33,27 @@ import org.apache.celeborn.common.protocol.PartitionType;
 /*
  * reduce partition file writer, it will create chunk index
  */
-public final class ReducePartitionFileWriter extends FileWriter {
-  private static final Logger logger = LoggerFactory.getLogger(ReducePartitionFileWriter.class);
+public final class ReducePartitionDataWriter extends PartitionDataWriter {
+  private static final Logger logger = LoggerFactory.getLogger(ReducePartitionDataWriter.class);
 
   private long nextBoundary;
   private final long shuffleChunkSize;
 
-  public ReducePartitionFileWriter(
-      FileInfo fileInfo,
+  public ReducePartitionDataWriter(
+      StorageManager storageManager,
+      DiskFileInfo diskFileInfo,
       Flusher flusher,
       AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
-      boolean rangeReadFilter)
+      boolean rangeReadFilter,
+      String shuffleKey)
       throws IOException {
     super(
-        fileInfo,
+        storageManager,
+        diskFileInfo,
         flusher,
         workerSource,
         conf,
@@ -57,7 +61,8 @@ public final class ReducePartitionFileWriter extends FileWriter {
         splitThreshold,
         splitMode,
         PartitionType.REDUCE,
-        rangeReadFilter);
+        rangeReadFilter,
+        shuffleKey);
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.nextBoundary = this.shuffleChunkSize;
   }
@@ -69,9 +74,9 @@ public final class ReducePartitionFileWriter extends FileWriter {
   }
 
   private void maybeSetChunkOffsets(boolean forceSet) {
-    long bytesFlushed = fileInfo.getFileLength();
+    long bytesFlushed = diskFileInfo.getFileLength();
     if (bytesFlushed >= nextBoundary || forceSet) {
-      fileInfo.addChunkOffset(bytesFlushed);
+      ((ReduceFileMeta) diskFileInfo.getFileMeta()).addChunkOffset(bytesFlushed);
       nextBoundary = bytesFlushed + shuffleChunkSize;
     }
   }
@@ -85,7 +90,8 @@ public final class ReducePartitionFileWriter extends FileWriter {
     // but its size is smaller than the nextBoundary, then the
     // chunk offset will not be set after flushing. we should
     // set it during FileWriter close.
-    return fileInfo.getLastChunkOffset() == fileInfo.getFileLength();
+    return ((ReduceFileMeta) diskFileInfo.getFileMeta()).getLastChunkOffset()
+        == diskFileInfo.getFileLength();
   }
 
   @Override
@@ -97,16 +103,17 @@ public final class ReducePartitionFileWriter extends FileWriter {
           }
         },
         () -> {
-          if (fileInfo.isHdfs()) {
-            if (StorageManager.hadoopFs().exists(fileInfo.getHdfsPeerWriterSuccessPath())) {
-              StorageManager.hadoopFs().delete(fileInfo.getHdfsPath(), false);
+          if (diskFileInfo.isHdfs()) {
+            if (StorageManager.hadoopFs().exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
+              StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
               deleted = true;
             } else {
-              StorageManager.hadoopFs().create(fileInfo.getHdfsWriterSuccessPath()).close();
+              StorageManager.hadoopFs().create(diskFileInfo.getHdfsWriterSuccessPath()).close();
               FSDataOutputStream indexOutputStream =
-                  StorageManager.hadoopFs().create(fileInfo.getHdfsIndexPath());
-              indexOutputStream.writeInt(fileInfo.getChunkOffsets().size());
-              for (Long offset : fileInfo.getChunkOffsets()) {
+                  StorageManager.hadoopFs().create(diskFileInfo.getHdfsIndexPath());
+              indexOutputStream.writeInt(
+                  ((ReduceFileMeta) diskFileInfo.getFileMeta()).getChunkOffsets().size());
+              for (Long offset : ((ReduceFileMeta) diskFileInfo.getFileMeta()).getChunkOffsets()) {
                 indexOutputStream.writeLong(offset);
               }
               indexOutputStream.close();

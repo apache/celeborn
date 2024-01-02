@@ -25,11 +25,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
+import scala.Tuple4;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.Unpooled;
@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
@@ -52,9 +52,9 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
-public class MapPartitionFileWriterSuiteJ {
+public class MapPartitionDataWriterSuiteJ {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MapPartitionFileWriterSuiteJ.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDataWriterSuiteJ.class);
 
   private static final CelebornConf CONF = new CelebornConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
@@ -68,7 +68,9 @@ public class MapPartitionFileWriterSuiteJ {
 
   @BeforeClass
   public static void beforeAll() {
-    tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn");
+    tempDir =
+        Utils.createTempDir(
+            System.getProperty("java.io.tmpdir"), "celeborn" + System.currentTimeMillis());
 
     source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(
@@ -118,18 +120,22 @@ public class MapPartitionFileWriterSuiteJ {
   }
 
   @Test
-  public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
-    File file = getTemporaryFile();
-    MapPartitionFileWriter fileWriter =
-        new MapPartitionFileWriter(
-            new FileInfo(file, userIdentifier),
-            localFlusher,
+  public void testMultiThreadWrite() throws IOException {
+    Tuple4<StorageManager, Flusher, DiskFileInfo, File> context =
+        PartitionDataWriterSuiteUtils.prepareTestFileContext(
+            tempDir, userIdentifier, localFlusher, false);
+    MapPartitionDataWriter fileWriter =
+        new MapPartitionDataWriter(
+            context._1(),
+            context._3(),
+            context._2(),
             source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             SPLIT_THRESHOLD,
             splitMode,
-            false);
+            false,
+            "app1-1");
     fileWriter.pushDataHandShake(2, 32 * 1024);
     fileWriter.regionStart(0, false);
     byte[] partData0 = generateData(0);

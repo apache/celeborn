@@ -487,6 +487,7 @@ message PbStoreVersion {
   int32 minor = 2;
 }
 
+// keep it for compatible reason
 message PbFileInfo {
   string filePath = 1;
   repeated int64 chunkOffsets = 2;
@@ -496,6 +497,25 @@ message PbFileInfo {
   int32 numSubpartitions = 6;
   int64 bytesFlushed = 7;
   bool partitionSplitEnabled = 8;
+}
+
+message PbMapFileMeta {
+  int32 bufferSize = 1;
+  int32 numSubPartitions = 2;
+}
+
+message PbReduceFileMeta {
+  repeated int64 chunkOffsets = 1;
+  bool sorted = 2;
+}
+
+message PbDiskFileInfo {
+  PbUserIdentifier userIdentifier = 1;
+  bool partitionSplitEnabled = 2;
+  PbMapFileMeta mapFileMeta = 3;
+  PbReduceFileMeta reduceFileMeta = 4;
+  PbStorageInfo storageInfo = 5;
+  int64 bytesFlushed = 6;
 }
 
 message PbFileInfoMap {

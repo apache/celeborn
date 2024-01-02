@@ -22,7 +22,7 @@ import java.util
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, FileInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerInfo}
 import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -54,8 +54,18 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   val chunkOffsets1 = util.Arrays.asList[java.lang.Long](1000L, 2000L, 3000L)
   val chunkOffsets2 = util.Arrays.asList[java.lang.Long](2000L, 4000L, 6000L)
 
-  val fileInfo1 = new FileInfo("/tmp/1", chunkOffsets1, userIdentifier1)
-  val fileInfo2 = new FileInfo("/tmp/2", chunkOffsets2, userIdentifier2)
+  val fileInfo1 = new DiskFileInfo(
+    userIdentifier1,
+    true,
+    new ReduceFileMeta(chunkOffsets1),
+    file1.getAbsolutePath,
+    3000L)
+  val fileInfo2 = new DiskFileInfo(
+    userIdentifier2,
+    true,
+    new ReduceFileMeta(chunkOffsets2),
+    file2.getAbsolutePath,
+    6000L)
   val fileInfoMap = JavaUtils.newConcurrentHashMap[String, FileInfo]()
   fileInfoMap.put("file1", fileInfo1)
   fileInfoMap.put("file2", fileInfo2)
@@ -138,10 +148,12 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     val pbFileInfo = PbSerDeUtils.toPbFileInfo(fileInfo1)
     val restoredFileInfo = PbSerDeUtils.fromPbFileInfo(pbFileInfo)
 
-    assert(restoredFileInfo.getFilePath.equals(fileInfo1.getFilePath))
-    assert(restoredFileInfo.getChunkOffsets.equals(fileInfo1.getChunkOffsets))
+    assert(
+      restoredFileInfo.getFilePath.equals(fileInfo1.getFilePath))
+    assert(restoredFileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.equals(
+      fileInfo1.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets))
     assert(restoredFileInfo.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
-    assert(restoredFileInfo.getPartitionType.equals(fileInfo1.getPartitionType))
+    assert(restoredFileInfo.getFileMeta.isInstanceOf[ReduceFileMeta])
   }
 
   test("fromAndToPbFileInfoMap") {
@@ -151,11 +163,15 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     val restoredFileInfo2 = restoredFileInfoMap.get("file2")
 
     assert(restoredFileInfoMap.size().equals(fileInfoMap.size()))
-    assert(restoredFileInfo1.getFilePath.equals(fileInfo1.getFilePath))
-    assert(restoredFileInfo1.getChunkOffsets.equals(fileInfo1.getChunkOffsets))
+    assert(
+      restoredFileInfo1.getFilePath.equals(fileInfo1.getFilePath))
+    assert(restoredFileInfo1.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.equals(
+      fileInfo1.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets))
     assert(restoredFileInfo1.getUserIdentifier.equals(fileInfo1.getUserIdentifier))
-    assert(restoredFileInfo2.getFilePath.equals(fileInfo2.getFilePath))
-    assert(restoredFileInfo2.getChunkOffsets.equals(fileInfo2.getChunkOffsets))
+    assert(
+      restoredFileInfo2.getFilePath.equals(fileInfo2.getFilePath))
+    assert(restoredFileInfo2.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.equals(
+      fileInfo2.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets))
     assert(restoredFileInfo2.getUserIdentifier.equals(fileInfo2.getUserIdentifier))
   }
 
