@@ -46,7 +46,10 @@ class ChangePartitionManager(
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   // shuffleId -> (partitionId -> set of ChangePartition)
-  private val changePartitionRequests =
+  val changePartitionRequests =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
+
+  private val pendingPartitionChangeRequests =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
   // shuffleId -> set of partition id
   private val inBatchPartitions = JavaUtils.newConcurrentHashMap[Int, JSet[Integer]]()
@@ -76,6 +79,7 @@ class ChangePartitionManager(
         new Runnable {
           override def run(): Unit = {
             try {
+              processPendingRequests(pendingPartitionChangeRequests, changePartitionRequests)
               changePartitionRequests.asScala.foreach { case (shuffleId, requests) =>
                 batchHandleChangePartitionExecutors.submit {
                   new Runnable {
@@ -128,6 +132,34 @@ class ChangePartitionManager(
     override def apply(s: Int): util.Set[Integer] = new util.HashSet[Integer]()
   }
 
+  private def processPendingRequests(
+      pendingPartitionChangeRequests: ConcurrentHashMap[
+        Int,
+        ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]],
+      changePartitionRequests: ConcurrentHashMap[
+        Int,
+        ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]): Unit = {
+    pendingPartitionChangeRequests.asScala.foreach { case (shuffleId, pendingRequests) =>
+      if (!pendingRequests.isEmpty) {
+        val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+        requests.synchronized {
+          pendingRequests.synchronized {
+            pendingRequests.asScala.foreach { case (partitionId, pendingRequest) =>
+              if (requests.containsKey(partitionId)) {
+                requests.get(partitionId).addAll(pendingRequest)
+              } else {
+                val request = new util.HashSet[ChangePartitionRequest]()
+                request.addAll(pendingRequest)
+                requests.put(partitionId, request)
+              }
+              pendingRequest.clear()
+            }
+          }
+        }
+      }
+    }
+  }
+
   def handleRequestPartitionLocation(
       context: RequestLocationCallContext,
       shuffleId: Int,
@@ -144,7 +176,12 @@ class ChangePartitionManager(
       oldPartition,
       cause)
     // check if there exists request for the partition, if do just register
-    val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+    val requests =
+      if (!batchHandleChangePartitionEnabled) {
+        changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+      } else {
+        pendingPartitionChangeRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+      }
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
 
     lifecycleManager.commitManager.registerCommitPartitionRequest(
