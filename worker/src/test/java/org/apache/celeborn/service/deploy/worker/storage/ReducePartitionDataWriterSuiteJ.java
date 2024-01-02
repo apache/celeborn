@@ -147,11 +147,6 @@ public class ReducePartitionDataWriterSuiteJ {
           }
 
           @Override
-          public DiskFileInfo getRawNonMemoryFileInfo(String shuffleKey, String fileName) {
-            return info;
-          }
-
-          @Override
           public WorkerSource workerSource() {
             return source;
           }
