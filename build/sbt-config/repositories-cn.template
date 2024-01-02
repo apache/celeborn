@@ -25,7 +25,7 @@
 
 [repositories]
   local
-  mavenLocal: file://${user.home}/.m2/repository/
+  # mavenLocal: file://${user.home}/.m2/repository/
   # The system property value of `celeborn.sbt.default.artifact.repository` is
   # fetched from the environment variable `DEFAULT_ARTIFACT_REPOSITORY` and
   # assigned within the build/sbt-launch-lib.bash script.
