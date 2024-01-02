@@ -305,7 +305,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         JavaUtils.newConcurrentHashMap()
     }
 
-  private val nonMemoryFileInfoMapFunc =
+  private val diskFileInfoMapFunc =
     new java.util.function.Function[String, ConcurrentHashMap[String, DiskFileInfo]]() {
       override def apply(key: String): ConcurrentHashMap[String, DiskFileInfo] =
         JavaUtils.newConcurrentHashMap()
@@ -403,7 +403,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     writer
   }
 
-  def getNonMemoryFileInfo(shuffleKey: String, fileName: String): DiskFileInfo = {
+  def getDiskFileInfo(shuffleKey: String, fileName: String): DiskFileInfo = {
     val shuffleMap = diskFileInfos.get(shuffleKey)
     if (shuffleMap ne null) {
       shuffleMap.get(fileName)
@@ -440,7 +440,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
-    val fileInfo = getNonMemoryFileInfo(shuffleKey, fileName)
+    val fileInfo = getDiskFileInfo(shuffleKey, fileName)
     if (fileInfo != null) {
       cleanFileInternal(shuffleKey, fileInfo)
     }
@@ -812,7 +812,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           new ReduceFileMeta(),
           hdfsFilePath,
           StorageInfo.Type.HDFS)
-        diskFileInfos.computeIfAbsent(shuffleKey, nonMemoryFileInfoMapFunc).put(
+        diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           hdfsFileInfo)
         return (hdfsFlusher.get, hdfsFileInfo, null)
@@ -842,18 +842,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             case PartitionType.MAPGROUP =>
               throw new NotImplementedError("Map group is not implemented")
           }
-          val nonMemoryFileInfo = new DiskFileInfo(
+          val diskFileInfo = new DiskFileInfo(
             userIdentifier,
             partitionSplitEnabled,
             fileMeta,
             filePath,
             StorageInfo.Type.HDD)
-          diskFileInfos.computeIfAbsent(shuffleKey, nonMemoryFileInfoMapFunc).put(
+          diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
             fileName,
-            nonMemoryFileInfo)
+            diskFileInfo)
           return (
             localFlushers.get(mountPoint),
-            nonMemoryFileInfo,
+            diskFileInfo,
             dir)
         } catch {
           case fe: FileAlreadyExistsException =>

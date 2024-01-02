@@ -147,6 +147,11 @@ public class ReducePartitionDataWriterSuiteJ {
           }
 
           @Override
+          public DiskFileInfo getRawDiskFileInfo(String shuffleKey, String fileName) {
+            return info;
+          }
+
+          @Override
           public WorkerSource workerSource() {
             return source;
           }

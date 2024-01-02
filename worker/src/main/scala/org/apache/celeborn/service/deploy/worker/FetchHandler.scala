@@ -78,7 +78,7 @@ class FetchHandler(
       shuffleKey: String,
       fileName: String): DiskFileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = storageManager.getNonMemoryFileInfo(shuffleKey, fileName)
+    val fileInfo = storageManager.getDiskFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
       val errMsg = s"Could not find file $fileName for $shuffleKey."
       logWarning(errMsg)
