@@ -313,10 +313,8 @@ object PbSerDeUtils {
   def fromPbWorkerResource(pbWorkerResource: util.Map[String, PbWorkerResource]): WorkerResource = {
     val slots = new WorkerResource()
     pbWorkerResource.asScala.foreach { case (uniqueId, pbWorkerResource) =>
-      val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = uniqueId.split(":")
       val networkLocation = pbWorkerResource.getNetworkLocation
-      val workerInfo =
-        new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+      val workerInfo = WorkerInfo.fromUniqueId(uniqueId)
       workerInfo.networkLocation = networkLocation
       val primaryPartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
         .getPrimaryPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
