@@ -279,7 +279,7 @@ Similarly, if your objective involves compiling and packaging within an intranet
   private-central-http: http://example.com/repository/maven/, allowInsecureProtocol
 ```
 
-If you need to use the http protocol repository, you should add `allowInsecureProtocol`, otherwise an error will be reported (`insecure HTTP request is unsupported`), please refer to the [sbt Launcher Configuration](https://www.scala-sbt.org/1.x/docs/Launcher-Configuration.html).
+`allowInsecureProtocol` is required if you want to use a repository which only supports HTTP protocol but not HTTPS, otherwise, an error will be raised (`insecure HTTP request is unsupported`), please refer to the [sbt Launcher Configuration](https://www.scala-sbt.org/1.x/docs/Launcher-Configuration.html).
 
 For more details on sbt repository configuration, please refer to the [SBT documentation](https://www.scala-sbt.org/1.x/docs/Proxy-Repositories.html).
 
