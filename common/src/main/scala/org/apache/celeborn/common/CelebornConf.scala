@@ -2426,7 +2426,7 @@ object CelebornConf extends Logging {
       .doc("PartitionSorter's cache max weight for index buffer.")
       .version("0.4.1")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("256m")
+      .createWithDefaultString("10m")
 
   val PARTITION_SORTER_INDEX_CACHE_EXPIRE: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.indexCache.expire")

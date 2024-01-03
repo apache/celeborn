@@ -137,27 +137,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             .expireAfterAccess(conf.partitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
             .maximumWeight(indexCacheMaxWeight)
             .weigher(
-                (key, cache) -> {
-                  // estimated memory usage
-                  int weight = 0;
-                  // string memory usage
-                  weight += 2 * ((String) key).length() + 4 + 40;
-                  // empty hashmap memory usage
-                  weight += 48;
-                  for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry :
-                      ((Map<Integer, List<ShuffleBlockInfo>>) cache).entrySet()) {
-                    // shuffle block info object usage
-                    weight += entry.getValue().size() * 32;
-                    // integer object usage
-                    weight += 16;
-                    // empty list usage
-                    weight += 40;
-                  }
-                  // after some experiment, the multiple 1.28 is close to the size of actual memory
-                  // usage
-                  weight = (int) (weight * 1.28);
-                  return weight;
-                })
+                (key, cache) ->
+                    ((Map<Integer, List<ShuffleBlockInfo>>) cache)
+                        .values().stream().mapToInt(List::size).sum())
             .build();
 
     fileSorterSchedulerThread =
@@ -501,12 +483,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       int startMapIndex,
       int endMapIndex)
       throws IOException {
-    String indexCacheName = shuffleKey + "-" + fileId;
     Map<Integer, List<ShuffleBlockInfo>> indexMap;
     try {
       indexMap =
           indexCache.get(
-              indexCacheName,
+              fileId,
               () -> {
                 FileChannel indexChannel = null;
                 FSDataInputStream hdfsIndexStream = null;
@@ -536,7 +517,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                       ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
                   Set<String> indexCacheItemsSet =
                       indexCacheNames.computeIfAbsent(shuffleKey, v -> new HashSet<>());
-                  indexCacheItemsSet.add(indexCacheName);
+                  indexCacheItemsSet.add(fileId);
                   return tIndexMap;
                 } catch (Exception e) {
                   logger.error(
