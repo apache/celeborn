@@ -96,6 +96,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
   private final int indexCacheSize;
+  private final long indexCacheMaxWeight;
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
@@ -105,6 +106,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
     this.indexCacheSize = conf.partitionSorterIndexCacheSize();
+    this.indexCacheMaxWeight = conf.partitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
     this.gracefulShutdown = conf.workerGracefulShutdown();
@@ -136,6 +138,29 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             .concurrencyLevel(conf.partitionSorterThreads())
             .expireAfterAccess(conf.partitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
             .maximumSize(indexCacheSize)
+            .maximumWeight(indexCacheMaxWeight)
+            .weigher(
+                (key, cache) -> {
+                  // estimated memory usage
+                  int weight = 0;
+                  // string memory usage
+                  weight += 2 * ((String) key).length() + 4 + 40;
+                  // empty hashmap memory usage
+                  weight += 48;
+                  for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry :
+                      ((Map<Integer, List<ShuffleBlockInfo>>) cache).entrySet()) {
+                    // shuffle block info object usage
+                    weight += entry.getValue().size() * 32;
+                    // integer object usage
+                    weight += 16;
+                    // empty list usage
+                    weight += 40;
+                  }
+                  // after some experiment, the multiple 1.28 is close to the size of actual memory
+                  // usage
+                  weight = (int) (weight * 1.28);
+                  return weight;
+                })
             .build();
 
     fileSorterSchedulerThread =
