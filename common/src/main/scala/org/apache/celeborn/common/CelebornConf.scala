@@ -2434,7 +2434,7 @@ object CelebornConf extends Logging {
       .doc("PartitionSorter's cache item expire time.")
       .version("0.4.1")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("60s")
+      .createWithDefaultString("180s")
 
   val WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.reservedMemoryPerPartition")
