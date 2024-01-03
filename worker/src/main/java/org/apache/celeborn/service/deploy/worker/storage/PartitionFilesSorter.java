@@ -95,7 +95,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
-  private final int indexCacheSize;
   private final long indexCacheMaxWeight;
 
   public PartitionFilesSorter(
@@ -105,7 +104,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
-    this.indexCacheSize = conf.partitionSorterIndexCacheSize();
     this.indexCacheMaxWeight = conf.partitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
@@ -137,7 +135,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         CacheBuilder.newBuilder()
             .concurrencyLevel(conf.partitionSorterThreads())
             .expireAfterAccess(conf.partitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
-            .maximumSize(indexCacheSize)
             .maximumWeight(indexCacheMaxWeight)
             .weigher(
                 (key, cache) -> {
