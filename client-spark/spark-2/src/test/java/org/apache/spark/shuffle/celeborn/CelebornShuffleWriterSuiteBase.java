@@ -106,16 +106,16 @@ public abstract class CelebornShuffleWriterSuiteBase {
       SparkUtils.createMapStatus(bmId, new long[numPartitions], new long[numPartitions]);
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  private TaskContext taskContext = null;
+  private TaskContext taskContext;
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  private ShuffleDependency<Integer, String, String> dependency = null;
+  private ShuffleDependency<Integer, String, String> dependency;
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  private SparkEnv env = null;
+  private SparkEnv env;
 
   @Mock(answer = Answers.RETURNS_SMART_NULLS)
-  private BlockManager blockManager = null;
+  private BlockManager blockManager;
 
   private TaskMetrics metrics = null;
 

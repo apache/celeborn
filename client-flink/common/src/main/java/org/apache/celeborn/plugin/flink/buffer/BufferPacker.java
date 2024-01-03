@@ -219,6 +219,7 @@ public class BufferPacker {
 
     // Flink 1.18.0
     // [FLINK-32549][network] Tiered storage memory manager supports ownership transfer for buffers
+    @SuppressWarnings("MissingOverride")
     public void setRecycler(BufferRecycler bufferRecycler) {
       DynMethods.builder("setRecycler")
           .impl(buffer.getClass().getName(), BufferRecycler.class)

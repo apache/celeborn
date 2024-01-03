@@ -97,7 +97,6 @@ public class MetaHandler {
       int replicatePort;
       Map<String, DiskInfo> diskInfos;
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
-      List<Map<String, Integer>> slots = new ArrayList<>();
       Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
       switch (cmdType) {
         case RequestSlots:
