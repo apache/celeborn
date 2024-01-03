@@ -318,6 +318,7 @@ public class SparkShuffleManager implements ShuffleManager {
   }
 
   // Added in SPARK-32055, for Spark 3.1 and above
+  @SuppressWarnings("MissingOverride")
   public <K, C> ShuffleReader<K, C> getReader(
       ShuffleHandle handle,
       int startMapIndex,
@@ -342,6 +343,7 @@ public class SparkShuffleManager implements ShuffleManager {
   }
 
   // Marked as final in SPARK-32055, reserved for Spark 3.0
+  @SuppressWarnings("MissingOverride")
   public <K, C> ShuffleReader<K, C> getReader(
       ShuffleHandle handle,
       int startPartition,

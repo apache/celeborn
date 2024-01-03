@@ -55,21 +55,21 @@ public class CreditStreamManager {
   public CreditStreamManager(
       int minReadBuffers,
       int maxReadBuffers,
-      int threadsPerMountpoint,
+      int threadsPerMountPoint,
       int minBuffersToTriggerRead) {
     nextStreamId = new AtomicLong((long) new Random().nextInt(Integer.MAX_VALUE) * 1000);
     streams = JavaUtils.newConcurrentHashMap();
     activeMapPartitions = JavaUtils.newConcurrentHashMap();
     this.minReadBuffers = minReadBuffers;
     this.maxReadBuffers = maxReadBuffers;
-    threadsPerMountPoint = threadsPerMountpoint;
+    this.threadsPerMountPoint = threadsPerMountPoint;
     this.minBuffersToTriggerRead = minBuffersToTriggerRead;
     MemoryManager.instance().setCreditStreamManager(this);
     logger.debug(
         "Initialize buffer stream manager with {} {} {}",
         this.minReadBuffers,
         this.maxReadBuffers,
-        threadsPerMountpoint);
+        threadsPerMountPoint);
   }
 
   public long registerStream(

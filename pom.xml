@@ -929,7 +929,16 @@
             <fork>true</fork>
             <compilerArgs>
               <arg>-XDcompilePolicy=simple</arg>
-              <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/protobuf/.* -Xep:FutureReturnValueIgnored:OFF -Xep:TypeParameterUnusedInFormals:OFF -Xep:UnusedVariable:OFF</arg>
+              <arg>-Xplugin:ErrorProne \
+                -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                -Xep:FutureReturnValueIgnored:OFF \
+                -Xep:TypeParameterUnusedInFormals:OFF \
+                -Xep:UnusedVariable:OFF \
+                -Xep:StringSplitter:OFF \
+                -Xep:EmptyBlockTag:OFF \
+                -Xep:EqualsGetClass:OFF \
+                -Xep:MissingSummary:OFF \
+                -Xep:BadImport:OFF</arg>
             </compilerArgs>
             <annotationProcessorPaths>
               <path>
@@ -1238,7 +1247,16 @@
               <encoding>UTF-8</encoding>
               <compilerArgs>
                 <arg>-XDcompilePolicy=simple</arg>
-                <arg>-Xplugin:ErrorProne</arg>
+                <arg>-Xplugin:ErrorProne \
+                  -XepExcludedPaths:.*/target/generated-sources/protobuf/.* \
+                  -Xep:FutureReturnValueIgnored:OFF \
+                  -Xep:TypeParameterUnusedInFormals:OFF \
+                  -Xep:UnusedVariable:OFF \
+                  -Xep:StringSplitter:OFF \
+                  -Xep:EmptyBlockTag:OFF \
+                  -Xep:EqualsGetClass:OFF \
+                  -Xep:MissingSummary:OFF \
+                  -Xep:BadImport:OFF</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

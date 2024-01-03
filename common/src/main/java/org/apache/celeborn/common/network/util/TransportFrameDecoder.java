@@ -97,7 +97,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
       msgSize = first.readInt();
       curType = Message.Type.decode(first);
       bodySize = first.readInt();
-      nextFrameSize = msgSize + bodySize;
+      nextFrameSize = (long) msgSize + bodySize;
       totalSize -= HEADER_SIZE;
       if (!first.isReadable()) {
         buffers.removeFirst().release();
@@ -117,7 +117,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
     msgSize = headerBuf.readInt();
     curType = Message.Type.decode(headerBuf);
     bodySize = headerBuf.readInt();
-    nextFrameSize = msgSize + bodySize;
+    nextFrameSize = (long) msgSize + bodySize;
     totalSize -= HEADER_SIZE;
     return nextFrameSize;
   }

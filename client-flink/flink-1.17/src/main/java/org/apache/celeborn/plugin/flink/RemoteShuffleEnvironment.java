@@ -44,8 +44,8 @@ public class RemoteShuffleEnvironment extends AbstractRemoteShuffleEnvironment
   /**
    * @param networkBufferPool Network buffer pool for shuffle read and shuffle write.
    * @param resultPartitionManager A trivial {@link ResultPartitionManager}.
-   * @param resultPartitionFactory Factory class to create {@link RemoteShuffleResultPartition}. //
-   *     * @param inputGateFactory Factory class to create {@link RemoteShuffleInputGate}.
+   * @param resultPartitionFactory Factory class to create {@link RemoteShuffleResultPartition}.
+   * @param inputGateFactory Factory class to create {@link RemoteShuffleInputGate}.
    */
   public RemoteShuffleEnvironment(
       NetworkBufferPool networkBufferPool,
