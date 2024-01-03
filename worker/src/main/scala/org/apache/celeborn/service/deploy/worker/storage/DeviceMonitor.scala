@@ -37,8 +37,8 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 trait DeviceMonitor {
   def startCheck() {}
-  def registerFileWriter(fileWriter: FileWriter): Unit = {}
-  def unregisterFileWriter(fileWriter: FileWriter): Unit = {}
+  def registerFileWriter(fileWriter: PartitionDataWriter): Unit = {}
+  def unregisterFileWriter(fileWriter: PartitionDataWriter): Unit = {}
   // Only local flush needs device monitor.
   def registerFlusher(flusher: LocalFlusher): Unit = {}
   def unregisterFlusher(flusher: LocalFlusher): Unit = {}
@@ -163,12 +163,12 @@ class LocalDeviceMonitor(
       TimeUnit.MILLISECONDS)
   }
 
-  override def registerFileWriter(fileWriter: FileWriter): Unit = {
+  override def registerFileWriter(fileWriter: PartitionDataWriter): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).addObserver(fileWriter)
   }
 
-  override def unregisterFileWriter(fileWriter: FileWriter): Unit = {
+  override def unregisterFileWriter(fileWriter: PartitionDataWriter): Unit = {
     val mountPoint = DeviceInfo.getMountPoint(fileWriter.getFile.getAbsolutePath, diskInfos)
     observedDevices.get(diskInfos.get(mountPoint).deviceInfo).removeObserver(fileWriter)
   }

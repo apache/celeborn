@@ -87,7 +87,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     workers.map(worker => {
       worker.storageManager.workingDirWriters.values().asScala.map(writers => {
         writers.forEach((fileName, fileWriter) => {
-          assert(new File(fileName).length() == fileWriter.getFileInfo.getFileLength)
+          assert(new File(fileName).length() == fileWriter.getDiskFileInfo.getFileLength)
         })
       })
     })

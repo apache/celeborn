@@ -15,27 +15,35 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.celeborn;
+package org.apache.celeborn.common.meta;
 
-import java.io.IOException;
+import io.netty.buffer.CompositeByteBuf;
 
-import org.apache.spark.TaskContext;
-import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
-import org.apache.spark.shuffle.ShuffleWriter;
+import org.apache.celeborn.common.identity.UserIdentifier;
 
-import org.apache.celeborn.client.ShuffleClient;
-import org.apache.celeborn.common.CelebornConf;
+public class MemoryFileInfo extends FileInfo {
+  private CompositeByteBuf buffer;
+  private long length;
 
-public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
+  public MemoryFileInfo(
+      UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
+    super(userIdentifier, partitionSplitEnabled, fileMeta);
+  }
+
+  public CompositeByteBuf getBuffer() {
+    return buffer;
+  }
+
+  public void setBuffer(CompositeByteBuf buffer) {
+    this.buffer = buffer;
+  }
+
+  public void setBufferSize(int bufferSize) {
+    this.length = bufferSize;
+  }
+
   @Override
-  protected ShuffleWriter<Integer, String> createShuffleWriter(
-      CelebornShuffleHandle handle,
-      TaskContext context,
-      CelebornConf conf,
-      ShuffleClient client,
-      ShuffleWriteMetricsReporter metrics)
-      throws IOException {
-    return new SortBasedShuffleWriter<Integer, String, String>(
-        handle, context, conf, client, metrics, SendBufferPool.get(4, 30, 60));
+  public long getFileLength() {
+    return length;
   }
 }

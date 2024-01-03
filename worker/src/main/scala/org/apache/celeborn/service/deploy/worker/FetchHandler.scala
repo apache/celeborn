@@ -31,13 +31,13 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{FileInfo, FileManagedBuffers}
+import org.apache.celeborn.common.meta.{DiskFileInfo, FileManagedBuffers, MapFileMeta, ReduceFileMeta}
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PartitionType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
+import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbOpenStream, PbReadAddCredit, PbStreamHandler, StreamType}
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
 
@@ -74,11 +74,11 @@ class FetchHandler(
     this.registered = worker.registered
   }
 
-  def getRawFileInfo(
+  def getRawDiskFileInfo(
       shuffleKey: String,
-      fileName: String): FileInfo = {
+      fileName: String): DiskFileInfo = {
     // find FileWriter responsible for the data
-    val fileInfo = storageManager.getFileInfo(shuffleKey, fileName)
+    val fileInfo = storageManager.getDiskFileInfo(shuffleKey, fileName)
     if (fileInfo == null) {
       val errMsg = s"Could not find file $fileName for $shuffleKey."
       logWarning(errMsg)
@@ -204,9 +204,9 @@ class FetchHandler(
       callback: RpcResponseCallback): Unit = {
     workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     try {
-      var fileInfo = getRawFileInfo(shuffleKey, fileName)
-      fileInfo.getPartitionType match {
-        case PartitionType.REDUCE =>
+      var fileInfo = getRawDiskFileInfo(shuffleKey, fileName)
+      fileInfo.getFileMeta match {
+        case _: ReduceFileMeta =>
           logDebug(s"Received open stream request $shuffleKey $fileName $startIndex " +
             s"$endIndex get file name $fileName from client channel " +
             s"${NettyUtils.getRemoteAddress(client.getChannel)}")
@@ -225,37 +225,45 @@ class FetchHandler(
               startIndex,
               endIndex)
           }
+          val meta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
           if (readLocalShuffle) {
             replyStreamHandler(
               client,
               rpcRequestId,
               -1,
-              fileInfo.numChunks(),
+              meta.getNumChunks,
               isLegacy,
-              fileInfo.getChunkOffsets,
+              meta.getChunkOffsets,
               fileInfo.getFilePath)
           } else if (fileInfo.isHdfs) {
             replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
           } else {
-            val buffers = new FileManagedBuffers(fileInfo, transportConf)
-            val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
+            val buffers =
+              new FileManagedBuffers(fileInfo, transportConf)
+            val fetchTimeMetrics =
+              storageManager.getFetchTimeMetric(fileInfo.getFile)
             chunkStreamManager.registerStream(
               streamId,
               shuffleKey,
               buffers,
               fileName,
               fetchTimeMetrics)
-            if (fileInfo.numChunks() == 0)
+            if (meta.getNumChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
+              s"StreamId $streamId, fileName $fileName, numChunks ${meta.getNumChunks()}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
-            replyStreamHandler(client, rpcRequestId, streamId, fileInfo.numChunks(), isLegacy)
+            replyStreamHandler(
+              client,
+              rpcRequestId,
+              streamId,
+              meta.getNumChunks,
+              isLegacy)
           }
-        case PartitionType.MAP =>
+        case _: MapFileMeta =>
           val creditStreamHandler =
             new Consumer[java.lang.Long] {
               override def accept(streamId: java.lang.Long): Unit = {
@@ -270,7 +278,6 @@ class FetchHandler(
             startIndex,
             endIndex,
             fileInfo)
-        case PartitionType.MAPGROUP =>
       }
     } catch {
       case e: IOException =>
@@ -342,7 +349,8 @@ class FetchHandler(
     streamType match {
       case StreamType.ChunkStream =>
         val (shuffleKey, fileName) = chunkStreamManager.getShuffleKeyAndFileName(streamId)
-        getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+        getRawDiskFileInfo(shuffleKey, fileName).closeStream(
+          streamId)
       case StreamType.CreditStream =>
         creditStreamManager.notifyStreamEndByClient(streamId)
       case _ =>

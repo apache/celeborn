@@ -27,8 +27,11 @@ object AddMetaInfLicenseFiles extends AutoPlugin {
 
   override lazy val projectSettings = Seq(
     Compile / resourceGenerators += Def.task {
+      val log = streams.value.log
+      log.info(s"generate META-INF/LICENSE for project ${name.value}")
       val licenseFile = (Compile / resourceManaged).value / "META-INF" / "LICENSE"
       IO.write(licenseFile, license)
+      log.info(s"generate META-INF/NOTICE for project ${name.value}")
       val noticeFile = (Compile / resourceManaged).value / "META-INF" / "NOTICE"
       IO.write(noticeFile, notice)
       Seq(licenseFile, noticeFile)
@@ -245,7 +248,7 @@ object AddMetaInfLicenseFiles extends AutoPlugin {
   val notice =
     """
       |Apache Celeborn
-      |Copyright 2022-2023 The Apache Software Foundation.
+      |Copyright 2022-2024 The Apache Software Foundation.
       |
       |This product includes software developed at
       |The Apache Software Foundation (http://www.apache.org/).

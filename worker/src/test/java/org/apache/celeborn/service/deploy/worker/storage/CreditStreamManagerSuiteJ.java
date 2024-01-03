@@ -36,7 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -74,39 +75,40 @@ public class CreditStreamManagerSuiteJ {
   public void testStreamRegisterAndCleanup() throws Exception {
     CreditStreamManager creditStreamManager = new CreditStreamManager(10, 10, 1, 32);
     Channel channel = Mockito.mock(Channel.class);
-    FileInfo fileInfo =
-        new FileInfo(createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"));
-    fileInfo.setNumSubpartitions(10);
-    fileInfo.setBufferSize(1024);
+    DiskFileInfo diskFileInfo =
+        new DiskFileInfo(
+            createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"));
+    MapFileMeta mapFileMeta = new MapFileMeta(1024, 10);
+    diskFileInfo.replaceFileMeta(mapFileMeta);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);
 
     long registerStream1 =
-        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
     Assert.assertTrue(registerStream1 > 0);
     Assert.assertEquals(1, creditStreamManager.numStreamStates());
 
     long registerStream2 =
-        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
     Assert.assertNotEquals(registerStream1, registerStream2);
     Assert.assertEquals(2, creditStreamManager.numStreamStates());
 
-    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
-    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, fileInfo);
+    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
+    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
 
-    MapDataPartition mapDataPartition1 =
+    MapPartitionData mapPartitionData1 =
         creditStreamManager.getStreams().get(registerStream1).getMapDataPartition();
-    MapDataPartition mapDataPartition2 =
+    MapPartitionData mapPartitionData2 =
         creditStreamManager.getStreams().get(registerStream2).getMapDataPartition();
-    Assert.assertEquals(mapDataPartition1, mapDataPartition2);
+    Assert.assertEquals(mapPartitionData1, mapPartitionData2);
 
-    mapDataPartition1.getStreamReader(registerStream1).recycle();
+    mapPartitionData1.getStreamReader(registerStream1).recycle();
 
     timeOutOrMeetCondition(() -> creditStreamManager.numStreamStates() == 3);
     Assert.assertEquals(creditStreamManager.numRecycleStreams(), 0);
 
     // registerStream2 can't be cleaned as registerStream2 is not finished
     AtomicInteger numInFlightRequests =
-        mapDataPartition2.getStreamReader(registerStream2).getNumInUseBuffers();
+        mapPartitionData2.getStreamReader(registerStream2).getNumInUseBuffers();
     numInFlightRequests.incrementAndGet();
 
     creditStreamManager.cleanResource(registerStream2);

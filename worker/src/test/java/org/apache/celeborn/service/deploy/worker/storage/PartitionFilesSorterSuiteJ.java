@@ -36,7 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.FileInfo;
+import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.CelebornExitKind;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -50,10 +51,10 @@ public class PartitionFilesSorterSuiteJ {
 
   private Random random = new Random();
   private File shuffleFile;
-  private FileInfo fileInfo;
+  private DiskFileInfo fileInfo;
   private String originFileName;
   private long originFileLen;
-  private FileWriter fileWriter;
+  private PartitionDataWriter partitionDataWriter;
   private UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
   private static final int MAX_MAP_ID = 50;
@@ -64,7 +65,7 @@ public class PartitionFilesSorterSuiteJ {
     shuffleFile = File.createTempFile("Celeborn", "sort-suite");
 
     originFileName = shuffleFile.getAbsolutePath();
-    fileInfo = new FileInfo(shuffleFile, userIdentifier);
+    fileInfo = new DiskFileInfo(shuffleFile, userIdentifier);
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -102,7 +103,7 @@ public class PartitionFilesSorterSuiteJ {
       partitionSize[mapId] = partitionSize[mapId] + batchHeader.length + mockedData.length;
     }
     originFileLen = channel.size();
-    fileInfo.getChunkOffsets().add(originFileLen);
+    ((ReduceFileMeta) fileInfo.getFileMeta()).getChunkOffsets().add(originFileLen);
     fileInfo.updateBytesFlushed(originFileLen);
     logger.info(shuffleFile.getAbsolutePath() + " filelen: " + Utils.bytesToString(originFileLen));
 
@@ -117,9 +118,10 @@ public class PartitionFilesSorterSuiteJ {
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
     MemoryManager.initialize(conf);
-    fileWriter = Mockito.mock(FileWriter.class);
-    when(fileWriter.getFile()).thenAnswer(i -> shuffleFile);
-    when(fileWriter.getFileInfo()).thenAnswer(i -> fileInfo);
+    partitionDataWriter = Mockito.mock(PartitionDataWriter.class);
+    when(partitionDataWriter.getFile()).thenAnswer(i -> shuffleFile);
+    when(partitionDataWriter.getDiskFileInfo()).thenAnswer(i -> fileInfo);
+    when(partitionDataWriter.getDiskFileInfo()).thenAnswer(i -> fileInfo);
     return partitionSize;
   }
 
@@ -139,11 +141,11 @@ public class PartitionFilesSorterSuiteJ {
       conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
       PartitionFilesSorter partitionFilesSorter =
           new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
-      FileInfo info =
+      DiskFileInfo info =
           partitionFilesSorter.getSortedFileInfo(
               "application-1",
               originFileName,
-              fileWriter.getFileInfo(),
+              partitionDataWriter.getDiskFileInfo(),
               startMapIndex,
               endMapIndex);
       long totalSizeToFetch = 0;
@@ -151,8 +153,12 @@ public class PartitionFilesSorterSuiteJ {
         totalSizeToFetch += partitionSize[i];
       }
       long numChunks = totalSizeToFetch / conf.shuffleChunkSize() + 1;
-      Assert.assertTrue(0 < info.numChunks() && info.numChunks() <= numChunks);
-      long actualTotalChunkSize = info.getLastChunkOffset() - info.getChunkOffsets().get(0);
+      Assert.assertTrue(
+          0 < ((ReduceFileMeta) info.getFileMeta()).getNumChunks()
+              && ((ReduceFileMeta) info.getFileMeta()).getNumChunks() <= numChunks);
+      long actualTotalChunkSize =
+          ((ReduceFileMeta) info.getFileMeta()).getLastChunkOffset()
+              - ((ReduceFileMeta) info.getFileMeta()).getChunkOffsets().get(0);
       Assert.assertTrue(totalSizeToFetch == actualTotalChunkSize);
     } finally {
       clean();
