@@ -313,7 +313,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
     }
-    indexCache.cleanUp();
+    indexCache.invalidateAll();
   }
 
   private void reloadAndCleanSortedShuffleFiles(DB db) {
