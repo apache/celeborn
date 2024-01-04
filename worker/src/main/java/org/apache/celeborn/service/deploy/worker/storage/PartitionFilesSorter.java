@@ -757,7 +757,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 class PartitionFilesCleaner {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesCleaner.class);
 
-  private final LinkedBlockingQueue<PartitionFilesSorter.FileSorter> queue =
+  private final LinkedBlockingQueue<PartitionFilesSorter.FileSorter> fileSorters =
       new LinkedBlockingQueue<>();
   private final Lock lock = new ReentrantLock();
   private final Condition notEmpty = lock.newCondition();
@@ -771,10 +771,10 @@ class PartitionFilesCleaner {
                 while (!partitionFilesSorter.isShutdown()) {
                   lock.lockInterruptibly();
                   try {
-                    while (queue.isEmpty()) {
+                    while (fileSorters.isEmpty()) {
                       notEmpty.await();
                     }
-                    Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
+                    Iterator<PartitionFilesSorter.FileSorter> it = fileSorters.iterator();
                     while (it.hasNext()) {
                       PartitionFilesSorter.FileSorter sorter = it.next();
                       try {
@@ -806,7 +806,7 @@ class PartitionFilesCleaner {
   public void add(PartitionFilesSorter.FileSorter fileSorter) throws InterruptedException {
     lock.lockInterruptibly();
     try {
-      queue.add(fileSorter);
+      fileSorters.add(fileSorter);
       notEmpty.signal();
     } finally {
       lock.unlock();
@@ -816,14 +816,14 @@ class PartitionFilesCleaner {
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
     lock.lock();
     try {
-      queue.removeIf(sorter -> expiredShuffleKeys.contains(sorter.getShuffleKey()));
+      fileSorters.removeIf(sorter -> expiredShuffleKeys.contains(sorter.getShuffleKey()));
     } finally {
       lock.unlock();
     }
   }
 
   public void close() {
-    queue.clear();
+    fileSorters.clear();
     cleaner.interrupt();
   }
 }
