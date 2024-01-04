@@ -206,17 +206,15 @@ class ChangePartitionManager(
       } else {
         // If new slot for the partition has been allocated, reply and return.
         // Else register and allocate for it.
-        if (!batchHandleChangePartitionEnabled) {
-          getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
-            context.reply(
-              partitionId,
-              StatusCode.SUCCESS,
-              Some(latestLoc),
-              lifecycleManager.workerStatusTracker.workerAvailable(oldPartition))
-            logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
-              s" shuffleId: $shuffleId $latestLoc")
-            return
-          }
+        getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
+          context.reply(
+            partitionId,
+            StatusCode.SUCCESS,
+            Some(latestLoc),
+            lifecycleManager.workerStatusTracker.workerAvailable(oldPartition))
+          logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
+            s" shuffleId: $shuffleId $latestLoc")
+          return
         }
         val set = new util.HashSet[ChangePartitionRequest]()
         set.add(changePartition)
