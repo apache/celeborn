@@ -46,7 +46,10 @@ class ChangePartitionManager(
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   // shuffleId -> (partitionId -> set of ChangePartition)
-  private val changePartitionRequests =
+  val changePartitionRequests =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
+
+  private val pendingChangePartitionRequests =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, JSet[ChangePartitionRequest]]]()
   // shuffleId -> set of partition id
   private val inBatchPartitions = JavaUtils.newConcurrentHashMap[Int, JSet[Integer]]()
@@ -81,6 +84,37 @@ class ChangePartitionManager(
                   new Runnable {
                     override def run(): Unit = {
                       requests.synchronized {
+                        // Move all pending requests to requests
+                        pendingChangePartitionRequests.get(shuffleId).synchronized {
+                          pendingChangePartitionRequests.get(shuffleId).asScala.foreach {
+                            case (partitionId, pendingRequestMap) =>
+                              if (pendingRequestMap.size() > 0) {
+                                val requestSet = requests.computeIfAbsent(
+                                  partitionId,
+                                  _ => new util.HashSet[ChangePartitionRequest]())
+                                pendingRequestMap.asScala.foreach(pendingRequest => {
+                                  val oldEpoch = pendingRequest.epoch
+                                  val latestPartition =
+                                    getLatestPartition(shuffleId, partitionId, oldEpoch)
+                                  if (latestPartition.isDefined) {
+                                    pendingRequest.context.reply(
+                                      partitionId,
+                                      StatusCode.SUCCESS,
+                                      latestPartition,
+                                      lifecycleManager.workerStatusTracker.workerAvailable(
+                                        pendingRequest.oldPartition))
+                                    logDebug(
+                                      s"New partition found, old partition $partitionId-$oldEpoch return it." +
+                                        s" shuffleId: $shuffleId $latestPartition")
+
+                                  } else {
+                                    requestSet.add(pendingRequest)
+                                  }
+                                })
+                                pendingRequestMap.clear()
+                              }
+                          }
+                        }
                         // For each partition only need handle one request
                         val distinctPartitions = requests.asScala.filter { case (partitionId, _) =>
                           !inBatchPartitions.get(shuffleId).contains(partitionId)
@@ -144,7 +178,13 @@ class ChangePartitionManager(
       oldPartition,
       cause)
     // check if there exists request for the partition, if do just register
-    val requests = changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+    val requests =
+      if (!batchHandleChangePartitionEnabled) {
+        changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+      } else {
+        changePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+        pendingChangePartitionRequests.computeIfAbsent(shuffleId, rpcContextRegisterFunc)
+      }
     inBatchPartitions.computeIfAbsent(shuffleId, inBatchShuffleIdRegisterFunc)
 
     lifecycleManager.commitManager.registerCommitPartitionRequest(
@@ -161,15 +201,17 @@ class ChangePartitionManager(
       } else {
         // If new slot for the partition has been allocated, reply and return.
         // Else register and allocate for it.
-        getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
-          context.reply(
-            partitionId,
-            StatusCode.SUCCESS,
-            Some(latestLoc),
-            lifecycleManager.workerStatusTracker.workerAvailable(oldPartition))
-          logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
-            s" shuffleId: $shuffleId $latestLoc")
-          return
+        if (!batchHandleChangePartitionEnabled) {
+          getLatestPartition(shuffleId, partitionId, oldEpoch).foreach { latestLoc =>
+            context.reply(
+              partitionId,
+              StatusCode.SUCCESS,
+              Some(latestLoc),
+              lifecycleManager.workerStatusTracker.workerAvailable(oldPartition))
+            logDebug(s"New partition found, old partition $partitionId-$oldEpoch return it." +
+              s" shuffleId: $shuffleId $latestLoc")
+            return
+          }
         }
         val set = new util.HashSet[ChangePartitionRequest]()
         set.add(changePartition)
