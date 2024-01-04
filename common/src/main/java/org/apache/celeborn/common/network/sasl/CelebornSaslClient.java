@@ -58,6 +58,7 @@ public class CelebornSaslClient {
       @Nullable Map<String, String> saslProps,
       @Nullable CallbackHandler authCallbackHandler) {
     Preconditions.checkNotNull(saslMechanism);
+    initializeSaslProviders();
     try {
       this.saslClient =
           Sasl.createSaslClient(
