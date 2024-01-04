@@ -18,8 +18,6 @@
 package org.apache.celeborn.client;
 
 import java.io.IOException;
-import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -63,26 +61,6 @@ public abstract class ShuffleClient {
       int port,
       CelebornConf conf,
       UserIdentifier userIdentifier) {
-    return ShuffleClient.get(
-        appUniqueId,
-        driverHost,
-        port,
-        conf,
-        userIdentifier,
-        Optional.empty(),
-        new Properties(),
-        null);
-  }
-
-  public static ShuffleClient get(
-      String appUniqueId,
-      String driverHost,
-      int port,
-      CelebornConf conf,
-      UserIdentifier userIdentifier,
-      Optional<byte[]> ioCryptoKey,
-      Properties ioCryptoConf,
-      byte[] ioCryptoInitializationVector) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -94,13 +72,11 @@ public abstract class ShuffleClient {
           // when communicating with LifecycleManager, it will cause a NullPointerException.
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
-          _instance.setupIoCrypto(ioCryptoKey, ioCryptoConf, ioCryptoInitializationVector);
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
-          _instance.setupIoCrypto(ioCryptoKey, ioCryptoConf, ioCryptoInitializationVector);
           initialized = true;
         }
       }
@@ -141,9 +117,6 @@ public abstract class ShuffleClient {
         totalReadCount,
         String.format("%.2f", (localReadCount * 1.0d / totalReadCount) * 100));
   }
-
-  public void setupIoCrypto(
-      Optional<byte[]> ioCryptoKey, Properties ioCryptoConf, byte[] ioCryptoInitializationVector) {}
 
   public abstract void setupLifecycleManagerRef(String host, int port);
 
