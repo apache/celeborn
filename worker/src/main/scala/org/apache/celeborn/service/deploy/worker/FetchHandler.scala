@@ -230,33 +230,37 @@ class FetchHandler(
           }
           val meta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
           if (readLocalShuffle) {
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              fileName)
             replyStreamHandler(
               client,
               rpcRequestId,
-              -1,
+              streamId,
               meta.getNumChunks,
               isLegacy,
               meta.getChunkOffsets,
               fileInfo.getFilePath)
           } else if (fileInfo.isHdfs) {
-            replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
-          } else {
-            val buffers =
-              new FileManagedBuffers(fileInfo, transportConf)
-            val fetchTimeMetrics =
-              storageManager.getFetchTimeMetric(fileInfo.getFile)
             chunkStreamManager.registerStream(
               streamId,
               shuffleKey,
-              buffers,
+              fileName)
+            replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
+          } else {
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              new FileManagedBuffers(fileInfo, transportConf),
               fileName,
-              fetchTimeMetrics)
+              storageManager.getFetchTimeMetric(fileInfo.getFile))
             if (meta.getNumChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId, fileName $fileName, numChunks ${meta.getNumChunks()}, " +
+              s"StreamId $streamId, fileName $fileName, numChunks ${meta.getNumChunks}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             replyStreamHandler(
