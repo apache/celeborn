@@ -769,8 +769,8 @@ class PartitionFilesCleaner {
             () -> {
               try {
                 while (!partitionFilesSorter.isShutdown()) {
+                  lock.lockInterruptibly();
                   try {
-                    lock.lockInterruptibly();
                     while (queue.isEmpty()) {
                       notEmpty.await(500, TimeUnit.MILLISECONDS);
                     }
@@ -784,7 +784,7 @@ class PartitionFilesCleaner {
                               sorter.getShuffleKey(),
                               ((DiskFileInfo) sorter.getOriginFileInfo()).getFilePath());
                           sorter.deleteOriginFiles();
-                          queue.remove(sorter);
+                          it.remove();
                         }
                       } catch (IOException e) {
                         logger.error("catch IOException when delete origin files", e);
@@ -814,12 +814,17 @@ class PartitionFilesCleaner {
   }
 
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
-    Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
-    while (it.hasNext()) {
-      PartitionFilesSorter.FileSorter sorter = it.next();
-      if (expiredShuffleKeys.contains(sorter.getShuffleKey())) {
-        queue.remove(sorter);
+    lock.lock();
+    try {
+      Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
+      while (it.hasNext()) {
+        PartitionFilesSorter.FileSorter sorter = it.next();
+        if (expiredShuffleKeys.contains(sorter.getShuffleKey())) {
+          it.remove();
+        }
       }
+    } finally {
+      lock.unlock();
     }
   }
 
