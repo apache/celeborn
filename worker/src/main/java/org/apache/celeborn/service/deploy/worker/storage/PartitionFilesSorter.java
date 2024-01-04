@@ -772,7 +772,7 @@ class PartitionFilesCleaner {
                   lock.lockInterruptibly();
                   try {
                     while (queue.isEmpty()) {
-                      notEmpty.await(500, TimeUnit.MILLISECONDS);
+                      notEmpty.await();
                     }
                     Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
                     while (it.hasNext()) {
@@ -816,13 +816,7 @@ class PartitionFilesCleaner {
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
     lock.lock();
     try {
-      Iterator<PartitionFilesSorter.FileSorter> it = queue.iterator();
-      while (it.hasNext()) {
-        PartitionFilesSorter.FileSorter sorter = it.next();
-        if (expiredShuffleKeys.contains(sorter.getShuffleKey())) {
-          it.remove();
-        }
-      }
+      queue.removeIf(sorter -> expiredShuffleKeys.contains(sorter.getShuffleKey()));
     } finally {
       lock.unlock();
     }
