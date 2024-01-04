@@ -272,7 +272,7 @@ public class SlotsAllocatorSuiteJ {
       }
       int allocateToDiskSlots = 0;
       for (WorkerInfo worker : workers) {
-        allocateToDiskSlots += worker.usedSlots();
+        allocateToDiskSlots = (int) (allocateToDiskSlots + worker.usedSlots());
       }
       if (shouldReplicate) {
         assertTrue(partitionIds.size() * 2 >= unknownDiskSlots + allocateToDiskSlots);

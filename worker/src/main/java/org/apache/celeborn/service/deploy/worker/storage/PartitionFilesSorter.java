@@ -581,7 +581,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               originShuffleBlockInfos.computeIfAbsent(mapId, v -> new ArrayList<>());
           ShuffleBlockInfo blockInfo = new ShuffleBlockInfo();
           blockInfo.offset = blockStartIndex;
-          blockInfo.length = compressedSize + 16;
+          blockInfo.length = compressedSize + 16L;
           singleMapIdShuffleBlockList.add(blockInfo);
 
           index += batchHeaderLen + compressedSize;

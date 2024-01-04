@@ -214,7 +214,8 @@ public class RemoteShuffleResultPartition extends ResultPartition {
   public void updateStatistics(
       SortBuffer.BufferWithChannel bufferWithChannel, boolean isBroadcast) {
     numBuffersOut.inc(isBroadcast ? numSubpartitions : 1);
-    long readableBytes = bufferWithChannel.getBuffer().readableBytes() - BufferUtils.HEADER_LENGTH;
+    long readableBytes =
+        (long) bufferWithChannel.getBuffer().readableBytes() - BufferUtils.HEADER_LENGTH;
     if (isBroadcast) {
       resultPartitionBytes.incAll(readableBytes);
     } else {

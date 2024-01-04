@@ -30,8 +30,8 @@ public class FlinkResultPartitionInfo {
   private final ProducerDescriptor producerDescriptor;
 
   public FlinkResultPartitionInfo(
-      JobID jobId, PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
-    this.jobID = jobId;
+      JobID jobID, PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
+    this.jobID = jobID;
     this.partitionDescriptor = partitionDescriptor;
     this.producerDescriptor = producerDescriptor;
   }
