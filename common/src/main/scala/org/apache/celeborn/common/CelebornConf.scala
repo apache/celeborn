@@ -760,12 +760,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
   def clientExcludeReplicaOnFailureEnabled: Boolean =
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
-
-  def sparkIoEncryptionEnabled: Boolean = get(SPARK_CLIENT_IO_ENCRYPTION_ENABLED)
-  def sparkIoEncryptionKey: String = get(SPARK_CLIENT_IO_ENCRYPTION_KEY)
-  def sparkIoEncryptionInitializationVector: String =
-    get(SPARK_CLIENT_IO_ENCRYPTION_INITIALIZATION_VECTOR)
-
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
 
   // //////////////////////////////////////////////////////
@@ -4263,28 +4257,4 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
-
-  val SPARK_CLIENT_IO_ENCRYPTION_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.io.encryption.enabled")
-      .categories("client")
-      .version("0.4.0")
-      .doc("whether to enable io encryption")
-      .booleanConf
-      .createWithDefault(true)
-
-  val SPARK_CLIENT_IO_ENCRYPTION_KEY: ConfigEntry[String] =
-    buildConf("celeborn.client.spark.io.encryption.key")
-      .categories("client")
-      .version("0.4.0")
-      .doc("io encryption key")
-      .stringConf
-      .createWithDefault("")
-
-  val SPARK_CLIENT_IO_ENCRYPTION_INITIALIZATION_VECTOR: ConfigEntry[String] =
-    buildConf("celeborn.client.spark.io.encryption.initialization.vector")
-      .categories("client")
-      .version("0.4.0")
-      .doc("io encryption initialization vector")
-      .stringConf
-      .createWithDefault("")
 }

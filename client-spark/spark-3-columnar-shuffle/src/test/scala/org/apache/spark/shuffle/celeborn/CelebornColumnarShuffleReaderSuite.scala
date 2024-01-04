@@ -17,8 +17,6 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import java.util.Optional
-
 import org.apache.spark.{ShuffleDependency, SparkConf}
 import org.apache.spark.serializer.{KryoSerializer, KryoSerializerInstance}
 import org.apache.spark.sql.execution.UnsafeRowSerializer
@@ -57,9 +55,7 @@ class CelebornColumnarShuffleReaderSuite {
         null,
         new CelebornConf(),
         null,
-        new ExecutorShuffleIdTracker(),
-        Optional.empty(),
-        null)
+        new ExecutorShuffleIdTracker())
       assert(shuffleReader.getClass == classOf[CelebornColumnarShuffleReader[Int, String]])
     } finally {
       if (shuffleClient != null) {
@@ -82,7 +78,6 @@ class CelebornColumnarShuffleReaderSuite {
           0,
           false,
           10,
-          null,
           null),
         0,
         10,
@@ -91,9 +86,7 @@ class CelebornColumnarShuffleReaderSuite {
         null,
         new CelebornConf(),
         null,
-        new ExecutorShuffleIdTracker(),
-        Optional.empty(),
-        null)
+        new ExecutorShuffleIdTracker())
       val shuffleDependency = Mockito.mock(classOf[ShuffleDependency[Int, String, String]])
       Mockito.when(shuffleDependency.shuffleId).thenReturn(0)
       Mockito.when(shuffleDependency.serializer).thenReturn(new KryoSerializer(
