@@ -769,11 +769,11 @@ class PartitionFilesCleaner {
             () -> {
               try {
                 while (!partitionFilesSorter.isShutdown()) {
-                  if (fileSorters.isEmpty()) {
-                    notEmpty.await();
-                  }
                   lock.lockInterruptibly();
                   try {
+                    if (fileSorters.isEmpty()) {
+                      notEmpty.await();
+                    }
                     Iterator<PartitionFilesSorter.FileSorter> it = fileSorters.iterator();
                     while (it.hasNext()) {
                       PartitionFilesSorter.FileSorter sorter = it.next();
