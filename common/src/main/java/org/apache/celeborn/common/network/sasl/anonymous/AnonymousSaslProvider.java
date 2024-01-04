@@ -26,7 +26,7 @@ import java.security.Security;
  * This is a Java Security Provider that adds support for the ANONYMOUS SASL mechanism. It allows
  * for the registration of SASL client and server factories for ANONYMOUS authentication.
  *
- * This provider registers the necessary SASL factories to enable ANONYMOUS SASL mechanism
+ * <p>This provider registers the necessary SASL factories to enable ANONYMOUS SASL mechanism
  * authentication.
  */
 public final class AnonymousSaslProvider extends Provider {
