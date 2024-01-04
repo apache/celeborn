@@ -17,8 +17,6 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import java.util.{Optional, Properties}
-
 import org.apache.spark.{ShuffleDependency, TaskContext}
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter
@@ -36,9 +34,7 @@ class CelebornColumnarShuffleReader[K, C](
     context: TaskContext,
     conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter,
-    shuffleIdTracker: ExecutorShuffleIdTracker,
-    ioCryptoKey: Optional[Array[Byte]],
-    ioCryptoConf: Properties)
+    shuffleIdTracker: ExecutorShuffleIdTracker)
   extends CelebornShuffleReader[K, C](
     handle,
     startPartition,
@@ -48,9 +44,7 @@ class CelebornColumnarShuffleReader[K, C](
     context,
     conf,
     metrics,
-    shuffleIdTracker,
-    ioCryptoKey,
-    ioCryptoConf) {
+    shuffleIdTracker) {
 
   override def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
     val schema = CustomShuffleDependencyUtils.getSchema(dep)

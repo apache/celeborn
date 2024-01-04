@@ -102,9 +102,6 @@ license: |
 | celeborn.client.shuffle.register.filterExcludedWorker.enabled | false | Whether to filter excluded worker when register shuffle. | 0.4.0 | 
 | celeborn.client.slot.assign.maxWorkers | 10000 | Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one from Master side and Client side, see `celeborn.master.slot.assign.maxWorkers`. | 0.3.1 | 
 | celeborn.client.spark.fetch.throwsFetchFailure | false | client throws FetchFailedException instead of CelebornIOException | 0.4.0 | 
-| celeborn.client.spark.io.encryption.enabled | true | whether to enable io encryption | 0.4.0 | 
-| celeborn.client.spark.io.encryption.initialization.vector |  | io encryption initialization vector | 0.4.0 | 
-| celeborn.client.spark.io.encryption.key |  | io encryption key | 0.4.0 | 
 | celeborn.client.spark.push.dynamicWriteMode.enabled | false | Whether to dynamically switch push write mode based on conditions.If true, shuffle mode will be only determined by partition count | 0.5.0 | 
 | celeborn.client.spark.push.dynamicWriteMode.partitionNum.threshold | 2000 | Threshold of shuffle partition number for dynamically switching push writer mode. When the shuffle partition number is greater than this value, use the sort-based shuffle writer for memory efficiency; otherwise use the hash-based shuffle writer for speed. This configuration only takes effect when celeborn.client.spark.push.dynamicWriteMode.enabled is true. | 0.5.0 | 
 | celeborn.client.spark.push.sort.memory.threshold | 64m | When SortBasedPusher use memory over the threshold, will trigger push data. | 0.3.0 | 
