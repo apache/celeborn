@@ -89,13 +89,14 @@ class ChangePartitionManager(
                           pendingChangePartitionRequests.get(shuffleId).asScala.foreach {
                             case (partitionId, pendingRequestMap) =>
                               if (pendingRequestMap.size() > 0) {
-                                val requestSet = if (requests.containsKey(partitionId)) {
-                                  requests.get(partitionId)
-                                } else {
-                                  val set = new util.HashSet[ChangePartitionRequest]()
-                                  requests.put(partitionId, set)
-                                  set
-                                }
+                                val requestSet =
+                                  if (requests.containsKey(partitionId)) {
+                                    requests.get(partitionId)
+                                  } else {
+                                    val set = new util.HashSet[ChangePartitionRequest]()
+                                    requests.put(partitionId, set)
+                                    set
+                                  }
                                 pendingRequestMap.asScala.foreach(pendingRequest => {
                                   val oldEpoch = pendingRequest.epoch
                                   val latestPartition =
