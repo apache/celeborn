@@ -30,10 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
@@ -41,6 +38,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -77,8 +76,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
       JavaUtils.newConcurrentHashMap();
-  private final ConcurrentHashMap<String, Map<String, Map<Integer, List<ShuffleBlockInfo>>>>
-      cachedIndexMaps = JavaUtils.newConcurrentHashMap();
+  private final Cache<String, Map<Integer, List<ShuffleBlockInfo>>> indexCache;
+  private final Map<String, Set<String>> indexCacheNames = JavaUtils.newConcurrentHashMap();
+
   private final LinkedBlockingQueue<FileSorter> shuffleSortTaskDeque = new LinkedBlockingQueue<>();
   private final PartitionFilesCleaner cleaner;
 
@@ -95,6 +95,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final ExecutorService fileSorterExecutors;
   private final Thread fileSorterSchedulerThread;
+  private final long indexCacheMaxWeight;
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
@@ -103,6 +104,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
+    this.indexCacheMaxWeight = conf.partitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
     this.gracefulShutdown = conf.workerGracefulShutdown();
@@ -128,6 +130,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
             "worker-file-sorter-execute", conf.partitionSorterThreads(), 120);
+
+    indexCache =
+        CacheBuilder.newBuilder()
+            .concurrencyLevel(conf.partitionSorterThreads())
+            .expireAfterAccess(conf.partitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
+            .maximumWeight(indexCacheMaxWeight)
+            .weigher(
+                (key, cache) ->
+                    ((Map<Integer, List<ShuffleBlockInfo>>) cache)
+                        .values().stream().mapToInt(List::size).sum())
+            .build();
 
     fileSorterSchedulerThread =
         new Thread(
@@ -253,7 +266,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     for (String expiredShuffleKey : expiredShuffleKeys) {
       sortingShuffleFiles.remove(expiredShuffleKey);
       deleteSortedShuffleFiles(expiredShuffleKey);
-      cachedIndexMaps.remove(expiredShuffleKey);
+      Set<String> expiredIndexCacheItems = indexCacheNames.remove(expiredShuffleKey);
+      if (expiredIndexCacheItems != null) {
+        for (String expiredIndexCacheItem : expiredIndexCacheItems) {
+          indexCache.invalidate(expiredIndexCacheItem);
+        }
+      }
     }
   }
 
@@ -295,7 +313,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         }
       }
     }
-    cachedIndexMaps.clear();
+    indexCache.invalidateAll();
   }
 
   private void reloadAndCleanSortedShuffleFiles(DB db) {
@@ -466,42 +484,52 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       int endMapIndex)
       throws IOException {
     Map<Integer, List<ShuffleBlockInfo>> indexMap;
-    if (cachedIndexMaps.containsKey(shuffleKey)
-        && cachedIndexMaps.get(shuffleKey).containsKey(fileId)) {
-      indexMap = cachedIndexMaps.get(shuffleKey).get(fileId);
-    } else {
-      FileChannel indexChannel = null;
-      FSDataInputStream hdfsIndexStream = null;
-      boolean isHdfs = Utils.isHdfsPath(indexFilePath);
-      int indexSize = 0;
-      try {
-        if (isHdfs) {
-          hdfsIndexStream = StorageManager.hadoopFs().open(new Path(indexFilePath));
-          indexSize =
-              (int) StorageManager.hadoopFs().getFileStatus(new Path(indexFilePath)).getLen();
-        } else {
-          indexChannel = FileChannelUtils.openReadableFileChannel(indexFilePath);
-          File indexFile = new File(indexFilePath);
-          indexSize = (int) indexFile.length();
-        }
-        ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
-        if (isHdfs) {
-          readStreamFully(hdfsIndexStream, indexBuf, indexFilePath);
-        } else {
-          readChannelFully(indexChannel, indexBuf, indexFilePath);
-        }
-        indexBuf.rewind();
-        indexMap = ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
-        Map<String, Map<Integer, List<ShuffleBlockInfo>>> cacheMap =
-            cachedIndexMaps.computeIfAbsent(shuffleKey, v -> JavaUtils.newConcurrentHashMap());
-        cacheMap.put(fileId, indexMap);
-      } catch (Exception e) {
-        logger.error("Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
-        throw new IOException("Read sorted shuffle file index failed.", e);
-      } finally {
-        IOUtils.closeQuietly(indexChannel, null);
-        IOUtils.closeQuietly(hdfsIndexStream, null);
-      }
+    try {
+      indexMap =
+          indexCache.get(
+              fileId,
+              () -> {
+                FileChannel indexChannel = null;
+                FSDataInputStream hdfsIndexStream = null;
+                boolean isHdfs = Utils.isHdfsPath(indexFilePath);
+                int indexSize = 0;
+                try {
+                  if (isHdfs) {
+                    hdfsIndexStream = StorageManager.hadoopFs().open(new Path(indexFilePath));
+                    indexSize =
+                        (int)
+                            StorageManager.hadoopFs()
+                                .getFileStatus(new Path(indexFilePath))
+                                .getLen();
+                  } else {
+                    indexChannel = FileChannelUtils.openReadableFileChannel(indexFilePath);
+                    File indexFile = new File(indexFilePath);
+                    indexSize = (int) indexFile.length();
+                  }
+                  ByteBuffer indexBuf = ByteBuffer.allocate(indexSize);
+                  if (isHdfs) {
+                    readStreamFully(hdfsIndexStream, indexBuf, indexFilePath);
+                  } else {
+                    readChannelFully(indexChannel, indexBuf, indexFilePath);
+                  }
+                  indexBuf.rewind();
+                  Map<Integer, List<ShuffleBlockInfo>> tIndexMap =
+                      ShuffleBlockInfoUtils.parseShuffleBlockInfosFromByteBuffer(indexBuf);
+                  Set<String> indexCacheItemsSet =
+                      indexCacheNames.computeIfAbsent(shuffleKey, v -> new HashSet<>());
+                  indexCacheItemsSet.add(fileId);
+                  return tIndexMap;
+                } catch (Exception e) {
+                  logger.error(
+                      "Read sorted shuffle file index " + indexFilePath + " error, detail: ", e);
+                  throw new IOException("Read sorted shuffle file index failed.", e);
+                } finally {
+                  IOUtils.closeQuietly(indexChannel, null);
+                  IOUtils.closeQuietly(hdfsIndexStream, null);
+                }
+              });
+    } catch (ExecutionException e) {
+      throw new IOException("Read sorted shuffle file index failed.", e);
     }
     ReduceFileMeta reduceFileMeta =
         new ReduceFileMeta(
