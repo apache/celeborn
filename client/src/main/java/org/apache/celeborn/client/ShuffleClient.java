@@ -82,13 +82,13 @@ public abstract class ShuffleClient {
           // when communicating with LifecycleManager, it will cause a NullPointerException.
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
-          _instance.setupExtension(extension);
+          _instance.setExtension(extension);
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
-          _instance.setupExtension(extension);
+          _instance.setExtension(extension);
           initialized = true;
         }
       }
@@ -134,7 +134,7 @@ public abstract class ShuffleClient {
 
   public abstract void setupLifecycleManagerRef(RpcEndpointRef endpointRef);
 
-  public abstract void setupExtension(byte[] extension);
+  public abstract void setExtension(byte[] extension);
 
   /**
    * Write data to a specific reduce partition

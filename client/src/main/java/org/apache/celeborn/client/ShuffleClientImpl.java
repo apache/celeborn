@@ -1706,7 +1706,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void setupExtension(byte[] extension) {
+  public void setExtension(byte[] extension) {
     this.extension = extension;
   }
 

@@ -63,7 +63,7 @@ public class DummyShuffleClient extends ShuffleClient {
   public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {}
 
   @Override
-  public void setupExtension(byte[] extension) {}
+  public void setExtension(byte[] extension) {}
 
   @Override
   public int pushData(
