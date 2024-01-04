@@ -2424,7 +2424,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.sortPartition.indexCache.maxWeight")
       .categories("worker")
       .doc("PartitionSorter's cache max weight for index buffer.")
-      .version("0.4.1")
+      .version("0.4.0")
       .longConf
       .createWithDefault(100000)
 
@@ -2432,7 +2432,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.sortPartition.indexCache.expire")
       .categories("worker")
       .doc("PartitionSorter's cache item expire time.")
-      .version("0.4.1")
+      .version("0.4.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
