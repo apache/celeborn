@@ -61,6 +61,16 @@ public abstract class ShuffleClient {
       int port,
       CelebornConf conf,
       UserIdentifier userIdentifier) {
+    return ShuffleClient.get(appUniqueId, driverHost, port, conf, userIdentifier, null);
+  }
+
+  public static ShuffleClient get(
+      String appUniqueId,
+      String driverHost,
+      int port,
+      CelebornConf conf,
+      UserIdentifier userIdentifier,
+      byte[] extension) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -72,11 +82,13 @@ public abstract class ShuffleClient {
           // when communicating with LifecycleManager, it will cause a NullPointerException.
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
+          _instance.setExtension(extension);
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
+          _instance.setExtension(extension);
           initialized = true;
         }
       }
@@ -121,6 +133,12 @@ public abstract class ShuffleClient {
   public abstract void setupLifecycleManagerRef(String host, int port);
 
   public abstract void setupLifecycleManagerRef(RpcEndpointRef endpointRef);
+
+  /**
+   * @param extension Extension for shuffle client, it's a byte array. Used in derived shuffle
+   *     client implementation.
+   */
+  public abstract void setExtension(byte[] extension);
 
   /**
    * Write data to a specific reduce partition

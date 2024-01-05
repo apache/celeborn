@@ -52,7 +52,8 @@ class CelebornShuffleReader[K, C](
     handle.lifecycleManagerHost,
     handle.lifecycleManagerPort,
     conf,
-    handle.userIdentifier)
+    handle.userIdentifier,
+    handle.extension)
 
   private val exceptionRef = new AtomicReference[IOException]
 

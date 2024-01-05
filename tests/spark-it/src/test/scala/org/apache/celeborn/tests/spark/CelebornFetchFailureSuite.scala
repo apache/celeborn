@@ -72,7 +72,8 @@ class CelebornFetchFailureSuite extends AnyFunSuite
               h.lifecycleManagerHost,
               h.lifecycleManagerPort,
               conf,
-              h.userIdentifier)
+              h.userIdentifier,
+              h.extension)
             val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
             val datafile =
               workerDirs.map(dir => {

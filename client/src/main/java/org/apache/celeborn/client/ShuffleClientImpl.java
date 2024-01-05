@@ -86,6 +86,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected final int BATCH_HEADER_SIZE = 4 * 4;
 
+  protected byte[] extension;
+
   // key: appShuffleIdentifier, value: shuffleId
   protected Map<String, Integer> shuffleIdCache = JavaUtils.newConcurrentHashMap();
 
@@ -1701,6 +1703,11 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public void setupLifecycleManagerRef(RpcEndpointRef endpointRef) {
     lifecycleManagerRef = endpointRef;
+  }
+
+  @Override
+  public void setExtension(byte[] extension) {
+    this.extension = extension;
   }
 
   boolean mapperEnded(int shuffleId, int mapId) {
