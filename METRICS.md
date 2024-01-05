@@ -93,9 +93,11 @@ Here is an example of Grafana dashboard importing.
 |             FlushDataTime              |      worker       |                                  FlushData means flush a disk buffer to disk.                                   |
 |             OpenStreamTime             |      worker       |            OpenStream means read a shuffle file and send client about chunks size and stream index.             |
 |             FetchChunkTime             |      worker       |                      FetchChunk means read a chunk from a shuffle file and send to client.                      |
+|            ChunkStreamCount            |      worker       |                    The stream count for reduce partition reading streams in current worker.                     |
+|          OpenStreamFailCount           |      worker       |                              The count of opening stream failed in current worker.                              |
+|          FetchChunkFailCount           |      worker       |                              The count of fetching chunk failed in current worker.                              |
 |          PrimaryPushDataTime           |      worker       |                      PrimaryPushData means handle pushdata of primary partition location.                       |
 |          ReplicaPushDataTime           |      worker       |                      ReplicaPushData means handle pushdata of replica partition location.                       |
-|          FetchChunkFailCount           |      worker       |                              The count of fetching chunk failed in current worker.                              |
 |           WriteDataFailCount           |      worker       |                    The count of writing PushData or PushMergedData failed in current worker.                    |
 |         ReplicateDataFailCount         |      worker       |                  The count of replicating PushData or PushMergedData failed in current worker.                  |
 |      ReplicateDataWriteFailCount       |      worker       |       The count of replicating PushData or PushMergedData failed caused by write failure in peer worker.        |
