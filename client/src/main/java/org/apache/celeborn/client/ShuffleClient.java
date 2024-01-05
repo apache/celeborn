@@ -134,6 +134,10 @@ public abstract class ShuffleClient {
 
   public abstract void setupLifecycleManagerRef(RpcEndpointRef endpointRef);
 
+  /**
+   * @param extension Extension for shuffle client, it's a byte array. Used in derived shuffle
+   *     client implementation.
+   */
   public abstract void setExtension(byte[] extension);
 
   /**
