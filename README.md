@@ -1,7 +1,7 @@
 # Apache Celeborn (Incubating)
 
 [![Celeborn CI](https://github.com/apache/incubator-celeborn/actions/workflows/maven.yml/badge.svg)](https://github.com/apache/incubator-celeborn/actions/workflows/maven.yml)  
-Celeborn is dedicated to improving the efficiency and elasticity of
+Celeborn (/ˈkeləbɔ:n/) is dedicated to improving the efficiency and elasticity of
 different map-reduce engines and provides an elastic, high-efficient 
 management service for intermediate data including shuffle data, spilled data, result data, etc. Currently, Celeborn is focusing on shuffle data.
 
