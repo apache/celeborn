@@ -26,6 +26,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   import WorkerSource._
   // add counters
+  addCounter(OPEN_STREAM_FAIL_COUNT)
   addCounter(FETCH_CHUNK_FAIL_COUNT)
   addCounter(WRITE_DATA_FAIL_COUNT)
   addCounter(REPLICATE_DATA_FAIL_COUNT)
@@ -69,13 +70,15 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 }
 
 object WorkerSource {
-  val COMMIT_FILES_TIME = "CommitFilesTime"
-  val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
-  val FLUSH_DATA_TIME = "FlushDataTime"
-  val OPEN_STREAM_TIME = "OpenStreamTime"
+  val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
+
+  val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
 
   // fetch data
+  val OPEN_STREAM_TIME = "OpenStreamTime"
   val FETCH_CHUNK_TIME = "FetchChunkTime"
+  val CHUNK_STREAM_COUNT = "ChunkStreamCount"
+  val OPEN_STREAM_FAIL_COUNT = "OpenStreamFailCount"
   val FETCH_CHUNK_FAIL_COUNT = "FetchChunkFailCount"
 
   // push data
@@ -100,13 +103,12 @@ object WorkerSource {
 
   // flush
   val TAKE_BUFFER_TIME = "TakeBufferTime"
-
-  val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
-
-  val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
+  val FLUSH_DATA_TIME = "FlushDataTime"
+  val COMMIT_FILES_TIME = "CommitFilesTime"
 
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
+  val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
 
   // connection
   val ACTIVE_CONNECTION_COUNT = "ActiveConnectionCount"
@@ -124,6 +126,8 @@ object WorkerSource {
   val BUFFER_STREAM_READ_BUFFER = "BufferStreamReadBuffer"
   val READ_BUFFER_DISPATCHER_REQUESTS_LENGTH = "ReadBufferDispatcherRequestsLength"
   val READ_BUFFER_ALLOCATED_COUNT = "ReadBufferAllocatedCount"
+
+  // credit
   val CREDIT_STREAM_COUNT = "CreditStreamCount"
   val ACTIVE_MAP_PARTITION_COUNT = "ActiveMapPartitionCount"
 

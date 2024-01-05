@@ -172,11 +172,6 @@ public class CreditStreamManager {
   }
 
   @VisibleForTesting
-  public int numStreamStates() {
-    return streams.size();
-  }
-
-  @VisibleForTesting
   public int numRecycleStreams() {
     return recycleStreamIds.size();
   }

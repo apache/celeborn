@@ -43,23 +43,23 @@ public class ChunkStreamManagerSuiteJ {
     manager.registerStream("shuffleKey1", buffers2, "shuffleFile1", null);
     manager.registerStream("shuffleKey2", buffers3, "shuffleFile2", null);
     long stream3 = manager.registerStream("shuffleKey3", buffers4, "shuffleFile3", null);
-    Assert.assertEquals(4, manager.numStreamStates());
-    Assert.assertEquals(manager.numStreamStates(), manager.numShuffleSteams());
+    Assert.assertEquals(4, manager.getStreamsCount());
+    Assert.assertEquals(manager.getStreamsCount(), manager.numShuffleSteams());
 
     manager.cleanupExpiredShuffleKey(new HashSet<>(Arrays.asList("shuffleKey1", "shuffleKey2")));
     manager.cleanupExpiredShuffleKey(new HashSet<>(Arrays.asList("none_exit_shuffleKey")));
 
-    Assert.assertEquals(1, manager.numStreamStates());
-    Assert.assertEquals(manager.numStreamStates(), manager.numShuffleSteams());
+    Assert.assertEquals(1, manager.getStreamsCount());
+    Assert.assertEquals(manager.getStreamsCount(), manager.numShuffleSteams());
 
     // stream removed when buffer fully read
     manager.streams.remove(stream3);
     manager.shuffleStreamIds.get("shuffleKey3").remove(stream3);
-    Assert.assertEquals(0, manager.numStreamStates());
-    Assert.assertEquals(manager.numStreamStates(), manager.numShuffleSteams());
+    Assert.assertEquals(0, manager.getStreamsCount());
+    Assert.assertEquals(manager.getStreamsCount(), manager.numShuffleSteams());
 
     // cleanup shuffleKey3
     manager.cleanupExpiredShuffleKey(new HashSet<>(Arrays.asList("shuffleKey3")));
-    Assert.assertEquals(manager.numStreamStates(), manager.numShuffleSteams());
+    Assert.assertEquals(manager.getStreamsCount(), manager.numShuffleSteams());
   }
 }

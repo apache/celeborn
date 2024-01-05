@@ -188,8 +188,7 @@ public class ChunkStreamManager {
     return new Tuple2<>(state.shuffleKey, state.fileName);
   }
 
-  @VisibleForTesting
-  public int numStreamStates() {
+  public int getStreamsCount() {
     return streams.size();
   }
 
