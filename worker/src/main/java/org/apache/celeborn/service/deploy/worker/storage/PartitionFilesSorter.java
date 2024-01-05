@@ -771,7 +771,8 @@ class PartitionFilesCleaner {
                 while (!partitionFilesSorter.isShutdown()) {
                   lock.lockInterruptibly();
                   try {
-                    if (fileSorters.isEmpty()) {
+                    // CELEBORN-1210: use while instead of if in case of spurious wakeup.
+                    while (fileSorters.isEmpty()) {
                       notEmpty.await();
                     }
                     Iterator<PartitionFilesSorter.FileSorter> it = fileSorters.iterator();
