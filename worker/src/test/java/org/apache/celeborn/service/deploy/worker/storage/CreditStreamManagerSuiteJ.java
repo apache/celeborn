@@ -85,12 +85,12 @@ public class CreditStreamManagerSuiteJ {
     long registerStream1 =
         creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
     Assert.assertTrue(registerStream1 > 0);
-    Assert.assertEquals(1, creditStreamManager.numStreamStates());
+    Assert.assertEquals(1, creditStreamManager.getStreamsCount());
 
     long registerStream2 =
         creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
     Assert.assertNotEquals(registerStream1, registerStream2);
-    Assert.assertEquals(2, creditStreamManager.numStreamStates());
+    Assert.assertEquals(2, creditStreamManager.getStreamsCount());
 
     creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
     creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
@@ -103,7 +103,7 @@ public class CreditStreamManagerSuiteJ {
 
     mapPartitionData1.getStreamReader(registerStream1).recycle();
 
-    timeOutOrMeetCondition(() -> creditStreamManager.numStreamStates() == 3);
+    timeOutOrMeetCondition(() -> creditStreamManager.getStreamsCount() == 3);
     Assert.assertEquals(creditStreamManager.numRecycleStreams(), 0);
 
     // registerStream2 can't be cleaned as registerStream2 is not finished
@@ -113,14 +113,14 @@ public class CreditStreamManagerSuiteJ {
 
     creditStreamManager.cleanResource(registerStream2);
     Assert.assertEquals(creditStreamManager.numRecycleStreams(), 1);
-    Assert.assertEquals(3, creditStreamManager.numStreamStates());
+    Assert.assertEquals(3, creditStreamManager.getStreamsCount());
 
     // recycle all channel
     numInFlightRequests.decrementAndGet();
     creditStreamManager.connectionTerminated(channel);
-    timeOutOrMeetCondition(() -> creditStreamManager.numStreamStates() == 0);
+    timeOutOrMeetCondition(() -> creditStreamManager.getStreamsCount() == 0);
     // when cpu is busy, even through that timeOutOrMeetCondition is true,
-    // creditStreamManager.numStreamStates are still not be removed
+    // creditStreamManager.getStreamsCount are still not be removed
     Assert.assertTrue(creditStreamManager.numRecycleStreams() >= 0);
   }
 

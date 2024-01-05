@@ -60,6 +60,9 @@ class FetchHandler(
   var registered: AtomicBoolean = new AtomicBoolean(false)
 
   def init(worker: Worker): Unit = {
+    workerSource.addGauge(WorkerSource.CHUNK_STREAM_COUNT) { () =>
+      chunkStreamManager.getStreamsCount
+    }
 
     workerSource.addGauge(WorkerSource.CREDIT_STREAM_COUNT) { () =>
       creditStreamManager.getStreamsCount
@@ -281,6 +284,7 @@ class FetchHandler(
       }
     } catch {
       case e: IOException =>
+        workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
         handleRpcIOException(client, rpcRequestId, shuffleKey, fileName, e, callback)
     } finally {
       workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
