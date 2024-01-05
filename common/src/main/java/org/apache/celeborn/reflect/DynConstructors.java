@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Copied from parquet-common */
+/** this class is copied from Apache Kyuubi, from derived parquet-common */
 public class DynConstructors {
 
   private DynConstructors() {}

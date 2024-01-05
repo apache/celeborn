@@ -9,6 +9,15 @@ The Apache Software Foundation (https://www.apache.org/).
 = NOTICE file corresponding to section 4d of the Apache License Version 2.0 =
 =============================================================================
 
+Apache Kyuubi
+Copyright 2021-2023 The Apache Software Foundation
+
+Remote Shuffle Service for Flink
+Copyright 2021 The Flink Remote Shuffle Project
+
+This product includes software developed at The Alibaba Group Holding Ltd
+(https://www.alibaba.com/).
+
 Apache Commons CLI
 Copyright 2002-2021 The Apache Software Foundation
 
@@ -66,14 +75,8 @@ Copyright 2017-2020 The Apache Software Foundation
 Apache Ratis Thirdparty Miscellaneous
 Copyright 2017-2020 The Apache Software Foundation
 
-Apache Spark
-Copyright 2014 and onwards The Apache Software Foundation
-
 ResolverUtil.java
 Copyright 2005-2006 Tim Fennell
-
-Apache Flink
-Copyright 2014-2022 The Apache Software Foundation
 
 Scala
 Copyright (c) 2002-2023 EPFL

@@ -28,7 +28,7 @@ import java.util.Set;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
-/** Copied from iceberg-common */
+/** this class is copied from Apache Kyuubi, derived from iceberg-common */
 public class DynFields {
 
   private DynFields() {}
