@@ -115,7 +115,7 @@ public class AnonymousSaslClientFactory implements SaslClientFactory {
 
     @Override
     public void dispose() throws SaslException {
-      // Cleanup resources if any
+      // No resources to cleanup for ANONYMOUS
     }
   }
 }
