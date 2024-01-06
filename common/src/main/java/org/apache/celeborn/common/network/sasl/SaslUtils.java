@@ -26,11 +26,15 @@ import javax.security.sasl.Sasl;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
+import org.apache.celeborn.common.network.sasl.anonymous.AnonymousSaslProvider;
+
 public class SaslUtils {
   static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
   /** Sasl Mechanisms */
   static final String DIGEST_MD5 = "DIGEST-MD5";
+
+  public static final String ANONYMOUS = "ANONYMOUS";
 
   /** Quality of protection value that does not include encryption. */
   static final String QOP_AUTH = "auth";
@@ -65,5 +69,9 @@ public class SaslUtils {
     return Base64.getEncoder()
         .encodeToString(password.getBytes(StandardCharsets.UTF_8))
         .toCharArray();
+  }
+
+  static void initializeSaslProviders() {
+    AnonymousSaslProvider.initializeIfNeeded();
   }
 }

@@ -168,6 +168,27 @@ public class CelebornSaslSuiteJ {
     verify(handler).exceptionCaught(isNull(), isNull());
   }
 
+  @Test
+  public void testAnonymous() {
+    CelebornSaslClient client = new CelebornSaslClient(ANONYMOUS, null, null);
+    CelebornSaslServer server = new CelebornSaslServer(ANONYMOUS, null, null);
+
+    assertFalse(client.isComplete());
+    assertFalse(server.isComplete());
+
+    byte[] clientMessage = client.firstToken();
+    while (!client.isComplete()) {
+      clientMessage = client.response(server.response(clientMessage));
+    }
+    assertTrue(server.isComplete());
+
+    // Disposal should invalidate
+    server.dispose();
+    assertFalse(server.isComplete());
+    client.dispose();
+    assertFalse(client.isComplete());
+  }
+
   private static class SaslTestCtx implements AutoCloseable {
 
     final TransportClient client;
