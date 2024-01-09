@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.spark.*;
-import org.apache.spark.internal.config.ConfigEntry;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
