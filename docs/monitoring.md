@@ -180,6 +180,10 @@ These metrics are exposed by Celeborn worker.
     - SortedFileSize
     - DiskBuffer
         - The memory occupied by pushData and pushMergedData which should be written to disk.
+    - PausePushDataTime
+        - The time for a worker to stop receiving pushData from clients because of back pressure.
+    - PausePushDataAndReplicateTime
+        - The time for a worker to stop receiving pushData from clients and other workers because of back pressure.
     - PausePushData
         - The count for a worker to stop receiving pushData from clients because of back pressure.
     - PausePushDataAndReplicate
