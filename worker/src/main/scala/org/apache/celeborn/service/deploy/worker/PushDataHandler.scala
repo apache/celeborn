@@ -210,6 +210,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           logDebug(
             s"Receive push data for committed hard split partition of (shuffle $shuffleKey, " +
               s"map $mapId attempt $attemptId)")
+          workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         }
       } else {
@@ -474,6 +475,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           } else {
             logDebug(s"[Case1] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
+            workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
           }
@@ -484,6 +486,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             // after worker restart, some tasks still push data to this HARD_SPLIT partition.
             logDebug(s"[Case2] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
+            workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
           } else {
@@ -1196,6 +1199,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         (fileWriter.getFileInfo.getFileLength < partitionSplitMaximumSize)) {
         softSplit.set(true)
       } else {
+        workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
         callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         logTrace(
           s"""
