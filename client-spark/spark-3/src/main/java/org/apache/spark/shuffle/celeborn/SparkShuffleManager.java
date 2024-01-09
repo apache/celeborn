@@ -36,6 +36,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
+import scala.Option;
 
 /**
  * In order to support Spark Stage resubmit with ShuffleReader FetchFails, Celeborn shuffleId has to
@@ -96,10 +97,15 @@ public class SparkShuffleManager implements ShuffleManager {
           SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key());
     }
     if ((Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED())) {
+      String key = package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key();
+      Boolean defaultValue =
+          (Boolean) package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().defaultValue().get();
       logger.warn(
-          "Detected spark.dynamicAllocation.shuffleTracking.enabled (default is false) is enabled, "
+          "Detected {} (default is {}) is enabled, "
               + "it's highly recommended to disable it when use Celeborn as Remote Shuffle Service "
-              + "to avoid performance degradation.");
+              + "to avoid performance degradation.",
+          key,
+          defaultValue);
     }
     this.conf = conf;
     this.isDriver = isDriver;
