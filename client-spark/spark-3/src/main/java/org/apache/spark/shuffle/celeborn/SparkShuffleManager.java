@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.spark.*;
+import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
@@ -94,11 +95,16 @@ public class SparkShuffleManager implements ShuffleManager {
               + "use Celeborn as Remote Shuffle Service to avoid performance degradation.",
           SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key());
     }
-    if (conf.getBoolean("spark.dynamicAllocation.shuffleTracking.enabled", false)) {
+    if ((Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED())) {
+      String key = package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key();
+      Boolean defaultValue =
+          (Boolean) package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().defaultValue().get();
       logger.warn(
-          "Detected spark.dynamicAllocation.shuffleTracking.enabled (default is false) is enabled, "
+          "Detected {} (default is {}) is enabled, "
               + "it's highly recommended to disable it when use Celeborn as Remote Shuffle Service "
-              + "to avoid performance degradation.");
+              + "to avoid performance degradation.",
+          key,
+          defaultValue);
     }
     this.conf = conf;
     this.isDriver = isDriver;
