@@ -36,7 +36,6 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
-import scala.Option;
 
 /**
  * In order to support Spark Stage resubmit with ShuffleReader FetchFails, Celeborn shuffleId has to
