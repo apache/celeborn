@@ -202,12 +202,12 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       if (shuffleMapperAttempts.containsKey(shuffleKey)) {
         if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
           // partition data has already been committed
-          logInfo(
+          logDebug(
             s"[Case1] Receive push data from speculative task(shuffle $shuffleKey, map $mapId, " +
               s" attempt $attemptId), but this mapper has already been ended.")
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.MAP_ENDED.getValue)))
         } else {
-          logInfo(
+          logDebug(
             s"Receive push data for committed hard split partition of (shuffle $shuffleKey, " +
               s"map $mapId attempt $attemptId)")
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
@@ -217,7 +217,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
           // in StorageManager. This partition should be HARD_SPLIT partition and
           // after worker restart, some tasks still push data to this HARD_SPLIT partition.
-          logInfo(s"[Case2] Receive push data for committed hard split partition of " +
+          logDebug(s"[Case2] Receive push data for committed hard split partition of " +
             s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
           callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
         } else {
@@ -466,13 +466,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         // it's probably because commitFiles for HARD_SPLIT happens.
         if (shuffleMapperAttempts.containsKey(shuffleKey)) {
           if (-1 != shuffleMapperAttempts.get(shuffleKey).get(mapId)) {
-            logInfo(s"Receive push merged data from speculative " +
+            logDebug(s"Receive push merged data from speculative " +
               s"task(shuffle $shuffleKey, map $mapId, attempt $attemptId), " +
               s"but this mapper has already been ended.")
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.MAP_ENDED.getValue)))
           } else {
-            logInfo(s"[Case1] Receive push merged data for committed hard split partition of " +
+            logDebug(s"[Case1] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
@@ -482,7 +482,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             // If there is no shuffle key in shuffleMapperAttempts but there is shuffle key
             // in StorageManager. This partition should be HARD_SPLIT partition and
             // after worker restart, some tasks still push data to this HARD_SPLIT partition.
-            logInfo(s"[Case2] Receive push merged data for committed hard split partition of " +
+            logDebug(s"[Case2] Receive push merged data for committed hard split partition of " +
               s"(shuffle $shuffleKey, map $mapId attempt $attemptId)")
             callbackWithTimer.onSuccess(
               ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
