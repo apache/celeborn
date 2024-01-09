@@ -98,6 +98,7 @@ Here is an example of Grafana dashboard importing.
 |          FetchChunkFailCount           |      worker       |                              The count of fetching chunk failed in current worker.                              |
 |          PrimaryPushDataTime           |      worker       |                      PrimaryPushData means handle pushdata of primary partition location.                       |
 |          ReplicaPushDataTime           |      worker       |                      ReplicaPushData means handle pushdata of replica partition location.                       |
+|        WriteDataHardSplitCount         |      worker       |           The count of writing PushData or PushMergedData to HARD_SPLIT partition in current worker.            |
 |           WriteDataFailCount           |      worker       |                    The count of writing PushData or PushMergedData failed in current worker.                    |
 |         ReplicateDataFailCount         |      worker       |                  The count of replicating PushData or PushMergedData failed in current worker.                  |
 |      ReplicateDataWriteFailCount       |      worker       |       The count of replicating PushData or PushMergedData failed caused by write failure in peer worker.        |
