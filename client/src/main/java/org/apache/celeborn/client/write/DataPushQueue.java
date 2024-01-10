@@ -90,13 +90,16 @@ public class DataPushQueue {
       // takeTaskWaitTimeMs
       // in last loop
       workerCapacity.clear();
-      Iterator<PushTask> iterator = workingQueue.iterator();
-      while (iterator.hasNext()) {
-        PushTask task = iterator.next();
-        int partitionId = task.getPartitionId();
-        Map<Integer, PartitionLocation> partitionLocationMap =
-            client.getPartitionLocation(shuffleId, numMappers, numPartitions);
-        if (partitionLocationMap != null) {
+      Map<Integer, PartitionLocation> partitionLocationMap =
+          client.getPartitionLocation(shuffleId, numMappers, numPartitions);
+      if (partitionLocationMap == null) {
+        tasks.addAll(workingQueue);
+        workingQueue.clear();
+      } else {
+        Iterator<PushTask> iterator = workingQueue.iterator();
+        while (iterator.hasNext()) {
+          PushTask task = iterator.next();
+          int partitionId = task.getPartitionId();
           PartitionLocation loc = partitionLocationMap.get(partitionId);
           // According to CELEBORN-560, call rerun task and speculative task after LifecycleManager
           // handle StageEnd will return empty PartitionLocation map, here loc can be null
@@ -122,9 +125,6 @@ public class DataPushQueue {
             iterator.remove();
             tasks.add(task);
           }
-        } else {
-          iterator.remove();
-          tasks.add(task);
         }
       }
       if (!tasks.isEmpty()) {
