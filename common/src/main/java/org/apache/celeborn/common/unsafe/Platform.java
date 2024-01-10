@@ -27,6 +27,7 @@ import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.SystemUtils;
 import sun.misc.Unsafe;
 
+/** this class is copied from Apache Spark */
 public final class Platform {
 
   private static final Unsafe _UNSAFE;

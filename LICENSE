@@ -213,6 +213,8 @@ Apache License 2.0
 Apache Spark
 ./client-spark/spark-2/src/main/java/org/apache/spark/shuffle/celeborn/SparkUtils.java
 ./client-spark/spark-3/src/main/java/org/apache/spark/shuffle/celeborn/SparkUtils.java
+./common/src/main/java/org/apache/celeborn/common/unsafe/Platform.java
+./common/src/main/java/org/apache/celeborn/common/util/JavaUtils.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DB.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/DBIterator.java
 ./worker/src/main/java/org/apache/celeborn/service/deploy/worker/shuffledb/LevelDB.java

@@ -45,6 +45,8 @@ import org.apache.celeborn.common.network.util.ByteUnit;
 /**
  * General utilities available in the network package. Many of these are sourced from Spark's own
  * Utils, just accessible within this package.
+ *
+ * <p>Some methods of this class are copied from Apache Spark
  */
 public class JavaUtils {
   private static final Logger logger = LoggerFactory.getLogger(JavaUtils.class);
