@@ -161,7 +161,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
               deleted = true;
             } else {
               StorageManager.hadoopFs()
-                  .create(new Path(Utils.getWriteSuccessFilePath((diskFileInfo.getIndexPath()))))
+                  .create(new Path(Utils.getWriteSuccessFilePath(diskFileInfo.getIndexPath())))
                   .close();
             }
           }
@@ -185,7 +185,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
     numSubpartitionBytes = new long[numSubpartitions];
     MapFileMeta mapFileMeta = (MapFileMeta) diskFileInfo.getFileMeta();
     mapFileMeta.setBufferSize(bufferSize);
-    mapFileMeta.setNumSubpartitions(numSubpartitions);
+    mapFileMeta.setNumSubPartitions(numSubpartitions);
   }
 
   public void regionStart(int currentDataRegionIndex, boolean isBroadcastRegion) {
