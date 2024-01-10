@@ -67,8 +67,9 @@ public class MemoryManager {
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private ServingState servingState = ServingState.NONE_PAUSED;
-  private long pauseStartTime = -1L;
+  private long pausePushDataStartTime = -1L;
   private long pausePushDataTime = 0L;
+  private long pausePushDataAndReplicateStartTime = -1L;
   private long pausePushDataAndReplicateTime = 0L;
   private int trimCounter = 0;
   private volatile boolean isPaused = false;
@@ -274,7 +275,7 @@ public class MemoryManager {
                   memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
         } else if (lastState == ServingState.NONE_PAUSED) {
           logger.info("Trigger action: PAUSE PUSH");
-          pauseStartTime = System.currentTimeMillis();
+          pausePushDataStartTime = System.currentTimeMillis();
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -285,7 +286,7 @@ public class MemoryManager {
         pausePushDataAndReplicateCounter.increment();
         if (lastState == ServingState.NONE_PAUSED) {
           logger.info("Trigger action: PAUSE PUSH");
-          pauseStartTime = System.currentTimeMillis();
+          pausePushDataAndReplicateStartTime = System.currentTimeMillis();
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -416,11 +417,12 @@ public class MemoryManager {
   private void appendPauseSpentTime(ServingState servingState) {
     long nextPauseStartTime = System.currentTimeMillis();
     if (servingState == ServingState.PUSH_PAUSED) {
-      pausePushDataTime += nextPauseStartTime - pauseStartTime;
-    } else if (servingState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
-      pausePushDataAndReplicateTime += nextPauseStartTime - pauseStartTime;
+      pausePushDataTime += nextPauseStartTime - pausePushDataStartTime;
+      pausePushDataStartTime = nextPauseStartTime;
+    } else {
+      pausePushDataAndReplicateTime += nextPauseStartTime - pausePushDataAndReplicateStartTime;
+      pausePushDataAndReplicateStartTime = nextPauseStartTime;
     }
-    pauseStartTime = nextPauseStartTime;
     // reset
     trimCounter = 0;
   }

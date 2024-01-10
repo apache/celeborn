@@ -325,7 +325,7 @@ private[celeborn] class Worker(
     memoryManager.getPausePushDataTime
   }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_TIME) { () =>
-    memoryManager.getPausePushDataTime
+    memoryManager.getPausePushDataAndReplicateTime
   }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_COUNT) { () =>
     memoryManager.getPausePushDataCounter
