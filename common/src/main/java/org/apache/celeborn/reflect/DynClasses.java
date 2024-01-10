@@ -22,7 +22,7 @@ package org.apache.celeborn.reflect;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** Copied from iceberg-common */
+/** this class is copied from Apache Kyuubi, derived from iceberg-common */
 public class DynClasses {
 
   private DynClasses() {}

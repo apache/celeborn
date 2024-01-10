@@ -26,7 +26,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 
-/** Copied from parquet-common */
+/** this class is copied from Apache Kyuubi, derived from parquet-common */
 public class DynMethods {
 
   private DynMethods() {}
