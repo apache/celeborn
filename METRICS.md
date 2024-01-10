@@ -114,8 +114,10 @@ Here is an example of Grafana dashboard importing.
 |              SortedFiles               |      worker       |                               This value means the count of sorted shuffle files.                               |
 |             SortedFileSize             |      worker       |                        This value means the count of sorted shuffle files 's total size.                        |
 |               DiskBuffer               |      worker       | Disk buffers are part of netty used memory, means data need to write to disk but haven't been written to disk.  |
-|             PausePushData              |      worker       |                   PausePushData means the count of worker stopped receiving data from client.                   |
-|       PausePushDataAndReplicate        |      worker       |    PausePushDataAndReplicate means the count of worker stopped receiving data from client and other workers.    |
+|           PausePushDataTime            |      worker       |                              PausePushData means stop receiving data from client.                               |
+|     PausePushDataAndReplicateTime      |      worker       |               PausePushDataAndReplicate means stop receiving data from client and other workers.                |
+|             PausePushData              |      worker       |                       The count of stopping receiving data from client in current worker.                       |
+|       PausePushDataAndReplicate        |      worker       |              The count of stopping receiving data from client and other workers in current worker.              |
 |              jvm_gc_count              |        JVM        |                                     The GC count of each garbage collector.                                     |
 |              jvm_gc_time               |        JVM        |                                   The GC cost time of each garbage collector.                                   |
 |          jvm_memory_heap_init          |        JVM        |                                         The amount of heap init memory.                                         |

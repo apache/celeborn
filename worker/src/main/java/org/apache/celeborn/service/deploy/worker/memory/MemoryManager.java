@@ -67,8 +67,10 @@ public class MemoryManager {
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
   private ServingState servingState = ServingState.NONE_PAUSED;
-  private long pauseStartTime = -1L;
+  private long pausePushDataStartTime = -1L;
   private long pausePushDataTime = 0L;
+  private long pausePushDataAndReplicateStartTime = -1L;
+  private long pausePushDataAndReplicateTime = 0L;
   private int trimCounter = 0;
   private volatile boolean isPaused = false;
   // For credit stream
@@ -256,7 +258,7 @@ public class MemoryManager {
         if (trimCounter >= forceAppendPauseSpentTimeThreshold) {
           logger.debug(
               "Trigger action: TRIM for {} times, force to append pause spent time.", trimCounter);
-          appendPauseSpentTime();
+          appendPauseSpentTime(servingState);
         }
         trimAllListeners();
       }
@@ -273,7 +275,7 @@ public class MemoryManager {
                   memoryPressureListener.onResume(TransportModuleConstants.REPLICATE_MODULE));
         } else if (lastState == ServingState.NONE_PAUSED) {
           logger.info("Trigger action: PAUSE PUSH");
-          pauseStartTime = System.currentTimeMillis();
+          pausePushDataStartTime = System.currentTimeMillis();
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -284,7 +286,7 @@ public class MemoryManager {
         pausePushDataAndReplicateCounter.increment();
         if (lastState == ServingState.NONE_PAUSED) {
           logger.info("Trigger action: PAUSE PUSH");
-          pauseStartTime = System.currentTimeMillis();
+          pausePushDataAndReplicateStartTime = System.currentTimeMillis();
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -297,7 +299,7 @@ public class MemoryManager {
         break;
       case NONE_PAUSED:
         // resume from paused mode, append pause spent time
-        appendPauseSpentTime();
+        appendPauseSpentTime(lastState);
         if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
           logger.info("Trigger action: RESUME REPLICATE");
           memoryPressureListeners.forEach(
@@ -408,10 +410,19 @@ public class MemoryManager {
     return pausePushDataTime;
   }
 
-  private void appendPauseSpentTime() {
+  public long getPausePushDataAndReplicateTime() {
+    return pausePushDataAndReplicateTime;
+  }
+
+  private void appendPauseSpentTime(ServingState servingState) {
     long nextPauseStartTime = System.currentTimeMillis();
-    pausePushDataTime += nextPauseStartTime - pauseStartTime;
-    pauseStartTime = nextPauseStartTime;
+    if (servingState == ServingState.PUSH_PAUSED) {
+      pausePushDataTime += nextPauseStartTime - pausePushDataStartTime;
+      pausePushDataStartTime = nextPauseStartTime;
+    } else {
+      pausePushDataAndReplicateTime += nextPauseStartTime - pausePushDataAndReplicateStartTime;
+      pausePushDataAndReplicateStartTime = nextPauseStartTime;
+    }
     // reset
     trimCounter = 0;
   }

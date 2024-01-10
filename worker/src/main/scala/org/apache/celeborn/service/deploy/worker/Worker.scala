@@ -306,12 +306,6 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.NETTY_MEMORY) { () =>
     memoryManager.getNettyUsedDirectMemory
   }
-  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_COUNT) { () =>
-    memoryManager.getPausePushDataCounter
-  }
-  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT) { () =>
-    memoryManager.getPausePushDataAndReplicateCounter
-  }
   workerSource.addGauge(WorkerSource.BUFFER_STREAM_READ_BUFFER) { () =>
     memoryManager.getReadBufferCounter
   }
@@ -329,6 +323,15 @@ private[celeborn] class Worker(
   }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_TIME) { () =>
     memoryManager.getPausePushDataTime
+  }
+  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_TIME) { () =>
+    memoryManager.getPausePushDataAndReplicateTime
+  }
+  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_COUNT) { () =>
+    memoryManager.getPausePushDataCounter
+  }
+  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT) { () =>
+    memoryManager.getPausePushDataAndReplicateCounter
   }
 
   private def highWorkload: Boolean = {

@@ -101,7 +101,12 @@ object WorkerSource {
   val REPLICA_REGION_START_TIME = "ReplicaRegionStartTime"
   val PRIMARY_REGION_FINISH_TIME = "PrimaryRegionFinishTime"
   val REPLICA_REGION_FINISH_TIME = "ReplicaRegionFinishTime"
+
+  // pause push data
   val PAUSE_PUSH_DATA_TIME = "PausePushDataTime"
+  val PAUSE_PUSH_DATA_AND_REPLICATE_TIME = "PausePushDataAndReplicateTime"
+  val PAUSE_PUSH_DATA_COUNT = "PausePushData"
+  val PAUSE_PUSH_DATA_AND_REPLICATE_COUNT = "PausePushDataAndReplicate"
 
   // flush
   val TAKE_BUFFER_TIME = "TakeBufferTime"
@@ -123,8 +128,6 @@ object WorkerSource {
   val SORTED_FILES = "SortedFiles"
   val SORTED_FILE_SIZE = "SortedFileSize"
   val DISK_BUFFER = "DiskBuffer"
-  val PAUSE_PUSH_DATA_COUNT = "PausePushData"
-  val PAUSE_PUSH_DATA_AND_REPLICATE_COUNT = "PausePushDataAndReplicate"
   val BUFFER_STREAM_READ_BUFFER = "BufferStreamReadBuffer"
   val READ_BUFFER_DISPATCHER_REQUESTS_LENGTH = "ReadBufferDispatcherRequestsLength"
   val READ_BUFFER_ALLOCATED_COUNT = "ReadBufferAllocatedCount"
