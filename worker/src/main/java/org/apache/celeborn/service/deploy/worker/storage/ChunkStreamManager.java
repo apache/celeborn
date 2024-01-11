@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import scala.Tuple2;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +61,7 @@ public class ChunkStreamManager {
         FileManagedBuffers buffers,
         String fileName,
         TimeWindow fetchTimeMetric) {
-      this.buffers = Preconditions.checkNotNull(buffers);
+      this.buffers = buffers;
       this.shuffleKey = shuffleKey;
       this.fileName = fileName;
       this.fetchTimeMetric = fetchTimeMetric;
@@ -121,6 +120,17 @@ public class ChunkStreamManager {
       sum += streamState.chunksBeingTransferred;
     }
     return sum;
+  }
+
+  /**
+   * Registers a stream with shuffle key and disk file when reading local or dfs shuffle, which is
+   * served to obtain disk file via registered stream id to close stream.
+   *
+   * <p>This stream could be reused again when other channel of the client is reconnected. If a
+   * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
+   */
+  public long registerStream(long streamId, String shuffleKey, String fileName) {
+    return registerStream(streamId, shuffleKey, null, fileName, null);
   }
 
   /**
