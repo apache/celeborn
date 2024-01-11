@@ -25,11 +25,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1567,64 +1569,84 @@ public class ShuffleClientImpl extends ShuffleClient {
     return true;
   }
 
-  protected ReduceFileGroups loadFileGroupInternal(int shuffleId) {
+  protected Tuple2<ReduceFileGroups, String> loadFileGroupInternal(int shuffleId) {
     {
       long getReducerFileGroupStartTime = System.nanoTime();
+      String exceptionMsg = null;
       try {
         if (lifecycleManagerRef == null) {
-          logger.warn("Driver endpoint is null!");
-          return null;
-        }
+          exceptionMsg = "Driver endpoint is null!";
+          logger.warn(exceptionMsg);
+        } else {
+          GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId);
 
-        GetReducerFileGroup getReducerFileGroup = new GetReducerFileGroup(shuffleId);
+          GetReducerFileGroupResponse response =
+              lifecycleManagerRef.askSync(
+                  getReducerFileGroup,
+                  conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
+                  ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
 
-        GetReducerFileGroupResponse response =
-            lifecycleManagerRef.askSync(
-                getReducerFileGroup,
-                conf.clientRpcGetReducerFileGroupRpcAskTimeout(),
-                ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
-
-        switch (response.status()) {
-          case SUCCESS:
-            logger.info(
-                "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
-                shuffleId,
-                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
-                response.fileGroup().size());
-            return new ReduceFileGroups(
-                response.fileGroup(), response.attempts(), response.partitionIds());
-          case STAGE_END_TIME_OUT:
-          case SHUFFLE_DATA_LOST:
-            logger.warn(
-                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
-            return null;
-          case SHUFFLE_NOT_REGISTERED:
-            logger.warn(
-                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
-            // return empty result
-            return new ReduceFileGroups(
-                response.fileGroup(), response.attempts(), response.partitionIds());
+          switch (response.status()) {
+            case SUCCESS:
+              logger.info(
+                  "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
+                  shuffleId,
+                  TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
+                  response.fileGroup().size());
+              return Tuple2.apply(
+                  new ReduceFileGroups(
+                      response.fileGroup(), response.attempts(), response.partitionIds()),
+                  null);
+            case SHUFFLE_NOT_REGISTERED:
+              logger.warn(
+                  "Request {} return {} for {}.",
+                  getReducerFileGroup,
+                  response.status(),
+                  shuffleId);
+              // return empty result
+              return Tuple2.apply(
+                  new ReduceFileGroups(
+                      response.fileGroup(), response.attempts(), response.partitionIds()),
+                  null);
+            case STAGE_END_TIME_OUT:
+            case SHUFFLE_DATA_LOST:
+              exceptionMsg =
+                  String.format(
+                      "Request %s return %s for %s.",
+                      getReducerFileGroup, response.status(), shuffleId);
+              logger.warn(exceptionMsg);
+          }
         }
       } catch (Exception e) {
         logger.error("Exception raised while call GetReducerFileGroup for {}.", shuffleId, e);
+        exceptionMsg = e.getMessage();
       }
-      return null;
+      return Tuple2.apply(null, exceptionMsg);
     }
   }
 
-  protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId) throws IOException {
-    return reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> loadFileGroupInternal(shuffleId));
+  protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+      throws CelebornIOException {
+    if (reduceFileGroupsMap.containsKey(shuffleId)) {
+      return reduceFileGroupsMap.get(shuffleId);
+    } else {
+      Tuple2<ReduceFileGroups, String> fileGroups = loadFileGroupInternal(shuffleId);
+      ReduceFileGroups newGroups = fileGroups._1;
+      if (newGroups == null) {
+        throw new CelebornIOException(
+            loadFileGroupException(shuffleId, partitionId, fileGroups._2));
+      }
+      reduceFileGroupsMap.put(shuffleId, newGroups);
+      return newGroups;
+    }
   }
 
-  protected ReduceFileGroups loadFileGroup(int shuffleId, int partitionId) throws IOException {
-    ReduceFileGroups reduceFileGroups = updateFileGroup(shuffleId, partitionId);
-    if (reduceFileGroups == null) {
-      String msg =
-          "Shuffle data lost for shuffle " + shuffleId + " partitionId " + partitionId + "!";
-      logger.error(msg);
-      throw new CelebornIOException(msg);
-    }
-    return reduceFileGroups;
+  protected String loadFileGroupException(int shuffleId, int partitionId, String exceptionMsg) {
+    return String.format(
+        "Failed to load file group of shuffle %d partition %d! %s",
+        shuffleId,
+        partitionId,
+        StringUtils.isEmpty(exceptionMsg) ? StringUtils.EMPTY : exceptionMsg);
   }
 
   @Override
@@ -1640,7 +1662,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
       return CelebornInputStream.empty();
     }
-    ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
+    ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
 
     if (fileGroups.partitionGroups.isEmpty()
         || !fileGroups.partitionGroups.containsKey(partitionId)) {

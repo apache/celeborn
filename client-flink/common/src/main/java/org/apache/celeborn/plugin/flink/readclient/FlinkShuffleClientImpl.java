@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -145,7 +146,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       int shuffleId, int partitionId, int subPartitionIndexStart, int subPartitionIndexEnd)
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-    ReduceFileGroups fileGroups = loadFileGroup(shuffleId, partitionId);
+    ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
     if (fileGroups.partitionGroups.size() == 0
         || !fileGroups.partitionGroups.containsKey(partitionId)) {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
@@ -170,7 +171,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   }
 
   @Override
-  protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId) throws IOException {
+  protected ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
+      throws CelebornIOException {
     ReduceFileGroups reduceFileGroups =
         reduceFileGroupsMap.computeIfAbsent(shuffleId, (id) -> new ReduceFileGroups());
     if (reduceFileGroups.partitionIds != null
@@ -186,14 +188,15 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               Utils.makeReducerKey(shuffleId, partitionId));
         } else {
           // refresh file groups
-          ReduceFileGroups newGroups = loadFileGroupInternal(shuffleId);
+          Tuple2<ReduceFileGroups, String> fileGroups = loadFileGroupInternal(shuffleId);
+          ReduceFileGroups newGroups = fileGroups._1;
           if (newGroups == null) {
-            throw new IOException(
-                "Load file group from lifecycle manager failed: "
-                    + Utils.makeReducerKey(shuffleId, partitionId));
+            throw new CelebornIOException(
+                loadFileGroupException(shuffleId, partitionId, fileGroups._2));
           } else if (!newGroups.partitionIds.contains(partitionId)) {
-            throw new IOException(
-                "shuffle data lost for partition: " + Utils.makeReducerKey(shuffleId, partitionId));
+            throw new CelebornIOException(
+                String.format(
+                    "Shuffle data lost for shuffle %d partition %d.", shuffleId, partitionId));
           }
           reduceFileGroups.update(newGroups);
         }
