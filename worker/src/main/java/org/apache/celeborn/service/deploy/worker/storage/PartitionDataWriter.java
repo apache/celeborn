@@ -368,23 +368,22 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   }
 
   protected void takeBuffer() {
-    // metrics start
-    String metricsName = null;
-    String fileAbsPath = null;
     if (source.metricsCollectCriticalEnabled()) {
+      // metrics start
+      String metricsName = null;
+      String fileAbsPath = null;
       metricsName = WorkerSource.TAKE_BUFFER_TIME();
       fileAbsPath = diskFileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
-    }
-
-    // real action
-    synchronized (flushLock) {
-      flushBuffer = flusher.takeBuffer();
-    }
-
-    // metrics end
-    if (source.metricsCollectCriticalEnabled()) {
+      // real action
+      synchronized (flushLock) {
+        flushBuffer = flusher.takeBuffer();
+      }
       source.stopTimer(metricsName, fileAbsPath);
+    } else {
+      synchronized (flushLock) {
+        flushBuffer = flusher.takeBuffer();
+      }
     }
   }
 
