@@ -229,31 +229,37 @@ class FetchHandler(
               endIndex)
           }
           if (readLocalShuffle) {
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              fileName)
             replyStreamHandler(
               client,
               rpcRequestId,
-              -1,
+              streamId,
               fileInfo.numChunks(),
               isLegacy,
               fileInfo.getChunkOffsets,
               fileInfo.getFilePath)
           } else if (fileInfo.isHdfs) {
-            replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
-          } else {
-            val buffers = new FileManagedBuffers(fileInfo, transportConf)
-            val fetchTimeMetrics = storageManager.getFetchTimeMetric(fileInfo.getFile)
             chunkStreamManager.registerStream(
               streamId,
               shuffleKey,
-              buffers,
+              fileName)
+            replyStreamHandler(client, rpcRequestId, streamId, numChunks = 0, isLegacy)
+          } else {
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              new FileManagedBuffers(fileInfo, transportConf),
               fileName,
-              fetchTimeMetrics)
-            if (fileInfo.numChunks() == 0)
+              storageManager.getFetchTimeMetric(fileInfo.getFile))
+            if (fileInfo.numChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             else logDebug(
-              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks()}, " +
+              s"StreamId $streamId, fileName $fileName, numChunks ${fileInfo.numChunks}, " +
                 s"mapRange [$startIndex-$endIndex]. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             replyStreamHandler(client, rpcRequestId, streamId, fileInfo.numChunks(), isLegacy)

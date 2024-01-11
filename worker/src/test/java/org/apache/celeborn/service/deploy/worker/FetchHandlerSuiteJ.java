@@ -213,7 +213,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testReadSortFileOnceOriginalFileBeDeleted() throws IOException {
+  public void testWorkerReadSortFileOnceOriginalFileBeDeleted() throws IOException {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -225,9 +225,9 @@ public class FetchHandlerSuiteJ {
       PbStreamHandler rangeReadStreamHandler =
           openStreamAndCheck(client, channel, fetchHandler, 5, 10);
       checkOriginFileBeDeleted(fileInfo);
-      PbStreamHandler nonRangeReadstreamHandler =
+      PbStreamHandler nonRangeReadStreamHandler =
           openStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
-      fetchChunkAndCheck(client, channel, fetchHandler, nonRangeReadstreamHandler);
+      fetchChunkAndCheck(client, channel, fetchHandler, nonRangeReadStreamHandler);
       fetchChunkAndCheck(client, channel, fetchHandler, rangeReadStreamHandler);
     } finally {
       cleanup(fileInfo);
@@ -235,7 +235,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testDoNotDeleteOriginalFileWhenNonRangeReadWorkInProgress() throws IOException {
+  public void testLocalReadSortFileOnceOriginalFileBeDeleted() throws IOException {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -244,15 +244,56 @@ public class FetchHandlerSuiteJ {
       TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
       FetchHandler fetchHandler = mockFetchHandler(fileInfo);
 
-      PbStreamHandler nonRangeReadstreamHandler =
+      // read local shuffle
+      openStreamAndCheck(client, channel, fetchHandler, 5, 10, true);
+      checkOriginFileBeDeleted(fileInfo);
+    } finally {
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testDoNotDeleteOriginalFileWhenNonRangeWorkerReadWorkInProgress() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      // total write size: 32 * 50 * 256k = 400m
+      fileInfo = prepare(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+
+      PbStreamHandler nonRangeReadStreamHandler =
           openStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE);
       PbStreamHandler rangeReadStreamHandler =
           openStreamAndCheck(client, channel, fetchHandler, 5, 10);
-      fetchChunkAndCheck(client, channel, fetchHandler, nonRangeReadstreamHandler);
+      fetchChunkAndCheck(client, channel, fetchHandler, nonRangeReadStreamHandler);
       fetchChunkAndCheck(client, channel, fetchHandler, rangeReadStreamHandler);
 
       // non-range fetch finished.
-      bufferStreamEnd(client, fetchHandler, nonRangeReadstreamHandler.getStreamId());
+      bufferStreamEnd(client, fetchHandler, nonRangeReadStreamHandler.getStreamId());
+      checkOriginFileBeDeleted(fileInfo);
+    } finally {
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testDoNotDeleteOriginalFileWhenNonRangeLocalReadWorkInProgress() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      // total write size: 32 * 50 * 256k = 400m
+      fileInfo = prepare(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+
+      // read local shuffle
+      PbStreamHandler nonRangeReadStreamHandler =
+          openStreamAndCheck(client, channel, fetchHandler, 0, Integer.MAX_VALUE, true);
+      openStreamAndCheck(client, channel, fetchHandler, 5, 10);
+
+      // non-range fetch finished.
+      bufferStreamEnd(client, fetchHandler, nonRangeReadStreamHandler.getStreamId());
       checkOriginFileBeDeleted(fileInfo);
     } finally {
       cleanup(fileInfo);
@@ -312,6 +353,17 @@ public class FetchHandlerSuiteJ {
       int startIndex,
       int endIndex)
       throws IOException {
+    return openStreamAndCheck(client, channel, fetchHandler, startIndex, endIndex, false);
+  }
+
+  private PbStreamHandler openStreamAndCheck(
+      TransportClient client,
+      EmbeddedChannel channel,
+      FetchHandler fetchHandler,
+      int startIndex,
+      int endIndex,
+      Boolean readLocalShuffle)
+      throws IOException {
     ByteBuffer openStreamByteBuffer =
         new TransportMessage(
                 MessageType.OPEN_STREAM,
@@ -320,6 +372,7 @@ public class FetchHandlerSuiteJ {
                     .setFileName(fileName)
                     .setStartIndex(startIndex)
                     .setEndIndex(endIndex)
+                    .setReadLocalShuffle(readLocalShuffle)
                     .build()
                     .toByteArray())
             .toByteBuffer();

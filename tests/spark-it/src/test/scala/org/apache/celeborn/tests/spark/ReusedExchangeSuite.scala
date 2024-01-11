@@ -34,10 +34,19 @@ class ReusedExchangeSuite extends AnyFunSuite
     ShuffleClient.reset()
   }
 
-  test("ReusedExchange end to end test") {
+  test("[CELEBORN-980] Asynchronously delete original files to fix ReusedExchange bug") {
+    testReusedExchange(false)
+  }
+
+  test("[CELEBORN-1177] OpenStream should register stream via ChunkStreamManager to close stream for ReusedExchange") {
+    testReusedExchange(true)
+  }
+
+  def testReusedExchange(readLocalShuffle: Boolean): Unit = {
     val sparkConf = new SparkConf().setAppName("celeborn-test").setMaster("local[2]")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
       .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
+      .set(s"spark.${CelebornConf.READ_LOCAL_SHUFFLE_FILE.key}", readLocalShuffle.toString)
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "100")
       .set("spark.sql.adaptive.advisoryPartitionSizeInBytes", "100")
