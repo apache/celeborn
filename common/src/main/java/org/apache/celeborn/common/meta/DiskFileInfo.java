@@ -107,6 +107,7 @@ public class DiskFileInfo extends FileInfo {
     }
   }
 
+  @Override
   public long getFileLength() {
     return bytesFlushed;
   }

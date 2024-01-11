@@ -37,8 +37,8 @@ public class MapFileMeta implements FileMeta {
     return numSubPartitions;
   }
 
-  public void setNumSubpartitions(int numSubpartitions) {
-    this.numSubPartitions = numSubpartitions;
+  public void setNumSubPartitions(int numSubPartitions) {
+    this.numSubPartitions = numSubPartitions;
   }
 
   public void setBufferSize(int bufferSize) {
