@@ -369,11 +369,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   protected void takeBuffer() {
     if (source.metricsCollectCriticalEnabled()) {
-      // metrics start
       String metricsName = WorkerSource.TAKE_BUFFER_TIME();
       String fileAbsPath = diskFileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
-      // real action
       synchronized (flushLock) {
         flushBuffer = flusher.takeBuffer();
       }
