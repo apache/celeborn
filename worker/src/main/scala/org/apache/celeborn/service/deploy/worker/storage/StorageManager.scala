@@ -696,11 +696,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   override def onTrim(): Unit = {
     logInfo(s"Trigger ${this.getClass.getCanonicalName} trim action")
-    flushFileWriters()
     try {
+      flushFileWriters()
       Thread.sleep(conf.workerDirectMemoryTrimFlushWaitInterval)
     } catch {
-      case _: Exception => // Do nothing
+      case e: Exception =>
+        logError(s"Trigger ${this.getClass.getCanonicalName} trim failed.", e)
     }
   }
 

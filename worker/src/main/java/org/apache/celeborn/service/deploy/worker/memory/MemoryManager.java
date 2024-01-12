@@ -317,10 +317,13 @@ public class MemoryManager {
     if (trimInProcess.compareAndSet(false, true)) {
       actionService.submit(
           () -> {
-            // In current code, StorageManager will add into this before ChannelsLimiter,
-            // so all behaviors of StorageManger will execute before ChannelsLimiter.
-            memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
-            trimInProcess.set(false);
+            try {
+              // In current code, StorageManager will add into this before ChannelsLimiter,
+              // so all behaviors of StorageManger will execute before ChannelsLimiter.
+              memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
+            } finally {
+              trimInProcess.set(false);
+            }
           });
     }
   }
