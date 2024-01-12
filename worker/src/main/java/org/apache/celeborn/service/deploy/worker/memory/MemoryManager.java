@@ -322,6 +322,8 @@ public class MemoryManager {
               // so all behaviors of StorageManger will execute before ChannelsLimiter.
               memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
             } finally {
+              // MemoryManager use this flag to avoid trigger trim action parallel,
+              // We should make sure set this value back, or it won't trigger trim action again.
               trimInProcess.set(false);
             }
           });
