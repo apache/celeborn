@@ -323,7 +323,8 @@ public class MemoryManager {
               memoryPressureListeners.forEach(MemoryPressureListener::onTrim);
             } finally {
               // MemoryManager uses this flag to avoid parallel trigger trim action,
-              // We should make sure set this value back, otherwise it won't trigger trim action again.
+              // We should make sure set this value back, otherwise it won't trigger trim action
+              // again.
               trimInProcess.set(false);
             }
           });
