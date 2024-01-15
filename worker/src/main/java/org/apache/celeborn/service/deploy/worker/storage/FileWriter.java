@@ -364,23 +364,18 @@ public abstract class FileWriter implements DeviceObserver {
   }
 
   protected void takeBuffer() {
-    // metrics start
-    String metricsName = null;
-    String fileAbsPath = null;
     if (source.metricsCollectCriticalEnabled()) {
-      metricsName = WorkerSource.TAKE_BUFFER_TIME();
-      fileAbsPath = fileInfo.getFilePath();
+      String metricsName = WorkerSource.TAKE_BUFFER_TIME();
+      String fileAbsPath = fileInfo.getFilePath();
       source.startTimer(metricsName, fileAbsPath);
-    }
-
-    // real action
-    synchronized (flushLock) {
-      flushBuffer = flusher.takeBuffer();
-    }
-
-    // metrics end
-    if (source.metricsCollectCriticalEnabled()) {
+      synchronized (flushLock) {
+        flushBuffer = flusher.takeBuffer();
+      }
       source.stopTimer(metricsName, fileAbsPath);
+    } else {
+      synchronized (flushLock) {
+        flushBuffer = flusher.takeBuffer();
+      }
     }
   }
 
