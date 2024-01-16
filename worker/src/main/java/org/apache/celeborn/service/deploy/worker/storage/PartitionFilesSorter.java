@@ -300,7 +300,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       long end = System.currentTimeMillis();
       logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
     } else {
-      fileSorterSchedulerThread.interrupt();
+      fileSorterSchedulerThread.shutdownNow();
       fileSorterExecutors.shutdownNow();
       cleaner.close();
       if (sortedFilesDb != null) {
