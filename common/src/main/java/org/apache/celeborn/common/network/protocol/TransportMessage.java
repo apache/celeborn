@@ -49,7 +49,7 @@ import org.apache.celeborn.common.protocol.PbTransportableError;
 public class TransportMessage implements Serializable {
   private static final long serialVersionUID = -3259000920699629773L;
   private static Logger logger = LoggerFactory.getLogger(TransportMessage.class);
-  @Deprecated private final MessageType type;
+  @Deprecated private final transient MessageType type;
   private final int messageTypeValue;
   private final byte[] payload;
 
