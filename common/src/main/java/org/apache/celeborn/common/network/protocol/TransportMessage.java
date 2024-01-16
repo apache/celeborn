@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.protocol.MessageType;
+import org.apache.celeborn.common.protocol.PbAuthenticationInitiationRequest;
+import org.apache.celeborn.common.protocol.PbAuthenticationInitiationResponse;
 import org.apache.celeborn.common.protocol.PbBacklogAnnouncement;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
@@ -39,6 +41,8 @@ import org.apache.celeborn.common.protocol.PbPushDataHandShake;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbRegionFinish;
 import org.apache.celeborn.common.protocol.PbRegionStart;
+import org.apache.celeborn.common.protocol.PbRegisterApplicationRequest;
+import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
 import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailure;
 import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailureResponse;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
@@ -105,6 +109,14 @@ public class TransportMessage implements Serializable {
         return (T) PbReportShuffleFetchFailureResponse.parseFrom(payload);
       case SASL_REQUEST_VALUE:
         return (T) PbSaslRequest.parseFrom(payload);
+      case AUTHENTICATION_INITIATION_REQUEST_VALUE:
+        return (T) PbAuthenticationInitiationRequest.parseFrom(payload);
+      case AUTHENTICATION_INITIATION_RESPONSE_VALUE:
+        return (T) PbAuthenticationInitiationResponse.parseFrom(payload);
+      case REGISTER_APPLICATION_REQUEST_VALUE:
+        return (T) PbRegisterApplicationRequest.parseFrom(payload);
+      case REGISTER_APPLICATION_RESPONSE_VALUE:
+        return (T) PbRegisterApplicationResponse.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }

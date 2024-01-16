@@ -32,7 +32,7 @@ public class SaslUtils {
   static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
   /** Sasl Mechanisms */
-  static final String DIGEST_MD5 = "DIGEST-MD5";
+  public static final String DIGEST_MD5 = "DIGEST-MD5";
 
   public static final String ANONYMOUS = "ANONYMOUS";
 
@@ -41,7 +41,7 @@ public class SaslUtils {
 
   static final String DEFAULT_REALM = "default";
 
-  static final Map<String, String> DEFAULT_SASL_CLIENT_PROPS =
+  public static final Map<String, String> DEFAULT_SASL_CLIENT_PROPS =
       ImmutableMap.<String, String>builder().put(Sasl.QOP, QOP_AUTH).build();
 
   static final Map<String, String> DEFAULT_SASL_SERVER_PROPS =

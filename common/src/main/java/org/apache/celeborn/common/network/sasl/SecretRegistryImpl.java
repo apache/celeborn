@@ -33,10 +33,12 @@ public class SecretRegistryImpl implements SecretRegistry {
 
   private final ConcurrentHashMap<String, String> secrets = new ConcurrentHashMap<>();
 
+  @Override
   public void register(String appId, String secret) {
     secrets.put(appId, secret);
   }
 
+  @Override
   public void unregister(String appId) {
     secrets.remove(appId);
   }

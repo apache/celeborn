@@ -84,8 +84,15 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
       while (!saslClient.isComplete()) {
         PbSaslRequest.Builder builder = PbSaslRequest.newBuilder();
         if (firstToken) {
-          builder.setMethod(DIGEST_MD5).setAuthType(PbAuthType.CONNECTION_AUTH);
+          builder.setMethod(DIGEST_MD5);
         }
+        // Setting the auth type to CONNECTION_AUTH for every message not just the first one. This
+        // is
+        // because in Protobuf, for enums, the default value is the first defined enum value which
+        // is the
+        // CLIENT_AUTH. It will be incorrect to set the auth type to client_auth for every SASL
+        // message.
+        builder.setAuthType(PbAuthType.CONNECTION_AUTH);
         TransportMessage msg =
             new TransportMessage(
                 MessageType.SASL_REQUEST,
