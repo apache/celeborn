@@ -57,6 +57,11 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
   private static final Logger LOG = LoggerFactory.getLogger(RegistrationRpcHandler.class);
 
   private static final String VERSION = "1.0";
+
+  /**
+   * TODO: This should be made configurable. For now, we only support ANONYMOUS for client-auth and
+   * DIGEST-MD5 for connect-auth.
+   */
   private static final List<PbSaslMechanism> SASL_MECHANISMS =
       Lists.newArrayList(
           PbSaslMechanism.newBuilder()

@@ -55,7 +55,7 @@ import org.apache.celeborn.common.protocol.PbSaslRequest;
 import org.apache.celeborn.common.util.JavaUtils;
 
 /**
- * Bootstraps a {@link TransportClient} by registration application (if the application is not
+ * Bootstraps a {@link TransportClient} by registering application (if the application is not
  * registered). If the application is already registered, it will bootstrap the client by performing
  * SASL authentication.
  */
@@ -67,7 +67,7 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
 
   /**
    * TODO: This should be made configurable. For now, we only support ANONYMOUS for client-auth and
-   * DIGEST-MD5 connect-auth.
+   * DIGEST-MD5 for connect-auth.
    */
   private static final List<PbSaslMechanism> SASL_MECHANISMS =
       Lists.newArrayList(
