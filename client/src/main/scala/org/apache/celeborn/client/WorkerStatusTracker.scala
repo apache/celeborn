@@ -30,6 +30,7 @@ import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFromApplicationResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.util.Utils
 
 class WorkerStatusTracker(
     conf: CelebornConf,
@@ -121,10 +122,10 @@ class WorkerStatusTracker(
     if (!failures.isEmpty) {
       val failedWorker = new ShuffleFailedWorkers(failures)
       val failedWorkerMsg = failedWorker.asScala.map { case (worker, (status, time)) =>
-        s"${worker.readableAddress()}   ${status.name()}   $time"
+        s"${worker.readableAddress()}   ${status.name()}   ${Utils.formatTimestamp(time)}"
       }.mkString("\n")
       val excludedWorkerMsg = excludedWorkers.asScala.map { case (worker, (status, time)) =>
-        s"${worker.readableAddress()}   ${status.name()}   $time"
+        s"${worker.readableAddress()}   ${status.name()}   ${Utils.formatTimestamp(time)}"
       }.mkString("\n")
       val shuttingDownMsg = shuttingWorkers.asScala.map(_.readableAddress()).mkString("\n")
       logInfo(
