@@ -399,6 +399,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       workingDirWriters.computeIfAbsent(workingDir, workingDirWriterListFunc).put(
         diskFileInfo.getFilePath,
         writer)
+    } else {
+      hdfsWriters.put(diskFileInfo.getFilePath, writer)
     }
     writer
   }
