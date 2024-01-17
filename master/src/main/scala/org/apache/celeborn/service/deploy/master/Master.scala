@@ -940,7 +940,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
     lostWorkersSnapshot.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${dateFmt.format(time)}\n")
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }
@@ -983,7 +983,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Application List ======================\n")
     statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}${dateFmt.format(time)}\n")
+      sb.append(s"${appId.padTo(40, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }

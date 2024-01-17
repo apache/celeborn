@@ -664,7 +664,7 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
-      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${dateFmt.format(time)}\n")
+      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }
