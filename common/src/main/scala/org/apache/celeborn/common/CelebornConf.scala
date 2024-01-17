@@ -1434,15 +1434,15 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("If true, we will prefer allocating off-heap byte buffers within Netty. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker server rpc and should be configured on client side. " +
+        s"it works for shuffle client, master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for worker server push data to peer worker and should be configured on worker side. " +
+        s"it works for worker receiving push data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate server or client of worker server replicate data to peer worker and should be configured on worker side. " +
+        s"it works for replicate server or client of worker replicating data to peer worker. " +
         s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
-        s"it works for worker server fetch data to peer worker and should be configured on worker side.")
+        s"it works for worker fetch server.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1451,11 +1451,11 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Socket connect timeout. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client rpc and should be configured on client side. " +
+        s"it works for shuffle client rpc. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker server replicate data to peer worker and should be configured on worker side.")
+        s"it works for the replicate client of worker replicating data to peer worker.")
       .fallbackConf(NETWORK_CONNECT_TIMEOUT)
 
   val NETWORK_IO_CONNECTION_TIMEOUT: ConfigEntry[Long] =
@@ -1463,15 +1463,15 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Connection active timeout. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker server rpc and should be configured on client side. " +
+        s"it works for shuffle client, master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for worker server push data to peer worker and should be configured on worker side. " +
+        s"it works for worker receiving push data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate server or client of worker server replicate data to peer worker and should be configured on worker side. " +
+        s"it works for replicate server or client of worker replicating data to peer worker. " +
         s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
-        s"it works for worker server fetch data to peer worker and should be configured on worker side.")
+        s"it works for worker fetch server.")
       .fallbackConf(NETWORK_TIMEOUT)
 
   val NETWORK_IO_NUM_CONNECTIONS_PER_PEER: ConfigEntry[Int] =
@@ -1479,11 +1479,11 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Number of concurrent connections between two nodes. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client rpc and should be configured on client side. " +
+        s"it works for shuffle client rpc. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker server replicate data to peer worker and should be configured on worker side.")
+        s"it works for replicate client of worker replicating data to peer worker.")
       .intConf
       .createWithDefault(1)
 
@@ -1493,13 +1493,13 @@ object CelebornConf extends Logging {
       .doc(
         "Requested maximum length of the queue of incoming connections. Default 0 for no backlog. " +
           s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-          s"it works for master or worker server rpc and should be configured on master or worker side. " +
+          s"it works for master or worker. " +
           s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-          s"it works for worker server push data to peer worker and should be configured on worker side. " +
+          s"it works for worker receiving push data. " +
           s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-          s"it works for replicate server of worker server replicate data to peer worker and should be configured on worker side. " +
+          s"it works for replicate server of worker replicating data to peer worker. " +
           s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
-          s"it works for worker server fetch data to peer worker and should be configured on worker side.")
+          s"it works for worker fetch server.")
       .intConf
       .createWithDefault(0)
 
@@ -1508,13 +1508,13 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Number of threads used in the server thread pool. Default to 0, which is 2x#cores. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for master or worker server rpc and should be configured on master or worker side. " +
+        s"it works for master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for worker server push data to peer worker and should be configured on worker side. " +
+        s"it works for worker receiving push data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate server of worker server replicate data to peer worker and should be configured on worker side. " +
+        s"it works for replicate server of worker replicating data to peer worker. " +
         s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
-        s"it works for worker server fetch data to peer worker and should be configured on worker side.")
+        s"it works for worker fetch server.")
       .intConf
       .createWithDefault(0)
 
@@ -1523,11 +1523,11 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Number of threads used in the client thread pool. Default to 0, which is 2x#cores. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client rpc and should be configured on client side. " +
+        s"it works for shuffle client rpc. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker server replicate data to peer worker and should be configured on worker side.")
+        s"it works for replicate client of worker replicating data to peer worker.")
       .intConf
       .createWithDefault(0)
 
@@ -1538,15 +1538,15 @@ object CelebornConf extends Logging {
         "should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps " +
         "buffer size should be ~ 1.25MB. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker server rpc and should be configured on client side. " +
+        s"it works for shuffle client, master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for worker server push data to peer worker and should be configured on worker side. " +
+        s"it works for worker receiving push data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate server or client of worker server replicate data to peer worker and should be configured on worker side. " +
+        s"it works for replicate server or client of worker replicating data to peer worker. " +
         s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
-        s"it works for worker server fetch data to peer worker and should be configured on worker side.")
+        s"it works for worker fetch server.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefault(0)
@@ -1556,15 +1556,15 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Send buffer size (SO_SNDBUF). " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client, master or worker server rpc and should be configured on client side. " +
+        s"it works for shuffle client, master or worker. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for worker server push data to peer worker and should be configured on worker side. " +
+        s"it works for worker receiving push data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate server or client of worker server replicate data to peer worker and should be configured on worker side. " +
+        s"it works for replicate server or client of worker replicating data to peer worker. " +
         s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
-        s"it works for worker server fetch data to peer worker and should be configured on worker side.")
+        s"it works for worker fetch server.")
       .version("0.2.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefault(0)
@@ -1576,7 +1576,7 @@ object CelebornConf extends Logging {
         "Max number of times we will try IO exceptions (such as connection timeouts) per request. " +
           "If set to 0, we will not do any retries. " +
           s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-          s"it works for Flink shuffle client push data and should be configured on client side.")
+          s"it works for Flink shuffle client push data.")
       .intConf
       .createWithDefault(3)
 
@@ -1586,9 +1586,9 @@ object CelebornConf extends Logging {
       .doc("Time that we will wait in order to perform a retry after an IOException. " +
         "Only relevant if maxIORetries > 0. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for Flink shuffle client push data and should be configured on client side.")
+        s"it works for Flink shuffle client push data.")
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
@@ -1599,7 +1599,7 @@ object CelebornConf extends Logging {
       .doc("Whether to initialize FileDescriptor lazily or not. If true, file descriptors are created only " +
         "when data is going to be transferred. This can reduce the number of open files. " +
         s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
-        s"it works for worker server fetch data to peer worker and should be configured on worker side.")
+        s"it works for worker fetch server.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1620,7 +1620,7 @@ object CelebornConf extends Logging {
         "normal IO operations. This prevents Celeborn from memory mapping very small blocks. In general, " +
         "memory mapping has high overhead for blocks close to or below the page size of the OS. " +
         s"If setting <module> to `${TransportModuleConstants.FETCH_MODULE}`, " +
-        s"it works for worker server fetch data to peer worker and should be configured on worker side.")
+        s"it works for worker fetch server.")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("2m")
@@ -1641,9 +1641,9 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Interval for checking push data timeout. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push data and should be configured on client side. " +
+        s"it works for shuffle client push data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for worker server push data to peer worker and should be configured on worker side.")
+        s"it works for Flink shuffle client push data.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
@@ -1653,9 +1653,9 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Threads num for checking push data timeout. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push data and should be configured on client side. " +
+        s"it works for shuffle client push data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for worker server push data to peer worker and should be configured on worker side.")
+        s"it works for Flink shuffle client push data.")
       .version("0.3.0")
       .intConf
       .createWithDefault(4)
@@ -1665,7 +1665,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Interval for checking fetch data timeout. " +
         s"It only support setting <module> to `${TransportModuleConstants.DATA_MODULE}` " +
-        s"since it works for shuffle client fetch data and should be configured on client side.")
+        s"since it works for shuffle client fetch data.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
@@ -1675,7 +1675,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Threads num for checking fetch data timeout. " +
         s"It only support setting <module> to `${TransportModuleConstants.DATA_MODULE}` " +
-        s"since it works for shuffle client fetch data and should be configured on client side.")
+        s"since it works for shuffle client fetch data.")
       .version("0.3.0")
       .intConf
       .createWithDefault(4)
@@ -1687,11 +1687,11 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("The heartbeat interval between worker and client. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client rpc and should be configured on client side. " +
+        s"it works for shuffle client rpc. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
-        s"it works for shuffle client push or fetch data and should be configured on client side. " +
+        s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker server replicate data to peer worker and should be configured on worker side.")
+        s"it works for replicate client of worker replicating data to peer worker.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
