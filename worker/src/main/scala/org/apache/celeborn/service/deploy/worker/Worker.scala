@@ -141,7 +141,7 @@ private[celeborn] class Worker(
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
   val pushDataHandler = new PushDataHandler(workerSource)
-  val (pushServer, pushClientFactory) = {
+  private val pushServer = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.workerPushIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
@@ -155,13 +155,11 @@ private[celeborn] class Worker(
         pushServerLimiter,
         conf.workerPushHeartbeatEnabled,
         workerSource)
-    (
-      transportContext.createServer(conf.workerPushPort),
-      transportContext.createClientFactory())
+    transportContext.createServer(conf.workerPushPort)
   }
 
   val replicateHandler = new PushDataHandler(workerSource)
-  private val replicateServer = {
+  val (replicateServer, replicateClientFactory) = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads =
       conf.workerReplicateIoThreads.getOrElse(storageManager.totalFlusherThread)
@@ -176,7 +174,9 @@ private[celeborn] class Worker(
         replicateLimiter,
         false,
         workerSource)
-    transportContext.createServer(conf.workerReplicatePort)
+    (
+      transportContext.createServer(conf.workerReplicatePort),
+      transportContext.createClientFactory())
   }
 
   var fetchHandler: FetchHandler = _
