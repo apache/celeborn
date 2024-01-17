@@ -17,19 +17,12 @@
 
 package org.apache.celeborn.server.common
 
-import java.util.Locale
-
-import org.apache.commons.lang3.time.FastDateFormat
-
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.http.{HttpRequestHandler, HttpServer, HttpServerInitializer}
 
 abstract class HttpService extends Service with Logging {
 
   private var httpServer: HttpServer = _
-
-  protected val dateFmt: FastDateFormat =
-    FastDateFormat.getInstance("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.ROOT)
 
   def getConf: String = {
     val sb = new StringBuilder
