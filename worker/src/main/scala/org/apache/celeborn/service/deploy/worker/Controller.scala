@@ -61,6 +61,7 @@ private[deploy] class Controller(
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
   val defaultPushdataTimeout = conf.pushDataTimeoutMs
+  var underTest: Boolean = conf.testWorkerUnderTest
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -296,7 +297,9 @@ private[deploy] class Controller(
 
                 if (location == null) {
                   logError(s"Get Partition Location for $shuffleKey $uniqueId but didn't exist, treat as failed.")
-                  failedIds.add(uniqueId)
+                  if (!underTest) {
+                    failedIds.add(uniqueId)
+                  }
                   return
                 }
 

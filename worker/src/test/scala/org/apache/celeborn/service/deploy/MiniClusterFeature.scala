@@ -102,13 +102,14 @@ trait MiniClusterFeature extends Logging {
       masterConf: Map[String, String] = null,
       workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
+    val conf = workerConf + ("celeborn.test.worker.underTest" -> "true")
     val master = createMaster(masterConf)
     val masterThread = runnerWrap(master.rpcEnv.awaitTermination())
     masterThread.start()
     masterInfo = (master, masterThread)
     Thread.sleep(5000L)
     (1 to workerNum).foreach { _ =>
-      val worker = createWorker(workerConf)
+      val worker = createWorker(conf)
       val workerThread = runnerWrap(worker.initialize())
       workerThread.start()
       workerInfos.put(worker, workerThread)
