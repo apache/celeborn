@@ -38,6 +38,7 @@ import scala.util.control.{ControlThrowable, NonFatal}
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
+import org.apache.commons.lang3.time.FastDateFormat
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -1092,4 +1093,8 @@ object Utils extends Logging {
   }
 
   def getProcessId: String = ManagementFactory.getRuntimeMXBean.getName.split("@")(0)
+
+  private val dateFmt: FastDateFormat =
+    FastDateFormat.getInstance("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.ROOT)
+  def formatTimestamp(timestamp: Long): String = dateFmt.format(timestamp)
 }
