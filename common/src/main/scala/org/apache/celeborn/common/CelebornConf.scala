@@ -1451,7 +1451,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Socket connect timeout. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client rpc. " +
+        s"it works for shuffle client. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1479,7 +1479,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Number of concurrent connections between two nodes. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client rpc. " +
+        s"it works for shuffle client. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1523,7 +1523,7 @@ object CelebornConf extends Logging {
       .categories("network")
       .doc("Number of threads used in the client thread pool. Default to 0, which is 2x#cores. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client rpc. " +
+        s"it works for shuffle client. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
@@ -1687,7 +1687,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("The heartbeat interval between worker and client. " +
         s"If setting <module> to `${TransportModuleConstants.RPC_MODULE}`, " +
-        s"it works for shuffle client rpc. " +
+        s"it works for shuffle client. " +
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
