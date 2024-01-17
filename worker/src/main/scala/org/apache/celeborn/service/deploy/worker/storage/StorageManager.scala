@@ -69,7 +69,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       throw new IOException("Empty working directory configuration!")
     }
 
-    DeviceInfo.getDeviceAndDiskInfos(workingDirInfos, conf)
+    DeviceMonitor.getDeviceAndDiskInfos(workingDirInfos, conf)
   }
   val mountPoints = new util.HashSet[String](diskInfos.keySet())
   val hdfsDiskInfo =
