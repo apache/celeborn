@@ -640,8 +640,9 @@ message PbTransportableError {
 }
 
 enum PbAuthType {
-  CLIENT_AUTH = 0;
-  CONNECTION_AUTH = 1;
+  UNDEFINED_AUTH = 0;
+  CLIENT_AUTH = 1;
+  CONNECTION_AUTH = 2;
 }
 
 message PbSaslMechanism {

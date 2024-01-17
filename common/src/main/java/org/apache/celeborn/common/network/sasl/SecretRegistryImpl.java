@@ -35,7 +35,15 @@ public class SecretRegistryImpl implements SecretRegistry {
 
   @Override
   public void register(String appId, String secret) {
-    secrets.put(appId, secret);
+    // TODO: Persist the secret in ratis. See https://issues.apache.org/jira/browse/CELEBORN-1234
+    secrets.compute(
+        appId,
+        (id, oldVal) -> {
+          if (oldVal != null) {
+            throw new IllegalArgumentException("AppId " + appId + " is already registered.");
+          }
+          return secret;
+        });
   }
 
   @Override

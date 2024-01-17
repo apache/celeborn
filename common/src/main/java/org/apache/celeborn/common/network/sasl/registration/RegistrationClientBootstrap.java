@@ -113,10 +113,13 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
       register(client);
       LOG.info("Registration for {}", appId);
       registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.REGISTERED);
-    } catch (Throwable e) {
-      LOG.error("Registration failed for {}", appId, e);
-      registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.FAILED);
+    } catch (IOException | CelebornException e) {
       throw new RuntimeException(e);
+    } finally {
+      if (registrationInfo.getRegistrationState()
+          != RegistrationInfo.RegistrationState.REGISTERED) {
+        registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.FAILED);
+      }
     }
   }
 
@@ -134,7 +137,6 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
     try {
       authInitResponseBuffer = client.sendRpcSync(msg.toByteBuffer(), conf.saslTimeoutMs());
     } catch (RuntimeException ex) {
-      // TODO: Auth initiation timed out. Will just throw SaslTimeoutException for now
       if (ex.getCause() instanceof TimeoutException) {
         throw new SaslTimeoutException(ex.getCause());
       } else {
@@ -152,7 +154,7 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
               + authInitResponse;
       throw new CelebornException(exMsg);
     }
-    // TODO: Client picks up negotiated sasl mechanisms
+    // TODO: client validates required/supported mechanism is present
   }
 
   private void doClientAuthentication(TransportClient client) throws IOException {

@@ -103,7 +103,6 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
     this.saslHandler = new SaslRpcHandler(conf, channel, delegate, secretRegistry);
   }
 
-  // TODO: This has to check the delegate
   @Override
   public boolean checkRegistered() {
     return delegate.checkRegistered();
@@ -123,6 +122,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         processRpcMessage(client, rpcRequest, callback);
       } catch (Exception e) {
         LOG.error("Error while invoking RpcHandler#receive() on RPC id " + rpcRequest.requestId, e);
+        registrationState = RegistrationState.FAILED;
         client
             .getChannel()
             .writeAndFlush(
@@ -134,7 +134,9 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
   @Override
   public final void receive(TransportClient client, RequestMessage message) {
     if (registrationState == RegistrationState.REGISTERED || saslHandler.isAuthenticated()) {
-      LOG.trace("Already authenticated. Delegating {}", client.getClientId());
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Already authenticated. Delegating {}", client.getClientId());
+      }
       delegate.receive(client, message);
     } else {
       throw new SecurityException("Unauthenticated call to receive().");
@@ -273,6 +275,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
     NONE,
     INIT,
     AUTHENTICATED,
-    REGISTERED
+    REGISTERED,
+    FAILED
   }
 }
