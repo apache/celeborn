@@ -17,12 +17,12 @@
 
 package org.apache.celeborn.tests.mr
 
-import org.apache.celeborn.common.CelebornConf
-
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+
 import scala.collection.JavaConverters._
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.examples.WordCount
 import org.apache.hadoop.fs.Path
@@ -36,6 +36,8 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.yarn.server.MiniYARNCluster
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
+
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
@@ -110,7 +112,8 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     conf.set("mapreduce.job.user.classpath.first", "true")
 
     conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
-    conf.set("mapreduce.celeborn.master.endpoints",
+    conf.set(
+      "mapreduce.celeborn.master.endpoints",
       s"localhost:${master.conf.get(CelebornConf.MASTER_PORT)}")
     conf.set(
       MRJobConfig.MAP_OUTPUT_COLLECTOR_CLASS_ATTR,
