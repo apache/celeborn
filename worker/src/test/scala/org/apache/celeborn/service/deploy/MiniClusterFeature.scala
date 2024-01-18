@@ -62,7 +62,7 @@ trait MiniClusterFeature extends Logging {
     var created = false
     var master: Master = null
     var workers: collection.Set[Worker] = null
-    while (retryCount < 3 && !created) {
+    while (!created) {
       try {
         val randomPort = Random.nextInt(65535 - 1024) + 1024
         val finalMasterConf = Map(
@@ -167,18 +167,18 @@ trait MiniClusterFeature extends Logging {
 
     var workerRegistrationRetryCount = 0
     var workerRegistrationDone = false
-    while (workerRegistrationRetryCount < 3 && !workerRegistrationDone) {
+    while (!workerRegistrationDone) {
       try {
         Thread.sleep(20000L)
         workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         workerRegistrationDone = true
       } catch {
         case ex: AssertionError =>
-          if (workerRegistrationRetryCount < 3) {
-            logWarning("worker registration cannot be done, retrying", ex)
-            workerRegistrationRetryCount += 1
-          } else {
-            throw ex
+          logWarning("worker registration cannot be done, retrying", ex)
+          workerRegistrationRetryCount += 1
+          if (workerRegistrationRetryCount  == 3) {
+            logWarning("worker registration failed, reached to the max retry", ex)
+            throw ex;
           }
       }
     }
