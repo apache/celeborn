@@ -169,15 +169,15 @@ trait MiniClusterFeature extends Logging {
     var workerRegistrationDone = false
     while (!workerRegistrationDone) {
       try {
-        Thread.sleep(20000L)
+        Thread.sleep(60000L)
         workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         workerRegistrationDone = true
       } catch {
         case ex: AssertionError =>
-          logWarning("worker registration cannot be done, retrying", ex)
+          logError("worker registration cannot be done, retrying", ex)
           workerRegistrationRetryCount += 1
           if (workerRegistrationRetryCount == 3) {
-            logWarning("worker registration failed, reached to the max retry", ex)
+            logError("worker registration failed, reached to the max retry", ex)
             throw ex;
           }
       }
