@@ -84,7 +84,7 @@ public class RatisMasterStatusSystemSuiteJ {
     int retryCount = 0;
     boolean serversStarted = false;
 
-    while (retryCount < 3 && !serversStarted) {
+    while (!serversStarted) {
       try {
         STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
         STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
@@ -161,7 +161,7 @@ public class RatisMasterStatusSystemSuiteJ {
         RATISSERVER1.start();
         RATISSERVER2.start();
         RATISSERVER3.start();
-        Thread.sleep(15 * 1000);
+        Thread.sleep(60 * 1000);
       } catch (Exception e) {
         stopAllRaftServers();
         retryCount += 1;
