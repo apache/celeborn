@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 import org.apache.celeborn.common.network.TransportContext;
@@ -44,9 +45,12 @@ public class SaslTestBase {
 
   @BeforeClass
   public static void setup() {
-    if (!SecretRegistryImpl.getInstance().isRegistered(TEST_USER)) {
-      SecretRegistryImpl.getInstance().register(TEST_USER, TEST_SECRET);
-    }
+    SecretRegistryImpl.getInstance().register(TEST_USER, TEST_SECRET);
+  }
+
+  @AfterClass
+  public static void teardown() {
+    SecretRegistryImpl.getInstance().unregister(TEST_USER);
   }
 
   static final String TEST_USER = "appId";
