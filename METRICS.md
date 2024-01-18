@@ -133,7 +133,7 @@ Here is an example of Grafana dashboard importing.
 |         BufferStreamReadBuffer         |      worker       |                            This value means memory used by credit stream read buffer.                             |
 |   ReadBufferDispatcherRequestsLength   |      worker       |                        This value means the queue size of read buffer allocation requests.                        |
 |        ReadBufferAllocatedCount        |      worker       |                                 This value means count of allocated read buffer.                                  |
-|         ActiveCreditStreamCount        |      worker       |                    This value means active count of stream for map partition reading streams.                     |
+|        ActiveCreditStreamCount         |      worker       |                    This value means active count of stream for map partition reading streams.                     |
 |        ActiveMapPartitionCount         |      worker       |                          This value means count of active map partition reading streams.                          |
 |           DeviceOSFreeBytes            |      worker       |                          This value means actual usable space of OS for device monitor.                           |
 |           DeviceOSTotalBytes           |      worker       |                           This value means total usable space of OS for device monitor.                           |
