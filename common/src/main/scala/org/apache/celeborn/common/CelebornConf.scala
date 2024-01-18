@@ -1091,7 +1091,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testMockCommitFilesFailure: Boolean = get(TEST_CLIENT_MOCK_COMMIT_FILES_FAILURE)
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
-  def testWorkerUnderTest: Boolean = get(TEST_WORKER_UNDER_TEST)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def clientFlinkMemoryPerResultPartitionMin: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION_MIN)
@@ -3323,15 +3322,6 @@ object CelebornConf extends Logging {
       .categories("test", "worker")
       .version("0.3.0")
       .doc("Whether to test push replica data timeout")
-      .booleanConf
-      .createWithDefault(false)
-
-  val TEST_WORKER_UNDER_TEST: ConfigEntry[Boolean] =
-    buildConf("celeborn.test.worker.underTest")
-      .internal
-      .categories("test", "worker")
-      .version("0.4.0")
-      .doc("Whether worker is under test")
       .booleanConf
       .createWithDefault(false)
 
