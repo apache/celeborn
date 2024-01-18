@@ -174,8 +174,6 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
     // task number incr to numMappers + 1
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId + 1, 9)
     shuffleClient.mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, 1)
-    // retry
-    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, 1)
     // another attempt
     shuffleClient.mapPartitionMapperEnd(
       shuffleId,
