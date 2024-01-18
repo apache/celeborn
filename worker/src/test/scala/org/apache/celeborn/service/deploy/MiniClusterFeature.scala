@@ -82,10 +82,10 @@ trait MiniClusterFeature extends Logging {
         created = true
       } catch {
         case e: BindException =>
-          logError(s"failed to setup mini cluster, retrying (retry count: $retryCount")
+          logError(s"failed to setup mini cluster, retrying (retry count: $retryCount", e)
           retryCount += 1
           if (retryCount == 3) {
-            logError("failed to setup mini cluster, reached the max retry count")
+            logError("failed to setup mini cluster, reached the max retry count", e)
             throw e
           }
       }
