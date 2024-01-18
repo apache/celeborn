@@ -51,11 +51,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> "9097")
-    val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
-    workers = setUpMiniCluster(masterConf, workerConf)._2
+    workers = setupMiniClusterWithRandomPorts()._2
 
     hadoopConf = new Configuration()
     hadoopConf.set("yarn.scheduler.capacity.root.queues", "default,other_queue")
