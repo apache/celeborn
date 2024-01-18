@@ -36,12 +36,13 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
+import org.apache.celeborn.common.rpc.netty.NettyRpcEnv
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -195,6 +196,16 @@ private[celeborn] class Master(
   metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new ThreadPoolSource(
+    "master-noneager-handler",
+    nonEagerHandler,
+    conf,
+    MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new ThreadPoolSource(
+    "netty-rpc-connection",
+    rpcEnv.asInstanceOf[NettyRpcEnv].clientConnectionExecutor,
+    conf,
+    MetricsSystem.ROLE_MASTER))
 
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
 
