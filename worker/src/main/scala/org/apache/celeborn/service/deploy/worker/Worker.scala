@@ -115,7 +115,7 @@ private[celeborn] class Worker(
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
-  val storageManager = new StorageManager(conf, workerSource)
+  val storageManager = new StorageManager(conf, workerSource, metricsSystem)
 
   val memoryManager: MemoryManager = MemoryManager.initialize(conf)
   memoryManager.registerMemoryListener(storageManager)

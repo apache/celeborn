@@ -38,6 +38,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo, MapFileMeta, ReduceFileMeta, TimeWindow}
+import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
@@ -48,7 +49,10 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPres
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
-final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
+final private[worker] class StorageManager(
+    conf: CelebornConf,
+    workerSource: AbstractSource,
+    metricsSystem: MetricsSystem)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // mount point -> file writer
   val workingDirWriters =

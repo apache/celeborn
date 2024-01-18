@@ -30,7 +30,8 @@ import org.apache.commons.io.FileUtils
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
-import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.util.{DiskUtils, ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
 import org.apache.celeborn.service.deploy.worker.WorkerSource
@@ -205,13 +206,19 @@ object DeviceMonitor extends Logging {
       deviceObserver: DeviceObserver,
       deviceInfos: util.Map[String, DeviceInfo],
       diskInfos: util.Map[String, DiskInfo],
-      workerSource: AbstractSource): DeviceMonitor = {
+      workerSource: AbstractSource,
+      metricsSystem: MetricsSystem): DeviceMonitor = {
     try {
       if (conf.workerDiskMonitorEnabled) {
         val monitor =
           new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos, workerSource)
         monitor.init()
         logInfo("Device monitor init success")
+        metricsSystem.registerSource(new ThreadPoolSource(
+          "device-check-thread",
+          deviceCheckThreadPool,
+          conf,
+          MetricsSystem.ROLE_WORKER))
         monitor
       } else {
         EmptyDeviceMonitor
