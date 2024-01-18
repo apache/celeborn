@@ -120,7 +120,7 @@ private[celeborn] class Worker(
   val memoryManager: MemoryManager = MemoryManager.initialize(conf)
   memoryManager.registerMemoryListener(storageManager)
 
-  val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
+  val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource, metricsSystem)
 
   if (conf.workerCongestionControlEnabled) {
     if (conf.workerCongestionControlLowWatermark.isEmpty || conf.workerCongestionControlHighWatermark.isEmpty) {
