@@ -42,17 +42,17 @@ trait MiniClusterFeature extends Logging {
     port
   }
 
-  def masterHttpPort = new AtomicInteger(masterPort)
-
-  def workerHttpPort = new AtomicInteger(workerPort)
+  val masterHttpPort = new AtomicInteger(masterPort)
+  val workerHttpPort = new AtomicInteger(workerPort)
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
 
-  def runnerWrap[T](code: => T): Thread = new Thread(new Runnable {
+  class RunnerWrap[T](signal: Array[Boolean], code: => T) extends Thread {
     override def run(): Unit = {
       Utils.tryLogNonFatalError(code)
+      signal(0) = true
     }
-  })
+  }
 
   def setupMiniClusterWithRandomPorts(
       masterConf: Option[Map[String, String]] = None,
@@ -81,7 +81,7 @@ trait MiniClusterFeature extends Logging {
         created = true
       } catch {
         case e: BindException =>
-          logError(s"failed to setup mini cluster, retrying (retry count: $retryCount", e)
+          logError(s"failed to setup mini cluster, retrying (retry count: $retryCount)", e)
           retryCount += 1
           if (retryCount == 3) {
             logError("failed to setup mini cluster, reached the max retry count", e)
@@ -154,13 +154,19 @@ trait MiniClusterFeature extends Logging {
       workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
     val master = createMaster(masterConf)
-    val masterThread = runnerWrap(master.rpcEnv.awaitTermination())
+    val masterStartedSignal = Array(false)
+    val masterThread = new RunnerWrap(masterStartedSignal, master.rpcEnv.awaitTermination())
     masterThread.start()
     masterInfo = (master, masterThread)
-    Thread.sleep(5000L)
+    Thread.sleep(20000L)
+
+    if (!masterStartedSignal.head) {
+      throw new BindException("cannot start master rpc endpoint")
+    }
+
     (1 to workerNum).foreach { _ =>
       val worker = createWorker(workerConf)
-      val workerThread = runnerWrap(worker.initialize())
+      val workerThread = new RunnerWrap(Array(false), worker.initialize())
       workerThread.start()
       workerInfos.put(worker, workerThread)
     }
@@ -169,7 +175,7 @@ trait MiniClusterFeature extends Logging {
     var workerRegistrationDone = false
     while (!workerRegistrationDone) {
       try {
-        Thread.sleep(60000L)
+        Thread.sleep(20000L)
         workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         workerRegistrationDone = true
       } catch {
