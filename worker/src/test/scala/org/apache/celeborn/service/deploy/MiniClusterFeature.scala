@@ -176,7 +176,7 @@ trait MiniClusterFeature extends Logging {
         case ex: AssertionError =>
           logWarning("worker registration cannot be done, retrying", ex)
           workerRegistrationRetryCount += 1
-          if (workerRegistrationRetryCount  == 3) {
+          if (workerRegistrationRetryCount == 3) {
             logWarning("worker registration failed, reached to the max retry", ex)
             throw ex;
           }
