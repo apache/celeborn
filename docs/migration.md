@@ -21,6 +21,12 @@ license: |
 
 # Migration Guide
 
+## Upgrading from 0.4 to 0.5
+
+- Since 0.5.0 Celeborn worker metrics `ChunkStreamCount` is renamed as `ActiveChunkStreamCount`.
+
+- Since 0.5.0 Celeborn worker metrics `CreditStreamCount` is renamed as `ActiveCreditStreamCount`.
+
 ## Upgrading from 0.3 to 0.4
 
 - Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.

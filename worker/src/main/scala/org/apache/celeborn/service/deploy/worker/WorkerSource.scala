@@ -78,7 +78,7 @@ object WorkerSource {
   // fetch data
   val OPEN_STREAM_TIME = "OpenStreamTime"
   val FETCH_CHUNK_TIME = "FetchChunkTime"
-  val CHUNK_STREAM_COUNT = "ChunkStreamCount"
+  val ACTIVE_CHUNK_STREAM_COUNT = "ActiveChunkStreamCount"
   val OPEN_STREAM_FAIL_COUNT = "OpenStreamFailCount"
   val FETCH_CHUNK_FAIL_COUNT = "FetchChunkFailCount"
 
@@ -133,7 +133,7 @@ object WorkerSource {
   val READ_BUFFER_ALLOCATED_COUNT = "ReadBufferAllocatedCount"
 
   // credit
-  val CREDIT_STREAM_COUNT = "CreditStreamCount"
+  val ACTIVE_CREDIT_STREAM_COUNT = "ActiveCreditStreamCount"
   val ACTIVE_MAP_PARTITION_COUNT = "ActiveMapPartitionCount"
 
   // local device
