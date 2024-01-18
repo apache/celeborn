@@ -19,15 +19,16 @@ package org.apache.celeborn.service.deploy
 
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.mutable
+import scala.util.Random
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
-
-import scala.util.Random
 
 trait MiniClusterFeature extends Logging {
   private def masterPort = Random.nextInt(65535 - 1200) + 1200
@@ -53,9 +54,9 @@ trait MiniClusterFeature extends Logging {
   })
 
   def setupMiniClusterWithRandomPorts(
-                                       masterConf: Option[Map[String, String]] = None,
-                                       workerConf: Option[Map[String, String]] = None,
-                                       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
+      masterConf: Option[Map[String, String]] = None,
+      workerConf: Option[Map[String, String]] = None,
+      workerNum: Int = 3): (Master, collection.Set[Worker]) = {
     var retryCount = 0
     var created = false
     var master: Master = null

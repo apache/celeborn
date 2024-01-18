@@ -17,14 +17,15 @@
 
 package org.apache.celeborn.service.deploy.master
 
+import scala.util.Random
+
 import com.google.common.io.Files
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.CelebornExitKind
-
-import scala.util.Random
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
