@@ -28,7 +28,6 @@ import scala.collection.JavaConverters._
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.client.MasterClient
@@ -37,7 +36,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -264,6 +263,13 @@ private[celeborn] class Worker(
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
   val timer = new HashedWheelTimer()
+
+  metricsSystem.registerSource(new ThreadPoolSource(
+      "worker-replicate-data", replicateThreadPool, conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new ThreadPoolSource(
+    "worker-commit-files", commitThreadPool, conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new ThreadPoolSource(
+    "worker-clean-expired-shuffle-keys", cleanThreadPool, conf, MetricsSystem.ROLE_WORKER))
 
   // Configs
   private val heartbeatInterval = conf.workerHeartbeatTimeout / 4
