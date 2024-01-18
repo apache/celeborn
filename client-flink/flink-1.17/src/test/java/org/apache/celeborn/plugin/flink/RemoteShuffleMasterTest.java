@@ -64,6 +64,10 @@ public class RemoteShuffleMasterTest {
   @Before
   public void setUp() {
     configuration = new Configuration();
+    Random random = new Random();
+    int startPort = random.nextInt(65535 - 1200) + 1200;
+    configuration.setInteger("celeborn.master.port", startPort);
+    configuration.setString("celeborn.master.endpoints", "localhost:" + startPort);
     remoteShuffleMaster = createShuffleMaster(configuration);
   }
 
