@@ -26,7 +26,7 @@ export default {
       path: '/overview',
       name: 'overview',
       meta: { title: 'overview' },
-      component: () => import('@/views/HomePage.vue')
+      component: () => import('@/views/OverView.vue')
     },
   ]
 }
