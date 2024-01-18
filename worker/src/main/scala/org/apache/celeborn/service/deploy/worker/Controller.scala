@@ -295,7 +295,8 @@ private[deploy] class Controller(
                   }
 
                 if (location == null) {
-                  logWarning(s"Get Partition Location for $shuffleKey $uniqueId but didn't exist.")
+                  logError(s"Get Partition Location for $shuffleKey $uniqueId but didn't exist, treat as failed.")
+                  failedIds.add(uniqueId)
                   return
                 }
 
