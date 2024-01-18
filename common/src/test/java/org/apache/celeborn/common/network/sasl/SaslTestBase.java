@@ -44,7 +44,9 @@ public class SaslTestBase {
 
   @BeforeClass
   public static void setup() {
-    SecretRegistryImpl.getInstance().register(TEST_USER, TEST_SECRET);
+    if (!SecretRegistryImpl.getInstance().isRegistered(TEST_USER)) {
+      SecretRegistryImpl.getInstance().register(TEST_USER, TEST_SECRET);
+    }
   }
 
   static final String TEST_USER = "appId";
