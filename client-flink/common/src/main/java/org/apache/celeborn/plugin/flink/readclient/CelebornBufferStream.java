@@ -19,6 +19,7 @@ package org.apache.celeborn.plugin.flink.readclient;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -36,11 +37,14 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.PbNotifyRequiredSegment;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
+
+import javax.annotation.Nullable;
 
 public class CelebornBufferStream {
   private static Logger logger = LoggerFactory.getLogger(CelebornBufferStream.class);
@@ -80,7 +84,8 @@ public class CelebornBufferStream {
   public void open(
       Supplier<ByteBuf> bufferSupplier,
       int initialCredit,
-      Consumer<RequestMessage> messageConsumer) {
+      Consumer<RequestMessage> messageConsumer,
+      @Nullable CompletableFuture<Boolean> openReaderFuture) {
     this.bufferSupplier = bufferSupplier;
     this.initialCredit = initialCredit;
     this.messageConsumer = messageConsumer;
@@ -108,8 +113,37 @@ public class CelebornBufferStream {
         });
   }
 
+  public void updatePartitionLocations(PartitionLocation[] locations) {
+    this.locations = locations;
+  }
+
+  public void notifyRequiredSegment(PbNotifyRequiredSegment pbNotifyRequiredSegment) {
+    this.client.sendRpc(
+            new TransportMessage(
+                    MessageType.NOTIFY_REQUIRED_SEGMENT,
+                    pbNotifyRequiredSegment.toByteArray())
+                    .toByteBuffer(),
+            new RpcResponseCallback() {
+              @Override
+              public void onSuccess(ByteBuffer response) {
+                // Send PbReadAddCredit do not expect response.
+              }
+              @Override
+              public void onFailure(Throwable e) {
+                logger.warn(
+                        "Send notifyRequiredSegment to {} failed, detail {}",
+                        NettyUtils.getRemoteAddress(client.getChannel()),
+                        e.getCause());
+              }
+            });
+  }
+
   public static CelebornBufferStream empty() {
     return EMPTY_CELEBORN_BUFFER_STREAM;
+  }
+
+  public static boolean isEmptyStream(CelebornBufferStream stream) {
+    return stream == null || stream == EMPTY_CELEBORN_BUFFER_STREAM;
   }
 
   public long getStreamId() {

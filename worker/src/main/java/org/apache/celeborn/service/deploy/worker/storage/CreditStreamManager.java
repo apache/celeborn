@@ -149,9 +149,26 @@ public class CreditStreamManager {
     }
   }
 
+  private void notifyRequiredSegment(MapDataPartition mapDataPartition, int requiredSegmentId, long streamId) {
+    logger.debug("streamId: {}, add credit: {}", streamId, requiredSegmentId);
+    try {
+      if (mapDataPartition != null) {
+        // TODO, notify required segment
+//        mapDataPartition.notifyRequiredSegment(requiredSegmentId, streamId);
+      }
+    } catch (Throwable e) {
+      logger.error("streamId: {}, notify required segment id: {}", streamId, requiredSegmentId);
+    }
+  }
+
   public void addCredit(int numCredit, long streamId) {
     MapDataPartition mapDataPartition = streams.get(streamId).getMapDataPartition();
     addCredit(mapDataPartition, numCredit, streamId);
+  }
+
+  public void notifyRequiredSegment(int requiredSegmentId, long streamId) {
+    MapDataPartition mapDataPartition = streams.get(streamId).getMapDataPartition();
+    notifyRequiredSegment(mapDataPartition, requiredSegmentId, streamId);
   }
 
   public void connectionTerminated(Channel channel) {

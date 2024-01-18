@@ -166,7 +166,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
         // If the start segment rpc is sent, the worker side will expect that
         // there must be at least one buffer will be written in the next moment.
         try {
-            flinkShuffleClient.startNewSegment(
+            flinkShuffleClient.segmentStart(
                     shuffleId, mapId, attemptId, subpartitionId, segmentId, partitionLocation);
         } catch (IOException e) {
             Utils.rethrowAsRuntimeException(e);

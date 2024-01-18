@@ -93,7 +93,7 @@ enum MessageType {
   GET_SHUFFLE_ID_RESPONSE = 70;
   SASL_REQUEST = 71;
   SEGMENT_START = 72;
-  NotifyRequiredSegment = 73;
+  NOTIFY_REQUIRED_SEGMENT = 73;
 }
 
 enum StreamType {

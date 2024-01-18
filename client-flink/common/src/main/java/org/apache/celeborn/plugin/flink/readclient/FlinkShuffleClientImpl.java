@@ -55,6 +55,7 @@ import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode;
 import org.apache.celeborn.common.protocol.PbPushDataHandShake;
 import org.apache.celeborn.common.protocol.PbRegionFinish;
 import org.apache.celeborn.common.protocol.PbRegionStart;
+import org.apache.celeborn.common.protocol.PbSegmentStart;
 import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
@@ -489,6 +490,43 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               conf.pushDataTimeoutMs());
           return null;
         });
+  }
+
+  public void segmentStart(int shuffleId,
+                           int mapId,
+                           int attemptId,
+                           int partitionId,
+                           int segmentId,
+                           PartitionLocation location) throws IOException {
+    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    final PushState pushState = pushStates.computeIfAbsent(mapKey, (s) -> new PushState(conf));
+    retrySendMessage(
+            () -> {
+              final String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
+              logger.info(
+                      "SegmentStart for shuffle {} map {} attemptId {} locationId {}.",
+                      shuffleId,
+                      mapId,
+                      attemptId,
+                      location.getUniqueId());
+              logger.debug("SegmentStart for location {}.", location);
+              TransportClient client = createClientWaitingInFlightRequest(location, mapKey, pushState);
+              client.sendRpcSync(
+                      new TransportMessage(
+                              MessageType.SEGMENT_START,
+                              PbSegmentStart.newBuilder()
+                                      .setMode(Mode.forNumber(PRIMARY_MODE))
+                                      .setShuffleKey(shuffleKey)
+                                      .setPartitionUniqueId(location.getUniqueId())
+                                      .setAttemptId(attemptId)
+                                      .setPartitionId(partitionId)
+                                      .setSegmentId(segmentId)
+                                      .build()
+                                      .toByteArray())
+                              .toByteBuffer(),
+                      conf.pushDataTimeoutMs());
+              return null;
+            });
   }
 
   @FunctionalInterface

@@ -87,7 +87,7 @@ public class RemoteBufferStreamReader extends CreditListener {
           client.readBufferedPartition(
               shuffleId, partitionId, subPartitionIndexStart, subPartitionIndexEnd);
       bufferStream.open(
-          RemoteBufferStreamReader.this::requestBuffer, initialCredit, messageConsumer);
+          RemoteBufferStreamReader.this::requestBuffer, initialCredit, messageConsumer, null);
     } catch (Exception e) {
       logger.warn("Failed to open stream and report to flink framework. ", e);
       messageConsumer.accept(new TransportableError(0L, e));
