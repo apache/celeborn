@@ -80,6 +80,5 @@ class ThreadPoolSource(
         threadPoolExecutor.isShutdown
       }
     })
-  startCleaner()
 }
 
