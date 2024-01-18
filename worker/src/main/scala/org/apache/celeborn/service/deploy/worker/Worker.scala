@@ -28,6 +28,7 @@ import scala.collection.JavaConverters._
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.client.MasterClient
@@ -265,11 +266,20 @@ private[celeborn] class Worker(
   val timer = new HashedWheelTimer()
 
   metricsSystem.registerSource(new ThreadPoolSource(
-      "worker-replicate-data", replicateThreadPool, conf, MetricsSystem.ROLE_WORKER))
+    "worker-replicate-data",
+    replicateThreadPool,
+    conf,
+    MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new ThreadPoolSource(
-    "worker-commit-files", commitThreadPool, conf, MetricsSystem.ROLE_WORKER))
+    "worker-commit-files",
+    commitThreadPool,
+    conf,
+    MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new ThreadPoolSource(
-    "worker-clean-expired-shuffle-keys", cleanThreadPool, conf, MetricsSystem.ROLE_WORKER))
+    "worker-clean-expired-shuffle-keys",
+    cleanThreadPool,
+    conf,
+    MetricsSystem.ROLE_WORKER))
 
   // Configs
   private val heartbeatInterval = conf.workerHeartbeatTimeout / 4

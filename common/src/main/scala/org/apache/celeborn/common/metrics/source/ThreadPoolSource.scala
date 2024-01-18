@@ -20,13 +20,14 @@ package org.apache.celeborn.common.metrics.source
 import java.util.concurrent.ThreadPoolExecutor
 
 import com.codahale.metrics.Gauge
+
 import org.apache.celeborn.common.CelebornConf
 
 class ThreadPoolSource(
-  threadPoolName: String,
-  threadPoolExecutor: ThreadPoolExecutor,
-  conf: CelebornConf,
-  role: String)
+    threadPoolName: String,
+    threadPoolExecutor: ThreadPoolExecutor,
+    conf: CelebornConf,
+    role: String)
   extends AbstractSource(conf, role) {
   override val sourceName = s"THREAD_POOL_$threadPoolName"
 
@@ -81,4 +82,3 @@ class ThreadPoolSource(
       }
     })
 }
-
