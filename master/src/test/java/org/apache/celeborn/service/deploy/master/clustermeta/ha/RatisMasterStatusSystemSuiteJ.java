@@ -165,6 +165,9 @@ public class RatisMasterStatusSystemSuiteJ {
       } catch (Exception e) {
         stopAllRaftServers();
         retryCount += 1;
+        if (retryCount >= 3) {
+          throw e;
+        }
       }
       serversStarted = true;
     }

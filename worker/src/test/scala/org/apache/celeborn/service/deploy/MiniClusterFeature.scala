@@ -62,7 +62,7 @@ trait MiniClusterFeature extends Logging {
     var created = false
     var master: Master = null
     var workers: collection.Set[Worker] = null
-    while (retryCount < 5 && !created) {
+    while (retryCount < 3 && !created) {
       try {
         val randomPort = Random.nextInt(65535 - 1200) + 1200
         val finalMasterConf = Map(
@@ -82,12 +82,11 @@ trait MiniClusterFeature extends Logging {
         created = true
       } catch {
         case e: BindException =>
-          if (retryCount < 3) {
+          logError(s"failed to setup mini cluster, retrying (retry count: $retryCount")
+          retryCount += 1
+          if (retryCount == 3) {
             logError("failed to setup mini cluster, reached the max retry count")
             throw e
-          } else {
-            logError(s"failed to setup mini cluster, retrying (retry count: $retryCount")
-            retryCount += 1
           }
       }
     }
