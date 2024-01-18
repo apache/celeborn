@@ -61,7 +61,7 @@ trait MiniClusterFeature extends Logging {
     var created = false
     var master: Master = null
     var workers: collection.Set[Worker] = null
-    while (retryCount < 3 && !created) {
+    while (retryCount < 5 && !created) {
       try {
         val randomPort = Random.nextInt(65535 - 1200) + 1200
         val finalMasterConf = Map(
