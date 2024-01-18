@@ -117,7 +117,7 @@ public class RatisMasterStatusSystemSuiteJ {
         String id3 = UUID.randomUUID().toString();
 
         Random rand = new Random();
-        int ratisPort1 = rand.nextInt(65535 - 1200) + 1200;
+        int ratisPort1 = rand.nextInt(65535 - 1024) + 1024;
         int ratisPort2 = ratisPort1 + 1;
         int ratisPort3 = ratisPort2 + 1;
 

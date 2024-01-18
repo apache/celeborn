@@ -32,12 +32,12 @@ import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 trait MiniClusterFeature extends Logging {
-  private def masterPort = Random.nextInt(65535 - 1200) + 1200
+  private def masterPort = Random.nextInt(65535 - 1024) + 1024
 
   private def workerPort = {
     var port = masterPort
     while (port == masterPort) {
-      port = Random.nextInt(65535 - 1200) + 1200
+      port = Random.nextInt(65535 - 1024) + 1024
     }
     port
   }
@@ -64,7 +64,7 @@ trait MiniClusterFeature extends Logging {
     var workers: collection.Set[Worker] = null
     while (retryCount < 3 && !created) {
       try {
-        val randomPort = Random.nextInt(65535 - 1200) + 1200
+        val randomPort = Random.nextInt(65535 - 1024) + 1024
         val finalMasterConf = Map(
           s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
           s"${CelebornConf.MASTER_PORT.key}" -> s"$randomPort",
