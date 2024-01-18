@@ -141,8 +141,8 @@ These metrics are exposed by Celeborn worker.
         - The time for a worker to process openStream RPC and return StreamHandle.
     - FetchChunkTime
         - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
-    - ChunkStreamCount
-        - Stream count for reduce partition reading streams.
+    - ActiveChunkStreamCount
+        - Active stream count for reduce partition reading streams.
     - OpenStreamFailCount
     - FetchChunkFailCount
     - PrimaryPushDataTime
@@ -199,8 +199,8 @@ These metrics are exposed by Celeborn worker.
         - The queue size of read buffer allocation requests.
     - ReadBufferAllocatedCount
         - Allocated read buffer count.
-    - CreditStreamCount
-        - Stream count for map partition reading streams.
+    - ActiveCreditStreamCount
+        - Active stream count for map partition reading streams.
     - ActiveMapPartitionCount
     - DeviceOSFreeBytes
     - DeviceOSTotalBytes

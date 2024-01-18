@@ -92,7 +92,8 @@ Here is an example of Grafana dashboard importing.
 |             OfferSlotsTime             |      master       |                                             The time of offer slots.                                              |
 |             OpenStreamTime             |      worker       |             OpenStream means read a shuffle file and send client about chunks size and stream index.              |
 |             FetchChunkTime             |      worker       |                       FetchChunk means read a chunk from a shuffle file and send to client.                       |
-|            ChunkStreamCount            |      worker       |                     The stream count for reduce partition reading streams in current worker.                      |
+|         ActiveChunkStreamCount         |      worker       |                 The active stream count for reduce partition reading streams in current worker.                   |
+|         ActiveCreditStreamCount        |      worker       |                 The active stream count for map partition reading streams in current worker.                      |
 |          OpenStreamFailCount           |      worker       |                               The count of opening stream failed in current worker.                               |
 |          FetchChunkFailCount           |      worker       |                               The count of fetching chunk failed in current worker.                               |
 |          PrimaryPushDataTime           |      worker       |                       PrimaryPushData means handle PushData of primary partition location.                        |

@@ -3475,13 +3475,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ChunkStreamCount_Value",
+              "expr": "metrics_ActiveChunkStreamCount_Value",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_ChunkStreamCount_Value",
+          "title": "metrics_ActiveChunkStreamCount_Value",
           "type": "timeseries"
         },
         {
@@ -7578,13 +7578,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_CreditStreamCount_Value",
+              "expr": "metrics_ActiveCreditStreamCount_Value",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "CreditStreamCount",
+          "title": "ActiveCreditStreamCount",
           "type": "timeseries"
         },
         {
