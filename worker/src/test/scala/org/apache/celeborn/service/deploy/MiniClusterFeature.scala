@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy
 
+import java.net.BindException
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -80,7 +81,7 @@ trait MiniClusterFeature extends Logging {
         workers = w
         created = true
       } catch {
-        case e: Exception =>
+        case e: BindException =>
           if (retryCount < 3) {
             logError("failed to setup mini cluster, reached the max retry count")
             throw e
