@@ -17,12 +17,12 @@
 
 package org.apache.celeborn.tests.mr
 
+import org.apache.celeborn.common.CelebornConf
+
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
-
 import scala.collection.JavaConverters._
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.examples.WordCount
 import org.apache.hadoop.fs.Path
@@ -36,22 +36,25 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.yarn.server.MiniYARNCluster
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
 
 class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
+  var master: Master = null
 
   var yarnCluster: MiniYARNCluster = null
   var hadoopConf: Configuration = null
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    workers = setupMiniClusterWithRandomPorts()._2
+    val (newMaster, newWorkers) = setupMiniClusterWithRandomPorts()
+    master = newMaster
+    workers = newWorkers
 
     hadoopConf = new Configuration()
     hadoopConf.set("yarn.scheduler.capacity.root.queues", "default,other_queue")
@@ -107,7 +110,8 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     conf.set("mapreduce.job.user.classpath.first", "true")
 
     conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
-    conf.set("mapreduce.celeborn.master.endpoints", "localhost:9097")
+    conf.set("mapreduce.celeborn.master.endpoints",
+      s"localhost:${master.conf.get(CelebornConf.MASTER_PORT)}")
     conf.set(
       MRJobConfig.MAP_OUTPUT_COLLECTOR_CLASS_ATTR,
       "org.apache.hadoop.mapred.CelebornMapOutputCollector")
