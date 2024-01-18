@@ -68,8 +68,7 @@ trait MiniClusterFeature extends Logging {
         val finalMasterConf = Map(
           s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
           s"${CelebornConf.MASTER_PORT.key}" -> s"$randomPort",
-          s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort",
-          s"${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}" -> "10") ++
+          s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort") ++
           masterConf.getOrElse(Map())
         val finalWorkerConf = Map(
           s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort") ++
