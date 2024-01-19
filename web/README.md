@@ -1,6 +1,6 @@
 # Celeborn Web UI
 
-This is the web ui page for Apache Celeborn.
+Celeborn Web is a dashboard to display and manage the Master and Worker of Celeborn. This document introduces how to install and build the UI of Celeborn Web.
 
 > **⚠️ Important**
 >
