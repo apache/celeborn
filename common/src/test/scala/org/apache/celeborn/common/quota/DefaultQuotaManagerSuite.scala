@@ -45,4 +45,10 @@ class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
       quotaManager.getQuota(UserIdentifier("BBB", "Jerry")),
       Quota(-1, -1, Utils.byteStringAsBytes("200m"), 200))
   }
+
+  test("test celeborn default quota") {
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("CCC", "Mark")),
+      Quota(Utils.byteStringAsBytes("10m"), 10, Utils.byteStringAsBytes("10m"), 10))
+  }
 }

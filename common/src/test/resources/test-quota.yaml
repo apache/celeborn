@@ -26,3 +26,11 @@
    quota:
      hdfsBytesWritten: 200m
      hdfsFileCount: 200
+
+-  tenantId: default
+   name: default
+   quota:
+     diskBytesWritten: 10m
+     diskFileCount: 10
+     hdfsBytesWritten: 10m
+     hdfsFileCount: 10

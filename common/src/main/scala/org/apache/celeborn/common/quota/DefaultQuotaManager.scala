@@ -28,6 +28,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.util.Utils
 
 class DefaultQuotaManager(conf: CelebornConf) extends QuotaManager(conf) {
+  private var defaultQuota: Quota = Quota()
 
   override def refresh(): Unit = {
     // Not support refresh
@@ -56,8 +57,15 @@ class DefaultQuotaManager(conf: CelebornConf) extends QuotaManager(conf) {
                   quota.update(userIdentifier, key, value.toString.toLong)
               }
             }
-          userQuotas.put(userIdentifier, quota)
+          (tenantId, name) match {
+            case ("default", "default") => defaultQuota = quota
+            case _ => userQuotas.put(userIdentifier, quota)
+          }
         }
       }
+  }
+
+  override def getQuota(userIdentifier: UserIdentifier): Quota = {
+    userQuotas.getOrDefault(userIdentifier, defaultQuota)
   }
 }
