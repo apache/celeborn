@@ -27,7 +27,7 @@ class ThreadPoolSource(
     conf: CelebornConf,
     role: String)
   extends AbstractSource(conf, role) {
-  override val sourceName = s"THREAD_POOL"
+  override val sourceName = "ThreadPool"
   def registerSource(
       threadPoolName: String,
       threadPoolExecutor: ThreadPoolExecutor): Unit = {
@@ -38,6 +38,22 @@ class ThreadPoolSource(
       new Gauge[Long] {
         override def getValue: Long = {
           threadPoolExecutor.getActiveCount
+        }
+      })
+    addGauge(
+      "completed_task_count",
+      label,
+      new Gauge[Long] {
+        override def getValue: Long = {
+          threadPoolExecutor.getCompletedTaskCount
+        }
+      })
+    addGauge(
+      "task_count",
+      label,
+      new Gauge[Long] {
+        override def getValue: Long = {
+          threadPoolExecutor.getTaskCount
         }
       })
     addGauge(
@@ -54,6 +70,22 @@ class ThreadPoolSource(
       new Gauge[Long] {
         override def getValue: Long = {
           threadPoolExecutor.getCorePoolSize
+        }
+      })
+    addGauge(
+      "maximum_pool_size",
+      label,
+      new Gauge[Long] {
+        override def getValue: Long = {
+          threadPoolExecutor.getMaximumPoolSize
+        }
+      })
+    addGauge(
+      "largest_pool_size",
+      label,
+      new Gauge[Long] {
+        override def getValue: Long = {
+          threadPoolExecutor.getLargestPoolSize
         }
       })
     addGauge(
@@ -93,8 +125,12 @@ class ThreadPoolSource(
   def unregisterSource(threadPoolName: String): Unit = {
     val label = Map("threadPool" -> threadPoolName)
     removeGauge("active_count", label)
+    removeGauge("completed_task_count", label)
+    removeGauge("task_count", label)
     removeGauge("pool_size", label)
     removeGauge("core_pool_size", label)
+    removeGauge("maximum_pool_size", label)
+    removeGauge("largest_pool_size", label)
     removeGauge("remain_queue_capacity", label)
     removeGauge("is_terminating", label)
     removeGauge("is_terminated", label)

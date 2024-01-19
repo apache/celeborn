@@ -127,6 +127,21 @@ These metrics are exposed by Celeborn master.
     - hdfsFileCount
     - hdfsBytesWritten
 
+  - namespace=ThreadPool
+    - **notes:**
+        - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
+    - active_count
+    - completed_task_count
+    - task_count
+    - pool_size
+    - core_pool_size
+    - maximum_pool_size
+    - largest_pool_size
+    - remain_queue_capacity
+    - is_terminating
+    - is_terminated
+    - is_shutdown
+
 #### Worker
 These metrics are exposed by Celeborn worker.
 
@@ -284,6 +299,21 @@ These metrics are exposed by Celeborn worker.
     - diskBytesWritten
     - hdfsFileCount
     - hdfsBytesWritten
+
+  - namespace=ThreadPool
+    - **notes:**
+        - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
+    - active_count
+    - completed_task_count
+    - task_count
+    - pool_size
+    - core_pool_size
+    - maximum_pool_size
+    - largest_pool_size
+    - remain_queue_capacity
+    - is_terminating
+    - is_terminated
+    - is_shutdown
 
 **Note:**
 
