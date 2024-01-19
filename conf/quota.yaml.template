@@ -30,3 +30,12 @@
      diskFileCount: 1000
      hdfsBytesWritten: 3G
      hdfsFileCount: 200
+
+# Users without configuration will use this configuration
+-  tenantId: default
+   name: default
+   quota:
+     diskBytesWritten: 1G
+     diskFileCount: 1000
+     hdfsBytesWritten: 1G
+     hdfsFileCount: 1000
