@@ -86,7 +86,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     if (TransportModuleConstants.DATA_MODULE.equals(module)) {
       checkPushTimeout = true;
       checkFetchTimeout = true;
-    } else if (TransportModuleConstants.PUSH_MODULE.equals(module)) {
+    } else if (TransportModuleConstants.PUSH_MODULE.equals(module)
+        || TransportModuleConstants.REPLICATE_MODULE.equals(module)) {
       checkPushTimeout = true;
     }
     synchronized (TransportResponseHandler.class) {
@@ -137,11 +138,13 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           if (info.channelFuture != null) {
             info.channelFuture.cancel(true);
           }
+          String module = conf.getModuleName();
           // When module name equals to DATA_MODULE, mean shuffle client push data, else means
           // do data replication.
-          if (TransportModuleConstants.DATA_MODULE.equals(conf.getModuleName())) {
+          if (TransportModuleConstants.DATA_MODULE.equals(module)) {
             info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_PRIMARY));
-          } else if (TransportModuleConstants.PUSH_MODULE.equals(conf.getModuleName())) {
+          } else if (TransportModuleConstants.PUSH_MODULE.equals(module)
+              || TransportModuleConstants.REPLICATE_MODULE.equals(module)) {
             info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_REPLICA));
           }
           info.channelFuture = null;
