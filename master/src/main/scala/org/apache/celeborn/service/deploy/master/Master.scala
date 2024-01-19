@@ -679,8 +679,12 @@ private[celeborn] class Master(
         if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers
         else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
       numAvailableWorkers)
+
+    // select workers from availableWorkers randomly
     Collections.rotate(availableWorkers, Random.nextInt(numAvailableWorkers))
-    val selectedWorkers = availableWorkers.subList(0, numWorkers)
+    val selectedWorkers =
+      if (numWorkers == numAvailableWorkers) availableWorkers
+      else availableWorkers.subList(0, numWorkers)
 
     // offer slots
     val slots =
