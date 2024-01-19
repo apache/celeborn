@@ -20,7 +20,7 @@ image:
   pullPolicy: IfNotPresent
   tag: latest
 
-imagePullSecrets: {}
+imagePullSecrets: []
 
 # For integration test, using single celeborn mater & worker
 masterReplicas: 1
