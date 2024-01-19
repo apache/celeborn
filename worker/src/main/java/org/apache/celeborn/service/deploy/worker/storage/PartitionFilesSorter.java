@@ -795,7 +795,7 @@ class PartitionFilesCleaner {
               }
             }
           } catch (InterruptedException e) {
-            logger.warn("partition file cleaner thread interrupted while wait new sorter.", e);
+            logger.warn("Partition file cleaner thread interrupted while waiting new sorter.", e);
           }
         });
   }
