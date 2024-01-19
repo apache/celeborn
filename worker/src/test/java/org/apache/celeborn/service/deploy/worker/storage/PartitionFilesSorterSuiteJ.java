@@ -39,6 +39,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.metrics.MetricsSystem;
+import org.apache.celeborn.common.metrics.source.ThreadPoolSource;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.CelebornExitKind;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -145,7 +146,7 @@ public class PartitionFilesSorterSuiteJ {
               MemoryManager.instance(),
               conf,
               new WorkerSource(conf),
-              MetricsSystem.createMetricsSystem("test", conf));
+              new ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER()));
       DiskFileInfo info =
           partitionFilesSorter.getSortedFileInfo(
               "application-1",
@@ -199,7 +200,7 @@ public class PartitionFilesSorterSuiteJ {
             MemoryManager.instance(),
             conf,
             new WorkerSource(conf),
-            MetricsSystem.createMetricsSystem("test", conf));
+            new ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER()));
     partitionFilesSorter.initSortedShuffleFiles("application-1-1");
     partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-1", 0);
     partitionFilesSorter.updateSortedShuffleFiles("application-1-1", "0-0-2", 0);
@@ -216,7 +217,7 @@ public class PartitionFilesSorterSuiteJ {
             MemoryManager.instance(),
             conf,
             new WorkerSource(conf),
-            MetricsSystem.createMetricsSystem("test", conf));
+            new ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER()));
     Assert.assertEquals(
         partitionFilesSorter2.getSortedShuffleFiles("application-1-1").toString(),
         "[0-0-3, 0-0-2, 0-0-1]");

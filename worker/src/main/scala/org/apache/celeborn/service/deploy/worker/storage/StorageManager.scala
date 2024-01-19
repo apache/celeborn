@@ -38,7 +38,6 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo, MapFileMeta, ReduceFileMeta, TimeWindow}
-import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
@@ -52,7 +51,7 @@ import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 final private[worker] class StorageManager(
     conf: CelebornConf,
     workerSource: AbstractSource,
-    metricsSystem: MetricsSystem)
+    threadPoolSource: ThreadPoolSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // mount point -> file writer
   val workingDirWriters =
@@ -91,22 +90,13 @@ final private[worker] class StorageManager(
   def healthyWorkingDirs(): List[File] =
     disksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(_.dirs)
 
-  private val diskSource: ConcurrentHashMap[String, AbstractSource] =
-    JavaUtils.newConcurrentHashMap[String, AbstractSource]
-
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = JavaUtils.newConcurrentHashMap[String, ThreadPoolExecutor]()
     disksSnapshot().foreach { diskInfo =>
       val diskCleanerPool = ThreadUtils.newDaemonCachedThreadPool(
         s"disk-cleaner-${diskInfo.mountPoint}",
         conf.workerDiskCleanThreads)
-      val source = new ThreadPoolSource(
-        s"disk-cleaner-${diskInfo.mountPoint}",
-        diskCleanerPool,
-        conf,
-        MetricsSystem.ROLE_WORKER)
-      diskSource.put(diskInfo.mountPoint, source)
-      metricsSystem.registerSource(source)
+      threadPoolSource.registerSource(s"disk-cleaner-${diskInfo.mountPoint}", diskCleanerPool)
       cleaners.put(diskInfo.mountPoint, diskCleanerPool)
     }
     cleaners
@@ -123,7 +113,7 @@ final private[worker] class StorageManager(
       deviceInfos,
       tmpDiskInfos,
       workerSource,
-      metricsSystem)
+      threadPoolSource)
 
   private val byteBufAllocator: PooledByteBufAllocator =
     NettyUtils.getPooledByteBufAllocator(new TransportConf("StorageManager", conf), null, true)
@@ -191,17 +181,11 @@ final private[worker] class StorageManager(
 
   override def notifyHealthy(mountPoint: String): Unit = this.synchronized {
     if (!diskOperators.containsKey(mountPoint)) {
-      metricsSystem.removeSource(diskSource.get(mountPoint))
+      threadPoolSource.unregisterSource(s"disk-cleaner-$mountPoint")
       val diskCleanerPool = ThreadUtils.newDaemonCachedThreadPool(
         s"disk-cleaner-$mountPoint",
         conf.workerDiskCleanThreads)
-      val source = new ThreadPoolSource(
-        s"disk-cleaner-$mountPoint",
-        diskCleanerPool,
-        conf,
-        MetricsSystem.ROLE_WORKER)
-      metricsSystem.registerSource(source)
-      diskSource.put(mountPoint, source)
+      threadPoolSource.registerSource(s"disk-cleaner-$mountPoint", diskCleanerPool)
       diskOperators.put(mountPoint, diskCleanerPool)
     }
   }

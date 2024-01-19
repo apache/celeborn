@@ -52,7 +52,6 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
-import org.apache.celeborn.common.metrics.MetricsSystem;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.metrics.source.ThreadPoolSource;
 import org.apache.celeborn.common.unsafe.Platform;
@@ -103,7 +102,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       MemoryManager memoryManager,
       CelebornConf conf,
       AbstractSource source,
-      MetricsSystem metricsSystem) {
+      ThreadPoolSource threadPoolSource) {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
@@ -135,9 +134,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
             "worker-file-sorter-execute", conf.partitionSorterThreads(), 120);
-    metricsSystem.registerSource(
-        new ThreadPoolSource(
-            "worker-file-sorter-execute", fileSorterExecutors, conf, MetricsSystem.ROLE_WORKER()));
+    threadPoolSource.registerSource("worker-file-sorter-execute", fileSorterExecutors);
     indexCache =
         CacheBuilder.newBuilder()
             .concurrencyLevel(conf.partitionSorterThreads())

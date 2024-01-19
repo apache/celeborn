@@ -24,67 +24,80 @@ import com.codahale.metrics.Gauge
 import org.apache.celeborn.common.CelebornConf
 
 class ThreadPoolSource(
-    threadPoolName: String,
-    threadPoolExecutor: ThreadPoolExecutor,
     conf: CelebornConf,
     role: String)
   extends AbstractSource(conf, role) {
-  override val sourceName = s"THREAD_POOL_$threadPoolName"
+  override val sourceName = s"THREAD_POOL"
+  def registerSource(
+      threadPoolName: String,
+      threadPoolExecutor: ThreadPoolExecutor): Unit = {
+    val label = Map("threadPool" -> threadPoolName)
+    addGauge(
+      "active_count",
+      label,
+      new Gauge[Long] {
+        override def getValue: Long = {
+          threadPoolExecutor.getActiveCount
+        }
+      })
+    addGauge(
+      "pool_size",
+      label,
+      new Gauge[Long] {
+        override def getValue: Long = {
+          threadPoolExecutor.getPoolSize
+        }
+      })
+    addGauge(
+      "core_pool_size",
+      label,
+      new Gauge[Long] {
+        override def getValue: Long = {
+          threadPoolExecutor.getCorePoolSize
+        }
+      })
+    addGauge(
+      "remain_queue_capacity",
+      label,
+      new Gauge[Long] {
+        override def getValue: Long = {
+          threadPoolExecutor.getQueue.remainingCapacity()
+        }
+      })
+    addGauge(
+      "is_terminating",
+      label,
+      new Gauge[Boolean] {
+        override def getValue: Boolean = {
+          threadPoolExecutor.isTerminating
+        }
+      })
+    addGauge(
+      "is_terminated",
+      label,
+      new Gauge[Boolean] {
+        override def getValue: Boolean = {
+          threadPoolExecutor.isTerminated
+        }
+      })
+    addGauge(
+      "is_shutdown",
+      label,
+      new Gauge[Boolean] {
+        override def getValue: Boolean = {
+          threadPoolExecutor.isShutdown
+        }
+      })
+  }
 
-  addGauge(
-    "active_count",
-    Map("threadPool" -> threadPoolName),
-    new Gauge[Long] {
-      override def getValue: Long = {
-        threadPoolExecutor.getActiveCount
-      }
-    })
-  addGauge(
-    "pool_size",
-    Map("threadPool" -> threadPoolName),
-    new Gauge[Long] {
-      override def getValue: Long = {
-        threadPoolExecutor.getPoolSize
-      }
-    })
-  addGauge(
-    "core_pool_size",
-    Map("threadPool" -> threadPoolName),
-    new Gauge[Long] {
-      override def getValue: Long = {
-        threadPoolExecutor.getCorePoolSize
-      }
-    })
-  addGauge(
-    "remain_queue_capacity",
-    Map("threadPool" -> threadPoolName),
-    new Gauge[Long] {
-      override def getValue: Long = {
-        threadPoolExecutor.getQueue.remainingCapacity()
-      }
-    })
-  addGauge(
-    "is_terminating",
-    Map("threadPool" -> threadPoolName),
-    new Gauge[Boolean] {
-      override def getValue: Boolean = {
-        threadPoolExecutor.isTerminating
-      }
-    })
-  addGauge(
-    "is_terminated",
-    Map("threadPool" -> threadPoolName),
-    new Gauge[Boolean] {
-      override def getValue: Boolean = {
-        threadPoolExecutor.isTerminated
-      }
-    })
-  addGauge(
-    "is_shutdown",
-    Map("threadPool" -> threadPoolName),
-    new Gauge[Boolean] {
-      override def getValue: Boolean = {
-        threadPoolExecutor.isShutdown
-      }
-    })
+  def unregisterSource(threadPoolName: String): Unit = {
+    val label = Map("threadPool" -> threadPoolName)
+    removeGauge("active_count", label)
+    removeGauge("pool_size", label)
+    removeGauge("core_pool_size", label)
+    removeGauge("remain_queue_capacity", label)
+    removeGauge("is_terminating", label)
+    removeGauge("is_terminated", label)
+    removeGauge("is_shutdown", label)
+  }
 }

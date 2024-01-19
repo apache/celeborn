@@ -207,18 +207,14 @@ object DeviceMonitor extends Logging {
       deviceInfos: util.Map[String, DeviceInfo],
       diskInfos: util.Map[String, DiskInfo],
       workerSource: AbstractSource,
-      metricsSystem: MetricsSystem): DeviceMonitor = {
+      threadPoolSource: ThreadPoolSource): DeviceMonitor = {
     try {
       if (conf.workerDiskMonitorEnabled) {
         val monitor =
           new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos, workerSource)
         monitor.init()
         logInfo("Device monitor init success")
-        metricsSystem.registerSource(new ThreadPoolSource(
-          "device-check-thread",
-          deviceCheckThreadPool,
-          conf,
-          MetricsSystem.ROLE_WORKER))
+        threadPoolSource.registerSource("device-check-thread", deviceCheckThreadPool)
         monitor
       } else {
         EmptyDeviceMonitor

@@ -48,7 +48,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
-import org.apache.celeborn.common.metrics.MetricsSystem;
+import org.apache.celeborn.common.metrics.source.ThreadPoolSource;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -307,13 +307,13 @@ public class FetchHandlerSuiteJ {
 
   private FetchHandler mockFetchHandler(FileInfo fileInfo) {
     WorkerSource workerSource = mock(WorkerSource.class);
+    ThreadPoolSource threadPoolSource = mock(ThreadPoolSource.class);
     TransportConf transportConf =
         Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, 4);
     FetchHandler fetchHandler0 = new FetchHandler(conf, transportConf, workerSource);
     Worker worker = mock(Worker.class);
     PartitionFilesSorter partitionFilesSorter =
-        new PartitionFilesSorter(
-            MemoryManager.instance(), conf, workerSource, mock(MetricsSystem.class));
+        new PartitionFilesSorter(MemoryManager.instance(), conf, workerSource, threadPoolSource);
 
     StorageManager storageManager = mock(StorageManager.class);
     Mockito.doReturn(storageManager).when(worker).storageManager();
