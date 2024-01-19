@@ -32,50 +32,56 @@ class ThreadPoolSource(
   override val sourceName = s"THREAD_POOL_$threadPoolName"
 
   addGauge(
-    s"${threadPoolName}_active_count",
+    "active_count",
+    Map("threadPool" -> threadPoolName),
     new Gauge[Long] {
       override def getValue: Long = {
         threadPoolExecutor.getActiveCount
       }
     })
-
   addGauge(
-    s"${threadPoolName}_pool_size",
+    "pool_size",
+    Map("threadPool" -> threadPoolName),
     new Gauge[Long] {
       override def getValue: Long = {
         threadPoolExecutor.getPoolSize
       }
     })
   addGauge(
-    s"${threadPoolName}_core_pool_size",
+    "core_pool_size",
+    Map("threadPool" -> threadPoolName),
     new Gauge[Long] {
       override def getValue: Long = {
         threadPoolExecutor.getCorePoolSize
       }
     })
   addGauge(
-    s"${threadPoolName}_remain_queue_capacity",
+    "remain_queue_capacity",
+    Map("threadPool" -> threadPoolName),
     new Gauge[Long] {
       override def getValue: Long = {
         threadPoolExecutor.getQueue.remainingCapacity()
       }
     })
   addGauge(
-    s"${threadPoolName}_is_terminating",
+    "is_terminating",
+    Map("threadPool" -> threadPoolName),
     new Gauge[Boolean] {
       override def getValue: Boolean = {
         threadPoolExecutor.isTerminating
       }
     })
   addGauge(
-    s"${threadPoolName}_is_terminated",
+    "is_terminated",
+    Map("threadPool" -> threadPoolName),
     new Gauge[Boolean] {
       override def getValue: Boolean = {
         threadPoolExecutor.isTerminated
       }
     })
   addGauge(
-    s"${threadPoolName}_is_shutdown",
+    "is_shutdown",
+    Map("threadPool" -> threadPoolName),
     new Gauge[Boolean] {
       override def getValue: Boolean = {
         threadPoolExecutor.isShutdown
