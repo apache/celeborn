@@ -43,6 +43,7 @@ import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerRespo
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
+import org.apache.celeborn.common.rpc.netty.NettyRpcEnv
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -280,6 +281,11 @@ private[celeborn] class Worker(
     cleanThreadPool,
     conf,
     MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new ThreadPoolSource(
+    "netty-rpc-connection",
+    rpcEnv.asInstanceOf[NettyRpcEnv].clientConnectionExecutor,
+    conf,
+    MetricsSystem.ROLE_MASTER))
 
   // Configs
   private val heartbeatInterval = conf.workerHeartbeatTimeout / 4
