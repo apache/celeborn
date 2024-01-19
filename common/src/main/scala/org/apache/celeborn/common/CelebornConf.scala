@@ -1643,7 +1643,9 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for Flink shuffle client push data.")
+        s"it works for Flink shuffle client push data. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for replicate client of worker replicating data to peer worker.")
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
@@ -1655,7 +1657,9 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push data. " +
         s"If setting <module> to `${TransportModuleConstants.PUSH_MODULE}`, " +
-        s"it works for Flink shuffle client push data.")
+        s"it works for Flink shuffle client push data. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for replicate client of worker replicating data to peer worker.")
       .version("0.3.0")
       .intConf
       .createWithDefault(4)
