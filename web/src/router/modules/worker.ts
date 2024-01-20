@@ -15,30 +15,9 @@
  * limitations under the License.
  */
 
-import overview_routes from './modules/overview'
-import master_routes from './modules/master'
-import worker_routes from './modules/worker'
-import application_routes from './modules/application'
-import tenant_routes from './modules/tenant'
-
-export const children_routes = [
-  overview_routes,
-  master_routes,
-  worker_routes,
-  application_routes,
-  tenant_routes
-]
-
-export const basePage = [
-  {
-    path: '/',
-    redirect: { name: 'overview' },
-    sub: true,
-    component: () => import('@/layouts/layoutPage.vue'),
-    children: children_routes
-  }
-]
-
-const routes = [...basePage]
-
-export default routes
+export default {
+  path: '/worker',
+  name: 'worker',
+  meta: { title: 'Worker' },
+  component: () => import('@/views/worker/index.vue')
+}
