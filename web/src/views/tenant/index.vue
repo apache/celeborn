@@ -17,9 +17,11 @@
 -->
 
 <script setup lang="ts">
+
 defineOptions({
   name: 'TenantView'
 })
+
 </script>
 
 <template>

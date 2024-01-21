@@ -30,7 +30,7 @@ const mapRouterToMenu = (routes:RouteRecordRaw[]) => {
       return {
         label: item.meta?.title ?? '',
         key: item.path,
-        path:item.path,
+        path: item.path,
       }
     })
   }
