@@ -100,7 +100,7 @@ public class DataPusher {
     this.mapStatusLengths = mapStatusLengths;
 
     pushThread =
-        new Thread("celeborn-client-dataPusher-" + taskId) {
+        new Thread("DataPusher-" + taskId) {
           private void reclaimTask(PushTask task) throws InterruptedException {
             idleLock.lockInterruptibly();
             try {
@@ -138,8 +138,7 @@ public class DataPusher {
           }
         };
     pushThread.setDaemon(true);
-    pushThread.setUncaughtExceptionHandler(
-        new ThreadExceptionHandler("celeborn-client-dataPusher-" + taskId));
+    pushThread.setUncaughtExceptionHandler(new ThreadExceptionHandler("DataPusher-" + taskId));
     pushThread.start();
   }
 
