@@ -16,12 +16,32 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import type { MenuOption } from 'naive-ui'
+import type { PropType } from 'vue'
+
+const router = useRouter()
+
+defineOptions({
+  name: 'SiderMenu'
+})
+
+defineProps({
+  menus: {
+    type: Array as PropType<MenuOption[]>,
+    default: () => []
+  }
+})
+
+const path = computed(() => {
+  return router.currentRoute.value.fullPath
+})
+
+const updateValue = (value: string) => {
+  router.push(value)
+}
+</script>
 
 <template>
-  <n-config-provider style="height: 100%">
-    <router-view />
-  </n-config-provider>
+  <n-menu :options="menus" :default-value="path" @update:value="updateValue" />
 </template>
-
-<style lang="scss" scoped></style>

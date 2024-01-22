@@ -15,28 +15,9 @@
  * limitations under the License.
  */
 
-import {
-  createRouter,
-  createWebHashHistory,
-  type NavigationGuardNext,
-  type RouteLocationNormalized
-} from 'vue-router'
-import routes from './routes'
-
-const router = createRouter({
-  history: createWebHashHistory(import.meta.env.BASE_URL),
-  routes
-})
-
-/**
- * Routing to intercept
- */
-router.beforeEach(
-  async (to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) => {
-    next()
-  }
-)
-
-router.afterEach(() => {})
-
-export default router
+export default {
+  path: '/master',
+  name: 'master',
+  meta: { title: 'Master' },
+  component: () => import('@/views/master/index.vue')
+}

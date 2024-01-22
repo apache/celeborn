@@ -16,12 +16,12 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+defineOptions({
+  name: 'OverView'
+})
+</script>
 
-<template>
-  <n-config-provider style="height: 100%">
-    <router-view />
-  </n-config-provider>
-</template>
+<template>Welcome to Apache Celeborn. There is OverView.</template>
 
-<style lang="scss" scoped></style>
+<style scoped lang="scss"></style>
