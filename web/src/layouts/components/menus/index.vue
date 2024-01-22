@@ -17,8 +17,8 @@
 -->
 
 <script setup lang="ts">
-import type { MenuOption } from 'naive-ui';
-import type { PropType } from 'vue';
+import type { MenuOption } from 'naive-ui'
+import type { PropType } from 'vue'
 
 const router = useRouter()
 
@@ -30,7 +30,7 @@ defineProps({
   menus: {
     type: Array as PropType<MenuOption[]>,
     default: () => []
-  },
+  }
 })
 
 const path = computed(() => {
@@ -38,7 +38,7 @@ const path = computed(() => {
 })
 
 const updateValue = (value: string) => {
-  router.push(value);
+  router.push(value)
 }
 </script>
 

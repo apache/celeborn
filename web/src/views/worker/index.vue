@@ -17,16 +17,11 @@
 -->
 
 <script setup lang="ts">
-
 defineOptions({
   name: 'WorkerView'
 })
-
 </script>
 
-<template>
-  Welcome to Apache Celeborn. There is Worker.
-</template>
+<template>Welcome to Apache Celeborn. There is Worker.</template>
 
-<style scoped lang="scss">
-</style>
+<style scoped lang="scss"></style>

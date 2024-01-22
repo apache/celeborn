@@ -17,16 +17,11 @@
 -->
 
 <script setup lang="ts">
-
 defineOptions({
-  name:'MasterView'
+  name: 'MasterView'
 })
-
 </script>
 
-<template>
-  Welcome to Apache Celeborn. There is Master.
-</template>
+<template>Welcome to Apache Celeborn. There is Master.</template>
 
-<style scoped lang="scss">
-</style>
+<style scoped lang="scss"></style>

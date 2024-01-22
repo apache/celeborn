@@ -17,16 +17,11 @@
 -->
 
 <script setup lang="ts">
-
 defineOptions({
   name: 'ApplicationView'
 })
-
 </script>
 
-<template>
-  Welcome to Apache Celeborn. There is Application.
-</template>
+<template>Welcome to Apache Celeborn. There is Application.</template>
 
-<style scoped lang="scss">
-</style>
+<style scoped lang="scss"></style>

@@ -17,16 +17,11 @@
 -->
 
 <script setup lang="ts">
-
 defineOptions({
   name: 'OverView'
 })
-
 </script>
 
-<template>
-  Welcome to Apache Celeborn. There is OverView.
-</template>
+<template>Welcome to Apache Celeborn. There is OverView.</template>
 
-<style scoped lang="scss">
-</style>
+<style scoped lang="scss"></style>

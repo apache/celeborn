@@ -17,16 +17,11 @@
 -->
 
 <script setup lang="ts">
-
 defineOptions({
   name: 'TenantView'
 })
-
 </script>
 
-<template>
-  Welcome to Apache Celeborn. There is Tenant.
-</template> 
+<template>Welcome to Apache Celeborn. There is Tenant.</template>
 
-<style scoped lang="scss">
-</style>
+<style scoped lang="scss"></style>
