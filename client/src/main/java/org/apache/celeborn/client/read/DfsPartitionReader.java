@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCounted;
-import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -47,7 +46,7 @@ import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils;
-import org.apache.celeborn.common.util.ThreadExceptionHandler;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class DfsPartitionReader implements PartitionReader {
@@ -127,7 +126,9 @@ public class DfsPartitionReader implements PartitionReader {
         chunkOffsets);
     if (chunkOffsets.size() > 1) {
       numChunks = chunkOffsets.size() - 1;
-      fetchThread = ThreadUtils.newDaemonSingleThreadExecutor("Dfs-fetch-thread" + location.getStorageInfo().getFilePath());
+      fetchThread =
+          ThreadUtils.newDaemonSingleThreadExecutor(
+              "Dfs-fetch-thread" + location.getStorageInfo().getFilePath());
       logger.debug("Start dfs read on location {}", location);
       ShuffleClient.incrementTotalReadCounter();
     }
