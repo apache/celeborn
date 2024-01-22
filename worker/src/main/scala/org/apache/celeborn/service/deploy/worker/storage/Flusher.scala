@@ -59,7 +59,7 @@ abstract private[worker] class Flusher(
     }
     for (index <- 0 until threadCount) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
-      workers(index) = workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$this-$index")
+      workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$this-$index")
       workers(index).submit(new Runnable {
         override def run(): Unit = {
           while (!stopFlag.get()) {
