@@ -21,6 +21,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH}
 import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.metrics.source.ThreadPoolSource
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 class StorageManagerSuite extends CelebornFunSuite {
@@ -31,7 +32,7 @@ class StorageManagerSuite extends CelebornFunSuite {
     val storageManager = new StorageManager(
       conf,
       new WorkerSource(conf),
-      MetricsSystem.createMetricsSystem("worker", conf))
+      new ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER))
     // should not throw IllegalMonitorStateException exception
     storageManager.saveAllCommittedFileInfosToDB()
   }
