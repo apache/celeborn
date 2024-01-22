@@ -94,7 +94,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   protected final AbstractSource source;
 
-  private final ExecutorService fileSorterExecutors;
+  private final ThreadPoolExecutor fileSorterExecutors;
   private final ExecutorService fileSorterSchedulerThread;
   private final long indexCacheMaxWeight;
 
