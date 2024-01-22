@@ -35,6 +35,7 @@ import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 public class CreditStreamManager {
@@ -50,7 +51,7 @@ public class CreditStreamManager {
   private final BlockingQueue<DelayedStreamId> recycleStreamIds = new DelayQueue<>();
 
   @GuardedBy("lock")
-  private volatile Thread recycleThread;
+  private volatile ExecutorService recycleThread;
 
   private final Object lock = new Object();
 
@@ -189,20 +190,18 @@ public class CreditStreamManager {
     synchronized (lock) {
       if (recycleThread == null) {
         recycleThread =
-            new Thread(
-                () -> {
-                  while (true) {
-                    try {
-                      DelayedStreamId delayedStreamId = recycleStreamIds.take();
-                      cleanResource(delayedStreamId.streamId);
-                    } catch (Throwable e) {
-                      logger.warn(e.getMessage(), e);
-                    }
-                  }
-                },
-                "recycle-thread");
-        recycleThread.setDaemon(true);
-        recycleThread.start();
+            ThreadUtils.newDaemonSingleThreadExecutor("credit-stream-manager-recycle-thread");
+        recycleThread.submit(
+            () -> {
+              while (true) {
+                try {
+                  DelayedStreamId delayedStreamId = recycleStreamIds.take();
+                  cleanResource(delayedStreamId.streamId);
+                } catch (Throwable e) {
+                  logger.warn(e.getMessage(), e);
+                }
+              }
+            });
 
         logger.info("start stream recycle thread");
       }

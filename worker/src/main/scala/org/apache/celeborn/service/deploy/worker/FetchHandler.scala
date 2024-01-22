@@ -60,11 +60,11 @@ class FetchHandler(
   var registered: AtomicBoolean = new AtomicBoolean(false)
 
   def init(worker: Worker): Unit = {
-    workerSource.addGauge(WorkerSource.CHUNK_STREAM_COUNT) { () =>
+    workerSource.addGauge(WorkerSource.ACTIVE_CHUNK_STREAM_COUNT) { () =>
       chunkStreamManager.getStreamsCount
     }
 
-    workerSource.addGauge(WorkerSource.CREDIT_STREAM_COUNT) { () =>
+    workerSource.addGauge(WorkerSource.ACTIVE_CREDIT_STREAM_COUNT) { () =>
       creditStreamManager.getStreamsCount
     }
 

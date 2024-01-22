@@ -21,7 +21,7 @@ import java.io.{BufferedReader, File, FileInputStream, InputStreamReader, IOExce
 import java.nio.charset.Charset
 import java.nio.file.{Files, Paths}
 import java.util
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ThreadPoolExecutor, TimeUnit}
 
 import scala.collection.JavaConverters._
 
@@ -199,7 +199,7 @@ class LocalDeviceMonitor(
 }
 
 object DeviceMonitor extends Logging {
-  val deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
+  var deviceCheckThreadPool: ThreadPoolExecutor = _
 
   def createDeviceMonitor(
       conf: CelebornConf,
@@ -210,6 +210,7 @@ object DeviceMonitor extends Logging {
       threadPoolSource: ThreadPoolSource): DeviceMonitor = {
     try {
       if (conf.workerDiskMonitorEnabled) {
+        deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
         val monitor =
           new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos, workerSource)
         monitor.init()
