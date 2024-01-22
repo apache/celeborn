@@ -31,7 +31,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
-import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,10 +97,10 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
   }
 
   @Override
-  public void doBootstrap(TransportClient client, Channel channel) throws RuntimeException {
+  public void doBootstrap(TransportClient client) throws RuntimeException {
     if (registrationInfo.getRegistrationState() == RegistrationInfo.RegistrationState.REGISTERED) {
       LOG.info("client has already registered, skip register.");
-      doSaslBootstrap(client, channel);
+      doSaslBootstrap(client);
       return;
     }
     try {
@@ -223,9 +222,9 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
     }
   }
 
-  private void doSaslBootstrap(TransportClient client, Channel channel) {
+  private void doSaslBootstrap(TransportClient client) {
     SaslClientBootstrap bootstrap = new SaslClientBootstrap(conf, appId, saslCredentials);
-    bootstrap.doBootstrap(client, channel);
+    bootstrap.doBootstrap(client);
   }
 
   private boolean validateServerResponse(PbAuthenticationInitiationResponse authInitResponse) {

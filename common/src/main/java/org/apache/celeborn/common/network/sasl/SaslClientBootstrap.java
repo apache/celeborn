@@ -25,7 +25,6 @@ import java.util.concurrent.TimeoutException;
 
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
-import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +68,7 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
    * to mismatch.
    */
   @Override
-  public void doBootstrap(TransportClient client, Channel channel) {
+  public void doBootstrap(TransportClient client) {
     // TODO: Hardcoding the SASL mechanism to DIGEST-MD5 for Connection Authentication. This
     // should be configurable in the future.
     CelebornSaslClient saslClient =
