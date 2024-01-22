@@ -28,7 +28,6 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.celeborn.common.metrics.source.ThreadPoolSource;
 import scala.Function0;
 import scala.Tuple4;
 import scala.collection.mutable.ListBuffer;
@@ -44,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.metrics.source.ThreadPoolSource;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
