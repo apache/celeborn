@@ -120,6 +120,7 @@ public class ReducePartitionDataWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source,
+            Mockito.mock(ThreadPoolSource.class),
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
             NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),
@@ -417,6 +418,7 @@ public class ReducePartitionDataWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source,
+            Mockito.mock(ThreadPoolSource.class),
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
             NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),

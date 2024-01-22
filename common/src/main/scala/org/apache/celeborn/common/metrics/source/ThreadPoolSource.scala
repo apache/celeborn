@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.metrics.source
 
-import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.{ExecutorService, ThreadPoolExecutor}
 
 import com.codahale.metrics.Gauge
 
@@ -135,5 +135,36 @@ class ThreadPoolSource(
     removeGauge("is_terminating", label)
     removeGauge("is_terminated", label)
     removeGauge("is_shutdown", label)
+    removeGauge("thread-count", label)
+    removeGauge("thread_is_terminated_count", label)
+    removeGauge("thread_is_shutdown_count", label)
+  }
+
+  def registerSource(threadPoolName: String, threads: Array[ExecutorService]): Unit = {
+    val label = Map("threadPool" -> threadPoolName)
+    addGauge(
+      "thread_count",
+      label,
+      new Gauge[Int] {
+        override def getValue: Int = {
+          threads.size
+        }
+      })
+    addGauge(
+      "thread_is_terminated_count",
+      label,
+      new Gauge[Int] {
+        override def getValue: Int = {
+          threads.count(_.isTerminated)
+        }
+      })
+    addGauge(
+      "thread_is_shutdown_count",
+      label,
+      new Gauge[Int] {
+        override def getValue: Int = {
+          threads.count(_.isShutdown)
+        }
+      })
   }
 }

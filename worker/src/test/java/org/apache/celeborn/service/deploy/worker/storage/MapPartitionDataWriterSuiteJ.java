@@ -28,6 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.celeborn.common.metrics.source.ThreadPoolSource;
 import scala.Function0;
 import scala.Tuple4;
 import scala.collection.mutable.ListBuffer;
@@ -86,6 +87,7 @@ public class MapPartitionDataWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source,
+            Mockito.mock(ThreadPoolSource.class),
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
             NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),

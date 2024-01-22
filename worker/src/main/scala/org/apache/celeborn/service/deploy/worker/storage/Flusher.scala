@@ -29,7 +29,7 @@ import io.netty.buffer.{CompositeByteBuf, PooledByteBufAllocator, Unpooled}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
-import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.ThreadUtils
 import org.apache.celeborn.service.deploy.worker.WorkerSource
@@ -38,6 +38,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
+    val threadPoolSource: ThreadPoolSource,
     val threadCount: Int,
     val allocator: PooledByteBufAllocator,
     val maxComponents: Int,
@@ -47,6 +48,7 @@ abstract private[worker] class Flusher(
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
   protected val workers = new Array[ExecutorService](threadCount)
   protected var nextWorkerIndex: Int = 0
+  protected val threadName: String
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
   val stopFlag = new AtomicBoolean(false)
@@ -59,7 +61,7 @@ abstract private[worker] class Flusher(
     }
     for (index <- 0 until threadCount) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
-      workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$this-$index")
+      workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$threadName-$index")
       workers(index).submit(new Runnable {
         override def run(): Unit = {
           while (!stopFlag.get()) {
@@ -90,6 +92,7 @@ abstract private[worker] class Flusher(
         }
       })
     }
+    threadPoolSource.registerSource(s"$this", workers)
   }
 
   def getWorkerIndex: Int = synchronized {
@@ -125,6 +128,7 @@ abstract private[worker] class Flusher(
 
 private[worker] class LocalFlusher(
     workerSource: AbstractSource,
+    threadPoolSource: ThreadPoolSource,
     val deviceMonitor: DeviceMonitor,
     threadCount: Int,
     allocator: PooledByteBufAllocator,
@@ -133,6 +137,7 @@ private[worker] class LocalFlusher(
     val diskType: StorageInfo.Type,
     timeWindow: TimeWindow) extends Flusher(
     workerSource,
+    threadPoolSource,
     threadCount,
     allocator,
     maxComponents,
@@ -140,6 +145,8 @@ private[worker] class LocalFlusher(
   with DeviceObserver with Logging {
 
   deviceMonitor.registerFlusher(this)
+
+  override val threadName: String = s"LocalFlusher-$mountPoint"
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, report to DeviceMonitor, exception: $e")
@@ -164,18 +171,22 @@ private[worker] class LocalFlusher(
 
 final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
+    threadPoolSource: ThreadPoolSource,
     hdfsFlusherThreads: Int,
     allocator: PooledByteBufAllocator,
     maxComponents: Int) extends Flusher(
     workerSource,
+    threadPoolSource,
     hdfsFlusherThreads,
     allocator,
     maxComponents,
     null) with Logging {
-  override def toString: String = s"HdfsFlusher@$flusherId"
+
+  override val threadName: String = s"HdfsFlusher"
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
   }
 
+  override def toString: String = s"HdfsFlusher@$flusherId"
 }
