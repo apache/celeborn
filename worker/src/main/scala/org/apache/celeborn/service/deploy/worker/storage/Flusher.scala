@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.IOException
 import java.nio.channels.ClosedByInterruptException
-import java.util.concurrent.{LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.{ExecutorService, LinkedBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLongArray}
 
 import scala.collection.JavaConverters._
@@ -31,6 +31,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo
+import org.apache.celeborn.common.util.ThreadUtils
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
@@ -44,7 +45,7 @@ abstract private[worker] class Flusher(
   protected lazy val flusherId: Int = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
-  protected val workers = new Array[Thread](threadCount)
+  protected val workers = new Array[ExecutorService](threadCount)
   protected var nextWorkerIndex: Int = 0
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
@@ -58,7 +59,8 @@ abstract private[worker] class Flusher(
     }
     for (index <- 0 until threadCount) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
-      workers(index) = new Thread(s"$this-$index") {
+      workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$this-$index")
+      workers(index).submit(new Runnable {
         override def run(): Unit = {
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
@@ -86,14 +88,7 @@ abstract private[worker] class Flusher(
             }
           }
         }
-      }
-      workers(index).setDaemon(true)
-      workers(index).setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler {
-        override def uncaughtException(t: Thread, e: Throwable): Unit = {
-          logError(s"$this thread terminated.", e)
-        }
       })
-      workers(index).start()
     }
   }
 
@@ -123,23 +118,6 @@ abstract private[worker] class Flusher(
 
   def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {
     workingQueues(workerIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
-  }
-
-  def bufferQueueInfo(): String = s"$this used buffers: ${bufferQueue.size()}"
-
-  def stopAndCleanFlusher(): Unit = {
-    stopFlag.set(true)
-    try {
-      workers.foreach(_.interrupt())
-    } catch {
-      case e: Exception =>
-        logError(s"Exception when interrupt worker: ${workers.mkString(",")}, $e")
-    }
-    workingQueues.foreach { queue =>
-      queue.asScala.foreach { task =>
-        returnBuffer(task.buffer)
-      }
-    }
   }
 
   def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit

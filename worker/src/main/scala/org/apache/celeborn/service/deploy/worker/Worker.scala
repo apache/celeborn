@@ -270,7 +270,8 @@ private[celeborn] class Worker(
   private val replicaFastFailDuration = conf.workerReplicateFastFailDuration
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
-  var cleaner: Thread = _
+  var cleaner: ExecutorService =
+    ThreadUtils.newDaemonSingleThreadExecutor("worker-cleaner")
 
   private val workerResourceConsumptionInterval = conf.workerResourceConsumptionInterval
   private val userResourceConsumptions =
@@ -414,7 +415,7 @@ private[celeborn] class Worker(
       replicaFastFailDuration,
       TimeUnit.MILLISECONDS)
 
-    cleaner = new Thread("Cleaner") {
+    cleaner.submit(new Runnable {
       override def run(): Unit = {
         while (true) {
           val expiredShuffleKeys = cleanTaskQueue.take()
@@ -426,15 +427,12 @@ private[celeborn] class Worker(
           }
         }
       }
-    }
+    })
 
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
     controller.init(this)
-
-    cleaner.setDaemon(true)
-    cleaner.start()
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
