@@ -169,7 +169,7 @@ public class DfsPartitionReader implements PartitionReader {
                 }
                 logger.debug("fetch {} is done.", location.getStorageInfo().getFilePath());
               },
-              "Dfs-fetch-thread" + location.getStorageInfo().getFilePath());
+              "celeforn-dfs-fetch-thread" + location.getStorageInfo().getFilePath());
       fetchThread.setUncaughtExceptionHandler(new ThreadExceptionHandler(fetchThread.getName()));
       logger.debug("Start dfs read on location {}", location);
       ShuffleClient.incrementTotalReadCounter();
