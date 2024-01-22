@@ -520,7 +520,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private val storageScheduler =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-manager-scheduler")
 
   storageScheduler.scheduleWithFixedDelay(
     new Runnable {

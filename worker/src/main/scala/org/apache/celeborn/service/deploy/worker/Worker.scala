@@ -262,7 +262,7 @@ private[celeborn] class Worker(
       "worker-clean-expired-shuffle-keys",
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-async-reply")
   val timer = new HashedWheelTimer()
 
   // Configs

@@ -40,7 +40,7 @@ class ReviveManager {
   private final int batchSize;
   ShuffleClientImpl shuffleClient;
   private final ScheduledExecutorService batchReviveRequestScheduler =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("batch-revive-scheduler");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-lifecycle-manager-batch-revive-scheduler");
 
   public ReviveManager(ShuffleClientImpl shuffleClient, CelebornConf conf) {
     this.shuffleClient = shuffleClient;
