@@ -142,7 +142,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
   val rpcSharedThreadPool =
-    ThreadUtils.newDaemonCachedThreadPool("celeborn-shared-rpc-pool", conf.clientRpcSharedThreads, 30)
+    ThreadUtils.newDaemonCachedThreadPool(
+      "celeborn-shared-rpc-pool",
+      conf.clientRpcSharedThreads,
+      30)
   val ec = ExecutionContext.fromExecutor(rpcSharedThreadPool)
 
   // init driver celeborn LifecycleManager rpc service

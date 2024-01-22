@@ -67,7 +67,8 @@ public class MasterClient {
     this.maxRetries = Math.max(masterEndpoints.size(), conf.masterClientMaxRetries());
     this.rpcTimeout = conf.masterClientRpcAskTimeout();
     this.rpcEndpointRef = new AtomicReference<>();
-    this.oneWayMessageSender = ThreadUtils.newDaemonSingleThreadExecutor("celeborn-one-way-message-sender");
+    this.oneWayMessageSender =
+        ThreadUtils.newDaemonSingleThreadExecutor("celeborn-one-way-message-sender");
   }
 
   private static final String SPLITTER = "#";
