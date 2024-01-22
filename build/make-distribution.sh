@@ -205,7 +205,12 @@ function build_flink_client {
       | grep -v "INFO" \
       | grep -v "WARNING" \
       | tail -n 1)
-  FLINK_BINARY_VERSION=${FLINK_VERSION%.*}
+  FLINK_BINARY_VERSION=""
+  if [[ $FLINK_VERSION == *"SNAPSHOT"* ]]; then
+    FLINK_BINARY_VERSION=`echo $FLINK_VERSION | awk -F"-" '{print $1}'`
+  else
+    FLINK_BINARY_VERSION=${FLINK_VERSION%.*}
+  fi
 
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
