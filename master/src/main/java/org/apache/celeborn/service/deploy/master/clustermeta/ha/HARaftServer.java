@@ -85,7 +85,7 @@ public class HARaftServer {
   private final StateMachine masterStateMachine;
 
   private final ScheduledExecutorService scheduledRoleChecker =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("ratis-role-checker");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-ratis-role-checker");
   private long roleCheckIntervalMs;
   private final ReentrantReadWriteLock roleCheckLock = new ReentrantReadWriteLock();
   private Optional<RaftProtos.RaftPeerRole> cachedPeerRole = Optional.empty();

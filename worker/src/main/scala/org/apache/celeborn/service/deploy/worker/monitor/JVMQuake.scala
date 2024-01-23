@@ -65,7 +65,7 @@ class JVMQuake(conf: CelebornConf, uniqueId: String = UUID.randomUUID().toString
     if (enabled) {
       lastExitTime = getLastExitTime
       lastGCTime = getLastGCTime
-      scheduler = ThreadUtils.newDaemonSingleThreadScheduledExecutor("jvm-quake")
+      scheduler = ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-jvm-quake-scheduler")
       scheduler.scheduleWithFixedDelay(
         new Runnable() {
           override def run(): Unit = {

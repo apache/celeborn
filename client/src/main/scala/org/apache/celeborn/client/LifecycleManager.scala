@@ -139,7 +139,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   // Threads
   private val forwardMessageThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-message-forwarder")
   private var checkForShuffleRemoval: ScheduledFuture[_] = _
   val rpcSharedThreadPool =
     ThreadUtils.newDaemonCachedThreadPool(

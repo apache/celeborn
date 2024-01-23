@@ -42,7 +42,7 @@ class ApplicationHeartbeater(
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
   private val applicationUnregisterEnabled = conf.applicationUnregisterEnabled
   private val appHeartbeatHandlerThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-app-heartbeat")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-lifecycle-manager-app-heartbeater")
   private var appHeartbeat: ScheduledFuture[_] = _
 
   def start(): Unit = {

@@ -128,7 +128,7 @@ public class DfsPartitionReader implements PartitionReader {
       numChunks = chunkOffsets.size() - 1;
       fetchThread =
           ThreadUtils.newDaemonSingleThreadExecutor(
-              "celeborn-dfs-fetch-thread" + location.getStorageInfo().getFilePath());
+              "celeborn-client-dfs-fetcher" + location.getStorageInfo().getFilePath());
       logger.debug("Start dfs read on location {}", location);
       ShuffleClient.incrementTotalReadCounter();
     }

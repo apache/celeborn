@@ -90,7 +90,8 @@ public class StateMachine extends BaseStateMachine {
     this.masterRatisServer = ratisServer;
     this.metaHandler = ratisServer.getMetaHandler();
 
-    this.executorService = ThreadUtils.newDaemonSingleThreadExecutor("Master-Meta-StateMachine");
+    this.executorService =
+        ThreadUtils.newDaemonSingleThreadExecutor("master-state-machine-executor");
   }
 
   /** Initializes the State Machine with the given server, group and storage. */

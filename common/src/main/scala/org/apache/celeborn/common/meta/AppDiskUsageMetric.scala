@@ -118,9 +118,9 @@ class AppDiskUsageMetric(conf: CelebornConf) extends Logging {
   val interval = conf.metricsAppTopDiskUsageInterval
   val snapShots = new Array[AppDiskUsageSnapShot](snapshotCount)
   val logExecutor =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("app-disk-usage-logger")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-app-disk-usage-metrics-logger")
   val updateExecutor =
-    ThreadUtils.newDaemonSingleThreadExecutor("app-disk-usage-metrics-updater")
+    ThreadUtils.newDaemonSingleThreadExecutor("master-app-disk-usage-metrics-updater")
   var currentSnapShot: AtomicReference[AppDiskUsageSnapShot] =
     new AtomicReference[AppDiskUsageSnapShot]()
 

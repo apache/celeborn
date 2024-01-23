@@ -73,13 +73,13 @@ public class CongestionController {
 
     this.removeUserExecutorService =
         ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-            "congestion-controller-inactive-user-remover");
+            "worker-congestion-controller-inactive-user-remover");
 
     this.removeUserExecutorService.scheduleWithFixedDelay(
         this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.MILLISECONDS);
 
     this.checkService =
-        ThreadUtils.newDaemonSingleThreadScheduledExecutor("congestion-controller-checker");
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-congestion-controller-checker");
 
     this.checkService.scheduleWithFixedDelay(
         this::checkCongestion, 0, checkIntervalTimeMills, TimeUnit.MILLISECONDS);
