@@ -48,6 +48,7 @@ trait MiniClusterFeature extends Logging {
   val workerInfos = new mutable.HashMap[Worker, Thread]()
 
   class RunnerWrap[T](code: => T) extends Thread {
+
     override def run(): Unit = {
       Utils.tryLogNonFatalError(code)
     }
@@ -172,9 +173,10 @@ trait MiniClusterFeature extends Logging {
       throw new BindException("cannot start master rpc endpoint")
     }
 
-    (1 to workerNum).foreach { _ =>
+    (1 to workerNum).foreach { i =>
       val worker = createWorker(workerConf)
       val workerThread = new RunnerWrap(worker.initialize())
+      workerThread.setName(s"worker ${i} starter thread")
       workerThread.start()
       workerInfos.put(worker, workerThread)
     }
