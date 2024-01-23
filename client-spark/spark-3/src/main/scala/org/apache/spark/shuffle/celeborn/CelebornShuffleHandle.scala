@@ -35,7 +35,6 @@ class CelebornShuffleHandle[K, V, C](
     val numMappers: Int,
     dependency: ShuffleDependency[K, V, C],
     val extension: Array[Byte],
-    val ioCryptoInitializationVector: Array[Byte],
     @transient lifecycleManagerRef: RpcEndpointRef = null)
   extends BaseShuffleHandle(shuffleId, dependency) {
 
@@ -56,7 +55,6 @@ class CelebornShuffleHandle[K, V, C](
     throwsFetchFailure,
     numMappers,
     dependency,
-    null,
     null)
 
   // will be called by MapOutputTrackerMaster, return partition location

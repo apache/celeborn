@@ -182,7 +182,7 @@ public class SparkShuffleManager implements ShuffleManager {
           celebornConf.clientFetchThrowsFetchFailure(),
           dependency.rdd().getNumPartitions(),
           dependency,
-          null, null,
+          null,
           lifecycleManager.self());
     }
   }
