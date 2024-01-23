@@ -171,7 +171,7 @@ trait MiniClusterFeature extends Logging {
             val worker = createWorker(workerConf)
             worker.initialize()
             workerStarted = true
-            workerInfos.put(worker, workerThread)
+            workerInfos.put(worker, Thread.currentThread())
           } catch {
             case ex: Exception =>
               workerStartRetry += 1
