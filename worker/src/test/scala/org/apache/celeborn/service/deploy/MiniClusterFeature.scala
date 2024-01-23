@@ -47,10 +47,9 @@ trait MiniClusterFeature extends Logging {
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
 
-  class RunnerWrap[T](signal: Array[Boolean], code: => T) extends Thread {
+  class RunnerWrap[T](code: => T) extends Thread {
     override def run(): Unit = {
       Utils.tryLogNonFatalError(code)
-      signal(0) = true
     }
   }
 
@@ -155,7 +154,16 @@ trait MiniClusterFeature extends Logging {
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
     val master = createMaster(masterConf)
     val masterStartedSignal = Array(false)
-    val masterThread = new RunnerWrap(masterStartedSignal, master.rpcEnv.awaitTermination())
+    val masterThread = new RunnerWrap({
+      try {
+        masterStartedSignal(0) = true
+        master.rpcEnv.awaitTermination()
+      } catch {
+        case ex: Exception =>
+          masterStartedSignal(0) = false
+          throw ex
+      }
+    })
     masterThread.start()
     masterInfo = (master, masterThread)
     Thread.sleep(20000L)
@@ -166,7 +174,7 @@ trait MiniClusterFeature extends Logging {
 
     (1 to workerNum).foreach { _ =>
       val worker = createWorker(workerConf)
-      val workerThread = new RunnerWrap(Array(false), worker.initialize())
+      val workerThread = new RunnerWrap(worker.initialize())
       workerThread.start()
       workerInfos.put(worker, workerThread)
     }
