@@ -19,9 +19,9 @@ package org.apache.celeborn.service.deploy
 
 import java.net.BindException
 import java.nio.file.Files
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.ConcurrentHashMap
 
-import scala.collection.mutable
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
@@ -34,7 +34,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 trait MiniClusterFeature extends Logging {
 
   var masterInfo: (Master, Thread) = _
-  val workerInfos = new mutable.HashMap[Worker, Thread]()
+  val workerInfos = new ConcurrentHashMap[Worker, Thread]()
 
   class RunnerWrap[T](code: => T) extends Thread {
 
@@ -163,11 +163,26 @@ trait MiniClusterFeature extends Logging {
     }
 
     (1 to workerNum).foreach { i =>
-      val worker = createWorker(workerConf)
-      val workerThread = new RunnerWrap(worker.initialize())
+      val workerThread = new RunnerWrap({
+        var workerStarted = false
+        var workerStartRetry = 0
+        while (!workerStarted) {
+          try {
+            val worker = createWorker(workerConf)
+            worker.initialize()
+            workerStarted = true
+            workerInfos.put(worker, workerThread)
+          } catch {
+            case ex: Exception =>
+              workerStartRetry += 1
+              if (workerStartRetry == 3) {
+                throw ex
+              }
+          }
+        }
+      })
       workerThread.setName(s"worker ${i} starter thread")
       workerThread.start()
-      workerInfos.put(worker, workerThread)
     }
 
     var workerRegistrationRetryCount = 0
@@ -175,7 +190,7 @@ trait MiniClusterFeature extends Logging {
     while (!workerRegistrationDone) {
       try {
         Thread.sleep(20000L)
-        workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
+        workerInfos.asScala.foreach { case (worker, _) => assert(worker.registered.get()) }
         workerRegistrationDone = true
       } catch {
         case ex: AssertionError =>
@@ -187,12 +202,12 @@ trait MiniClusterFeature extends Logging {
           }
       }
     }
-    (master, workerInfos.keySet)
+    (master, workerInfos.asScala.keySet)
   }
 
   def shutdownMiniCluster(): Unit = {
     // shutdown workers
-    workerInfos.foreach {
+    workerInfos.asScala.foreach {
       case (worker, _) =>
         worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
         worker.rpcEnv.shutdown()
@@ -204,7 +219,7 @@ trait MiniClusterFeature extends Logging {
 
     // interrupt threads
     Thread.sleep(5000)
-    workerInfos.foreach {
+    workerInfos.asScala.foreach {
       case (worker, thread) =>
         worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
         thread.interrupt()
