@@ -32,9 +32,9 @@ import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 trait MiniClusterFeature extends Logging {
-  private def masterPort = Random.nextInt(65535 - 1024) + 1024
+  private val masterPort = Random.nextInt(65535 - 1024) + 1024
 
-  private def workerPort = {
+  private val workerPort = {
     var port = masterPort
     while (port == masterPort) {
       port = Random.nextInt(65535 - 1024) + 1024
@@ -190,7 +190,7 @@ trait MiniClusterFeature extends Logging {
         case ex: AssertionError =>
           logError("worker registration cannot be done, retrying", ex)
           workerRegistrationRetryCount += 1
-          if (workerRegistrationRetryCount == 3) {
+          if (workerRegistrationRetryCount == 10) {
             logError("worker registration failed, reached to the max retry", ex)
             throw ex;
           }
