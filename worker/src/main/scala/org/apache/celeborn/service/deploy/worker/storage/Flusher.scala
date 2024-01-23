@@ -64,10 +64,10 @@ abstract private[worker] class Flusher(
         override def run(): Unit = {
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
-            val key = s"Flusher-$this-${Random.nextInt()}"
-            workerSource.sample(WorkerSource.FLUSH_DATA_TIME, key) {
-              if (!task.notifier.hasException) {
-                try {
+            try {
+              val key = s"Flusher-$this-${Random.nextInt()}"
+              workerSource.sample(WorkerSource.FLUSH_DATA_TIME, key) {
+                if (!task.notifier.hasException) {
                   val flushBeginTime = System.nanoTime()
                   lastBeginFlushTime.set(index, flushBeginTime)
                   task.flush()
@@ -75,16 +75,18 @@ abstract private[worker] class Flusher(
                     val delta = System.nanoTime() - flushBeginTime
                     flushTimeMetric.update(delta)
                   }
-                } catch {
-                  case _: ClosedByInterruptException =>
-                  case e: IOException =>
-                    task.notifier.setException(e)
-                    processIOException(e, DiskStatus.READ_OR_WRITE_FAILURE)
                 }
                 lastBeginFlushTime.set(index, -1)
               }
               returnBuffer(task.buffer)
               task.notifier.numPendingFlushes.decrementAndGet()
+            } catch {
+              case e: Throwable =>
+                logWarning(s"Flusher-${this}-thread-${index} encounter exception.", e)
+                if (e.isInstanceOf[IOException]) {
+                  task.notifier.setException(e.asInstanceOf[IOException])
+                  processIOException(e.asInstanceOf[IOException], DiskStatus.READ_OR_WRITE_FAILURE)
+                }
             }
           }
         }
