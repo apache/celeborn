@@ -61,7 +61,7 @@ public final class ShutdownHookManager {
   public static final TimeUnit TIME_UNIT_DEFAULT = TimeUnit.MILLISECONDS;
 
   private static final ExecutorService EXECUTOR =
-      ThreadUtils.newDaemonSingleThreadExecutor("shutdown-hook-%01d");
+      ThreadUtils.newDaemonSingleThreadExecutor("celeborn-shutdown-hook-%01d");
 
   static {
     try {

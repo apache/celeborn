@@ -64,7 +64,7 @@ class NettyRpcEnv(
   val clientFactory = transportContext.createClientFactory()
 
   private val timeoutScheduler =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-netty-rpc-env-timeout")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-netty-rpc-env-timeout-checker")
 
   // Because TransportClientFactory.createClient is blocking, we need to run it in this thread pool
   // to implement non-blocking send/ask.
