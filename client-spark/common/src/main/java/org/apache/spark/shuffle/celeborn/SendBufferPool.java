@@ -48,7 +48,7 @@ public class SendBufferPool {
   private final LinkedList<LinkedBlockingQueue<PushTask>> pushTaskQueues;
 
   private ScheduledExecutorService cleaner =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-sendBufferPool-cleaner");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-client-sendBufferPool-cleaner");
 
   private SendBufferPool(int capacity, long checkInterval, long timeout) {
     assert capacity > 0;

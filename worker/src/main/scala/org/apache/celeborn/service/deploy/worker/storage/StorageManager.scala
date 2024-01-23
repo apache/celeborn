@@ -222,7 +222,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
     saveCommittedFileInfosExecutor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "StorageManager-save-committed-fileinfo-thread")
+        "worker-storage-manager-committed-fileinfo-saver")
     saveCommittedFileInfosExecutor.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
@@ -520,7 +520,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private val storageScheduler =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-storage-manager-scheduler")
 
   storageScheduler.scheduleWithFixedDelay(
     new Runnable {
