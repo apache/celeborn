@@ -72,12 +72,14 @@ public class CongestionController {
     this.userBufferStatuses = JavaUtils.newConcurrentHashMap();
 
     this.removeUserExecutorService =
-        ThreadUtils.newDaemonSingleThreadScheduledExecutor("remove-inactive-user");
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+            "worker-congestion-controller-inactive-user-remover");
 
     this.removeUserExecutorService.scheduleWithFixedDelay(
         this::removeInactiveUsers, 0, userInactiveTimeMills, TimeUnit.MILLISECONDS);
 
-    this.checkService = ThreadUtils.newDaemonSingleThreadScheduledExecutor("congestion-checker");
+    this.checkService =
+        ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-congestion-controller-checker");
 
     this.checkService.scheduleWithFixedDelay(
         this::checkCongestion, 0, checkIntervalTimeMills, TimeUnit.MILLISECONDS);
