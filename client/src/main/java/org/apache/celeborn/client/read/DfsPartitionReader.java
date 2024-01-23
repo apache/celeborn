@@ -64,7 +64,7 @@ public class DfsPartitionReader implements PartitionReader {
   private int numChunks = 0;
   private int returnedChunks = 0;
   private int currentChunkIndex = 0;
-  final List<Long> chunkOffsets = new ArrayList<>();
+  private final List<Long> chunkOffsets = new ArrayList<>();
   private TransportClient client;
   private PbStreamHandler streamHandler;
   private MetricsCallback metricsCallback;
