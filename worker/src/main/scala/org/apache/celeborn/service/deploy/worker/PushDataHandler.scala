@@ -1254,6 +1254,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             } else {
               StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
             }
+          workerSource.incCounter(WorkerSource.WRITE_DATA_FAIL_COUNT)
           writePromise.failure(new CelebornIOException(cause))
           fileWriter.decrementPendingWrites()
       }
@@ -1283,6 +1284,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         writeData(fileWriters.head, body, shuffleKey)
     }
     if (!writePromise.isCompleted) {
+      workerSource.incCounter(WorkerSource.WRITE_DATA_SUCCESS_COUNT)
       writePromise.success()
     }
   }
