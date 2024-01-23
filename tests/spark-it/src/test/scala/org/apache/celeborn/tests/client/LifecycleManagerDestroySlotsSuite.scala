@@ -65,7 +65,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
       updateEpoch = false)
 
     val slotsToDestroy = new WorkerResource
-    val destroyWorkers = workerInfos.keySet.take(2)
+    val destroyWorkers = workerInfos.asScala.keySet.take(2)
     destroyWorkers.foreach { worker =>
       val entry = res.workerResource.entrySet().asScala.filter(_.getKey == worker.workerInfo).head
       slotsToDestroy.put(entry.getKey, entry.getValue)
@@ -104,7 +104,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
       updateEpoch = false)
 
     val slotsToDestroy = new WorkerResource
-    val destroyWorkers = workerInfos.keySet.take(2)
+    val destroyWorkers = workerInfos.asScala.keySet.take(2)
     destroyWorkers.foreach { worker =>
       val entry = res.workerResource.entrySet().asScala.filter(_.getKey == worker.workerInfo).head
       slotsToDestroy.put(entry.getKey, entry.getValue)
@@ -143,7 +143,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
       updateEpoch = false)
 
     val slotsToDestroy = new WorkerResource
-    val destroyWorkers = workerInfos.keySet.take(2)
+    val destroyWorkers = workerInfos.asScala.keySet.take(2)
     destroyWorkers.foreach { worker =>
       val entry = res.workerResource.entrySet().asScala.filter(_.getKey == worker.workerInfo).head
       slotsToDestroy.put(entry.getKey, entry.getValue)

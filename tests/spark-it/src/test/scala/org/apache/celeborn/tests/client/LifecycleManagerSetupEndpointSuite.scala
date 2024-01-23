@@ -68,7 +68,7 @@ class LifecycleManagerSetupEndpointSuite extends WithShuffleClientSuite with Min
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 3)
 
-    val firstWorker = workerInfos.keySet.head
+    val firstWorker = workerInfos.asScala.keySet.head
     firstWorker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     firstWorker.rpcEnv.shutdown()
 
