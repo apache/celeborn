@@ -57,7 +57,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private final ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
   private ShuffleResourceTracker shuffleResourceTracker;
   private final ScheduledExecutorService executor =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-remote-shuffle-master-executor");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-client-remote-shuffle-master-executor");
   private final ResultPartitionAdapter resultPartitionDelegation;
   private final long lifecycleManagerTimestamp;
 
