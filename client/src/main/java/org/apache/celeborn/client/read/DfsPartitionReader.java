@@ -51,7 +51,7 @@ import org.apache.celeborn.common.util.Utils;
 
 public class DfsPartitionReader implements PartitionReader {
   private static Logger logger = LoggerFactory.getLogger(DfsPartitionReader.class);
-  CelebornConf conf;
+  private CelebornConf conf;
   PartitionLocation location;
   private final long shuffleChunkSize;
   private final int fetchMaxReqsInFlight;
