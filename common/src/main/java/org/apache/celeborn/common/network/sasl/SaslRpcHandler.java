@@ -117,7 +117,7 @@ public class SaslRpcHandler extends AbstractAuthRpcHandler {
     cleanup();
   }
 
-  private void cleanup() {
+  public void cleanup() {
     if (null != saslServer) {
       try {
         saslServer.dispose();

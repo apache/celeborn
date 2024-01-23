@@ -92,6 +92,10 @@ enum MessageType {
   GET_SHUFFLE_ID = 69;
   GET_SHUFFLE_ID_RESPONSE = 70;
   SASL_REQUEST = 71;
+  AUTHENTICATION_INITIATION_REQUEST = 72;
+  AUTHENTICATION_INITIATION_RESPONSE = 73;
+  REGISTER_APPLICATION_REQUEST = 74;
+  REGISTER_APPLICATION_RESPONSE = 75;
 }
 
 enum StreamType {
@@ -636,8 +640,9 @@ message PbTransportableError {
 }
 
 enum PbAuthType {
-  CLIENT_AUTH = 0;
-  CONNECTION_AUTH = 1;
+  UNDEFINED_AUTH = 0;
+  CLIENT_AUTH = 1;
+  CONNECTION_AUTH = 2;
 }
 
 message PbSaslMechanism {
@@ -649,4 +654,25 @@ message PbSaslRequest {
   string method = 1;
   PbAuthType authType = 2;
   bytes payload = 3;
+}
+
+message PbAuthenticationInitiationRequest {
+  string version = 1;
+  bool authEnabled = 2;
+  repeated PbSaslMechanism saslMechanisms = 3;
+}
+
+message PbAuthenticationInitiationResponse {
+  string version = 1;
+  bool authEnabled = 2;
+  repeated PbSaslMechanism saslMechanisms = 3;
+}
+
+message PbRegisterApplicationRequest {
+  string id = 1;
+  string secret = 2;
+}
+
+message PbRegisterApplicationResponse {
+  bool status = 1;
 }
