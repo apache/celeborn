@@ -67,7 +67,7 @@ object Dependencies {
   // Versions for proto
   val protocVersion = "3.21.7"
   val protoVersion = "3.21.7"
-  
+
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
     ExclusionRule("net.java.dev.jna", "jna"))
@@ -152,7 +152,7 @@ object CelebornCommonSettings {
   scalaVersion := projectScalaVersion
 
   autoScalaLibrary := false
-  
+
   // crossScalaVersions must be set to Nil on the root project
   crossScalaVersions := Nil
 
@@ -163,7 +163,7 @@ object CelebornCommonSettings {
     fork := true,
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-encoding", UTF_8.name(), "-source", "1.8", "-g"),
-  
+
     // -target cannot be passed as a parameter to javadoc. See https://github.com/sbt/sbt/issues/355
     Compile / compile / javacOptions ++= Seq("-target", "1.8"),
 
@@ -194,7 +194,7 @@ object CelebornCommonSettings {
       "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
       "-Dio.netty.tryReflectionSetAccessible=true"
     ),
-  
+
     testOptions += Tests.Argument("-oF"),
 
     Test / testOptions += Tests.Argument("-oDF"),
@@ -281,7 +281,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornWorker.worker,
       CelebornMaster.master) ++ maybeSparkClientModules ++ maybeFlinkClientModules ++ maybeMRClientModules
   }
-  
+
   // ThisBuild / parallelExecution := false
 
   // scalaVersion := "2.11.12"
@@ -402,7 +402,7 @@ object CelebornCommon {
         Seq(file)
         // generate version task depends on PB generate to avoid concurrency generate source files
       }.dependsOn(Compile / PB.generate),
-  
+
       // a task to show current profiles
       printProfiles := {
         val message = profiles.mkString("", " ", "")
@@ -661,7 +661,7 @@ trait SparkClientProjects {
         ) ++ commonUnitTestDependencies
       )
   }
-  
+
   def sparkClient: Project = {
     Project(sparkClientProjectName, file(sparkClientProjectPath))
       .dependsOn(CelebornCommon.common, sparkCommon)
@@ -721,14 +721,14 @@ trait SparkClientProjects {
           val extension = artifact.value.extension
           s"${moduleName.value}_${scalaBinaryVersion.value}-${version.value}.$extension"
         },
-  
+
         (assembly / test) := { },
-  
+
         (assembly / logLevel) := Level.Info,
-  
+
         // Exclude `scala-library` from assembly.
         (assembly / assemblyPackageScala / assembleArtifact) := false,
-  
+
         (assembly / assemblyExcludedJars) := {
           val cp = (assembly / fullClasspath).value
           cp filter { v =>
@@ -742,7 +742,7 @@ trait SparkClientProjects {
               name.startsWith("RoaringBitmap-"))
           }
         },
-  
+
         (assembly / assemblyShadeRules) := Seq(
           ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
           ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
@@ -750,7 +750,7 @@ trait SparkClientProjects {
           ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
           ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
         ),
-  
+
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
           // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
@@ -821,7 +821,7 @@ object Flink117 extends FlinkClientProjects {
 }
 
 object Flink118 extends FlinkClientProjects {
-  val flinkVersion = "1.18.0"
+  val flinkVersion = "1.18.1"
 
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.18"
@@ -851,6 +851,7 @@ trait FlinkClientProjects {
     .aggregate(flinkCommon, flinkClient, flinkIt)
 
   // get flink major version. e.g:
+  //   1.18.1 -> 1.18
   //   1.17.2 -> 1.17
   //   1.15.4 -> 1.15
   //   1.14.6 -> 1.14
@@ -927,12 +928,12 @@ trait FlinkClientProjects {
             val artifactValue: Artifact = artifact.value
             flinkClientShadeJarName(revision, artifactValue, scalaBinaryVersion.value)
         },
-  
+
         (assembly / logLevel) := Level.Info,
-  
+
         // Exclude `scala-library` from assembly.
         (assembly / assemblyPackageScala / assembleArtifact) := false,
-  
+
         (assembly / assemblyExcludedJars) := {
           val cp = (assembly / fullClasspath).value
           cp filter { v =>
@@ -946,7 +947,7 @@ trait FlinkClientProjects {
                 name.startsWith("RoaringBitmap-"))
           }
         },
-  
+
         (assembly / assemblyShadeRules) := Seq(
           ShadeRule.rename("com.google.protobuf.**" -> "org.apache.celeborn.shaded.com.google.protobuf.@1").inAll,
           ShadeRule.rename("com.google.common.**" -> "org.apache.celeborn.shaded.com.google.common.@1").inAll,
@@ -954,7 +955,7 @@ trait FlinkClientProjects {
           ShadeRule.rename("org.apache.commons.**" -> "org.apache.celeborn.shaded.org.apache.commons.@1").inAll,
           ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll
         ),
-  
+
         (assembly / assemblyMergeStrategy) := {
           case m if m.toLowerCase(Locale.ROOT).endsWith("manifest.mf") => MergeStrategy.discard
           // the LicenseAndNoticeMergeStrategy always picks the license/notice file from the current project
