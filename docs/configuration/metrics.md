@@ -17,8 +17,8 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since | Alternatives |
-| --- | ------- | ----------- | ----- | ------------ |
+| Key | Default | Description | Since | Deprecated |
+| --- | ------- | ----------- | ----- | ---------- |
 | celeborn.metrics.app.topDiskUsage.count | 50 | Size for top items about top disk usage applications list. | 0.2.0 |  | 
 | celeborn.metrics.app.topDiskUsage.interval | 10min | Time length for a window about top disk usage application list. | 0.2.0 |  | 
 | celeborn.metrics.app.topDiskUsage.windowSize | 24 | Window size about top disk usage application list. | 0.2.0 |  | 

@@ -139,8 +139,8 @@ class ConfigurationSuite extends AnyFunSuite {
   }
 
   def appendConfigurationTableHeader(output: ArrayBuffer[String]): Unit = {
-    output += "| Key | Default | Description | Since | Alternatives |"
-    output += "| --- | ------- | ----------- | ----- | ------------ |"
+    output += "| Key | Default | Description | Since | Deprecated |"
+    output += "| --- | ------- | ----------- | ----- | ---------- |"
   }
 
   def appendBeginInclude(output: ArrayBuffer[String]): Unit = {
