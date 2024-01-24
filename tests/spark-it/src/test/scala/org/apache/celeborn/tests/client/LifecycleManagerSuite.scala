@@ -51,7 +51,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     })
 
     // test request slots without worker excluded
-    val headWorkerInfo = workerInfos.asScala.keySet.head.workerInfo
+    val headWorkerInfo = workerInfos.keySet.head.workerInfo
     val res1 = lifecycleManager.requestMasterRequestSlotsWithRetry(0, arrayList)
       .workerResource.keySet()
     assert(res1.contains(headWorkerInfo))
@@ -59,7 +59,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     // test request slots with 1 worker excluded, result should not contains the excluded worker
     val commitFilesFailedWorkers = new LifecycleManager.ShuffleFailedWorkers()
     commitFilesFailedWorkers.put(
-      workerInfos.asScala.keySet.head.workerInfo,
+      workerInfos.keySet.head.workerInfo,
       (StatusCode.PUSH_DATA_TIMEOUT_PRIMARY, System.currentTimeMillis()))
     lifecycleManager.workerStatusTracker.recordWorkerFailure(commitFilesFailedWorkers)
     val res2 = lifecycleManager.requestMasterRequestSlotsWithRetry(1, arrayList)
@@ -67,7 +67,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     assert(!res2.contains(headWorkerInfo))
 
     // test request slots with all workers excluded, response should be WORKER_EXCLUDED
-    workerInfos.asScala.keySet.foreach(worker =>
+    workerInfos.keySet.foreach(worker =>
       commitFilesFailedWorkers.put(
         worker.workerInfo,
         (StatusCode.PUSH_DATA_TIMEOUT_PRIMARY, System.currentTimeMillis())))
@@ -89,7 +89,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
 
     // test request slots with all workers excluded, response should not excluded any worker
     val commitFilesFailedWorkers = new LifecycleManager.ShuffleFailedWorkers()
-    workerInfos.asScala.keySet.foreach(worker =>
+    workerInfos.keySet.foreach(worker =>
       commitFilesFailedWorkers.put(
         worker.workerInfo,
         (StatusCode.PUSH_DATA_TIMEOUT_PRIMARY, System.currentTimeMillis())))
@@ -97,7 +97,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     val res = lifecycleManager.requestMasterRequestSlotsWithRetry(0, arrayList)
       .workerResource.keySet()
     assert(res.size() == workerInfos.size)
-    assert(res.contains(workerInfos.asScala.keySet.head.workerInfo))
+    assert(res.contains(workerInfos.keySet.head.workerInfo))
     lifecycleManager.stop()
   }
 

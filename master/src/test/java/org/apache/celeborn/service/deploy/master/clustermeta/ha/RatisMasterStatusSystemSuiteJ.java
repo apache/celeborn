@@ -161,15 +161,15 @@ public class RatisMasterStatusSystemSuiteJ {
         RATISSERVER1.start();
         RATISSERVER2.start();
         RATISSERVER3.start();
-        Thread.sleep(60 * 1000);
+        Thread.sleep(15 * 1000);
+        serversStarted = true;
       } catch (Exception e) {
         stopAllRaftServers();
         retryCount += 1;
-        if (retryCount >= 3) {
+        if (retryCount == 3) {
           throw e;
         }
       }
-      serversStarted = true;
     }
   }
 

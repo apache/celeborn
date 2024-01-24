@@ -19,18 +19,16 @@ package org.apache.celeborn.service.deploy
 
 import java.net.BindException
 import java.nio.file.Files
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
-
-import scala.collection.JavaConverters._
 import scala.util.Random
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
+
+import scala.collection.mutable
 
 trait MiniClusterFeature extends Logging {
   private val masterPort = Random.nextInt(65535 - 1024) + 1024
@@ -46,7 +44,7 @@ trait MiniClusterFeature extends Logging {
   val masterHttpPort = new AtomicInteger(masterPort)
   val workerHttpPort = new AtomicInteger(workerPort)
   var masterInfo: (Master, Thread) = _
-  val workerInfos = new ConcurrentHashMap[Worker, Thread]()
+  val workerInfos = new mutable.HashMap[Worker, Thread]()
 
   class RunnerWrap[T](code: => T) extends Thread {
 
@@ -168,7 +166,7 @@ trait MiniClusterFeature extends Logging {
     })
     masterThread.start()
     masterInfo = (master, masterThread)
-    Thread.sleep(20000L)
+    Thread.sleep(5000L)
 
     if (!masterStartedSignal.head) {
       throw new BindException("cannot start master rpc endpoint")
@@ -207,8 +205,7 @@ trait MiniClusterFeature extends Logging {
     var workerRegistrationDone = false
     while (!workerRegistrationDone) {
       try {
-        Thread.sleep(20000L)
-        workerInfos.asScala.foreach { case (worker, _) => assert(worker.registered.get()) }
+        workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         workerRegistrationDone = true
       } catch {
         case ex: AssertionError =>
@@ -220,12 +217,12 @@ trait MiniClusterFeature extends Logging {
           }
       }
     }
-    (master, workerInfos.asScala.keySet)
+    (master, workerInfos.keySet)
   }
 
   def shutdownMiniCluster(): Unit = {
     // shutdown workers
-    workerInfos.asScala.foreach {
+    workerInfos.foreach {
       case (worker, _) =>
         worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
         worker.rpcEnv.shutdown()
@@ -237,7 +234,7 @@ trait MiniClusterFeature extends Logging {
 
     // interrupt threads
     Thread.sleep(5000)
-    workerInfos.asScala.foreach {
+    workerInfos.foreach {
       case (worker, thread) =>
         worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
         thread.interrupt()

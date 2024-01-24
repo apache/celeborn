@@ -231,7 +231,6 @@ object Utils extends Logging {
     } catch {
       case NonFatal(t) =>
         logError(s"Uncaught exception in thread ${Thread.currentThread().getName}", t)
-
     }
   }
 
