@@ -32,8 +32,8 @@ class SlotsAssignMaxWorkersSmallTest extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup Celeborn mini cluster")
-    setupMiniClusterWithRandomPorts(masterConf = Some(Map(
-      s"${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}" -> "5")))
+    setupMiniClusterWithRandomPorts(masterConf = Map(
+      s"${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}" -> "5"))
   }
 
   override def beforeEach(): Unit = {

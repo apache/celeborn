@@ -36,7 +36,7 @@ trait HeartbeatFeature extends MiniClusterFeature {
     var workers: collection.Set[Worker] = null
     try {
       val (_master, _workers) =
-        setupMiniClusterWithRandomPorts(workerConf = Some(workerConf), workerNum = 1)
+        setupMiniClusterWithRandomPorts(workerConf = workerConf, workerNum = 1)
       master = _master
       workers = _workers
       workers.foreach { w =>

@@ -47,8 +47,8 @@ trait MiniClusterFeature extends Logging {
   }
 
   def setupMiniClusterWithRandomPorts(
-      masterConf: Option[Map[String, String]] = None,
-      workerConf: Option[Map[String, String]] = None,
+      masterConf: Map[String, String] = Map(),
+      workerConf: Map[String, String] = Map(),
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
     var retryCount = 0
     var created = false
@@ -61,10 +61,10 @@ trait MiniClusterFeature extends Logging {
           s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
           s"${CelebornConf.MASTER_PORT.key}" -> s"$randomPort",
           s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort") ++
-          masterConf.getOrElse(Map())
+          masterConf
         val finalWorkerConf = Map(
           s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort") ++
-          workerConf.getOrElse(Map())
+          workerConf
         logInfo(s"generated configuration $finalMasterConf")
         val (m, w) =
           setUpMiniCluster(masterConf = finalMasterConf, workerConf = finalWorkerConf, workerNum)

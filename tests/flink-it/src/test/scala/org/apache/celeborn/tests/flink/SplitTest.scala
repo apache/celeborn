@@ -35,7 +35,7 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
     val (m, w) = setupMiniClusterWithRandomPorts(workerConf =
-      Some(Map(CelebornConf.WORKER_FLUSHER_BUFFER_SIZE.key -> "10k")))
+      Map(CelebornConf.WORKER_FLUSHER_BUFFER_SIZE.key -> "10k"))
     workers = w
     port = m.conf.get(CelebornConf.MASTER_PORT)
   }
