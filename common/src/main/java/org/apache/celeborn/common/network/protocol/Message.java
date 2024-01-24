@@ -93,6 +93,7 @@ public abstract class Message implements Encodable {
     BUFFER_STREAM_END(21),
     HEARTBEAT(22),
     SEGMENT_START(23),
+    NOTIFY_REQUIRED_SEGMENT(24),
     ;
     private final byte id;
 
@@ -165,6 +166,10 @@ public abstract class Message implements Encodable {
           return BUFFER_STREAM_END;
         case 22:
           return HEARTBEAT;
+        case 23:
+          return SEGMENT_START;
+        case 24:
+          return NOTIFY_REQUIRED_SEGMENT;
         case -1:
           throw new IllegalArgumentException("User type messages cannot be decoded.");
         default:

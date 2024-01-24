@@ -40,19 +40,19 @@ import org.apache.celeborn.common.util.Utils;
 /*
  * map partition file writer, it will create index for each partition
  */
-public final class MapPartitionFileWriter extends FileWriter {
+public class MapPartitionFileWriter extends FileWriter {
   private static final Logger logger = LoggerFactory.getLogger(MapPartitionFileWriter.class);
 
   private int numSubpartitions;
   private int currentDataRegionIndex;
   private boolean isBroadcastRegion;
-  private long[] numSubpartitionBytes;
+  protected long[] numSubpartitionBytes;
   private ByteBuffer indexBuffer;
-  private int currentSubpartition;
-  private long totalBytes;
+  protected int currentSubpartition;
+  protected long totalBytes;
   private long regionStartingOffset;
   private FileChannel indexChannel;
-  private volatile boolean isRegionFinished = true;
+  protected volatile boolean isRegionFinished = true;
 
   public MapPartitionFileWriter(
       FileInfo fileInfo,
@@ -101,19 +101,19 @@ public final class MapPartitionFileWriter extends FileWriter {
 
     data.resetReaderIndex();
     logger.debug(
-        "mappartition filename:{} write partition:{} attemptId:{} batchId:{} size:{}",
-        fileInfo.getFilePath(),
-        partitionId,
-        attemptId,
-        batchId,
-        size);
+            "mappartition filename:{} write partition:{} attemptId:{} batchId:{} size:{}",
+            fileInfo.getFilePath(),
+            partitionId,
+            attemptId,
+            batchId,
+            size);
 
     if (partitionId < currentSubpartition) {
       throw new IOException(
-          "Must writing data in reduce partition index order, but now partitionId is "
-              + partitionId
-              + " and pre partitionId is "
-              + currentSubpartition);
+              "Must writing data in reduce partition index order, but now partitionId is "
+                      + partitionId
+                      + " and pre partitionId is "
+                      + currentSubpartition);
     }
 
     if (partitionId > currentSubpartition) {
@@ -122,7 +122,7 @@ public final class MapPartitionFileWriter extends FileWriter {
     long length = data.readableBytes();
     totalBytes += length;
     numSubpartitionBytes[partitionId] += length;
-    super.write(data);
+    writeDataToFile(data);
     isRegionFinished = false;
   }
 
@@ -241,8 +241,8 @@ public final class MapPartitionFileWriter extends FileWriter {
     isRegionFinished = true;
   }
 
-  public void segmentStart(int partitionId, int segmentId) {
-    // TODO, start the segment
+  protected void writeDataToFile(ByteBuf data) throws IOException {
+    super.write(data);
   }
 
   private synchronized void destroyIndex() {

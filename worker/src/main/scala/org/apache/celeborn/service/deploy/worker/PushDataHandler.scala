@@ -20,16 +20,13 @@ package org.apache.celeborn.service.deploy.worker
 import java.nio.ByteBuffer
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
-
 import scala.collection.JavaConverters._
 import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
-
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.buffer.ByteBuf
-
 import org.apache.celeborn.common.exception.{AlreadyClosedException, CelebornIOException}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo, WorkerPartitionLocationInfo}
@@ -41,10 +38,12 @@ import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbRegionFinish, PbRegionStart, PbSegmentStart}
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{DiskUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
+import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
 import org.apache.celeborn.service.deploy.worker.storage.{FileWriter, HdfsFlusher, LocalFlusher, MapPartitionFileWriter, StorageManager}
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
@@ -960,6 +959,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           (WorkerSource.PRIMARY_REGION_START_TIME, WorkerSource.REPLICA_REGION_START_TIME)
         case Type.REGION_FINISH =>
           (WorkerSource.PRIMARY_REGION_FINISH_TIME, WorkerSource.REPLICA_REGION_FINISH_TIME)
+        case Type.SEGMENT_START =>
+          (WorkerSource.PRIMARY_SEGMENT_START_TIME, WorkerSource.REPLICA_SEGMENT_START_TIME)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
 
@@ -1048,7 +1049,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           val (partitionId, segmentId) =
             (pbMsg.asInstanceOf[PbSegmentStart].getPartitionId,
               pbMsg.asInstanceOf[PbSegmentStart].getSegmentId)
-          fileWriter.asInstanceOf[MapPartitionFileWriter].segmentStart(partitionId, segmentId)
+          fileWriter.asInstanceOf[SegmentMapPartitionFileWriter].segmentStart(partitionId, segmentId)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for primary , send data to replica
@@ -1107,6 +1108,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         case Type.REGION_FINISH =>
           workerSource.incCounter(WorkerSource.REGION_FINISH_FAIL_COUNT)
           callback.onFailure(new CelebornIOException(StatusCode.REGION_FINISH_FAIL_REPLICA, e))
+        case Type.SEGMENT_START =>
+          workerSource.incCounter(WorkerSource.SEGMENT_START_FAIL_COUNT)
+          callback.onFailure(new CelebornIOException(StatusCode.SEGMENT_START_FAIL_REPLICA, e))
         case _ =>
           workerSource.incCounter(WorkerSource.REPLICATE_DATA_FAIL_COUNT)
           if (e.isInstanceOf[CelebornIOException]) {
@@ -1161,6 +1165,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         case Type.REGION_FINISH => (
             StatusCode.REGION_FINISH_FAIL_PRIMARY,
             StatusCode.REGION_FINISH_FAIL_REPLICA)
+        case Type.SEGMENT_START => (
+          StatusCode.SEGMENT_START_FAIL_PRIMARY,
+          StatusCode.SEGMENT_START_FAIL_REPLICA)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
     callback.onFailure(new CelebornIOException(

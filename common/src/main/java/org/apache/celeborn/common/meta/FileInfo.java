@@ -20,12 +20,15 @@ package org.apache.celeborn.common.meta;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.celeborn.common.util.CheckUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -35,6 +38,9 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.util.Utils;
+
+import static org.apache.celeborn.common.util.CheckUtils.checkNotNull;
+import static org.apache.celeborn.common.util.CheckUtils.checkState;
 
 public class FileInfo {
   private static Logger logger = LoggerFactory.getLogger(FileInfo.class);
@@ -59,13 +65,38 @@ public class FileInfo {
   private int bufferSize;
   private int numSubpartitions;
 
+  /**
+   * This is used to record the writing segment ids for each subpartition.
+   */
+  private Map<Integer, Integer> subpartitionWritingSegmentId;
+
+  /**
+   * Record the first buffer index in the segment for each subpartition. The index of the list is
+   * responding to the subpartition id. The key in the map is the first buffer index and the value
+   * in the map is the segment id. This is to get the segment id by the first buffer index with a
+   * high efficiency. When consuming buffer in any offset, we can get the segment id by this
+   * collection accoriding to the buffer index.
+   */
+  private List<Map<Integer, Integer>> firstBufferIndexInSegment;
+
   private volatile long bytesFlushed;
   // whether to split is decided by client side.
   // now it's just used for mappartition to compatible with old client which can't support split
   private boolean partitionSplitEnabled;
 
+  private boolean hasSegments;
+
   public FileInfo(String filePath, List<Long> chunkOffsets, UserIdentifier userIdentifier) {
     this(filePath, chunkOffsets, userIdentifier, PartitionType.REDUCE, true);
+  }
+
+  public FileInfo(
+          String filePath,
+          List<Long> chunkOffsets,
+          UserIdentifier userIdentifier,
+          PartitionType partitionType,
+          boolean partitionSplitEnabled) {
+    this(filePath, chunkOffsets, userIdentifier, partitionType, partitionSplitEnabled, false);
   }
 
   public FileInfo(
@@ -73,12 +104,14 @@ public class FileInfo {
       List<Long> chunkOffsets,
       UserIdentifier userIdentifier,
       PartitionType partitionType,
-      boolean partitionSplitEnabled) {
+      boolean partitionSplitEnabled,
+      boolean hasSegments) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
     this.partitionType = partitionType;
     this.partitionSplitEnabled = partitionSplitEnabled;
+    this.hasSegments = hasSegments;
   }
 
   public FileInfo(
@@ -114,7 +147,23 @@ public class FileInfo {
         new ArrayList(Arrays.asList(0L)),
         userIdentifier,
         partitionType,
-        partitionSplitEnabled);
+        partitionSplitEnabled,
+        false);
+  }
+
+  public FileInfo(
+          String filePath,
+          UserIdentifier userIdentifier,
+          PartitionType partitionType,
+          boolean partitionSplitEnabled,
+          boolean hasSegments) {
+    this(
+            filePath,
+            new ArrayList(Arrays.asList(0L)),
+            userIdentifier,
+            partitionType,
+            partitionSplitEnabled,
+            hasSegments);
   }
 
   @VisibleForTesting
@@ -137,6 +186,42 @@ public class FileInfo {
     } else {
       return 0;
     }
+  }
+
+  public synchronized void addPartitionSegmentId(int partitionId, int segmentId) {
+    if (subpartitionWritingSegmentId == null) {
+      subpartitionWritingSegmentId = new HashMap<>();
+    }
+    subpartitionWritingSegmentId.put(partitionId, segmentId);
+  }
+
+  public synchronized boolean hasPartitionSegmentIds() {
+    return subpartitionWritingSegmentId != null;
+  }
+
+  public synchronized int getPartitionWritingSegmentId(int partitionId) {
+    return checkNotNull(subpartitionWritingSegmentId.get(partitionId));
+  }
+
+  public synchronized void addSegmentIdAndFirstBufferIndex(
+          int subpartitionId, int firstBufferIndex, int segmentId) {
+    if (firstBufferIndexInSegment == null) {
+      firstBufferIndexInSegment = new ArrayList<>();
+      checkState(numSubpartitions > 0, "Wong number of subpartitions.");
+      for (int i = 0; i < numSubpartitions; ++i) {
+        firstBufferIndexInSegment.add(new HashMap<>());
+      }
+    }
+    firstBufferIndexInSegment.get(subpartitionId).put(firstBufferIndex, segmentId);
+  }
+
+  public synchronized Integer getSegmentIdByFirstBufferIndex(int subpartitionId, int bufferIndex) {
+    if (firstBufferIndexInSegment == null) {
+      return null;
+    }
+    return firstBufferIndexInSegment.size() > subpartitionId
+            ? firstBufferIndexInSegment.get(subpartitionId).get(bufferIndex)
+            : null;
   }
 
   public synchronized long getLastChunkOffset() {
@@ -214,6 +299,12 @@ public class FileInfo {
       new File(getIndexPath()).delete();
       new File(getSortedPath()).delete();
     }
+    if (firstBufferIndexInSegment != null) {
+      firstBufferIndexInSegment.clear();
+    }
+    if (subpartitionWritingSegmentId != null) {
+      subpartitionWritingSegmentId.clear();
+    }
   }
 
   public boolean isHdfs() {
@@ -239,6 +330,8 @@ public class FileInfo {
         + userIdentifier.toString()
         + ", partitionType="
         + partitionType
+        + ", hasSegments="
+        + hasSegments
         + '}';
   }
 
@@ -272,6 +365,10 @@ public class FileInfo {
 
   public boolean isPartitionSplitEnabled() {
     return partitionSplitEnabled;
+  }
+
+  public boolean hasSegments() {
+    return hasSegments;
   }
 
   public void setPartitionSplitEnabled(boolean partitionSplitEnabled) {

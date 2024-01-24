@@ -24,6 +24,8 @@ import java.nio.ByteBuffer;
 
 import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.celeborn.common.protocol.PbNotifyRequiredSegment;
+import org.apache.celeborn.common.protocol.PbSegmentStart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,6 +107,10 @@ public class TransportMessage implements Serializable {
         return (T) PbReportShuffleFetchFailureResponse.parseFrom(payload);
       case SASL_REQUEST_VALUE:
         return (T) PbSaslRequest.parseFrom(payload);
+      case  SEGMENT_START_VALUE:
+        return (T) PbSegmentStart.parseFrom(payload);
+      case NOTIFY_REQUIRED_SEGMENT_VALUE:
+        return (T) PbNotifyRequiredSegment.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }
