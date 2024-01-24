@@ -28,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.celeborn.common.util.CheckUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -39,6 +38,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.util.Utils;
 
+import static org.apache.celeborn.common.util.CheckUtils.checkArgument;
 import static org.apache.celeborn.common.util.CheckUtils.checkNotNull;
 import static org.apache.celeborn.common.util.CheckUtils.checkState;
 
@@ -68,7 +68,7 @@ public class FileInfo {
   /**
    * This is used to record the writing segment ids for each subpartition.
    */
-  private Map<Integer, Integer> subpartitionWritingSegmentId;
+  private Map<Integer, Integer> partitionWritingSegmentId;
 
   /**
    * Record the first buffer index in the segment for each subpartition. The index of the list is
@@ -77,7 +77,7 @@ public class FileInfo {
    * high efficiency. When consuming buffer in any offset, we can get the segment id by this
    * collection accoriding to the buffer index.
    */
-  private List<Map<Integer, Integer>> firstBufferIndexInSegment;
+  private List<FirstBufferIndexToSegment> firstBufferIndexToSegments;
 
   private volatile long bytesFlushed;
   // whether to split is decided by client side.
@@ -122,7 +122,10 @@ public class FileInfo {
       int bufferSize,
       int numSubpartitions,
       long bytesFlushed,
-      boolean partitionSplitEnabled) {
+      boolean partitionSplitEnabled,
+      boolean hasSegments,
+      Map<Integer, Integer> partitionWritingSegmentId,
+      List<FirstBufferIndexToSegment> firstBufferIndexToSegments) {
     this.filePath = filePath;
     this.chunkOffsets = chunkOffsets;
     this.userIdentifier = userIdentifier;
@@ -131,6 +134,9 @@ public class FileInfo {
     this.numSubpartitions = numSubpartitions;
     this.bytesFlushed = bytesFlushed;
     this.partitionSplitEnabled = partitionSplitEnabled;
+    this.hasSegments = hasSegments;
+    this.partitionWritingSegmentId = partitionWritingSegmentId;
+    this.firstBufferIndexToSegments = firstBufferIndexToSegments;
   }
 
   public FileInfo(String filePath, UserIdentifier userIdentifier, PartitionType partitionType) {
@@ -188,39 +194,47 @@ public class FileInfo {
     }
   }
 
+  public Map<Integer, Integer> getPartitionWritingSegmentId() {
+    return partitionWritingSegmentId;
+  }
+
+  public List<FirstBufferIndexToSegment> getFirstBufferIndexToSegments() {
+    return firstBufferIndexToSegments;
+  }
+
   public synchronized void addPartitionSegmentId(int partitionId, int segmentId) {
-    if (subpartitionWritingSegmentId == null) {
-      subpartitionWritingSegmentId = new HashMap<>();
+    if (partitionWritingSegmentId == null) {
+      partitionWritingSegmentId = new HashMap<>();
     }
-    subpartitionWritingSegmentId.put(partitionId, segmentId);
+    partitionWritingSegmentId.put(partitionId, segmentId);
   }
 
   public synchronized boolean hasPartitionSegmentIds() {
-    return subpartitionWritingSegmentId != null;
+    return partitionWritingSegmentId != null;
   }
 
   public synchronized int getPartitionWritingSegmentId(int partitionId) {
-    return checkNotNull(subpartitionWritingSegmentId.get(partitionId));
+    return checkNotNull(partitionWritingSegmentId.get(partitionId));
   }
 
   public synchronized void addSegmentIdAndFirstBufferIndex(
           int subpartitionId, int firstBufferIndex, int segmentId) {
-    if (firstBufferIndexInSegment == null) {
-      firstBufferIndexInSegment = new ArrayList<>();
+    if (firstBufferIndexToSegments == null) {
+      firstBufferIndexToSegments = new ArrayList<>();
       checkState(numSubpartitions > 0, "Wong number of subpartitions.");
       for (int i = 0; i < numSubpartitions; ++i) {
-        firstBufferIndexInSegment.add(new HashMap<>());
+        firstBufferIndexToSegments.add(new FirstBufferIndexToSegment(new HashMap<>()));
       }
     }
-    firstBufferIndexInSegment.get(subpartitionId).put(firstBufferIndex, segmentId);
+    firstBufferIndexToSegments.get(subpartitionId).addFirstBufferIndexAndSegmentId(firstBufferIndex, segmentId);
   }
 
   public synchronized Integer getSegmentIdByFirstBufferIndex(int subpartitionId, int bufferIndex) {
-    if (firstBufferIndexInSegment == null) {
+    if (firstBufferIndexToSegments == null) {
       return null;
     }
-    return firstBufferIndexInSegment.size() > subpartitionId
-            ? firstBufferIndexInSegment.get(subpartitionId).get(bufferIndex)
+    return firstBufferIndexToSegments.size() > subpartitionId
+            ? firstBufferIndexToSegments.get(subpartitionId).getFirstBufferIndexToSegment().get(bufferIndex)
             : null;
   }
 
@@ -299,11 +313,11 @@ public class FileInfo {
       new File(getIndexPath()).delete();
       new File(getSortedPath()).delete();
     }
-    if (firstBufferIndexInSegment != null) {
-      firstBufferIndexInSegment.clear();
+    if (firstBufferIndexToSegments != null) {
+      firstBufferIndexToSegments.clear();
     }
-    if (subpartitionWritingSegmentId != null) {
-      subpartitionWritingSegmentId.clear();
+    if (partitionWritingSegmentId != null) {
+      partitionWritingSegmentId.clear();
     }
   }
 
@@ -401,6 +415,23 @@ public class FileInfo {
   public boolean isStreamsEmpty() {
     synchronized (sorted) {
       return streams.isEmpty();
+    }
+  }
+
+  public static class FirstBufferIndexToSegment {
+
+    private final Map<Integer, Integer> firstBufferIndexToSegment;
+
+    public FirstBufferIndexToSegment(Map<Integer, Integer> firstBufferIndexToSegment) {
+      this.firstBufferIndexToSegment = firstBufferIndexToSegment;
+    }
+
+    public Map<Integer, Integer> getFirstBufferIndexToSegment() {
+      return firstBufferIndexToSegment;
+    }
+
+    void addFirstBufferIndexAndSegmentId(int firstBufferIndex, int segmentId) {
+     firstBufferIndexToSegment.put(firstBufferIndex, segmentId);
     }
   }
 }

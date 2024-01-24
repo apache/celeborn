@@ -89,6 +89,14 @@ object PbSerDeUtils {
   def fromPbFileInfo(pbFileInfo: PbFileInfo): FileInfo =
     fromPbFileInfo(pbFileInfo, fromPbUserIdentifier(pbFileInfo.getUserIdentifier))
 
+  private def fromPbFirstBufferIndexToSegmentList(
+      firstBufferIndexInSegmentList: util.List[PbFirstBufferIndexToSegment])
+      : util.List[FileInfo.FirstBufferIndexToSegment] = {
+    firstBufferIndexInSegmentList.asScala.map(firstBufferIndexToSegment =>
+      new FileInfo.FirstBufferIndexToSegment(
+        firstBufferIndexToSegment.getFirstBufferIndexToSegmentMap)).asJava
+  }
+
   def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) =
     new FileInfo(
       pbFileInfo.getFilePath,
@@ -98,7 +106,17 @@ object PbSerDeUtils {
       pbFileInfo.getBufferSize,
       pbFileInfo.getNumSubpartitions,
       pbFileInfo.getBytesFlushed,
-      pbFileInfo.getPartitionSplitEnabled)
+      pbFileInfo.getPartitionSplitEnabled,
+      pbFileInfo.getHasSegments,
+      pbFileInfo.getPartitionWritingSegmentMap,
+      fromPbFirstBufferIndexToSegmentList(pbFileInfo.getFirstBufferIndexInSegmentList))
+
+  private def toPbFirstBufferIndexToSegment(
+      firstBufferIndexToSegment: FileInfo.FirstBufferIndexToSegment)
+      : PbFirstBufferIndexToSegment = {
+    PbFirstBufferIndexToSegment.newBuilder().putAllFirstBufferIndexToSegment(
+      firstBufferIndexToSegment.getFirstBufferIndexToSegment).build()
+  }
 
   def toPbFileInfo(fileInfo: FileInfo): PbFileInfo =
     PbFileInfo.newBuilder
@@ -110,6 +128,10 @@ object PbSerDeUtils {
       .setNumSubpartitions(fileInfo.getNumSubpartitions)
       .setBytesFlushed(fileInfo.getFileLength)
       .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
+      .setHasSegments(fileInfo.hasSegments)
+      .putAllPartitionWritingSegment(fileInfo.getPartitionWritingSegmentId)
+      .addAllFirstBufferIndexInSegment(
+        fileInfo.getFirstBufferIndexToSegments.asScala.map(toPbFirstBufferIndexToSegment).asJava)
       .build
 
   @throws[InvalidProtocolBufferException]

@@ -500,6 +500,13 @@ message PbFileInfo {
   int32 numSubpartitions = 6;
   int64 bytesFlushed = 7;
   bool partitionSplitEnabled = 8;
+  bool hasSegments = 9;
+  map<int32, int32> partitionWritingSegment = 10;
+  repeated PbFirstBufferIndexToSegment firstBufferIndexInSegment = 11;
+}
+
+message PbFirstBufferIndexToSegment {
+  map<int32, int32> firstBufferIndexToSegment = 1;
 }
 
 message PbFileInfoMap {
