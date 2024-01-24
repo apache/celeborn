@@ -175,7 +175,7 @@ trait MiniClusterFeature extends Logging {
     }
 
     val workers = new Array[Worker](workerNum)
-    (1 to workerNum).foreach { i =>
+    val threads = (1 to workerNum).map { i =>
       val workerThread = new RunnerWrap({
         val worker = createWorker(workerConf)
         this.synchronized {
@@ -198,8 +198,10 @@ trait MiniClusterFeature extends Logging {
       })
       workerThread.setName(s"worker ${i} starter thread")
       workerThread.start()
-      workerInfos.put(workers(i - 1), workerThread)
+      workerThread
     }
+    Thread.sleep(20000L)
+    (0 until workerNum).foreach {i => workerInfos.put(workers(i), threads(i))}
 
     var workerRegistrationRetryCount = 0
     var workerRegistrationDone = false
