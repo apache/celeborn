@@ -104,7 +104,8 @@ class ConfigurationSuite extends AnyFunSuite {
           s"${escape(entry.key)}",
           s"${escape(entry.defaultValueString)}",
           s"${entry.doc}",
-          s"${entry.version}")
+          s"${entry.version}",
+          s"${escape(entry.alternatives.map(_._1).mkString(","))}")
         output += seq.mkString("| ", " | ", " | ")
       }
     appendEndInclude(output)
@@ -138,8 +139,8 @@ class ConfigurationSuite extends AnyFunSuite {
   }
 
   def appendConfigurationTableHeader(output: ArrayBuffer[String]): Unit = {
-    output += "| Key | Default | Description | Since |"
-    output += "| --- | ------- | ----------- | ----- |"
+    output += "| Key | Default | Description | Since | Deprecated |"
+    output += "| --- | ------- | ----------- | ----- | ---------- |"
   }
 
   def appendBeginInclude(output: ArrayBuffer[String]): Unit = {

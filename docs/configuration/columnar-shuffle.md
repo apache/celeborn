@@ -17,12 +17,12 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since |
-| --- | ------- | ----------- | ----- |
-| celeborn.columnarShuffle.batch.size | 10000 | Vector batch size for columnar shuffle. | 0.3.0 | 
-| celeborn.columnarShuffle.codegen.enabled | false | Whether to use codegen for columnar-based shuffle. | 0.3.0 | 
-| celeborn.columnarShuffle.enabled | false | Whether to enable columnar-based shuffle. | 0.2.0 | 
-| celeborn.columnarShuffle.encoding.dictionary.enabled | false | Whether to use dictionary encoding for columnar-based shuffle data. | 0.3.0 | 
-| celeborn.columnarShuffle.encoding.dictionary.maxFactor | 0.3 | Max factor for dictionary size. The max dictionary size is `min(32.0 KiB, celeborn.columnarShuffle.batch.size * celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`. | 0.3.0 | 
-| celeborn.columnarShuffle.offHeap.enabled | false | Whether to use off heap columnar vector. | 0.3.0 | 
+| Key | Default | Description | Since | Deprecated |
+| --- | ------- | ----------- | ----- | ---------- |
+| celeborn.columnarShuffle.batch.size | 10000 | Vector batch size for columnar shuffle. | 0.3.0 | celeborn.columnar.shuffle.batch.size | 
+| celeborn.columnarShuffle.codegen.enabled | false | Whether to use codegen for columnar-based shuffle. | 0.3.0 | celeborn.columnar.shuffle.codegen.enabled | 
+| celeborn.columnarShuffle.enabled | false | Whether to enable columnar-based shuffle. | 0.2.0 | celeborn.columnar.shuffle.enabled | 
+| celeborn.columnarShuffle.encoding.dictionary.enabled | false | Whether to use dictionary encoding for columnar-based shuffle data. | 0.3.0 | celeborn.columnar.shuffle.encoding.dictionary.enabled | 
+| celeborn.columnarShuffle.encoding.dictionary.maxFactor | 0.3 | Max factor for dictionary size. The max dictionary size is `min(32.0 KiB, celeborn.columnarShuffle.batch.size * celeborn.columnar.shuffle.encoding.dictionary.maxFactor)`. | 0.3.0 | celeborn.columnar.shuffle.encoding.dictionary.maxFactor | 
+| celeborn.columnarShuffle.offHeap.enabled | false | Whether to use off heap columnar vector. | 0.3.0 | celeborn.columnar.offHeap.enabled | 
 <!--end-include-->
