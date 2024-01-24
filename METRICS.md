@@ -95,7 +95,7 @@ Here is an example of Grafana dashboard importing.
 |         ActiveChunkStreamCount         |      worker       |                  The active stream count for reduce partition reading streams in current worker.                  |
 |         OpenStreamSuccessCount         |      worker       |                              The count of opening stream succeed in current worker.                               |
 |          OpenStreamFailCount           |      worker       |                               The count of opening stream failed in current worker.                               |
-|          FetchChuSuccessCount          |      worker       |                              The count of fetching chunk succeed in current worker.                               |
+|         FetchChunkSuccessCount         |      worker       |                              The count of fetching chunk succeed in current worker.                               |
 |          FetchChunkFailCount           |      worker       |                               The count of fetching chunk failed in current worker.                               |
 |          PrimaryPushDataTime           |      worker       |                       PrimaryPushData means handle PushData of primary partition location.                        |
 |          ReplicaPushDataTime           |      worker       |                       ReplicaPushData means handle PushData of replica partition location.                        |
