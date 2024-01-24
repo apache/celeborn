@@ -28,6 +28,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.Channel;
+import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapDataPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +36,8 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+
+import static org.apache.commons.crypto.utils.Utils.checkState;
 
 public class CreditStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(CreditStreamManager.class);
@@ -95,14 +98,22 @@ public class CreditStreamManager {
             (k, v) -> {
               if (v == null) {
                 try {
-                  v =
+                  v = fileInfo.hasSegments() ?
+                       new SegmentMapDataPartition(
+                          minReadBuffers,
+                          maxReadBuffers,
+                          storageFetcherPool,
+                          threadsPerMountPoint,
+                          fileInfo,
+                          this::recycleStream,
+                          minBuffersToTriggerRead) :
                       new MapDataPartition(
                           minReadBuffers,
                           maxReadBuffers,
                           storageFetcherPool,
                           threadsPerMountPoint,
                           fileInfo,
-                          id -> recycleStream(id),
+                          this::recycleStream,
                           minBuffersToTriggerRead);
                 } catch (IOException e) {
                   exception.set(e);
@@ -153,8 +164,8 @@ public class CreditStreamManager {
     logger.debug("streamId: {}, add credit: {}", streamId, requiredSegmentId);
     try {
       if (mapDataPartition != null) {
-        // TODO, notify required segment
-//        mapDataPartition.notifyRequiredSegment(requiredSegmentId, streamId);
+        checkState(mapDataPartition instanceof SegmentMapDataPartition);
+        ((SegmentMapDataPartition) mapDataPartition).notifyRequiredSegmentId(requiredSegmentId, streamId);
       }
     } catch (Throwable e) {
       logger.error("streamId: {}, notify required segment id: {}", streamId, requiredSegmentId);

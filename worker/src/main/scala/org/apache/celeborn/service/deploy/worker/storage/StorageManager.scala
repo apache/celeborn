@@ -24,15 +24,12 @@ import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.{BiConsumer, IntUnaryOperator}
-
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
 import io.netty.buffer.PooledByteBufAllocator
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -47,6 +44,7 @@ import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
+import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
@@ -378,7 +376,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
         val hdfsWriter = partitionType match {
-          case PartitionType.MAP => new MapPartitionFileWriter(
+          case PartitionType.MAP =>
+            if (hasSegments) new SegmentMapPartitionFileWriter(
+              fileInfo,
+              hdfsFlusher.get,
+              workerSource,
+              conf,
+              deviceMonitor,
+              splitThreshold,
+              splitMode,
+              rangeReadFilter)
+            else new MapPartitionFileWriter(
               fileInfo,
               hdfsFlusher.get,
               workerSource,
@@ -430,7 +438,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             }
           }
           val fileWriter = partitionType match {
-            case PartitionType.MAP => new MapPartitionFileWriter(
+            case PartitionType.MAP =>
+              if (hasSegments) new SegmentMapPartitionFileWriter(
+                fileInfo,
+                localFlushers.get(mountPoint),
+                workerSource,
+                conf,
+                deviceMonitor,
+                splitThreshold,
+                splitMode,
+                rangeReadFilter)
+              else new MapPartitionFileWriter(
                 fileInfo,
                 localFlushers.get(mountPoint),
                 workerSource,
