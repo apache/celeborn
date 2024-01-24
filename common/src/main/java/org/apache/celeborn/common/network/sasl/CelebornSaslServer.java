@@ -105,7 +105,7 @@ public class CelebornSaslServer {
    * Implementation of javax.security.auth.callback.CallbackHandler for SASL DIGEST-MD5 mechanism.
    */
   static class DigestCallbackHandler implements CallbackHandler {
-    private final SecretRegistry secretKeyHolder;
+    private final SecretRegistry secretRegistry;
 
     /**
      * The use of 'volatile' is not necessary here because the 'handle' invocation includes both the
@@ -115,7 +115,7 @@ public class CelebornSaslServer {
     private String userName = null;
 
     DigestCallbackHandler(SecretRegistry secretRegistry) {
-      this.secretKeyHolder = Preconditions.checkNotNull(secretRegistry);
+      this.secretRegistry = Preconditions.checkNotNull(secretRegistry);
     }
 
     @Override
@@ -132,7 +132,7 @@ public class CelebornSaslServer {
         } else if (callback instanceof PasswordCallback) {
           logger.trace("SASL server callback: setting password");
           PasswordCallback pc = (PasswordCallback) callback;
-          String secret = secretKeyHolder.getSecretKey(userName);
+          String secret = secretRegistry.getSecretKey(userName);
           if (secret == null) {
             // TODO: CELEBORN-1179 Add support for fetching the secret from the Celeborn master.
             throw new RuntimeException("Registration information not found for " + userName);

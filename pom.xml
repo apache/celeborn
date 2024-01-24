@@ -1349,7 +1349,7 @@
         <module>tests/flink-it</module>
       </modules>
       <properties>
-        <flink.version>1.18.0</flink.version>
+        <flink.version>1.18.1</flink.version>
         <flink.binary.version>1.18</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.18_${scala.binary.version}</celeborn.flink.plugin.artifact>

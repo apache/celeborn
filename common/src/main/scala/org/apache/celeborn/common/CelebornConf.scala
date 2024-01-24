@@ -1110,6 +1110,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def hdfsStorageKerberosPrincipal = get(HDFS_STORAGE_KERBEROS_PRINCIPAL)
   def hdfsStorageKerberosKeytab = get(HDFS_STORAGE_KERBEROS_KEYTAB)
+
+  // //////////////////////////////////////////////////////
+  //               Authentication                        //
+  // //////////////////////////////////////////////////////
+  def authEnabled: Boolean = get(AUTH_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -4359,4 +4364,12 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val AUTH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.auth.enabled")
+      .categories("auth")
+      .version("0.5.0")
+      .doc("Whether to enable authentication.")
+      .booleanConf
+      .createWithDefault(false)
 }

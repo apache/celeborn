@@ -24,13 +24,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,8 +61,7 @@ public final class ShutdownHookManager {
   public static final TimeUnit TIME_UNIT_DEFAULT = TimeUnit.MILLISECONDS;
 
   private static final ExecutorService EXECUTOR =
-      Executors.newSingleThreadExecutor(
-          new ThreadFactoryBuilder().setDaemon(true).setNameFormat("shutdown-hook-%01d").build());
+      ThreadUtils.newDaemonSingleThreadExecutor("celeborn-shutdown-hook-%01d");
 
   static {
     try {

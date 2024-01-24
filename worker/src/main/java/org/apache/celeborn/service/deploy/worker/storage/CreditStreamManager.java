@@ -190,7 +190,7 @@ public class CreditStreamManager {
     synchronized (lock) {
       if (recycleThread == null) {
         recycleThread =
-            ThreadUtils.newDaemonSingleThreadExecutor("credit-stream-manager-recycle-thread");
+            ThreadUtils.newDaemonSingleThreadExecutor("worker-credit-stream-manager-recycler");
         recycleThread.submit(
             () -> {
               while (true) {

@@ -92,7 +92,7 @@ private[celeborn] class Master(
 
   // Threads
   private val forwardMessageThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-message-forwarder")
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
@@ -135,7 +135,7 @@ private[celeborn] class Master(
   private val estimatedPartitionSizeForEstimationUpdateInterval =
     conf.estimatedPartitionSizeForEstimationUpdateInterval
   private val partitionSizeUpdateService =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-partition-size-updater")
   partitionSizeUpdateService.scheduleWithFixedDelay(
     new Runnable {
       override def run(): Unit = {

@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.common.network.client;
 
-import io.netty.channel.Channel;
-
 /**
  * A bootstrap which is executed on a TransportClient before it is returned to the user. This
  * enables an initial exchange of information (e.g., SASL authentication tokens) on a once-per-
@@ -36,5 +34,5 @@ public interface TransportClientBootstrap {
    * @param channel the associated channel with the transport client
    * @throws RuntimeException
    */
-  void doBootstrap(TransportClient client, Channel channel) throws RuntimeException;
+  void doBootstrap(TransportClient client) throws RuntimeException;
 }

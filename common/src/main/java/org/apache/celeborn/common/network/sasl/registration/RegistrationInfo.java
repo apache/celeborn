@@ -15,17 +15,26 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.network.sasl;
+package org.apache.celeborn.common.network.sasl.registration;
 
-/** Interface for getting a secret key associated with some application. */
-public interface SecretRegistry {
+import java.util.concurrent.atomic.AtomicReference;
 
-  /** Gets an appropriate SASL secret key for the given appId. */
-  String getSecretKey(String appId);
+public class RegistrationInfo {
 
-  boolean isRegistered(String appId);
+  private final AtomicReference<RegistrationState> state =
+      new AtomicReference<>(RegistrationState.UNREGISTERED);
 
-  void register(String appId, String secret);
+  public RegistrationState getRegistrationState() {
+    return state.get();
+  }
 
-  void unregister(String appId);
+  public void setRegistrationState(RegistrationState newState) {
+    state.set(newState);
+  }
+
+  public enum RegistrationState {
+    REGISTERED,
+    UNREGISTERED,
+    FAILED
+  }
 }
