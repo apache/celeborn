@@ -195,9 +195,9 @@ trait MiniClusterFeature extends Logging {
         }
       })
       workerThread.setName(s"worker ${i} starter thread")
-      workerThread.start()
       workerThread
     }
+    threads.foreach(_.start())
     Thread.sleep(20000)
     (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
 
