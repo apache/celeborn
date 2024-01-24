@@ -180,6 +180,9 @@ trait MiniClusterFeature extends Logging {
             workerStarted = true
           } catch {
             case ex: Exception =>
+              if (workers(i - 1) != null) {
+                workers(i - 1).shutdownGracefully()
+              }
               workerStartRetry += 1
               logError(s"cannot start worker $i, retrying: ", ex)
               if (workerStartRetry == 3) {
