@@ -76,10 +76,13 @@ abstract private[worker] class Flusher(
                     flushTimeMetric.update(delta)
                   }
                 } catch {
-                  case e: IOException =>
-                    task.notifier.setException(e)
-                    processIOException(e, DiskStatus.READ_OR_WRITE_FAILURE)
-                  case t =>
+                  case t: Throwable =>
+                    if (t.isInstanceOf[IOException]) {
+                      task.notifier.setException(t.asInstanceOf[IOException])
+                      processIOException(
+                        t.asInstanceOf[IOException],
+                        DiskStatus.READ_OR_WRITE_FAILURE)
+                    }
                     logWarning(s"Flusher-${this}-thread-${index} encounter exception.", t)
                 }
                 lastBeginFlushTime.set(index, -1)
