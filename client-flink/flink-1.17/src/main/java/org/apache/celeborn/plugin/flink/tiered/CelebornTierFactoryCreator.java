@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory.M
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkArgument;
+import static org.apache.celeborn.common.util.CheckUtils.checkArgument;
 
 public class CelebornTierFactoryCreator implements TieredFactoryCreator {
     @Override

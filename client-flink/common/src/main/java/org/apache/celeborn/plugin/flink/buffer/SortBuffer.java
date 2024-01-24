@@ -17,14 +17,14 @@
 
 package org.apache.celeborn.plugin.flink.buffer;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkNotNull;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+
+import static org.apache.celeborn.common.util.CheckUtils.checkNotNull;
 
 /**
  * Data of different channels can be appended to a {@link SortBuffer}., after appending finished,

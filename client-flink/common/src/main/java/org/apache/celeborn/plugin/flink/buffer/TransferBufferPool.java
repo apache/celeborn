@@ -17,9 +17,6 @@
 
 package org.apache.celeborn.plugin.flink.buffer;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkArgument;
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
-
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -28,6 +25,9 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.celeborn.common.util.CheckUtils.checkArgument;
+import static org.apache.celeborn.common.util.CheckUtils.checkState;
 
 /** A buffer pool which will dispatch buffers to all {@link CreditListener}s. */
 public class TransferBufferPool implements BufferRecycler {

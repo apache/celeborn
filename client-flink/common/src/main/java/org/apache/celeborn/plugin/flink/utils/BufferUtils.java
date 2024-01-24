@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.plugin.flink.utils;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkArgument;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +28,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
+
+import static org.apache.celeborn.common.util.CheckUtils.checkArgument;
 
 /** Utility methods to process flink buffers. */
 public class BufferUtils {

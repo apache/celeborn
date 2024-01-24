@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkNotNull;
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
+import static org.apache.celeborn.common.util.CheckUtils.checkNotNull;
+import static org.apache.celeborn.common.util.CheckUtils.checkState;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.*;
 
 import java.io.IOException;

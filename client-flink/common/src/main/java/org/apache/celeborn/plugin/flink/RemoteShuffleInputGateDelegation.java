@@ -18,8 +18,6 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
-
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +54,8 @@ import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.TransferBufferPool;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
+
+import static org.apache.celeborn.common.util.CheckUtils.checkState;
 
 public class RemoteShuffleInputGateDelegation {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleInputGateDelegation.class);

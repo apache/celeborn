@@ -21,12 +21,12 @@ package org.apache.celeborn.plugin.flink.tiered;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.DriverChangedException;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.util.CheckUtils;
 import org.apache.celeborn.plugin.flink.RemoteShuffleDescriptor;
 import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
-import org.apache.celeborn.plugin.flink.utils.Utils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -153,7 +153,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
         try {
             handshake();
         } catch (IOException e) {
-            Utils.rethrowAsRuntimeException(e);
+            CheckUtils.rethrowAsRuntimeException(e);
         }
     }
 
@@ -169,7 +169,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
             flinkShuffleClient.segmentStart(
                     shuffleId, mapId, attemptId, subpartitionId, segmentId, partitionLocation);
         } catch (IOException e) {
-            Utils.rethrowAsRuntimeException(e);
+            CheckUtils.rethrowAsRuntimeException(e);
         }
         return true;
     }
@@ -214,7 +214,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
                         shuffleId, mapId, attemptId, numPartitions, partitionLocation.getId());
             }
         } catch (Exception e) {
-            Utils.rethrowAsRuntimeException(e);
+            CheckUtils.rethrowAsRuntimeException(e);
         }
         bufferPacker.close();
         flinkShuffleClient.cleanup(shuffleId, mapId, attemptId);
@@ -225,7 +225,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
             bufferPacker.drain();
             flinkShuffleClient.regionFinish(shuffleId, mapId, attemptId, partitionLocation);
         } catch (Exception e) {
-            Utils.rethrowAsRuntimeException(e);
+            CheckUtils.rethrowAsRuntimeException(e);
         }
     }
 
@@ -234,7 +234,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
             flinkShuffleClient.pushDataHandShake(
                     shuffleId, mapId, attemptId, numSubpartitions, bufferSizeBytes, partitionLocation);
         } catch (IOException e) {
-            Utils.rethrowAsRuntimeException(e);
+            CheckUtils.rethrowAsRuntimeException(e);
         }
     }
 
@@ -250,11 +250,11 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
                 partitionLocation =
                         flinkShuffleClient.registerMapPartitionTask(
                                 shuffleId, numPartitions, mapId, attemptId, partitionId);
-                Utils.checkNotNull(partitionLocation);
+                CheckUtils.checkNotNull(partitionLocation);
                 hasRegisteredShuffle = true;
             }
         } catch (IOException e) {
-            Utils.rethrowAsRuntimeException(e);
+            CheckUtils.rethrowAsRuntimeException(e);
         }
     }
 
@@ -286,7 +286,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
                             compositeByteBuf::release);
             checkState(numWritten == bufferHeader.getSize() + BufferUtils.HEADER_LENGTH);
         } catch (IOException e) {
-            Utils.rethrowAsRuntimeException(e);
+            CheckUtils.rethrowAsRuntimeException(e);
         }
     }
 

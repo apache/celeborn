@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
+import org.apache.celeborn.common.util.CheckUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -39,7 +40,6 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
-import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /**
  * A {@link ResultPartition} which appends records and events to {@link SortBuffer} and after the
@@ -128,7 +128,7 @@ public class RemoteShuffleResultPartition extends ResultPartition {
 
   @Override
   public void finish() throws IOException {
-    Utils.checkState(!isReleased(), "Result partition is already released.");
+    CheckUtils.checkState(!isReleased(), "Result partition is already released.");
     broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
     delegation.finish();
     super.finish();

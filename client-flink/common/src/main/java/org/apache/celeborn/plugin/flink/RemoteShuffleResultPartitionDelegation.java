@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import org.apache.celeborn.common.util.CheckUtils;
 import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
@@ -38,7 +39,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.plugin.flink.buffer.PartitionSortedBuffer;
 import org.apache.celeborn.plugin.flink.buffer.SortBuffer;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
-import org.apache.celeborn.plugin.flink.utils.Utils;
 
 public class RemoteShuffleResultPartitionDelegation {
   public static final Logger LOG =
@@ -92,7 +92,7 @@ public class RemoteShuffleResultPartitionDelegation {
       outputGate.setup();
     } catch (Throwable throwable) {
       LOG.error("Failed to setup remote output gate.", throwable);
-      Utils.rethrowAsRuntimeException(throwable);
+      CheckUtils.rethrowAsRuntimeException(throwable);
     }
   }
 
@@ -122,7 +122,7 @@ public class RemoteShuffleResultPartitionDelegation {
       flushSortBuffer(sortBuffer, isBroadcast);
     } catch (InterruptedException e) {
       LOG.error("Failed to flush the sort buffer.", e);
-      Utils.rethrowAsRuntimeException(e);
+      CheckUtils.rethrowAsRuntimeException(e);
     }
     emit(record, targetSubpartition, dataType, isBroadcast);
   }
@@ -203,7 +203,7 @@ public class RemoteShuffleResultPartitionDelegation {
             buffer.readOnlySlice(
                 BufferUtils.HEADER_LENGTH, buffer.getSize() - BufferUtils.HEADER_LENGTH);
         compressedBuffer =
-            Utils.checkNotNull(bufferCompressor).compressToIntermediateBuffer(dataBuffer);
+            CheckUtils.checkNotNull(bufferCompressor).compressToIntermediateBuffer(dataBuffer);
       }
       BufferUtils.setCompressedDataWithHeader(buffer, compressedBuffer);
     } catch (Throwable throwable) {
@@ -257,7 +257,7 @@ public class RemoteShuffleResultPartitionDelegation {
   }
 
   public void finish() throws IOException {
-    Utils.checkState(
+    CheckUtils.checkState(
         unicastSortBuffer == null || unicastSortBuffer.isReleased(),
         "The unicast sort buffer should be either null or released.");
     flushBroadcastSortBuffer();
@@ -294,7 +294,7 @@ public class RemoteShuffleResultPartitionDelegation {
     }
 
     if (closeException != null) {
-      Utils.rethrowAsRuntimeException(closeException);
+      CheckUtils.rethrowAsRuntimeException(closeException);
     }
   }
 
@@ -315,7 +315,7 @@ public class RemoteShuffleResultPartitionDelegation {
       flushBroadcastSortBuffer();
     } catch (Throwable t) {
       LOG.error("Failed to flush the current sort buffer.", t);
-      Utils.rethrowAsRuntimeException(t);
+      CheckUtils.rethrowAsRuntimeException(t);
     }
   }
 

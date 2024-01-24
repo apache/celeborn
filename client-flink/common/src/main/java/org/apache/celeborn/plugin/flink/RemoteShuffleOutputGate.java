@@ -20,6 +20,7 @@ package org.apache.celeborn.plugin.flink;
 import java.io.IOException;
 import java.util.Optional;
 
+import org.apache.celeborn.common.util.CheckUtils;
 import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -37,7 +38,9 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
-import org.apache.celeborn.plugin.flink.utils.Utils;
+
+import static org.apache.celeborn.common.util.CheckUtils.checkArgument;
+import static org.apache.celeborn.common.util.CheckUtils.checkNotNull;
 
 /**
  * A transportation gate used to spill buffers from {@link ResultPartitionWriter} to remote shuffle
@@ -122,8 +125,8 @@ public class RemoteShuffleOutputGate {
 
   /** Initialize transportation gate. */
   public void setup() throws IOException, InterruptedException {
-    bufferPool = Utils.checkNotNull(bufferPoolFactory.get());
-    Utils.checkArgument(
+    bufferPool = checkNotNull(bufferPoolFactory.get());
+    checkArgument(
         bufferPool.getNumberOfRequiredMemorySegments() >= 2,
         "Too few buffers for transfer, the minimum valid required size is 2.");
 
@@ -153,7 +156,7 @@ public class RemoteShuffleOutputGate {
       handshake();
       regionStartWithRevive(isBroadcast);
     } catch (IOException e) {
-      Utils.rethrowAsRuntimeException(e);
+      CheckUtils.rethrowAsRuntimeException(e);
     }
   }
 
@@ -167,7 +170,7 @@ public class RemoteShuffleOutputGate {
       flinkShuffleClient.regionFinish(shuffleId, mapId, attemptId, partitionLocation);
       currentRegionIndex++;
     } catch (IOException e) {
-      Utils.rethrowAsRuntimeException(e);
+      CheckUtils.rethrowAsRuntimeException(e);
     }
   }
 
@@ -219,7 +222,7 @@ public class RemoteShuffleOutputGate {
           partitionLocation,
           () -> byteBuf.release());
     } catch (IOException e) {
-      Utils.rethrowAsRuntimeException(e);
+      CheckUtils.rethrowAsRuntimeException(e);
     }
   }
 
@@ -228,7 +231,7 @@ public class RemoteShuffleOutputGate {
       partitionLocation =
           flinkShuffleClient.registerMapPartitionTask(
               shuffleId, numMappers, mapId, attemptId, partitionId);
-      Utils.checkNotNull(partitionLocation);
+      CheckUtils.checkNotNull(partitionLocation);
 
       currentRegionIndex = 0;
       isRegisterShuffle = true;
@@ -269,7 +272,7 @@ public class RemoteShuffleOutputGate {
             "After retry " + maxReviveTimes + " times, still failed to send regionStart");
       }
     } catch (IOException e) {
-      Utils.rethrowAsRuntimeException(e);
+      CheckUtils.rethrowAsRuntimeException(e);
     }
   }
 
@@ -304,7 +307,7 @@ public class RemoteShuffleOutputGate {
             "After retry " + maxReviveTimes + " times, still failed to send handshake");
       }
     } catch (IOException e) {
-      Utils.rethrowAsRuntimeException(e);
+      CheckUtils.rethrowAsRuntimeException(e);
     }
   }
 }

@@ -20,6 +20,7 @@ package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
 
+import org.apache.celeborn.common.util.CheckUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -31,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create RemoteShuffleInputGate. */
 public abstract class AbstractRemoteShuffleInputGateFactory {
@@ -76,7 +76,7 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
               celebornConf.clientFlinkMemoryPerInputGateMin()));
     }
 
-    this.numBuffersPerGate = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
+    this.numBuffersPerGate = CheckUtils.checkedDownCast(configuredMemorySize / networkBufferSize);
     this.supportFloatingBuffers = celebornConf.clientFlinkInputGateSupportFloatingBuffer();
     if (numBuffersPerGate < MIN_BUFFERS_PER_GATE) {
       throw new IllegalArgumentException(

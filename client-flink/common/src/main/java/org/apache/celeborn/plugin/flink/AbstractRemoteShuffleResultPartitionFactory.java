@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.celeborn.common.util.CheckUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -37,7 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.CompressionCodec;
-import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create {@link RemoteShuffleResultPartition}. */
 public abstract class AbstractRemoteShuffleResultPartitionFactory {
@@ -81,7 +81,7 @@ public abstract class AbstractRemoteShuffleResultPartitionFactory {
               CelebornConf.CLIENT_MEMORY_PER_RESULT_PARTITION().key(), minConfiguredMemorySize));
     }
 
-    this.numBuffersPerPartition = Utils.checkedDownCast(configuredMemorySize / networkBufferSize);
+    this.numBuffersPerPartition = CheckUtils.checkedDownCast(configuredMemorySize / networkBufferSize);
     this.supportFloatingBuffers = celebornConf.clientFlinkResultPartitionSupportFloatingBuffer();
     if (numBuffersPerPartition < MIN_BUFFERS_PER_PARTITION) {
       throw new IllegalArgumentException(

@@ -61,9 +61,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static org.apache.celeborn.plugin.flink.utils.Utils.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.celeborn.common.util.CheckUtils.checkArgument;
+import static org.apache.celeborn.common.util.CheckUtils.checkNotNull;
+import static org.apache.celeborn.common.util.CheckUtils.checkState;
 
 public class CelebornTierConsumerAgent implements TierConsumerAgent {
 
@@ -115,8 +115,8 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
             CelebornConf conf,
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
             List<TierShuffleDescriptor> shuffleDescriptors) {
-        checkArgument(shuffleDescriptors.size() > 0);
-        checkArgument(tieredStorageConsumerSpecs.size() == shuffleDescriptors.size());
+        checkArgument(shuffleDescriptors.size() > 0, "Wrong shuffle descriptors size.");
+        checkArgument(tieredStorageConsumerSpecs.size() == shuffleDescriptors.size(), "Wrong consumer spec size.");
         this.gateIndex = tieredStorageConsumerSpecs.get(0).getGateIndex();
         this.consumerSpecs = tieredStorageConsumerSpecs;
         this.shuffleDescriptors = shuffleDescriptors;
@@ -125,7 +125,8 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
         this.receivedBuffers = new HashMap<>();
         this.partitionsNeedNotifyAvailable = new HashSet<>();
         this.transferBufferPool = new TransferBufferPool(Collections.emptySet());
-        checkState(shuffleDescriptors.get(0) instanceof RemoteShuffleDescriptor);
+        checkState(shuffleDescriptors.get(0) instanceof RemoteShuffleDescriptor,
+                "Wrong shuffle descriptor type " + shuffleDescriptors.get(0).getClass());
         RemoteShuffleDescriptor remoteShuffleDescriptor =
                 (RemoteShuffleDescriptor) shuffleDescriptors.get(0);
         RemoteShuffleResource shuffleResource = remoteShuffleDescriptor.getShuffleResource();
