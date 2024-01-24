@@ -31,7 +31,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
@@ -64,10 +64,10 @@ abstract private[worker] class Flusher(
         override def run(): Unit = {
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
-            try {
-              val key = s"Flusher-$this-${Random.nextInt()}"
-              workerSource.sample(WorkerSource.FLUSH_DATA_TIME, key) {
-                if (!task.notifier.hasException) {
+            val key = s"Flusher-$this-${Random.nextInt()}"
+            workerSource.sample(WorkerSource.FLUSH_DATA_TIME, key) {
+              if (!task.notifier.hasException) {
+                try {
                   val flushBeginTime = System.nanoTime()
                   lastBeginFlushTime.set(index, flushBeginTime)
                   task.flush()
@@ -75,18 +75,17 @@ abstract private[worker] class Flusher(
                     val delta = System.nanoTime() - flushBeginTime
                     flushTimeMetric.update(delta)
                   }
+                } catch {
+                  case e: IOException =>
+                    task.notifier.setException(e)
+                    processIOException(e, DiskStatus.READ_OR_WRITE_FAILURE)
+                  case t =>
+                    logWarning(s"Flusher-${this}-thread-${index} encounter exception.", t)
                 }
                 lastBeginFlushTime.set(index, -1)
               }
-              returnBuffer(task.buffer)
+              Utils.tryLogNonFatalError(returnBuffer(task.buffer))
               task.notifier.numPendingFlushes.decrementAndGet()
-            } catch {
-              case e: Throwable =>
-                logWarning(s"Flusher-${this}-thread-${index} encounter exception.", e)
-                if (e.isInstanceOf[IOException]) {
-                  task.notifier.setException(e.asInstanceOf[IOException])
-                  processIOException(e.asInstanceOf[IOException], DiskStatus.READ_OR_WRITE_FAILURE)
-                }
             }
           }
         }
