@@ -16,6 +16,11 @@
 #
 
 #!/usr/bin/env sh
+
+if [ ! -d web/node_modules ]; then
+  exit 0
+fi
+
 . "$(dirname -- "$0")/_/husky.sh"
 
 cd web && pnpm run lint:lint-staged
