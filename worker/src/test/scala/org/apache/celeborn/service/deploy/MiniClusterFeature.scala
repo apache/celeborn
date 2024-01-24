@@ -201,7 +201,7 @@ trait MiniClusterFeature extends Logging {
       workerThread
     }
     Thread.sleep(20000L)
-    (0 until workerNum).foreach {i => workerInfos.put(workers(i), threads(i))}
+    (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
 
     var workerRegistrationRetryCount = 0
     var workerRegistrationDone = false
