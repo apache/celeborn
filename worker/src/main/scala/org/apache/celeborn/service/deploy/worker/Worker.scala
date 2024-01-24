@@ -213,11 +213,6 @@ private[celeborn] class Worker(
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
 
-  // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
-  val userResourceConsumption: ConcurrentHashMap[UserIdentifier, ResourceConsumption] =
-    JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](
-      storageManager.userResourceConsumptionSnapshot().asJava)
-
   val workerInfo =
     new WorkerInfo(
       host,
@@ -226,7 +221,7 @@ private[celeborn] class Worker(
       fetchPort,
       replicatePort,
       diskInfos,
-      userResourceConsumption)
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
@@ -272,10 +267,6 @@ private[celeborn] class Worker(
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: ExecutorService =
     ThreadUtils.newDaemonSingleThreadExecutor("worker-expired-shuffle-cleaner")
-
-  private val workerResourceConsumptionInterval = conf.workerResourceConsumptionInterval
-  private val userResourceConsumptions =
-    JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   private var jvmQuake: JVMQuake = _
   if (conf.workerJvmQuakeEnabled) {
@@ -534,47 +525,31 @@ private[celeborn] class Worker(
 
   private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
     val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
-    resourceConsumptionSnapshot.foreach { resourceConsumption =>
-      {
+    resourceConsumptionSnapshot.foreach { case (userIdentifier, _) =>
+      if (workerInfo.userResourceConsumption.containsKey(userIdentifier)) {
         resourceConsumptionSource.addGauge(
           ResourceConsumptionSource.DISK_FILE_COUNT,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).diskFileCount
+          userIdentifier.toMap) { () =>
+          workerInfo.userResourceConsumption.get(userIdentifier).diskFileCount
         }
         resourceConsumptionSource.addGauge(
           ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).diskBytesWritten
+          userIdentifier.toMap) { () =>
+          workerInfo.userResourceConsumption.get(userIdentifier).diskBytesWritten
         }
         resourceConsumptionSource.addGauge(
           ResourceConsumptionSource.HDFS_FILE_COUNT,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).hdfsFileCount
+          userIdentifier.toMap) { () =>
+          workerInfo.userResourceConsumption.get(userIdentifier).hdfsFileCount
         }
         resourceConsumptionSource.addGauge(
           ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).hdfsBytesWritten
+          userIdentifier.toMap) { () =>
+          workerInfo.userResourceConsumption.get(userIdentifier).hdfsBytesWritten
         }
       }
     }
     workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
-  }
-
-  private def computeUserResourceConsumption(userResourceConsumption: (
-      UserIdentifier,
-      ResourceConsumption)): ResourceConsumption = {
-    val userIdentifier = userResourceConsumption._1
-    val resourceConsumption = userResourceConsumption._2
-    val current = System.currentTimeMillis()
-    if (userResourceConsumptions.containsKey(userIdentifier)) {
-      val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
-      if (current - resourceConsumptionAndUpdateTime._2 <= workerResourceConsumptionInterval) {
-        return resourceConsumptionAndUpdateTime._1
-      }
-    }
-    userResourceConsumptions.put(userIdentifier, (resourceConsumption, current))
-    resourceConsumption
   }
 
   @VisibleForTesting
