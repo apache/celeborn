@@ -37,9 +37,12 @@ import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client._
 import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest}
+import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
+import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
 import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.rpc._
+import org.apache.celeborn.common.security.RpcSecurityContext
 import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, JavaUtils, ThreadUtils, Utils}
 
@@ -48,6 +51,7 @@ class NettyRpcEnv(
     javaSerializerInstance: JavaSerializerInstance) extends RpcEnv(config) with Logging {
 
   val celebornConf = config.conf
+  val securityContext = config.securityContext
 
   private[celeborn] val transportConf = Utils.fromCelebornConf(
     celebornConf.clone,
@@ -61,7 +65,31 @@ class NettyRpcEnv(
   private val transportContext =
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
 
-  val clientFactory = transportContext.createClientFactory()
+  private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
+    val bootstraps = new java.util.ArrayList[TransportClientBootstrap]()
+    for {
+      secContext <- securityContext
+      clientSaslContext <- secContext.clientSaslContext
+    } {
+      if (clientSaslContext.addRegistrationBootstrap) {
+        logInfo("Add registration client bootstrap")
+        bootstraps.add(new RegistrationClientBootstrap(
+          transportConf,
+          clientSaslContext.appId,
+          clientSaslContext.saslCredentials,
+          clientSaslContext.registrationInfo))
+      } else {
+        logInfo("Add sasl client bootstrap")
+        bootstraps.add(new SaslClientBootstrap(
+          transportConf,
+          clientSaslContext.appId,
+          clientSaslContext.saslCredentials))
+      }
+    }
+    bootstraps
+  }
+
+  val clientFactory = transportContext.createClientFactory(createClientBootstraps())
 
   private val timeoutScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-netty-rpc-env-timeout-checker")
@@ -92,8 +120,29 @@ class NettyRpcEnv(
     }
   }
 
+  private def createServerBootstraps(): java.util.List[TransportServerBootstrap] = {
+    val bootstraps = new java.util.ArrayList[TransportServerBootstrap]()
+    for {
+      secContext <- securityContext
+      serverSaslContext <- secContext.serverSaslContext
+    } {
+      if (serverSaslContext.addRegistrationBootstrap) {
+        logInfo("Add registration server bootstrap")
+        bootstraps.add(new RegistrationServerBootstrap(
+          transportConf,
+          serverSaslContext.secretRegistry))
+      } else {
+        logInfo("Add sasl server bootstrap")
+        bootstraps.add(new SaslServerBootstrap(
+          transportConf,
+          serverSaslContext.secretRegistry))
+      }
+    }
+    bootstraps
+  }
+
   def startServer(bindAddress: String, port: Int): Unit = {
-    server = transportContext.createServer(bindAddress, port)
+    server = transportContext.createServer(bindAddress, port, createServerBootstraps())
     dispatcher.registerRpcEndpoint(
       RpcEndpointVerifier.NAME,
       new RpcEndpointVerifier(this, dispatcher))
