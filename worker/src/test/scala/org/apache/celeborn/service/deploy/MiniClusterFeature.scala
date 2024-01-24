@@ -179,7 +179,7 @@ trait MiniClusterFeature extends Logging {
       val workerThread = new RunnerWrap({
         val worker = createWorker(workerConf)
         this.synchronized {
-          workers(i) = worker
+          workers(i - 1) = worker
         }
         var workerStarted = false
         var workerStartRetry = 0
