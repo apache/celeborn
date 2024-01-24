@@ -174,16 +174,17 @@ trait MiniClusterFeature extends Logging {
       throw new BindException("cannot start master rpc endpoint")
     }
 
+    val workers = new Array[Worker](workerNum)
     (1 to workerNum).foreach { i =>
       val workerThread = new RunnerWrap({
+        val worker = createWorker(workerConf)
+        workers(i) = worker
         var workerStarted = false
         var workerStartRetry = 0
         while (!workerStarted) {
           try {
-            val worker = createWorker(workerConf)
             worker.initialize()
             workerStarted = true
-            workerInfos.put(worker, Thread.currentThread())
           } catch {
             case ex: Exception =>
               workerStartRetry += 1
@@ -195,6 +196,7 @@ trait MiniClusterFeature extends Logging {
       })
       workerThread.setName(s"worker ${i} starter thread")
       workerThread.start()
+      workerInfos.put(workers(i), workerThread)
     }
 
     var workerRegistrationRetryCount = 0
