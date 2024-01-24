@@ -526,26 +526,42 @@ private[celeborn] class Worker(
   private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
     val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
     resourceConsumptionSnapshot.foreach { case (userIdentifier, _) =>
-      if (workerInfo.userResourceConsumption.containsKey(userIdentifier)) {
+      if (!workerInfo.userResourceConsumption.containsKey(userIdentifier)) {
         resourceConsumptionSource.addGauge(
           ResourceConsumptionSource.DISK_FILE_COUNT,
           userIdentifier.toMap) { () =>
-          workerInfo.userResourceConsumption.get(userIdentifier).diskFileCount
+          if (workerInfo.userResourceConsumption.containsKey(userIdentifier)) {
+            workerInfo.userResourceConsumption.get(userIdentifier).diskFileCount
+          } else {
+            0L
+          }
         }
         resourceConsumptionSource.addGauge(
           ResourceConsumptionSource.DISK_BYTES_WRITTEN,
           userIdentifier.toMap) { () =>
-          workerInfo.userResourceConsumption.get(userIdentifier).diskBytesWritten
+          if (workerInfo.userResourceConsumption.containsKey(userIdentifier)) {
+            workerInfo.userResourceConsumption.get(userIdentifier).diskBytesWritten
+          } else {
+            0L
+          }
         }
         resourceConsumptionSource.addGauge(
           ResourceConsumptionSource.HDFS_FILE_COUNT,
           userIdentifier.toMap) { () =>
-          workerInfo.userResourceConsumption.get(userIdentifier).hdfsFileCount
+          if (workerInfo.userResourceConsumption.containsKey(userIdentifier)) {
+            workerInfo.userResourceConsumption.get(userIdentifier).hdfsFileCount
+          } else {
+            0L
+          }
         }
         resourceConsumptionSource.addGauge(
           ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
           userIdentifier.toMap) { () =>
-          workerInfo.userResourceConsumption.get(userIdentifier).hdfsBytesWritten
+          if (workerInfo.userResourceConsumption.containsKey(userIdentifier)) {
+            workerInfo.userResourceConsumption.get(userIdentifier).hdfsBytesWritten
+          } else {
+            0L
+          }
         }
       }
     }
