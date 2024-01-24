@@ -8,7 +8,7 @@ This project uses check-style plugins. Run some checks before you create a new p
 dev/reformat
 ```
 
-If you have changed code for Web UI, Run following command before you create a new pull request.
+Meanwhile, run some checks of web with changes of web module before you create a new pull request.
 
 ```shell
 cd web
