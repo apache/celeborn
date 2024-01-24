@@ -31,18 +31,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import scala.collection.mutable
 
 trait MiniClusterFeature extends Logging {
-  private val masterPort = Random.nextInt(65535 - 1024) + 1024
 
-  private val workerPort = {
-    var port = masterPort
-    while (port == masterPort) {
-      port = Random.nextInt(65535 - 1024) + 1024
-    }
-    port
-  }
-
-  val masterHttpPort = new AtomicInteger(masterPort)
-  val workerHttpPort = new AtomicInteger(workerPort)
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
 
@@ -101,7 +90,7 @@ trait MiniClusterFeature extends Logging {
   private def createMaster(map: Map[String, String] = null): Master = {
     val conf = new CelebornConf()
     conf.set(CelebornConf.METRICS_ENABLED.key, "false")
-    val httpPort = masterHttpPort.getAndIncrement()
+    val httpPort = Random.nextInt(65535 - 1024) + 1024
     conf.set(CelebornConf.MASTER_HTTP_PORT.key, s"$httpPort")
     logInfo(s"set ${CelebornConf.MASTER_HTTP_PORT.key} to $httpPort")
     if (map != null) {
@@ -126,7 +115,7 @@ trait MiniClusterFeature extends Logging {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, storageDir)
     conf.set(CelebornConf.WORKER_DISK_MONITOR_ENABLED.key, "false")
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
-    conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${workerHttpPort.incrementAndGet()}")
+    conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${Random.nextInt(65535 - 1024) + 1024}")
     conf.set("celeborn.fetch.io.threads", "4")
     conf.set("celeborn.push.io.threads", "4")
     if (map != null) {
@@ -175,14 +164,14 @@ trait MiniClusterFeature extends Logging {
     val workers = new Array[Worker](workerNum)
     val threads = (1 to workerNum).map { i =>
       val workerThread = new RunnerWrap({
-        val worker = createWorker(workerConf)
-        this.synchronized {
-          workers(i - 1) = worker
-        }
         var workerStarted = false
         var workerStartRetry = 0
         while (!workerStarted) {
           try {
+            val worker = createWorker(workerConf)
+            this.synchronized {
+              workers(i - 1) = worker
+            }
             worker.initialize()
             workerStarted = true
           } catch {
