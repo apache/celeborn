@@ -46,3 +46,5 @@ pnpm build
 ```sh
 pnpm lint
 ```
+
+### Use [husky](https://github.com/typicode/husky) and [lint-staged](https://github.com/okonet/lint-staged) to catch code issues before Git commit.
