@@ -21,27 +21,24 @@ import org.scalatest.matchers.must.Matchers.be
 import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
 
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistryImpl}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 import org.apache.celeborn.common.security.{ClientSaslContext, ClientSaslContextBuilder, RpcSecurityContextBuilder, ServerSaslContext, ServerSaslContextBuilder}
 
 class RpcSecurityContextSuite extends CelebornFunSuite {
 
-  test("RpcSecurityContext should be created with client and server sasl contexts") {
+  test("RpcSecurityContext should be created with either client and server sasl contexts") {
     val clientContext = ClientSaslContext(
       "clientAppId",
       new SaslCredentials("user", "password"),
       addRegistrationBootstrap = true)
-    val serverContext = ServerSaslContext(new SecretRegistryImpl())
 
     val rpcSecurityContext = new RpcSecurityContextBuilder()
       .withClientSaslContext(clientContext)
-      .withServerSaslContext(serverContext)
       .build()
 
     rpcSecurityContext.clientSaslContext shouldBe Some(clientContext)
-    rpcSecurityContext.serverSaslContext shouldBe Some(serverContext)
+    rpcSecurityContext.serverSaslContext shouldBe None
   }
 
   test("RpcSecurityContext should be created with only client sasl context") {

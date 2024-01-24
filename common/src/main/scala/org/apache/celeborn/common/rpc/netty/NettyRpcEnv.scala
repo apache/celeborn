@@ -24,25 +24,22 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.annotation.Nullable
 
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
 import scala.util.{DynamicVariable, Failure, Success}
 import scala.util.control.NonFatal
 
-import com.google.common.base.Throwables
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client._
-import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest}
+import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcRequest}
 import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
 import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
 import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.security.RpcSecurityContext
 import org.apache.celeborn.common.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
 import org.apache.celeborn.common.util.{ByteBufferInputStream, ByteBufferOutputStream, JavaUtils, ThreadUtils, Utils}
 
@@ -66,27 +63,23 @@ class NettyRpcEnv(
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
-    val bootstraps = new java.util.ArrayList[TransportClientBootstrap]()
-    for {
-      secContext <- securityContext
-      clientSaslContext <- secContext.clientSaslContext
-    } {
+    val bootstrapOpt = securityContext.flatMap(_.clientSaslContext.map { clientSaslContext =>
       if (clientSaslContext.addRegistrationBootstrap) {
         logInfo("Add registration client bootstrap")
-        bootstraps.add(new RegistrationClientBootstrap(
+        new RegistrationClientBootstrap(
           transportConf,
           clientSaslContext.appId,
           clientSaslContext.saslCredentials,
-          clientSaslContext.registrationInfo))
+          clientSaslContext.registrationInfo)
       } else {
         logInfo("Add sasl client bootstrap")
-        bootstraps.add(new SaslClientBootstrap(
+        new SaslClientBootstrap(
           transportConf,
           clientSaslContext.appId,
-          clientSaslContext.saslCredentials))
+          clientSaslContext.saslCredentials)
       }
-    }
-    bootstraps
+    })
+    bootstrapOpt.toList.asJava
   }
 
   val clientFactory = transportContext.createClientFactory(createClientBootstraps())
@@ -121,24 +114,20 @@ class NettyRpcEnv(
   }
 
   private def createServerBootstraps(): java.util.List[TransportServerBootstrap] = {
-    val bootstraps = new java.util.ArrayList[TransportServerBootstrap]()
-    for {
-      secContext <- securityContext
-      serverSaslContext <- secContext.serverSaslContext
-    } {
+    val bootstrapOpt = securityContext.flatMap(_.serverSaslContext.map { serverSaslContext =>
       if (serverSaslContext.addRegistrationBootstrap) {
         logInfo("Add registration server bootstrap")
-        bootstraps.add(new RegistrationServerBootstrap(
+        new RegistrationServerBootstrap(
           transportConf,
-          serverSaslContext.secretRegistry))
+          serverSaslContext.secretRegistry)
       } else {
         logInfo("Add sasl server bootstrap")
-        bootstraps.add(new SaslServerBootstrap(
+        new SaslServerBootstrap(
           transportConf,
-          serverSaslContext.secretRegistry))
+          serverSaslContext.secretRegistry)
       }
-    }
-    bootstraps
+    })
+    bootstrapOpt.toList.asJava
   }
 
   def startServer(bindAddress: String, port: Int): Unit = {

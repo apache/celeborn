@@ -152,5 +152,10 @@ private[celeborn] class RpcSecurityContextBuilder {
     this
   }
 
-  def build(): RpcSecurityContext = RpcSecurityContext(clientSaslContext, serverSaslContext)
+  def build(): RpcSecurityContext = {
+    if (clientSaslContext.nonEmpty && serverSaslContext.nonEmpty) {
+      throw new IllegalArgumentException("Both client and server sasl context cannot be set.")
+    }
+    RpcSecurityContext(clientSaslContext, serverSaslContext)
+  }
 }
