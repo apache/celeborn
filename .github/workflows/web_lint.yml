@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-name: Style check
+name: Web code check
 
 on:
   push:
