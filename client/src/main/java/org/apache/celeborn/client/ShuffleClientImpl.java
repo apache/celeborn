@@ -485,7 +485,12 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public PartitionLocation registerMapPartitionTask(
-      int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException {
+          int shuffleId, int numMappers, int mapId, int attemptId, int partitionId) throws IOException {
+    return registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, partitionId, false);
+  }
+
+  public PartitionLocation registerMapPartitionTask(
+      int shuffleId, int numMappers, int mapId, int attemptId, int partitionId, boolean hasSegments) throws IOException {
     logger.info(
         "Register MapPartition task for shuffle {} map {} attempt {} partition {} with {} mapper.",
         shuffleId,
@@ -501,7 +506,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             () ->
                 lifecycleManagerRef.askSync(
                     RegisterMapPartitionTask$.MODULE$.apply(
-                        shuffleId, numMappers, mapId, attemptId, partitionId),
+                        shuffleId, numMappers, mapId, attemptId, partitionId, hasSegments),
                     conf.clientRpcRegisterShuffleRpcAskTimeout(),
                     ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
 

@@ -199,6 +199,7 @@ message PbRegisterMapPartitionTask {
   int32 mapId = 3;
   int32 attemptId = 4;
   int32 partitionId = 5;
+  bool hasSegments = 6;
 }
 
 message PbRegisterShuffleResponse {
@@ -398,6 +399,7 @@ message PbReserveSlots {
   int64 pushDataTimeout = 10;
   bool partitionSplitEnabled = 11;
   int32 availableStorageTypes = 12;
+  optional bool hasSegments = 13;
 }
 
 message PbReserveSlotsResponse {

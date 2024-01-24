@@ -147,14 +147,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       int shuffleId, int partitionId, int subPartitionIndexStart, int subPartitionIndexEnd)
       throws IOException {
     String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
-    ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
-    if (fileGroups.partitionGroups.size() == 0
-        || !fileGroups.partitionGroups.containsKey(partitionId)) {
+    PartitionLocation[] partitionLocations = updateFileGroupAndGetLocations(shuffleId, partitionId);
+    if (partitionLocations == null || partitionLocations.length == 0) {
       logger.error("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
       throw new PartitionUnRetryAbleException(partitionId + " may be lost.");
     } else {
-      PartitionLocation[] partitionLocations =
-          fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
       Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
       logger.debug(
           "readBufferedPartition shuffleKey:{} partitionid:{} partitionLocation:{}",
@@ -168,6 +165,28 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           partitionLocations,
           subPartitionIndexStart,
           subPartitionIndexEnd);
+    }
+  }
+
+  public PartitionLocation[] updateFileGroupAndGetLocations(int shuffleId, int partitionId) throws IOException {
+    ReduceFileGroups fileGroups = updateFileGroup(shuffleId, partitionId);
+    if (fileGroups == null || fileGroups.partitionGroups.size() == 0
+            || !fileGroups.partitionGroups.containsKey(partitionId)) {
+      // To use the CelebornBufferStream when no data is written, we also return an empty stream
+      // and when calling RPC, e.g., notify segment id, then we can ignore the RPC according to
+      // whether the shuffleId is empty or not.
+      logger.warn("Shuffle data is empty for shuffle {} partitionId {}.", shuffleId, partitionId);
+      return new PartitionLocation[0];
+    } else {
+      PartitionLocation[] partitionLocations =
+              fileGroups.partitionGroups.get(partitionId).toArray(new PartitionLocation[0]);
+      Arrays.sort(partitionLocations, Comparator.comparingInt(PartitionLocation::getEpoch));
+      logger.debug(
+              "readBufferedPartition shuffleId:{} partitionid:{} partitionLocation:{}",
+              shuffleId,
+              partitionId,
+              partitionLocations);
+      return partitionLocations;
     }
   }
 

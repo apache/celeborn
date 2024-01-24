@@ -62,8 +62,7 @@ public class MapPartitionFileWriter extends FileWriter {
       DeviceMonitor deviceMonitor,
       long splitThreshold,
       PartitionSplitMode splitMode,
-      boolean rangeReadFilter)
-      throws IOException {
+      boolean rangeReadFilter) throws IOException {
     super(
         fileInfo,
         flusher,

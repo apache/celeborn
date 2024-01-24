@@ -175,7 +175,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     batchHandleCommitPartitionSchedulerThread.foreach(ThreadUtils.shutdown(_, 800.millis))
   }
 
-  def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
+  def registerShuffle(shuffleId: Int, numMappers: Int, hasSegments: Boolean): Unit = {
     committedPartitionInfo.put(
       shuffleId,
       ShuffleCommittedInfo(
@@ -192,7 +192,11 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
         new AtomicInteger(),
         JavaUtils.newConcurrentHashMap[Int, AtomicInteger]()))
 
-    getCommitHandler(shuffleId).registerShuffle(shuffleId, numMappers)
+    getCommitHandler(shuffleId).registerShuffle(shuffleId, numMappers, hasSegments);
+  }
+
+  def shuffleRegistered(shuffleId: Int, partitionLocations: Array[PartitionLocation]): Unit = {
+    getCommitHandler(shuffleId).shuffleRegistered(shuffleId, partitionLocations)
   }
 
   def isMapperEnded(shuffleId: Int, mapId: Int): Boolean = {

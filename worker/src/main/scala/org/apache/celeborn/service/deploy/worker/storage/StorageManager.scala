@@ -328,7 +328,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType,
       rangeReadFilter,
       userIdentifier,
-      true)
+      true,
+      hasSegments = false)
   }
 
   @throws[IOException]
@@ -341,7 +342,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
-      partitionSplitEnabled: Boolean): FileWriter = {
+      partitionSplitEnabled: Boolean,
+      hasSegments: Boolean): FileWriter = {
     if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage) {
       throw new IOException("No available working dirs!")
     }
@@ -372,7 +374,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             new Path(shuffleDir, fileName).toString,
             userIdentifier,
             partitionType,
-            partitionSplitEnabled)
+            partitionSplitEnabled,
+            hasSegments)
         fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
         FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
         val hdfsWriter = partitionType match {
@@ -423,7 +426,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               file.getAbsolutePath,
               userIdentifier,
               partitionType,
-              partitionSplitEnabled)
+              partitionSplitEnabled,
+              hasSegments)
           fileInfo.setMountPoint(mountPoint)
           fileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
           shuffleDir.mkdirs()

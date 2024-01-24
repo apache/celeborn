@@ -24,6 +24,7 @@ import org.apache.celeborn.common.network.protocol.BufferStreamEnd;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.TransportableError;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbNotifyRequiredSegment;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.plugin.flink.ShuffleResourceDescriptor;
@@ -169,6 +170,8 @@ public class CelebornChannelBufferReader {
 
     public void notifyRequiredSegment(int requiredSegmentId) {
         if (!closed && !CelebornBufferStream.isEmptyStream(bufferStream)) {
+            LOG.debug("notifyRequiredSegmentId, shuffleId: {}, partitionId: {}, requiredSegmentId: {}",
+                    shuffleId, partitionId, requiredSegmentId);
             PbNotifyRequiredSegment notifyRequiredSegment =
                     PbNotifyRequiredSegment.newBuilder()
                             .setStreamId(bufferStream.getStreamId())
@@ -222,7 +225,18 @@ public class CelebornChannelBufferReader {
     public void onStreamEnd(BufferStreamEnd streamEnd) {
         long streamId = streamEnd.getStreamId();
         LOG.debug("Buffer stream reader get stream end for {}", streamId);
-        // TODO, update locations when the stream is end.
+        if (!closed && !CelebornBufferStream.isEmptyStream(bufferStream)) {
+            PartitionLocation[] partitionLocations = null;
+            try {
+                partitionLocations = client.updateFileGroupAndGetLocations(shuffleId, partitionId);
+            } catch (IOException e) {
+                messageConsumer.accept(new TransportableError(0L, e));
+            }
+            if (partitionLocations != null && partitionLocations.length > 0) {
+                bufferStream.updatePartitionLocations(partitionLocations);
+            }
+            bufferStream.moveToNextPartitionIfPossible(streamId, new CompletableFuture<>());
+        }
     }
 
     public void setIsOpened(boolean isOpened) {

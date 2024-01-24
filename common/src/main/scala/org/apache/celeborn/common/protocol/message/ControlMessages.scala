@@ -140,13 +140,15 @@ object ControlMessages extends Logging {
         numMappers: Int,
         mapId: Int,
         attemptId: Int,
-        partitionId: Int): PbRegisterMapPartitionTask =
+        partitionId: Int,
+        hasSegments: Boolean): PbRegisterMapPartitionTask =
       PbRegisterMapPartitionTask.newBuilder()
         .setShuffleId(shuffleId)
         .setNumMappers(numMappers)
         .setMapId(mapId)
         .setAttemptId(attemptId)
         .setPartitionId(partitionId)
+        .setHasSegments(hasSegments)
         .build()
   }
 
@@ -422,7 +424,8 @@ object ControlMessages extends Logging {
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
-      partitionSplitEnabled: Boolean = false)
+      partitionSplitEnabled: Boolean = false,
+      hasSegments: Boolean = false)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -761,7 +764,8 @@ object ControlMessages extends Logging {
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled) =>
+          partitionSplitEnabled,
+          hasSegments) =>
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
@@ -776,6 +780,7 @@ object ControlMessages extends Logging {
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .setPushDataTimeout(pushDataTimeout)
         .setPartitionSplitEnabled(partitionSplitEnabled)
+        .setHasSegments(hasSegments)
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -1099,7 +1104,8 @@ object ControlMessages extends Logging {
           pbReserveSlots.getRangeReadFilter,
           userIdentifier,
           pbReserveSlots.getPushDataTimeout,
-          pbReserveSlots.getPartitionSplitEnabled)
+          pbReserveSlots.getPartitionSplitEnabled,
+          pbReserveSlots.getHasSegments)
 
       case RESERVE_SLOTS_RESPONSE_VALUE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)

@@ -88,7 +88,8 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled) =>
+          partitionSplitEnabled,
+          hasSegments) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
@@ -106,7 +107,8 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled)
+          partitionSplitEnabled,
+          hasSegments)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -150,7 +152,8 @@ private[deploy] class Controller(
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
-      partitionSplitEnabled: Boolean): Unit = {
+      partitionSplitEnabled: Boolean,
+      hasSegments: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
@@ -182,7 +185,8 @@ private[deploy] class Controller(
             partitionType,
             rangeReadFilter,
             userIdentifier,
-            partitionSplitEnabled)
+            partitionSplitEnabled,
+            hasSegments)
           primaryLocs.add(new WorkingPartition(location, writer))
         } else {
           primaryLocs.add(location)
@@ -222,7 +226,8 @@ private[deploy] class Controller(
             partitionType,
             rangeReadFilter,
             userIdentifier,
-            partitionSplitEnabled)
+            partitionSplitEnabled,
+            hasSegments)
           replicaLocs.add(new WorkingPartition(location, writer))
         } else {
           replicaLocs.add(location)

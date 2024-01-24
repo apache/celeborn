@@ -17,13 +17,18 @@
 
 package org.apache.celeborn.client.commit
 
+import java.nio.ByteBuffer
 import java.util
 import java.util.Collections
+import java.util.concurrent.{Callable, ConcurrentHashMap, TimeUnit}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+import com.google.common.base.Preconditions.checkState
+import com.google.common.cache.{Cache, CacheBuilder}
 
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
@@ -35,6 +40,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
+import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
@@ -61,6 +67,23 @@ class MapPartitionCommitHandler(
 
   // shuffleId -> in processing partitionId set
   private val inProcessMapPartitionEndIds = JavaUtils.newConcurrentHashMap[Int, util.Set[Integer]]()
+
+  private val isShuffleMapperEnd = ConcurrentHashMap.newKeySet[Int]()
+  private val pendingGetLocationContexts =
+    JavaUtils.newConcurrentHashMap[Int, util.Set[RpcCallContext]]()
+
+  private val rpcCacheSize = conf.clientRpcCacheSize
+  private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
+  private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
+
+  private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
+    .concurrencyLevel(rpcCacheConcurrencyLevel)
+    .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
+    .maximumSize(rpcCacheSize)
+    .build().asInstanceOf[Cache[Int, ByteBuffer]]
+
+  private val shuffleNumMappers = JavaUtils.newConcurrentHashMap[Int, Int]
+  private val shuffleHasSegments = JavaUtils.newConcurrentHashMap[Int, Boolean]
 
   override def getPartitionType(): PartitionType = {
     PartitionType.MAP
@@ -113,6 +136,10 @@ class MapPartitionCommitHandler(
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
     inProcessMapPartitionEndIds.remove(shuffleId)
     shuffleSucceedPartitionIds.remove(shuffleId)
+    isShuffleMapperEnd.remove(shuffleId)
+    pendingGetLocationContexts.remove(shuffleId)
+    shuffleNumMappers.remove(shuffleId)
+    shuffleHasSegments.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 
@@ -143,7 +170,8 @@ class MapPartitionCommitHandler(
         getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds, partitionId),
         getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds, partitionId),
         parallelCommitResult.primaryPartitionLocationMap,
-        parallelCommitResult.replicaPartitionLocationMap)
+        parallelCommitResult.replicaPartitionLocationMap,
+        shuffleHasSegments.get(shuffleId))
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)
@@ -206,22 +234,100 @@ class MapPartitionCommitHandler(
           shuffleId,
           (k: Int) => ConcurrentHashMap.newKeySet[Integer]())
       resultPartitions.add(partitionId)
+
+      logDebug(s"shuffle ${shuffleId} finished successfully, " +
+        s"succeed partitions size is ${resultPartitions.size}.")
+      pendingGetLocationContexts synchronized {
+        isShuffleMapperEnd.add(shuffleId)
+      }
+      val requests = pendingGetLocationContexts.remove(shuffleId)
+      if (requests != null && !requests.isEmpty) {
+        requests.asScala.foreach(context => handleGetReducerFileGroup(context, shuffleId))
+      }
     }
 
     (dataCommitSuccess, false)
   }
 
+  override def registerShuffle(shuffleId: Int, numMappers: Int, hasSegments: Boolean): Unit = {
+    super.registerShuffle(shuffleId, numMappers, hasSegments)
+    pendingGetLocationContexts.computeIfAbsent(shuffleId, _ => new util.HashSet[RpcCallContext])
+    shuffleNumMappers.put(shuffleId, numMappers)
+    shuffleHasSegments.put(shuffleId, hasSegments)
+  }
+
+  override def shuffleRegistered(
+      shuffleId: Int,
+      partitionLocations: Array[PartitionLocation]): Unit = {
+    if (!shuffleHasSegments.get(shuffleId)) {
+      return
+    }
+
+    if (reducerFileGroupsMap.get(shuffleId).isEmpty) {
+      for (i <- partitionLocations.indices) {
+        val partitionLocationsSet = new util.HashSet[PartitionLocation]()
+        partitionLocationsSet.add(partitionLocations(i))
+        reducerFileGroupsMap.get(shuffleId).put(i, partitionLocationsSet)
+      }
+    }
+    checkState(reducerFileGroupsMap.get(shuffleId).size() == shuffleNumMappers.get(shuffleId))
+    pendingGetLocationContexts.synchronized {
+      if (pendingGetLocationContexts.contains(shuffleId)) {
+        val requests = pendingGetLocationContexts.remove(shuffleId)
+        if (requests != null && !requests.isEmpty) {
+          requests.asScala.foreach(handleGetReducerFileGroup(_, shuffleId))
+        }
+      }
+    }
+  }
+
   override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+    if (isShuffleMapperEnd.contains(shuffleId)) {
+      replyGetReducerFileGroup(context, shuffleId)
+    } else {
+      pendingGetLocationContexts.synchronized {
+        if (isShuffleMapperEnd.contains(shuffleId)) {
+          replyGetReducerFileGroup(context, shuffleId)
+        } else {
+          logWarning("Add to pending context for " + shuffleId)
+          pendingGetLocationContexts.computeIfAbsent(
+            shuffleId,
+            _ => new util.HashSet[RpcCallContext]).add(context)
+        }
+      }
+    }
+  }
+
+  private def replyGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
     // we need obtain the last succeed partitionIds
     val lastSucceedPartitionIds =
       shuffleSucceedPartitionIds.getOrDefault(shuffleId, new util.HashSet[Integer]())
-    val succeedPartitionIds = new util.HashSet[Integer](lastSucceedPartitionIds)
+    val fileGroups = reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap());
+    val succeedPartitionIds =
+      if (shuffleHasSegments.get(shuffleId)) fileGroups.keySet()
+      else new util.HashSet[Integer](lastSucceedPartitionIds)
 
-    context.reply(GetReducerFileGroupResponse(
-      StatusCode.SUCCESS,
-      reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-      getMapperAttempts(shuffleId),
-      succeedPartitionIds))
+    if (context.isInstanceOf[LocalNettyRpcCallContext]) {
+      context.reply(GetReducerFileGroupResponse(
+        StatusCode.SUCCESS,
+        fileGroups,
+        getMapperAttempts(shuffleId),
+        succeedPartitionIds))
+    } else {
+      val cachedMsg = getReducerFileGroupRpcCache.get(
+        shuffleId,
+        new Callable[ByteBuffer]() {
+          override def call(): ByteBuffer = {
+            val returnedMsg = GetReducerFileGroupResponse(
+              StatusCode.SUCCESS,
+              fileGroups,
+              getMapperAttempts(shuffleId),
+              succeedPartitionIds)
+            context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+          }
+        })
+      context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
+    }
   }
 
   override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
