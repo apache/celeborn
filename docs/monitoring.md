@@ -143,13 +143,16 @@ These metrics are exposed by Celeborn worker.
         - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
     - ActiveChunkStreamCount
         - Active stream count for reduce partition reading streams.
+    - OpenStreamSuccessCount
     - OpenStreamFailCount
+    - FetchChunkSuccessCount
     - FetchChunkFailCount
     - PrimaryPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn client.
     - ReplicaPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
     - WriteDataHardSplitCount
+    - WriteDataSuccessCount
     - WriteDataFailCount
     - ReplicateDataFailCount
     - ReplicateDataWriteFailCount

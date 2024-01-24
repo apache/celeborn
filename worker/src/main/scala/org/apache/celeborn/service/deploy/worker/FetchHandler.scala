@@ -286,6 +286,7 @@ class FetchHandler(
             endIndex,
             fileInfo)
       }
+      workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
     } catch {
       case e: IOException =>
         workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
@@ -414,6 +415,7 @@ class FetchHandler(
                 s"Sending ChunkFetchSuccess operation failed, chunk $streamChunkSlice",
                 future.cause())
             }
+            workerSource.incCounter(WorkerSource.FETCH_CHUNK_SUCCESS_COUNT)
             chunkStreamManager.chunkSent(streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
