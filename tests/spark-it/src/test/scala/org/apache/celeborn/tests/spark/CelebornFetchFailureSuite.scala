@@ -79,11 +79,11 @@ class CelebornFetchFailureSuite extends AnyFunSuite
               new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
             })
             val datafile = allFiles.filter(_.exists())
-                .flatMap(_.listFiles().iterator).headOption
+              .flatMap(_.listFiles().iterator).headOption
             datafile match {
               case Some(file) => file.delete()
               case None => throw new RuntimeException("unexpected, there must be some data file" +
-                s" under ${workerDirs.mkString(",")}")
+                  s" under ${workerDirs.mkString(",")}")
             }
           }
           case _ => throw new RuntimeException("unexpected, only support RssShuffleHandle here")
