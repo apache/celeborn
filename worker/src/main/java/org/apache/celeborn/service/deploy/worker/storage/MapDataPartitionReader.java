@@ -23,6 +23,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -55,29 +56,28 @@ import org.apache.celeborn.service.deploy.worker.memory.RecyclableBuffer;
 
 public class MapDataPartitionReader implements Comparable<MapDataPartitionReader> {
   private static final Logger logger = LoggerFactory.getLogger(MapDataPartitionReader.class);
-
+  protected static final int INDEX_ENTRY_SIZE = 16;
   private final ByteBuffer indexBuffer;
   private final ByteBuffer headerBuffer;
   private final int startPartitionIndex;
   private final int endPartitionIndex;
-  private int numRegions;
+  protected int numRegions;
   private int numRemainingPartitions;
   private int currentDataRegion = -1;
   private long dataConsumingOffset;
   private volatile long currentPartitionRemainingBytes;
-  private FileInfo fileInfo;
-  private int INDEX_ENTRY_SIZE = 16;
+  protected FileInfo fileInfo;
   private long streamId;
   protected final Object lock = new Object();
 
-  private final AtomicInteger credits = new AtomicInteger();
+  protected final AtomicInteger credits = new AtomicInteger();
 
   @GuardedBy("lock")
   protected final Queue<RecyclableBuffer> buffersToSend = new ArrayDeque<>();
 
   /** Whether all the data has been successfully read or not. */
   @GuardedBy("lock")
-  private volatile boolean readFinished;
+  protected volatile boolean readFinished;
 
   /** Whether this partition reader has been released or not. */
   @GuardedBy("lock")
@@ -91,15 +91,17 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   @GuardedBy("lock")
   protected boolean errorNotified;
 
-  private FileChannel dataFileChannel;
-  private FileChannel indexFileChannel;
+  protected FileChannel dataFileChannel;
+  protected FileChannel indexFileChannel;
+
+  protected final ExecutorService readExecutor;
 
   private Channel associatedChannel;
 
   private Runnable recycleStream;
 
-  private AtomicInteger numInUseBuffers = new AtomicInteger(0);
-  private boolean isOpen = false;
+  protected AtomicInteger numInUseBuffers = new AtomicInteger(0);
+  protected boolean isOpen = false;
 
   public MapDataPartitionReader(
       int startPartitionIndex,
@@ -107,6 +109,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       FileInfo fileInfo,
       long streamId,
       Channel associatedChannel,
+      ExecutorService readExecutor,
       Runnable recycleStream) {
     this.startPartitionIndex = startPartitionIndex;
     this.endPartitionIndex = endPartitionIndex;
@@ -117,6 +120,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     this.headerBuffer = ByteBuffer.allocateDirect(16);
     this.streamId = streamId;
     this.associatedChannel = associatedChannel;
+    this.readExecutor = readExecutor;
     this.recycleStream = recycleStream;
 
     this.fileInfo = fileInfo;
@@ -169,16 +173,24 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
       ++numDataBuffers;
     }
 
-    if (!hasRemaining) {
-      closeReader();
-    }
+    tryNotifyBacklog(numDataBuffers);
 
+    tryCloseReader(hasRemaining);
+  }
+
+  protected void tryNotifyBacklog(int numDataBuffers) {
     if (numDataBuffers > 0) {
       notifyBacklog(numDataBuffers);
     }
   }
 
-  private void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
+  protected void tryCloseReader(boolean hasRemaining) {
+    if (!hasRemaining) {
+      closeReader();
+    }
+  }
+
+  protected void addBuffer(ByteBuf buffer, BufferRecycler bufferRecycler) {
     if (buffer == null) {
       return;
     }
@@ -193,7 +205,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     }
   }
 
-  private RecyclableBuffer fetchBufferToSend() {
+  protected RecyclableBuffer fetchBufferToSend() {
     synchronized (lock) {
       if (!buffersToSend.isEmpty() && credits.get() > 0 && !isReleased) {
         return buffersToSend.poll();
@@ -212,30 +224,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
   public synchronized void sendData() {
     RecyclableBuffer buffer;
     while (null != (buffer = fetchBufferToSend())) {
-      final RecyclableBuffer wrappedBuffer = buffer;
-      int readableBytes = wrappedBuffer.byteBuf.readableBytes();
-      if (logger.isDebugEnabled()) {
-        logger.debug("send data start: {}, {}, {}", streamId, readableBytes, getNumBuffersToSend());
-      }
-      ReadData readData = new ReadData(streamId, wrappedBuffer.byteBuf);
-      associatedChannel
-          .writeAndFlush(readData)
-          .addListener(
-              (ChannelFutureListener)
-                  future -> {
-                    try {
-                      if (!future.isSuccess()) {
-                        recycleOnError(future.cause());
-                      }
-                    } finally {
-                      logger.debug("send data end: {}, {}", streamId, readableBytes);
-                      wrappedBuffer.recycle();
-                      numInUseBuffers.decrementAndGet();
-                    }
-                  });
-
-      int currentCredit = credits.decrementAndGet();
-      logger.debug("stream {} credit {}", streamId, currentCredit);
+      sendDataInternal(buffer);
     }
 
     boolean shouldRecycle = false;
@@ -249,6 +238,33 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     if (shouldRecycle) {
       recycle();
     }
+  }
+
+  protected void sendDataInternal(RecyclableBuffer buffer) {
+    final RecyclableBuffer wrappedBuffer = buffer;
+    int readableBytes = wrappedBuffer.byteBuf.readableBytes();
+    if (logger.isDebugEnabled()) {
+      logger.debug("send data start: {}, {}, {}", streamId, readableBytes, getNumBuffersToSend());
+    }
+    ReadData readData = new ReadData(streamId, wrappedBuffer.byteBuf);
+    associatedChannel
+            .writeAndFlush(readData)
+            .addListener(
+                    (ChannelFutureListener)
+                            future -> {
+                              try {
+                                if (!future.isSuccess()) {
+                                  recycleOnError(future.cause());
+                                }
+                              } finally {
+                                logger.debug("send data end: {}, {}", streamId, readableBytes);
+                                wrappedBuffer.recycle();
+                                numInUseBuffers.decrementAndGet();
+                              }
+                            });
+
+    int currentCredit = credits.decrementAndGet();
+    logger.debug("stream {} credit {}", streamId, currentCredit);
   }
 
   private long getIndexRegionSize() {
@@ -293,7 +309,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     return bufferLength + headerSize;
   }
 
-  private void updateConsumingOffset() throws IOException {
+  protected void updateConsumingOffset() throws IOException {
     while (currentPartitionRemainingBytes == 0
         && (currentDataRegion < numRegions - 1 || numRemainingPartitions > 0)) {
       if (numRemainingPartitions <= 0) {
@@ -387,7 +403,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
     return currentPartitionRemainingBytes > 0;
   }
 
-  private void notifyBacklog(int backlog) {
+  protected void notifyBacklog(int backlog) {
     logger.debug("stream manager stream id {} backlog:{}", streamId, backlog);
     associatedChannel
         .writeAndFlush(new BacklogAnnouncement(streamId, backlog))
@@ -481,6 +497,7 @@ public class MapDataPartitionReader implements Comparable<MapDataPartitionReader
                                   .toByteArray())
                           .toByteBuffer())));
         if (!buffersToSend.isEmpty()) {
+          logger.info("Releasing {} buffers to be sent for stream {}", buffersToSend.size(), streamId);
           numInUseBuffers.addAndGet(-1 * buffersToSend.size());
           buffersToSend.forEach(RecyclableBuffer::recycle);
           buffersToSend.clear();

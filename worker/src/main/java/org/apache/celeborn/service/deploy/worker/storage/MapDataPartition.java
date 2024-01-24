@@ -25,6 +25,9 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -32,6 +35,7 @@ import java.util.stream.Collectors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +46,8 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
 import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+
+import static org.apache.commons.crypto.utils.Utils.checkState;
 
 // this means active data partition
 public class MapDataPartition implements MemoryManager.ReadBufferTargetChangeListener {
@@ -122,10 +128,7 @@ public class MapDataPartition implements MemoryManager.ReadBufferTargetChangeLis
 
   public void tryRequestBufferOrRead() {
     if (bufferQueueInitialized.compareAndSet(false, true)) {
-      bufferQueue.tryApplyNewBuffers(
-          readers.size(),
-          fileInfo.getBufferSize(),
-          (allocatedBuffers, throwable) -> onBuffer(allocatedBuffers));
+      applyNewBuffers();
     } else {
       triggerRead();
     }

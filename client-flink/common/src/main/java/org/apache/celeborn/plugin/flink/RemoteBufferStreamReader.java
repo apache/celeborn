@@ -158,6 +158,6 @@ public class RemoteBufferStreamReader extends CreditListener {
   public void onStreamEnd(BufferStreamEnd streamEnd) {
     long streamId = streamEnd.getStreamId();
     logger.debug("Buffer stream reader get stream end for {}", streamId);
-    bufferStream.moveToNextPartitionIfPossible(streamId);
+    bufferStream.moveToNextPartitionIfPossible(streamId, null);
   }
 }

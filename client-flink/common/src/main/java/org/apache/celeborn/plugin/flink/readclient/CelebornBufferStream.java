@@ -85,11 +85,12 @@ public class CelebornBufferStream {
       Supplier<ByteBuf> bufferSupplier,
       int initialCredit,
       Consumer<RequestMessage> messageConsumer,
-      @Nullable CompletableFuture<Boolean> openReaderFuture) {
+      @Nullable CompletableFuture<Boolean> openReaderFuture)
+      throws IOException, InterruptedException {
     this.bufferSupplier = bufferSupplier;
     this.initialCredit = initialCredit;
     this.messageConsumer = messageConsumer;
-    moveToNextPartitionIfPossible(0);
+    moveToNextPartitionIfPossible(0, openReaderFuture);
   }
 
   public void addCredit(PbReadAddCredit pbReadAddCredit) {
@@ -193,12 +194,14 @@ public class CelebornBufferStream {
 
   public void close() {
     synchronized (lock) {
-      cleanStream(streamId);
+      if (isOpenSuccess) {
+        cleanStream(streamId);
+      }
       isClosed = true;
     }
   }
 
-  public void moveToNextPartitionIfPossible(long endedStreamId) {
+  public void moveToNextPartitionIfPossible(long endedStreamId, @Nullable CompletableFuture<Boolean> openReaderFuture) {
     logger.debug(
         "MoveToNextPartitionIfPossible in this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
         this,
@@ -212,7 +215,7 @@ public class CelebornBufferStream {
     }
     if (currentLocationIndex.get() < locations.length) {
       try {
-        openStreamInternal();
+        openStreamInternal(openReaderFuture);
         logger.debug(
             "MoveToNextPartitionIfPossible after openStream this:{},  endedStreamId: {}, currentLocationIndex: {}, currentSteamId:{}, locationsLength:{}",
             this,
@@ -222,12 +225,19 @@ public class CelebornBufferStream {
             locations.length);
       } catch (Exception e) {
         logger.warn("Failed to open stream and report to flink framework. ", e);
+        if (openReaderFuture != null) {
+          openReaderFuture.complete(false);
+        }
         messageConsumer.accept(new TransportableError(0L, e));
+      }
+    } else {
+      if (openReaderFuture != null) {
+        openReaderFuture.complete(false);
       }
     }
   }
 
-  private void openStreamInternal() throws IOException, InterruptedException {
+  private void openStreamInternal(@Nullable CompletableFuture<Boolean> openReaderFuture) throws IOException, InterruptedException {
     this.client =
         clientFactory.createClientWithRetry(
             locations[currentLocationIndex.get()].getHost(),
@@ -262,6 +272,9 @@ public class CelebornBufferStream {
                       .getReadClientHandler()
                       .registerHandler(streamId, messageConsumer, client);
                   isOpenSuccess = true;
+                  if (openReaderFuture != null) {
+                    openReaderFuture.complete(true);
+                  }
                   logger.debug(
                       "open stream success from remote:{}, stream id:{}, fileName: {}",
                       client.getSocketAddress(),
@@ -274,6 +287,9 @@ public class CelebornBufferStream {
                       streamId,
                       fileName);
                   closeStream(streamId);
+                  if (openReaderFuture != null) {
+                    openReaderFuture.complete(false);
+                  }
                 }
               }
             } catch (Exception e) {
@@ -282,6 +298,9 @@ public class CelebornBufferStream {
                   fileName,
                   shuffleKey,
                   NettyUtils.getRemoteAddress(client.getChannel()));
+              if (openReaderFuture != null) {
+                openReaderFuture.complete(false);
+              }
               messageConsumer.accept(new TransportableError(streamId, e));
             }
           }
@@ -293,6 +312,9 @@ public class CelebornBufferStream {
                 fileName,
                 shuffleKey,
                 NettyUtils.getRemoteAddress(client.getChannel()));
+            if (openReaderFuture != null) {
+              openReaderFuture.complete(false);
+            }
             messageConsumer.accept(new TransportableError(streamId, e));
           }
         });
