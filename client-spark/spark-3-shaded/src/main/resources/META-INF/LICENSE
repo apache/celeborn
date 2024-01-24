@@ -238,6 +238,7 @@ io.netty:netty-transport-classes-kqueue
 io.netty:netty-transport-native-epoll
 io.netty:netty-transport-native-kqueue
 com.google.guava:guava
+com.google.guava:failureaccess
 org.roaringbitmap:RoaringBitmap
 
 

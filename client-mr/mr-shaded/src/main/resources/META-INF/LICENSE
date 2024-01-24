@@ -238,13 +238,16 @@ io.netty:netty-transport-classes-kqueue
 io.netty:netty-transport-native-epoll
 io.netty:netty-transport-native-kqueue
 com.google.guava:guava
+com.google.guava:failureaccess
 org.roaringbitmap:RoaringBitmap
 org.lz4:lz4-java
 io.netty:netty
 org.scala-lang:scala-library
 
 
-BSD 3-clause
+BSD
 ------------
 See license/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
+See license/LICENSE-zstd-jni.txt for details.
+com.github.luben:zstd-jni
