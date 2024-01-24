@@ -19,7 +19,6 @@ package org.apache.celeborn.service.deploy
 
 import java.net.BindException
 import java.nio.file.Files
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable
 import scala.util.Random
@@ -43,6 +42,10 @@ trait MiniClusterFeature extends Logging {
     }
   }
 
+  private def chooseRandomPort(from: Int, to: Int): Int = {
+    Random.nextInt(to - from) + from
+  }
+
   def setupMiniClusterWithRandomPorts(
       masterConf: Option[Map[String, String]] = None,
       workerConf: Option[Map[String, String]] = None,
@@ -53,7 +56,7 @@ trait MiniClusterFeature extends Logging {
     var workers: collection.Set[Worker] = null
     while (!created) {
       try {
-        val randomPort = Random.nextInt(65535 - 1024) + 1024
+        val randomPort = chooseRandomPort(1024, 65535)
         val finalMasterConf = Map(
           s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
           s"${CelebornConf.MASTER_PORT.key}" -> s"$randomPort",
@@ -91,7 +94,7 @@ trait MiniClusterFeature extends Logging {
   private def createMaster(map: Map[String, String] = null): Master = {
     val conf = new CelebornConf()
     conf.set(CelebornConf.METRICS_ENABLED.key, "false")
-    val httpPort = Random.nextInt(65535 - 1024) + 1024
+    val httpPort = chooseRandomPort(1024, 65535)
     conf.set(CelebornConf.MASTER_HTTP_PORT.key, s"$httpPort")
     logInfo(s"set ${CelebornConf.MASTER_HTTP_PORT.key} to $httpPort")
     if (map != null) {
@@ -116,7 +119,7 @@ trait MiniClusterFeature extends Logging {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, storageDir)
     conf.set(CelebornConf.WORKER_DISK_MONITOR_ENABLED.key, "false")
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
-    conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${Random.nextInt(65535 - 1024) + 1024}")
+    conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${chooseRandomPort(1024, 65535)}")
     conf.set("celeborn.fetch.io.threads", "4")
     conf.set("celeborn.push.io.threads", "4")
     if (map != null) {
@@ -156,7 +159,7 @@ trait MiniClusterFeature extends Logging {
     })
     masterThread.start()
     masterInfo = (master, masterThread)
-    Thread.sleep(5000L)
+    Thread.sleep(20000L)
 
     if (!masterStartedSignal.head) {
       throw new BindException("cannot start master rpc endpoint")
@@ -178,8 +181,12 @@ trait MiniClusterFeature extends Logging {
           } catch {
             case ex: Exception =>
               workerStartRetry += 1
+              logError(s"cannot start worker $i, retrying: ", ex)
               if (workerStartRetry == 3) {
+                logError(s"cannot start worker $i, reached to max retrying", ex)
                 throw ex
+              } else {
+                Thread.sleep(math.pow(5000, workerStartRetry).toInt)
               }
           }
         }
@@ -188,25 +195,10 @@ trait MiniClusterFeature extends Logging {
       workerThread.start()
       workerThread
     }
-    Thread.sleep(20000L)
+
     (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
 
-    var workerRegistrationRetryCount = 0
-    var workerRegistrationDone = false
-    while (!workerRegistrationDone) {
-      try {
-        workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
-        workerRegistrationDone = true
-      } catch {
-        case ex: AssertionError =>
-          logError("worker registration cannot be done, retrying", ex)
-          workerRegistrationRetryCount += 1
-          if (workerRegistrationRetryCount == 10) {
-            logError("worker registration failed, reached to the max retry", ex)
-            throw ex;
-          }
-      }
-    }
+    workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
     (master, workerInfos.keySet)
   }
 
