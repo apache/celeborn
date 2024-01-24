@@ -20,15 +20,16 @@ package org.apache.celeborn.service.deploy
 import java.net.BindException
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
+
+import scala.collection.mutable
 import scala.util.Random
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
-
-import scala.collection.mutable
 
 trait MiniClusterFeature extends Logging {
 
