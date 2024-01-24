@@ -60,6 +60,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private final ChunkReceivedCallback callback;
 
   private final AtomicReference<IOException> exception = new AtomicReference<>();
+  private final String shuffleKey;
   private final int fetchMaxReqsInFlight;
   private final long fetchTimeoutMs;
   private boolean closed = false;
@@ -80,6 +81,7 @@ public class WorkerPartitionReader implements PartitionReader {
       int fetchChunkMaxRetry,
       MetricsCallback metricsCallback)
       throws IOException, InterruptedException {
+    this.shuffleKey = shuffleKey;
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     fetchTimeoutMs = conf.clientFetchTimeoutMs();
@@ -101,7 +103,8 @@ public class WorkerPartitionReader implements PartitionReader {
 
           @Override
           public void onFailure(int chunkIndex, Throwable e) {
-            String errorMsg = "Fetch chunk " + chunkIndex + " failed.";
+            String errorMsg =
+                String.format("Fetch chunk %d of shuffle key %s failed.", chunkIndex, shuffleKey);
             logger.error(errorMsg, e);
             exception.set(new CelebornIOException(errorMsg, e));
           }
@@ -207,7 +210,8 @@ public class WorkerPartitionReader implements PartitionReader {
               client = clientFactory.createClient(location.getHost(), location.getFetchPort());
             } catch (IOException e) {
               logger.error(
-                  "fetchChunk for streamId: {}, chunkIndex: {} failed.",
+                  "FetchChunk for shuffleKey: {}, streamId: {}, chunkIndex: {} failed.",
+                  shuffleKey,
                   streamHandler.getStreamId(),
                   chunkIndex,
                   e);
