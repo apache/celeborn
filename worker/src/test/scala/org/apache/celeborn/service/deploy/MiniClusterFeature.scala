@@ -196,7 +196,7 @@ trait MiniClusterFeature extends Logging {
       })
       workerThread.setName(s"worker ${i} starter thread")
       workerThread.start()
-      workerInfos.put(workers(i), workerThread)
+      workerInfos.put(workers(i - 1), workerThread)
     }
 
     var workerRegistrationRetryCount = 0
