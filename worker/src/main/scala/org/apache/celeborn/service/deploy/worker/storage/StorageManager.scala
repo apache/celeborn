@@ -94,9 +94,11 @@ final private[worker] class StorageManager(
     val cleaners = JavaUtils.newConcurrentHashMap[String, ThreadPoolExecutor]()
     disksSnapshot().foreach { diskInfo =>
       val diskCleanerPool = ThreadUtils.newDaemonCachedThreadPool(
-        s"disk-cleaner-${diskInfo.mountPoint}",
+        s"worker-disk-${diskInfo.mountPoint}-cleaner",
         conf.workerDiskCleanThreads)
-      threadPoolSource.registerSource(s"disk-cleaner-${diskInfo.mountPoint}", diskCleanerPool)
+      threadPoolSource.registerSource(
+        s"worker-disk-${diskInfo.mountPoint}-cleaner",
+        diskCleanerPool)
       cleaners.put(diskInfo.mountPoint, diskCleanerPool)
     }
     cleaners
@@ -183,11 +185,11 @@ final private[worker] class StorageManager(
 
   override def notifyHealthy(mountPoint: String): Unit = this.synchronized {
     if (!diskOperators.containsKey(mountPoint)) {
-      threadPoolSource.unregisterSource(s"disk-cleaner-$mountPoint")
+      threadPoolSource.unregisterSource(s"worker-disk-$mountPoint-cleaner")
       val diskCleanerPool = ThreadUtils.newDaemonCachedThreadPool(
-        s"disk-cleaner-$mountPoint",
+        s"worker-disk-$mountPoint-cleaner",
         conf.workerDiskCleanThreads)
-      threadPoolSource.registerSource(s"disk-cleaner-$mountPoint", diskCleanerPool)
+      threadPoolSource.registerSource(s"worker-disk-$mountPoint-cleaner", diskCleanerPool)
       diskOperators.put(mountPoint, diskCleanerPool)
     }
   }

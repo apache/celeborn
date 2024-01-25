@@ -258,20 +258,20 @@ private[celeborn] class Worker(
   private var checkFastFailTask: ScheduledFuture[_] = _
 
   val replicateThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-data-replicator", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-commit-files", conf.workerCommitThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-files-committer", conf.workerCommitThreads)
   val cleanThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool(
-      "worker-clean-expired-shuffle-keys",
+      "worker-expired-shuffle-cleaner",
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
   val timer = new HashedWheelTimer()
 
-  threadPoolSource.registerSource("worker-replicate-data", replicateThreadPool)
-  threadPoolSource.registerSource("worker-commit-files", commitThreadPool)
-  threadPoolSource.registerSource("worker-clean-expired-shuffle-keys", cleanThreadPool)
+  threadPoolSource.registerSource("worker-data-replicator", replicateThreadPool)
+  threadPoolSource.registerSource("worker-files-committer", commitThreadPool)
+  threadPoolSource.registerSource("worker-expired-shuffle-cleaner", cleanThreadPool)
   threadPoolSource.registerSource(
     "netty-rpc-connection",
     rpcEnv.asInstanceOf[NettyRpcEnv].clientConnectionExecutor)

@@ -133,8 +133,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
-            "worker-file-sorter-execute", conf.partitionSorterThreads(), 120);
-    threadPoolSource.registerSource("worker-file-sorter-execute", fileSorterExecutors);
+            "worker-file-sorter-executor", conf.partitionSorterThreads(), 120);
+    threadPoolSource.registerSource("worker-file-sorter-executor", fileSorterExecutors);
     indexCache =
         CacheBuilder.newBuilder()
             .concurrencyLevel(conf.partitionSorterThreads())
