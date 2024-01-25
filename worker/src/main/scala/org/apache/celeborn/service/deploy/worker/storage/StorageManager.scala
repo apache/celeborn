@@ -851,6 +851,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             fileMeta,
             filePath,
             StorageInfo.Type.HDD)
+          logInfo(s"created file at $filePath")
           diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
             fileName,
             diskFileInfo)
