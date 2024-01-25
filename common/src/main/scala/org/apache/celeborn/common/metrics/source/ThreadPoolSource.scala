@@ -33,7 +33,7 @@ class ThreadPoolSource(
       threadPoolExecutor: ThreadPoolExecutor): Unit = {
     val label = Map("threadPool" -> threadPoolName)
     addGauge(
-      "active_count",
+      "active_thread_count",
       label,
       new Gauge[Long] {
         override def getValue: Long = {
@@ -41,7 +41,7 @@ class ThreadPoolSource(
         }
       })
     addGauge(
-      "blocked_task_count",
+      "pending_task_count",
       label,
       new Gauge[Long] {
         override def getValue: Long = {
@@ -109,7 +109,7 @@ class ThreadPoolSource(
   def unregisterSource(threadPoolName: String): Unit = {
     val label = Map("threadPool" -> threadPoolName)
     removeGauge("active_thread_count", label)
-    removeGauge("blocked_task_count", label)
+    removeGauge("pending_task_count", label)
     removeGauge("pool_size", label)
     removeGauge("core_pool_size", label)
     removeGauge("maximum_pool_size", label)

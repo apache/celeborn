@@ -188,7 +188,7 @@ Here is an example of Grafana dashboard importing.
 |          AvailableProcessors           |      system       |                                       The amount of system available processors.                                       |
 |          LastMinuteSystemLoad          |      system       |                                            The last minute load of system.                                             |
 |          active_thread_count           |        JVM        |                          The approximate number of threads that are actively executing tasks.                          |
-|           blocked_task_count           |        JVM        |                                     The blocked task not executed in block queue.                                      |
+|           pending_task_count           |        JVM        |                                     The blocked task not executed in block queue.                                      |
 |               pool_size                |        JVM        |                                       The current number of threads in the pool.                                       |
 |             core_pool_size             |        JVM        |                                              The core number of threads.                                               |
 |           maximum_pool_size            |        JVM        |                                         The maximum allowed number of threads.                                         |
