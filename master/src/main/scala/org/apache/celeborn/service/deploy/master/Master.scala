@@ -877,6 +877,7 @@ private[celeborn] class Master(
   private def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
+
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.DISK_FILE_COUNT,
       userIdentifier.toMap) { () =>
@@ -897,6 +898,7 @@ private[celeborn] class Master(
       userIdentifier.toMap) { () =>
       computeUserResourceConsumption(userIdentifier).hdfsBytesWritten
     }
+
     val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
     val quota = quotaManager.getQuota(userIdentifier)
     val (isAvailable, reason) =
