@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
-import org.apache.celeborn.common.metrics.source.ThreadPoolSource;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
@@ -87,7 +86,6 @@ public class MapPartitionDataWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source,
-            Mockito.mock(ThreadPoolSource.class),
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
             NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),

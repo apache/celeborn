@@ -61,7 +61,6 @@ import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
-import org.apache.celeborn.common.metrics.source.ThreadPoolSource;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -89,7 +88,6 @@ public class ReducePartitionDataWriterSuiteJ {
 
   private static File tempDir = null;
   private static LocalFlusher localFlusher = null;
-  private static ThreadPoolSource threadPoolSource = null;
   private static WorkerSource source = null;
 
   private static TransportServer server;
@@ -105,7 +103,6 @@ public class ReducePartitionDataWriterSuiteJ {
     tempDir = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn");
     CONF.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "1k");
 
-    threadPoolSource = Mockito.mock(ThreadPoolSource.class);
     source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(
             invocationOnMock -> {
@@ -120,7 +117,6 @@ public class ReducePartitionDataWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source,
-            Mockito.mock(ThreadPoolSource.class),
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
             NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),
@@ -147,7 +143,7 @@ public class ReducePartitionDataWriterSuiteJ {
         new FetchHandler(transConf.getCelebornConf(), transConf, mock(WorkerSource.class)) {
           @Override
           public StorageManager storageManager() {
-            return new StorageManager(CONF, source, threadPoolSource);
+            return new StorageManager(CONF, source);
           }
 
           @Override
@@ -418,7 +414,6 @@ public class ReducePartitionDataWriterSuiteJ {
     localFlusher =
         new LocalFlusher(
             source,
-            Mockito.mock(ThreadPoolSource.class),
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             1,
             NettyUtils.getPooledByteBufAllocator(new TransportConf("test", CONF), null, true),

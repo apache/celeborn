@@ -50,8 +50,7 @@ import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
 final private[worker] class StorageManager(
     conf: CelebornConf,
-    workerSource: AbstractSource,
-    threadPoolSource: ThreadPoolSource)
+    workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // mount point -> file writer
   val workingDirWriters =
