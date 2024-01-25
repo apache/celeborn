@@ -92,7 +92,7 @@ private[celeborn] class Master(
 
   // Threads
   private val forwardMessageThread =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-forward-message-thread")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-message-forwarder")
   private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
@@ -135,7 +135,7 @@ private[celeborn] class Master(
   private val estimatedPartitionSizeForEstimationUpdateInterval =
     conf.estimatedPartitionSizeForEstimationUpdateInterval
   private val partitionSizeUpdateService =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("partition-size-updater")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-partition-size-updater")
   partitionSizeUpdateService.scheduleWithFixedDelay(
     new Runnable {
       override def run(): Unit = {
@@ -940,7 +940,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("======================= Lost Workers in Master ========================\n")
     lostWorkersSnapshot.asScala.toSeq.sortBy(_._2).foreach { case (worker, time) =>
-      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${dateFmt.format(time)}\n")
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }
@@ -983,7 +983,7 @@ private[celeborn] class Master(
     val sb = new StringBuilder
     sb.append("================= LifecycleManager Application List ======================\n")
     statusSystem.appHeartbeatTime.asScala.toSeq.sortBy(_._2).foreach { case (appId, time) =>
-      sb.append(s"${appId.padTo(40, " ").mkString}${dateFmt.format(time)}\n")
+      sb.append(s"${appId.padTo(40, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }

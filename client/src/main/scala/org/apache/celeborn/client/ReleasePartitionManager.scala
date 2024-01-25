@@ -38,14 +38,14 @@ class ReleasePartitionManager(
   private val shuffleReleasePartitionRequests = JavaUtils.newConcurrentHashMap[Int, util.Set[Int]]
   private val batchHandleReleasePartitionEnabled = conf.batchHandleReleasePartitionEnabled
   private val batchHandleReleasePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
-    "celeborn-lifecycle-manager-release-partition-executor",
+    "celeborn-client-lifecycle-manager-release-partition-executor",
     conf.batchHandleReleasePartitionNumThreads)
   private val batchHandleReleasePartitionRequestInterval =
     conf.batchHandleReleasePartitionRequestInterval
   private val batchHandleReleasePartitionSchedulerThread: Option[ScheduledExecutorService] =
     if (batchHandleReleasePartitionEnabled) {
       Some(ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "celeborn-lifecycle-manager-release-partition-scheduler"))
+        "celeborn-client-lifecycle-manager-release-partition-scheduler"))
     } else {
       None
     }

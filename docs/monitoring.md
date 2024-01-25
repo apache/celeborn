@@ -91,18 +91,18 @@ reported in the list.
 These metrics are exposed by Celeborn master.
 
   - namespace=master 
-    - WorkerCount
-    - LostWorkers
-    - ExcludedWorkerCount
     - RegisteredShuffleCount
     - RunningApplicationCount
-    - IsActiveMaster
-    - PartitionSize
-        - The size of estimated shuffle partition.
     - ActiveShuffleSize
         - The active shuffle size of workers.
     - ActiveShuffleFileCount
         - The active shuffle file count of workers.
+    - WorkerCount
+    - LostWorkers
+    - ExcludedWorkerCount
+    - IsActiveMaster
+    - PartitionSize
+        - The size of estimated shuffle partition.
     - OfferSlotsTime
         - The time for masters to handle `RequestSlots` request when registering shuffle.
 
@@ -131,24 +131,28 @@ These metrics are exposed by Celeborn master.
 These metrics are exposed by Celeborn worker.
 
   - namespace=worker
-    - CommitFilesTime
-        - The time for a worker to flush buffers and close files related to specified shuffle.
-    - ReserveSlotsTime
-    - FlushDataTime
-        - The time for a worker to write a buffer which is 256KB by default to storage.
+    - RegisteredShuffleCount
+    - RunningApplicationCount
+    - ActiveShuffleSize
+        - The active shuffle size of a worker including master replica and slave replica.
+    - ActiveShuffleFileCount
+        - The active shuffle file count of a worker including master replica and slave replica.
     - OpenStreamTime
         - The time for a worker to process openStream RPC and return StreamHandle.
     - FetchChunkTime
         - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
     - ChunkStreamCount
         - Stream count for reduce partition reading streams.
+    - OpenStreamSuccessCount
     - OpenStreamFailCount
+    - FetchChunkSuccessCount
     - FetchChunkFailCount
     - PrimaryPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn client.
     - ReplicaPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
     - WriteDataHardSplitCount
+    - WriteDataSuccessCount
     - WriteDataFailCount
     - ReplicateDataFailCount
     - ReplicateDataWriteFailCount
@@ -164,11 +168,23 @@ These metrics are exposed by Celeborn worker.
     - ReplicaRegionStartTime
     - PrimaryRegionFinishTime
     - ReplicaRegionFinishTime
+    - PausePushDataTime
+        - The time for a worker to stop receiving pushData from clients because of back pressure.
+    - PausePushDataAndReplicateTime
+        - The time for a worker to stop receiving pushData from clients and other workers because of back pressure.
+    - PausePushData
+        - The count for a worker to stop receiving pushData from clients because of back pressure.
+    - PausePushDataAndReplicate
+        - The count for a worker to stop receiving pushData from clients and other workers because of back pressure.
     - TakeBufferTime
         - The time for a worker to take out a buffer from a disk flusher.
-    - RegisteredShuffleCount
-    - RunningApplicationCount
+    - FlushDataTime
+        - The time for a worker to write a buffer which is 256KB by default to storage.
+    - CommitFilesTime
+        - The time for a worker to flush buffers and close files related to specified shuffle.
     - SlotsAllocated
+    - ReserveSlotsTime
+    - ActiveConnectionCount
     - NettyMemory
         - The total amount of off-heap memory used by celeborn worker.
     - SortTime
@@ -180,14 +196,6 @@ These metrics are exposed by Celeborn worker.
     - SortedFileSize
     - DiskBuffer
         - The memory occupied by pushData and pushMergedData which should be written to disk.
-    - PausePushDataTime
-        - The time for a worker to stop receiving pushData from clients because of back pressure.
-    - PausePushDataAndReplicateTime
-        - The time for a worker to stop receiving pushData from clients and other workers because of back pressure.
-    - PausePushData
-        - The count for a worker to stop receiving pushData from clients because of back pressure.
-    - PausePushDataAndReplicate
-        - The count for a worker to stop receiving pushData from clients and other workers because of back pressure.
     - BufferStreamReadBuffer
         - The memory used by credit stream read buffer.
     - ReadBufferDispatcherRequestsLength
@@ -204,10 +212,6 @@ These metrics are exposed by Celeborn worker.
     - PotentialConsumeSpeed
     - UserProduceSpeed
     - WorkerConsumeSpeed
-    - ActiveShuffleSize
-        - The active shuffle size of a worker including master replica and slave replica.
-    - ActiveShuffleFileCount
-        - The active shuffle file count of a worker including master replica and slave replica.
     - push_server_usedHeapMemory 
     - push_server_usedDirectMemory
     - push_server_numAllocations 

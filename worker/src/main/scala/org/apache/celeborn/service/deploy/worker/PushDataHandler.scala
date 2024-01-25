@@ -55,7 +55,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
   private var replicateThreadPool: ThreadPoolExecutor = _
   private var unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] = _
-  private var pushClientFactory: TransportClientFactory = _
+  private var replicateClientFactory: TransportClientFactory = _
   private var registered: AtomicBoolean = _
   private var workerInfo: WorkerInfo = _
   private var diskReserveSize: Long = _
@@ -78,7 +78,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     replicateThreadPool = worker.replicateThreadPool
     unavailablePeers = worker.unavailablePeers
-    pushClientFactory = worker.pushClientFactory
+    replicateClientFactory = worker.replicateClientFactory
     registered = worker.registered
     workerInfo = worker.workerInfo
     diskReserveSize = worker.conf.workerDiskReserveSize
@@ -347,7 +347,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             }
           }
           try {
-            val client = getClient(peer.getHost, peer.getReplicatePort, location.getId)
+            val client = getReplicateClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushData = new PushData(
               PartitionLocation.Mode.REPLICA.mode(),
               shuffleKey,
@@ -610,7 +610,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           }
 
           try {
-            val client = getClient(peer.getHost, peer.getReplicatePort, location.getId)
+            val client = getReplicateClient(peer.getHost, peer.getReplicatePort, location.getId)
             val newPushMergedData = new PushMergedData(
               PartitionLocation.Mode.REPLICA.mode(),
               shuffleKey,
@@ -1216,11 +1216,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     false
   }
 
-  private def getClient(host: String, port: Int, partitionId: Int): TransportClient = {
+  private def getReplicateClient(host: String, port: Int, partitionId: Int): TransportClient = {
     if (workerReplicateRandomConnectionEnabled) {
-      pushClientFactory.createClient(host, port)
+      replicateClientFactory.createClient(host, port)
     } else {
-      pushClientFactory.createClient(host, port, partitionId)
+      replicateClientFactory.createClient(host, port, partitionId)
     }
   }
 
@@ -1254,6 +1254,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             } else {
               StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
             }
+          workerSource.incCounter(WorkerSource.WRITE_DATA_FAIL_COUNT)
           writePromise.failure(new CelebornIOException(cause))
           fileWriter.decrementPendingWrites()
       }
@@ -1283,6 +1284,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         writeData(fileWriters.head, body, shuffleKey)
     }
     if (!writePromise.isCompleted) {
+      workerSource.incCounter(WorkerSource.WRITE_DATA_SUCCESS_COUNT)
       writePromise.success()
     }
   }

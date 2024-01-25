@@ -141,7 +141,7 @@ private[celeborn] class Worker(
   rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
   val pushDataHandler = new PushDataHandler(workerSource)
-  val (pushServer, pushClientFactory) = {
+  private val pushServer = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads = conf.workerPushIoThreads.getOrElse(storageManager.totalFlusherThread)
     val transportConf =
@@ -155,13 +155,11 @@ private[celeborn] class Worker(
         pushServerLimiter,
         conf.workerPushHeartbeatEnabled,
         workerSource)
-    (
-      transportContext.createServer(conf.workerPushPort),
-      transportContext.createClientFactory())
+    transportContext.createServer(conf.workerPushPort)
   }
 
   val replicateHandler = new PushDataHandler(workerSource)
-  private val replicateServer = {
+  val (replicateServer, replicateClientFactory) = {
     val closeIdleConnections = conf.workerCloseIdleConnections
     val numThreads =
       conf.workerReplicateIoThreads.getOrElse(storageManager.totalFlusherThread)
@@ -176,7 +174,9 @@ private[celeborn] class Worker(
         replicateLimiter,
         false,
         workerSource)
-    transportContext.createServer(conf.workerReplicatePort)
+    (
+      transportContext.createServer(conf.workerReplicatePort),
+      transportContext.createClientFactory())
   }
 
   var fetchHandler: FetchHandler = _
@@ -262,7 +262,7 @@ private[celeborn] class Worker(
       "worker-clean-expired-shuffle-keys",
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
   val timer = new HashedWheelTimer()
 
   // Configs
@@ -270,7 +270,8 @@ private[celeborn] class Worker(
   private val replicaFastFailDuration = conf.workerReplicateFastFailDuration
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
-  var cleaner: Thread = _
+  var cleaner: ExecutorService =
+    ThreadUtils.newDaemonSingleThreadExecutor("worker-expired-shuffle-cleaner")
 
   private val workerResourceConsumptionInterval = conf.workerResourceConsumptionInterval
   private val userResourceConsumptions =
@@ -414,7 +415,7 @@ private[celeborn] class Worker(
       replicaFastFailDuration,
       TimeUnit.MILLISECONDS)
 
-    cleaner = new Thread("Cleaner") {
+    cleaner.submit(new Runnable {
       override def run(): Unit = {
         while (true) {
           val expiredShuffleKeys = cleanTaskQueue.take()
@@ -426,15 +427,12 @@ private[celeborn] class Worker(
           }
         }
       }
-    }
+    })
 
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
     controller.init(this)
-
-    cleaner.setDaemon(true)
-    cleaner.start()
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
@@ -664,7 +662,7 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
-      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${dateFmt.format(time)}\n")
+      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }
