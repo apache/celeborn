@@ -80,6 +80,7 @@ nav:
       - Upgrading: upgrading.md
       - Ratis Shell: celeborn_ratis_shell.md
       - Cluster Planning: cluster_planning.md
+      - Quota Management: quota_management.md
   - Configuration: configuration/index.md
   - Migration Guide: migration.md
   - Developers Doc:
