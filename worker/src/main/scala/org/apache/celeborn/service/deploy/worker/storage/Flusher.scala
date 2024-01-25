@@ -47,7 +47,6 @@ abstract private[worker] class Flusher(
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
   protected val workers = new Array[ExecutorService](threadCount)
   protected var nextWorkerIndex: Int = 0
-  protected val threadName: String
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
   val stopFlag = new AtomicBoolean(false)
@@ -60,7 +59,7 @@ abstract private[worker] class Flusher(
     }
     for (index <- 0 until threadCount) {
       workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
-      workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$threadName-$index")
+      workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$this-$index")
       workers(index).submit(new Runnable {
         override def run(): Unit = {
           while (!stopFlag.get()) {
@@ -143,8 +142,6 @@ private[worker] class LocalFlusher(
 
   deviceMonitor.registerFlusher(this)
 
-  override val threadName: String = s"LocalFlusher-$mountPoint"
-
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, report to DeviceMonitor, exception: $e")
     deviceMonitor.reportNonCriticalError(mountPoint, e, deviceErrorType)
@@ -176,8 +173,6 @@ final private[worker] class HdfsFlusher(
     allocator,
     maxComponents,
     null) with Logging {
-
-  override val threadName: String = s"HdfsFlusher"
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
