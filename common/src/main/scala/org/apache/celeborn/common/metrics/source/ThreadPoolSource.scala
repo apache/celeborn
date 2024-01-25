@@ -49,14 +49,6 @@ class ThreadPoolSource(
         }
       })
     addGauge(
-      "remain_queue_capacity",
-      label,
-      new Gauge[Long] {
-        override def getValue: Long = {
-          threadPoolExecutor.getQueue.remainingCapacity()
-        }
-      })
-    addGauge(
       "pool_size",
       label,
       new Gauge[Long] {
@@ -122,7 +114,6 @@ class ThreadPoolSource(
     removeGauge("core_pool_size", label)
     removeGauge("maximum_pool_size", label)
     removeGauge("largest_pool_size", label)
-    removeGauge("remain_queue_capacity", label)
     removeGauge("is_terminating", label)
     removeGauge("is_terminated", label)
     removeGauge("is_shutdown", label)

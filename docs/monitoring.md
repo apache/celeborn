@@ -136,7 +136,6 @@ These metrics are exposed by Celeborn master.
     - core_pool_size
     - maximum_pool_size
     - largest_pool_size
-    - remain_queue_capacity
     - is_terminating
     - is_terminated
     - is_shutdown
@@ -308,7 +307,6 @@ These metrics are exposed by Celeborn worker.
     - core_pool_size
     - maximum_pool_size
     - largest_pool_size
-    - remain_queue_capacity
     - is_terminating
     - is_terminated
     - is_shutdown
