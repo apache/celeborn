@@ -44,6 +44,8 @@ license: |
 
 - Since 0.4.0, Celeborn deprecate `celeborn.storage.activeTypes`. Please use `celeborn.storage.availableTypes` instead.
 
+- Since 0.4.0, Celeborn worker removes configuration `celeborn.worker.userResourceConsumption.update.interval`.
+
 - Since 0.4.0, Celeborn master metrics `PartitionWritten` is renamed as `ActiveShuffleSize`.
 
 - Since 0.4.0, Celeborn master metrics `PartitionFileCount` is renamed as `ActiveShuffleFileCount`.
