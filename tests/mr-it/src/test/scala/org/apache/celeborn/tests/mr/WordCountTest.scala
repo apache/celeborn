@@ -150,7 +150,9 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
         })
 
         exitCode = job.waitForCompletion(true)
-        finish = true
+        if (exitCode) {
+          finish = true
+        }
       } catch {
         case e: Exception =>
           retryCount += 1
