@@ -23,9 +23,9 @@ license: |
 
 ## Upgrading from 0.4 to 0.5
 
-- Since 0.5.0 Celeborn worker metrics `ChunkStreamCount` is renamed as `ActiveChunkStreamCount`.
+- Since 0.5.0, Celeborn worker metrics `ChunkStreamCount` is renamed as `ActiveChunkStreamCount`.
 
-- Since 0.5.0 Celeborn worker metrics `CreditStreamCount` is renamed as `ActiveCreditStreamCount`.
+- Since 0.5.0, Celeborn worker metrics `CreditStreamCount` is renamed as `ActiveCreditStreamCount`.
 
 ## Upgrading from 0.3 to 0.4
 
@@ -49,6 +49,8 @@ license: |
   Please use `celeborn.worker.storage.dirs` instead.
 
 - Since 0.4.0, Celeborn deprecate `celeborn.storage.activeTypes`. Please use `celeborn.storage.availableTypes` instead.
+
+- Since 0.4.0, Celeborn worker removes configuration `celeborn.worker.userResourceConsumption.update.interval`.
 
 - Since 0.4.0, Celeborn master metrics `PartitionWritten` is renamed as `ActiveShuffleSize`.
 
