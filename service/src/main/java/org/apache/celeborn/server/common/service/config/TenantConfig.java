@@ -17,24 +17,45 @@
 
 package org.apache.celeborn.server.common.service.config;
 
+import java.util.List;
 import java.util.Map;
+
+import org.apache.celeborn.server.common.service.model.ClusterTenantConfig;
 
 public class TenantConfig extends DynamicConfig {
   private final String tenantId;
   private final ConfigService configService;
+  private final String name;
 
-  public TenantConfig(ConfigService configService, String tenantId, Map<String, String> configs) {
+  public TenantConfig(
+      ConfigService configService, String tenantId, String name, Map<String, String> configs) {
     this.configService = configService;
-    this.configs.putAll(configs);
     this.tenantId = tenantId;
+    this.name = name;
+    this.configs.putAll(configs);
+  }
+
+  public TenantConfig(
+      ConfigService configService,
+      String tenantId,
+      String name,
+      List<ClusterTenantConfig> tenantConfigs) {
+    this.configService = configService;
+    this.tenantId = tenantId;
+    this.name = name;
+    tenantConfigs.forEach(t -> configs.put(t.getConfigKey(), t.getConfigValue()));
   }
 
   public String getTenantId() {
     return tenantId;
   }
 
+  public String getName() {
+    return name;
+  }
+
   @Override
   public DynamicConfig getParentLevelConfig() {
-    return configService.getSystemConfig();
+    return configService.getSystemConfigFromCache();
   }
 }

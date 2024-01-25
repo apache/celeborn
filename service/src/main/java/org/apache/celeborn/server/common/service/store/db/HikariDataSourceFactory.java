@@ -15,22 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.server.common.service.config;
+package org.apache.celeborn.server.common.service.store.db;
 
-import java.io.IOException;
+import java.util.Properties;
 
-import org.apache.celeborn.common.CelebornConf;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.apache.ibatis.datasource.unpooled.UnpooledDataSourceFactory;
 
-public class DynamicConfigServiceFactory {
+public class HikariDataSourceFactory extends UnpooledDataSourceFactory {
 
-  public static ConfigService getConfigService(CelebornConf celebornConf) throws IOException {
-    String configStoreBackend = celebornConf.dynamicConfigStoreBackend();
-    if ("FS".equals(configStoreBackend)) {
-      return new FsConfigServiceImpl(celebornConf);
-    } else if ("DB".equals(configStoreBackend)) {
-      return new DbConfigServiceImpl(celebornConf);
-    }
-
-    return null;
+  @Override
+  public void setProperties(Properties properties) {
+    HikariConfig config = new HikariConfig(properties);
+    this.dataSource = new HikariDataSource(config);
   }
 }

@@ -19,8 +19,17 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since | Deprecated |
 | --- | ------- | ----------- | ----- | ---------- |
+| celeborn.cluster.name | default | celeborn cluster name | 0.5.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 
-| celeborn.dynamicConfig.store.backend | NONE | Store backend for dynamic config. Available options: NONE, FS. Note: NONE means disabling dynamic config store. | 0.4.0 |  | 
+| celeborn.dynamicConfig.store.backend | NONE | Store backend for dynamic config service. Available options: NONE, FS, DB. Note: NONE means disabling dynamic config store. | 0.4.0 |  | 
+| celeborn.dynamicConfig.store.db.connectionTimeout | 30s | The connection timeout that a client will wait for a connection from the pool for db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.fetch.pageSize | 1000 | The page size for db store to query configurations. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.idleTimeout | 600s | The idle timeout that a connection is allowed to sit idle in the pool for db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.jdbcUrl |  | The jdbc url of db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.maxLifetime | 1800s | The maximum lifetime of a connection in the pool for db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.maximumPoolSize | 2 | The maximum pool size of db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.password |  | The password of db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.username |  | The username of db store backend. | 0.5.0 |  | 
 | celeborn.internal.port.enabled | false | Whether to create a internal port on Masters/Workers for inter-Masters/Workers communication. This is beneficial when SASL authentication is enforced for all interactions between clients and Celeborn Services, but the services can exchange messages without being subject to SASL authentication. | 0.5.0 |  | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 |  | 
 | celeborn.master.estimatedPartitionSize.minSize | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.3.0 | celeborn.shuffle.minPartitionSizeToEstimate | 

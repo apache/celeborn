@@ -214,6 +214,7 @@ com.thoughtworks.paranamer:paranamer
 commons-cli:commons-cli
 commons-io:commons-io
 commons-logging:commons-logging
+com.zaxxer:HikariCP
 io.dropwizard.metrics:metrics-core
 io.dropwizard.metrics:metrics-graphite
 io.dropwizard.metrics:metrics-jvm
@@ -251,6 +252,7 @@ org.apache.commons:commons-crypto
 org.apache.commons:commons-lang3
 org.apache.hadoop:hadoop-client-api
 org.apache.hadoop:hadoop-client-runtime
+org.apache.ibatis:mybatis
 org.apache.logging.log4j:log4j-1.2-api
 org.apache.logging.log4j:log4j-api
 org.apache.logging.log4j:log4j-core

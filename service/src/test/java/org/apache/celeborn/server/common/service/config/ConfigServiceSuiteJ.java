@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.server.common.service.config;
 
+import java.io.IOException;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -26,7 +28,13 @@ import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
 public class ConfigServiceSuiteJ {
 
   @Test
-  public void testFsConfig() {
+  public void testDbConfig() throws IOException {
+    DbConfigServiceImpl dbConfigServer = new DbConfigServiceImpl(new CelebornConf());
+    verifyConfig(dbConfigServer);
+  }
+
+  @Test
+  public void testFsConfig() throws IOException {
     CelebornConf celebornConf = new CelebornConf();
     String file = getClass().getResource("/dynamicConfig.yaml").getFile();
     celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
@@ -40,7 +48,7 @@ public class ConfigServiceSuiteJ {
       celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
 
       fsConfigService.refreshAllCache();
-      SystemConfig systemConfig = fsConfigService.getSystemConfig();
+      SystemConfig systemConfig = fsConfigService.getSystemConfigFromCache();
 
       // verify systemConfig's intConf
       Integer intConfValue =
@@ -62,7 +70,7 @@ public class ConfigServiceSuiteJ {
 
   public void verifyConfig(ConfigService configService) {
     // ------------- Verify SystemConfig ----------------- //
-    SystemConfig systemConfig = configService.getSystemConfig();
+    SystemConfig systemConfig = configService.getSystemConfigFromCache();
     // verify systemConfig's bytesConf -- use systemConfig
     Long value =
         systemConfig.getValue(
@@ -113,7 +121,7 @@ public class ConfigServiceSuiteJ {
     Assert.assertEquals(intConfValue.intValue(), 10);
 
     // ------------- Verify TenantConfig ----------------- //
-    DynamicConfig tenantConfig = configService.getTenantConfig("tenant_id");
+    DynamicConfig tenantConfig = configService.getTenantConfigFromCache("tenant_id");
     // verify tenantConfig's bytesConf -- use tenantConf
     value =
         tenantConfig.getValue(
@@ -156,7 +164,7 @@ public class ConfigServiceSuiteJ {
             ConfigType.BYTES);
     Assert.assertNull(value);
 
-    DynamicConfig tenantConfigNone = configService.getTenantConfig("tenant_id_none");
+    DynamicConfig tenantConfigNone = configService.getTenantConfigFromCache("tenant_id_none");
     // verify tenantConfig's bytesConf -- defer to systemConf
     value =
         tenantConfigNone.getValue(

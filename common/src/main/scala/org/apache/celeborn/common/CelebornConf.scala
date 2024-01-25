@@ -368,6 +368,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
   def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
+  def dynamicConfigStoreDbJdbcUrl: String = get(DYNAMIC_CONFIG_STORE_DB_JDBC_URL)
+  def dynamicConfigStoreDbUsername: String = get(DYNAMIC_CONFIG_STORE_DB_USERNAME)
+  def dynamicConfigStoreDbPassword: String = get(DYNAMIC_CONFIG_STORE_DB_PASSWORD)
+  def dynamicConfigStoreDbConnectionTimeout: Long = get(DYNAMIC_CONFIG_STORE_DB_CONNECTION_TIMEOUT)
+  def dynamicConfigStoreDbIdleTimeout: Long = get(DYNAMIC_CONFIG_STORE_DB_IDLE_TIMEOUT)
+  def dynamicConfigStoreDbMaxLifetime: Long = get(DYNAMIC_CONFIG_STORE_DB_MAX_LIFETIME)
+  def dynamicConfigStoreDbMaximumPoolSize: Int = get(DYNAMIC_CONFIG_STORE_DB_MAXIMUM_POOL_SIZE)
+  def dynamicConfigStoreDbFetchPageSize: Int = get(DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE)
 
   // //////////////////////////////////////////////////////
   //                      Network                        //
@@ -543,6 +551,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
+  def clusterName: String = get(CLUSTER_NAME)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -2205,6 +2214,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val CLUSTER_NAME: ConfigEntry[String] =
+    buildConf("celeborn.cluster.name")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("celeborn cluster name")
+      .stringConf
+      .createWithDefaultString("default")
 
   val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chunk.size")
@@ -4361,11 +4378,12 @@ object CelebornConf extends Logging {
   val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")
       .categories("master", "worker")
-      .doc("Store backend for dynamic config. Available options: NONE, FS. Note: NONE means disabling dynamic config store.")
+      .doc("Store backend for dynamic config service. Available options: NONE, FS, DB. Note: NONE means disabling " +
+        "dynamic config store.")
       .version("0.4.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set("NONE", "FS"))
+      .checkValues(Set("NONE", "FS", "DB"))
       .createWithDefault("NONE")
 
   val DYNAMIC_CONFIG_REFRESH_INTERVAL: ConfigEntry[Long] =
@@ -4375,6 +4393,70 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val DYNAMIC_CONFIG_STORE_DB_JDBC_URL: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.jdbcUrl")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The jdbc url of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_USERNAME: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.username")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The username of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_PASSWORD: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.password")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The password of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_CONNECTION_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.connectionTimeout")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The connection timeout that a client will wait for a connection from the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val DYNAMIC_CONFIG_STORE_DB_IDLE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.idleTimeout")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The idle timeout that a connection is allowed to sit idle in the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
+
+  val DYNAMIC_CONFIG_STORE_DB_MAX_LIFETIME: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.maxLifetime")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The maximum lifetime of a connection in the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1800s")
+
+  val DYNAMIC_CONFIG_STORE_DB_MAXIMUM_POOL_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.dynamicConfig.store.db.maximumPoolSize")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The maximum pool size of db store backend.")
+      .intConf
+      .createWithDefaultString("2")
+
+  val DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.dynamicConfig.store.db.fetch.pageSize")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The page size for db store to query configurations.")
+      .intConf
+      .createWithDefaultString("1000")
 
   val REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.register.filterExcludedWorker.enabled")
