@@ -1356,7 +1356,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.network.memory.allocator.verbose.metric")
       .categories("network")
       .version("0.3.0")
-      .doc("Weather to enable verbose metric for pooled allocator.")
+      .doc("Whether to enable verbose metric for pooled allocator.")
       .booleanConf
       .createWithDefault(false)
 
