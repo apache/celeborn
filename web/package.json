@@ -12,7 +12,7 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "lint:lint-staged": "lint-staged",
     "format": "prettier --write src/",
-    "prepare": "cd ../ && husky install"
+    "prepare": "cd ../ && husky install web/.husky"
   },
   "dependencies": {
     "pinia": "^2.1.7",
@@ -43,6 +43,6 @@
     "vue-tsc": "^1.8.25"
   },
   "lint-staged": {
-    "*.{vue,js,jsx,cjs,mjs,ts,tsx,cts,mts}": "eslint --fix --ignore-path .gitignore"
+    "*.{vue,js,jsx,cjs,mjs,ts,tsx,cts,mts}": "eslint --fix --ignore-path .gitignore --config .eslintrc.cjs"
   }
 }
