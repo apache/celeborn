@@ -194,7 +194,7 @@ private[celeborn] class Master(
 
   threadPoolSource.registerSource("master-noneager-handler", nonEagerHandler)
   threadPoolSource.registerSource(
-    "netty-rpc-connection",
+    "master-netty-rpc-connection-executor",
     rpcEnv.asInstanceOf[NettyRpcEnv].clientConnectionExecutor)
 
   metricsSystem.registerSource(resourceConsumptionSource)

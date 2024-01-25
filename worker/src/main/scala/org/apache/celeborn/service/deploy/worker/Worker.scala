@@ -273,7 +273,7 @@ private[celeborn] class Worker(
   threadPoolSource.registerSource("worker-files-committer", commitThreadPool)
   threadPoolSource.registerSource("worker-expired-shuffle-cleaner", cleanThreadPool)
   threadPoolSource.registerSource(
-    "netty-rpc-connection",
+    "worker-netty-rpc-connection-executor",
     rpcEnv.asInstanceOf[NettyRpcEnv].clientConnectionExecutor)
 
   // Configs
