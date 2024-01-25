@@ -38,7 +38,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo, MapFileMeta, ReduceFileMeta, TimeWindow}
-import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
+import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -89,12 +89,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = JavaUtils.newConcurrentHashMap[String, ThreadPoolExecutor]()
-    disksSnapshot().foreach { diskInfo =>
-      cleaners.put(
-        diskInfo.mountPoint,
-        ThreadUtils.newDaemonCachedThreadPool(
-        s"worker-disk-${diskInfo.mountPoint}-cleaner",
-        conf.workerDiskCleanThreads))
+    disksSnapshot().foreach {
+      diskInfo =>
+        cleaners.put(
+          diskInfo.mountPoint,
+          ThreadUtils.newDaemonCachedThreadPool(
+            s"worker-disk-${diskInfo.mountPoint}-cleaner",
+            conf.workerDiskCleanThreads))
     }
     cleaners
   }
