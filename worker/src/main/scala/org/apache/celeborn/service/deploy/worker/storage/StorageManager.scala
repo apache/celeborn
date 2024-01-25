@@ -233,7 +233,7 @@ final private[worker] class StorageManager(
       JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, FileInfo]]()
     saveCommittedFileInfosExecutor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-        "StorageManager-save-committed-fileinfo-thread")
+        "worker-storage-manager-committed-fileinfo-saver")
     saveCommittedFileInfosExecutor.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
@@ -531,7 +531,7 @@ final private[worker] class StorageManager(
   }
 
   private val storageScheduler =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("storage-scheduler")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-storage-manager-scheduler")
 
   storageScheduler.scheduleWithFixedDelay(
     new Runnable {

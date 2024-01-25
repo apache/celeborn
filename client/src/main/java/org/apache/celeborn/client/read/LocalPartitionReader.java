@@ -83,7 +83,7 @@ public class LocalPartitionReader implements PartitionReader {
         if (readLocalShufflePool == null) {
           readLocalShufflePool =
               ThreadUtils.newDaemonCachedThreadPool(
-                  "local-shuffle-reader-thread", conf.readLocalShuffleThreads(), 60);
+                  "celeborn-client-local-shuffle-reader", conf.readLocalShuffleThreads(), 60);
         }
       }
     }

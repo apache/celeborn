@@ -48,7 +48,7 @@ public class FsConfigServiceImpl implements ConfigService {
   private static final String CONF_CONFIG = "config";
 
   private final ScheduledExecutorService configRefreshService =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("config-refresh-service");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-config-refresher");
 
   public FsConfigServiceImpl(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;

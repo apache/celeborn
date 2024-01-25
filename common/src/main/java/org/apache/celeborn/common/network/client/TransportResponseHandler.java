@@ -95,7 +95,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         if (pushTimeoutChecker == null) {
           pushTimeoutChecker =
               ThreadUtils.newDaemonThreadPoolScheduledExecutor(
-                  "push-timeout-checker", conf.pushDataTimeoutCheckerThreads());
+                  "celeborn-push-timeout-checker", conf.pushDataTimeoutCheckerThreads());
         }
       }
 
@@ -103,7 +103,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         if (fetchTimeoutChecker == null) {
           fetchTimeoutChecker =
               ThreadUtils.newDaemonThreadPoolScheduledExecutor(
-                  "fetch-timeout-checker", conf.fetchDataTimeoutCheckerThreads());
+                  "celeborn-fetch-timeout-checker", conf.fetchDataTimeoutCheckerThreads());
         }
       }
     }

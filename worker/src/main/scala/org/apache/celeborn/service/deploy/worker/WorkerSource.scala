@@ -26,9 +26,12 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
 
   import WorkerSource._
   // add counters
+  addCounter(OPEN_STREAM_SUCCESS_COUNT)
   addCounter(OPEN_STREAM_FAIL_COUNT)
+  addCounter(FETCH_CHUNK_SUCCESS_COUNT)
   addCounter(FETCH_CHUNK_FAIL_COUNT)
   addCounter(WRITE_DATA_HARD_SPLIT_COUNT)
+  addCounter(WRITE_DATA_SUCCESS_COUNT)
   addCounter(WRITE_DATA_FAIL_COUNT)
   addCounter(REPLICATE_DATA_FAIL_COUNT)
   addCounter(REPLICATE_DATA_WRITE_FAIL_COUNT)
@@ -79,13 +82,16 @@ object WorkerSource {
   val OPEN_STREAM_TIME = "OpenStreamTime"
   val FETCH_CHUNK_TIME = "FetchChunkTime"
   val ACTIVE_CHUNK_STREAM_COUNT = "ActiveChunkStreamCount"
+  val OPEN_STREAM_SUCCESS_COUNT = "OpenStreamSuccessCount"
   val OPEN_STREAM_FAIL_COUNT = "OpenStreamFailCount"
+  val FETCH_CHUNK_SUCCESS_COUNT = "FetchChunkSuccessCount"
   val FETCH_CHUNK_FAIL_COUNT = "FetchChunkFailCount"
 
   // push data
   val PRIMARY_PUSH_DATA_TIME = "PrimaryPushDataTime"
   val REPLICA_PUSH_DATA_TIME = "ReplicaPushDataTime"
   val WRITE_DATA_HARD_SPLIT_COUNT = "WriteDataHardSplitCount"
+  val WRITE_DATA_SUCCESS_COUNT = "WriteDataSuccessCount"
   val WRITE_DATA_FAIL_COUNT = "WriteDataFailCount"
   val REPLICATE_DATA_FAIL_COUNT = "ReplicateDataFailCount"
   val REPLICATE_DATA_WRITE_FAIL_COUNT = "ReplicateDataWriteFailCount"

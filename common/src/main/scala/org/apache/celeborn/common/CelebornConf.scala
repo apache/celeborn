@@ -1110,6 +1110,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def hdfsStorageKerberosPrincipal = get(HDFS_STORAGE_KERBEROS_PRINCIPAL)
   def hdfsStorageKerberosKeytab = get(HDFS_STORAGE_KERBEROS_KEYTAB)
+
+  // //////////////////////////////////////////////////////
+  //               Authentication                        //
+  // //////////////////////////////////////////////////////
+  def authEnabled: Boolean = get(AUTH_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -1695,7 +1700,12 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker replicating data to peer worker.")
+        s"it works for replicate client of worker replicating data to peer worker." +
+        "If you are using the \"celeborn.client.heartbeat.interval\", " +
+        "please use the new configs for each module according to your needs or " +
+        "replace it with \"celeborn.rpc.heartbeat.interval\", " +
+        "\"celeborn.data.heartbeat.interval\" and" +
+        "\"celeborn.replicate.heartbeat.interval\". ")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
@@ -4359,4 +4369,12 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val AUTH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.auth.enabled")
+      .categories("auth")
+      .version("0.5.0")
+      .doc("Whether to enable authentication.")
+      .booleanConf
+      .createWithDefault(false)
 }

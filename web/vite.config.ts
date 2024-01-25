@@ -31,14 +31,11 @@ export default defineConfig({
     AutoImport({
       dts: './src/auto-imports.d.ts',
       imports: [
-        'vue', 'vue-router', 'pinia',
+        'vue',
+        'vue-router',
+        'pinia',
         {
-          'naive-ui': [
-            'useDialog',
-            'useMessage',
-            'useNotification',
-            'useLoadingBar'
-          ]
+          'naive-ui': ['useDialog', 'useMessage', 'useNotification', 'useLoadingBar']
         }
       ]
     }),
@@ -55,8 +52,8 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       scss: {
-        additionalData: `@import "@/assets/styles/base.scss";`,
-      },
-    },
-  },
+        additionalData: `@import "@/assets/styles/base.scss";`
+      }
+    }
+  }
 })

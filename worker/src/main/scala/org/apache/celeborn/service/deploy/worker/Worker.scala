@@ -266,7 +266,7 @@ private[celeborn] class Worker(
       "worker-clean-expired-shuffle-keys",
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
   val timer = new HashedWheelTimer()
 
   threadPoolSource.registerSource("worker-replicate-data", replicateThreadPool)
@@ -282,7 +282,7 @@ private[celeborn] class Worker(
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: ExecutorService =
-    ThreadUtils.newDaemonSingleThreadExecutor("worker-cleaner")
+    ThreadUtils.newDaemonSingleThreadExecutor("worker-expired-shuffle-cleaner")
 
   private val workerResourceConsumptionInterval = conf.workerResourceConsumptionInterval
   private val userResourceConsumptions =

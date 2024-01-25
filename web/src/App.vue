@@ -16,14 +16,12 @@
 * limitations under the License.
 -->
 
-<script setup lang="ts">
-</script>
+<script setup lang="ts"></script>
 
 <template>
-  <n-config-provider style="height: 100%;">
+  <n-config-provider style="height: 100%">
     <router-view />
   </n-config-provider>
 </template>
 
-<style lang="scss" scoped>
-</style>
+<style lang="scss" scoped></style>
