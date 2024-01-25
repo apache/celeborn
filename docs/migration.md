@@ -27,8 +27,6 @@ license: |
 
 - Since 0.5.0 Celeborn worker metrics `CreditStreamCount` is renamed as `ActiveCreditStreamCount`.
 
-- Since 0.5.0 Celeborn worker remove configuration `celeborn.worker.userResourceConsumption.update.interval`.
-
 ## Upgrading from 0.3 to 0.4
 
 - Since 0.4.0, Celeborn won't be compatible with Celeborn client that versions below 0.3.0.
@@ -51,6 +49,8 @@ license: |
   Please use `celeborn.worker.storage.dirs` instead.
 
 - Since 0.4.0, Celeborn deprecate `celeborn.storage.activeTypes`. Please use `celeborn.storage.availableTypes` instead.
+
+- Since 0.4.0 Celeborn worker remove configuration `celeborn.worker.userResourceConsumption.update.interval`.
 
 - Since 0.4.0, Celeborn master metrics `PartitionWritten` is renamed as `ActiveShuffleSize`.
 
