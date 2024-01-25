@@ -40,6 +40,7 @@ import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 
 public class RatisMasterStatusSystemSuiteJ {
@@ -116,8 +117,7 @@ public class RatisMasterStatusSystemSuiteJ {
         String id2 = UUID.randomUUID().toString();
         String id3 = UUID.randomUUID().toString();
 
-        Random rand = new Random();
-        int ratisPort1 = rand.nextInt(65535 - 1024) + 1024;
+        int ratisPort1 = Utils$.MODULE$.selectRandomPort(1024, 65535);
         int ratisPort2 = ratisPort1 + 1;
         int ratisPort3 = ratisPort2 + 1;
 

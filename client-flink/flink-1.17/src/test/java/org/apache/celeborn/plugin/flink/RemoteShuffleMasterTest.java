@@ -53,6 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
 public class RemoteShuffleMasterTest {
@@ -64,8 +65,7 @@ public class RemoteShuffleMasterTest {
   @Before
   public void setUp() {
     configuration = new Configuration();
-    Random random = new Random();
-    int startPort = random.nextInt(65535 - 1024) + 1024;
+    int startPort = Utils$.MODULE$.selectRandomPort(1024, 65535);
     configuration.setInteger("celeborn.master.port", startPort);
     configuration.setString("celeborn.master.endpoints", "localhost:" + startPort);
     remoteShuffleMaster = createShuffleMaster(configuration);
