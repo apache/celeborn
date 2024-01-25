@@ -48,7 +48,9 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
   override def createWorker(map: Map[String, String]): Worker = {
     val storageDir = createTmpDir()
-    workerDirs = workerDirs :+ storageDir
+    this.synchronized {
+      workerDirs = workerDirs :+ storageDir
+    }
     super.createWorker(map, storageDir)
   }
 
