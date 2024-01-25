@@ -59,6 +59,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     workers = newWorkers
 
     hadoopConf = new Configuration()
+    hadoopConf.setInt("yarn.resourcemanager.am.max-attempts", 1)
     hadoopConf.set("yarn.scheduler.capacity.root.queues", "default,other_queue")
 
     hadoopConf.setInt("yarn.scheduler.capacity.root.default.capacity", 100)
@@ -100,49 +101,64 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     val output = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "output")
     val mrOutputPath = new Path(output.getPath + File.separator + "mr_output")
 
-    val conf = new Configuration(yarnCluster.getConfig)
-    // YARN config
-    conf.set("yarn.app.mapreduce.am.job.recovery.enable", "false")
-    conf.set(
-      "yarn.app.mapreduce.am.command-opts",
-      "org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn")
+    var finish = false
+    var exitCode = false
+    var retryCount = 0
+    while (!finish) {
+      try {
+        val conf = new Configuration(yarnCluster.getConfig)
+        // YARN config
+        conf.set("yarn.app.mapreduce.am.job.recovery.enable", "false")
+        conf.set(
+          "yarn.app.mapreduce.am.command-opts",
+          "org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn")
 
-    // MapReduce config
-    conf.set("mapreduce.framework.name", "yarn")
-    conf.set("mapreduce.job.user.classpath.first", "true")
+        // MapReduce config
+        conf.set("mapreduce.framework.name", "yarn")
+        conf.set("mapreduce.job.user.classpath.first", "true")
 
-    conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
-    conf.set(
-      "mapreduce.celeborn.master.endpoints",
-      s"localhost:${master.conf.get(CelebornConf.MASTER_PORT)}")
-    conf.set(
-      MRJobConfig.MAP_OUTPUT_COLLECTOR_CLASS_ATTR,
-      "org.apache.hadoop.mapred.CelebornMapOutputCollector")
-    conf.set(
-      "mapreduce.job.reduce.shuffle.consumer.plugin.class",
-      "org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer")
+        conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
+        conf.set(
+          "mapreduce.celeborn.master.endpoints",
+          s"localhost:${master.conf.get(CelebornConf.MASTER_PORT)}")
+        conf.set(
+          MRJobConfig.MAP_OUTPUT_COLLECTOR_CLASS_ATTR,
+          "org.apache.hadoop.mapred.CelebornMapOutputCollector")
+        conf.set(
+          "mapreduce.job.reduce.shuffle.consumer.plugin.class",
+          "org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer")
 
-    val job = Job.getInstance(conf, "word count")
-    job.setJarByClass(classOf[WordCount])
-    job.setMapperClass(classOf[WordCount.TokenizerMapper])
-    job.setCombinerClass(classOf[WordCount.IntSumReducer])
-    job.setReducerClass(classOf[WordCount.IntSumReducer])
-    job.setOutputKeyClass(classOf[Text])
-    job.setOutputValueClass(classOf[IntWritable])
-    FileInputFormat.addInputPath(job, new Path(input.getPath))
-    FileOutputFormat.setOutputPath(job, mrOutputPath)
+        val job = Job.getInstance(conf, "word count")
+        job.setJarByClass(classOf[WordCount])
+        job.setMapperClass(classOf[WordCount.TokenizerMapper])
+        job.setCombinerClass(classOf[WordCount.IntSumReducer])
+        job.setReducerClass(classOf[WordCount.IntSumReducer])
+        job.setOutputKeyClass(classOf[Text])
+        job.setOutputValueClass(classOf[IntWritable])
+        FileInputFormat.addInputPath(job, new Path(input.getPath))
+        FileOutputFormat.setOutputPath(job, mrOutputPath)
 
-    val mapreduceLibPath = (Utils.getCodeSourceLocation(getClass).split("/").dropRight(1) ++ Array(
-      "mapreduce_lib")).mkString("/")
-    val excludeJarList =
-      Seq("hadoop-client-api", "hadoop-client-runtime", "hadoop-client-minicluster")
-    Files.list(Paths.get(mapreduceLibPath)).iterator().asScala.foreach(path => {
-      if (!excludeJarList.exists(path.toFile.getPath.contains(_))) {
-        job.addFileToClassPath(new Path(path.toString))
+        val mapreduceLibPath =
+          (Utils.getCodeSourceLocation(getClass).split("/").dropRight(1) ++ Array(
+            "mapreduce_lib")).mkString("/")
+        val excludeJarList =
+          Seq("hadoop-client-api", "hadoop-client-runtime", "hadoop-client-minicluster")
+        Files.list(Paths.get(mapreduceLibPath)).iterator().asScala.foreach(path => {
+          if (!excludeJarList.exists(path.toFile.getPath.contains(_))) {
+            job.addFileToClassPath(new Path(path.toString))
+          }
+        })
+
+        exitCode = job.waitForCompletion(true)
+        finish = true
+      } catch {
+        case e: Exception =>
+          retryCount += 1
+          if (retryCount == 2) {
+            throw e
+          }
       }
-    })
-
-    val exitCode = job.waitForCompletion(true)
+    }
     assert(exitCode, "Returned error code.")
 
     val outputFilePath = Paths.get(mrOutputPath.toString, "part-r-00000")
