@@ -152,11 +152,17 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
         exitCode = job.waitForCompletion(true)
         if (exitCode) {
           finish = true
+        } else {
+          retryCount += 1
+          if (retryCount >= 2) {
+            throw new RuntimeException("failed to run wordcount")
+          }
         }
       } catch {
         case e: Exception =>
           retryCount += 1
-          if (retryCount == 2) {
+          if (retryCount >= 2) {
+            log.error("failed to run wordcount", e)
             throw e
           }
       }
