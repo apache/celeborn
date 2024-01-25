@@ -150,3 +150,18 @@ class ThreadPoolSource(
       })
   }
 }
+
+object ThreadPoolSource {
+  var threadPoolSource: Option[ThreadPoolSource] = None
+
+  def apply(conf: CelebornConf, role: String): ThreadPoolSource = {
+    if (threadPoolSource.isEmpty) {
+      ThreadPoolSource.getClass.synchronized {
+        if (threadPoolSource.isEmpty) {
+          threadPoolSource = Option(new ThreadPoolSource(conf, role))
+        }
+      }
+    }
+    threadPoolSource.get
+  }
+}

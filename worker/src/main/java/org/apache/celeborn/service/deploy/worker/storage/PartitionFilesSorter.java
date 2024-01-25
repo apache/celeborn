@@ -101,8 +101,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   public PartitionFilesSorter(
       MemoryManager memoryManager,
       CelebornConf conf,
-      AbstractSource source,
-      ThreadPoolSource threadPoolSource) {
+      AbstractSource source) {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
@@ -134,7 +133,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
             "worker-file-sorter-executor", conf.partitionSorterThreads(), 120);
-    threadPoolSource.registerSource("worker-file-sorter-executor", fileSorterExecutors);
     indexCache =
         CacheBuilder.newBuilder()
             .concurrencyLevel(conf.partitionSorterThreads())

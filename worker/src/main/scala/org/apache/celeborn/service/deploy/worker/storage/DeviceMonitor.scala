@@ -206,8 +206,7 @@ object DeviceMonitor extends Logging {
       deviceObserver: DeviceObserver,
       deviceInfos: util.Map[String, DeviceInfo],
       diskInfos: util.Map[String, DiskInfo],
-      workerSource: AbstractSource,
-      threadPoolSource: ThreadPoolSource): DeviceMonitor = {
+      workerSource: AbstractSource): DeviceMonitor = {
     try {
       if (conf.workerDiskMonitorEnabled) {
         deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("worker-device-checker", 5)
@@ -215,7 +214,6 @@ object DeviceMonitor extends Logging {
           new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos, workerSource)
         monitor.init()
         logInfo("Device monitor init success")
-        threadPoolSource.registerSource("worker-device-checker", deviceCheckThreadPool)
         monitor
       } else {
         EmptyDeviceMonitor

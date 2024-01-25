@@ -109,7 +109,7 @@ private[celeborn] class Worker(
 
   private val resourceConsumptionSource =
     new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
-  private val threadPoolSource = new ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER)
+  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER)
   val workerSource = new WorkerSource(conf)
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(workerSource)
@@ -118,13 +118,12 @@ private[celeborn] class Worker(
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
-  val storageManager = new StorageManager(conf, workerSource, threadPoolSource)
+  val storageManager = new StorageManager(conf, workerSource)
 
   val memoryManager: MemoryManager = MemoryManager.initialize(conf)
   memoryManager.registerMemoryListener(storageManager)
 
-  val partitionsSorter =
-    new PartitionFilesSorter(memoryManager, conf, workerSource, threadPoolSource)
+  val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
 
   if (conf.workerCongestionControlEnabled) {
     if (conf.workerCongestionControlLowWatermark.isEmpty || conf.workerCongestionControlHighWatermark.isEmpty) {
@@ -268,13 +267,6 @@ private[celeborn] class Worker(
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
   val timer = new HashedWheelTimer()
-
-  threadPoolSource.registerSource("worker-data-replicator", replicateThreadPool)
-  threadPoolSource.registerSource("worker-files-committer", commitThreadPool)
-  threadPoolSource.registerSource("worker-expired-shuffle-cleaner", cleanThreadPool)
-  threadPoolSource.registerSource(
-    "worker-netty-rpc-connection-executor",
-    rpcEnv.asInstanceOf[NettyRpcEnv].clientConnectionExecutor)
 
   // Configs
   private val heartbeatInterval = conf.workerHeartbeatTimeout / 4

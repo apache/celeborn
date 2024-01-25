@@ -155,7 +155,7 @@ private[celeborn] class Master(
   // init and register master metrics
   private val resourceConsumptionSource =
     new ResourceConsumptionSource(conf, MetricsSystem.ROLE_MASTER)
-  private val threadPoolSource = new ThreadPoolSource(conf, MetricsSystem.ROLE_MASTER)
+  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_MASTER)
   private val masterSource = new MasterSource(conf)
   private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -191,11 +191,6 @@ private[celeborn] class Master(
       }).sum()
   }
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
-
-  threadPoolSource.registerSource("master-noneager-handler", nonEagerHandler)
-  threadPoolSource.registerSource(
-    "master-netty-rpc-connection-executor",
-    rpcEnv.asInstanceOf[NettyRpcEnv].clientConnectionExecutor)
 
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(threadPoolSource)

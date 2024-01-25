@@ -38,7 +38,6 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
-    val threadPoolSource: ThreadPoolSource,
     val threadCount: Int,
     val allocator: PooledByteBufAllocator,
     val maxComponents: Int,
@@ -128,7 +127,6 @@ abstract private[worker] class Flusher(
 
 private[worker] class LocalFlusher(
     workerSource: AbstractSource,
-    threadPoolSource: ThreadPoolSource,
     val deviceMonitor: DeviceMonitor,
     threadCount: Int,
     allocator: PooledByteBufAllocator,
@@ -137,7 +135,6 @@ private[worker] class LocalFlusher(
     val diskType: StorageInfo.Type,
     timeWindow: TimeWindow) extends Flusher(
     workerSource,
-    threadPoolSource,
     threadCount,
     allocator,
     maxComponents,
@@ -171,12 +168,10 @@ private[worker] class LocalFlusher(
 
 final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
-    threadPoolSource: ThreadPoolSource,
     hdfsFlusherThreads: Int,
     allocator: PooledByteBufAllocator,
     maxComponents: Int) extends Flusher(
     workerSource,
-    threadPoolSource,
     hdfsFlusherThreads,
     allocator,
     maxComponents,

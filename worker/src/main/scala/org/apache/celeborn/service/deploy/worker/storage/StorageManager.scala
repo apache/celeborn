@@ -114,8 +114,7 @@ final private[worker] class StorageManager(
       this,
       deviceInfos,
       tmpDiskInfos,
-      workerSource,
-      threadPoolSource)
+      workerSource)
 
   private val byteBufAllocator: PooledByteBufAllocator =
     NettyUtils.getPooledByteBufAllocator(new TransportConf("StorageManager", conf), null, true)
@@ -129,7 +128,6 @@ final private[worker] class StorageManager(
       if (!flushers.containsKey(diskInfo.mountPoint)) {
         val flusher = new LocalFlusher(
           workerSource,
-          threadPoolSource,
           deviceMonitor,
           diskInfo.threadCount,
           byteBufAllocator,
@@ -162,7 +160,6 @@ final private[worker] class StorageManager(
       (
         Some(new HdfsFlusher(
           workerSource,
-          threadPoolSource,
           conf.workerHdfsFlusherThreads,
           byteBufAllocator,
           conf.workerPushMaxComponents)),
