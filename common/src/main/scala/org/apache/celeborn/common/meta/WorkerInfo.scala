@@ -188,7 +188,7 @@ class WorkerInfo(
     JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
   }
 
-  def updateThenGetUserResourceConsumption(userConsumption: util.Map[
+  def updateThenGetUserResourceConsumption(resourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): util.Map[UserIdentifier, ResourceConsumption] = {
     userResourceConsumption.keys().asScala.filterNot(userConsumption.containsKey).foreach {
