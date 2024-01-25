@@ -180,7 +180,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     // init rpc env
-    rpcEnv = RpcEnv.create(RpcNameConstants.SHUFFLE_CLIENT_SYS, Utils.localHostName(conf), 0, conf);
+    rpcEnv =
+        RpcEnv.create(
+            RpcNameConstants.SHUFFLE_CLIENT_SYS,
+            Utils.localHostName(conf),
+            0,
+            conf,
+            scala.None$.empty());
 
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =

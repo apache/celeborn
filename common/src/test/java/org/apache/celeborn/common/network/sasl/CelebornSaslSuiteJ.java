@@ -43,7 +43,7 @@ public class CelebornSaslSuiteJ extends SaslTestBase {
         new CelebornSaslServer(
             DIGEST_MD5,
             DEFAULT_SASL_SERVER_PROPS,
-            new CelebornSaslServer.DigestCallbackHandler(SecretRegistryImpl.getInstance()));
+            new CelebornSaslServer.DigestCallbackHandler(secretRegistry));
 
     assertFalse(client.isComplete());
     assertFalse(server.isComplete());
@@ -73,7 +73,7 @@ public class CelebornSaslSuiteJ extends SaslTestBase {
         new CelebornSaslServer(
             DIGEST_MD5,
             DEFAULT_SASL_SERVER_PROPS,
-            new CelebornSaslServer.DigestCallbackHandler(SecretRegistryImpl.getInstance()));
+            new CelebornSaslServer.DigestCallbackHandler(secretRegistry));
 
     assertFalse(client.isComplete());
     assertFalse(server.isComplete());
@@ -95,8 +95,7 @@ public class CelebornSaslSuiteJ extends SaslTestBase {
   @Test
   public void testSaslAuth() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
-    SaslServerBootstrap serverBootstrap =
-        new SaslServerBootstrap(conf, SecretRegistryImpl.getInstance());
+    SaslServerBootstrap serverBootstrap = new SaslServerBootstrap(conf, secretRegistry);
     SaslClientBootstrap clientBootstrap =
         new SaslClientBootstrap(conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET));
     authHelper(conf, serverBootstrap, clientBootstrap);
