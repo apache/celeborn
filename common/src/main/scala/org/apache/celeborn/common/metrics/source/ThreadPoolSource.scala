@@ -172,4 +172,8 @@ object ThreadPoolSource {
   def registerSource(threadPoolName: String, threads: Array[ExecutorService]): Unit = {
     threadPoolSource.foreach(_.registerSource(threadPoolName, threads))
   }
+
+  def unregisterSource(threadPoolName: String): Unit = {
+    threadPoolSource.foreach(_.unregisterSource(threadPoolName))
+  }
 }

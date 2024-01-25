@@ -38,7 +38,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo, MapFileMeta, ReduceFileMeta, TimeWindow}
-import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -165,6 +165,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (diskStatus == DiskStatus.CRITICAL_ERROR) {
       logInfo(s"Disk $mountPoint faces critical error, will remove its disk operator.")
       val operator = diskOperators.remove(mountPoint)
+      ThreadPoolSource.unregisterSource(s"worker-disk-$mountPoint-cleaner")
       if (operator != null) {
         operator.shutdown()
       }
