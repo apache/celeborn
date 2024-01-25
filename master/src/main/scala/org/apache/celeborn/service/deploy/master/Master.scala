@@ -877,27 +877,25 @@ private[celeborn] class Master(
   private def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
-    if (!userResourceConsumptions.containsKey(userIdentifier)) {
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.DISK_FILE_COUNT,
-        userIdentifier.toMap) { () =>
-        computeUserResourceConsumption(userIdentifier).diskFileCount
-      }
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-        userIdentifier.toMap) { () =>
-        computeUserResourceConsumption(userIdentifier).diskBytesWritten
-      }
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.HDFS_FILE_COUNT,
-        userIdentifier.toMap) { () =>
-        computeUserResourceConsumption(userIdentifier).hdfsFileCount
-      }
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-        userIdentifier.toMap) { () =>
-        computeUserResourceConsumption(userIdentifier).hdfsBytesWritten
-      }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      userIdentifier.toMap) { () =>
+      computeUserResourceConsumption(userIdentifier).diskFileCount
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      userIdentifier.toMap) { () =>
+      computeUserResourceConsumption(userIdentifier).diskBytesWritten
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      userIdentifier.toMap) { () =>
+      computeUserResourceConsumption(userIdentifier).hdfsFileCount
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      userIdentifier.toMap) { () =>
+      computeUserResourceConsumption(userIdentifier).hdfsBytesWritten
     }
     val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
     val quota = quotaManager.getQuota(userIdentifier)

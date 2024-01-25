@@ -526,27 +526,25 @@ private[celeborn] class Worker(
   private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
     val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
     resourceConsumptionSnapshot.foreach { case (userIdentifier, _) =>
-      if (!workerInfo.userResourceConsumption.containsKey(userIdentifier)) {
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.DISK_FILE_COUNT,
-          userIdentifier.toMap) { () =>
-          workerInfo.userResourceConsumption.get(userIdentifier).diskFileCount
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-          userIdentifier.toMap) { () =>
-          workerInfo.userResourceConsumption.get(userIdentifier).diskBytesWritten
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.HDFS_FILE_COUNT,
-          userIdentifier.toMap) { () =>
-          workerInfo.userResourceConsumption.get(userIdentifier).hdfsFileCount
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-          userIdentifier.toMap) { () =>
-          workerInfo.userResourceConsumption.get(userIdentifier).hdfsBytesWritten
-        }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.DISK_FILE_COUNT,
+        userIdentifier.toMap) { () =>
+        workerInfo.userResourceConsumption.get(userIdentifier).diskFileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+        userIdentifier.toMap) { () =>
+        workerInfo.userResourceConsumption.get(userIdentifier).diskBytesWritten
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.HDFS_FILE_COUNT,
+        userIdentifier.toMap) { () =>
+        workerInfo.userResourceConsumption.get(userIdentifier).hdfsFileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+        userIdentifier.toMap) { () =>
+        workerInfo.userResourceConsumption.get(userIdentifier).hdfsBytesWritten
       }
     }
     workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
