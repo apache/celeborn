@@ -33,7 +33,7 @@ class ThreadPoolSource(
       threadPoolExecutor: ThreadPoolExecutor): Unit = {
     val label = Map("threadPool" -> threadPoolName)
     addGauge(
-      "active_count",
+      "active_task_count",
       label,
       new Gauge[Long] {
         override def getValue: Long = {
@@ -41,19 +41,19 @@ class ThreadPoolSource(
         }
       })
     addGauge(
-      "completed_task_count",
+      "blocked_task_count",
       label,
       new Gauge[Long] {
         override def getValue: Long = {
-          threadPoolExecutor.getCompletedTaskCount
+          threadPoolExecutor.getQueue.size()
         }
       })
     addGauge(
-      "task_count",
+      "remain_queue_capacity",
       label,
       new Gauge[Long] {
         override def getValue: Long = {
-          threadPoolExecutor.getTaskCount
+          threadPoolExecutor.getQueue.remainingCapacity()
         }
       })
     addGauge(
@@ -89,14 +89,6 @@ class ThreadPoolSource(
         }
       })
     addGauge(
-      "remain_queue_capacity",
-      label,
-      new Gauge[Long] {
-        override def getValue: Long = {
-          threadPoolExecutor.getQueue.remainingCapacity()
-        }
-      })
-    addGauge(
       "is_terminating",
       label,
       new Gauge[Boolean] {
@@ -124,9 +116,8 @@ class ThreadPoolSource(
 
   def unregisterSource(threadPoolName: String): Unit = {
     val label = Map("threadPool" -> threadPoolName)
-    removeGauge("active_count", label)
-    removeGauge("completed_task_count", label)
-    removeGauge("task_count", label)
+    removeGauge("active_task_count", label)
+    removeGauge("blocked_task_count", label)
     removeGauge("pool_size", label)
     removeGauge("core_pool_size", label)
     removeGauge("maximum_pool_size", label)
@@ -135,7 +126,7 @@ class ThreadPoolSource(
     removeGauge("is_terminating", label)
     removeGauge("is_terminated", label)
     removeGauge("is_shutdown", label)
-    removeGauge("thread-count", label)
+    removeGauge("thread_count", label)
     removeGauge("thread_is_terminated_count", label)
     removeGauge("thread_is_shutdown_count", label)
   }
