@@ -347,7 +347,7 @@ object Utils extends Logging {
    * Shuffle the elements of an array into a random order, modifying the
    * original array. Returns the original array.
    */
-  def randomizeInPlace[T](arr: Array[T], rand: Random = new Random): Array[T] = {
+  def randomizeInPlace[T](arr: Array[T], rand: ScalaRandom = new ScalaRandom): Array[T] = {
     for (i <- (arr.length - 1) to 1 by -1) {
       val j = rand.nextInt(i + 1)
       val tmp = arr(j)
