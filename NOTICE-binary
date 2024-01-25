@@ -47,6 +47,9 @@ This product includes software developed at The Alibaba Group Holding Ltd
 Apache Commons CLI
 Copyright 2002-2021 The Apache Software Foundation
 
+Apache Commons Crypto
+Copyright 2016-2024 The Apache Software Foundation
+
 Apache Commons IO
 Copyright 2002-2023 The Apache Software Foundation
 
@@ -55,9 +58,6 @@ Copyright 2001-2021 The Apache Software Foundation
 
 Apache Commons Logging
 Copyright 2003-2013 The Apache Software Foundation
-
-htrace-core4
-Copyright 2016 The Apache Software Foundation
 
 Apache Log4j 1.x Compatibility API
 Copyright 1999-2022 The Apache Software Foundation
@@ -120,3 +120,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 This software includes projects with other licenses -- see `doc/LICENSE.md`.
+
+This product includes software developed by Google
+ Snappy: http://code.google.com/p/snappy/ (New BSD License)
