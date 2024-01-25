@@ -11,10 +11,7 @@ dev/reformat
 Meanwhile, run some checks of web with changes of web module before you create a new pull request.
 
 ```shell
-cd web
-npm run lint 
-# or
-pnpm lint
+dev/reformat --web
 ```
 
 If you have changed configuration, run following command to refresh docs.
