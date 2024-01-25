@@ -130,7 +130,7 @@ These metrics are exposed by Celeborn master.
   - namespace=ThreadPool
     - **notes:**
         - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
-    - active_task_count
+    - active_thread_count
     - blocked_task_count
     - pool_size
     - core_pool_size
@@ -302,7 +302,7 @@ These metrics are exposed by Celeborn worker.
   - namespace=ThreadPool
     - **notes:**
         - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
-    - active_task_count
+    - active_thread_count
     - blocked_task_count
     - pool_size
     - core_pool_size
