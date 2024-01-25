@@ -43,7 +43,6 @@ import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerRespo
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.rpc.netty.NettyRpcEnv
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._

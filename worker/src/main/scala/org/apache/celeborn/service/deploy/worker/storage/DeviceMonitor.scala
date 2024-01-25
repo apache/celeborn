@@ -30,8 +30,7 @@ import org.apache.commons.io.FileUtils
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
-import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
+import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.util.{DiskUtils, ThreadUtils, Utils}
 import org.apache.celeborn.common.util.Utils._
 import org.apache.celeborn.service.deploy.worker.WorkerSource

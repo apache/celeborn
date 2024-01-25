@@ -48,9 +48,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPres
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
-final private[worker] class StorageManager(
-    conf: CelebornConf,
-    workerSource: AbstractSource)
+final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // mount point -> file writer
   val workingDirWriters =
@@ -92,13 +90,11 @@ final private[worker] class StorageManager(
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = JavaUtils.newConcurrentHashMap[String, ThreadPoolExecutor]()
     disksSnapshot().foreach { diskInfo =>
-      val diskCleanerPool = ThreadUtils.newDaemonCachedThreadPool(
+      cleaners.put(
+        diskInfo.mountPoint,
+        ThreadUtils.newDaemonCachedThreadPool(
         s"worker-disk-${diskInfo.mountPoint}-cleaner",
-        conf.workerDiskCleanThreads)
-      threadPoolSource.registerSource(
-        s"worker-disk-${diskInfo.mountPoint}-cleaner",
-        diskCleanerPool)
-      cleaners.put(diskInfo.mountPoint, diskCleanerPool)
+        conf.workerDiskCleanThreads))
     }
     cleaners
   }
@@ -108,12 +104,7 @@ final private[worker] class StorageManager(
     tmpDiskInfos.put(diskInfo.mountPoint, diskInfo)
   }
   private val deviceMonitor =
-    DeviceMonitor.createDeviceMonitor(
-      conf,
-      this,
-      deviceInfos,
-      tmpDiskInfos,
-      workerSource)
+    DeviceMonitor.createDeviceMonitor(conf, this, deviceInfos, tmpDiskInfos, workerSource)
 
   private val byteBufAllocator: PooledByteBufAllocator =
     NettyUtils.getPooledByteBufAllocator(new TransportConf("StorageManager", conf), null, true)
@@ -181,12 +172,11 @@ final private[worker] class StorageManager(
 
   override def notifyHealthy(mountPoint: String): Unit = this.synchronized {
     if (!diskOperators.containsKey(mountPoint)) {
-      threadPoolSource.unregisterSource(s"worker-disk-$mountPoint-cleaner")
-      val diskCleanerPool = ThreadUtils.newDaemonCachedThreadPool(
+      diskOperators.put(
+        mountPoint,
+        ThreadUtils.newDaemonCachedThreadPool(
         s"worker-disk-$mountPoint-cleaner",
-        conf.workerDiskCleanThreads)
-      threadPoolSource.registerSource(s"worker-disk-$mountPoint-cleaner", diskCleanerPool)
-      diskOperators.put(mountPoint, diskCleanerPool)
+        conf.workerDiskCleanThreads))
     }
   }
 
