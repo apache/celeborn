@@ -44,11 +44,9 @@ pnpm build
 ### Lint with [ESLint](https://eslint.org/)
 
 ```sh
+# Whole project
 pnpm lint
-```
 
-### Use [husky](https://github.com/typicode/husky) and [lint-staged](https://github.com/okonet/lint-staged) to catch code issues before Git commit.
-
-```sh
+# Staged files for commit
 pnpm lint:lint-staged
 ```
