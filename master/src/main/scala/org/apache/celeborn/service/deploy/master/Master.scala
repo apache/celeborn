@@ -59,6 +59,17 @@ private[celeborn] class Master(
 
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
+  // init and register master metrics
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_MASTER)
+  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_MASTER)
+  private val masterSource = new MasterSource(conf)
+  metricsSystem.registerSource(resourceConsumptionSource)
+  metricsSystem.registerSource(masterSource)
+  metricsSystem.registerSource(threadPoolSource)
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,
@@ -152,11 +163,6 @@ private[celeborn] class Master(
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
-  // init and register master metrics
-  private val resourceConsumptionSource =
-    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_MASTER)
-  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_MASTER)
-  private val masterSource = new MasterSource(conf)
   private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffle.size
@@ -191,13 +197,6 @@ private[celeborn] class Master(
       }).sum()
   }
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
-
-  metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(threadPoolSource)
-  metricsSystem.registerSource(masterSource)
-  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
 

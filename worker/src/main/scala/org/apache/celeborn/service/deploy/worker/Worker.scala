@@ -66,6 +66,16 @@ private[celeborn] class Worker(
 
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
+  val workerSource = new WorkerSource(conf)
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
+  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER)
+  metricsSystem.registerSource(workerSource)
+  metricsSystem.registerSource(threadPoolSource)
+  metricsSystem.registerSource(resourceConsumptionSource)
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
@@ -106,17 +116,6 @@ private[celeborn] class Worker(
         throw e
     }
   }
-
-  private val resourceConsumptionSource =
-    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
-  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER)
-  val workerSource = new WorkerSource(conf)
-  metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(workerSource)
-  metricsSystem.registerSource(threadPoolSource)
-  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val storageManager = new StorageManager(conf, workerSource)
 
