@@ -98,9 +98,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final long indexCacheMaxWeight;
 
   public PartitionFilesSorter(
-      MemoryManager memoryManager,
-      CelebornConf conf,
-      AbstractSource source) {
+      MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
     this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();

@@ -176,8 +176,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       diskOperators.put(
         mountPoint,
         ThreadUtils.newDaemonCachedThreadPool(
-        s"worker-disk-$mountPoint-cleaner",
-        conf.workerDiskCleanThreads))
+          s"worker-disk-$mountPoint-cleaner",
+          conf.workerDiskCleanThreads))
     }
   }
 
