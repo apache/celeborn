@@ -203,9 +203,14 @@
 ------------------------------------------------------------------------------------
 This project bundles the following dependencies under the Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt):
 
+com.fasterxml.jackson.core:jackson-annotations
+com.fasterxml.jackson.core:jackson-core
+com.fasterxml.jackson.core:jackson-databind
+com.fasterxml.jackson.module:jackson-module-scala
 com.google.code.findbugs:jsr305
-com.google.guava:guava
 com.google.guava:failureaccess
+com.google.guava:guava
+com.thoughtworks.paranamer:paranamer
 commons-cli:commons-cli
 commons-io:commons-io
 commons-logging:commons-logging
@@ -264,17 +269,12 @@ org.javassist:javassist
 org.reflections:reflections
 org.roaringbitmap:RoaringBitmap
 org.roaringbitmap:shims
+org.rocksdb:rocksdbjni
 org.scala-lang:scala-library
 org.scala-lang:scala-reflect
 org.slf4j:jcl-over-slf4j
-org.yaml:snakeyaml
-org.rocksdb:rocksdbjni
-com.fasterxml.jackson.module:jackson-module-scala
-com.fasterxml.jackson.core:jackson-databind
-com.fasterxml.jackson.core:jackson-annotations
-com.fasterxml.jackson.core:jackson-core
-com.thoughtworks.paranamer:paranamer
 org.xerial.snappy:snappy-java
+org.yaml:snakeyaml
 
 ------------------------------------------------------------------------------------
 This product bundles various third-party components under other open source licenses.
