@@ -164,4 +164,12 @@ object ThreadPoolSource {
     }
     threadPoolSource.get
   }
+
+  def registerSource(threadPoolName: String, threadPoolExecutor: ThreadPoolExecutor): Unit = {
+    threadPoolSource.foreach(_.registerSource(threadPoolName, threadPoolExecutor))
+  }
+
+  def registerSource(threadPoolName: String, threads: Array[ExecutorService]): Unit = {
+    threadPoolSource.foreach(_.registerSource(threadPoolName, threads))
+  }
 }

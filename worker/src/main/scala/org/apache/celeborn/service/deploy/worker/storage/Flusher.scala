@@ -91,7 +91,7 @@ abstract private[worker] class Flusher(
         }
       })
     }
-    threadPoolSource.registerSource(s"$this", workers)
+    ThreadPoolSource.registerSource(s"$this", workers)
   }
 
   def getWorkerIndex: Int = synchronized {
