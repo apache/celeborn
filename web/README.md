@@ -44,5 +44,9 @@ pnpm build
 ### Lint with [ESLint](https://eslint.org/)
 
 ```sh
+# Whole project
 pnpm lint
+
+# Staged files for commit
+pnpm lint:lint-staged
 ```
