@@ -75,6 +75,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       classOf[Service])
 
     yarnCluster = new MiniYARNCluster("MiniClusterWordCount", 1, 1, 1)
+    logInfo(s"Test working dir ${yarnCluster.getTestWorkDir.getAbsolutePath}")
     yarnCluster.init(hadoopConf)
     yarnCluster.start()
   }
@@ -132,12 +133,22 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     val mapreduceLibPath = (Utils.getCodeSourceLocation(getClass).split("/").dropRight(1) ++ Array(
       "mapreduce_lib")).mkString("/")
     val excludeJarList =
-      Seq("hadoop-client-api", "hadoop-client-runtime", "hadoop-client-minicluster")
+      Seq(
+        "hadoop-client-api",
+        "hadoop-client-runtime",
+        "hadoop-client-minicluster",
+        "celeborn-common",
+        "celeborn-master",
+        "celeborn-service",
+        "celeborn-worker")
     Files.list(Paths.get(mapreduceLibPath)).iterator().asScala.foreach(path => {
-      if (!excludeJarList.exists(path.toFile.getPath.contains(_))) {
+      val filepath = path.toFile.getPath
+      if (!excludeJarList.exists(filepath.contains(_)) || (filepath.contains(
+          "celeborn-client") && filepath.contains("shaded"))) {
         job.addFileToClassPath(new Path(path.toString))
       }
     })
+    logInfo(s"Job class path ${job.getFileClassPaths.map(_.toString).mkString(",")}")
 
     val exitCode = job.waitForCompletion(true)
     assert(exitCode, "Returned error code.")
