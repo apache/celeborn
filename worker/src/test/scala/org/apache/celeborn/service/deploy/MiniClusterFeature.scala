@@ -203,11 +203,17 @@ trait MiniClusterFeature extends Logging {
     }
     threads.foreach(_.start())
     Thread.sleep(5000)
-    (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
     var allWorkersStarted = false
     var workersWaitingTime = 0
     while (!allWorkersStarted) {
       try {
+        (0 until workerNum).foreach { i => {
+          if (workers(i) == null) {
+            throw new IllegalStateException(s"worker $i hasn't been initialized")
+          } else {
+            workerInfos.put(workers(i), threads(i))
+          }
+        } }
         workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         allWorkersStarted = true
       } catch {
