@@ -143,7 +143,7 @@ trait MiniClusterFeature extends Logging {
       masterConf: Map[String, String] = null,
       workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
-    val timeout = 20000
+    val timeout = 30000
     val master = createMaster(masterConf)
     val masterStartedSignal = Array(false)
     val masterThread = new RunnerWrap({
@@ -168,27 +168,19 @@ trait MiniClusterFeature extends Logging {
       }
     }
 
-    def checkWorkerStart(workersFlag: Array[Boolean], lock: Lock): Boolean = {
-      var flag = false
-      lock.lock()
-      flag = workersFlag.forall(f => f)
-      lock.unlock()
-      flag
-    }
-
     val workers = new Array[Worker](workerNum)
-    val workersStartFlag = Array.fill(workerNum)(false)
     val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
       val workerThread = new RunnerWrap({
         var workerStartRetry = 0
-        while (!workersStartFlag(i - 1)) {
+        var workerStarted = false
+        while (!workerStarted) {
           try {
             val worker = createWorker(workerConf)
             flagUpdateLock.lock()
             workers(i - 1) = worker
-            workersStartFlag(i - 1) = true
             flagUpdateLock.unlock()
+            workerStarted = true
             worker.initialize()
           } catch {
             case ex: Exception =>
@@ -211,16 +203,24 @@ trait MiniClusterFeature extends Logging {
     }
     threads.foreach(_.start())
     Thread.sleep(5000)
-    var workerStartWaitingTime = 0
-    while (!checkWorkerStart(workersStartFlag, flagUpdateLock)) {
-      Thread.sleep(5000)
-      workerStartWaitingTime += 5000
-      if (workerStartWaitingTime >= timeout) {
-        throw new BindException("cannot start all workers")
+    (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
+    var allWorkersStarted = false
+    var workersWaitingTime = 0
+    while (!allWorkersStarted) {
+      try {
+        workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
+        allWorkersStarted = true
+      } catch {
+        case ex: Exception =>
+          logError("all workers haven't been started retrying", ex)
+          Thread.sleep(5000)
+          workersWaitingTime += 5000
+          if (workersWaitingTime >= timeout) {
+            logError(s"cannot start all workers after $timeout ms", ex)
+            throw ex
+          }
       }
     }
-    (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
-    workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
     (master, workerInfos.keySet)
   }
 
