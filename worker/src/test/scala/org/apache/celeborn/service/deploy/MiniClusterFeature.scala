@@ -19,7 +19,10 @@ package org.apache.celeborn.service.deploy
 
 import java.net.BindException
 import java.nio.file.Files
+import java.util.concurrent.locks.{Lock, ReentrantLock}
+
 import scala.collection.mutable
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
@@ -27,8 +30,6 @@ import org.apache.celeborn.common.util.Utils.selectRandomPort
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
-
-import java.util.concurrent.locks.{Lock, ReentrantLock}
 
 trait MiniClusterFeature extends Logging {
 
