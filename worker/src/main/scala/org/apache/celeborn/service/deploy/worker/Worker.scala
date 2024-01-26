@@ -37,7 +37,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -65,6 +65,16 @@ private[celeborn] class Worker(
 
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
+  val workerSource = new WorkerSource(conf)
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
+  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER)
+  metricsSystem.registerSource(workerSource)
+  metricsSystem.registerSource(threadPoolSource)
+  metricsSystem.registerSource(resourceConsumptionSource)
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
@@ -105,15 +115,6 @@ private[celeborn] class Worker(
         throw e
     }
   }
-
-  private val resourceConsumptionSource =
-    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
-  val workerSource = new WorkerSource(conf)
-  metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(workerSource)
-  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val storageManager = new StorageManager(conf, workerSource)
 
@@ -249,12 +250,12 @@ private[celeborn] class Worker(
   private var checkFastFailTask: ScheduledFuture[_] = _
 
   val replicateThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-data-replicator", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-commit-files", conf.workerCommitThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-files-committer", conf.workerCommitThreads)
   val cleanThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool(
-      "worker-clean-expired-shuffle-keys",
+      "worker-expired-shuffle-cleaner",
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
