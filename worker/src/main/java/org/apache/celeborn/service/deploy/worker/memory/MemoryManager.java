@@ -108,7 +108,7 @@ public class MemoryManager {
     double pausePushDataRatio = conf.workerDirectMemoryRatioToPauseReceive();
     double pauseReplicateRatio = conf.workerDirectMemoryRatioToPauseReplicate();
     double resumeRatio = conf.workerDirectMemoryRatioToResume();
-    double maxSortMemRatio = conf.partitionSorterDirectMemoryRatioThreshold();
+    double maxSortMemRatio = conf.workerPartitionSorterDirectMemoryRatioThreshold();
     double readBufferRatio = conf.workerDirectMemoryRatioForReadBuffer();
     double shuffleStorageRatio = conf.workerDirectMemoryRatioForShuffleStorage();
     long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();

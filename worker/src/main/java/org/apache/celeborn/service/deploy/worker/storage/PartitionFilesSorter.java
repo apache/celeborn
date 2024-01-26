@@ -100,13 +100,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
-    this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
+    this.sortTimeout = conf.workerPartitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.reservedMemoryEnabled = conf.partitionSorterReservedMemoryEnabled();
-    this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
+    this.reservedMemoryEnabled = conf.workerPartitionSorterReservedMemoryEnabled();
+    this.reservedMemoryPerPartition = conf.workerPartitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
-    this.indexCacheMaxWeight = conf.partitionSorterIndexCacheMaxWeight();
+    this.indexCacheMaxWeight = conf.workerPartitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
     this.gracefulShutdown = conf.workerGracefulShutdown();
@@ -131,12 +131,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
-            "worker-file-sorter-executor", conf.partitionSorterThreads(), 120);
+            "worker-file-sorter-executor", conf.workerPartitionSorterThreads(), 120);
 
     indexCache =
         CacheBuilder.newBuilder()
-            .concurrencyLevel(conf.partitionSorterThreads())
-            .expireAfterAccess(conf.partitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
+            .concurrencyLevel(conf.workerPartitionSorterThreads())
+            .expireAfterAccess(conf.workerPartitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
             .maximumWeight(indexCacheMaxWeight)
             .weigher(
                 (key, cache) ->
