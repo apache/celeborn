@@ -159,9 +159,9 @@ trait MiniClusterFeature extends Logging {
     masterThread.start()
     masterInfo = (master, masterThread)
     var masterStartWaitingTime = 0
+    Thread.sleep(5000)
     while (!masterStartedSignal.head) {
       logInfo("waiting for master node starting")
-      Thread.sleep(5000)
       masterStartWaitingTime += 5000
       if (masterStartWaitingTime >= timeout) {
         throw new BindException("cannot start master rpc endpoint")
@@ -187,9 +187,9 @@ trait MiniClusterFeature extends Logging {
             val worker = createWorker(workerConf)
             flagUpdateLock.lock()
             workers(i - 1) = worker
+            workersStartFlag(i - 1) = true
             flagUpdateLock.unlock()
             worker.initialize()
-            workersStartFlag(i - 1) = true
           } catch {
             case ex: Exception =>
               if (workers(i - 1) != null) {
@@ -210,8 +210,9 @@ trait MiniClusterFeature extends Logging {
       workerThread
     }
     threads.foreach(_.start())
+    Thread.sleep(5000)
     var workerStartWaitingTime = 0
-    while (checkWorkerStart(workersStartFlag, flagUpdateLock)) {
+    while (!checkWorkerStart(workersStartFlag, flagUpdateLock)) {
       Thread.sleep(5000)
       workerStartWaitingTime += 5000
       if (workerStartWaitingTime >= timeout) {
@@ -219,7 +220,7 @@ trait MiniClusterFeature extends Logging {
       }
     }
     (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
-    workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
+    workerInfos.foreach { case (worker, _) => assert(worker.registered.get())}
     (master, workerInfos.keySet)
   }
 
