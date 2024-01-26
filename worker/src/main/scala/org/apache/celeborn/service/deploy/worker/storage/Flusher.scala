@@ -29,7 +29,7 @@ import io.netty.buffer.{CompositeByteBuf, PooledByteBufAllocator, Unpooled}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
-import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.ThreadUtils
 import org.apache.celeborn.service.deploy.worker.WorkerSource
@@ -90,6 +90,7 @@ abstract private[worker] class Flusher(
         }
       })
     }
+    ThreadPoolSource.registerSource(s"$this", workers)
   }
 
   def getWorkerIndex: Int = synchronized {
@@ -172,10 +173,10 @@ final private[worker] class HdfsFlusher(
     allocator,
     maxComponents,
     null) with Logging {
-  override def toString: String = s"HdfsFlusher@$flusherId"
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
   }
 
+  override def toString: String = s"HdfsFlusher@$flusherId"
 }

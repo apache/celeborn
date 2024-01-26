@@ -69,7 +69,7 @@ class NettyRpcEnv(
   // Because TransportClientFactory.createClient is blocking, we need to run it in this thread pool
   // to implement non-blocking send/ask.
   private[celeborn] val clientConnectionExecutor = ThreadUtils.newDaemonCachedThreadPool(
-    "netty-rpc-connection",
+    "celeborn-netty-rpc-connection-executor",
     celebornConf.rpcConnectThreads)
 
   @volatile private var server: TransportServer = _
