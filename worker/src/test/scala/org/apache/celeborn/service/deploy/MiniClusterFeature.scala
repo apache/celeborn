@@ -220,7 +220,7 @@ trait MiniClusterFeature extends Logging {
       }
     }
     (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
-    workerInfos.foreach { case (worker, _) => assert(worker.registered.get())}
+    workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
     (master, workerInfos.keySet)
   }
 
