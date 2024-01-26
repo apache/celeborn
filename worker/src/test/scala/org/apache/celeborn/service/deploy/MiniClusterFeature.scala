@@ -21,7 +21,6 @@ import java.net.BindException
 import java.nio.file.Files
 
 import scala.collection.mutable
-import scala.util.Random
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -143,6 +142,7 @@ trait MiniClusterFeature extends Logging {
       masterConf: Map[String, String] = null,
       workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
+    val timeout = 20000
     val master = createMaster(masterConf)
     val masterStartedSignal = Array(false)
     val masterThread = new RunnerWrap({
@@ -157,25 +157,29 @@ trait MiniClusterFeature extends Logging {
     })
     masterThread.start()
     masterInfo = (master, masterThread)
-    Thread.sleep(20000L)
-
-    if (!masterStartedSignal.head) {
-      throw new BindException("cannot start master rpc endpoint")
+    var masterStartWaitingTime = 0
+    while (!masterStartedSignal.head) {
+      logInfo("waiting for master node starting")
+      Thread.sleep(5000)
+      masterStartWaitingTime += 5000
+      if (masterStartWaitingTime >= timeout) {
+        throw new BindException("cannot start master rpc endpoint")
+      }
     }
 
     val workers = new Array[Worker](workerNum)
+    val workersStartFlag = Array.fill(workerNum)(false)
     val threads = (1 to workerNum).map { i =>
       val workerThread = new RunnerWrap({
-        var workerStarted = false
         var workerStartRetry = 0
-        while (!workerStarted) {
+        while (!workersStartFlag(i)) {
           try {
             val worker = createWorker(workerConf)
             this.synchronized {
               workers(i - 1) = worker
             }
             worker.initialize()
-            workerStarted = true
+            workersStartFlag(i) = true
           } catch {
             case ex: Exception =>
               if (workers(i - 1) != null) {
@@ -187,7 +191,7 @@ trait MiniClusterFeature extends Logging {
                 logError(s"cannot start worker $i, reached to max retrying", ex)
                 throw ex
               } else {
-                Thread.sleep(math.pow(5000, workerStartRetry).toInt)
+                Thread.sleep(math.pow(2000, workerStartRetry).toInt)
               }
           }
         }
@@ -196,9 +200,15 @@ trait MiniClusterFeature extends Logging {
       workerThread
     }
     threads.foreach(_.start())
-    Thread.sleep(20000)
+    var workerStartWaitingTime = 0
+    while (!workersStartFlag.forall(f => f)) {
+      Thread.sleep(5000)
+      workerStartWaitingTime += 5000
+      if (workerStartWaitingTime >= timeout) {
+        throw new BindException("cannot start all workers")
+      }
+    }
     (0 until workerNum).foreach { i => workerInfos.put(workers(i), threads(i)) }
-
     workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
     (master, workerInfos.keySet)
   }

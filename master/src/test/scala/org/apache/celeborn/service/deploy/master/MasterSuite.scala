@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.master
 
-import scala.util.Random
-
 import com.google.common.io.Files
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
