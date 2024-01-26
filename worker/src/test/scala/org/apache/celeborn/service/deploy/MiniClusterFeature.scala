@@ -19,9 +19,7 @@ package org.apache.celeborn.service.deploy
 
 import java.net.BindException
 import java.nio.file.Files
-
 import scala.collection.mutable
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
@@ -29,6 +27,8 @@ import org.apache.celeborn.common.util.Utils.selectRandomPort
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
+
+import java.util.concurrent.locks.{Lock, ReentrantLock}
 
 trait MiniClusterFeature extends Logging {
 
@@ -167,17 +167,26 @@ trait MiniClusterFeature extends Logging {
       }
     }
 
+    def checkWorkerStart(workersFlag: Array[Boolean], lock: Lock): Boolean = {
+      var flag = false
+      lock.lock()
+      flag = workersFlag.forall(f => f)
+      lock.unlock()
+      flag
+    }
+
     val workers = new Array[Worker](workerNum)
     val workersStartFlag = Array.fill(workerNum)(false)
+    val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
       val workerThread = new RunnerWrap({
         var workerStartRetry = 0
         while (!workersStartFlag(i - 1)) {
           try {
             val worker = createWorker(workerConf)
-            this.synchronized {
-              workers(i - 1) = worker
-            }
+            flagUpdateLock.lock()
+            workers(i - 1) = worker
+            flagUpdateLock.unlock()
             worker.initialize()
             workersStartFlag(i - 1) = true
           } catch {
@@ -201,7 +210,7 @@ trait MiniClusterFeature extends Logging {
     }
     threads.foreach(_.start())
     var workerStartWaitingTime = 0
-    while (!workersStartFlag.forall(f => f)) {
+    while (checkWorkerStart(workersStartFlag, flagUpdateLock)) {
       Thread.sleep(5000)
       workerStartWaitingTime += 5000
       if (workerStartWaitingTime >= timeout) {
