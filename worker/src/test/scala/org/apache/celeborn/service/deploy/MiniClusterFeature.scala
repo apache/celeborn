@@ -208,13 +208,15 @@ trait MiniClusterFeature extends Logging {
     var workersWaitingTime = 0
     while (!allWorkersStarted) {
       try {
-        (0 until workerNum).foreach { i => {
-          if (workers(i) == null) {
-            throw new IllegalStateException(s"worker $i hasn't been initialized")
-          } else {
-            workerInfos.put(workers(i), threads(i))
+        (0 until workerNum).foreach { i =>
+          {
+            if (workers(i) == null) {
+              throw new IllegalStateException(s"worker $i hasn't been initialized")
+            } else {
+              workerInfos.put(workers(i), threads(i))
+            }
           }
-        } }
+        }
         workerInfos.foreach { case (worker, _) => assert(worker.registered.get()) }
         allWorkersStarted = true
       } catch {
