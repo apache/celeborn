@@ -129,7 +129,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
-            "worker-file-sorter-execute", conf.partitionSorterThreads(), 120);
+            "worker-file-sorter-executor", conf.partitionSorterThreads(), 120);
 
     indexCache =
         CacheBuilder.newBuilder()
