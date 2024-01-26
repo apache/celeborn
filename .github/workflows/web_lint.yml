@@ -43,15 +43,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Use Node.js latest
+    #  When updating node and pnpm version, also need to update the version in `web/pom.xml`
+    - name: Use Node.js v20.11.0
       uses: actions/setup-node@v4
       with:
-        check-latest: true
+        node-version: 20.11.0
 
-    - name: Use pnpm latest
+    - name: Use pnpm v8.14.3
       uses: pnpm/action-setup@v2
       with:
-        version: latest
+        version: 8.14.3
 
     - name: Install dependencies
       run: pnpm install

@@ -28,8 +28,9 @@
   <name>Celeborn Web</name>
 
   <properties>
-    <build.node.version>v18.14.0</build.node.version>
-    <build.pnpm.version>7.26.3</build.pnpm.version>
+    <!-- When updating `node.version` and `pnpm.version`, alse need to update the `node` and `pnpm` versions in `.github/workflows/web_lint.yml` -->
+    <build.node.version>v20.11.0</build.node.version>
+    <build.pnpm.version>8.14.3</build.pnpm.version>
   </properties>
 
   <build>
