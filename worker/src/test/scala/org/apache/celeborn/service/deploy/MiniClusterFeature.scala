@@ -172,14 +172,14 @@ trait MiniClusterFeature extends Logging {
     val threads = (1 to workerNum).map { i =>
       val workerThread = new RunnerWrap({
         var workerStartRetry = 0
-        while (!workersStartFlag(i)) {
+        while (!workersStartFlag(i - 1)) {
           try {
             val worker = createWorker(workerConf)
             this.synchronized {
               workers(i - 1) = worker
             }
             worker.initialize()
-            workersStartFlag(i) = true
+            workersStartFlag(i - 1) = true
           } catch {
             case ex: Exception =>
               if (workers(i - 1) != null) {
