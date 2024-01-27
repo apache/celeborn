@@ -24,7 +24,21 @@ import scala.collection.JavaConverters._
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 
-case class UserIdentifier(tenantId: String, name: String) {
+trait Identifier
+
+case class SystemDefaultIdentifier() extends Identifier {
+  override def toString: String = {
+    s"SystemDefault"
+  }
+}
+
+case class TenantIdentifier(tenantId: String) extends Identifier {
+  override def toString: String = {
+    s"Tenant(`$tenantId`)"
+  }
+}
+
+case class UserIdentifier(tenantId: String, name: String) extends Identifier {
   assert(
     tenantId != null && tenantId.nonEmpty,
     "UserIdentifier's tenantId should not be null or empty.")
@@ -37,7 +51,11 @@ case class UserIdentifier(tenantId: String, name: String) {
   def toJMap: JMap[String, String] = toMap.asJava
 
   override def toString: String = {
-    s"`$tenantId`.`$name`"
+    s"User(`$tenantId`.`$name`)"
+  }
+
+  def toTenantIdentifier(): TenantIdentifier = {
+    TenantIdentifier(tenantId)
   }
 }
 

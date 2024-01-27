@@ -15,22 +15,41 @@
 # limitations under the License.
 #
 
--  tenantId: AAA
-   name: Tom
-   quota:
-     diskBytesWritten: 100m
-     diskFileCount: 200
+system:
+  diskBytesWritten: 1g
+  diskFileCount: 100
+  hdfsBytesWritten: 2g
+  hdfsFileCount: 100
 
--  tenantId: BBB
-   name: Jerry
-   quota:
-     hdfsBytesWritten: 200m
-     hdfsFileCount: 200
+tenants:
+  - name: AAA
+    diskBytesWritten: 2g
+    diskFileCount: 200
+    hdfsBytesWritten: 5g
+    hdfsFileCount: 200
+    users:
+      - name: Tom
+        diskBytesWritten: 10g
+        diskFileCount: 1000
+      - name: Jerry
+        diskBytesWritten: 30g
+        diskFileCount: 2000
+        hdfsBytesWritten: 50g
+        hdfsFileCount: 5000
 
--  tenantId: default
-   name: default
-   quota:
-     diskBytesWritten: 10m
-     diskFileCount: 10
-     hdfsBytesWritten: 10m
-     hdfsFileCount: 10
+  - name: BBB
+    diskBytesWritten: 10g
+    diskFileCount: 500
+    hdfsBytesWritten: 20g
+    hdfsFileCount: 1000
+    users:
+      - name: Mark
+        diskBytesWritten: 100g
+        diskFileCount: 5000
+        hdfsBytesWritten: 100g
+        hdfsFileCount: 5000
+  - name: CCC
+    diskBytesWritten: 8g
+    diskFileCount: 200
+    hdfsBytesWritten: 8g
+    hdfsFileCount: 200

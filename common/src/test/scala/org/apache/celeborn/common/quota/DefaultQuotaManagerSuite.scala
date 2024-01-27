@@ -40,15 +40,24 @@ class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
   test("test celeborn quota conf") {
     assertEquals(
       quotaManager.getQuota(UserIdentifier("AAA", "Tom")),
-      Quota(Utils.byteStringAsBytes("100m"), 200, -1, -1))
+      Quota(Utils.byteStringAsBytes("10g"), 1000, -1, -1))
     assertEquals(
-      quotaManager.getQuota(UserIdentifier("BBB", "Jerry")),
-      Quota(-1, -1, Utils.byteStringAsBytes("200m"), 200))
-  }
-
-  test("test celeborn default quota") {
+      quotaManager.getQuota(UserIdentifier("AAA", "Jerry")),
+      Quota(Utils.byteStringAsBytes("30g"), 2000, Utils.byteStringAsBytes("50g"), 5000))
     assertEquals(
-      quotaManager.getQuota(UserIdentifier("CCC", "Mark")),
-      Quota(Utils.byteStringAsBytes("10m"), 10, Utils.byteStringAsBytes("10m"), 10))
+      quotaManager.getQuota(UserIdentifier("AAA", "Andy")),
+      Quota(Utils.byteStringAsBytes("2g"), 200, Utils.byteStringAsBytes("5g"), 200))
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("BBB", "Mark")),
+      Quota(Utils.byteStringAsBytes("100g"), 5000, Utils.byteStringAsBytes("100g"), 5000))
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("BBB", "Andy")),
+      Quota(Utils.byteStringAsBytes("10g"), 500, Utils.byteStringAsBytes("20g"), 1000))
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("CCC", "Andy")),
+      Quota(Utils.byteStringAsBytes("8g"), 200, Utils.byteStringAsBytes("8g"), 200))
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("DDD", "Andy")),
+      Quota(Utils.byteStringAsBytes("1g"), 100, Utils.byteStringAsBytes("2g"), 100))
   }
 }
