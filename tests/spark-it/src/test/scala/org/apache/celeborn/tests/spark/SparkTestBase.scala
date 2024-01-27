@@ -39,7 +39,7 @@ trait SparkTestBase extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup Celeborn mini cluster")
-    setUpMiniCluster(workerNum = 5)
+    setupMiniClusterWithRandomPorts(workerNum = 5)
   }
 
   override def afterAll(): Unit = {

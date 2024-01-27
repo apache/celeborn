@@ -23,7 +23,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.CelebornExitKind
+import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -38,14 +38,16 @@ class MasterSuite extends AnyFunSuite
 
   test("test single node startup functionality") {
     val conf = new CelebornConf()
+    val randomMasterPort = Utils.selectRandomPort(1024, 65535)
+    val randomHttpPort = randomMasterPort + 1
     conf.set(CelebornConf.HA_ENABLED.key, "false")
     conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, getTmpDir())
     conf.set(CelebornConf.METRICS_ENABLED.key, "true")
     conf.set(CelebornConf.MASTER_HTTP_HOST.key, "127.0.0.1")
-    conf.set(CelebornConf.MASTER_HTTP_PORT.key, "11112")
+    conf.set(CelebornConf.MASTER_HTTP_PORT.key, randomHttpPort.toString)
 
-    val args = Array("-h", "localhost", "-p", "9097")
+    val args = Array("-h", "localhost", "-p", randomMasterPort.toString)
 
     val masterArgs = new MasterArguments(args, conf)
     val master = new Master(conf, masterArgs)

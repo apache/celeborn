@@ -38,16 +38,13 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 trait ReadWriteTestBase extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll {
-  val masterPort = 19097
+
+  var masterPort = 0
 
   override def beforeAll(): Unit = {
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> masterPort.toString)
-    val workerConf = Map(
-      "celeborn.master.endpoints" -> s"localhost:$masterPort")
     logInfo("test initialized , setup Celeborn mini cluster")
-    setUpMiniCluster(masterConf, workerConf)
+    val (m, _) = setupMiniClusterWithRandomPorts()
+    masterPort = m.conf.masterPort
   }
 
   override def afterAll(): Unit = {
