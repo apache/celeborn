@@ -237,8 +237,9 @@ public class MasterClient {
 
       if (endpointRef == null) {
         throw new IllegalStateException(
-            "After trying all the available Master Addresses,"
-                + " an usable link still couldn't be created.");
+            "After trying all the available Master Addresses("
+                + String.join(",", masterEndpoints)
+                + "), an usable link still couldn't be created.");
       } else {
         LOG.info("connect to master {}.", endpointRef.address());
       }

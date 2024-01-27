@@ -32,13 +32,11 @@ trait HeartbeatFeature extends MiniClusterFeature {
       dataClientFactory: TransportClientFactory,
       assertFunc: (TransportClient, TransportClient) => Unit): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    val masterConf = Map(
-      CelebornConf.MASTER_HOST.key -> "localhost",
-      CelebornConf.MASTER_PORT.key -> "9097")
     var master: Master = null
     var workers: collection.Set[Worker] = null
     try {
-      val (_master, _workers) = setUpMiniCluster(masterConf, workerConf, workerNum = 1)
+      val (_master, _workers) =
+        setupMiniClusterWithRandomPorts(workerConf = workerConf, workerNum = 1)
       master = _master
       workers = _workers
       workers.foreach { w =>
@@ -62,7 +60,6 @@ trait HeartbeatFeature extends MiniClusterFeature {
 
   def getTestHeartbeatFromWorker2ClientConf: (Map[String, String], CelebornConf) = {
     val workerConf = Map(
-      CelebornConf.MASTER_ENDPOINTS.key -> "localhost:9097",
       "celeborn.push.heartbeat.interval" -> "4s",
       "celeborn.worker.push.heartbeat.enabled" -> "true",
       "celeborn.worker.fetch.heartbeat.enabled" -> "true",
@@ -90,7 +87,6 @@ trait HeartbeatFeature extends MiniClusterFeature {
 
   def getTestHeartbeatFromWorker2ClientWithNoHeartbeatConf: (Map[String, String], CelebornConf) = {
     val workerConf = Map(
-      "celeborn.master.endpoints" -> "localhost:9097",
       "celeborn.push.heartbeat.interval" -> "4s",
       "celeborn.fetch.heartbeat.interval" -> "4s",
       "celeborn.worker.push.heartbeat.enabled" -> "false",
@@ -119,7 +115,6 @@ trait HeartbeatFeature extends MiniClusterFeature {
 
   def getTestHeartbeatFromWorker2ClientWithCloseChannelConf: (Map[String, String], CelebornConf) = {
     val workerConf = Map(
-      CelebornConf.MASTER_ENDPOINTS.key -> "localhost:9097",
       "celeborn.fetch.io.connectionTimeout" -> "9s",
       "celeborn.push.io.connectionTimeout" -> "9s",
       "celeborn.push.heartbeat.interval" -> "4s",
