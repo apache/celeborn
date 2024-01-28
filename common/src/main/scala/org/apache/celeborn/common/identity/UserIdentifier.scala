@@ -60,7 +60,7 @@ case class UserIdentifier(tenantId: String, name: String) extends Identifier {
 }
 
 object UserIdentifier extends Logging {
-  val USER_IDENTIFIER = "^\\`(.+)\\`\\.\\`(.+)\\`$".r
+  val USER_IDENTIFIER = "^User\\(\\`(.+)\\`\\.\\`(.+)\\`\\)$".r
 
   def apply(userIdentifier: String): UserIdentifier = {
     if (USER_IDENTIFIER.findPrefixOf(userIdentifier).isDefined) {
