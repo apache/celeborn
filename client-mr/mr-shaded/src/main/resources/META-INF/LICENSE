@@ -249,5 +249,5 @@ BSD
 ------------
 See licenses/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
-See license/LICENSE-zstd-jni.txt for details.
+See licenses/LICENSE-zstd-jni.txt for details.
 com.github.luben:zstd-jni
