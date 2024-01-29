@@ -44,15 +44,15 @@ class UserIdentifierSuite extends CelebornFunSuite {
     val e1 = intercept[CelebornException] {
       UserIdentifier("User(aa.bb)")
     }.getMessage
-    assert(e1.contains("Failed to parse user identifier: aa.bb"))
+    assert(e1.contains("Failed to parse user identifier: User(aa.bb)"))
     val e2 = intercept[CelebornException] {
       UserIdentifier("User(`aa`.bb)")
     }.getMessage
-    assert(e2.contains("Failed to parse user identifier: `aa`.bb"))
+    assert(e2.contains("Failed to parse user identifier: User(`aa`.bb)"))
     val e3 = intercept[CelebornException] {
       UserIdentifier("User(aa.`bb`)")
     }.getMessage
-    assert(e3.contains("Failed to parse user identifier: aa.`bb`"))
+    assert(e3.contains("Failed to parse user identifier: User(aa.`bb`)"))
   }
 
 }
