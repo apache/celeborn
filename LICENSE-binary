@@ -300,7 +300,7 @@ MIT License
 ------------
 See licenses/LICENSE-jdktools.txt for details.
 com.github.olivergondza:maven-jdk-tools-wrapper
-See license/LICENSE-slf4j.txt for details.
+See licenses/LICENSE-slf4j.txt for details.
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
 ------------
