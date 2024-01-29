@@ -38,19 +38,19 @@ class QuotaSuite extends BaseQuotaManagerSuite {
     val exp1 = (true, "")
     val exp2 = (
       false,
-      "User `mock`.`mock` used hdfsBytesWritten(600.0 B) exceeds quota(300.0 B). " +
-        "User `mock`.`mock` used hdfsFileCount(800) exceeds quota(400). ")
+      "User(`mock`.`mock`) used hdfsBytesWritten(600.0 B) exceeds quota(300.0 B). " +
+        "User(`mock`.`mock`) used hdfsFileCount(800) exceeds quota(400). ")
     val exp3 = (true, "")
     val exp4 = (
       false,
-      "User `mock`.`mock` used hdfsBytesWritten(600.0 B) exceeds quota(300.0 B). " +
-        "User `mock`.`mock` used hdfsFileCount(800) exceeds quota(400). ")
+      "User(`mock`.`mock`) used hdfsBytesWritten(600.0 B) exceeds quota(300.0 B). " +
+        "User(`mock`.`mock`) used hdfsFileCount(800) exceeds quota(400). ")
     val exp5 = (
       false,
-      "User `mock`.`mock` used diskBytesWritten (1000.0 B) exceeds quota (100.0 B). " +
-        "User `mock`.`mock` used diskFileCount(2000) exceeds quota(200). " +
-        "User `mock`.`mock` used hdfsBytesWritten(2.9 KiB) exceeds quota(300.0 B). " +
-        "User `mock`.`mock` used hdfsFileCount(4000) exceeds quota(400). ")
+      "User(`mock`.`mock`) used diskBytesWritten (1000.0 B) exceeds quota (100.0 B). " +
+        "User(`mock`.`mock`) used diskFileCount(2000) exceeds quota(200). " +
+        "User(`mock`.`mock`) used hdfsBytesWritten(2.9 KiB) exceeds quota(300.0 B). " +
+        "User(`mock`.`mock`) used hdfsFileCount(4000) exceeds quota(400). ")
 
     assert(res1 == exp1)
     assert(res2 == exp2)

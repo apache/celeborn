@@ -56,7 +56,7 @@ case class Quota(
     val exceed = (diskBytesWritten > 0 && value >= diskBytesWritten)
     var reason = ""
     if (exceed) {
-      reason = s"User $identifier used diskBytesWritten (${Utils.bytesToString(value)}) " +
+      reason = s"$identifier used diskBytesWritten (${Utils.bytesToString(value)}) " +
         s"exceeds quota (${Utils.bytesToString(diskBytesWritten)}). "
       logWarning(reason)
     }
@@ -67,7 +67,7 @@ case class Quota(
     val exceed = (diskFileCount > 0 && value >= diskFileCount)
     var reason = ""
     if (exceed) {
-      reason = s"User $identifier used diskFileCount($value) exceeds quota($diskFileCount). "
+      reason = s"$identifier used diskFileCount($value) exceeds quota($diskFileCount). "
       logWarning(reason)
     }
     (exceed, reason)
@@ -79,7 +79,7 @@ case class Quota(
     val exceed = (hdfsBytesWritten > 0 && value >= hdfsBytesWritten)
     var reason = ""
     if (exceed) {
-      reason = s"User $identifier used hdfsBytesWritten(${Utils.bytesToString(value)}) " +
+      reason = s"$identifier used hdfsBytesWritten(${Utils.bytesToString(value)}) " +
         s"exceeds quota(${Utils.bytesToString(hdfsBytesWritten)}). "
       logWarning(reason)
     }
@@ -90,7 +90,7 @@ case class Quota(
     val exceed = (hdfsFileCount > 0 && value >= hdfsFileCount)
     var reason = ""
     if (exceed) {
-      reason = s"User $identifier used hdfsFileCount($value) exceeds quota($hdfsFileCount). "
+      reason = s"$identifier used hdfsFileCount($value) exceeds quota($hdfsFileCount). "
       logWarning(reason)
     }
     (exceed, reason)
