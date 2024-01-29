@@ -21,6 +21,7 @@ import java.io.IOException
 import java.net.BindException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
@@ -42,7 +43,6 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.rpc.netty.NettyRpcEnv
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -79,9 +79,25 @@ private[celeborn] class Master(
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
+  // Visible for testing
+  private[master] var internalRpcEnvInUse = rpcEnv
+
+  if (conf.internalPortEnabled) {
+    val internalRpcEnv: RpcEnv = RpcEnv.create(
+      RpcNameConstants.MASTER_INTERNAL_SYS,
+      masterArgs.host,
+      masterArgs.host,
+      masterArgs.internalPort,
+      conf,
+      Math.max(64, Runtime.getRuntime.availableProcessors()))
+    logInfo(
+      s"Internal port enabled, using internal port ${masterArgs.internalPort} for internal RPC.")
+    internalRpcEnvInUse = internalRpcEnv
+  }
+
   private val statusSystem =
     if (conf.haEnabled) {
-      val sys = new HAMasterMetaManager(rpcEnv, conf)
+      val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf)
       val handler = new MetaHandler(sys)
       try {
         handler.setUpMasterRatisServer(conf, masterArgs.masterClusterInfo.get)
@@ -99,7 +115,7 @@ private[celeborn] class Master(
       }
       sys
     } else {
-      new SingleMasterMetaManager(rpcEnv, conf)
+      new SingleMasterMetaManager(internalRpcEnvInUse, conf)
     }
 
   // Threads
@@ -198,10 +214,23 @@ private[celeborn] class Master(
   }
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
+  private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
+  // Visible for testing
+  private[master] var internalRpcEndpoint: RpcEndpoint = _
+  private var internalRpcEndpointRef: RpcEndpointRef = _
+  if (conf.internalPortEnabled) {
+    internalRpcEndpoint = new InternalRpcEndpoint(this, internalRpcEnvInUse, conf)
+    internalRpcEndpointRef = internalRpcEnvInUse.setupEndpoint(
+      RpcNameConstants.MASTER_INTERNAL_EP,
+      internalRpcEndpoint)
+  }
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
+    if (!threadsStarted.compareAndSet(false, true)) {
+      return
+    }
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -247,6 +276,9 @@ private[celeborn] class Master(
   }
 
   override def onStop(): Unit = {
+    if (!threadsStarted.compareAndSet(true, false)) {
+      return
+    }
     logInfo("Stopping Celeborn Master.")
     if (checkForWorkerTimeOutTask != null) {
       checkForWorkerTimeOutTask.cancel(true)
@@ -1084,12 +1116,18 @@ private[celeborn] class Master(
     super.initialize()
     logInfo("Master started.")
     rpcEnv.awaitTermination()
+    if (conf.internalPortEnabled) {
+      internalRpcEnvInUse.awaitTermination()
+    }
   }
 
   override def stop(exitKind: Int): Unit = synchronized {
     if (!stopped) {
       logInfo("Stopping Master")
       rpcEnv.stop(self)
+      if (conf.internalPortEnabled) {
+        internalRpcEnvInUse.stop(internalRpcEndpointRef)
+      }
       super.stop(exitKind)
       logInfo("Master stopped.")
       stopped = true

@@ -18,11 +18,13 @@
 package org.apache.celeborn.service.deploy.master
 
 import com.google.common.io.Files
+import org.mockito.Mockito.mock
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.{PbCheckForWorkerTimeout, PbRegisterWorker}
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 
 class MasterSuite extends AnyFunSuite
@@ -59,5 +61,39 @@ class MasterSuite extends AnyFunSuite
     Thread.sleep(5000L)
     master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     master.rpcEnv.shutdown()
+  }
+
+  test("test dedicated internal port receives") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.HA_ENABLED.key, "false")
+    conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, getTmpDir())
+    conf.set(CelebornConf.METRICS_ENABLED.key, "true")
+    conf.set(CelebornConf.INTERNAL_PORT_ENABLED.key, "true")
+
+    val args = Array("-h", "localhost", "-p", "9097", "--internal-port", "8097")
+
+    val masterArgs = new MasterArguments(args, conf)
+    val master = new Master(conf, masterArgs)
+    new Thread() {
+      override def run(): Unit = {
+        master.initialize()
+      }
+    }.start()
+    Thread.sleep(5000L)
+    master.receive.applyOrElse(
+      PbCheckForWorkerTimeout.newBuilder().build(),
+      (_: Any) => fail("Unexpected message"))
+    master.internalRpcEndpoint.receive.applyOrElse(
+      PbCheckForWorkerTimeout.newBuilder().build(),
+      (_: Any) => fail("Unexpected message"))
+
+    master.internalRpcEndpoint.receiveAndReply(
+      mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext])).applyOrElse(
+      PbRegisterWorker.newBuilder().build(),
+      (_: Any) => fail("Unexpected message"))
+    master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+    master.rpcEnv.shutdown()
+    master.internalRpcEnvInUse.shutdown()
   }
 }

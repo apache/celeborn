@@ -21,6 +21,7 @@ license: |
 | --- | ------- | ----------- | ----- | ---------- |
 | celeborn.master.ha.enabled | false | When true, master nodes run as Raft cluster mode. | 0.3.0 | celeborn.ha.enabled | 
 | celeborn.master.ha.node.&lt;id&gt;.host | &lt;required&gt; | Host to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.host | 
+| celeborn.master.ha.node.&lt;id&gt;.internal.port | 8097 | Internal port for the workers and other masters to bind to a master node <id> in HA mode. | 0.5.0 |  | 
 | celeborn.master.ha.node.&lt;id&gt;.port | 9097 | Port to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.port | 
 | celeborn.master.ha.node.&lt;id&gt;.ratis.port | 9872 | Ratis port to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.ratis.port | 
 | celeborn.master.ha.ratis.raft.rpc.type | netty | RPC type for Ratis, available options: netty, grpc. | 0.3.0 | celeborn.ha.master.ratis.raft.rpc.type | 

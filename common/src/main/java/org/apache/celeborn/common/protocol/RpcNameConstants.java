@@ -20,8 +20,10 @@ package org.apache.celeborn.common.protocol;
 public class RpcNameConstants {
   // For Master
   public static String MASTER_SYS = "Master";
+  public static String MASTER_INTERNAL_SYS = "MasterInternal";
   // Master Endpoint Name
   public static String MASTER_EP = "MasterEndpoint";
+  public static String MASTER_INTERNAL_EP = "MasterInternalEndpoint";
 
   // For Worker
   public static String WORKER_SYS = "Worker";
