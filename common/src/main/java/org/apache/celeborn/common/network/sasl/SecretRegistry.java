@@ -24,4 +24,8 @@ public interface SecretRegistry {
   String getSecretKey(String appId);
 
   boolean isRegistered(String appId);
+
+  void register(String appId, String secret);
+
+  void unregister(String appId);
 }

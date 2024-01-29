@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.util.ThreadExceptionHandler;
 
 public class DataPusher {
   private static final Logger logger = LoggerFactory.getLogger(DataPusher.class);
@@ -99,7 +100,7 @@ public class DataPusher {
     this.mapStatusLengths = mapStatusLengths;
 
     pushThread =
-        new Thread("DataPusher-" + taskId) {
+        new Thread("celeborn-client-data-pusher-" + taskId) {
           private void reclaimTask(PushTask task) throws InterruptedException {
             idleLock.lockInterruptibly();
             try {
@@ -137,6 +138,7 @@ public class DataPusher {
           }
         };
     pushThread.setDaemon(true);
+    pushThread.setUncaughtExceptionHandler(new ThreadExceptionHandler("DataPusher-" + taskId));
     pushThread.start();
   }
 

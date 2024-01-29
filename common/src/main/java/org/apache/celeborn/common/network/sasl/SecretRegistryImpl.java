@@ -19,24 +19,25 @@ package org.apache.celeborn.common.network.sasl;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * A simple implementation of {@link SecretRegistry} that stores secrets in memory. It is designed
- * as a singleton.
- */
+/** A simple implementation of {@link SecretRegistry} that stores secrets in memory. */
 public class SecretRegistryImpl implements SecretRegistry {
-
-  private static final SecretRegistryImpl INSTANCE = new SecretRegistryImpl();
-
-  public static SecretRegistryImpl getInstance() {
-    return INSTANCE;
-  }
 
   private final ConcurrentHashMap<String, String> secrets = new ConcurrentHashMap<>();
 
+  @Override
   public void register(String appId, String secret) {
-    secrets.put(appId, secret);
+    // TODO: Persist the secret in ratis. See https://issues.apache.org/jira/browse/CELEBORN-1234
+    secrets.compute(
+        appId,
+        (id, oldVal) -> {
+          if (oldVal != null) {
+            throw new IllegalArgumentException("AppId " + appId + " is already registered.");
+          }
+          return secret;
+        });
   }
 
+  @Override
   public void unregister(String appId) {
     secrets.remove(appId);
   }

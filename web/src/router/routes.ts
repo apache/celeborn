@@ -16,16 +16,26 @@
  */
 
 import overview_routes from './modules/overview'
+import master_routes from './modules/master'
+import worker_routes from './modules/worker'
+import application_routes from './modules/application'
+import tenant_routes from './modules/tenant'
+
+export const children_routes = [
+  overview_routes,
+  master_routes,
+  worker_routes,
+  application_routes,
+  tenant_routes
+]
 
 export const basePage = [
   {
     path: '/',
-    redirect: '/home',
+    redirect: { name: 'overview' },
     sub: true,
     component: () => import('@/layouts/layoutPage.vue'),
-    children: [
-      overview_routes
-    ]
+    children: children_routes
   }
 ]
 

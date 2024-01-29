@@ -33,20 +33,17 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.CommitInfo
 
 class LifecycleManagerCommitFilesSuite extends WithShuffleClientSuite with MiniClusterFeature {
-  private val masterPort = 19097
 
-  celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
+  celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> masterPort.toString)
-    val workerConf = Map(
-      "celeborn.master.endpoints" -> s"localhost:$masterPort")
-    setUpMiniCluster(masterConf, workerConf)
+    val (master, _) = setupMiniClusterWithRandomPorts()
+    celebornConf.set(
+      CelebornConf.MASTER_ENDPOINTS.key,
+      master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
   }
 
   test("test commit files without mocking failure") {

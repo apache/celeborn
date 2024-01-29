@@ -37,7 +37,7 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -65,6 +65,16 @@ private[celeborn] class Worker(
 
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
+  val workerSource = new WorkerSource(conf)
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
+  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER)
+  metricsSystem.registerSource(workerSource)
+  metricsSystem.registerSource(threadPoolSource)
+  metricsSystem.registerSource(resourceConsumptionSource)
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
@@ -105,15 +115,6 @@ private[celeborn] class Worker(
         throw e
     }
   }
-
-  private val resourceConsumptionSource =
-    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
-  val workerSource = new WorkerSource(conf)
-  metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(workerSource)
-  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val storageManager = new StorageManager(conf, workerSource)
 
@@ -213,11 +214,6 @@ private[celeborn] class Worker(
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
 
-  // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
-  val userResourceConsumption: ConcurrentHashMap[UserIdentifier, ResourceConsumption] =
-    JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](
-      storageManager.userResourceConsumptionSnapshot().asJava)
-
   val workerInfo =
     new WorkerInfo(
       host,
@@ -226,7 +222,7 @@ private[celeborn] class Worker(
       fetchPort,
       replicatePort,
       diskInfos,
-      userResourceConsumption)
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
@@ -254,15 +250,15 @@ private[celeborn] class Worker(
   private var checkFastFailTask: ScheduledFuture[_] = _
 
   val replicateThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-data-replicator", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-commit-files", conf.workerCommitThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-files-committer", conf.workerCommitThreads)
   val cleanThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool(
-      "worker-clean-expired-shuffle-keys",
+      "worker-expired-shuffle-cleaner",
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("async-reply")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
   val timer = new HashedWheelTimer()
 
   // Configs
@@ -270,11 +266,8 @@ private[celeborn] class Worker(
   private val replicaFastFailDuration = conf.workerReplicateFastFailDuration
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
-  var cleaner: Thread = _
-
-  private val workerResourceConsumptionInterval = conf.workerResourceConsumptionInterval
-  private val userResourceConsumptions =
-    JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
+  var cleaner: ExecutorService =
+    ThreadUtils.newDaemonSingleThreadExecutor("worker-expired-shuffle-cleaner")
 
   private var jvmQuake: JVMQuake = _
   if (conf.workerJvmQuakeEnabled) {
@@ -414,7 +407,7 @@ private[celeborn] class Worker(
       replicaFastFailDuration,
       TimeUnit.MILLISECONDS)
 
-    cleaner = new Thread("Cleaner") {
+    cleaner.submit(new Runnable {
       override def run(): Unit = {
         while (true) {
           val expiredShuffleKeys = cleanTaskQueue.take()
@@ -426,15 +419,12 @@ private[celeborn] class Worker(
           }
         }
       }
-    }
+    })
 
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
     controller.init(this)
-
-    cleaner.setDaemon(true)
-    cleaner.start()
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
@@ -536,47 +526,29 @@ private[celeborn] class Worker(
 
   private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
     val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
-    resourceConsumptionSnapshot.foreach { resourceConsumption =>
-      {
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.DISK_FILE_COUNT,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).diskFileCount
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).diskBytesWritten
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.HDFS_FILE_COUNT,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).hdfsFileCount
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).hdfsBytesWritten
-        }
+    resourceConsumptionSnapshot.foreach { case (userIdentifier, _) =>
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.DISK_FILE_COUNT,
+        userIdentifier.toMap) { () =>
+        workerInfo.userResourceConsumption.get(userIdentifier).diskFileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+        userIdentifier.toMap) { () =>
+        workerInfo.userResourceConsumption.get(userIdentifier).diskBytesWritten
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.HDFS_FILE_COUNT,
+        userIdentifier.toMap) { () =>
+        workerInfo.userResourceConsumption.get(userIdentifier).hdfsFileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+        userIdentifier.toMap) { () =>
+        workerInfo.userResourceConsumption.get(userIdentifier).hdfsBytesWritten
       }
     }
     workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
-  }
-
-  private def computeUserResourceConsumption(userResourceConsumption: (
-      UserIdentifier,
-      ResourceConsumption)): ResourceConsumption = {
-    val userIdentifier = userResourceConsumption._1
-    val resourceConsumption = userResourceConsumption._2
-    val current = System.currentTimeMillis()
-    if (userResourceConsumptions.containsKey(userIdentifier)) {
-      val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
-      if (current - resourceConsumptionAndUpdateTime._2 <= workerResourceConsumptionInterval) {
-        return resourceConsumptionAndUpdateTime._1
-      }
-    }
-    userResourceConsumptions.put(userIdentifier, (resourceConsumption, current))
-    resourceConsumption
   }
 
   @VisibleForTesting

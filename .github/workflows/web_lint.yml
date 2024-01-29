@@ -1,0 +1,63 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Lint Check for Web
+
+on:
+  push:
+    branches:
+      - main
+      - branch-*
+  pull_request:
+    branches:
+      - main
+      - branch-*
+
+concurrency:
+  group: style-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: pnpm/action-setup@v2
+      with:
+        version: 8
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # When updating node and pnpm version, also need to update the version in `web/pom.xml`
+    - name: Use Node.js v20.11.0
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.11.0
+
+    - name: Use pnpm v8.14.3
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8.14.3
+
+    - name: Install dependencies
+      run: pnpm install
+      working-directory: ./web
+
+    - name: Lint and format
+      run: pnpm run lint
+      working-directory: ./web

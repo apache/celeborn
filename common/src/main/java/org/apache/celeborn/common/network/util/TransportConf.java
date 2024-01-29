@@ -158,4 +158,9 @@ public class TransportConf {
   public int saslTimeoutMs() {
     return celebornConf.networkIoSaslTimoutMs(module);
   }
+
+  /** Whether authentication is enabled or not. */
+  public boolean authEnabled() {
+    return celebornConf.authEnabled();
+  }
 }

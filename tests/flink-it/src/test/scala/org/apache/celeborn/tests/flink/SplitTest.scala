@@ -31,15 +31,13 @@ import org.apache.celeborn.service.deploy.worker.Worker
 class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
+  var port = 0
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> "9097")
-    val workerConf = Map(
-      "celeborn.master.endpoints" -> "localhost:9097",
-      CelebornConf.WORKER_FLUSHER_BUFFER_SIZE.key -> "10k")
-    workers = setUpMiniCluster(masterConf, workerConf)._2
+    val (m, w) = setupMiniClusterWithRandomPorts(workerConf =
+      Map(CelebornConf.WORKER_FLUSHER_BUFFER_SIZE.key -> "10k"))
+    workers = w
+    port = m.conf.get(CelebornConf.MASTER_PORT)
   }
   override def afterAll(): Unit = {
     logInfo("all test complete , stop celeborn mini cluster")
@@ -52,7 +50,7 @@ class SplitTest extends AnyFunSuite with Logging with MiniClusterFeature
     configuration.setString(
       "shuffle-service-factory.class",
       "org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory")
-    configuration.setString(CelebornConf.MASTER_ENDPOINTS.key, "localhost:9097")
+    configuration.setString(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$port")
     configuration.setString("execution.batch-shuffle-mode", "ALL_EXCHANGES_BLOCKING")
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString("taskmanager.memory.network.min", "1024m")

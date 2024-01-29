@@ -86,6 +86,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
+  protected final boolean reservedMemoryEnabled;
   protected final long reservedMemoryPerPartition;
   private final boolean gracefulShutdown;
   private final long partitionSorterShutdownAwaitTime;
@@ -94,17 +95,18 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected final AbstractSource source;
 
   private final ExecutorService fileSorterExecutors;
-  private final Thread fileSorterSchedulerThread;
+  private final ExecutorService fileSorterSchedulerThread;
   private final long indexCacheMaxWeight;
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
-    this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
+    this.sortTimeout = conf.workerPartitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
+    this.reservedMemoryEnabled = conf.workerPartitionSorterReservedMemoryEnabled();
+    this.reservedMemoryPerPartition = conf.workerPartitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
-    this.indexCacheMaxWeight = conf.partitionSorterIndexCacheMaxWeight();
+    this.indexCacheMaxWeight = conf.workerPartitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
     this.gracefulShutdown = conf.workerGracefulShutdown();
@@ -129,12 +131,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
-            "worker-file-sorter-execute", conf.partitionSorterThreads(), 120);
+            "worker-file-sorter-executor", conf.workerPartitionSorterThreads(), 120);
 
     indexCache =
         CacheBuilder.newBuilder()
-            .concurrencyLevel(conf.partitionSorterThreads())
-            .expireAfterAccess(conf.partitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
+            .concurrencyLevel(conf.workerPartitionSorterThreads())
+            .expireAfterAccess(conf.workerPartitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
             .maximumWeight(indexCacheMaxWeight)
             .weigher(
                 (key, cache) ->
@@ -143,32 +145,35 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             .build();
 
     fileSorterSchedulerThread =
-        new Thread(
-            () -> {
-              try {
-                while (!shutdown) {
-                  FileSorter task = shuffleSortTaskDeque.take();
-                  memoryManager.reserveSortMemory(reservedMemoryPerPartition);
-                  while (!memoryManager.sortMemoryReady()) {
-                    Thread.sleep(20);
-                  }
-                  fileSorterExecutors.submit(
-                      () -> {
-                        try {
-                          task.sort();
-                        } catch (InterruptedException e) {
-                          logger.warn("File sorter thread was interrupted.");
-                        } finally {
-                          memoryManager.releaseSortMemory(reservedMemoryPerPartition);
-                        }
-                      });
+        ThreadUtils.newDaemonSingleThreadExecutor("worker-file-sorter-scheduler");
+    fileSorterSchedulerThread.submit(
+        () -> {
+          try {
+            while (!shutdown) {
+              FileSorter task = shuffleSortTaskDeque.take();
+              if (task.isWarmUp) {
+                memoryManager.reserveSortMemory(reservedMemoryPerPartition);
+                while (!memoryManager.sortMemoryReady()) {
+                  Thread.sleep(20);
                 }
-              } catch (InterruptedException e) {
-                logger.warn("Sort scheduler thread is shutting down, detail: ", e);
               }
-            });
-    fileSorterSchedulerThread.setDaemon(true);
-    fileSorterSchedulerThread.start();
+              fileSorterExecutors.submit(
+                  () -> {
+                    try {
+                      task.sort();
+                    } catch (InterruptedException e) {
+                      logger.warn("File sorter thread was interrupted.");
+                    } finally {
+                      if (task.isWarmUp) {
+                        memoryManager.releaseSortMemory(reservedMemoryPerPartition);
+                      }
+                    }
+                  });
+            }
+          } catch (InterruptedException e) {
+            logger.warn("Sort scheduler thread is shutting down, detail: ", e);
+          }
+        });
   }
 
   public int getSortingCount() {
@@ -301,7 +306,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       long end = System.currentTimeMillis();
       logger.info("Await partition sorter executor complete cost " + (end - start) + "ms");
     } else {
-      fileSorterSchedulerThread.interrupt();
+      fileSorterSchedulerThread.shutdownNow();
       fileSorterExecutors.shutdownNow();
       cleaner.close();
       if (sortedFilesDb != null) {
@@ -546,6 +551,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String fileId;
     private final String shuffleKey;
     private final boolean isHdfs;
+    private final boolean isWarmUp;
     private final FileInfo originFileInfo;
 
     private FSDataInputStream hdfsOriginInput = null;
@@ -558,6 +564,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
       this.isHdfs = fileInfo.isHdfs();
+      this.isWarmUp = !isHdfs && reservedMemoryEnabled;
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
@@ -591,9 +598,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
         int batchHeaderLen = 16;
-        int reserveMemory = (int) reservedMemoryPerPartition;
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
-        ByteBuffer paddingBuf = ByteBuffer.allocateDirect(reserveMemory);
+        ByteBuffer paddingBuf =
+            isWarmUp ? ByteBuffer.allocateDirect((int) reservedMemoryPerPartition) : null;
 
         long index = 0;
         while (index != originFileLen) {
@@ -613,7 +620,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           singleMapIdShuffleBlockList.add(blockInfo);
 
           index += batchHeaderLen + compressedSize;
-          paddingBuf.clear();
           readBufferBySize(paddingBuf, compressedSize);
         }
 
@@ -737,10 +743,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private void readBufferBySize(ByteBuffer buffer, int toRead) throws IOException {
       if (isHdfs) {
-        // HDFS don't need warmup
+        // HDFS does not need to warm up.
         hdfsOriginInput.seek(toRead + hdfsOriginInput.getPos());
-      } else {
+      } else if (reservedMemoryEnabled) {
+        buffer.clear();
         readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
+      } else {
+        originFileChannel.position(toRead + originFileChannel.position());
       }
     }
   }
@@ -761,47 +770,44 @@ class PartitionFilesCleaner {
       new LinkedBlockingQueue<>();
   private final Lock lock = new ReentrantLock();
   private final Condition notEmpty = lock.newCondition();
-  private final Thread cleaner;
+  private final ExecutorService cleaner =
+      ThreadUtils.newDaemonSingleThreadExecutor("worker-partition-file-cleaner");
 
   PartitionFilesCleaner(PartitionFilesSorter partitionFilesSorter) {
-    cleaner =
-        new Thread(
-            () -> {
+    cleaner.submit(
+        () -> {
+          try {
+            while (!partitionFilesSorter.isShutdown()) {
+              lock.lockInterruptibly();
               try {
-                while (!partitionFilesSorter.isShutdown()) {
-                  lock.lockInterruptibly();
+                // CELEBORN-1210: use while instead of if in case of spurious wakeup.
+                while (fileSorters.isEmpty()) {
+                  notEmpty.await();
+                }
+                Iterator<PartitionFilesSorter.FileSorter> it = fileSorters.iterator();
+                while (it.hasNext()) {
+                  PartitionFilesSorter.FileSorter sorter = it.next();
                   try {
-                    // CELEBORN-1210: use while instead of if in case of spurious wakeup.
-                    while (fileSorters.isEmpty()) {
-                      notEmpty.await();
+                    if (((DiskFileInfo) sorter.getOriginFileInfo()).isStreamsEmpty()) {
+                      logger.debug(
+                          "Deleting the original files for shuffle key {}: {}",
+                          sorter.getShuffleKey(),
+                          ((DiskFileInfo) sorter.getOriginFileInfo()).getFilePath());
+                      sorter.deleteOriginFiles();
+                      it.remove();
                     }
-                    Iterator<PartitionFilesSorter.FileSorter> it = fileSorters.iterator();
-                    while (it.hasNext()) {
-                      PartitionFilesSorter.FileSorter sorter = it.next();
-                      try {
-                        if (((DiskFileInfo) sorter.getOriginFileInfo()).isStreamsEmpty()) {
-                          logger.debug(
-                              "Deleting the original files for shuffle key {}: {}",
-                              sorter.getShuffleKey(),
-                              ((DiskFileInfo) sorter.getOriginFileInfo()).getFilePath());
-                          sorter.deleteOriginFiles();
-                          it.remove();
-                        }
-                      } catch (IOException e) {
-                        logger.error("catch IOException when delete origin files", e);
-                      }
-                    }
-                  } finally {
-                    lock.unlock();
+                  } catch (IOException e) {
+                    logger.error("catch IOException when delete origin files", e);
                   }
                 }
-              } catch (InterruptedException e) {
-                logger.warn("partition file cleaner thread interrupted while wait new sorter.", e);
+              } finally {
+                lock.unlock();
               }
-            });
-    cleaner.setName("partition-files-cleaner");
-    cleaner.setDaemon(true);
-    cleaner.start();
+            }
+          } catch (InterruptedException e) {
+            logger.warn("Partition file cleaner thread interrupted while waiting new sorter.", e);
+          }
+        });
   }
 
   public void add(PartitionFilesSorter.FileSorter fileSorter) throws InterruptedException {
@@ -825,6 +831,6 @@ class PartitionFilesCleaner {
 
   public void close() {
     fileSorters.clear();
-    cleaner.interrupt();
+    cleaner.shutdownNow();
   }
 }

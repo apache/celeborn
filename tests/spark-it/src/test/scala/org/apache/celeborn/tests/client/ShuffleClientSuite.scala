@@ -26,28 +26,31 @@ import org.apache.celeborn.service.deploy.MiniClusterFeature
 class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature {
   private val masterPort = 19097
 
-  celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
+  celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> masterPort.toString)
-    val workerConf = Map(
-      "celeborn.master.endpoints" -> s"localhost:$masterPort")
-    setUpMiniCluster(masterConf, workerConf)
+    val (master, _) = setupMiniClusterWithRandomPorts()
+    celebornConf.set(
+      CelebornConf.MASTER_ENDPOINTS.key,
+      master.conf.get(CelebornConf.MASTER_ENDPOINTS.key))
+    celebornConf.set(
+      CelebornConf.MASTER_PORT.key,
+      master.conf.get(CelebornConf.MASTER_PORT.key))
   }
 
   test("test register when master not available") {
-    val celebornConf: CelebornConf = new CelebornConf()
-    celebornConf.set(CelebornConf.MASTER_ENDPOINTS.key, "localhost:19098")
-    celebornConf.set(CelebornConf.MASTER_CLIENT_MAX_RETRIES.key, "0")
+    val newCelebornConf: CelebornConf = new CelebornConf()
+    newCelebornConf.set(
+      CelebornConf.MASTER_ENDPOINTS.key,
+      s"localhost:${celebornConf.get(CelebornConf.MASTER_PORT) + 1}")
+    newCelebornConf.set(CelebornConf.MASTER_CLIENT_MAX_RETRIES.key, "0")
 
-    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, newCelebornConf)
     val shuffleClient: ShuffleClientImpl = {
-      val client = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
+      val client = new ShuffleClientImpl(APP, newCelebornConf, userIdentifier)
       client.setupLifecycleManagerRef(lifecycleManager.self)
       client
     }

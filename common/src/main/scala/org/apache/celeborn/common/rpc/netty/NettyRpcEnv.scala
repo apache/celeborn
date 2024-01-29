@@ -24,19 +24,19 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.annotation.Nullable
 
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
 import scala.util.{DynamicVariable, Failure, Success}
 import scala.util.control.NonFatal
 
-import com.google.common.base.Throwables
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.network.buffer.NioManagedBuffer
 import org.apache.celeborn.common.network.client._
-import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcFailure => NRpcFailure, RpcRequest}
+import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcRequest}
+import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
+import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
 import org.apache.celeborn.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.rpc._
@@ -48,6 +48,7 @@ class NettyRpcEnv(
     javaSerializerInstance: JavaSerializerInstance) extends RpcEnv(config) with Logging {
 
   val celebornConf = config.conf
+  val securityContext = config.securityContext
 
   private[celeborn] val transportConf = Utils.fromCelebornConf(
     celebornConf.clone,
@@ -61,15 +62,35 @@ class NettyRpcEnv(
   private val transportContext =
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
 
-  val clientFactory = transportContext.createClientFactory()
+  private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
+    val bootstrapOpt = securityContext.flatMap(_.clientSaslContext.map { clientSaslContext =>
+      if (clientSaslContext.addRegistrationBootstrap) {
+        logInfo("Add registration client bootstrap")
+        new RegistrationClientBootstrap(
+          transportConf,
+          clientSaslContext.appId,
+          clientSaslContext.saslCredentials,
+          clientSaslContext.registrationInfo)
+      } else {
+        logInfo("Add sasl client bootstrap")
+        new SaslClientBootstrap(
+          transportConf,
+          clientSaslContext.appId,
+          clientSaslContext.saslCredentials)
+      }
+    })
+    bootstrapOpt.toList.asJava
+  }
+
+  val clientFactory = transportContext.createClientFactory(createClientBootstraps())
 
   private val timeoutScheduler =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("netty-rpc-env-timeout")
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-netty-rpc-env-timeout-checker")
 
   // Because TransportClientFactory.createClient is blocking, we need to run it in this thread pool
   // to implement non-blocking send/ask.
   private[celeborn] val clientConnectionExecutor = ThreadUtils.newDaemonCachedThreadPool(
-    "netty-rpc-connection",
+    "celeborn-netty-rpc-connection-executor",
     celebornConf.rpcConnectThreads)
 
   @volatile private var server: TransportServer = _
@@ -92,8 +113,25 @@ class NettyRpcEnv(
     }
   }
 
+  private def createServerBootstraps(): java.util.List[TransportServerBootstrap] = {
+    val bootstrapOpt = securityContext.flatMap(_.serverSaslContext.map { serverSaslContext =>
+      if (serverSaslContext.addRegistrationBootstrap) {
+        logInfo("Add registration server bootstrap")
+        new RegistrationServerBootstrap(
+          transportConf,
+          serverSaslContext.secretRegistry)
+      } else {
+        logInfo("Add sasl server bootstrap")
+        new SaslServerBootstrap(
+          transportConf,
+          serverSaslContext.secretRegistry)
+      }
+    })
+    bootstrapOpt.toList.asJava
+  }
+
   def startServer(bindAddress: String, port: Int): Unit = {
-    server = transportContext.createServer(bindAddress, port)
+    server = transportContext.createServer(bindAddress, port, createServerBootstraps())
     dispatcher.registerRpcEndpoint(
       RpcEndpointVerifier.NAME,
       new RpcEndpointVerifier(this, dispatcher))

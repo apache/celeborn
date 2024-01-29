@@ -543,7 +543,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
-  def workerResourceConsumptionInterval: Long = get(WORKER_RESOURCE_CONSUMPTION_INTERVAL)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -684,13 +683,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
-  def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
-  def partitionSorterReservedMemoryPerPartition: Long =
-    get(WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
-  def partitionSorterThreads: Int =
-    get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
-  def partitionSorterIndexCacheMaxWeight: Long = get(PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT)
-  def partitionSorterIndexExpire: Long = get(PARTITION_SORTER_INDEX_CACHE_EXPIRE)
+  def workerPartitionSorterSortPartitionTimeout: Long = get(WORKER_PARTITION_SORTER_SORT_TIMEOUT)
+  def workerPartitionSorterReservedMemoryEnabled: Boolean =
+    get(WORKER_PARTITION_SORTER_RESERVED_MEMORY_ENABLED)
+  def workerPartitionSorterReservedMemoryPerPartition: Long =
+    get(WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION)
+  def workerPartitionSorterThreads: Int =
+    get(WORKER_PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
+  def workerPartitionSorterIndexCacheMaxWeight: Long =
+    get(WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT)
+  def workerPartitionSorterIndexExpire: Long = get(WORKER_PARTITION_SORTER_INDEX_CACHE_EXPIRE)
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
@@ -1043,8 +1045,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioToPauseReplicate: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE)
   def workerDirectMemoryRatioToResume: Double = get(WORKER_DIRECT_MEMORY_RATIO_RESUME)
-  def partitionSorterDirectMemoryRatioThreshold: Double =
-    get(PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
+  def workerPartitionSorterDirectMemoryRatioThreshold: Double =
+    get(WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
   def workerDirectMemoryTrimChannelWaitInterval: Long =
@@ -1110,6 +1112,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def hdfsStorageKerberosPrincipal = get(HDFS_STORAGE_KERBEROS_PRINCIPAL)
   def hdfsStorageKerberosKeytab = get(HDFS_STORAGE_KERBEROS_KEYTAB)
+
+  // //////////////////////////////////////////////////////
+  //               Authentication                        //
+  // //////////////////////////////////////////////////////
+  def authEnabled: Boolean = get(AUTH_ENABLED)
 }
 
 object CelebornConf extends Logging {
@@ -1695,7 +1702,12 @@ object CelebornConf extends Logging {
         s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
         s"it works for shuffle client push and fetch data. " +
         s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
-        s"it works for replicate client of worker replicating data to peer worker.")
+        s"it works for replicate client of worker replicating data to peer worker." +
+        "If you are using the \"celeborn.client.heartbeat.interval\", " +
+        "please use the new configs for each module according to your needs or " +
+        "replace it with \"celeborn.rpc.heartbeat.interval\", " +
+        "\"celeborn.data.heartbeat.interval\" and" +
+        "\"celeborn.replicate.heartbeat.interval\". ")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
@@ -2176,14 +2188,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val WORKER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.userResourceConsumption.update.interval")
-      .categories("worker")
-      .doc("Time length for a window about compute user resource consumption.")
-      .version("0.3.2")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
-
   val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chunk.size")
       .categories("worker")
@@ -2485,7 +2489,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
-  val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
+  val WORKER_PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.timeout")
       .withAlternative("celeborn.worker.partitionSorter.sort.timeout")
       .categories("worker")
@@ -2494,7 +2498,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("220s")
 
-  val PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
+  val WORKER_PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.worker.sortPartition.threads")
       .withAlternative("celeborn.worker.partitionSorter.threads")
       .categories("worker")
@@ -2504,7 +2508,7 @@ object CelebornConf extends Logging {
       .intConf
       .createOptional
 
-  val PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT: ConfigEntry[Long] =
+  val WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.indexCache.maxWeight")
       .categories("worker")
       .doc("PartitionSorter's cache max weight for index buffer.")
@@ -2512,7 +2516,7 @@ object CelebornConf extends Logging {
       .longConf
       .createWithDefault(100000)
 
-  val PARTITION_SORTER_INDEX_CACHE_EXPIRE: ConfigEntry[Long] =
+  val WORKER_PARTITION_SORTER_INDEX_CACHE_EXPIRE: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.indexCache.expire")
       .categories("worker")
       .doc("PartitionSorter's cache item expire time.")
@@ -2520,7 +2524,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
-  val WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY: ConfigEntry[Long] =
+  val WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.reservedMemoryPerPartition")
       .withAlternative("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
       .categories("worker")
@@ -2529,6 +2533,16 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .checkValue(v => v < Int.MaxValue, "Reserved memory per partition must be less than 2GB.")
       .createWithDefaultString("1mb")
+
+  val WORKER_PARTITION_SORTER_RESERVED_MEMORY_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.sortPartition.reservedMemory.enabled")
+      .categories("worker")
+      .doc(s"When true, partition sorter will reserve memory configured by `${WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION.key}` to allocate a block of memory for warming up " +
+        "while sorting a shuffle file off-heap with page cache for non-hdfs files." +
+        "Otherwise, partition sorter seeks to position of each block and does not warm up for non-hdfs files.")
+      .version("0.5.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")
@@ -2746,7 +2760,7 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
+  val WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
     buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
       .categories("worker")
       .doc("Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition " +
@@ -4359,4 +4373,12 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val AUTH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.auth.enabled")
+      .categories("auth")
+      .version("0.5.0")
+      .doc("Whether to enable authentication.")
+      .booleanConf
+      .createWithDefault(false)
 }

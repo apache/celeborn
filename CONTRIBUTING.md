@@ -8,6 +8,12 @@ This project uses check-style plugins. Run some checks before you create a new p
 dev/reformat
 ```
 
+Meanwhile, run some checks of web with changes of web module before you create a new pull request.
+
+```shell
+dev/reformat --web
+```
+
 If you have changed configuration, run following command to refresh docs.
 ```shell
 UPDATE=1 build/mvn clean test -pl common -am -Dtest=none -DwildcardSuites=org.apache.celeborn.ConfigurationSuite

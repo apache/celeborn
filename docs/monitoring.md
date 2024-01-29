@@ -127,6 +127,19 @@ These metrics are exposed by Celeborn master.
     - hdfsFileCount
     - hdfsBytesWritten
 
+  - namespace=ThreadPool
+    - **notes:**
+        - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
+    - active_thread_count
+    - pending_task_count
+    - pool_size
+    - core_pool_size
+    - maximum_pool_size
+    - largest_pool_size
+    - is_terminating
+    - is_terminated
+    - is_shutdown
+
 #### Worker
 These metrics are exposed by Celeborn worker.
 
@@ -143,13 +156,16 @@ These metrics are exposed by Celeborn worker.
         - The time for a worker to fetch a chunk which is 8MB by default from a reduced partition. 
     - ActiveChunkStreamCount
         - Active stream count for reduce partition reading streams.
+    - OpenStreamSuccessCount
     - OpenStreamFailCount
+    - FetchChunkSuccessCount
     - FetchChunkFailCount
     - PrimaryPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn client.
     - ReplicaPushDataTime
         - The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.
     - WriteDataHardSplitCount
+    - WriteDataSuccessCount
     - WriteDataFailCount
     - ReplicateDataFailCount
     - ReplicateDataWriteFailCount
@@ -284,6 +300,19 @@ These metrics are exposed by Celeborn worker.
     - diskBytesWritten
     - hdfsFileCount
     - hdfsBytesWritten
+
+  - namespace=ThreadPool
+    - **notes:**
+        - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
+    - active_thread_count
+    - pending_task_count
+    - pool_size
+    - core_pool_size
+    - maximum_pool_size
+    - largest_pool_size
+    - is_terminating
+    - is_terminated
+    - is_shutdown
 
 **Note:**
 

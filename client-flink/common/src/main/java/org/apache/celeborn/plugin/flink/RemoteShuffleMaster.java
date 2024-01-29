@@ -21,7 +21,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.BatchShuffleMode;
@@ -56,9 +56,9 @@ public class RemoteShuffleMaster implements ShuffleMaster<RemoteShuffleDescripto
   private volatile LifecycleManager lifecycleManager;
   private final ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
   private ShuffleResourceTracker shuffleResourceTracker;
-  private final ScheduledThreadPoolExecutor executor =
-      new ScheduledThreadPoolExecutor(
-          1, ThreadUtils.namedThreadFactory("remote-shuffle-master-executor"));
+  private final ScheduledExecutorService executor =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+          "celeborn-client-remote-shuffle-master-executor");
   private final ResultPartitionAdapter resultPartitionDelegation;
   private final long lifecycleManagerTimestamp;
 

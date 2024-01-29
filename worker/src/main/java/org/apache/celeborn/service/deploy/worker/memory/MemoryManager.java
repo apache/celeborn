@@ -52,13 +52,13 @@ public class MemoryManager {
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
 
   private final ScheduledExecutorService checkService =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-checker");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-memory-manager-checker");
 
   private final ScheduledExecutorService reportService =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-manager-reporter");
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-memory-manager-reporter");
 
   private final ExecutorService actionService =
-      ThreadUtils.newDaemonSingleThreadExecutor("memory-manager-actor");
+      ThreadUtils.newDaemonSingleThreadExecutor("worker-memory-manager-actor");
 
   private final AtomicBoolean trimInProcess = new AtomicBoolean(false);
 
@@ -82,7 +82,7 @@ public class MemoryManager {
   private long lastNotifiedTarget = 0;
   private final ScheduledExecutorService readBufferTargetUpdateService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
-          "memory-manager-read-buffer-target-updater");
+          "worker-memory-manager-read-buffer-target-updater");
   private CreditStreamManager creditStreamManager = null;
 
   private long memoryShuffleStorageThreshold = 0;
@@ -108,7 +108,7 @@ public class MemoryManager {
     double pausePushDataRatio = conf.workerDirectMemoryRatioToPauseReceive();
     double pauseReplicateRatio = conf.workerDirectMemoryRatioToPauseReplicate();
     double resumeRatio = conf.workerDirectMemoryRatioToResume();
-    double maxSortMemRatio = conf.partitionSorterDirectMemoryRatioThreshold();
+    double maxSortMemRatio = conf.workerPartitionSorterDirectMemoryRatioThreshold();
     double readBufferRatio = conf.workerDirectMemoryRatioForReadBuffer();
     double shuffleStorageRatio = conf.workerDirectMemoryRatioForShuffleStorage();
     long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();

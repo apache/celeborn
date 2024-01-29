@@ -16,17 +16,8 @@
  */
 
 export default {
-  path: '/home',
-  name: 'home',
-  meta: { title: 'Home' },
-  redirect: { name: 'overview' },
-  sub: false,
-  children: [
-    {
-      path: '/overview',
-      name: 'overview',
-      meta: { title: 'overview' },
-      component: () => import('@/views/OverView.vue')
-    },
-  ]
+  path: '/overview',
+  name: 'overview',
+  meta: { title: 'Overview' },
+  component: () => import('@/views/overview/index.vue')
 }
