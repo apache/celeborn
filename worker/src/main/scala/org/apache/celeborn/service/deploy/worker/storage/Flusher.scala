@@ -31,7 +31,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.protocol.StorageInfo
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
@@ -76,14 +76,18 @@ abstract private[worker] class Flusher(
                     flushTimeMetric.update(delta)
                   }
                 } catch {
-                  case _: ClosedByInterruptException =>
-                  case e: IOException =>
-                    task.notifier.setException(e)
-                    processIOException(e, DiskStatus.READ_OR_WRITE_FAILURE)
+                  case t: Throwable =>
+                    if (t.isInstanceOf[IOException]) {
+                      task.notifier.setException(t.asInstanceOf[IOException])
+                      processIOException(
+                        t.asInstanceOf[IOException],
+                        DiskStatus.READ_OR_WRITE_FAILURE)
+                    }
+                    logWarning(s"Flusher-${this}-thread-${index} encounter exception.", t)
                 }
                 lastBeginFlushTime.set(index, -1)
               }
-              returnBuffer(task.buffer)
+              Utils.tryLogNonFatalError(returnBuffer(task.buffer))
               task.notifier.numPendingFlushes.decrementAndGet()
             }
           }
