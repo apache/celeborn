@@ -215,7 +215,7 @@ MIT licenses
    vue 3.4.15: https://www.npmjs.com/package/vue/v/3.4.15 MIT
    vue-router 4.2.5: https://www.npmjs.com/package/vue-router/v/4.2.5 MIT
    @rushstack/eslint-patch 1.7.2: https://www.npmjs.com/package/@rushstack/eslint-patch/v/1.7.2 MIT
-   @tsconfig/node18 18.2.2: https://www.npmjs.com/package/@tsconfig/node18/v/18.2.2 MIT
+   @tsconfig/node20 20.1.2: https://www.npmjs.com/package/@tsconfig/node20/v/20.1.2 MIT
    @types/node 20.11.9 https://www.npmjs.com/package/@types/node/v/20.11.9 MIT
    @varlet/axle 0.6.0 https://www.npmjs.com/package/@varlet/axle/v/0.6.0 MIT
    @vitejs/plugin-vue 5.0.3 https://www.npmjs.com/package/@vitejs/plugin-vue/v/5.0.3 MIT
