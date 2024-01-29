@@ -5,6 +5,8 @@ Celeborn Web is a dashboard to display and manage the Master and Worker of Celeb
 > **⚠️ Important**
 >
 > Before running commands, you must ensure that you are in the front-end directory `incubator-celeborn/web`. If not, run `cd web` first.
+> 
+> If you need to upgrade the package, please make sure your version of the node and @tsconfig/node{version} consistent, please see https://github.com/tsconfig/bases for details
 
 ---
 
