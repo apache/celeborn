@@ -247,7 +247,7 @@ org.scala-lang:scala-library
 
 BSD
 ------------
-See license/LICENSE-protobuf.txt for details.
+See licenses/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
 See license/LICENSE-zstd-jni.txt for details.
 com.github.luben:zstd-jni

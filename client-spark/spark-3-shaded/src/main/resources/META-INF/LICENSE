@@ -244,5 +244,5 @@ org.roaringbitmap:RoaringBitmap
 
 BSD 3-clause
 ------------
-See license/LICENSE-protobuf.txt for details.
+See licenses/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
