@@ -32,7 +32,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.reflect.ClassTag
-import scala.util.Try
+import scala.util.{Random => ScalaRandom, Try}
 import scala.util.control.{ControlThrowable, NonFatal}
 
 import com.google.protobuf.{ByteString, GeneratedMessageV3}
@@ -241,6 +241,10 @@ object Utils extends Logging {
       case e: ControlThrowable => throw e
       case t: Throwable => throw t
     }
+  }
+
+  def selectRandomPort(from: Int, to: Int): Int = {
+    ScalaRandom.nextInt(to - from) + from
   }
 
   def startServiceOnPort[T](

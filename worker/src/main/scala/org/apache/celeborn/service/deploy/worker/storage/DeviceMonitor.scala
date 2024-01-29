@@ -208,7 +208,7 @@ object DeviceMonitor extends Logging {
       workerSource: AbstractSource): DeviceMonitor = {
     try {
       if (conf.workerDiskMonitorEnabled) {
-        deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("device-check-thread", 5)
+        deviceCheckThreadPool = ThreadUtils.newDaemonCachedThreadPool("worker-device-checker", 5)
         val monitor =
           new LocalDeviceMonitor(conf, deviceObserver, deviceInfos, diskInfos, workerSource)
         monitor.init()

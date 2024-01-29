@@ -48,7 +48,9 @@ class CelebornFetchFailureSuite extends AnyFunSuite
 
   override def createWorker(map: Map[String, String]): Worker = {
     val storageDir = createTmpDir()
-    workerDirs = workerDirs :+ storageDir
+    this.synchronized {
+      workerDirs = workerDirs :+ storageDir
+    }
     super.createWorker(map, storageDir)
   }
 
@@ -75,14 +77,15 @@ class CelebornFetchFailureSuite extends AnyFunSuite
               h.userIdentifier,
               h.extension)
             val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
-            val datafile =
-              workerDirs.map(dir => {
-                new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
-              }).filter(_.exists())
-                .flatMap(_.listFiles().iterator).headOption
+            val allFiles = workerDirs.map(dir => {
+              new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
+            })
+            val datafile = allFiles.filter(_.exists())
+              .flatMap(_.listFiles().iterator).headOption
             datafile match {
               case Some(file) => file.delete()
-              case None => throw new RuntimeException("unexpected, there must be some data file")
+              case None => throw new RuntimeException("unexpected, there must be some data file" +
+                  s" under ${workerDirs.mkString(",")}")
             }
           }
           case _ => throw new RuntimeException("unexpected, only support RssShuffleHandle here")

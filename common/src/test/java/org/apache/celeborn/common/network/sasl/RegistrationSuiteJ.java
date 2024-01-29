@@ -56,7 +56,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
     // The SecretRegistryImpl already has the entry for TEST_USER so re-registering the app should
     // fail.
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, SecretRegistryImpl.getInstance());
+        new RegistrationServerBootstrap(conf, secretRegistry);
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
             conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());

@@ -44,7 +44,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     // enabled, there is a possibility that two workers might be added to the excluded list due to
     // primary/replica timeout issues, then there are not enough workers to do replication if
     // available workers number = 1
-    setUpMiniCluster(masterConf = null, workerConf = workerConf, workerNum = 4)
+    setupMiniClusterWithRandomPorts(workerConf = workerConf, workerNum = 4)
   }
 
   override def beforeEach(): Unit = {

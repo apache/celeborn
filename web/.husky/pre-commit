@@ -1,4 +1,3 @@
-#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,18 +15,8 @@
 # limitations under the License.
 #
 
-set -x
+#!/usr/bin/env sh
 
-PROJECT_DIR="$(cd "`dirname "$0"`/.."; pwd)"
+. "$(dirname -- "$0")/_/husky.sh"
 
-if [ "$1" == "--web" ]; then
-  ${PROJECT_DIR}/build/mvn clean install -pl web
-else
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.14
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.15
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.17
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.18
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-2.4
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.3
-  ${PROJECT_DIR}/build/mvn spotless:apply -Pmr
-fi
+cd web && pnpm run lint:lint-staged
