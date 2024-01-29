@@ -35,22 +35,22 @@ class UserIdentifierSuite extends CelebornFunSuite {
 
   test("test UserIdentifier serde") {
     val userIdentifier = UserIdentifier("aa", "bb")
-    val userIdentifierStr = "`aa`.`bb`"
+    val userIdentifierStr = "User(`aa`.`bb`)"
     assert(userIdentifier.toString.equals(userIdentifierStr))
     assert(UserIdentifier(userIdentifierStr) == userIdentifier)
   }
 
   test("Both UserIdentifier's tenantId and name should contains ``") {
     val e1 = intercept[CelebornException] {
-      UserIdentifier("aa.bb")
+      UserIdentifier("User(aa.bb)")
     }.getMessage
     assert(e1.contains("Failed to parse user identifier: aa.bb"))
     val e2 = intercept[CelebornException] {
-      UserIdentifier("`aa`.bb")
+      UserIdentifier("User(`aa`.bb)")
     }.getMessage
     assert(e2.contains("Failed to parse user identifier: `aa`.bb"))
     val e3 = intercept[CelebornException] {
-      UserIdentifier("aa.`bb`")
+      UserIdentifier("User(aa.`bb`)")
     }.getMessage
     assert(e3.contains("Failed to parse user identifier: aa.`bb`"))
   }
