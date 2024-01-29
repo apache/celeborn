@@ -304,5 +304,5 @@ See licenses/LICENSE-slf4j.txt for details.
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
 ------------
-See license/LICENSE-javassist.txt for detail.
+See licenses/LICENSE-javassist.txt for detail.
 org.javassist:javassist
