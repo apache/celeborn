@@ -17,20 +17,27 @@
 
 package org.apache.celeborn.service.deploy.master.network
 
+import java.io.File
+import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 import com.google.common.base.Strings
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic
-import org.apache.hadoop.net.{CachedDNSToSwitchMapping, DNSToSwitchMapping, NetworkTopology, Node, NodeBase, ScriptBasedMapping}
+import org.apache.hadoop.net.{CachedDNSToSwitchMapping, DNSToSwitchMapping, NetworkTopology, Node, NodeBase, ScriptBasedMapping, TableMapping}
 import org.apache.hadoop.util.ReflectionUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.CelebornHadoopUtils
+import org.apache.celeborn.common.util.{CelebornHadoopUtils, ThreadUtils}
 
 class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
+
+  private var rackResolveRefreshThreadPool: ScheduledExecutorService = _
+
+  private var rackResolveLastModifiedTime = 0L
 
   private val dnsToSwitchMapping: DNSToSwitchMapping = {
     val conf: Configuration = CelebornHadoopUtils.newConfiguration(celebornConf)
@@ -39,10 +46,59 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
         CommonConfigurationKeysPublic.NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
         classOf[ScriptBasedMapping],
         classOf[DNSToSwitchMapping])
-    ReflectionUtils.newInstance(dnsToSwitchMappingClass, conf)
-      .asInstanceOf[DNSToSwitchMapping] match {
+    val switchMapping = ReflectionUtils.newInstance(dnsToSwitchMappingClass, conf)
+      .asInstanceOf[DNSToSwitchMapping]
+    val mapping = switchMapping match {
       case c: CachedDNSToSwitchMapping => c
       case o => new CachedDNSToSwitchMapping(o)
+    }
+    val refreshInterval = celebornConf.rackResolverRefreshInterval
+    rackResolveRefreshThreadPool =
+      ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-rack-resolver-refresher")
+    val fileName = switchMapping match {
+      case _: ScriptBasedMapping =>
+        conf.get(CommonConfigurationKeysPublic.NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY)
+      case _: TableMapping =>
+        conf.get(CommonConfigurationKeysPublic.NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY)
+      case _ => null
+    }
+    if (fileName != null) {
+      var scriptFile = new File(fileName)
+      rackResolveLastModifiedTime = scriptFile.lastModified()
+      rackResolveRefreshThreadPool.scheduleWithFixedDelay(
+        new Runnable {
+          override def run(): Unit = {
+            scriptFile = new File(fileName)
+            if (scriptFile.canRead) {
+              val currentLastModifiedTime = scriptFile.lastModified()
+              if (currentLastModifiedTime != rackResolveLastModifiedTime) {
+                rackResolveLastModifiedTime = currentLastModifiedTime
+                mapping.reloadCachedMappings()
+              }
+            } else {
+              logWarning(s"Script file $fileName is not readable, reload cache directly")
+              mapping.reloadCachedMappings()
+            }
+          }
+        },
+        refreshInterval,
+        refreshInterval,
+        TimeUnit.MILLISECONDS)
+    } else {
+      rackResolveRefreshThreadPool.scheduleWithFixedDelay(
+        new Runnable {
+          override def run(): Unit = mapping.reloadCachedMappings()
+        },
+        refreshInterval,
+        refreshInterval,
+        TimeUnit.MILLISECONDS)
+    }
+    mapping
+  }
+
+  def stop(): Unit = {
+    if (null != rackResolveRefreshThreadPool) {
+      rackResolveRefreshThreadPool.shutdownNow()
     }
   }
 

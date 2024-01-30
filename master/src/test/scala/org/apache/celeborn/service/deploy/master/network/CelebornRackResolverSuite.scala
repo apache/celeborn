@@ -20,8 +20,10 @@ package org.apache.celeborn.service.deploy.master.network
 import java.io.{File, FileWriter}
 import java.nio.charset.StandardCharsets
 import java.util
+import java.util.concurrent.TimeUnit
 
 import com.google.common.io.Files
+import com.google.common.util.concurrent.Uninterruptibles
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY}
 import org.apache.hadoop.net.{Node, TableMapping}
 import org.junit.Assert.assertEquals
@@ -104,5 +106,39 @@ class CelebornRackResolverSuite extends AnyFunSuite {
 
     // check both side don't have rack info
     assertEquals(true, resolver.isOnSameRack(hostName5, hostName6))
+  }
+
+  test("test TableMapping refresh") {
+    val hostName1 = "1.2.3.4"
+    val hostName2 = "1.2.3.5"
+    val hostName3 = "1.2.3.6"
+    val mapFile: File = File.createTempFile(getClass.getSimpleName + ".testResolve2", ".txt")
+    Files.asCharSink(mapFile, StandardCharsets.UTF_8).write(
+      s"""
+         |$hostName1 /default/rack1
+         |$hostName2 /default/rack1
+         |""".stripMargin)
+    val conf = new CelebornConf()
+    conf.set(
+      "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
+      classOf[TableMapping].getName)
+    conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath)
+    conf.set(CelebornConf.RACKRESOLVER_REFRESH_INTERVAL.key, "50")
+    val resolver = new CelebornRackResolver(conf)
+    assertEquals("/default/rack1", resolver.resolve(hostName1).getNetworkLocation)
+    assertEquals("/default/rack1", resolver.resolve(hostName2).getNetworkLocation)
+    assertEquals(true, resolver.isOnSameRack(hostName1, hostName2))
+
+    Files.asCharSink(mapFile, StandardCharsets.UTF_8).write(
+      s"""
+         |$hostName1 /default/rack1
+         |$hostName2 /default/rack2
+         |$hostName3 /default/rack1
+         |""".stripMargin)
+
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS)
+    assertEquals("/default/rack1", resolver.resolve(hostName3).getNetworkLocation)
+    assertEquals(false, resolver.isOnSameRack(hostName1, hostName2))
+    assertEquals(true, resolver.isOnSameRack(hostName1, hostName3))
   }
 }
