@@ -208,7 +208,9 @@ This project bundles the following dependencies under the Apache License 2.0 (ht
 Apache License 2.0
 --------------------------------------
 
-org.apache.commons:commons-lang3
+com.google.guava:failureaccess
+com.google.guava:guava
+io.netty:netty
 io.netty:netty-all
 io.netty:netty-buffer
 io.netty:netty-codec
@@ -225,26 +227,27 @@ io.netty:netty-codec-stomp
 io.netty:netty-codec-xml
 io.netty:netty-common
 io.netty:netty-handler
-io.netty:netty-transport-native-unix-common
 io.netty:netty-handler-proxy
 io.netty:netty-resolver
 io.netty:netty-resolver-dns
 io.netty:netty-transport
-io.netty:netty-transport-rxtx
-io.netty:netty-transport-sctp
-io.netty:netty-transport-udt
 io.netty:netty-transport-classes-epoll
 io.netty:netty-transport-classes-kqueue
 io.netty:netty-transport-native-epoll
 io.netty:netty-transport-native-kqueue
-com.google.guava:guava
-org.roaringbitmap:RoaringBitmap
+io.netty:netty-transport-native-unix-common
+io.netty:netty-transport-rxtx
+io.netty:netty-transport-sctp
+io.netty:netty-transport-udt
+org.apache.commons:commons-lang3
 org.lz4:lz4-java
-io.netty:netty
+org.roaringbitmap:RoaringBitmap
 org.scala-lang:scala-library
 
 
-BSD 3-clause
+BSD
 ------------
-See license/LICENSE-protobuf.txt for details.
+See licenses/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
+See licenses/LICENSE-zstd-jni.txt for details.
+com.github.luben:zstd-jni

@@ -203,8 +203,14 @@
 ------------------------------------------------------------------------------------
 This project bundles the following dependencies under the Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt):
 
+com.fasterxml.jackson.core:jackson-annotations
+com.fasterxml.jackson.core:jackson-core
+com.fasterxml.jackson.core:jackson-databind
+com.fasterxml.jackson.module:jackson-module-scala
 com.google.code.findbugs:jsr305
+com.google.guava:failureaccess
 com.google.guava:guava
+com.thoughtworks.paranamer:paranamer
 commons-cli:commons-cli
 commons-io:commons-io
 commons-logging:commons-logging
@@ -243,20 +249,8 @@ io.netty:netty-transport-sctp
 io.netty:netty-transport-udt
 org.apache.commons:commons-crypto
 org.apache.commons:commons-lang3
-org.apache.hadoop:hadoop-auth
-org.apache.hadoop:hadoop-client
 org.apache.hadoop:hadoop-client-api
 org.apache.hadoop:hadoop-client-runtime
-org.apache.hadoop:hadoop-common
-org.apache.hadoop:hadoop-hdfs-client
-org.apache.hadoop:hadoop-mapreduce-client-app
-org.apache.hadoop:hadoop-mapreduce-client-common
-org.apache.hadoop:hadoop-mapreduce-client-core
-org.apache.hadoop:hadoop-mapreduce-client-jobclient
-org.apache.hadoop:hadoop-mapreduce-client-shuffle
-org.apache.hadoop:hadoop-yarn-api
-org.apache.hadoop:hadoop-yarn-common
-org.apache.htrace:htrace-core4
 org.apache.logging.log4j:log4j-1.2-api
 org.apache.logging.log4j:log4j-api
 org.apache.logging.log4j:log4j-core
@@ -275,17 +269,12 @@ org.javassist:javassist
 org.reflections:reflections
 org.roaringbitmap:RoaringBitmap
 org.roaringbitmap:shims
+org.rocksdb:rocksdbjni
 org.scala-lang:scala-library
 org.scala-lang:scala-reflect
 org.slf4j:jcl-over-slf4j
+org.xerial.snappy:snappy-java
 org.yaml:snakeyaml
-org.rocksdb:rocksdbjni
-com.fasterxml.jackson.module:jackson-module-scala
-com.fasterxml.jackson.core:jackson-databind
-com.fasterxml.jackson.core:jackson-annotations
-com.fasterxml.jackson.core:jackson-core
-com.thoughtworks.paranamer:paranamer
-
 
 ------------------------------------------------------------------------------------
 This product bundles various third-party components under other open source licenses.
@@ -295,25 +284,25 @@ for text of these licenses.
 
 BSD 3-clause
 ------------
-See license/LICENSE-protobuf.txt for details.
+See licenses/LICENSE-protobuf.txt for details.
 com.google.protobuf:protobuf-java
-See license/LICENSE-leveldbjni.txt for details.
+See licenses/LICENSE-leveldbjni.txt for details.
 org.fusesource.leveldbjni:leveldbjni-all
 
 
 Common Development and Distribution License (CDDL) 1.0
 ------------
-See license/LICENSE-CDDL.txt for details.
+See licenses/LICENSE-CDDL.txt for details.
 javax.servlet:javax.servlet-api
 
 
 MIT License
 ------------
-See license/LISENCE-jdktools.txt for details.
+See licenses/LICENSE-jdktools.txt for details.
 com.github.olivergondza:maven-jdk-tools-wrapper
-See license/LICENSE-slf4j.txt for details.
+See licenses/LICENSE-slf4j.txt for details.
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
 ------------
-See license/LICENSE-javassist.txt for detail.
+See licenses/LICENSE-javassist.txt for detail.
 org.javassist:javassist
