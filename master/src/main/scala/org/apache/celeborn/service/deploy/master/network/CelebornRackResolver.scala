@@ -85,7 +85,7 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
         refreshInterval,
         TimeUnit.MILLISECONDS)
     } else {
-      rackResolveRefreshThreadPool.schedule(
+      rackResolveRefreshThreadPool.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = mapping.reloadCachedMappings()
         },
