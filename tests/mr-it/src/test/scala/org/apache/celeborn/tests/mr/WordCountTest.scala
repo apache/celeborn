@@ -77,6 +77,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       classOf[Service])
 
     yarnCluster = new MiniYARNCluster("MiniClusterWordCount", 1, 1, 1)
+    logInfo(s"Test working dir ${yarnCluster.getTestWorkDir.getAbsolutePath}")
     yarnCluster.init(hadoopConf)
     yarnCluster.start()
   }
@@ -142,12 +143,17 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
           (Utils.getCodeSourceLocation(getClass).split("/").dropRight(1) ++ Array(
             "mapreduce_lib")).mkString("/")
         val excludeJarList =
-          Seq("hadoop-client-api", "hadoop-client-runtime", "hadoop-client-minicluster")
+          Seq(
+            "hadoop-client-api",
+            "hadoop-client-runtime",
+            "hadoop-client-minicluster",
+            "celeborn-client-mr-shaded")
         Files.list(Paths.get(mapreduceLibPath)).iterator().asScala.foreach(path => {
           if (!excludeJarList.exists(path.toFile.getPath.contains(_))) {
             job.addFileToClassPath(new Path(path.toString))
           }
         })
+        logInfo(s"Job class path ${job.getFileClassPaths.map(_.toString).mkString(",")}")
 
         exitCode = job.waitForCompletion(true)
         if (exitCode) {
