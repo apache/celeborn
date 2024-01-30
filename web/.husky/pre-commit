@@ -17,7 +17,7 @@
 
 #!/usr/bin/env sh
 
-# When Web UI does not install dependencies, no git commit check is performed.
+# Git commit does check when web module does not install dependencies.
 if [ ! -d web/node_modules ]; then
   exit 0
 fi
