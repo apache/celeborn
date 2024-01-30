@@ -65,7 +65,7 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
     if (fileName != null) {
       var scriptFile = new File(fileName)
       rackResolveLastModifiedTime = scriptFile.lastModified()
-      rackResolveRefreshThreadPool.schedule(
+      rackResolveRefreshThreadPool.scheduleWithFixedDelay(
         new Runnable {
           override def run(): Unit = {
             scriptFile = new File(fileName)
@@ -81,6 +81,7 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
             }
           }
         },
+        refreshInterval,
         refreshInterval,
         TimeUnit.MILLISECONDS)
     } else {
