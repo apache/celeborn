@@ -1117,6 +1117,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Authentication                        //
   // //////////////////////////////////////////////////////
   def authEnabled: Boolean = get(AUTH_ENABLED)
+
+  // //////////////////////////////////////////////////////
+  //                     Internal Port                   //
+  // //////////////////////////////////////////////////////
+  def internalPortEnabled: Boolean = get(INTERNAL_PORT_ENABLED)
+
+  def haMasterNodeInternalPort(nodeId: String): Int = {
+    val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)
+    val legacyKey = HA_MASTER_NODE_INTERNAL_PORT.alternatives.head._1.replace("<id>", nodeId)
+    getInt(key, getInt(legacyKey, HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get))
+  }
+
+  def masterInternalPort: Int = get(MASTER_INTERNAL_PORT)
 }
 
 object CelebornConf extends Logging {
@@ -4381,4 +4394,36 @@ object CelebornConf extends Logging {
       .doc("Whether to enable authentication.")
       .booleanConf
       .createWithDefault(false)
+
+  val INTERNAL_PORT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.internal.port.enabled")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("Whether to create a internal port on Masters/Workers for " +
+        "inter-Masters/Workers communication. This is beneficial when SASL authentication " +
+        "is enforced for all interactions between clients and Celeborn Services, but the services " +
+        "can exchange messages without being subject to SASL authentication.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_INTERNAL_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.internal.port")
+      .categories("master")
+      .version("0.5.0")
+      .doc(
+        "Internal port on the master where both workers and other master nodes connect.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(8097)
+
+  val HA_MASTER_NODE_INTERNAL_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.ha.node.<id>.internal.port")
+      .categories("ha")
+      .doc(
+        "Internal port for the workers and other masters to bind to a master node <id> in HA mode.")
+      .version("0.5.0")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(8097)
+
 }

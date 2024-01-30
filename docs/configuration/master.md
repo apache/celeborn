@@ -21,6 +21,7 @@ license: |
 | --- | ------- | ----------- | ----- | ---------- |
 | celeborn.dynamicConfig.refresh.interval | 120s | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 
 | celeborn.dynamicConfig.store.backend | NONE | Store backend for dynamic config. Available options: NONE, FS. Note: NONE means disabling dynamic config store. | 0.4.0 |  | 
+| celeborn.internal.port.enabled | false | Whether to create a internal port on Masters/Workers for inter-Masters/Workers communication. This is beneficial when SASL authentication is enforced for all interactions between clients and Celeborn Services, but the services can exchange messages without being subject to SASL authentication. | 0.5.0 |  | 
 | celeborn.master.estimatedPartitionSize.initialSize | 64mb | Initial partition size for estimation, it will change according to runtime stats. | 0.3.0 | celeborn.shuffle.initialEstimatedPartitionSize | 
 | celeborn.master.estimatedPartitionSize.update.initialDelay | 5min | Initial delay time before start updating partition size for estimation. | 0.3.0 | celeborn.shuffle.estimatedPartitionSize.update.initialDelay | 
 | celeborn.master.estimatedPartitionSize.update.interval | 10min | Interval of updating partition size for estimation. | 0.3.0 | celeborn.shuffle.estimatedPartitionSize.update.interval | 
@@ -30,6 +31,7 @@ license: |
 | celeborn.master.host | &lt;localhost&gt; | Hostname for master to bind. | 0.2.0 |  | 
 | celeborn.master.http.host | &lt;localhost&gt; | Master's http host. | 0.4.0 | celeborn.metrics.master.prometheus.host,celeborn.master.metrics.prometheus.host | 
 | celeborn.master.http.port | 9098 | Master's http port. | 0.4.0 | celeborn.metrics.master.prometheus.port,celeborn.master.metrics.prometheus.port | 
+| celeborn.master.internal.port | 8097 | Internal port on the master where both workers and other master nodes connect. | 0.5.0 |  | 
 | celeborn.master.port | 9097 | Port for master to bind. | 0.2.0 |  | 
 | celeborn.master.slot.assign.extraSlots | 2 | Extra slots number when master assign slots. | 0.3.0 | celeborn.slots.assign.extraSlots | 
 | celeborn.master.slot.assign.loadAware.diskGroupGradient | 0.1 | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.3.0 | celeborn.slots.assign.loadAware.diskGroupGradient | 

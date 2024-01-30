@@ -27,6 +27,7 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
 
   private var _host: Option[String] = None
   private var _port: Option[Int] = None
+  private var _internalPort: Option[Int] = None
   private var _propertiesFile: Option[String] = None
   private var _masterClusterInfo: Option[MasterClusterInfo] = None
 
@@ -43,15 +44,19 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
     val localNode = clusterInfo.localNode
     _host = _host.orElse(Some(conf.haMasterNodeHost(localNode.nodeId)))
     _port = _port.orElse(Some(conf.haMasterNodePort(localNode.nodeId)))
+    _internalPort = _internalPort.orElse(Some(conf.haMasterNodeInternalPort(localNode.nodeId)))
     _masterClusterInfo = Some(clusterInfo)
   } else {
     _host = _host.orElse(Some(conf.masterHost))
     _port = _port.orElse(Some(conf.masterPort))
+    _internalPort = _internalPort.orElse(Some(conf.masterInternalPort))
   }
 
   def host: String = _host.get
 
   def port: Int = _port.get
+
+  def internalPort: Int = _internalPort.get
 
   def masterClusterInfo: Option[MasterClusterInfo] = _masterClusterInfo
 
@@ -64,6 +69,10 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
 
     case ("--port" | "-p") :: IntParam(value) :: tail =>
       _port = Some(value)
+      parse(tail)
+
+    case ("--internal-port") :: IntParam(value) :: tail =>
+      _internalPort = Some(value)
       parse(tail)
 
     case "--properties-file" :: value :: tail =>
@@ -90,6 +99,7 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
         |Options:
         |  -h HOST, --host HOST   Hostname to listen on
         |  -p PORT, --port PORT   Port to listen on (default: 9097)
+        |  --internal-port PORT   Internal port for internal communication (default: 8097)
         |  --properties-file FILE Path to a custom Celeborn properties file,
         |                         default is conf/celeborn-defaults.conf.
         |""".stripMargin)
