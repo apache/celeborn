@@ -46,7 +46,4 @@ pnpm build
 ```sh
 # Whole project
 pnpm lint
-
-# Staged files for commit
-pnpm lint:lint-staged
 ```
