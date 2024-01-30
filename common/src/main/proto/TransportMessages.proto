@@ -536,6 +536,7 @@ message PbResourceConsumption {
   int64 diskFileCount = 2;
   int64 hdfsBytesWritten = 3;
   int64 hdfsFileCount = 4;
+  map<string, PbResourceConsumption> subResourceConsumptions = 5;
 }
 
 message PbAppDiskUsage {
