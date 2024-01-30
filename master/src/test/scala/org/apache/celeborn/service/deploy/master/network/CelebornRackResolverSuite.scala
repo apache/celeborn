@@ -123,7 +123,7 @@ class CelebornRackResolverSuite extends AnyFunSuite {
       "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
       classOf[TableMapping].getName)
     conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath)
-    conf.set(CelebornConf.RACKAWARE_REFRESH_INTERVAL.key, "50")
+    conf.set(CelebornConf.RACKRESOLVER_REFRESH_INTERVAL.key, "50")
     val resolver = new CelebornRackResolver(conf)
     assertEquals("/default/rack1", resolver.resolve(hostName1).getNetworkLocation)
     assertEquals("/default/rack1", resolver.resolve(hostName2).getNetworkLocation)

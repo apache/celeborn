@@ -1124,9 +1124,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def internalPortEnabled: Boolean = get(INTERNAL_PORT_ENABLED)
 
   // //////////////////////////////////////////////////////
-  //                     Rackaware                       //
+  //                     Rack Resolver                   //
   // //////////////////////////////////////////////////////
-  def rackResolveRefreshInterval = get(RACKAWARE_REFRESH_INTERVAL)
+  def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
 
   def haMasterNodeInternalPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)
@@ -4431,8 +4431,8 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(8097)
 
-  val RACKAWARE_REFRESH_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.master.rackAware.refresh.interval")
+  val RACKRESOLVER_REFRESH_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.master.rackResolver.refresh.interval")
       .categories("master")
       .version("0.5.0")
       .doc("Interval for refreshing the node rack information periodically.")

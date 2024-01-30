@@ -52,7 +52,7 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
       case c: CachedDNSToSwitchMapping => c
       case o => new CachedDNSToSwitchMapping(o)
     }
-    val refreshInterval = celebornConf.rackResolveRefreshInterval
+    val refreshInterval = celebornConf.rackResolverRefreshInterval
     rackResolveRefreshThreadPool =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-rack-resolver-refresher")
     val fileName = switchMapping match {
