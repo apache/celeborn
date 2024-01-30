@@ -90,6 +90,7 @@ class CelebornRackResolver(celebornConf: CelebornConf) extends Logging {
           override def run(): Unit = mapping.reloadCachedMappings()
         },
         refreshInterval,
+        refreshInterval,
         TimeUnit.MILLISECONDS)
     }
     mapping
