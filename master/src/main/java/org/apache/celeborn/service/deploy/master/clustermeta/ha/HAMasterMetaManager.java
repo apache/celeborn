@@ -46,12 +46,16 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   protected HARaftServer ratisServer;
 
   public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf) {
+    this(rpcEnv, conf, new CelebornRackResolver(conf));
+  }
+
+  public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf, CelebornRackResolver rackResolver) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
-    this.rackResolver = new CelebornRackResolver(conf);
+    this.rackResolver = rackResolver;
   }
 
   public HARaftServer getRatisServer() {

@@ -47,6 +47,7 @@ import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeU
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver
 
 private[celeborn] class Master(
     override val conf: CelebornConf,
@@ -95,9 +96,10 @@ private[celeborn] class Master(
     internalRpcEnvInUse = internalRpcEnv
   }
 
+  private val rackResolver = new CelebornRackResolver(conf)
   private val statusSystem =
     if (conf.haEnabled) {
-      val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf)
+      val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
       val handler = new MetaHandler(sys)
       try {
         handler.setUpMasterRatisServer(conf, masterArgs.masterClusterInfo.get)
@@ -115,7 +117,7 @@ private[celeborn] class Master(
       }
       sys
     } else {
-      new SingleMasterMetaManager(internalRpcEnvInUse, conf)
+      new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
     }
 
   // Threads
@@ -293,6 +295,7 @@ private[celeborn] class Master(
       checkForHDFSRemnantDirsTimeOutTask.cancel(true)
     }
     forwardMessageThread.shutdownNow()
+    rackResolver.stop()
     logInfo("Celeborn Master is stopped.")
   }
 

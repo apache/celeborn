@@ -36,6 +36,11 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
 
   public SingleMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf) {
+    this(rpcEnv, conf, new CelebornRackResolver(conf));
+  }
+
+  public SingleMasterMetaManager(
+      RpcEnv rpcEnv, CelebornConf conf, CelebornRackResolver rackResolver) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
