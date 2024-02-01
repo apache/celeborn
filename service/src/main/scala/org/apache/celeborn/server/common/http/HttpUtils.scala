@@ -32,6 +32,8 @@ object HttpUtils {
     ExcludedWorkers,
     ShutdownWorkers,
     Hostnames,
+    SendWorkerEvent,
+    WorkerEventInfo,
     Exclude) ++ baseEndpoints
   private val workerEndpoints: List[HttpEndpoint] =
     List(

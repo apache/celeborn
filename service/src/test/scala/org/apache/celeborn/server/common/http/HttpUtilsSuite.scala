@@ -70,9 +70,11 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
          |/listTopDiskUsedApps List the top disk usage application ids. It will return the top disk usage application ids for the cluster.
          |/lostWorkers         List all lost workers of the master.
          |/masterGroupInfo     List master group information of the service. It will list all master's LEADER, FOLLOWER information.
+         |/sendWorkerEvent     For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'
          |/shuffles            List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.
          |/shutdownWorkers     List all shutdown workers of the master.
          |/threadDump          List the current thread dump of the master.
+         |/workerEventInfo     List all worker event infos of the master.
          |/workerInfo          List worker information of the service. It will list all registered workers 's information.
          |""".stripMargin)
     assert(HttpUtils.help(Service.WORKER) ==
@@ -90,5 +92,12 @@ class HttpUtilsSuite extends AnyFunSuite with Logging {
          |/unavailablePeers          List the unavailable peers of the worker, this always means the worker connect to the peer failed.
          |/workerInfo                List the worker information of the worker.
          |""".stripMargin)
+  }
+
+  test("CELEBORN-1245: Support Master manage workers") {
+    checkParseUri(
+      "/sendWorkerEvent?type=decommission&workers=localhost:1001:1002:1003:1004",
+      "/sendWorkerEvent",
+      Map("TYPE" -> "decommission", "WORKERS" -> "localhost:1001:1002:1003:1004"))
   }
 }

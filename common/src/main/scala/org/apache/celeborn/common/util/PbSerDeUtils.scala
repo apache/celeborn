@@ -26,7 +26,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerInfo}
+import org.apache.celeborn.common.meta.{AppDiskUsage, AppDiskUsageSnapShot, DiskFileInfo, DiskInfo, FileInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -393,7 +393,8 @@ object PbSerDeUtils {
       appDiskUsageMetricSnapshots: Array[AppDiskUsageSnapShot],
       currentAppDiskUsageMetricsSnapshot: AppDiskUsageSnapShot,
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
-      shutdownWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
+      shutdownWorkers: java.util.Set[WorkerInfo],
+      workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle)
@@ -414,10 +415,38 @@ object PbSerDeUtils {
         case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
       }.asJava)
       .addAllShutdownWorkers(shutdownWorkers.asScala.map(toPbWorkerInfo(_, true)).asJava)
+      .putAllWorkerEventInfos(workerEventInfos.asScala.map {
+        case (worker, workerEventInfo) =>
+          (worker.toUniqueId(), PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
+      }.asJava)
     if (currentAppDiskUsageMetricsSnapshot != null) {
       builder.setCurrentAppDiskUsageMetricsSnapshot(
         toPbAppDiskUsageSnapshot(currentAppDiskUsageMetricsSnapshot))
     }
     builder.build()
+  }
+
+  def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {
+    PbWorkerStatus.newBuilder()
+      .setState(workerStatus.getState)
+      .setStateStartTime(workerStatus.getStateStartTime)
+      .build()
+  }
+
+  def fromPbWorkerStatus(pbWorkerStatus: PbWorkerStatus): WorkerStatus = {
+    new WorkerStatus(pbWorkerStatus.getState.getNumber, pbWorkerStatus.getStateStartTime)
+  }
+
+  def toPbWorkerEventInfo(workerEventInfo: WorkerEventInfo): PbWorkerEventInfo = {
+    PbWorkerEventInfo.newBuilder()
+      .setEventStartTime(workerEventInfo.getEventStartTime)
+      .setWorkerEventType(workerEventInfo.getEventType)
+      .build()
+  }
+
+  def fromPbWorkerEventInfo(pbWorkerEventInfo: PbWorkerEventInfo): WorkerEventInfo = {
+    new WorkerEventInfo(
+      pbWorkerEventInfo.getWorkerEventType.getNumber,
+      pbWorkerEventInfo.getEventStartTime())
   }
 }

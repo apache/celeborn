@@ -41,6 +41,7 @@ class WorkerInfo(
   with Logging {
   var networkLocation = "/default-rack"
   var lastHeartbeat: Long = 0
+  var workerStatus = WorkerStatus.normalWorkerStatus()
   val diskInfos =
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos) else null
   val userResourceConsumption =
@@ -142,6 +143,14 @@ class WorkerInfo(
     diskInfos.asScala.map(_._2.maxSlots).sum
   }
 
+  def getWorkerStatus(): WorkerStatus = {
+    workerStatus
+  }
+
+  def setWorkerStatus(workerStatus: WorkerStatus): Unit = {
+    this.workerStatus = workerStatus;
+  }
+
   def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
       disk.maxSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
@@ -230,6 +239,7 @@ class WorkerInfo(
        |Disks: $diskInfosString
        |UserResourceConsumption: $userResourceConsumptionString
        |WorkerRef: $endpoint
+       |WorkerStatus: $workerStatus
        |""".stripMargin
   }
 

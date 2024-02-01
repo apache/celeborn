@@ -35,6 +35,7 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -77,6 +78,8 @@ public class DefaultMetaSystemSuiteJ {
   private static final Map<String, DiskInfo> disks3 = new HashMap<>();
   private static final Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
       new HashMap<>();
+
+  private static final WorkerStatus workerStatus = WorkerStatus.normalWorkerStatus();
 
   @Before
   public void setUp() {
@@ -544,6 +547,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 1);
@@ -559,6 +563,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 2);
@@ -574,6 +579,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 2);
@@ -589,6 +595,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         1,
         true,
+        workerStatus,
         getNewReqeustId());
 
     assertEquals(statusSystem.excludedWorkers.size(), 3);

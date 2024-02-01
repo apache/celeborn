@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 
 public interface IMetadataHandler {
@@ -61,6 +62,7 @@ public interface IMetadataHandler {
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       boolean highWorkload,
+      WorkerStatus workerStatus,
       String requestId);
 
   void handleRegisterWorker(
@@ -74,6 +76,9 @@ public interface IMetadataHandler {
       String requestId);
 
   void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId);
+
+  void handleWorkerEvent(
+      int workerEventTypeValue, List<WorkerInfo> workerInfoList, String requestId);
 
   void handleUpdatePartitionSize();
 }

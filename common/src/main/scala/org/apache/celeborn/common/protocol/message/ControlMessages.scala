@@ -26,7 +26,7 @@ import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
@@ -116,11 +116,14 @@ object ControlMessages extends Logging {
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       highWorkload: Boolean,
+      workerStatus: WorkerStatus,
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class HeartbeatFromWorkerResponse(
       expiredShuffleKeys: util.HashSet[String],
-      registered: Boolean) extends MasterMessage
+      registered: Boolean,
+      workerEvent: WorkerEventType = WorkerEventType.None)
+    extends MasterMessage
 
   object RegisterShuffle {
     def apply(
@@ -398,6 +401,20 @@ object ControlMessages extends Logging {
         .build()
   }
 
+  object WorkerEventRequest {
+    def apply(
+        workers: util.List[WorkerInfo],
+        eventType: String,
+        requestId: String): PbWorkerEventRequest =
+      PbWorkerEventRequest.newBuilder()
+        .setRequestId(requestId)
+        .setWorkerEventType(WorkerEventType.valueOf(eventType))
+        .addAllWorkers(workers.asScala.map { workerInfo =>
+          PbSerDeUtils.toPbWorkerInfo(workerInfo, true)
+        }.toList.asJava)
+        .build()
+  }
+
   /**
    * ==========================================
    *         handled by worker
@@ -513,6 +530,7 @@ object ControlMessages extends Logging {
           activeShuffleKeys,
           estimatedAppDiskUsage,
           highWorkload,
+          workerStatus,
           requestId) =>
       val pbDisks = disks.map(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceConsumption =
@@ -528,14 +546,16 @@ object ControlMessages extends Logging {
         .addAllActiveShuffleKeys(activeShuffleKeys)
         .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
         .setHighWorkload(highWorkload)
+        .setWorkerStatus(PbSerDeUtils.toPbWorkerStatus(workerStatus))
         .setRequestId(requestId)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER, payload)
 
-    case HeartbeatFromWorkerResponse(expiredShuffleKeys, registered) =>
+    case HeartbeatFromWorkerResponse(expiredShuffleKeys, registered, workerEventType) =>
       val payload = PbHeartbeatFromWorkerResponse.newBuilder()
         .addAllExpiredShuffleKeys(expiredShuffleKeys)
         .setRegistered(registered)
+        .setWorkerEventType(workerEventType)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER_RESPONSE, payload)
 
@@ -747,6 +767,12 @@ object ControlMessages extends Logging {
     case pb: PbRemoveWorkersUnavailableInfo =>
       new TransportMessage(MessageType.REMOVE_WORKERS_UNAVAILABLE_INFO, pb.toByteArray)
 
+    case pb: PbWorkerEventRequest =>
+      new TransportMessage(MessageType.WORKER_EVENT_REQUEST, pb.toByteArray)
+
+    case pb: PbWorkerEventResponse =>
+      new TransportMessage(MessageType.WORKER_EVENT_RESPONSE, pb.toByteArray)
+
     case pb: PbRegisterWorkerResponse =>
       new TransportMessage(MessageType.REGISTER_WORKER_RESPONSE, pb.toByteArray)
 
@@ -910,6 +936,9 @@ object ControlMessages extends Logging {
         if (!pbHeartbeatFromWorker.getActiveShuffleKeysList.isEmpty) {
           activeShuffleKeys.addAll(pbHeartbeatFromWorker.getActiveShuffleKeysList)
         }
+
+        val workerStatus = PbSerDeUtils.fromPbWorkerStatus(pbHeartbeatFromWorker.getWorkerStatus)
+
         HeartbeatFromWorker(
           pbHeartbeatFromWorker.getHost,
           pbHeartbeatFromWorker.getRpcPort,
@@ -921,6 +950,7 @@ object ControlMessages extends Logging {
           activeShuffleKeys,
           estimatedAppDiskUsage,
           pbHeartbeatFromWorker.getHighWorkload,
+          workerStatus,
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_FROM_WORKER_RESPONSE_VALUE =>
@@ -930,7 +960,11 @@ object ControlMessages extends Logging {
         if (pbHeartbeatFromWorkerResponse.getExpiredShuffleKeysCount > 0) {
           expiredShuffleKeys.addAll(pbHeartbeatFromWorkerResponse.getExpiredShuffleKeysList)
         }
-        HeartbeatFromWorkerResponse(expiredShuffleKeys, pbHeartbeatFromWorkerResponse.getRegistered)
+
+        HeartbeatFromWorkerResponse(
+          expiredShuffleKeys,
+          pbHeartbeatFromWorkerResponse.getRegistered,
+          pbHeartbeatFromWorkerResponse.getWorkerEventType)
 
       case REGISTER_SHUFFLE_VALUE =>
         PbRegisterShuffle.parseFrom(message.getPayload)
@@ -1082,6 +1116,12 @@ object ControlMessages extends Logging {
 
       case REGISTER_WORKER_RESPONSE_VALUE =>
         PbRegisterWorkerResponse.parseFrom(message.getPayload)
+
+      case WORKER_EVENT_REQUEST_VALUE =>
+        PbWorkerEventRequest.parseFrom(message.getPayload)
+
+      case WORKER_EVENT_RESPONSE_VALUE =>
+        PbWorkerEventResponse.parseFrom(message.getPayload)
 
       case RESERVE_SLOTS_VALUE =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)

@@ -34,6 +34,7 @@ import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -211,6 +212,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static final String APPID1 = "appId1";
   private static final int SHUFFLEID1 = 1;
   private static final String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
+  private static final WorkerStatus workerStatus = WorkerStatus.normalWorkerStatus();
 
   private String getNewReqeustId() {
     return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
@@ -800,6 +802,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -818,6 +821,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -837,6 +841,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -856,6 +861,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         1,
         true,
+        workerStatus,
         getNewReqeustId());
     Thread.sleep(3000L);
     Assert.assertEquals(2, statusSystem.excludedWorkers.size());

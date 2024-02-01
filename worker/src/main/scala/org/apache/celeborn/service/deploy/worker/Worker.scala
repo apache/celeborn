@@ -39,7 +39,8 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
+import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
@@ -76,6 +77,7 @@ private[celeborn] class Worker(
   metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
   metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
+  val workerStatusManager = new WorkerStatusManager(conf)
   val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
     workerArgs.host,
@@ -91,7 +93,6 @@ private[celeborn] class Worker(
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = conf.workerGracefulShutdown
-  private var exitKind = CelebornExitKind.EXIT_IMMEDIATELY
   if (gracefulShutdown) {
     val checkPortMap = Map(
       WORKER_RPC_PORT -> conf.workerRpcPort,
@@ -102,7 +103,6 @@ private[celeborn] class Worker(
       !checkPortMap.values.exists(_ == 0),
       "If enable graceful shutdown, the worker should use non-zero port. " +
         s"${checkPortMap.map { case (k, v) => k.key + "=" + v }.mkString(", ")}")
-    exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
     try {
       val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
       if (!recoverRoot.exists()) {
@@ -350,6 +350,7 @@ private[celeborn] class Worker(
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
       }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo
+    workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
@@ -361,10 +362,14 @@ private[celeborn] class Worker(
         handleResourceConsumption(),
         activeShuffleKeys,
         estimatedAppDiskUsage,
-        highWorkload),
+        highWorkload,
+        workerStatusManager.currentWorkerStatus),
       classOf[HeartbeatFromWorkerResponse])
     response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
+
+    val workerEvent = response.workerEvent
+    workerStatusManager.doTransition(workerEvent)
     if (!response.registered) {
       logError("Worker not registered in master, clean expired shuffle data and register again.")
       try {
@@ -425,6 +430,7 @@ private[celeborn] class Worker(
     replicateHandler.init(this)
     fetchHandler.init(this)
     controller.init(this)
+    workerStatusManager.init(this)
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
@@ -644,23 +650,17 @@ private[celeborn] class Worker(
   override def exit(exitType: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
-        exitKind = CelebornExitKind.WORKER_DECOMMISSION
         ShutdownHookManager.get().updateTimeout(
           conf.workerDecommissionForceExitTimeout,
           TimeUnit.MILLISECONDS)
+        workerStatusManager.doTransition(WorkerEventType.Decommission)
       case "GRACEFUL" =>
-        exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
+        workerStatusManager.doTransition(WorkerEventType.Graceful)
       case "IMMEDIATELY" =>
-        exitKind = CelebornExitKind.EXIT_IMMEDIATELY
-      case _ => // Use origin code
+        workerStatusManager.doTransition(WorkerEventType.Immediately)
+      case _ =>
+        workerStatusManager.doTransition(workerStatusManager.exitEventType)
     }
-    // Use the original EXIT_CODE
-    new Thread() {
-      override def run(): Unit = {
-        Thread.sleep(10000)
-        System.exit(0)
-      }
-    }.start()
     val sb = new StringBuilder
     sb.append("============================ Exit Worker =============================\n")
     sb.append(s"Exit worker by $exitType triggered: \n")
@@ -672,6 +672,8 @@ private[celeborn] class Worker(
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will
     // make master remove this worker from excluded list.
+    logInfo("Worker start to shutdown gracefully")
+    workerStatusManager.transitionState(State.InGraceFul)
     try {
       masterClient.askSync(
         ReportWorkerUnavailable(List(workerInfo).asJava),
@@ -701,9 +703,11 @@ private[celeborn] class Worker(
       logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
         s"unreleased PartitionLocation: \n$partitionLocationInfo")
     }
+
+    workerStatusManager.transitionState(State.Exit)
   }
 
-  def decommissionWorker(): Unit = {
+  def sendWorkerUnavailableToMaster(): Unit = {
     try {
       masterClient.askSync(
         ReportWorkerUnavailable(List(workerInfo).asJava),
@@ -715,6 +719,12 @@ private[celeborn] class Worker(
             s"\n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}",
           e)
     }
+  }
+
+  def decommissionWorker(): Unit = {
+    logInfo("Worker start to decommission")
+    workerStatusManager.transitionState(State.InDecommission)
+    sendWorkerUnavailableToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
     val timeout = conf.workerDecommissionForceExitTimeout
@@ -732,12 +742,15 @@ private[celeborn] class Worker(
       logWarning(s"Waiting for all shuffle expired cost ${waitTime}ms, " +
         s"unreleased shuffle: \n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}")
     }
+    workerStatusManager.transitionState(State.Exit)
   }
 
   def exitImmediately(): Unit = {
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will
     // make master remove this worker from excluded list.
+    logInfo("Worker start to exit immediately")
+    workerStatusManager.transitionState(State.InExit)
     try {
       masterClient.askSync[PbWorkerLostResponse](
         WorkerLost(
@@ -755,24 +768,27 @@ private[celeborn] class Worker(
           e)
     }
     shutdown.set(true)
+    workerStatusManager.transitionState(State.Exit)
   }
 
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
-        exitKind match {
-          case CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN =>
-            logInfo("Worker start to shutdown gracefully")
+        workerStatusManager.exitEventType match {
+          case WorkerEventType.Graceful =>
             shutdownGracefully()
-          case CelebornExitKind.WORKER_DECOMMISSION =>
-            logInfo("Worker start to decommission")
+          case WorkerEventType.Decommission =>
             decommissionWorker()
           case _ =>
-            logInfo("Worker start to exit immediately")
             exitImmediately()
         }
-        stop(exitKind)
+
+        if (workerStatusManager.exitEventType == WorkerEventType.Graceful) {
+          stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+        } else {
+          stop(CelebornExitKind.EXIT_IMMEDIATELY)
+        }
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)

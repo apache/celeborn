@@ -22,8 +22,9 @@ import java.util
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerInfo}
+import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
+import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
 
@@ -112,6 +113,9 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   workerResource.put(
     workerInfo1,
     (util.Arrays.asList(partitionLocation1), util.Arrays.asList(partitionLocation2)))
+
+  val workerEventInfo = new WorkerEventInfo(1, System.currentTimeMillis());
+  val workerStatus = new WorkerStatus(1, System.currentTimeMillis());
 
   test("fromAndToPbSortedShuffleFileSet") {
     val pbFileSet = PbSerDeUtils.toPbSortedShuffleFileSet(fileSet)
@@ -237,4 +241,17 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredPartitionLocation4.getStorageInfo.equals(partitionLocation4.getStorageInfo))
   }
 
+  test("fromAndToPbWorkerEventInfo") {
+    val pbWorkerEventInfo = PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo)
+    val restoredWorkerEventInfo = PbSerDeUtils.fromPbWorkerEventInfo(pbWorkerEventInfo)
+
+    assert(restoredWorkerEventInfo.equals(workerEventInfo))
+  }
+
+  test("fromAndToPbWorkerStatus") {
+    val pbWorkerStatus = PbSerDeUtils.toPbWorkerStatus(workerStatus)
+    val restoredWorkerStatus = PbSerDeUtils.fromPbWorkerStatus(pbWorkerStatus)
+
+    assert(restoredWorkerStatus.equals(workerStatus))
+  }
 }

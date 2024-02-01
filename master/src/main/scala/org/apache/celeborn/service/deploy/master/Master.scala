@@ -35,7 +35,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.protocol._
@@ -423,6 +423,7 @@ private[celeborn] class Master(
           activeShuffleKey,
           estimatedAppDiskUsage,
           highWorkload,
+          workerStatus,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
@@ -440,6 +441,7 @@ private[celeborn] class Master(
           activeShuffleKey,
           estimatedAppDiskUsage,
           highWorkload,
+          workerStatus,
           requestId))
 
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
@@ -477,6 +479,17 @@ private[celeborn] class Master(
 
     case _: PbCheckWorkersAvailable =>
       executeWithLeaderChecker(context, handleCheckWorkersAvailable(context))
+
+    case pb: PbWorkerEventRequest =>
+      val workers = new util.ArrayList[WorkerInfo](pb.getWorkersList
+        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+      executeWithLeaderChecker(
+        context,
+        handleWorkerEvent(
+          pb.getRequestId,
+          pb.getWorkerEventType.getNumber,
+          workers,
+          context))
   }
 
   private def timeoutDeadWorkers(): Unit = {
@@ -556,6 +569,7 @@ private[celeborn] class Master(
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       highWorkload: Boolean,
+      workerStatus: WorkerStatus,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = workersSnapShot.asScala.contains(targetWorker)
@@ -574,6 +588,7 @@ private[celeborn] class Master(
         estimatedAppDiskUsage,
         System.currentTimeMillis(),
         highWorkload,
+        workerStatus,
         requestId)
     }
 
@@ -585,7 +600,18 @@ private[celeborn] class Master(
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatFromWorkerResponse(expiredShuffleKeys, registered))
+
+    val workerEventInfo = statusSystem.workerEventInfos.get(targetWorker)
+    if (workerEventInfo == null) {
+      context.reply(HeartbeatFromWorkerResponse(
+        expiredShuffleKeys,
+        registered))
+    } else {
+      context.reply(HeartbeatFromWorkerResponse(
+        expiredShuffleKeys,
+        registered,
+        workerEventInfo.getEventType))
+    }
   }
 
   private def handleWorkerExclude(
@@ -947,11 +973,19 @@ private[celeborn] class Master(
     context.reply(CheckWorkersAvailableResponse(!workersAvailable().isEmpty))
   }
 
+  private def handleWorkerEvent(
+      requestId: String,
+      workerEventTypeValue: Int,
+      workers: util.List[WorkerInfo],
+      context: RpcCallContext): Unit = {
+    statusSystem.handleWorkerEvent(workerEventTypeValue, workers, requestId)
+    context.reply(PbWorkerEventResponse.newBuilder().setSuccess(true).build())
+  }
+
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.excludedWorkers.contains(w) && !statusSystem.manuallyExcludedWorkers.contains(
-        w) && !statusSystem.shutdownWorkers.contains(w) && !tmpExcludedWorkerList.contains(w)
+      statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
     }.asJava
   }
 
@@ -964,6 +998,35 @@ private[celeborn] class Master(
 
   private def getWorkers: String = {
     workersSnapShot.asScala.mkString("\n")
+  }
+
+  override def handleWorkerEvent(workerEventType: String, workers: String): String = {
+    val sb = new StringBuilder
+    if (workerEventType.isEmpty || workers.isEmpty) {
+      return sb.append(
+        s"handle eventType failed as eventType: $workerEventType or workers: $workers has empty value").toString()
+    }
+
+    sb.append("============================ Handle Worker Event =============================\n")
+    val workerArray = workers.split(",").filter(_.nonEmpty)
+    try {
+      val workerEventResponse = self.askSync[PbWorkerEventResponse](WorkerEventRequest(
+        workerArray.map(WorkerInfo.fromUniqueId).toList.asJava,
+        workerEventType,
+        MasterClient.genRequestId()))
+      if (workerEventResponse.getSuccess) {
+        sb.append(s"handle $workerEventType for ${workerArray.mkString(",")} successfully")
+      } else {
+        sb.append(s"handle $workerEventType for ${workerArray.mkString(",")} failed")
+      }
+    } catch {
+      case e: Throwable =>
+        val message =
+          s"handle $workerEventType for ${workerArray.mkString(",")} failed, message: ${e.getMessage}"
+        logError(message, e)
+        sb.append(message)
+    }
+    sb.append("\n").toString()
   }
 
   override def getWorkerInfo: String = {
@@ -1113,6 +1176,15 @@ private[celeborn] class Master(
     } else {
       "HA is not enabled"
     }
+  }
+
+  override def getWorkerEventInfo(): String = {
+    val sb = new StringBuilder
+    sb.append("======================= Workers Event in Master ========================\n")
+    statusSystem.workerEventInfos.asScala.foreach { case (worker, workerEventInfo) =>
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$workerEventInfo\n")
+    }
+    sb.toString()
   }
 
   override def initialize(): Unit = {

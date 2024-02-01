@@ -24,6 +24,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.identity.UserIdentifier$;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.Utils;
@@ -119,5 +120,16 @@ public class MetaUtil {
                     .setHdfsFileCount(v.hdfsFileCount())
                     .build()));
     return map;
+  }
+
+  public static ResourceProtos.WorkerStatus toPbWorkerStatus(WorkerStatus workerStatus) {
+    return ResourceProtos.WorkerStatus.newBuilder()
+        .setState(ResourceProtos.WorkerStatus.State.forNumber(workerStatus.getStateValue()))
+        .setStateStartTime(workerStatus.getStateStartTime())
+        .build();
+  }
+
+  public static WorkerStatus fromPbWorkerStatus(ResourceProtos.WorkerStatus workerStatus) {
+    return new WorkerStatus(workerStatus.getState().getNumber(), workerStatus.getStateStartTime());
   }
 }
