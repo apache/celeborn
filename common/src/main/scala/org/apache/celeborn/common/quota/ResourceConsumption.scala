@@ -17,13 +17,18 @@
 
 package org.apache.celeborn.common.quota
 
-import org.apache.celeborn.common.util.Utils
+import java.util
+
+import scala.collection.JavaConverters._
+
+import org.apache.celeborn.common.util.{CollectionUtils, Utils}
 
 case class ResourceConsumption(
     diskBytesWritten: Long,
     diskFileCount: Long,
     hdfsBytesWritten: Long,
-    hdfsFileCount: Long) {
+    hdfsFileCount: Long,
+    var subResourceConsumptions: util.Map[String, ResourceConsumption] = null) {
 
   def add(other: ResourceConsumption): ResourceConsumption = {
     ResourceConsumption(
@@ -33,10 +38,43 @@ case class ResourceConsumption(
       hdfsFileCount + other.hdfsFileCount)
   }
 
+  def addSubResourceConsumptions(otherSubResourceConsumptions: Map[
+    String,
+    ResourceConsumption]): Map[String, ResourceConsumption] = {
+    if (CollectionUtils.isNotEmpty(subResourceConsumptions)) {
+      subResourceConsumptions.asScala.foldRight(otherSubResourceConsumptions)(
+        (subResourceConsumption, resourceConsumptions) => {
+          if (resourceConsumptions.contains(subResourceConsumption._1)) {
+            resourceConsumptions + (subResourceConsumption._1 -> subResourceConsumption._2.add(
+              resourceConsumptions(
+                subResourceConsumption._1)))
+          } else {
+            resourceConsumptions + (subResourceConsumption._1 -> subResourceConsumption._2)
+          }
+        })
+    } else {
+      otherSubResourceConsumptions
+    }
+  }
+
+  def addWithSubResourceConsumptions(other: (ResourceConsumption, Map[String, ResourceConsumption]))
+      : (ResourceConsumption, Map[String, ResourceConsumption]) = {
+    (add(other._1), addSubResourceConsumptions(other._2))
+  }
+
   override def toString: String = {
+    val subResourceConsumptionString =
+      if (CollectionUtils.isEmpty(subResourceConsumptions)) {
+        "empty"
+      } else {
+        subResourceConsumptions.asScala.map { case (identifier, resourceConsumption) =>
+          s"$identifier -> $resourceConsumption"
+        }.mkString("(", ",", ")")
+      }
     s"ResourceConsumption(diskBytesWritten: ${Utils.bytesToString(diskBytesWritten)}," +
-      s" diskFileCount: ${diskFileCount}," +
+      s" diskFileCount: $diskFileCount," +
       s" hdfsBytesWritten: ${Utils.bytesToString(hdfsBytesWritten)}," +
-      s" hdfsFileCount: ${hdfsFileCount})"
+      s" hdfsFileCount: $hdfsFileCount," +
+      s" subResourceConsumptions: $subResourceConsumptionString)"
   }
 }

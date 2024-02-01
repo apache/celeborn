@@ -44,7 +44,7 @@ import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -532,29 +532,54 @@ private[celeborn] class Worker(
 
   private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
     val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
-    resourceConsumptionSnapshot.foreach { case (userIdentifier, _) =>
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.DISK_FILE_COUNT,
-        userIdentifier.toMap) { () =>
-        workerInfo.userResourceConsumption.get(userIdentifier).diskFileCount
-      }
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-        userIdentifier.toMap) { () =>
-        workerInfo.userResourceConsumption.get(userIdentifier).diskBytesWritten
-      }
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.HDFS_FILE_COUNT,
-        userIdentifier.toMap) { () =>
-        workerInfo.userResourceConsumption.get(userIdentifier).hdfsFileCount
-      }
-      resourceConsumptionSource.addGauge(
-        ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-        userIdentifier.toMap) { () =>
-        workerInfo.userResourceConsumption.get(userIdentifier).hdfsBytesWritten
+    resourceConsumptionSnapshot.foreach { case (userIdentifier, userResourceConsumption) =>
+      gaugeResourceConsumption(userIdentifier)
+      val subResourceConsumptions = userResourceConsumption.subResourceConsumptions
+      if (CollectionUtils.isNotEmpty(subResourceConsumptions)) {
+        subResourceConsumptions.asScala.keys.foreach { gaugeResourceConsumption(userIdentifier, _) }
       }
     }
     workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
+  }
+
+  private def gaugeResourceConsumption(
+      userIdentifier: UserIdentifier,
+      applicationId: String = null): Unit = {
+    var resourceConsumptionLabel = userIdentifier.toMap
+    if (applicationId != null)
+      resourceConsumptionLabel += (ResourceConsumptionSource.APPLICATION_LABEL -> applicationId)
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier, applicationId).diskFileCount
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier, applicationId).diskBytesWritten
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier, applicationId).hdfsFileCount
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier, applicationId).hdfsBytesWritten
+    }
+  }
+
+  private def computeResourceConsumption(
+      userIdentifier: UserIdentifier,
+      applicationId: String = null): ResourceConsumption = {
+    var resourceConsumption = workerInfo.userResourceConsumption.get(userIdentifier)
+    if (applicationId != null) {
+      resourceConsumption = resourceConsumption.subResourceConsumptions.getOrDefault(
+        applicationId,
+        ResourceConsumption(0, 0, 0, 0))
+    }
+    resourceConsumption
   }
 
   @VisibleForTesting
@@ -567,6 +592,12 @@ private[celeborn] class Worker(
         shuffleMapperAttempts.remove(shuffleKey)
         shuffleCommitInfos.remove(shuffleKey)
         workerInfo.releaseSlots(shuffleKey)
+        val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+        if (!workerInfo.getApplicationIdSet.contains(applicationId)) {
+          // When the running applications does not contain the application corresponding to expired shuffle key,
+          // resource consumption source should remove lose application gauges.
+          removeAppResourceConsumption(applicationId)
+        }
         logInfo(s"Cleaned up expired shuffle $shuffleKey")
       }
       partitionsSorter.cleanup(expiredShuffleKeys)
@@ -575,6 +606,30 @@ private[celeborn] class Worker(
         override def run(): Unit = storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
       })
     }
+
+  private def removeAppResourceConsumption(applicationId: String): Unit = {
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      applicationId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      applicationId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      applicationId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      applicationId)
+  }
+
+  private def removeResourceConsumptionGauge(
+      resourceConsumptionName: String,
+      applicationId: String): Unit = {
+    resourceConsumptionSource.removeGauge(
+      resourceConsumptionName,
+      ResourceConsumptionSource.APPLICATION_LABEL,
+      applicationId)
+  }
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
