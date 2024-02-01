@@ -47,17 +47,17 @@ class FetchHandler(
     val workerSource: WorkerSource)
   extends BaseMessageHandler with Logging {
 
-  val chunkStreamManager = new ChunkStreamManager()
-  val maxChunkBeingTransferred: Option[Long] = conf.shuffleIoMaxChunksBeingTransferred
+  private val chunkStreamManager = new ChunkStreamManager()
+  private val maxChunkBeingTransferred: Option[Long] = conf.shuffleIoMaxChunksBeingTransferred
 
-  val creditStreamManager = new CreditStreamManager(
+  private val creditStreamManager = new CreditStreamManager(
     conf.partitionReadBuffersMin,
     conf.partitionReadBuffersMax,
     conf.creditStreamThreadsPerMountpoint,
     conf.readBuffersToTriggerReadMin)
-  var storageManager: StorageManager = _
-  var partitionsSorter: PartitionFilesSorter = _
-  var registered: AtomicBoolean = new AtomicBoolean(false)
+  private var storageManager: StorageManager = _
+  private var partitionsSorter: PartitionFilesSorter = _
+  private var registered: Option[AtomicBoolean] = None
 
   def init(worker: Worker): Unit = {
     workerSource.addGauge(WorkerSource.ACTIVE_CHUNK_STREAM_COUNT) { () =>
@@ -74,7 +74,7 @@ class FetchHandler(
 
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
-    this.registered = worker.registered
+    this.registered = Some(worker.registered)
   }
 
   def getRawDiskFileInfo(
@@ -437,7 +437,7 @@ class FetchHandler(
     }
   }
 
-  override def checkRegistered: Boolean = registered.get
+  override def checkRegistered: Boolean = registered.map(_.get).getOrElse(false)
 
   /** Invoked when the channel associated with the given client is active. */
   override def channelActive(client: TransportClient): Unit = {
