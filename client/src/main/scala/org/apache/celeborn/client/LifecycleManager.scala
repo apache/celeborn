@@ -202,7 +202,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     import scala.concurrent.duration._
 
     checkForShuffleRemoval.cancel(true)
-    ThreadUtils.shutdown(forwardMessageThread, 800.millis)
+    ThreadUtils.shutdown(forwardMessageThread)
 
     commitManager.stop()
     changePartitionManager.stop()

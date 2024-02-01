@@ -22,7 +22,7 @@ import java.util.concurrent.{ForkJoinPool => SForkJoinPool, ForkJoinWorkerThread
 import java.util.concurrent.locks.ReentrantLock
 
 import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
 
@@ -344,6 +344,10 @@ object ThreadUtils {
     }
   }
   // scalastyle:on awaitready
+
+  def shutdown(executor: ExecutorService): Unit = {
+    shutdown(executor, 800.millis)
+  }
 
   def shutdown(
       executor: ExecutorService,
