@@ -20,7 +20,6 @@ package org.apache.celeborn.client
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.DurationInt
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
@@ -119,7 +118,7 @@ class ApplicationHeartbeater(
         // Stop appHeartbeat first
         logInfo(s"Stop Application heartbeat $appId")
         appHeartbeat.cancel(true)
-        ThreadUtils.shutdown(appHeartbeatHandlerThread, 800.millis)
+        ThreadUtils.shutdown(appHeartbeatHandlerThread)
         if (applicationUnregisterEnabled) {
           unregisterApplication()
         }

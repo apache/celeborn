@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration._
 import scala.util.Random
 
 import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
@@ -133,7 +132,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
     assertEquals(0, allocatedSlots.get())
     assertEquals(0, worker.usedSlots())
 
-    ThreadUtils.shutdown(es, 800.millisecond)
+    ThreadUtils.shutdown(es)
   }
 
   test("WorkerInfo not equals when host different.") {

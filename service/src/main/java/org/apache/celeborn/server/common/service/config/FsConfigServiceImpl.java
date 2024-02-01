@@ -28,8 +28,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import scala.concurrent.duration.Duration;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -112,7 +110,7 @@ public class FsConfigServiceImpl implements ConfigService {
 
   @Override
   public void shutdown() {
-    ThreadUtils.shutdown(configRefreshService, Duration.apply("800ms"));
+    ThreadUtils.shutdown(configRefreshService);
   }
 
   private File getConfigurationFile(Map<String, String> env) {
