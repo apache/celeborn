@@ -47,17 +47,17 @@ class FetchHandler(
     val workerSource: WorkerSource)
   extends BaseMessageHandler with Logging {
 
-  private val chunkStreamManager = new ChunkStreamManager()
-  private val maxChunkBeingTransferred: Option[Long] = conf.shuffleIoMaxChunksBeingTransferred
+  val chunkStreamManager = new ChunkStreamManager()
+  val maxChunkBeingTransferred: Option[Long] = conf.shuffleIoMaxChunksBeingTransferred
 
-  private val creditStreamManager = new CreditStreamManager(
+  val creditStreamManager = new CreditStreamManager(
     conf.partitionReadBuffersMin,
     conf.partitionReadBuffersMax,
     conf.creditStreamThreadsPerMountpoint,
     conf.readBuffersToTriggerReadMin)
-  private var storageManager: StorageManager = _
-  private var partitionsSorter: PartitionFilesSorter = _
-  private var registered: Option[AtomicBoolean] = None
+  var storageManager: StorageManager = _
+  var partitionsSorter: PartitionFilesSorter = _
+  var registered: Option[AtomicBoolean] = None
 
   def init(worker: Worker): Unit = {
     workerSource.addGauge(WorkerSource.ACTIVE_CHUNK_STREAM_COUNT) { () =>
