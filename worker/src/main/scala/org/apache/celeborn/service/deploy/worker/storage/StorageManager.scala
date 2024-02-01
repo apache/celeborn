@@ -815,30 +815,41 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       fileInfos
         .asScala
         .toList
-        .flatMap { case (_, fileInfoMaps) =>
+        .flatMap { case (shuffleKey, fileInfoMaps) =>
           // userIdentifier -> fileInfo
           fileInfoMaps.values().asScala.map { fileInfo =>
-            (fileInfo.getUserIdentifier, fileInfo)
+            (fileInfo.getUserIdentifier, (Utils.splitShuffleKey(shuffleKey)._1, fileInfo))
           }
         }
-        // userIdentifier -> List((userIdentifier, fileInfo))
+        // userIdentifier -> List((userIdentifier, (applicationId, fileInfo))))
         .groupBy(_._1)
         .map { case (userIdentifier, userWithFileInfoList) =>
           // collect resource consumed by each user on this worker
-          val resourceConsumption = {
-            val userFileInfos = userWithFileInfoList.map(_._2)
-            val diskFileInfos = userFileInfos.filter(!_.isHdfs)
-            val hdfsFileInfos = userFileInfos.filter(_.isHdfs)
-
-            val diskBytesWritten = diskFileInfos.map(_.getFileLength).sum
-            val diskFileCount = diskFileInfos.size
-            val hdfsBytesWritten = hdfsFileInfos.map(_.getFileLength).sum
-            val hdfsFileCount = hdfsFileInfos.size
-            ResourceConsumption(diskBytesWritten, diskFileCount, hdfsBytesWritten, hdfsFileCount)
-          }
-          (userIdentifier, resourceConsumption)
+          val userFileInfos = userWithFileInfoList.map(_._2)
+          (
+            userIdentifier,
+            resourceConsumption(
+              userFileInfos.map(_._2),
+              userFileInfos.groupBy(_._1).map {
+                case (applicationId, appWithFileInfoList) =>
+                  (applicationId, resourceConsumption(appWithFileInfoList.map(_._2)))
+              }.asJava))
         }
     }
+  }
+
+  def resourceConsumption(
+      fileInfos: List[FileInfo],
+      subResourceConsumptions: util.Map[String, ResourceConsumption] = null)
+      : ResourceConsumption = {
+    val diskFileInfos = fileInfos.filter(!_.isHdfs)
+    val hdfsFileInfos = fileInfos.filter(_.isHdfs)
+    ResourceConsumption(
+      diskFileInfos.map(_.getFileLength).sum,
+      diskFileInfos.size,
+      hdfsFileInfos.map(_.getFileLength).sum,
+      hdfsFileInfos.size,
+      subResourceConsumptions)
   }
 
   def notifyFileInfoCommitted(

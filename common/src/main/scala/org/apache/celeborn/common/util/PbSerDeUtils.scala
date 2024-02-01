@@ -156,15 +156,36 @@ object PbSerDeUtils {
     pbResourceConsumption.getDiskBytesWritten,
     pbResourceConsumption.getDiskFileCount,
     pbResourceConsumption.getHdfsBytesWritten,
-    pbResourceConsumption.getHdfsFileCount)
+    pbResourceConsumption.getHdfsFileCount,
+    fromPbSubResourceConsumptions(pbResourceConsumption.getSubResourceConsumptionsMap))
 
-  def toPbResourceConsumption(resourceConsumption: ResourceConsumption): PbResourceConsumption =
+  def toPbResourceConsumption(resourceConsumption: ResourceConsumption): PbResourceConsumption = {
     PbResourceConsumption.newBuilder
       .setDiskBytesWritten(resourceConsumption.diskBytesWritten)
       .setDiskFileCount(resourceConsumption.diskFileCount)
       .setHdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
       .setHdfsFileCount(resourceConsumption.hdfsFileCount)
+      .putAllSubResourceConsumptions(toPbSubResourceConsumptions(
+        resourceConsumption.subResourceConsumptions))
       .build
+  }
+
+  def fromPbSubResourceConsumptions(pbSubResourceConsumptions: util.Map[
+    String,
+    PbResourceConsumption]): util.Map[String, ResourceConsumption] =
+    if (CollectionUtils.isEmpty(pbSubResourceConsumptions))
+      null
+    else pbSubResourceConsumptions.asScala.map { case (key, pbResourceConsumption) =>
+      (key, fromPbResourceConsumption(pbResourceConsumption))
+    }.asJava
+
+  def toPbSubResourceConsumptions(subResourceConsumptions: util.Map[String, ResourceConsumption])
+      : util.Map[String, PbResourceConsumption] =
+    if (CollectionUtils.isEmpty(subResourceConsumptions))
+      new util.HashMap[String, PbResourceConsumption]
+    else subResourceConsumptions.asScala.map { case (key, resourceConsumption) =>
+      (key, toPbResourceConsumption(resourceConsumption))
+    }.asJava
 
   def fromPbUserResourceConsumption(pbUserResourceConsumption: util.Map[
     String,
