@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration.DurationInt
 
 import org.roaringbitmap.RoaringBitmap
 
@@ -172,7 +171,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
 
   def stop(): Unit = {
     batchHandleCommitPartition.foreach(_.cancel(true))
-    batchHandleCommitPartitionSchedulerThread.foreach(ThreadUtils.shutdown(_, 800.millis))
+    batchHandleCommitPartitionSchedulerThread.foreach(ThreadUtils.shutdown(_))
   }
 
   def registerShuffle(shuffleId: Int, numMappers: Int): Unit = {
