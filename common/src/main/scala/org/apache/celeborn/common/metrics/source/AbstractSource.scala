@@ -179,17 +179,12 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   def removeGauge(name: String, labelKey: String, labelVal: String): Unit = {
-    val labelString = MetricLabels.labelString(labelKey, labelVal)
-    val staticLabelStrings = staticLabels.map { case (k, v) =>
-      MetricLabels.labelString(k, v)
-    }.toList
+    val labels = Map(labelKey -> labelVal) ++ staticLabels
 
     val iter = namedGauges.iterator()
     while (iter.hasNext) {
       val namedGauge = iter.next()
-      if (namedGauge.name.equals(name)
-        && namedGauge.labelString.contains(labelString)
-        && staticLabelStrings.forall(label => namedGauge.labelString.contains(label))) {
+      if (namedGauge.name.equals(name) && labels.toSet.subsetOf(namedGauge.labels.toSet)) {
         iter.remove()
         removeGaugeMetric(name, namedGauge)
         return
