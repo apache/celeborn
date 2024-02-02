@@ -385,8 +385,8 @@ private[celeborn] class Master(
           shouldResponse) =>
       logDebug(s"Received heartbeat from app $appId")
       if (checkAuthStatus(appId, context)) {
-        // TODO: For the workers to be able to check whether an auth-enabled app is talking to it on unsecured port,
-        // Master will need to maintain a list of unauthenticated apps and send it to workers.
+        // TODO: [CELEBORN-1261] For the workers to be able to check whether an auth-enabled app is talking to it on
+        // unsecured port, Master will need to maintain a list of unauthenticated apps and send it to workers.
         // This wasn't part of the original proposal because that proposal didn't target the Celeborn server to support
         // both secured and unsecured communication.
         executeWithLeaderChecker(
@@ -435,10 +435,7 @@ private[celeborn] class Master(
 
     case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _) =>
       if (checkAuthStatus(applicationId, context)) {
-        // TODO: For the workers to be able to check whether an auth-enabled app is talking to it on unsecured port,
-        // Master will need to maintain a list of unauthenticated apps and send it to workers.
-        // This wasn't part of the original proposal because that proposal didn't target the Celeborn server to support
-        // both secured and unsecured communication.
+        // TODO: [CELEBORN-1261]
         logTrace(s"Received RequestSlots request $requestSlots.")
         executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
       }
@@ -448,10 +445,7 @@ private[celeborn] class Master(
       val shuffleId = pb.getShuffleId
       val requestId = pb.getRequestId
       if (checkAuthStatus(applicationId, context)) {
-        // TODO: For the workers to be able to check whether an auth-enabled app is talking to it on unsecured port,
-        // Master will need to maintain a list of unauthenticated apps and send it to workers.
-        // This wasn't part of the original proposal because that proposal didn't target the Celeborn server to support
-        // both secured and unsecured communication.
+        // TODO: [CELEBORN-1261]
         logDebug(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleId")
         executeWithLeaderChecker(
           context,
@@ -460,10 +454,7 @@ private[celeborn] class Master(
 
     case ApplicationLost(appId, requestId) =>
       if (checkAuthStatus(appId, context)) {
-        // TODO: For the workers to be able to check whether an auth-enabled app is talking to it on unsecured port,
-        // Master will need to maintain a list of unauthenticated apps and send it to workers.
-        // This wasn't part of the original proposal because that proposal didn't target the Celeborn server to support
-        // both secured and unsecured communication.
+        // TODO: [CELEBORN-1261]
         logDebug(
           s"Received ApplicationLost request $requestId, $appId from ${context.senderAddress}.")
         executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
