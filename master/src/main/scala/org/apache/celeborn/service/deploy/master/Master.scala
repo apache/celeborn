@@ -153,7 +153,6 @@ private[celeborn] class Master(
 
   private def diskReserveSize = conf.workerDiskReserveSize
   private def diskReserveRatio = conf.workerDiskReserveRatio
-  private val configService = DynamicConfigServiceFactory.getConfigService(conf)
 
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
