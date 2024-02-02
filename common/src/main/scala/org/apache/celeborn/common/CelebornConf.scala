@@ -2220,7 +2220,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.cluster.name")
       .categories("master", "worker")
       .version("0.5.0")
-      .doc("celeborn cluster name")
+      .doc("Celeborn cluster name.")
       .stringConf
       .createWithDefaultString("default")
 
