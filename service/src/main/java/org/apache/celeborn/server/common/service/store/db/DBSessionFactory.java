@@ -40,7 +40,8 @@ public class DBSessionFactory {
         if (_instance == null) {
           try (InputStream inputStream = Resources.getResourceAsStream(MYBATIS_CONFIG_PATH)) {
             Properties properties = new Properties();
-            properties.setProperty("driverClassName", celebornConf.dynamicConfigStoreDbDriverClassName());
+            properties.setProperty(
+                "driverClassName", celebornConf.dynamicConfigStoreDbDriverClassName());
             properties.setProperty("jdbcUrl", celebornConf.dynamicConfigStoreDbJdbcUrl());
             properties.setProperty("username", celebornConf.dynamicConfigStoreDbUsername());
             properties.setProperty("password", celebornConf.dynamicConfigStoreDbPassword());

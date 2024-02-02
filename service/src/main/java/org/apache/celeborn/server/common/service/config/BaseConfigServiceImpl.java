@@ -24,8 +24,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import scala.concurrent.duration.Duration;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -57,32 +57,27 @@ public class DbServiceManagerImpl implements IServiceManager {
     this.sqlSessionFactory = DBSessionFactory.get(celebornConf);
     this.configService = configServer;
     this.pageSize = celebornConf.dynamicConfigStoreDbFetchPageSize();
-    this.clusterId = createCluster(getClusterInfoFromConf(), true);
+    this.clusterId = createCluster(getClusterInfoFromConf());
   }
 
   @Override
-  public int createCluster(ClusterInfo clusterInfo, boolean ifNotExists) {
+  public int createCluster(ClusterInfo clusterInfo) {
     ClusterInfo clusterInfoFromDB = getClusterInfo(clusterInfo.getName());
     if (clusterInfoFromDB == null) {
       try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
         ClusterInfoMapper mapper = sqlSession.getMapper(ClusterInfoMapper.class);
         clusterInfo.setGmtCreate(new Date());
         clusterInfo.setGmtModify(new Date());
-        try {
-          LOG.info("Cluster auto initialize with: {}", JsonUtils.toJson(clusterInfo));
-          mapper.insert(clusterInfo);
-        } catch (Exception e) {
-          LOG.warn("Create Cluster failed: {}", e.getMessage(), e);
-        }
+        LOG.info("Cluster auto initialize with: {}", JsonUtils.toJson(clusterInfo));
+        mapper.insert(clusterInfo);
+      } catch (Exception e) {
+        LOG.warn("Create Cluster failed: {}", e.getMessage(), e);
       }
       clusterInfoFromDB = getClusterInfo(clusterInfo.getName());
       if (clusterInfoFromDB == null) {
         throw new RuntimeException("Can't get cluster info.");
       }
-    } else {
-
     }
-
     return clusterInfoFromDB.getId();
   }
 

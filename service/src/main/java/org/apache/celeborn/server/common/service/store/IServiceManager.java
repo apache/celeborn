@@ -25,7 +25,7 @@ import org.apache.celeborn.server.common.service.model.ClusterInfo;
 
 public interface IServiceManager {
 
-  int createCluster(ClusterInfo clusterInfo, boolean ifNotExists);
+  int createCluster(ClusterInfo clusterInfo);
 
   ClusterInfo getClusterInfo(String clusterName);
 

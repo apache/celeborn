@@ -23,6 +23,7 @@ license: |
 | celeborn.dynamicConfig.refresh.interval | 120s | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 
 | celeborn.dynamicConfig.store.backend | NONE | Store backend for dynamic config service. Available options: NONE, FS, DB. Note: NONE means disabling dynamic config store. | 0.4.0 |  | 
 | celeborn.dynamicConfig.store.db.connectionTimeout | 30s | The connection timeout that a client will wait for a connection from the pool for db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.driverClassName |  | The jdbc driver class name of db store backend. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.fetch.pageSize | 1000 | The page size for db store to query configurations. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.idleTimeout | 600s | The idle timeout that a connection is allowed to sit idle in the pool for db store backend. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.jdbcUrl |  | The jdbc url of db store backend. | 0.5.0 |  | 
