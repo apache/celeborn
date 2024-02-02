@@ -57,7 +57,7 @@ public class DbServiceManagerImpl implements IServiceManager {
     this.sqlSessionFactory = DBSessionFactory.get(celebornConf);
     this.configService = configServer;
     this.pageSize = celebornConf.dynamicConfigStoreDbFetchPageSize();
-    this.clusterId = createCluster(getClusterInfoFromConf());
+    this.clusterId = createCluster(getClusterInfoFromEnv());
   }
 
   @Override
@@ -68,14 +68,14 @@ public class DbServiceManagerImpl implements IServiceManager {
         ClusterInfoMapper mapper = sqlSession.getMapper(ClusterInfoMapper.class);
         clusterInfo.setGmtCreate(new Date());
         clusterInfo.setGmtModify(new Date());
-        LOG.info("Cluster auto initialize with: {}", JsonUtils.toJson(clusterInfo));
         mapper.insert(clusterInfo);
+        LOG.info("Create cluster {} successfully.", JsonUtils.toJson(clusterInfo));
       } catch (Exception e) {
-        LOG.warn("Create Cluster failed: {}", e.getMessage(), e);
+        LOG.warn("Create cluster {} failed: {}.", JsonUtils.toJson(clusterInfo), e.getMessage(), e);
       }
       clusterInfoFromDB = getClusterInfo(clusterInfo.getName());
       if (clusterInfoFromDB == null) {
-        throw new RuntimeException("Can't get cluster info.");
+        throw new RuntimeException("Could not get cluster info of " + clusterInfo.getName() + ".");
       }
     }
     return clusterInfoFromDB.getId();
@@ -122,11 +122,11 @@ public class DbServiceManagerImpl implements IServiceManager {
     }
   }
 
-  public ClusterInfo getClusterInfoFromConf() {
-    Map<String, String> getenv = System.getenv();
-    String clusterName = getenv.getOrDefault("CELEBORN_CLUSTER_NAME", celebornConf.clusterName());
-    String namespace = getenv.getOrDefault("CELEBORN_CLUSTER_NAMESPACE", "");
-    String endpoint = getenv.getOrDefault("CELEBORN_CLUSTER_ENDPOINT", "");
+  public ClusterInfo getClusterInfoFromEnv() {
+    Map<String, String> env = System.getenv();
+    String clusterName = env.getOrDefault("CELEBORN_CLUSTER_NAME", celebornConf.clusterName());
+    String namespace = env.getOrDefault("CELEBORN_CLUSTER_NAMESPACE", "");
+    String endpoint = env.getOrDefault("CELEBORN_CLUSTER_ENDPOINT", "");
 
     ClusterInfo clusterInfo = new ClusterInfo();
     clusterInfo.setName(clusterName);
