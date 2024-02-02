@@ -170,6 +170,7 @@ message ResourceConsumption {
   required int64 diskFileCount = 2;
   required int64 hdfsBytesWritten = 3;
   required int64 hdfsFileCount = 4;
+  map<string, ResourceConsumption> subResourceConsumption = 5;
 }
 
 enum Status {
