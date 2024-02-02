@@ -22,6 +22,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
+import com.google.common.collect.Sets
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
@@ -83,7 +85,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   def connectionActive(client: TransportClient): Unit = {
     appActiveConnections.putIfAbsent(
       client.getChannel.id().asLongText(),
-      new util.HashSet[String]())
+      Sets.newConcurrentHashSet[String]())
     incCounter(ACTIVE_CONNECTION_COUNT, 1)
   }
 
