@@ -27,6 +27,7 @@
         <environment id="development">
             <transactionManager type="JDBC"/>
             <dataSource type="org.apache.celeborn.server.common.service.store.db.HikariDataSourceFactory">
+                <property name="driverClassName" value="${driverClassName}"/>
                 <property name="jdbcUrl" value="${jdbcUrl}"/>
                 <property name="username" value="${username}"/>
                 <property name="password" value="${password}"/>

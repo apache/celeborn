@@ -368,6 +368,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
   def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
+  def dynamicConfigStoreDbDriverClassName: String = get(DYNAMIC_CONFIG_STORE_DB_DRIVER_CLASS_NAME)
   def dynamicConfigStoreDbJdbcUrl: String = get(DYNAMIC_CONFIG_STORE_DB_JDBC_URL)
   def dynamicConfigStoreDbUsername: String = get(DYNAMIC_CONFIG_STORE_DB_USERNAME)
   def dynamicConfigStoreDbPassword: String = get(DYNAMIC_CONFIG_STORE_DB_PASSWORD)
@@ -4393,6 +4394,14 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val DYNAMIC_CONFIG_STORE_DB_DRIVER_CLASS_NAME: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.driverClassName")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The jdbc driver class name of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
 
   val DYNAMIC_CONFIG_STORE_DB_JDBC_URL: ConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.db.jdbcUrl")
