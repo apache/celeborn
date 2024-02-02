@@ -470,6 +470,7 @@ private[celeborn] class Worker(
         commitThreadPool.shutdownNow()
         asyncReplyPool.shutdownNow()
       }
+      workerSource.appActiveConnections.clear()
       partitionsSorter.close(exitKind)
       storageManager.close(exitKind)
       memoryManager.close()
@@ -547,7 +548,7 @@ private[celeborn] class Worker(
       applicationId: String = null): Unit = {
     var resourceConsumptionLabel = userIdentifier.toMap
     if (applicationId != null)
-      resourceConsumptionLabel += (ResourceConsumptionSource.APPLICATION_LABEL -> applicationId)
+      resourceConsumptionLabel += (resourceConsumptionSource.applicationLabel -> applicationId)
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.DISK_FILE_COUNT,
       resourceConsumptionLabel) { () =>
@@ -597,6 +598,7 @@ private[celeborn] class Worker(
           // When the running applications does not contain the application corresponding to expired shuffle key,
           // resource consumption source should remove lose application gauges.
           removeAppResourceConsumption(applicationId)
+          removeAppActiveConnection(applicationId)
         }
         logInfo(s"Cleaned up expired shuffle $shuffleKey")
       }
@@ -627,8 +629,12 @@ private[celeborn] class Worker(
       applicationId: String): Unit = {
     resourceConsumptionSource.removeGauge(
       resourceConsumptionName,
-      ResourceConsumptionSource.APPLICATION_LABEL,
+      resourceConsumptionSource.applicationLabel,
       applicationId)
+  }
+
+  private def removeAppActiveConnection(applicationId: String): Unit = {
+    workerSource.removeAppActiveConnection(applicationId)
   }
 
   override def getWorkerInfo: String = {

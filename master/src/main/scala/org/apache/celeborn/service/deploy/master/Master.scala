@@ -875,7 +875,7 @@ private[celeborn] class Master(
       appId: String): Unit = {
     resourceConsumptionSource.removeGauge(
       resourceConsumptionName,
-      ResourceConsumptionSource.APPLICATION_LABEL,
+      resourceConsumptionSource.applicationLabel,
       appId)
   }
 
@@ -955,7 +955,7 @@ private[celeborn] class Master(
       applicationId: String = null): Unit = {
     val resourceConsumptionLabel =
       if (applicationId == null) userIdentifier.toMap
-      else userIdentifier.toMap + (ResourceConsumptionSource.APPLICATION_LABEL -> applicationId)
+      else userIdentifier.toMap + (resourceConsumptionSource.applicationLabel -> applicationId)
     resourceConsumptionSource.addGauge(
       ResourceConsumptionSource.DISK_FILE_COUNT,
       resourceConsumptionLabel) { () =>
