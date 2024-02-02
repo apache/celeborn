@@ -1116,7 +1116,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //               Authentication                        //
   // //////////////////////////////////////////////////////
-  def authEnabled: Boolean = get(AUTH_ENABLED)
+  def authEnabled: Boolean = {
+    val authEnabled = get(AUTH_ENABLED)
+    val internalPortEnabled = get(INTERNAL_PORT_ENABLED)
+    if (authEnabled && !internalPortEnabled) {
+      throw new IllegalArgumentException(
+        s"${AUTH_ENABLED.key} is true, but ${INTERNAL_PORT_ENABLED.key} is false")
+    }
+    return authEnabled && internalPortEnabled
+  }
+
+  def haMasterNodeSecuredPort(nodeId: String): Int = {
+    val key = HA_MASTER_NODE_SECURED_PORT.key.replace("<id>", nodeId)
+    getInt(key, HA_MASTER_NODE_SECURED_PORT.defaultValue.get)
+  }
+
+  def masterSecuredPort: Int = get(MASTER_SECURED_PORT)
 
   // //////////////////////////////////////////////////////
   //                     Internal Port                   //
@@ -1130,8 +1145,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def haMasterNodeInternalPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)
-    val legacyKey = HA_MASTER_NODE_INTERNAL_PORT.alternatives.head._1.replace("<id>", nodeId)
-    getInt(key, getInt(legacyKey, HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get))
+    getInt(key, HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get)
   }
 
   def masterInternalPort: Int = get(MASTER_INTERNAL_PORT)
@@ -4392,14 +4406,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val AUTH_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.auth.enabled")
-      .categories("auth")
-      .version("0.5.0")
-      .doc("Whether to enable authentication.")
-      .booleanConf
-      .createWithDefault(false)
-
   val INTERNAL_PORT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.internal.port.enabled")
       .categories("master", "worker")
@@ -4408,6 +4414,15 @@ object CelebornConf extends Logging {
         "inter-Masters/Workers communication. This is beneficial when SASL authentication " +
         "is enforced for all interactions between clients and Celeborn Services, but the services " +
         "can exchange messages without being subject to SASL authentication.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val AUTH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.auth.enabled")
+      .categories("auth")
+      .version("0.5.0")
+      .doc("Whether to enable authentication. Authentication will be enabled only when " +
+        s"${INTERNAL_PORT_ENABLED.key} is enabled as well.")
       .booleanConf
       .createWithDefault(false)
 
@@ -4438,4 +4453,24 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the node rack information periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+  val MASTER_SECURED_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.secured.port")
+      .categories("master", "auth")
+      .version("0.5.0")
+      .doc(
+        "Secured port on the master where clients connect.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(19097)
+
+  val HA_MASTER_NODE_SECURED_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.ha.node.<id>.secured.port")
+      .categories("ha", "auth")
+      .doc(
+        "Secured port for the clients to bind to a master node <id> in HA mode.")
+      .version("0.5.0")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(19097)
+
 }
