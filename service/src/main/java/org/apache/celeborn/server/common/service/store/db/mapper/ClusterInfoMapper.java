@@ -26,10 +26,10 @@ public interface ClusterInfoMapper {
 
   @Insert(
       "INSERT INTO celeborn_cluster_info(name, namespace, endpoint, gmt_create, gmt_modify) "
-          + "values (#{name}, #{namespace}, #{endpoint}, #{gmtCreate}, #{gmtModify})")
+          + "VALUES (#{name}, #{namespace}, #{endpoint}, #{gmtCreate}, #{gmtModify})")
   void insert(ClusterInfo clusterInfo);
 
   @Select(
-      "SELECT id, name, namespace, endpoint, gmt_create, gmt_modify from celeborn_cluster_info where name = #{clusterName}")
+      "SELECT id, name, namespace, endpoint, gmt_create, gmt_modify FROM celeborn_cluster_info WHERE name = #{clusterName}")
   ClusterInfo getClusterInfo(String clusterName);
 }

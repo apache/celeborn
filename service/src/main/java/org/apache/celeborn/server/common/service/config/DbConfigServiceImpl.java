@@ -38,7 +38,9 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
   public void refreshAllCache() throws IOException {
     if (iServiceManager == null) {
       synchronized (this) {
-        iServiceManager = new DbServiceManagerImpl(celebornConf, this);
+        if (iServiceManager == null) {
+          iServiceManager = new DbServiceManagerImpl(celebornConf, this);
+        }
       }
     }
 

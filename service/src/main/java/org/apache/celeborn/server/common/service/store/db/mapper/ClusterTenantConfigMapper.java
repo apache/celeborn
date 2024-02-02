@@ -28,7 +28,7 @@ public interface ClusterTenantConfigMapper {
 
   @Select(
       "SELECT id, cluster_id, tenant_id, level, user, config_key, config_value, type, gmt_create, gmt_modify "
-          + "from celeborn_cluster_tenant_config where cluster_id = #{clusterId} and level=#{level} limit #{offset}, #{pageSize}")
+          + "FROM celeborn_cluster_tenant_config WHERE cluster_id = #{clusterId} AND level=#{level} LIMIT #{offset}, #{pageSize}")
   List<ClusterTenantConfig> getClusterTenantConfigs(
       @Param("clusterId") int clusterId,
       @Param("level") String configLevel,
@@ -36,7 +36,7 @@ public interface ClusterTenantConfigMapper {
       @Param("pageSize") int pageSize);
 
   @Select(
-      "SELECT count(*) from celeborn_cluster_tenant_config where cluster_id = #{clusterId} and level=#{level}")
+      "SELECT count(*) FROM celeborn_cluster_tenant_config WHERE cluster_id = #{clusterId} AND level=#{level}")
   int getClusterTenantConfigsNum(
       @Param("clusterId") int clusterId, @Param("level") String configLevel);
 }

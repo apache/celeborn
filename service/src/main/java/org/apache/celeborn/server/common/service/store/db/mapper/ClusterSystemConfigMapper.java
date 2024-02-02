@@ -27,6 +27,6 @@ public interface ClusterSystemConfigMapper {
 
   @Select(
       "SELECT id, cluster_id, config_key, config_value, type, gmt_create, gmt_modify "
-          + "from celeborn_cluster_system_config where cluster_id = #{clusterId}")
+          + "FROM celeborn_cluster_system_config WHERE cluster_id = #{clusterId}")
   List<ClusterSystemConfig> getClusterSystemConfig(int clusterId);
 }
