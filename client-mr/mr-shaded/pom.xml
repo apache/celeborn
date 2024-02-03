@@ -84,7 +84,6 @@
               <include>org.lz4:lz4-java</include>
               <include>com.github.luben:zstd-jni</include>
               <include>org.roaringbitmap:RoaringBitmap</include>
-              <include>commons-codec:commons-codec</include>
             </includes>
           </artifactSet>
           <filters>

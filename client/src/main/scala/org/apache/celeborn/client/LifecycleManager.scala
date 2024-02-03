@@ -35,7 +35,6 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
-import org.apache.commons.codec.binary.Hex
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
@@ -1640,6 +1639,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val rnd = new SecureRandom()
     val secretBytes = new Array[Byte](bits / JByte.SIZE)
     rnd.nextBytes(secretBytes)
-    Hex.encodeHexString(secretBytes)
+    JavaUtils.bytesToString(ByteBuffer.wrap(secretBytes))
   }
 }
