@@ -20,7 +20,8 @@ license: |
 | Key | Default | Description | Since | Deprecated |
 | --- | ------- | ----------- | ----- | ---------- |
 | celeborn.cluster.name | default | Celeborn cluster name. | 0.5.0 |  | 
-| celeborn.dynamicConfig.refresh.interval | &lt;undefined&gt; | Interval for refreshing the corresponding dynamic config periodically, None means disable the corresponding config refresh | 0.4.0 |  | 
+| celeborn.dynamicConfig.refresh.enabled | false | Whether to enable configuration refresher. | 0.5.0 |  | 
+| celeborn.dynamicConfig.refresh.interval | 120s | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 
 | celeborn.dynamicConfig.store.backend | FS | Store backend for dynamic config service. Available options: FS, DB. | 0.4.0 |  | 
 | celeborn.dynamicConfig.store.db.fetch.pageSize | 1000 | The page size for db store to query configurations. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.hikari.connectionTimeout | 30s | The connection timeout that a client will wait for a connection from the pool for db store backend. | 0.5.0 |  | 
