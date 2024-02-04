@@ -38,7 +38,6 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
       new AtomicReference<>();
   protected final AtomicReference<Map<String, TenantConfig>> tenantConfigAtomicReference =
       new AtomicReference<>(new HashMap<>());
-  protected final long dynamicConfigRefreshTime;
 
   private final ScheduledExecutorService configRefreshService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-config-refresher");
@@ -47,18 +46,20 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
     this.celebornConf = celebornConf;
     this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
     this.refreshAllCache();
-    this.dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshInterval();
-    if (dynamicConfigRefreshTime > 0) {
+    boolean dynamicConfigRefreshEnabled = celebornConf.dynamicConfigRefreshEnabled();
+    if (dynamicConfigRefreshEnabled) {
+      LOG.info("Celeborn config refresher is enabled.");
+      long dynamicConfigRefreshInterval = celebornConf.dynamicConfigRefreshInterval();
       this.configRefreshService.scheduleWithFixedDelay(
           () -> {
             try {
               refreshAllCache();
             } catch (Throwable e) {
-              LOG.error("Refresh configuration encounter exception: {}", e.getMessage(), e);
+              LOG.error("Refresh config encounter exception: {}", e.getMessage(), e);
             }
           },
-          dynamicConfigRefreshTime,
-          dynamicConfigRefreshTime,
+          dynamicConfigRefreshInterval,
+          dynamicConfigRefreshInterval,
           TimeUnit.MILLISECONDS);
     } else {
       LOG.info(
