@@ -19,6 +19,7 @@ package org.apache.celeborn.server.common.service.store.db;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.ibatis.io.Resources;
@@ -41,20 +42,29 @@ public class DBSessionFactory {
           try (InputStream inputStream = Resources.getResourceAsStream(MYBATIS_CONFIG_PATH)) {
             Properties properties = new Properties();
             properties.setProperty(
-                "driverClassName", celebornConf.dynamicConfigStoreDbDriverClassName());
-            properties.setProperty("jdbcUrl", celebornConf.dynamicConfigStoreDbJdbcUrl());
-            properties.setProperty("username", celebornConf.dynamicConfigStoreDbUsername());
-            properties.setProperty("password", celebornConf.dynamicConfigStoreDbPassword());
+                "driverClassName", celebornConf.dynamicConfigStoreDbHikariDriverClassName());
+            properties.setProperty("jdbcUrl", celebornConf.dynamicConfigStoreDbHikariJdbcUrl());
+            properties.setProperty("username", celebornConf.dynamicConfigStoreDbHikariUsername());
+            properties.setProperty("password", celebornConf.dynamicConfigStoreDbHikariPassword());
             properties.setProperty(
                 "connectionTimeout",
-                String.valueOf(celebornConf.dynamicConfigStoreDbConnectionTimeout()));
+                String.valueOf(celebornConf.dynamicConfigStoreDbHikariConnectionTimeout()));
             properties.setProperty(
-                "idleTimeout", String.valueOf(celebornConf.dynamicConfigStoreDbIdleTimeout()));
+                "idleTimeout",
+                String.valueOf(celebornConf.dynamicConfigStoreDbHikariIdleTimeout()));
             properties.setProperty(
-                "maxLifetime", String.valueOf(celebornConf.dynamicConfigStoreDbMaxLifetime()));
+                "maxLifetime",
+                String.valueOf(celebornConf.dynamicConfigStoreDbHikariMaxLifetime()));
             properties.setProperty(
                 "maximumPoolSize",
-                String.valueOf(celebornConf.dynamicConfigStoreDbMaximumPoolSize()));
+                String.valueOf(celebornConf.dynamicConfigStoreDbHikariMaximumPoolSize()));
+
+            for (Map.Entry<String, String> dbPropertiesEntry :
+                celebornConf.dynamicConfigStoreDbHikariCustomConfigs().entrySet()) {
+              properties.setProperty(
+                  dbPropertiesEntry.getKey().replace("celeborn.dynamicConfig.store.db.hikari.", ""),
+                  dbPropertiesEntry.getValue());
+            }
 
             SqlSessionFactoryBuilder builder = new SqlSessionFactoryBuilder();
             _instance = builder.build(inputStream, null, properties);

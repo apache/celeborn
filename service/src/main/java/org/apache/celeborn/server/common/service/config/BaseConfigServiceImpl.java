@@ -47,18 +47,24 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
     this.celebornConf = celebornConf;
     this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
     this.refreshAllCache();
-    this.dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshInterval();
-    this.configRefreshService.scheduleWithFixedDelay(
-        () -> {
-          try {
-            refreshAllCache();
-          } catch (Throwable e) {
-            LOG.error("Refresh configuration encounter exception: {}", e.getMessage(), e);
-          }
-        },
-        dynamicConfigRefreshTime,
-        dynamicConfigRefreshTime,
-        TimeUnit.MILLISECONDS);
+    this.dynamicConfigRefreshTime =
+        celebornConf.dynamicConfigRefreshInterval().getOrElse(() -> -1L);
+    if (dynamicConfigRefreshTime > 0) {
+      this.configRefreshService.scheduleWithFixedDelay(
+          () -> {
+            try {
+              refreshAllCache();
+            } catch (Throwable e) {
+              LOG.error("Refresh configuration encounter exception: {}", e.getMessage(), e);
+            }
+          },
+          dynamicConfigRefreshTime,
+          dynamicConfigRefreshTime,
+          TimeUnit.MILLISECONDS);
+    } else {
+      LOG.info(
+          "Celeborn config refresher is disabled, configuration can not be refreshed after updated.");
+    }
   }
 
   @Override

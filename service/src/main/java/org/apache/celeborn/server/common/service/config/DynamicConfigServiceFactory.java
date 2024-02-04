@@ -31,6 +31,7 @@ public class DynamicConfigServiceFactory {
       return new DbConfigServiceImpl(celebornConf);
     }
 
-    return null;
+    throw new UnsupportedOperationException(
+        "Unsupported dynamic config store backend:" + configStoreBackend);
   }
 }

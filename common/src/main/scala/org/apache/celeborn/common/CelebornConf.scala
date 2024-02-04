@@ -367,16 +367,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
-  def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
-  def dynamicConfigStoreDbDriverClassName: String = get(DYNAMIC_CONFIG_STORE_DB_DRIVER_CLASS_NAME)
-  def dynamicConfigStoreDbJdbcUrl: String = get(DYNAMIC_CONFIG_STORE_DB_JDBC_URL)
-  def dynamicConfigStoreDbUsername: String = get(DYNAMIC_CONFIG_STORE_DB_USERNAME)
-  def dynamicConfigStoreDbPassword: String = get(DYNAMIC_CONFIG_STORE_DB_PASSWORD)
-  def dynamicConfigStoreDbConnectionTimeout: Long = get(DYNAMIC_CONFIG_STORE_DB_CONNECTION_TIMEOUT)
-  def dynamicConfigStoreDbIdleTimeout: Long = get(DYNAMIC_CONFIG_STORE_DB_IDLE_TIMEOUT)
-  def dynamicConfigStoreDbMaxLifetime: Long = get(DYNAMIC_CONFIG_STORE_DB_MAX_LIFETIME)
-  def dynamicConfigStoreDbMaximumPoolSize: Int = get(DYNAMIC_CONFIG_STORE_DB_MAXIMUM_POOL_SIZE)
+  def dynamicConfigRefreshInterval: Option[Long] = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
   def dynamicConfigStoreDbFetchPageSize: Int = get(DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE)
+  def dynamicConfigStoreDbHikariDriverClassName: String =
+    get(DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME)
+  def dynamicConfigStoreDbHikariJdbcUrl: String = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL)
+  def dynamicConfigStoreDbHikariUsername: String = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_USERNAME)
+  def dynamicConfigStoreDbHikariPassword: String = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_PASSWORD)
+  def dynamicConfigStoreDbHikariConnectionTimeout: Long =
+    get(DYNAMIC_CONFIG_STORE_DB_HIKARI_CONNECTION_TIMEOUT)
+  def dynamicConfigStoreDbHikariIdleTimeout: Long = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_IDLE_TIMEOUT)
+  def dynamicConfigStoreDbHikariMaxLifetime: Long = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_MAX_LIFETIME)
+  def dynamicConfigStoreDbHikariMaximumPoolSize: Int =
+    get(DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE)
+  def dynamicConfigStoreDbHikariCustomConfigs: JMap[String, String] = {
+    settings.asScala.filter(_._1.startsWith("celeborn.dynamicConfig.store.db.hikari")).toMap.asJava
+  }
 
   // //////////////////////////////////////////////////////
   //                      Network                        //
@@ -4379,85 +4385,21 @@ object CelebornConf extends Logging {
   val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")
       .categories("master", "worker")
-      .doc("Store backend for dynamic config service. Available options: NONE, FS, DB. Note: NONE means disabling " +
-        "dynamic config store.")
+      .doc("Store backend for dynamic config service. Available options: FS, DB.")
       .version("0.4.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set("NONE", "FS", "DB"))
-      .createWithDefault("NONE")
+      .checkValues(Set("FS", "DB"))
+      .createWithDefault("FS")
 
-  val DYNAMIC_CONFIG_REFRESH_INTERVAL: ConfigEntry[Long] =
+  val DYNAMIC_CONFIG_REFRESH_INTERVAL: OptionalConfigEntry[Long] =
     buildConf("celeborn.dynamicConfig.refresh.interval")
       .categories("master", "worker")
       .version("0.4.0")
-      .doc("Interval for refreshing the corresponding dynamic config periodically.")
+      .doc("Interval for refreshing the corresponding dynamic config periodically, None means disable the " +
+        "corresponding config refresh")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("120s")
-
-  val DYNAMIC_CONFIG_STORE_DB_DRIVER_CLASS_NAME: ConfigEntry[String] =
-    buildConf("celeborn.dynamicConfig.store.db.driverClassName")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("The jdbc driver class name of db store backend.")
-      .stringConf
-      .createWithDefaultString("")
-
-  val DYNAMIC_CONFIG_STORE_DB_JDBC_URL: ConfigEntry[String] =
-    buildConf("celeborn.dynamicConfig.store.db.jdbcUrl")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("The jdbc url of db store backend.")
-      .stringConf
-      .createWithDefaultString("")
-
-  val DYNAMIC_CONFIG_STORE_DB_USERNAME: ConfigEntry[String] =
-    buildConf("celeborn.dynamicConfig.store.db.username")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("The username of db store backend.")
-      .stringConf
-      .createWithDefaultString("")
-
-  val DYNAMIC_CONFIG_STORE_DB_PASSWORD: ConfigEntry[String] =
-    buildConf("celeborn.dynamicConfig.store.db.password")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("The password of db store backend.")
-      .stringConf
-      .createWithDefaultString("")
-
-  val DYNAMIC_CONFIG_STORE_DB_CONNECTION_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.dynamicConfig.store.db.connectionTimeout")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("The connection timeout that a client will wait for a connection from the pool for db store backend.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
-
-  val DYNAMIC_CONFIG_STORE_DB_IDLE_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.dynamicConfig.store.db.idleTimeout")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("The idle timeout that a connection is allowed to sit idle in the pool for db store backend.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
-
-  val DYNAMIC_CONFIG_STORE_DB_MAX_LIFETIME: ConfigEntry[Long] =
-    buildConf("celeborn.dynamicConfig.store.db.maxLifetime")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("The maximum lifetime of a connection in the pool for db store backend.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("1800s")
-
-  val DYNAMIC_CONFIG_STORE_DB_MAXIMUM_POOL_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.dynamicConfig.store.db.maximumPoolSize")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("The maximum pool size of db store backend.")
-      .intConf
-      .createWithDefaultString("2")
+      .createOptional
 
   val DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.dynamicConfig.store.db.fetch.pageSize")
@@ -4466,6 +4408,70 @@ object CelebornConf extends Logging {
       .doc("The page size for db store to query configurations.")
       .intConf
       .createWithDefaultString("1000")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.driverClassName")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The jdbc driver class name of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.jdbcUrl")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The jdbc url of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_USERNAME: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.username")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The username of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_PASSWORD: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.password")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The password of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_CONNECTION_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.connectionTimeout")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The connection timeout that a client will wait for a connection from the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_IDLE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.idleTimeout")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The idle timeout that a connection is allowed to sit idle in the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_MAX_LIFETIME: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.maxLifetime")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The maximum lifetime of a connection in the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1800s")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.maximumPoolSize")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The maximum pool size of db store backend.")
+      .intConf
+      .createWithDefaultString("2")
 
   val REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.register.filterExcludedWorker.enabled")

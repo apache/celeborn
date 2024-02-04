@@ -18,19 +18,41 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType;
+import org.apache.celeborn.server.common.service.store.db.DBSessionFactory;
 
 public class ConfigServiceSuiteJ {
+  private ConfigService configService;
 
   @Test
   public void testDbConfig() throws IOException {
-    DbConfigServiceImpl dbConfigServer = new DbConfigServiceImpl(new CelebornConf());
-    verifyConfig(dbConfigServer);
+    CelebornConf celebornConf = new CelebornConf();
+
+    configService = new DbConfigServiceImpl(celebornConf);
+    verifyConfig(configService);
+
+    SqlSessionFactory sqlSessionFactory = DBSessionFactory.get(celebornConf);
+    try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
+      sqlSession
+          .getConnection()
+          .createStatement()
+          .execute(
+              "UPDATE celeborn_cluster_system_config SET config_value = 100 WHERE config_key='celeborn.test.int.only'");
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+
+    configService.refreshAllCache();
+    verifyConfigChanged(configService);
   }
 
   @Test
@@ -39,32 +61,20 @@ public class ConfigServiceSuiteJ {
     String file = getClass().getResource("/dynamicConfig.yaml").getFile();
     celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
     celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 5L);
-    FsConfigServiceImpl fsConfigService = new FsConfigServiceImpl(celebornConf);
-    try {
-      verifyConfig(fsConfigService);
+    configService = new FsConfigServiceImpl(celebornConf);
+    verifyConfig(configService);
+    // change -> refresh config
+    file = getClass().getResource("/dynamicConfig_2.yaml").getFile();
+    celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
+    configService.refreshAllCache();
 
-      // change -> refresh config
-      file = getClass().getResource("/dynamicConfig_2.yaml").getFile();
-      celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
+    verifyConfigChanged(configService);
+  }
 
-      fsConfigService.refreshAllCache();
-      SystemConfig systemConfig = fsConfigService.getSystemConfigFromCache();
-
-      // verify systemConfig's intConf
-      Integer intConfValue =
-          systemConfig.getValue("celeborn.test.int.only", null, Integer.TYPE, ConfigType.STRING);
-      Assert.assertEquals(intConfValue.intValue(), 100);
-
-      // verify systemConfig's bytesConf -- defer to celebornConf
-      Long value =
-          systemConfig.getValue(
-              CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD().key(),
-              CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD(),
-              Long.TYPE,
-              ConfigType.BYTES);
-      Assert.assertEquals(value.longValue(), 1073741824);
-    } finally {
-      fsConfigService.shutdown();
+  @After
+  public void teardown() {
+    if (configService != null) {
+      configService.shutdown();
     }
   }
 
@@ -183,5 +193,23 @@ public class ConfigServiceSuiteJ {
     Long withDefaultValue =
         tenantConfigNone.getWithDefaultValue("none", 10L, Long.TYPE, ConfigType.STRING);
     Assert.assertEquals(withDefaultValue.longValue(), 10);
+  }
+
+  public void verifyConfigChanged(ConfigService configService) {
+
+    SystemConfig systemConfig = configService.getSystemConfigFromCache();
+    // verify systemConfig's intConf
+    Integer intConfValue =
+        systemConfig.getValue("celeborn.test.int.only", null, Integer.TYPE, ConfigType.STRING);
+    Assert.assertEquals(intConfValue.intValue(), 100);
+
+    // verify systemConfig's bytesConf -- defer to celebornConf
+    Long value =
+        systemConfig.getValue(
+            CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD().key(),
+            CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD(),
+            Long.TYPE,
+            ConfigType.BYTES);
+    Assert.assertEquals(value.longValue(), 1073741824);
   }
 }
