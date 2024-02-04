@@ -576,9 +576,13 @@ private[celeborn] class Worker(
       applicationId: String = null): ResourceConsumption = {
     var resourceConsumption = workerInfo.userResourceConsumption.get(userIdentifier)
     if (applicationId != null) {
-      resourceConsumption = resourceConsumption.subResourceConsumptions.getOrDefault(
-        applicationId,
-        ResourceConsumption(0, 0, 0, 0))
+      val subResourceConsumptions = resourceConsumption.subResourceConsumptions
+      if (CollectionUtils.isNotEmpty(subResourceConsumptions)
+        && subResourceConsumptions.containsKey(applicationId)) {
+        resourceConsumption = subResourceConsumptions.get(applicationId)
+      } else {
+        resourceConsumption = ResourceConsumption(0, 0, 0, 0)
+      }
     }
     resourceConsumption
   }
