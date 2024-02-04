@@ -28,7 +28,7 @@
             <transactionManager type="JDBC"/>
             <dataSource type="POOLED">
                 <property name="driver" value="org.h2.Driver"/>
-                <property name="url" value="jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2-2.2.sql';DB_CLOSE_DELAY=-1;"/>
+                <property name="url" value="jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2.sql';DB_CLOSE_DELAY=-1;"/>
                 <property name="username" value=""/>
                 <property name="password" value=""/>
             </dataSource>

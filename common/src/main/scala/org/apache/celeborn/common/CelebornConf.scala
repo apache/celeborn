@@ -367,7 +367,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
-  def dynamicConfigRefreshInterval: Option[Long] = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
+  def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL).getOrElse(-1L)
   def dynamicConfigStoreDbFetchPageSize: Int = get(DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE)
   def dynamicConfigStoreDbHikariDriverClassName: String =
     get(DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME)

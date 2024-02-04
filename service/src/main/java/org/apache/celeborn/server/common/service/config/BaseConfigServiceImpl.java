@@ -47,8 +47,7 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
     this.celebornConf = celebornConf;
     this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
     this.refreshAllCache();
-    this.dynamicConfigRefreshTime =
-        celebornConf.dynamicConfigRefreshInterval().getOrElse(() -> -1L);
+    this.dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshInterval();
     if (dynamicConfigRefreshTime > 0) {
       this.configRefreshService.scheduleWithFixedDelay(
           () -> {

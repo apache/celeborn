@@ -45,7 +45,6 @@ import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, CollectionUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
-import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver
@@ -98,7 +97,6 @@ private[celeborn] class Master(
   }
 
   private val rackResolver = new CelebornRackResolver(conf)
-  private val configService = DynamicConfigServiceFactory.getConfigService(conf)
   private val statusSystem =
     if (conf.haEnabled) {
       val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
