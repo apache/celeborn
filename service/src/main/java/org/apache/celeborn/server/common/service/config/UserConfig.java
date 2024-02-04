@@ -17,8 +17,31 @@
 
 package org.apache.celeborn.server.common.service.config;
 
-public enum ConfigLevel {
-  SYSTEM,
-  TENANT,
-  TENANT_USER
+import java.util.Map;
+
+public class UserConfig extends DynamicConfig {
+  private final String tenantId;
+  private final String userName;
+  private final ConfigService configService;
+
+  public UserConfig(
+      ConfigService configService, String tenantId, String userName, Map<String, String> configs) {
+    this.configService = configService;
+    this.configs.putAll(configs);
+    this.tenantId = tenantId;
+    this.userName = userName;
+  }
+
+  public String getTenantId() {
+    return tenantId;
+  }
+
+  public String getUserName() {
+    return userName;
+  }
+
+  @Override
+  public DynamicConfig getParentLevelConfig() {
+    return configService.getTenantConfig(tenantId);
+  }
 }

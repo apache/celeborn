@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.util.ThreadUtils;
 
 public class FsConfigServiceImpl implements ConfigService {
@@ -43,7 +44,10 @@ public class FsConfigServiceImpl implements ConfigService {
   private final AtomicReference<SystemConfig> systemConfigAtomicReference = new AtomicReference<>();
   private final AtomicReference<Map<String, TenantConfig>> tenantConfigAtomicReference =
       new AtomicReference<>(new HashMap<>());
+  private final AtomicReference<Map<UserIdentifier, UserConfig>> userConfigAtomicReference =
+      new AtomicReference<>(new HashMap<>());
   private static final String CONF_TENANT_ID = "tenantId";
+  private static final String CONF_USER_ID = "name";
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
 
@@ -67,21 +71,28 @@ public class FsConfigServiceImpl implements ConfigService {
 
     SystemConfig systemConfig = null;
     Map<String, TenantConfig> tenantConfs = new HashMap<>();
+    Map<UserIdentifier, UserConfig> userConfs = new HashMap<>();
     try (FileInputStream fileInputStream = new FileInputStream(configurationFile)) {
       Yaml yaml = new Yaml();
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
       for (Map<String, Object> settings : dynamicConfigs) {
         String tenantId = (String) settings.get(CONF_TENANT_ID);
+        String userName = (String) settings.get(CONF_USER_ID);
         String level = (String) settings.get(CONF_LEVEL);
         Map<String, String> config =
             ((Map<String, Object>) settings.get(CONF_CONFIG))
                 .entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
-        if (ConfigLevel.TENANT.name().equals(level)) {
-          TenantConfig tenantConfig = new TenantConfig(this, tenantId, config);
-          tenantConfs.put(tenantId, tenantConfig);
+        if (ConfigLevel.TENANT_USER.name().equals(level)) {
+          UserConfig userConfig = new UserConfig(this, tenantId, userName, config);
+          userConfs.put(new UserIdentifier(tenantId, userName), userConfig);
         } else {
-          systemConfig = new SystemConfig(celebornConf, config);
+          if (ConfigLevel.TENANT.name().equals(level)) {
+            TenantConfig tenantConfig = new TenantConfig(this, tenantId, config);
+            tenantConfs.put(tenantId, tenantConfig);
+          } else {
+            systemConfig = new SystemConfig(celebornConf, config);
+          }
         }
       }
     } catch (Exception e) {
@@ -89,6 +100,7 @@ public class FsConfigServiceImpl implements ConfigService {
       return;
     }
 
+    userConfigAtomicReference.set(userConfs);
     tenantConfigAtomicReference.set(tenantConfs);
     if (systemConfig != null) {
       systemConfigAtomicReference.set(systemConfig);
@@ -103,6 +115,11 @@ public class FsConfigServiceImpl implements ConfigService {
   @Override
   public TenantConfig getRawTenantConfig(String tenantId) {
     return tenantConfigAtomicReference.get().get(tenantId);
+  }
+
+  @Override
+  public UserConfig getRawUserConfig(String tenantId, String userId) {
+    return userConfigAtomicReference.get().get(new UserIdentifier(tenantId, userId));
   }
 
   @Override

@@ -32,6 +32,22 @@ public interface ConfigService {
     }
   }
 
+  UserConfig getRawUserConfig(String tenantId, String userId);
+
+  default DynamicConfig getUserConfig(String tenantId, String userId) {
+    UserConfig userConfig = getRawUserConfig(tenantId, userId);
+    if (userConfig == null || userConfig.getConfigs().isEmpty()) {
+      TenantConfig tenantConfig = getRawTenantConfig(tenantId);
+      if (tenantConfig == null || tenantConfig.getConfigs().isEmpty()) {
+        return getSystemConfig();
+      } else {
+        return tenantConfig;
+      }
+    } else {
+      return userConfig;
+    }
+  }
+
   void refreshAllCache();
 
   void shutdown();
