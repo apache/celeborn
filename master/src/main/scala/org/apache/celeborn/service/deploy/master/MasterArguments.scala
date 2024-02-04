@@ -44,7 +44,7 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
     val localNode = clusterInfo.localNode
     _host = _host.orElse(Some(conf.haMasterNodeHost(localNode.nodeId)))
     _port = _port.orElse(Some(conf.haMasterNodePort(localNode.nodeId)))
-    _internalPort = _internalPort.orElse { 
+    _internalPort = _internalPort.orElse {
       if (conf.internalPortEnabled) Some(conf.haMasterNodeInternalPort(localNode.nodeId)) else None
     }
     _masterClusterInfo = Some(clusterInfo)
