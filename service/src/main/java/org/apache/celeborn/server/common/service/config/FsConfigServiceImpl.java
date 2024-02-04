@@ -47,7 +47,7 @@ public class FsConfigServiceImpl implements ConfigService {
   private final AtomicReference<Map<UserIdentifier, UserConfig>> userConfigAtomicReference =
       new AtomicReference<>(new HashMap<>());
   private static final String CONF_TENANT_ID = "tenantId";
-  private static final String CONF_USER_ID = "name";
+  private static final String CONF_TENANT_USER_ID = "name";
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
 
@@ -77,7 +77,7 @@ public class FsConfigServiceImpl implements ConfigService {
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
       for (Map<String, Object> settings : dynamicConfigs) {
         String tenantId = (String) settings.get(CONF_TENANT_ID);
-        String userName = (String) settings.get(CONF_USER_ID);
+        String userName = (String) settings.get(CONF_TENANT_USER_ID);
         String level = (String) settings.get(CONF_LEVEL);
         Map<String, String> config =
             ((Map<String, Object>) settings.get(CONF_CONFIG))
