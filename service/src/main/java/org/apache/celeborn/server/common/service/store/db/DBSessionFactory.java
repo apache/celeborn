@@ -18,58 +18,74 @@
 package org.apache.celeborn.server.common.service.store.db;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.ibatis.io.Resources;
+import javax.sql.DataSource;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.apache.ibatis.mapping.Environment;
+import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import org.apache.ibatis.transaction.TransactionFactory;
+import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.server.common.service.store.db.mapper.ClusterInfoMapper;
+import org.apache.celeborn.server.common.service.store.db.mapper.ClusterSystemConfigMapper;
+import org.apache.celeborn.server.common.service.store.db.mapper.ClusterTenantConfigMapper;
 
 public class DBSessionFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DBSessionFactory.class);
-  private static final String MYBATIS_CONFIG_PATH = "mybatis-config.xml";
   private static volatile SqlSessionFactory _instance;
 
   public static SqlSessionFactory get(CelebornConf celebornConf) throws IOException {
     if (_instance == null) {
       synchronized (DBSessionFactory.class) {
         if (_instance == null) {
-          try (InputStream inputStream = Resources.getResourceAsStream(MYBATIS_CONFIG_PATH)) {
-            Properties properties = new Properties();
-            properties.setProperty(
-                "driverClassName", celebornConf.dynamicConfigStoreDbHikariDriverClassName());
-            properties.setProperty("jdbcUrl", celebornConf.dynamicConfigStoreDbHikariJdbcUrl());
-            properties.setProperty("username", celebornConf.dynamicConfigStoreDbHikariUsername());
-            properties.setProperty("password", celebornConf.dynamicConfigStoreDbHikariPassword());
-            properties.setProperty(
-                "connectionTimeout",
-                String.valueOf(celebornConf.dynamicConfigStoreDbHikariConnectionTimeout()));
-            properties.setProperty(
-                "idleTimeout",
-                String.valueOf(celebornConf.dynamicConfigStoreDbHikariIdleTimeout()));
-            properties.setProperty(
-                "maxLifetime",
-                String.valueOf(celebornConf.dynamicConfigStoreDbHikariMaxLifetime()));
-            properties.setProperty(
-                "maximumPoolSize",
-                String.valueOf(celebornConf.dynamicConfigStoreDbHikariMaximumPoolSize()));
+          Properties properties = new Properties();
+          properties.setProperty(
+              "driverClassName", celebornConf.dynamicConfigStoreDbHikariDriverClassName());
+          properties.setProperty("jdbcUrl", celebornConf.dynamicConfigStoreDbHikariJdbcUrl());
+          properties.setProperty("username", celebornConf.dynamicConfigStoreDbHikariUsername());
+          properties.setProperty("password", celebornConf.dynamicConfigStoreDbHikariPassword());
+          properties.setProperty(
+              "connectionTimeout",
+              String.valueOf(celebornConf.dynamicConfigStoreDbHikariConnectionTimeout()));
+          properties.setProperty(
+              "idleTimeout", String.valueOf(celebornConf.dynamicConfigStoreDbHikariIdleTimeout()));
+          properties.setProperty(
+              "maxLifetime", String.valueOf(celebornConf.dynamicConfigStoreDbHikariMaxLifetime()));
+          properties.setProperty(
+              "maximumPoolSize",
+              String.valueOf(celebornConf.dynamicConfigStoreDbHikariMaximumPoolSize()));
 
-            for (Map.Entry<String, String> dbPropertiesEntry :
-                celebornConf.dynamicConfigStoreDbHikariCustomConfigs().entrySet()) {
-              properties.setProperty(
-                  dbPropertiesEntry.getKey().replace("celeborn.dynamicConfig.store.db.hikari.", ""),
-                  dbPropertiesEntry.getValue());
-            }
-
-            SqlSessionFactoryBuilder builder = new SqlSessionFactoryBuilder();
-            _instance = builder.build(inputStream, null, properties);
-            LOG.info("Init sqlSessionFactory success");
+          for (Map.Entry<String, String> dbPropertiesEntry :
+              celebornConf.dynamicConfigStoreDbHikariCustomConfigs().entrySet()) {
+            properties.setProperty(
+                dbPropertiesEntry.getKey().replace("celeborn.dynamicConfig.store.db.hikari.", ""),
+                dbPropertiesEntry.getValue());
           }
+
+          HikariConfig config = new HikariConfig(properties);
+          DataSource dataSource = new HikariDataSource(config);
+
+          TransactionFactory transactionFactory = new JdbcTransactionFactory();
+          Environment environment = new Environment("celeborn", transactionFactory, dataSource);
+
+          Configuration configuration = new Configuration(environment);
+          configuration.setMapUnderscoreToCamelCase(true);
+          configuration.addMapper(ClusterInfoMapper.class);
+          configuration.addMapper(ClusterSystemConfigMapper.class);
+          configuration.addMapper(ClusterTenantConfigMapper.class);
+
+          SqlSessionFactoryBuilder builder = new SqlSessionFactoryBuilder();
+          _instance = builder.build(configuration);
+          LOG.info("Init sqlSessionFactory success");
         }
       }
     }

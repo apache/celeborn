@@ -36,7 +36,11 @@ public class ConfigServiceSuiteJ {
   @Test
   public void testDbConfig() throws IOException {
     CelebornConf celebornConf = new CelebornConf();
-
+    celebornConf.set(
+        CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL(),
+        "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2.sql';DB_CLOSE_DELAY=-1;");
+    celebornConf.set(
+        CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME(), "org.h2.Driver");
     configService = new DbConfigServiceImpl(celebornConf);
     verifyConfig(configService);
 

@@ -382,6 +382,10 @@ cp "$PROJECT_DIR"/conf/*.template "$DIST_DIR/conf"
 cp -r "$PROJECT_DIR/bin" "$DIST_DIR"
 cp -r "$PROJECT_DIR/sbin" "$DIST_DIR"
 
+# Copy db scripts
+mkdir "$DIST_DIR/db-scripts"
+cp -r "$PROJECT_DIR/service/src/main/resources/sql/" "$DIST_DIR/db-scripts"
+
 # Copy container related resources
 mkdir "$DIST_DIR/docker"
 cp "$PROJECT_DIR/docker/Dockerfile" "$DIST_DIR/docker"

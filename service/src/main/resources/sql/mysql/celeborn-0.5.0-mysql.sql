@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS celeborn_cluster_info
     name       varchar(255) NOT NULL COMMENT 'celeborn cluster name',
     namespace  varchar(255) DEFAULT NULL COMMENT 'celeborn cluster namespace',
     endpoint   varchar(255) DEFAULT NULL COMMENT 'celeborn cluster endpoint',
-    gmt_create timestamp NULL DEFAULT NULL,
-    gmt_modify timestamp NULL DEFAULT NULL,
+    gmt_create timestamp NOT NULL,
+    gmt_modify timestamp NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY `index_cluster_unique_name` (`name`)
 );
@@ -30,8 +30,8 @@ CREATE TABLE IF NOT EXISTS celeborn_cluster_system_config
 (
     id           int NOT NULL AUTO_INCREMENT,
     cluster_id   int NOT NULL,
-    config_key   varchar(255) DEFAULT NULL,
-    config_value varchar(255) DEFAULT NULL,
+    config_key   varchar(255) NOT NULL,
+    config_value varchar(255) NOT NULL,
     type         varchar(255) DEFAULT NULL COMMENT 'conf categories, such as quota',
     gmt_create   timestamp NOT NULL,
     gmt_modify   timestamp NOT NULL,
