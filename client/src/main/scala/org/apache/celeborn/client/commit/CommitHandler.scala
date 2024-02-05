@@ -357,7 +357,6 @@ abstract class CommitHandler(
             logError(
               s"Ask worker($worker) CommitFiles for $shuffleId failed because of Timeout" +
                 s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.")
-            iter.remove()
           }
         }
       }
