@@ -367,7 +367,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
-  def dynamicConfigRefreshEnabled: Boolean = get(DYNAMIC_CONFIG_REFRESH_ENABLED)
+  def dynamicConfigEnabled: Boolean = get(DYNAMIC_CONFIG_ENABLED)
   def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
   def dynamicConfigStoreDbFetchPageSize: Int = get(DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE)
   def dynamicConfigStoreDbHikariDriverClassName: String =
@@ -4393,11 +4393,11 @@ object CelebornConf extends Logging {
       .checkValues(Set("FS", "DB"))
       .createWithDefault("FS")
 
-  val DYNAMIC_CONFIG_REFRESH_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.dynamicConfig.refresh.enabled")
+  val DYNAMIC_CONFIG_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.dynamicConfig.enabled")
       .categories("master", "worker")
       .version("0.5.0")
-      .doc("Whether to enable configuration refresher.")
+      .doc("Whether to enable dynamic configuration.")
       .booleanConf
       .createWithDefault(false)
 

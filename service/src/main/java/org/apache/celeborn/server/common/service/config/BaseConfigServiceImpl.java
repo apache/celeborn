@@ -46,9 +46,9 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
     this.celebornConf = celebornConf;
     this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
     this.refreshAllCache();
-    boolean dynamicConfigRefreshEnabled = celebornConf.dynamicConfigRefreshEnabled();
-    if (dynamicConfigRefreshEnabled) {
-      LOG.info("Celeborn config refresher is enabled.");
+    boolean dynamicConfigEnabled = celebornConf.dynamicConfigEnabled();
+    if (dynamicConfigEnabled) {
+      LOG.info("Celeborn dynamic config is enabled.");
       long dynamicConfigRefreshInterval = celebornConf.dynamicConfigRefreshInterval();
       this.configRefreshService.scheduleWithFixedDelay(
           () -> {
@@ -62,8 +62,7 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
           dynamicConfigRefreshInterval,
           TimeUnit.MILLISECONDS);
     } else {
-      LOG.info(
-          "Celeborn config refresher is disabled, configuration can not be refreshed after updated.");
+      LOG.info("Celeborn dynamic config is disabled, config can not be refreshed after updated.");
     }
   }
 
