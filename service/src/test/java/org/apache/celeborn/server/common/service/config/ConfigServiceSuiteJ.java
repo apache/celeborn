@@ -42,6 +42,7 @@ public class ConfigServiceSuiteJ {
             + "RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2-ut-data.sql';DB_CLOSE_DELAY=-1;");
     celebornConf.set(
         CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME(), "org.h2.Driver");
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE(), "1");
     configService = new DbConfigServiceImpl(celebornConf);
     verifyConfig(configService);
 
