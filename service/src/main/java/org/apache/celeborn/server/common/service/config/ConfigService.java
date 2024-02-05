@@ -23,6 +23,8 @@ import org.apache.celeborn.common.CelebornConf;
 
 public interface ConfigService {
 
+  CelebornConf getCelebornConf();
+
   SystemConfig getSystemConfigFromCache();
 
   TenantConfig getRawTenantConfigFromCache(String tenantId);
