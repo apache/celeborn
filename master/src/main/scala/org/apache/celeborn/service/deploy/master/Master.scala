@@ -453,7 +453,7 @@ private[celeborn] class Master(
       }
 
     case ApplicationLost(appId, requestId) =>
-      if (checkAuthStatus(appId, context)) {
+      if (context.senderAddress.equals(self.address) || checkAuthStatus(appId, context)) {
         // TODO: [CELEBORN-1261]
         logDebug(
           s"Received ApplicationLost request $requestId, $appId from ${context.senderAddress}.")

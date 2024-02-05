@@ -79,7 +79,7 @@ public class MasterClientSuiteJ {
         });
     prepareForRpcEnvWithoutHA();
 
-    MasterClient client = new MasterClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -106,7 +106,7 @@ public class MasterClientSuiteJ {
         });
     prepareForRpcEnvWithoutHA();
 
-    MasterClient client = new MasterClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -132,7 +132,7 @@ public class MasterClientSuiteJ {
           return Future$.MODULE$.successful(response);
         });
 
-    MasterClient client = new MasterClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
     HeartbeatFromApplication message = Mockito.mock(HeartbeatFromApplication.class);
 
     try {
@@ -152,7 +152,7 @@ public class MasterClientSuiteJ {
     prepareForEndpointRefWithoutRetry(() -> Future$.MODULE$.successful(mockResponse));
     prepareForRpcEnvWithoutHA();
 
-    MasterClient client = new MasterClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -174,7 +174,7 @@ public class MasterClientSuiteJ {
     prepareForEndpointRefWithRetry(numTries, () -> Future$.MODULE$.successful(mockResponse));
     prepareForRpcEnvWithoutHA();
 
-    MasterClient client = new MasterClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -195,7 +195,7 @@ public class MasterClientSuiteJ {
 
     prepareForRpcEnvWithHA(() -> Future$.MODULE$.successful(mockResponse));
 
-    MasterClient client = new MasterClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;
@@ -254,7 +254,7 @@ public class MasterClientSuiteJ {
         .when(rpcEnv)
         .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
 
-    MasterClient client = new MasterClient(rpcEnv, conf);
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
     HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
 
     HeartbeatFromWorkerResponse response = null;

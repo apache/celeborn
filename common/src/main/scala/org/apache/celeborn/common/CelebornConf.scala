@@ -26,6 +26,7 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 
+import org.apache.celeborn.common.CelebornConf.MASTER_INTERNAL_ENDPOINTS
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -1133,10 +1134,26 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def masterSecuredPort: Int = get(MASTER_SECURED_PORT)
 
+  def masterSecuredEndpoints: Array[String] =
+    get(MASTER_SECURED_ENDPOINTS).toArray.map { endpoint =>
+      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
+        case (host, 0) => s"$host:${HA_MASTER_NODE_SECURED_PORT.defaultValue.get}"
+        case (host, port) => s"$host:$port"
+      }
+    }
+
   // //////////////////////////////////////////////////////
   //                     Internal Port                   //
   // //////////////////////////////////////////////////////
   def internalPortEnabled: Boolean = get(INTERNAL_PORT_ENABLED)
+
+  def masterInternalEndpoints: Array[String] =
+    get(MASTER_INTERNAL_ENDPOINTS).toArray.map { endpoint =>
+      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
+        case (host, 0) => s"$host:${HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get}"
+        case (host, port) => s"$host:$port"
+      }
+    }
 
   // //////////////////////////////////////////////////////
   //                     Rack Resolver                   //
@@ -4446,6 +4463,20 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(8097)
 
+  val MASTER_INTERNAL_ENDPOINTS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.internal.endpoints")
+      .categories("worker")
+      .doc("Endpoints of master nodes just for celeborn workers to connect, allowed pattern " +
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:8097,clb2:8097,clb3:8097`. " +
+        "If the port is omitted, 8097 will be used.")
+      .version("0.5.0")
+      .stringConf
+      .toSequence
+      .checkValue(
+        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
+      .createWithDefaultString(s"<localhost>:8097")
+
   val RACKRESOLVER_REFRESH_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.master.rackResolver.refresh.interval")
       .categories("master")
@@ -4453,6 +4484,7 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the node rack information periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
   val MASTER_SECURED_PORT: ConfigEntry[Int] =
     buildConf("celeborn.master.secured.port")
       .categories("master", "auth")
@@ -4472,5 +4504,19 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(19097)
+
+  val MASTER_SECURED_ENDPOINTS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.secured.endpoints")
+      .categories("client", "auth")
+      .doc("Endpoints of master nodes for celeborn client to connect for secured communication, allowed pattern " +
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:19097,clb2:19097,clb3:19097`. " +
+        "If the port is omitted, 19097 will be used.")
+      .version("0.5.0")
+      .stringConf
+      .toSequence
+      .checkValue(
+        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
+      .createWithDefaultString(s"<localhost>:19097")
 
 }

@@ -237,7 +237,8 @@ private[celeborn] class Worker(
   val shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
-  private val masterClient = new MasterClient(rpcEnv, conf)
+  // TODO: pass the internal rpc env here when internal port is added to the worker.
+  private val masterClient = new MasterClient(rpcEnv, conf, true)
 
   // (workerInfo -> last connect timeout timestamp)
   val unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] =

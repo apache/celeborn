@@ -189,7 +189,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         createRpcSecurityContext(appSecret))
   }
 
-  private val masterClient = new MasterClient(masterRpcEnvInUse, conf)
+  private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
   private val heartbeater =
