@@ -56,6 +56,11 @@ public class TenantConfig extends DynamicConfig {
 
   @Override
   public DynamicConfig getParentLevelConfig() {
-    return configService.getSystemConfigFromCache();
+    if (name == null) {
+      return configService.getSystemConfigFromCache();
+    } else {
+      return configService.getTenantConfigFromCache(tenantId);
+    }
+
   }
 }

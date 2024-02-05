@@ -31,8 +31,6 @@ import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.util.ThreadUtils;
 
 public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
@@ -54,21 +52,22 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
 
     SystemConfig systemConfig = null;
     Map<String, TenantConfig> tenantConfs = new HashMap<>();
-    Map<UserIdentifier, UserConfig> userConfs = new HashMap<>();
     try (FileInputStream fileInputStream = new FileInputStream(configurationFile)) {
       Yaml yaml = new Yaml();
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
       for (Map<String, Object> settings : dynamicConfigs) {
         String tenantId = (String) settings.get(CONF_TENANT_ID);
-        String userName = (String) settings.get(CONF_TENANT_USER_ID);
+        String userId = (String) settings.get(CONF_TENANT_USER_ID);
         String level = (String) settings.get(CONF_LEVEL);
         Map<String, String> config =
             ((Map<String, Object>) settings.get(CONF_CONFIG))
                 .entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+        System.out.println(level + "  " + tenantId + " " + userId);
         if (ConfigLevel.TENANT_USER.name().equals(level)) {
-          UserConfig userConfig = new UserConfig(this, tenantId, userName, config);
-          userConfs.put(new UserIdentifier(tenantId, userName), userConfig);
+          System.out.println(tenantId + "." + userId);
+          TenantConfig tenantConfig = new TenantConfig(this, tenantId, userId, config);
+          tenantConfs.put(tenantId + "." + userId, tenantConfig);
         } else {
           if (ConfigLevel.TENANT.name().equals(level)) {
             TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
@@ -81,6 +80,11 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
     } catch (Exception e) {
       LOG.warn("Refresh dynamic config error: {}", e.getMessage(), e);
       return;
+    }
+
+    tenantConfigAtomicReference.set(tenantConfs);
+    if (systemConfig != null) {
+      systemConfigAtomicReference.set(systemConfig);
     }
   }
 
