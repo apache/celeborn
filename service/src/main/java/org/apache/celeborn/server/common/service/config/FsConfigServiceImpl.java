@@ -35,7 +35,7 @@ import org.apache.celeborn.common.CelebornConf;
 public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
   private static final String CONF_TENANT_ID = "tenantId";
-  private static final String CONF_TENANT_USER_ID = "name";
+  private static final String CONF_TENANT_USER_ID = "user";
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
 

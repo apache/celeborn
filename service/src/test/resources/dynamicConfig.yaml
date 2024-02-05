@@ -37,7 +37,7 @@
 
 -  tenantId: tenant_id
    level: TENANT_USER
-   name: Jerry
+   user: Jerry
    config:
      celeborn.client.push.buffer.initial.size: 1k
      celeborn.client.push.buffer.initial.size.user.only: 512k
