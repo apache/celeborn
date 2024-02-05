@@ -101,7 +101,8 @@ private[celeborn] class Master(
   private val rackResolver = new CelebornRackResolver(conf)
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new SecretRegistryImpl()
-  private var securedRpcEnv: RpcEnv = _
+  // Visible for testing
+  private[master] var securedRpcEnv: RpcEnv = _
   if (authEnabled) {
     val externalSecurityContext = new RpcSecurityContextBuilder()
       .withServerSaslContext(
@@ -252,7 +253,8 @@ private[celeborn] class Master(
       internalRpcEndpoint)
   }
 
-  private var securedRpcEndpoint: RpcEndpoint = _
+  // Visible for testing
+  private[master] var securedRpcEndpoint: RpcEndpoint = _
   private var securedRpcEndpointRef: RpcEndpointRef = _
   if (authEnabled) {
     securedRpcEndpoint = new SecuredRpcEndpoint(this, securedRpcEnv, conf)

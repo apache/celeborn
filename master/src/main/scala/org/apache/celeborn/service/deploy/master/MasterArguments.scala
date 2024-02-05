@@ -84,6 +84,10 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
       _internalPort = Some(value)
       parse(tail)
 
+    case ("--secured-port") :: IntParam(value) :: tail =>
+      _securedPort = Some(value)
+      parse(tail)
+
     case "--properties-file" :: value :: tail =>
       _propertiesFile = Some(value)
       parse(tail)
@@ -109,7 +113,7 @@ class MasterArguments(args: Array[String], conf: CelebornConf) {
         |  -h HOST, --host HOST   Hostname to listen on
         |  -p PORT, --port PORT   Port to listen on (default: 9097)
         |  --internal-port PORT   Internal port for internal communication (default: 8097)
-        |  --secured-port  PORT    Secured port for secured communication (default: 19097)
+        |  --secured-port  PORT   Secured port for secured communication (default: 19097)
         |  --properties-file FILE Path to a custom Celeborn properties file,
         |                         default is conf/celeborn-defaults.conf.
         |""".stripMargin)
