@@ -61,6 +61,5 @@ public class TenantConfig extends DynamicConfig {
     } else {
       return configService.getTenantConfigFromCache(tenantId);
     }
-
   }
 }
