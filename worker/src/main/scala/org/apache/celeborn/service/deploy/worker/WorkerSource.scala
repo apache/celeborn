@@ -17,12 +17,24 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.util
+import java.util.concurrent.ConcurrentHashMap
+
+import scala.collection.JavaConverters._
+
+import com.google.common.collect.Sets
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.network.client.TransportClient
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
 
 class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSystem.ROLE_WORKER) {
   override val sourceName = "worker"
+
+  val appActiveConnections: ConcurrentHashMap[String, util.Set[String]] =
+    JavaUtils.newConcurrentHashMap[String, util.Set[String]]
 
   import WorkerSource._
   // add counters
@@ -69,6 +81,41 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, Map.empty)
     namedCounters.get(metricNameWithLabel).counter.getCount
   }
+
+  def connectionActive(client: TransportClient): Unit = {
+    appActiveConnections.putIfAbsent(
+      client.getChannel.id().asLongText(),
+      Sets.newConcurrentHashSet[String]())
+    incCounter(ACTIVE_CONNECTION_COUNT, 1)
+  }
+
+  def connectionInactive(client: TransportClient): Unit = {
+    appActiveConnections.remove(client.getChannel.id().asLongText())
+    incCounter(ACTIVE_CONNECTION_COUNT, -1)
+  }
+
+  def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {
+    val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
+    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+    if (CollectionUtils.isNotEmpty(applicationIds) && !applicationIds.contains(applicationId)) {
+      applicationIds.add(applicationId)
+      addGauge(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)) { () =>
+        appActiveConnections.asScala.count { case (_, applicationIds) =>
+          applicationIds.contains(applicationId)
+        }
+      }
+    }
+  }
+
+  def removeAppActiveConnection(applicationId: String): Unit = {
+    appActiveConnections.asScala.foreach { case (_, applicationIds) =>
+      if (applicationIds.contains(applicationId)) {
+        applicationIds.remove(applicationId)
+        removeGauge(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
+      }
+    }
+  }
+
   // start cleaner thread
   startCleaner()
 }

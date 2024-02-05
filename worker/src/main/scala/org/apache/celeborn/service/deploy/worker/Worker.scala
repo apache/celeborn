@@ -37,13 +37,14 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.TransportContext
-import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
+import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaUtils, ShutdownHookManager, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
@@ -65,7 +66,18 @@ private[celeborn] class Worker(
 
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
+  val workerSource = new WorkerSource(conf)
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
+  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_WORKER)
+  metricsSystem.registerSource(workerSource)
+  metricsSystem.registerSource(threadPoolSource)
+  metricsSystem.registerSource(resourceConsumptionSource)
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
+  val workerStatusManager = new WorkerStatusManager(conf)
   val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.WORKER_SYS,
     workerArgs.host,
@@ -81,7 +93,6 @@ private[celeborn] class Worker(
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
   private val gracefulShutdown = conf.workerGracefulShutdown
-  private var exitKind = CelebornExitKind.EXIT_IMMEDIATELY
   if (gracefulShutdown) {
     val checkPortMap = Map(
       WORKER_RPC_PORT -> conf.workerRpcPort,
@@ -92,7 +103,6 @@ private[celeborn] class Worker(
       !checkPortMap.values.exists(_ == 0),
       "If enable graceful shutdown, the worker should use non-zero port. " +
         s"${checkPortMap.map { case (k, v) => k.key + "=" + v }.mkString(", ")}")
-    exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
     try {
       val recoverRoot = new File(conf.workerGracefulShutdownRecoverPath)
       if (!recoverRoot.exists()) {
@@ -105,15 +115,6 @@ private[celeborn] class Worker(
         throw e
     }
   }
-
-  private val resourceConsumptionSource =
-    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_WORKER)
-  val workerSource = new WorkerSource(conf)
-  metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(workerSource)
-  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_WORKER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_WORKER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_WORKER))
 
   val storageManager = new StorageManager(conf, workerSource)
 
@@ -213,11 +214,6 @@ private[celeborn] class Worker(
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
 
-  // need to ensure storageManager has recovered fileinfos data if enable graceful shutdown before retrieve consumption
-  val userResourceConsumption: ConcurrentHashMap[UserIdentifier, ResourceConsumption] =
-    JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](
-      storageManager.userResourceConsumptionSnapshot().asJava)
-
   val workerInfo =
     new WorkerInfo(
       host,
@@ -226,7 +222,7 @@ private[celeborn] class Worker(
       fetchPort,
       replicatePort,
       diskInfos,
-      userResourceConsumption)
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
@@ -254,12 +250,12 @@ private[celeborn] class Worker(
   private var checkFastFailTask: ScheduledFuture[_] = _
 
   val replicateThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-replicate-data", conf.workerReplicateThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-data-replicator", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-commit-files", conf.workerCommitThreads)
+    ThreadUtils.newDaemonCachedThreadPool("worker-files-committer", conf.workerCommitThreads)
   val cleanThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool(
-      "worker-clean-expired-shuffle-keys",
+      "worker-expired-shuffle-cleaner",
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
@@ -272,10 +268,6 @@ private[celeborn] class Worker(
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
   var cleaner: ExecutorService =
     ThreadUtils.newDaemonSingleThreadExecutor("worker-expired-shuffle-cleaner")
-
-  private val workerResourceConsumptionInterval = conf.workerResourceConsumptionInterval
-  private val userResourceConsumptions =
-    JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()
 
   private var jvmQuake: JVMQuake = _
   if (conf.workerJvmQuakeEnabled) {
@@ -358,6 +350,7 @@ private[celeborn] class Worker(
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
       }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo
+    workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
@@ -369,10 +362,14 @@ private[celeborn] class Worker(
         handleResourceConsumption(),
         activeShuffleKeys,
         estimatedAppDiskUsage,
-        highWorkload),
+        highWorkload,
+        workerStatusManager.currentWorkerStatus),
       classOf[HeartbeatFromWorkerResponse])
     response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
+
+    val workerEvent = response.workerEvent
+    workerStatusManager.doTransition(workerEvent)
     if (!response.registered) {
       logError("Worker not registered in master, clean expired shuffle data and register again.")
       try {
@@ -433,6 +430,7 @@ private[celeborn] class Worker(
     replicateHandler.init(this)
     fetchHandler.init(this)
     controller.init(this)
+    workerStatusManager.init(this)
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
@@ -472,6 +470,7 @@ private[celeborn] class Worker(
         commitThreadPool.shutdownNow()
         asyncReplyPool.shutdownNow()
       }
+      workerSource.appActiveConnections.clear()
       partitionsSorter.close(exitKind)
       storageManager.close(exitKind)
       memoryManager.close()
@@ -534,46 +533,57 @@ private[celeborn] class Worker(
 
   private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
     val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot()
-    resourceConsumptionSnapshot.foreach { resourceConsumption =>
-      {
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.DISK_FILE_COUNT,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).diskFileCount
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).diskBytesWritten
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.HDFS_FILE_COUNT,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).hdfsFileCount
-        }
-        resourceConsumptionSource.addGauge(
-          ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-          resourceConsumption._1.toMap) { () =>
-          computeUserResourceConsumption(resourceConsumption).hdfsBytesWritten
-        }
+    resourceConsumptionSnapshot.foreach { case (userIdentifier, userResourceConsumption) =>
+      gaugeResourceConsumption(userIdentifier)
+      val subResourceConsumptions = userResourceConsumption.subResourceConsumptions
+      if (CollectionUtils.isNotEmpty(subResourceConsumptions)) {
+        subResourceConsumptions.asScala.keys.foreach { gaugeResourceConsumption(userIdentifier, _) }
       }
     }
     workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot.asJava)
   }
 
-  private def computeUserResourceConsumption(userResourceConsumption: (
-      UserIdentifier,
-      ResourceConsumption)): ResourceConsumption = {
-    val userIdentifier = userResourceConsumption._1
-    val resourceConsumption = userResourceConsumption._2
-    val current = System.currentTimeMillis()
-    if (userResourceConsumptions.containsKey(userIdentifier)) {
-      val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
-      if (current - resourceConsumptionAndUpdateTime._2 <= workerResourceConsumptionInterval) {
-        return resourceConsumptionAndUpdateTime._1
+  private def gaugeResourceConsumption(
+      userIdentifier: UserIdentifier,
+      applicationId: String = null): Unit = {
+    var resourceConsumptionLabel = userIdentifier.toMap
+    if (applicationId != null)
+      resourceConsumptionLabel += (resourceConsumptionSource.applicationLabel -> applicationId)
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier, applicationId).diskFileCount
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier, applicationId).diskBytesWritten
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier, applicationId).hdfsFileCount
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier, applicationId).hdfsBytesWritten
+    }
+  }
+
+  private def computeResourceConsumption(
+      userIdentifier: UserIdentifier,
+      applicationId: String = null): ResourceConsumption = {
+    var resourceConsumption = workerInfo.userResourceConsumption.get(userIdentifier)
+    if (applicationId != null) {
+      val subResourceConsumptions = resourceConsumption.subResourceConsumptions
+      if (CollectionUtils.isNotEmpty(subResourceConsumptions)
+        && subResourceConsumptions.containsKey(applicationId)) {
+        resourceConsumption = subResourceConsumptions.get(applicationId)
+      } else {
+        resourceConsumption = ResourceConsumption(0, 0, 0, 0)
       }
     }
-    userResourceConsumptions.put(userIdentifier, (resourceConsumption, current))
     resourceConsumption
   }
 
@@ -587,6 +597,13 @@ private[celeborn] class Worker(
         shuffleMapperAttempts.remove(shuffleKey)
         shuffleCommitInfos.remove(shuffleKey)
         workerInfo.releaseSlots(shuffleKey)
+        val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+        if (!workerInfo.getApplicationIdSet.contains(applicationId)) {
+          // When the running applications does not contain the application corresponding to expired shuffle key,
+          // resource consumption source should remove lose application gauges.
+          removeAppResourceConsumption(applicationId)
+          removeAppActiveConnection(applicationId)
+        }
         logInfo(s"Cleaned up expired shuffle $shuffleKey")
       }
       partitionsSorter.cleanup(expiredShuffleKeys)
@@ -595,6 +612,34 @@ private[celeborn] class Worker(
         override def run(): Unit = storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
       })
     }
+
+  private def removeAppResourceConsumption(applicationId: String): Unit = {
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      applicationId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      applicationId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      applicationId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      applicationId)
+  }
+
+  private def removeResourceConsumptionGauge(
+      resourceConsumptionName: String,
+      applicationId: String): Unit = {
+    resourceConsumptionSource.removeGauge(
+      resourceConsumptionName,
+      resourceConsumptionSource.applicationLabel,
+      applicationId)
+  }
+
+  private def removeAppActiveConnection(applicationId: String): Unit = {
+    workerSource.removeAppActiveConnection(applicationId)
+  }
 
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
@@ -670,23 +715,17 @@ private[celeborn] class Worker(
   override def exit(exitType: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
-        exitKind = CelebornExitKind.WORKER_DECOMMISSION
         ShutdownHookManager.get().updateTimeout(
           conf.workerDecommissionForceExitTimeout,
           TimeUnit.MILLISECONDS)
+        workerStatusManager.doTransition(WorkerEventType.Decommission)
       case "GRACEFUL" =>
-        exitKind = CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN
+        workerStatusManager.doTransition(WorkerEventType.Graceful)
       case "IMMEDIATELY" =>
-        exitKind = CelebornExitKind.EXIT_IMMEDIATELY
-      case _ => // Use origin code
+        workerStatusManager.doTransition(WorkerEventType.Immediately)
+      case _ =>
+        workerStatusManager.doTransition(workerStatusManager.exitEventType)
     }
-    // Use the original EXIT_CODE
-    new Thread() {
-      override def run(): Unit = {
-        Thread.sleep(10000)
-        System.exit(0)
-      }
-    }.start()
     val sb = new StringBuilder
     sb.append("============================ Exit Worker =============================\n")
     sb.append(s"Exit worker by $exitType triggered: \n")
@@ -698,6 +737,8 @@ private[celeborn] class Worker(
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will
     // make master remove this worker from excluded list.
+    logInfo("Worker start to shutdown gracefully")
+    workerStatusManager.transitionState(State.InGraceFul)
     try {
       masterClient.askSync(
         ReportWorkerUnavailable(List(workerInfo).asJava),
@@ -727,9 +768,11 @@ private[celeborn] class Worker(
       logWarning(s"Waiting for all PartitionLocation release cost ${waitTime}ms, " +
         s"unreleased PartitionLocation: \n$partitionLocationInfo")
     }
+
+    workerStatusManager.transitionState(State.Exit)
   }
 
-  def decommissionWorker(): Unit = {
+  def sendWorkerUnavailableToMaster(): Unit = {
     try {
       masterClient.askSync(
         ReportWorkerUnavailable(List(workerInfo).asJava),
@@ -741,6 +784,12 @@ private[celeborn] class Worker(
             s"\n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}",
           e)
     }
+  }
+
+  def decommissionWorker(): Unit = {
+    logInfo("Worker start to decommission")
+    workerStatusManager.transitionState(State.InDecommission)
+    sendWorkerUnavailableToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
     val timeout = conf.workerDecommissionForceExitTimeout
@@ -758,12 +807,15 @@ private[celeborn] class Worker(
       logWarning(s"Waiting for all shuffle expired cost ${waitTime}ms, " +
         s"unreleased shuffle: \n${storageManager.shuffleKeySet().asScala.mkString("[", ", ", "]")}")
     }
+    workerStatusManager.transitionState(State.Exit)
   }
 
   def exitImmediately(): Unit = {
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will
     // make master remove this worker from excluded list.
+    logInfo("Worker start to exit immediately")
+    workerStatusManager.transitionState(State.InExit)
     try {
       masterClient.askSync[PbWorkerLostResponse](
         WorkerLost(
@@ -781,24 +833,27 @@ private[celeborn] class Worker(
           e)
     }
     shutdown.set(true)
+    workerStatusManager.transitionState(State.Exit)
   }
 
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
         logInfo("Shutdown hook called.")
-        exitKind match {
-          case CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN =>
-            logInfo("Worker start to shutdown gracefully")
+        workerStatusManager.exitEventType match {
+          case WorkerEventType.Graceful =>
             shutdownGracefully()
-          case CelebornExitKind.WORKER_DECOMMISSION =>
-            logInfo("Worker start to decommission")
+          case WorkerEventType.Decommission =>
             decommissionWorker()
           case _ =>
-            logInfo("Worker start to exit immediately")
             exitImmediately()
         }
-        stop(exitKind)
+
+        if (workerStatusManager.exitEventType == WorkerEventType.Graceful) {
+          stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+        } else {
+          stop(CelebornExitKind.EXIT_IMMEDIATELY)
+        }
       }
     }),
     WORKER_SHUTDOWN_PRIORITY)

@@ -17,16 +17,21 @@
 
 package org.apache.celeborn.server.common.service.config;
 
+import java.io.IOException;
+
 import org.apache.celeborn.common.CelebornConf;
 
 public class DynamicConfigServiceFactory {
 
-  public static ConfigService getConfigService(CelebornConf celebornConf) {
+  public static ConfigService getConfigService(CelebornConf celebornConf) throws IOException {
     String configStoreBackend = celebornConf.dynamicConfigStoreBackend();
     if ("FS".equals(configStoreBackend)) {
       return new FsConfigServiceImpl(celebornConf);
+    } else if ("DB".equals(configStoreBackend)) {
+      return new DbConfigServiceImpl(celebornConf);
     }
 
-    return null;
+    throw new UnsupportedOperationException(
+        "Unsupported dynamic config store backend:" + configStoreBackend);
   }
 }

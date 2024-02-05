@@ -39,7 +39,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       name: String,
       port: Int,
       clientMode: Boolean = false): RpcEnv = {
-    val config = RpcEnvConfig(conf, "test", "localhost", "localhost", port, 0)
+    val config = RpcEnvConfig(conf, "test", "localhost", "localhost", port, 0, None)
     new NettyRpcEnvFactory().create(config)
   }
 
@@ -54,7 +54,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
 
   test("advertise address different from bind address") {
     val celebornConf = createCelebornConf()
-    val config = RpcEnvConfig(celebornConf, "test", "localhost", "example.com", 0, 0)
+    val config = RpcEnvConfig(celebornConf, "test", "localhost", "example.com", 0, 0, None)
     val env = new NettyRpcEnvFactory().create(config)
     try {
       assert(env.address.hostPort.startsWith("example.com:"))
@@ -101,7 +101,8 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       "localhost",
       "localhost",
       0,
-      numUsableCores)
+      numUsableCores,
+      None)
     val anotherEnv = new NettyRpcEnvFactory().create(config)
     anotherEnv.setupEndpoint(
       "StackOverflowError",

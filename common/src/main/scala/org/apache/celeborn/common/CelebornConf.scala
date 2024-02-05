@@ -367,7 +367,23 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
+  def dynamicConfigEnabled: Boolean = get(DYNAMIC_CONFIG_ENABLED)
   def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
+  def dynamicConfigStoreDbFetchPageSize: Int = get(DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE)
+  def dynamicConfigStoreDbHikariDriverClassName: String =
+    get(DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME)
+  def dynamicConfigStoreDbHikariJdbcUrl: String = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL)
+  def dynamicConfigStoreDbHikariUsername: String = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_USERNAME)
+  def dynamicConfigStoreDbHikariPassword: String = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_PASSWORD)
+  def dynamicConfigStoreDbHikariConnectionTimeout: Long =
+    get(DYNAMIC_CONFIG_STORE_DB_HIKARI_CONNECTION_TIMEOUT)
+  def dynamicConfigStoreDbHikariIdleTimeout: Long = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_IDLE_TIMEOUT)
+  def dynamicConfigStoreDbHikariMaxLifetime: Long = get(DYNAMIC_CONFIG_STORE_DB_HIKARI_MAX_LIFETIME)
+  def dynamicConfigStoreDbHikariMaximumPoolSize: Int =
+    get(DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE)
+  def dynamicConfigStoreDbHikariCustomConfigs: JMap[String, String] = {
+    settings.asScala.filter(_._1.startsWith("celeborn.dynamicConfig.store.db.hikari")).toMap.asJava
+  }
 
   // //////////////////////////////////////////////////////
   //                      Network                        //
@@ -543,7 +559,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def estimatedPartitionSizeForEstimationUpdateInterval: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INTERVAL)
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
-  def workerResourceConsumptionInterval: Long = get(WORKER_RESOURCE_CONSUMPTION_INTERVAL)
+  def clusterName: String = get(CLUSTER_NAME)
 
   // //////////////////////////////////////////////////////
   //               Address && HA && RATIS                //
@@ -684,13 +700,16 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
-  def partitionSorterSortPartitionTimeout: Long = get(PARTITION_SORTER_SORT_TIMEOUT)
-  def partitionSorterReservedMemoryPerPartition: Long =
-    get(WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY)
-  def partitionSorterThreads: Int =
-    get(PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
-  def partitionSorterIndexCacheMaxWeight: Long = get(PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT)
-  def partitionSorterIndexExpire: Long = get(PARTITION_SORTER_INDEX_CACHE_EXPIRE)
+  def workerPartitionSorterSortPartitionTimeout: Long = get(WORKER_PARTITION_SORTER_SORT_TIMEOUT)
+  def workerPartitionSorterReservedMemoryEnabled: Boolean =
+    get(WORKER_PARTITION_SORTER_RESERVED_MEMORY_ENABLED)
+  def workerPartitionSorterReservedMemoryPerPartition: Long =
+    get(WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION)
+  def workerPartitionSorterThreads: Int =
+    get(WORKER_PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
+  def workerPartitionSorterIndexCacheMaxWeight: Long =
+    get(WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT)
+  def workerPartitionSorterIndexExpire: Long = get(WORKER_PARTITION_SORTER_INDEX_CACHE_EXPIRE)
   def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
@@ -1043,8 +1062,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryRatioToPauseReplicate: Double =
     get(WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE)
   def workerDirectMemoryRatioToResume: Double = get(WORKER_DIRECT_MEMORY_RATIO_RESUME)
-  def partitionSorterDirectMemoryRatioThreshold: Double =
-    get(PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
+  def workerPartitionSorterDirectMemoryRatioThreshold: Double =
+    get(WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD)
   def workerDirectMemoryPressureCheckIntervalMs: Long = get(WORKER_DIRECT_MEMORY_CHECK_INTERVAL)
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
   def workerDirectMemoryTrimChannelWaitInterval: Long =
@@ -1115,6 +1134,24 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Authentication                        //
   // //////////////////////////////////////////////////////
   def authEnabled: Boolean = get(AUTH_ENABLED)
+
+  // //////////////////////////////////////////////////////
+  //                     Internal Port                   //
+  // //////////////////////////////////////////////////////
+  def internalPortEnabled: Boolean = get(INTERNAL_PORT_ENABLED)
+
+  // //////////////////////////////////////////////////////
+  //                     Rack Resolver                   //
+  // //////////////////////////////////////////////////////
+  def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
+
+  def haMasterNodeInternalPort(nodeId: String): Int = {
+    val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)
+    val legacyKey = HA_MASTER_NODE_INTERNAL_PORT.alternatives.head._1.replace("<id>", nodeId)
+    getInt(key, getInt(legacyKey, HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get))
+  }
+
+  def masterInternalPort: Int = get(MASTER_INTERNAL_PORT)
 }
 
 object CelebornConf extends Logging {
@@ -2186,13 +2223,13 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val WORKER_RESOURCE_CONSUMPTION_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.userResourceConsumption.update.interval")
-      .categories("worker")
-      .doc("Time length for a window about compute user resource consumption.")
-      .version("0.3.2")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("30s")
+  val CLUSTER_NAME: ConfigEntry[String] =
+    buildConf("celeborn.cluster.name")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("Celeborn cluster name.")
+      .stringConf
+      .createWithDefaultString("default")
 
   val SHUFFLE_CHUNK_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.shuffle.chunk.size")
@@ -2495,7 +2532,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
 
-  val PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
+  val WORKER_PARTITION_SORTER_SORT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.timeout")
       .withAlternative("celeborn.worker.partitionSorter.sort.timeout")
       .categories("worker")
@@ -2504,7 +2541,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("220s")
 
-  val PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
+  val WORKER_PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.worker.sortPartition.threads")
       .withAlternative("celeborn.worker.partitionSorter.threads")
       .categories("worker")
@@ -2514,7 +2551,7 @@ object CelebornConf extends Logging {
       .intConf
       .createOptional
 
-  val PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT: ConfigEntry[Long] =
+  val WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.indexCache.maxWeight")
       .categories("worker")
       .doc("PartitionSorter's cache max weight for index buffer.")
@@ -2522,7 +2559,7 @@ object CelebornConf extends Logging {
       .longConf
       .createWithDefault(100000)
 
-  val PARTITION_SORTER_INDEX_CACHE_EXPIRE: ConfigEntry[Long] =
+  val WORKER_PARTITION_SORTER_INDEX_CACHE_EXPIRE: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.indexCache.expire")
       .categories("worker")
       .doc("PartitionSorter's cache item expire time.")
@@ -2530,7 +2567,7 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
-  val WORKER_PARTITION_SORTER_PER_PARTITION_RESERVED_MEMORY: ConfigEntry[Long] =
+  val WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.reservedMemoryPerPartition")
       .withAlternative("celeborn.worker.partitionSorter.reservedMemoryPerPartition")
       .categories("worker")
@@ -2539,6 +2576,16 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .checkValue(v => v < Int.MaxValue, "Reserved memory per partition must be less than 2GB.")
       .createWithDefaultString("1mb")
+
+  val WORKER_PARTITION_SORTER_RESERVED_MEMORY_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.sortPartition.reservedMemory.enabled")
+      .categories("worker")
+      .doc(s"When true, partition sorter will reserve memory configured by `${WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION.key}` to allocate a block of memory for warming up " +
+        "while sorting a shuffle file off-heap with page cache for non-hdfs files." +
+        "Otherwise, partition sorter seeks to position of each block and does not warm up for non-hdfs files.")
+      .version("0.5.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")
@@ -2756,7 +2803,7 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
+  val WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
     buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
       .categories("worker")
       .doc("Max ratio of partition sorter's memory for sorting, when reserved memory is higher than max partition " +
@@ -4339,12 +4386,20 @@ object CelebornConf extends Logging {
   val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")
       .categories("master", "worker")
-      .doc("Store backend for dynamic config. Available options: NONE, FS. Note: NONE means disabling dynamic config store.")
+      .doc("Store backend for dynamic config service. Available options: FS, DB.")
       .version("0.4.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set("NONE", "FS"))
-      .createWithDefault("NONE")
+      .checkValues(Set("FS", "DB"))
+      .createWithDefault("FS")
+
+  val DYNAMIC_CONFIG_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.dynamicConfig.enabled")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("Whether to enable dynamic configuration.")
+      .booleanConf
+      .createWithDefault(false)
 
   val DYNAMIC_CONFIG_REFRESH_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.dynamicConfig.refresh.interval")
@@ -4353,6 +4408,78 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the corresponding dynamic config periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.dynamicConfig.store.db.fetch.pageSize")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The page size for db store to query configurations.")
+      .intConf
+      .createWithDefaultString("1000")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.driverClassName")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The jdbc driver class name of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.jdbcUrl")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The jdbc url of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_USERNAME: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.username")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The username of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_PASSWORD: ConfigEntry[String] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.password")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The password of db store backend.")
+      .stringConf
+      .createWithDefaultString("")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_CONNECTION_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.connectionTimeout")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The connection timeout that a client will wait for a connection from the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_IDLE_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.idleTimeout")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The idle timeout that a connection is allowed to sit idle in the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_MAX_LIFETIME: ConfigEntry[Long] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.maxLifetime")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The maximum lifetime of a connection in the pool for db store backend.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1800s")
+
+  val DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.dynamicConfig.store.db.hikari.maximumPoolSize")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("The maximum pool size of db store backend.")
+      .intConf
+      .createWithDefaultString("2")
 
   val REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffle.register.filterExcludedWorker.enabled")
@@ -4377,4 +4504,43 @@ object CelebornConf extends Logging {
       .doc("Whether to enable authentication.")
       .booleanConf
       .createWithDefault(false)
+
+  val INTERNAL_PORT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.internal.port.enabled")
+      .categories("master", "worker")
+      .version("0.5.0")
+      .doc("Whether to create a internal port on Masters/Workers for " +
+        "inter-Masters/Workers communication. This is beneficial when SASL authentication " +
+        "is enforced for all interactions between clients and Celeborn Services, but the services " +
+        "can exchange messages without being subject to SASL authentication.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_INTERNAL_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.internal.port")
+      .categories("master")
+      .version("0.5.0")
+      .doc(
+        "Internal port on the master where both workers and other master nodes connect.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(8097)
+
+  val HA_MASTER_NODE_INTERNAL_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.ha.node.<id>.internal.port")
+      .categories("ha")
+      .doc(
+        "Internal port for the workers and other masters to bind to a master node <id> in HA mode.")
+      .version("0.5.0")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(8097)
+
+  val RACKRESOLVER_REFRESH_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.master.rackResolver.refresh.interval")
+      .categories("master")
+      .version("0.5.0")
+      .doc("Interval for refreshing the node rack information periodically.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 }

@@ -44,5 +44,6 @@ pnpm build
 ### Lint with [ESLint](https://eslint.org/)
 
 ```sh
+# Whole project
 pnpm lint
 ```

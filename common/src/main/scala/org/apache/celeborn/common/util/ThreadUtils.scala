@@ -22,7 +22,7 @@ import java.util.concurrent.{ForkJoinPool => SForkJoinPool, ForkJoinWorkerThread
 import java.util.concurrent.locks.ReentrantLock
 
 import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
 
@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
 
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.metrics.source.ThreadPoolSource
 
 object ThreadUtils {
 
@@ -145,7 +146,10 @@ object ThreadUtils {
    * unique, sequentially assigned integer.
    */
   def newDaemonCachedThreadPool(prefix: String): ThreadPoolExecutor = {
-    Executors.newCachedThreadPool(namedThreadFactory(prefix)).asInstanceOf[ThreadPoolExecutor]
+    val threadPool =
+      Executors.newCachedThreadPool(namedThreadFactory(prefix)).asInstanceOf[ThreadPoolExecutor]
+    ThreadPoolSource.registerSource(prefix, threadPool)
+    threadPool
   }
 
   /**
@@ -164,6 +168,7 @@ object ThreadUtils {
       new LinkedBlockingQueue[Runnable],
       namedThreadFactory(prefix))
     threadPool.allowCoreThreadTimeOut(true)
+    ThreadPoolSource.registerSource(prefix, threadPool)
     threadPool
   }
 
@@ -172,8 +177,10 @@ object ThreadUtils {
    * unique, sequentially assigned integer.
    */
   def newDaemonFixedThreadPool(nThreads: Int, prefix: String): ThreadPoolExecutor = {
-    Executors.newFixedThreadPool(nThreads, namedThreadFactory(prefix))
+    val threadPool = Executors.newFixedThreadPool(nThreads, namedThreadFactory(prefix))
       .asInstanceOf[ThreadPoolExecutor]
+    ThreadPoolSource.registerSource(prefix, threadPool)
+    threadPool
   }
 
   /**
@@ -337,6 +344,10 @@ object ThreadUtils {
     }
   }
   // scalastyle:on awaitready
+
+  def shutdown(executor: ExecutorService): Unit = {
+    shutdown(executor, 800.millis)
+  }
 
   def shutdown(
       executor: ExecutorService,

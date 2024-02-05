@@ -38,7 +38,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, DiskStatus, FileInfo, MapFileMeta, ReduceFileMeta, TimeWindow}
-import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -94,7 +94,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         cleaners.put(
           diskInfo.mountPoint,
           ThreadUtils.newDaemonCachedThreadPool(
-            s"disk-cleaner-${diskInfo.mountPoint}",
+            s"worker-disk-${diskInfo.mountPoint}-cleaner",
             conf.workerDiskCleanThreads))
     }
     cleaners
@@ -165,6 +165,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (diskStatus == DiskStatus.CRITICAL_ERROR) {
       logInfo(s"Disk $mountPoint faces critical error, will remove its disk operator.")
       val operator = diskOperators.remove(mountPoint)
+      ThreadPoolSource.unregisterSource(s"worker-disk-$mountPoint-cleaner")
       if (operator != null) {
         operator.shutdown()
       }
@@ -176,7 +177,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       diskOperators.put(
         mountPoint,
         ThreadUtils.newDaemonCachedThreadPool(
-          s"disk-cleaner-$mountPoint",
+          s"worker-disk-$mountPoint-cleaner",
           conf.workerDiskCleanThreads))
     }
   }
@@ -737,30 +738,41 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       diskFileInfos
         .asScala
         .toList
-        .flatMap { case (_, fileInfoMaps) =>
+        .flatMap { case (shuffleKey, fileInfoMaps) =>
           // userIdentifier -> fileInfo
           fileInfoMaps.values().asScala.map { fileInfo =>
-            (fileInfo.getUserIdentifier, fileInfo)
+            (fileInfo.getUserIdentifier, (Utils.splitShuffleKey(shuffleKey)._1, fileInfo))
           }
         }
-        // userIdentifier -> List((userIdentifier, fileInfo))
+        // userIdentifier -> List((userIdentifier, (applicationId, fileInfo))))
         .groupBy(_._1)
         .map { case (userIdentifier, userWithFileInfoList) =>
           // collect resource consumed by each user on this worker
-          val resourceConsumption = {
-            val userFileInfos = userWithFileInfoList.map(_._2)
-            val diskFileInfos = userFileInfos.filter(!_.isHdfs)
-            val hdfsFileInfos = userFileInfos.filter(_.isHdfs)
-
-            val diskBytesWritten = diskFileInfos.map(_.getFileLength).sum
-            val diskFileCount = diskFileInfos.size
-            val hdfsBytesWritten = hdfsFileInfos.map(_.getFileLength).sum
-            val hdfsFileCount = hdfsFileInfos.size
-            ResourceConsumption(diskBytesWritten, diskFileCount, hdfsBytesWritten, hdfsFileCount)
-          }
-          (userIdentifier, resourceConsumption)
+          val userFileInfos = userWithFileInfoList.map(_._2)
+          (
+            userIdentifier,
+            resourceConsumption(
+              userFileInfos.map(_._2),
+              userFileInfos.groupBy(_._1).map {
+                case (applicationId, appWithFileInfoList) =>
+                  (applicationId, resourceConsumption(appWithFileInfoList.map(_._2)))
+              }.asJava))
         }
     }
+  }
+
+  def resourceConsumption(
+      fileInfos: List[DiskFileInfo],
+      subResourceConsumptions: util.Map[String, ResourceConsumption] = null)
+      : ResourceConsumption = {
+    val diskFileInfos = fileInfos.filter(!_.isHdfs)
+    val hdfsFileInfos = fileInfos.filter(_.isHdfs)
+    ResourceConsumption(
+      diskFileInfos.map(_.getFileLength).sum,
+      diskFileInfos.size,
+      hdfsFileInfos.map(_.getFileLength).sum,
+      hdfsFileInfos.size,
+      subResourceConsumptions)
   }
 
   def notifyFileInfoCommitted(
@@ -851,6 +863,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             fileMeta,
             filePath,
             StorageInfo.Type.HDD)
+          logInfo(s"created file at $filePath")
           diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
             fileName,
             diskFileInfo)

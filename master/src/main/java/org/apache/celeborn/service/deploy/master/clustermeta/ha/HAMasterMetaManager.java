@@ -31,6 +31,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
@@ -46,12 +47,16 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   protected HARaftServer ratisServer;
 
   public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf) {
+    this(rpcEnv, conf, new CelebornRackResolver(conf));
+  }
+
+  public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf, CelebornRackResolver rackResolver) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
-    this.rackResolver = new CelebornRackResolver(conf);
+    this.rackResolver = rackResolver;
   }
 
   public HARaftServer getRatisServer() {
@@ -249,6 +254,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       Map<String, Long> estimatedAppDiskUsage,
       long time,
       boolean highWorkload,
+      WorkerStatus workerStatus,
       String requestId) {
     try {
       ratisServer.submitRequest(
@@ -266,6 +272,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .putAllUserResourceConsumption(
                           MetaUtil.toPbUserResourceConsumption(userResourceConsumption))
                       .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
+                      .setWorkerStatus(MetaUtil.toPbWorkerStatus(workerStatus))
                       .setTime(time)
                       .setHighWorkload(highWorkload)
                       .build())
@@ -325,6 +332,30 @@ public class HAMasterMetaManager extends AbstractMetaManager {
               .build());
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle report node failure for {} failed!", failedNodes, e);
+      throw e;
+    }
+  }
+
+  @Override
+  public void handleWorkerEvent(
+      int workerEventTypeValue, List<WorkerInfo> workerInfoList, String requestId) {
+    try {
+      List<ResourceProtos.WorkerAddress> addrs =
+          workerInfoList.stream().map(MetaUtil::infoToAddr).collect(Collectors.toList());
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.WorkerEvent)
+              .setRequestId(requestId)
+              .setWorkerEventRequest(
+                  ResourceProtos.WorkerEventRequest.newBuilder()
+                      .setWorkerEventType(
+                          ResourceProtos.WorkerEventType.forNumber(workerEventTypeValue))
+                      .addAllWorkerAddress(addrs)
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error(
+          "Handle worker event {} failure for {} failed!", workerEventTypeValue, workerInfoList, e);
       throw e;
     }
   }

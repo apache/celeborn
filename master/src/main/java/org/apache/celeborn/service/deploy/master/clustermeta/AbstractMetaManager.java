@@ -45,13 +45,17 @@ import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
+import org.apache.celeborn.common.meta.WorkerEventInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
+import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.util.WorkerStatusUtils;
 import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 
 public abstract class AbstractMetaManager implements IMetadataHandler {
@@ -62,6 +66,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final ArrayList<WorkerInfo> workers = new ArrayList<>();
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
+  public final ConcurrentHashMap<WorkerInfo, WorkerEventInfo> workerEventInfos =
+      JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
   public final Set<WorkerInfo> excludedWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> manuallyExcludedWorkers = ConcurrentHashMap.newKeySet();
@@ -149,6 +155,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         if (lostWorkers.containsKey(workerInfo)) {
           lostWorkers.remove(workerInfo);
           shutdownWorkers.remove(workerInfo);
+          workerEventInfos.remove(workerInfo);
         }
       }
     }
@@ -164,6 +171,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
       long time,
+      WorkerStatus workerStatus,
       boolean highWorkload) {
     WorkerInfo worker =
         new WorkerInfo(
@@ -178,8 +186,19 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             info.updateThenGetUserResourceConsumption(userResourceConsumption);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
+            info.setWorkerStatus(workerStatus);
           });
     }
+
+    WorkerEventInfo workerEventInfo = workerEventInfos.get(worker);
+    if (workerEventInfo != null
+        && WorkerStatusUtils.meetFinalState(workerEventInfo, workerStatus)) {
+      workerEventInfos.remove(worker);
+      if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
+        shutdownWorkers.remove(worker);
+      }
+    }
+
     appDiskUsageMetric.update(estimatedAppDiskUsage);
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
     long healthyDiskNum =
@@ -215,6 +234,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       shutdownWorkers.remove(workerInfo);
       lostWorkers.remove(workerInfo);
       excludedWorkers.remove(workerInfo);
+      workerEventInfos.remove(workerInfo);
     }
   }
 
@@ -240,7 +260,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 appDiskUsageMetric.snapShots(),
                 appDiskUsageMetric.currentSnapShot().get(),
                 lostWorkers,
-                shutdownWorkers)
+                shutdownWorkers,
+                workerEventInfos)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -304,6 +325,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           .getLostWorkersMap()
           .forEach((key, value) -> lostWorkers.put(WorkerInfo.fromUniqueId(key), value));
 
+      snapshotMetaInfo
+          .getWorkerEventInfosMap()
+          .entrySet()
+          .forEach(
+              entry ->
+                  workerEventInfos.put(
+                      WorkerInfo.fromUniqueId(entry.getKey()),
+                      PbSerDeUtils.fromPbWorkerEventInfo(entry.getValue())));
+
       shutdownWorkers.addAll(
           snapshotMetaInfo.getShutdownWorkersList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
@@ -345,11 +375,31 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.clear();
     partitionTotalWritten.reset();
     partitionTotalFileCount.reset();
+    workerEventInfos.clear();
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
     synchronized (this.workers) {
       shutdownWorkers.addAll(failedWorkers);
+    }
+  }
+
+  public void updateWorkerEventMeta(int workerEventTypeValue, List<WorkerInfo> workerInfoList) {
+    long eventTime = System.currentTimeMillis();
+    ResourceProtos.WorkerEventType eventType =
+        ResourceProtos.WorkerEventType.forNumber(workerEventTypeValue);
+    synchronized (this.workers) {
+      for (WorkerInfo workerInfo : workerInfoList) {
+        WorkerEventInfo workerEventInfo = workerEventInfos.get(workerInfo);
+        LOG.info("Received worker event: {} for worker: {}", eventType, workerInfo.toUniqueId());
+        if (workerEventInfo == null || !workerEventInfo.isSameEvent(eventType.getNumber())) {
+          if (eventType == ResourceProtos.WorkerEventType.None) {
+            workerEventInfos.remove(workerInfo);
+          } else {
+            workerEventInfos.put(workerInfo, new WorkerEventInfo(eventType.getNumber(), eventTime));
+          }
+        }
+      }
     }
   }
 
@@ -375,5 +425,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             worker ->
                 !excludedWorkers.contains(worker) && !manuallyExcludedWorkers.contains(worker))
         .forEach(workerInfo -> workerInfo.updateDiskMaxSlots(estimatedPartitionSize));
+  }
+
+  public boolean isWorkerAvailable(WorkerInfo workerInfo) {
+    return !excludedWorkers.contains(workerInfo)
+        && !shutdownWorkers.contains(workerInfo)
+        && !manuallyExcludedWorkers.contains(workerInfo)
+        && (!workerEventInfos.containsKey(workerInfo)
+            && workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal);
   }
 }

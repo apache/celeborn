@@ -193,6 +193,12 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 # we recommend enabling aqe support to gain better performance
 spark.sql.adaptive.enabled true
 spark.sql.adaptive.skewJoin.enabled true
+
+# Support Spark Dynamic Resource Allocation
+# Required Spark version >= 3.5.0
+spark.shuffle.sort.io.plugin.class org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO
+# Required Spark version >= 3.4.0, highly recommended to disable
+spark.dynamicAllocation.shuffleTracking.enabled false
 ```
 
 ## Deploy Flink client

@@ -19,13 +19,16 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.identity.UserIdentifier$;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class MetaUtil {
@@ -89,35 +92,75 @@ public class MetaUtil {
     return map;
   }
 
+  public static ResourceConsumption fromPbResourceConsumption(
+      ResourceProtos.ResourceConsumption pbResourceConsumption) {
+    return new ResourceConsumption(
+        pbResourceConsumption.getDiskBytesWritten(),
+        pbResourceConsumption.getDiskFileCount(),
+        pbResourceConsumption.getHdfsBytesWritten(),
+        pbResourceConsumption.getHdfsFileCount(),
+        fromPbSubResourceConsumptions(pbResourceConsumption.getSubResourceConsumptionMap()));
+  }
+
+  public static ResourceProtos.ResourceConsumption toPbResourceConsumption(
+      ResourceConsumption resourceConsumption) {
+    return ResourceProtos.ResourceConsumption.newBuilder()
+        .setDiskBytesWritten(resourceConsumption.diskBytesWritten())
+        .setDiskFileCount(resourceConsumption.diskFileCount())
+        .setHdfsBytesWritten(resourceConsumption.hdfsBytesWritten())
+        .setHdfsFileCount(resourceConsumption.hdfsFileCount())
+        .putAllSubResourceConsumption(
+            toPbSubResourceConsumptions(resourceConsumption.subResourceConsumptions()))
+        .build();
+  }
+
+  public static Map<String, ResourceConsumption> fromPbSubResourceConsumptions(
+      Map<String, ResourceProtos.ResourceConsumption> pbSubResourceConsumptions) {
+    return CollectionUtils.isEmpty(pbSubResourceConsumptions)
+        ? null
+        : pbSubResourceConsumptions.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    resourceConsumption ->
+                        fromPbResourceConsumption(resourceConsumption.getValue())));
+  }
+
+  public static Map<String, ResourceProtos.ResourceConsumption> toPbSubResourceConsumptions(
+      Map<String, ResourceConsumption> subResourceConsumptions) {
+    return CollectionUtils.isEmpty(subResourceConsumptions)
+        ? new HashMap<>()
+        : subResourceConsumptions.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    resourceConsumption ->
+                        toPbResourceConsumption(resourceConsumption.getValue())));
+  }
+
   public static Map<UserIdentifier, ResourceConsumption> fromPbUserResourceConsumption(
       Map<String, ResourceProtos.ResourceConsumption> pbUserResourceConsumption) {
     Map<UserIdentifier, ResourceConsumption> map = new HashMap<>();
     pbUserResourceConsumption.forEach(
-        (k, v) -> {
-          ResourceConsumption resourceConsumption =
-              new ResourceConsumption(
-                  v.getDiskBytesWritten(),
-                  v.getDiskFileCount(),
-                  v.getHdfsBytesWritten(),
-                  v.getHdfsFileCount());
-          map.put(UserIdentifier$.MODULE$.apply(k), resourceConsumption);
-        });
+        (k, v) -> map.put(UserIdentifier$.MODULE$.apply(k), fromPbResourceConsumption(v)));
     return map;
   }
 
   public static Map<String, ResourceProtos.ResourceConsumption> toPbUserResourceConsumption(
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
     Map<String, ResourceProtos.ResourceConsumption> map = new HashMap<>();
-    userResourceConsumption.forEach(
-        (k, v) ->
-            map.put(
-                k.toString(),
-                ResourceProtos.ResourceConsumption.newBuilder()
-                    .setDiskBytesWritten(v.diskBytesWritten())
-                    .setDiskFileCount(v.diskFileCount())
-                    .setHdfsBytesWritten(v.hdfsBytesWritten())
-                    .setHdfsFileCount(v.hdfsFileCount())
-                    .build()));
+    userResourceConsumption.forEach((k, v) -> map.put(k.toString(), toPbResourceConsumption(v)));
     return map;
+  }
+
+  public static ResourceProtos.WorkerStatus toPbWorkerStatus(WorkerStatus workerStatus) {
+    return ResourceProtos.WorkerStatus.newBuilder()
+        .setState(ResourceProtos.WorkerStatus.State.forNumber(workerStatus.getStateValue()))
+        .setStateStartTime(workerStatus.getStateStartTime())
+        .build();
+  }
+
+  public static WorkerStatus fromPbWorkerStatus(ResourceProtos.WorkerStatus workerStatus) {
+    return new WorkerStatus(workerStatus.getState().getNumber(), workerStatus.getStateStartTime());
   }
 }

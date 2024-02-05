@@ -22,8 +22,8 @@ import java.util.{Map => jMap}
 import java.util.concurrent.{Future, ThreadLocalRandom}
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration._
 import scala.util.Random
 
 import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
@@ -132,7 +132,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
     assertEquals(0, allocatedSlots.get())
     assertEquals(0, worker.usedSlots())
 
-    ThreadUtils.shutdown(es, 800.millisecond)
+    ThreadUtils.shutdown(es)
   }
 
   test("WorkerInfo not equals when host different.") {
@@ -218,7 +218,17 @@ class WorkerInfoSuite extends CelebornFunSuite {
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]()
     userResourceConsumption.put(
       UserIdentifier("tenant1", "name1"),
-      ResourceConsumption(20971520, 1, 52428800, 1))
+      ResourceConsumption(
+        20971520,
+        1,
+        52428800,
+        1,
+        Map(
+          "application_1697697127390_2171854" -> ResourceConsumption(
+            20971520,
+            1,
+            52428800,
+            1)).asJava))
     val conf = new CelebornConf()
     val endpointAddress = new RpcEndpointAddress(new RpcAddress("localhost", 12345), "mockRpc")
     var rpcEnv: RpcEnv = null
@@ -288,14 +298,22 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2048.0 MiB, avgFlushTime: 1 ns, avgFetchTime: 1 ns, activeSlots: 10, storageType: SSD) status: HEALTHY dirs $placeholder
            |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2048.0 MiB, avgFlushTime: 2 ns, avgFetchTime: 2 ns, activeSlots: 20, storageType: SSD) status: HEALTHY dirs $placeholder
            |UserResourceConsumption: $placeholder
-           |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1)
+           |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: (application_1697697127390_2171854 -> ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: empty)))
            |WorkerRef: null
-           |""".stripMargin;
+           |""".stripMargin
 
-      assertEquals(exp1, worker1.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-      assertEquals(exp2, worker2.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-      assertEquals(exp3, worker3.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
-      assertEquals(exp4, worker4.toString.replaceAll("HeartbeatElapsedSeconds:.*\n", ""))
+      assertEquals(
+        exp1,
+        worker1.toString.replaceAll("(HeartbeatElapsedSeconds|WorkerStatus):.*\n", ""))
+      assertEquals(
+        exp2,
+        worker2.toString.replaceAll("(HeartbeatElapsedSeconds|WorkerStatus):.*\n", ""))
+      assertEquals(
+        exp3,
+        worker3.toString.replaceAll("(HeartbeatElapsedSeconds|WorkerStatus):.*\n", ""))
+      assertEquals(
+        exp4,
+        worker4.toString.replaceAll("(HeartbeatElapsedSeconds|WorkerStatus):.*\n", ""))
     } finally {
       if (null != rpcEnv) {
         rpcEnv.shutdown()

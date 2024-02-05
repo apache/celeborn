@@ -37,27 +37,29 @@ import org.apache.hadoop.yarn.server.MiniYARNCluster
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
 
 class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
+  var master: Master = null
 
   var yarnCluster: MiniYARNCluster = null
   var hadoopConf: Configuration = null
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> "9097")
-    val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
-    workers = setUpMiniCluster(masterConf, workerConf)._2
+    val (newMaster, newWorkers) = setupMiniClusterWithRandomPorts()
+    master = newMaster
+    workers = newWorkers
 
     hadoopConf = new Configuration()
+    hadoopConf.setInt("yarn.resourcemanager.am.max-attempts", 1)
     hadoopConf.set("yarn.scheduler.capacity.root.queues", "default,other_queue")
 
     hadoopConf.setInt("yarn.scheduler.capacity.root.default.capacity", 100)
@@ -75,6 +77,7 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
       classOf[Service])
 
     yarnCluster = new MiniYARNCluster("MiniClusterWordCount", 1, 1, 1)
+    logInfo(s"Test working dir ${yarnCluster.getTestWorkDir.getAbsolutePath}")
     yarnCluster.init(hadoopConf)
     yarnCluster.start()
   }
@@ -99,47 +102,77 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
     val output = Utils.createTempDir(System.getProperty("java.io.tmpdir"), "output")
     val mrOutputPath = new Path(output.getPath + File.separator + "mr_output")
 
-    val conf = new Configuration(yarnCluster.getConfig)
-    // YARN config
-    conf.set("yarn.app.mapreduce.am.job.recovery.enable", "false")
-    conf.set(
-      "yarn.app.mapreduce.am.command-opts",
-      "org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn")
+    var finish = false
+    var exitCode = false
+    var retryCount = 0
+    while (!finish) {
+      try {
+        val conf = new Configuration(yarnCluster.getConfig)
+        // YARN config
+        conf.set("yarn.app.mapreduce.am.job.recovery.enable", "false")
+        conf.set(
+          "yarn.app.mapreduce.am.command-opts",
+          "org.apache.celeborn.mapreduce.v2.app.MRAppMasterWithCeleborn")
 
-    // MapReduce config
-    conf.set("mapreduce.framework.name", "yarn")
-    conf.set("mapreduce.job.user.classpath.first", "true")
+        // MapReduce config
+        conf.set("mapreduce.framework.name", "yarn")
+        conf.set("mapreduce.job.user.classpath.first", "true")
 
-    conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
-    conf.set("mapreduce.celeborn.master.endpoints", "localhost:9097")
-    conf.set(
-      MRJobConfig.MAP_OUTPUT_COLLECTOR_CLASS_ATTR,
-      "org.apache.hadoop.mapred.CelebornMapOutputCollector")
-    conf.set(
-      "mapreduce.job.reduce.shuffle.consumer.plugin.class",
-      "org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer")
+        conf.set("mapreduce.job.reduce.slowstart.completedmaps", "1")
+        conf.set(
+          "mapreduce.celeborn.master.endpoints",
+          s"localhost:${master.conf.get(CelebornConf.MASTER_PORT)}")
+        conf.set(
+          MRJobConfig.MAP_OUTPUT_COLLECTOR_CLASS_ATTR,
+          "org.apache.hadoop.mapred.CelebornMapOutputCollector")
+        conf.set(
+          "mapreduce.job.reduce.shuffle.consumer.plugin.class",
+          "org.apache.hadoop.mapreduce.task.reduce.CelebornShuffleConsumer")
 
-    val job = Job.getInstance(conf, "word count")
-    job.setJarByClass(classOf[WordCount])
-    job.setMapperClass(classOf[WordCount.TokenizerMapper])
-    job.setCombinerClass(classOf[WordCount.IntSumReducer])
-    job.setReducerClass(classOf[WordCount.IntSumReducer])
-    job.setOutputKeyClass(classOf[Text])
-    job.setOutputValueClass(classOf[IntWritable])
-    FileInputFormat.addInputPath(job, new Path(input.getPath))
-    FileOutputFormat.setOutputPath(job, mrOutputPath)
+        val job = Job.getInstance(conf, "word count")
+        job.setJarByClass(classOf[WordCount])
+        job.setMapperClass(classOf[WordCount.TokenizerMapper])
+        job.setCombinerClass(classOf[WordCount.IntSumReducer])
+        job.setReducerClass(classOf[WordCount.IntSumReducer])
+        job.setOutputKeyClass(classOf[Text])
+        job.setOutputValueClass(classOf[IntWritable])
+        FileInputFormat.addInputPath(job, new Path(input.getPath))
+        FileOutputFormat.setOutputPath(job, mrOutputPath)
 
-    val mapreduceLibPath = (Utils.getCodeSourceLocation(getClass).split("/").dropRight(1) ++ Array(
-      "mapreduce_lib")).mkString("/")
-    val excludeJarList =
-      Seq("hadoop-client-api", "hadoop-client-runtime", "hadoop-client-minicluster")
-    Files.list(Paths.get(mapreduceLibPath)).iterator().asScala.foreach(path => {
-      if (!excludeJarList.exists(path.toFile.getPath.contains(_))) {
-        job.addFileToClassPath(new Path(path.toString))
+        val mapreduceLibPath =
+          (Utils.getCodeSourceLocation(getClass).split("/").dropRight(1) ++ Array(
+            "mapreduce_lib")).mkString("/")
+        val excludeJarList =
+          Seq(
+            "hadoop-client-api",
+            "hadoop-client-runtime",
+            "hadoop-client-minicluster",
+            "celeborn-client-mr-shaded")
+        Files.list(Paths.get(mapreduceLibPath)).iterator().asScala.foreach(path => {
+          if (!excludeJarList.exists(path.toFile.getPath.contains(_))) {
+            job.addFileToClassPath(new Path(path.toString))
+          }
+        })
+        logInfo(s"Job class path ${job.getFileClassPaths.map(_.toString).mkString(",")}")
+
+        exitCode = job.waitForCompletion(true)
+        if (exitCode) {
+          finish = true
+        } else {
+          retryCount += 1
+          if (retryCount >= 2) {
+            throw new RuntimeException("failed to run wordcount")
+          }
+        }
+      } catch {
+        case e: Exception =>
+          retryCount += 1
+          if (retryCount >= 2) {
+            log.error("failed to run wordcount", e)
+            throw e
+          }
       }
-    })
-
-    val exitCode = job.waitForCompletion(true)
+    }
     assert(exitCode, "Returned error code.")
 
     val outputFilePath = Paths.get(mrOutputPath.toString, "part-r-00000")

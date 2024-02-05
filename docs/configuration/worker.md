@@ -19,8 +19,20 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since | Deprecated |
 | --- | ------- | ----------- | ----- | ---------- |
+| celeborn.cluster.name | default | Celeborn cluster name. | 0.5.0 |  | 
+| celeborn.dynamicConfig.enabled | false | Whether to enable dynamic configuration. | 0.5.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 
-| celeborn.dynamicConfig.store.backend | NONE | Store backend for dynamic config. Available options: NONE, FS. Note: NONE means disabling dynamic config store. | 0.4.0 |  | 
+| celeborn.dynamicConfig.store.backend | FS | Store backend for dynamic config service. Available options: FS, DB. | 0.4.0 |  | 
+| celeborn.dynamicConfig.store.db.fetch.pageSize | 1000 | The page size for db store to query configurations. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.hikari.connectionTimeout | 30s | The connection timeout that a client will wait for a connection from the pool for db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.hikari.driverClassName |  | The jdbc driver class name of db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.hikari.idleTimeout | 600s | The idle timeout that a connection is allowed to sit idle in the pool for db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.hikari.jdbcUrl |  | The jdbc url of db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.hikari.maxLifetime | 1800s | The maximum lifetime of a connection in the pool for db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.hikari.maximumPoolSize | 2 | The maximum pool size of db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.hikari.password |  | The password of db store backend. | 0.5.0 |  | 
+| celeborn.dynamicConfig.store.db.hikari.username |  | The username of db store backend. | 0.5.0 |  | 
+| celeborn.internal.port.enabled | false | Whether to create a internal port on Masters/Workers for inter-Masters/Workers communication. This is beneficial when SASL authentication is enforced for all interactions between clients and Celeborn Services, but the services can exchange messages without being subject to SASL authentication. | 0.5.0 |  | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | Endpoints of master nodes for celeborn client to connect, allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. | 0.2.0 |  | 
 | celeborn.master.estimatedPartitionSize.minSize | 8mb | Ignore partition size smaller than this configuration of partition size for estimation. | 0.3.0 | celeborn.shuffle.minPartitionSizeToEstimate | 
 | celeborn.shuffle.chunk.size | 8m | Max chunk size of reducer's merged shuffle data. For example, if a reducer's shuffle data is 128M and the data will need 16 fetch chunk requests to fetch. | 0.2.0 |  | 
@@ -112,6 +124,7 @@ license: |
 | celeborn.worker.shuffle.partitionSplit.min | 1m | Min size for a partition to split | 0.3.0 | celeborn.shuffle.partitionSplit.min | 
 | celeborn.worker.sortPartition.indexCache.expire | 180s | PartitionSorter's cache item expire time. | 0.4.0 |  | 
 | celeborn.worker.sortPartition.indexCache.maxWeight | 100000 | PartitionSorter's cache max weight for index buffer. | 0.4.0 |  | 
+| celeborn.worker.sortPartition.reservedMemory.enabled | true | When true, partition sorter will reserve memory configured by `celeborn.worker.sortPartition.reservedMemoryPerPartition` to allocate a block of memory for warming up while sorting a shuffle file off-heap with page cache for non-hdfs files.Otherwise, partition sorter seeks to position of each block and does not warm up for non-hdfs files. | 0.5.0 |  | 
 | celeborn.worker.sortPartition.reservedMemoryPerPartition | 1mb | Reserved memory when sorting a shuffle file off-heap. | 0.3.0 | celeborn.worker.partitionSorter.reservedMemoryPerPartition | 
 | celeborn.worker.sortPartition.threads | &lt;undefined&gt; | PartitionSorter's thread counts. It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.activeTypes`. | 0.3.0 | celeborn.worker.partitionSorter.threads | 
 | celeborn.worker.sortPartition.timeout | 220s | Timeout for a shuffle file to sort. | 0.3.0 | celeborn.worker.partitionSorter.sort.timeout | 
@@ -122,7 +135,6 @@ license: |
 | celeborn.worker.storage.disk.reserve.size | 5G | Celeborn worker reserved space for each disk. | 0.3.0 | celeborn.worker.disk.reserve.size | 
 | celeborn.worker.storage.expireDirs.timeout | 1h | The timeout for a expire dirs to be deleted on disk. | 0.3.2 |  | 
 | celeborn.worker.storage.workingDir | celeborn-worker/shuffle_data | Worker's working dir path name. | 0.3.0 | celeborn.worker.workingDir | 
-| celeborn.worker.userResourceConsumption.update.interval | 30s | Time length for a window about compute user resource consumption. | 0.3.2 |  | 
 | celeborn.worker.writer.close.timeout | 120s | Timeout for a file writer to close | 0.2.0 |  | 
 | celeborn.worker.writer.create.maxAttempts | 3 | Retry count for a file writer to create if its creation was failed. | 0.2.0 |  | 
 <!--end-include-->

@@ -21,6 +21,7 @@ import java.io.IOException
 import java.net.BindException
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
@@ -34,18 +35,19 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
-import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource}
+import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornHadoopUtils, CollectionUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
+import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver
 
 private[celeborn] class Master(
     override val conf: CelebornConf,
@@ -58,6 +60,17 @@ private[celeborn] class Master(
 
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
+  // init and register master metrics
+  private val resourceConsumptionSource =
+    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_MASTER)
+  private val threadPoolSource = ThreadPoolSource(conf, MetricsSystem.ROLE_MASTER)
+  private val masterSource = new MasterSource(conf)
+  metricsSystem.registerSource(resourceConsumptionSource)
+  metricsSystem.registerSource(masterSource)
+  metricsSystem.registerSource(threadPoolSource)
+  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
+  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
 
   override val rpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SYS,
@@ -67,9 +80,26 @@ private[celeborn] class Master(
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()))
 
+  // Visible for testing
+  private[master] var internalRpcEnvInUse = rpcEnv
+
+  if (conf.internalPortEnabled) {
+    val internalRpcEnv: RpcEnv = RpcEnv.create(
+      RpcNameConstants.MASTER_INTERNAL_SYS,
+      masterArgs.host,
+      masterArgs.host,
+      masterArgs.internalPort,
+      conf,
+      Math.max(64, Runtime.getRuntime.availableProcessors()))
+    logInfo(
+      s"Internal port enabled, using internal port ${masterArgs.internalPort} for internal RPC.")
+    internalRpcEnvInUse = internalRpcEnv
+  }
+
+  private val rackResolver = new CelebornRackResolver(conf)
   private val statusSystem =
     if (conf.haEnabled) {
-      val sys = new HAMasterMetaManager(rpcEnv, conf)
+      val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
       val handler = new MetaHandler(sys)
       try {
         handler.setUpMasterRatisServer(conf, masterArgs.masterClusterInfo.get)
@@ -87,7 +117,7 @@ private[celeborn] class Master(
       }
       sys
     } else {
-      new SingleMasterMetaManager(rpcEnv, conf)
+      new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
     }
 
   // Threads
@@ -151,10 +181,6 @@ private[celeborn] class Master(
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
 
-  // init and register master metrics
-  private val resourceConsumptionSource =
-    new ResourceConsumptionSource(conf, MetricsSystem.ROLE_MASTER)
-  private val masterSource = new MasterSource(conf)
   private var hadoopFs: FileSystem = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffle.size
@@ -190,16 +216,23 @@ private[celeborn] class Master(
   }
   masterSource.addGauge(MasterSource.IS_ACTIVE_MASTER) { () => isMasterActive }
 
-  metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(masterSource)
-  metricsSystem.registerSource(new JVMSource(conf, MetricsSystem.ROLE_MASTER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, MetricsSystem.ROLE_MASTER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, MetricsSystem.ROLE_MASTER))
-
+  private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
+  // Visible for testing
+  private[master] var internalRpcEndpoint: RpcEndpoint = _
+  private var internalRpcEndpointRef: RpcEndpointRef = _
+  if (conf.internalPortEnabled) {
+    internalRpcEndpoint = new InternalRpcEndpoint(this, internalRpcEnvInUse, conf)
+    internalRpcEndpointRef = internalRpcEnvInUse.setupEndpoint(
+      RpcNameConstants.MASTER_INTERNAL_EP,
+      internalRpcEndpoint)
+  }
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
+    if (!threadsStarted.compareAndSet(false, true)) {
+      return
+    }
     checkForWorkerTimeOutTask = forwardMessageThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
@@ -245,6 +278,9 @@ private[celeborn] class Master(
   }
 
   override def onStop(): Unit = {
+    if (!threadsStarted.compareAndSet(true, false)) {
+      return
+    }
     logInfo("Stopping Celeborn Master.")
     if (checkForWorkerTimeOutTask != null) {
       checkForWorkerTimeOutTask.cancel(true)
@@ -259,6 +295,7 @@ private[celeborn] class Master(
       checkForHDFSRemnantDirsTimeOutTask.cancel(true)
     }
     forwardMessageThread.shutdownNow()
+    rackResolver.stop()
     logInfo("Celeborn Master is stopped.")
   }
 
@@ -386,6 +423,7 @@ private[celeborn] class Master(
           activeShuffleKey,
           estimatedAppDiskUsage,
           highWorkload,
+          workerStatus,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
@@ -403,6 +441,7 @@ private[celeborn] class Master(
           activeShuffleKey,
           estimatedAppDiskUsage,
           highWorkload,
+          workerStatus,
           requestId))
 
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
@@ -440,6 +479,17 @@ private[celeborn] class Master(
 
     case _: PbCheckWorkersAvailable =>
       executeWithLeaderChecker(context, handleCheckWorkersAvailable(context))
+
+    case pb: PbWorkerEventRequest =>
+      val workers = new util.ArrayList[WorkerInfo](pb.getWorkersList
+        .asScala.map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava)
+      executeWithLeaderChecker(
+        context,
+        handleWorkerEvent(
+          pb.getRequestId,
+          pb.getWorkerEventType.getNumber,
+          workers,
+          context))
   }
 
   private def timeoutDeadWorkers(): Unit = {
@@ -519,6 +569,7 @@ private[celeborn] class Master(
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       highWorkload: Boolean,
+      workerStatus: WorkerStatus,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = workersSnapShot.asScala.contains(targetWorker)
@@ -537,6 +588,7 @@ private[celeborn] class Master(
         estimatedAppDiskUsage,
         System.currentTimeMillis(),
         highWorkload,
+        workerStatus,
         requestId)
     }
 
@@ -548,7 +600,18 @@ private[celeborn] class Master(
         expiredShuffleKeys.add(shuffleKey)
       }
     }
-    context.reply(HeartbeatFromWorkerResponse(expiredShuffleKeys, registered))
+
+    val workerEventInfo = statusSystem.workerEventInfos.get(targetWorker)
+    if (workerEventInfo == null) {
+      context.reply(HeartbeatFromWorkerResponse(
+        expiredShuffleKeys,
+        registered))
+    } else {
+      context.reply(HeartbeatFromWorkerResponse(
+        expiredShuffleKeys,
+        registered,
+        workerEventInfo.getEventType))
+    }
   }
 
   private def handleWorkerExclude(
@@ -781,6 +844,8 @@ private[celeborn] class Master(
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         statusSystem.handleAppLost(appId, requestId)
+        // Resource consumption source should remove lose application gauges.
+        removeAppResourceConsumption(appId)
         logInfo(s"Removed application $appId")
         if (hasHDFSStorage) {
           checkAndCleanExpiredAppDirsOnHDFS(appId)
@@ -788,6 +853,30 @@ private[celeborn] class Master(
         context.reply(ApplicationLostResponse(StatusCode.SUCCESS))
       }
     })
+  }
+
+  private def removeAppResourceConsumption(appId: String): Unit = {
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      appId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      appId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      appId)
+    removeResourceConsumptionGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      appId)
+  }
+
+  private def removeResourceConsumptionGauge(
+      resourceConsumptionName: String,
+      appId: String): Unit = {
+    resourceConsumptionSource.removeGauge(
+      resourceConsumptionName,
+      resourceConsumptionSource.applicationLabel,
+      appId)
   }
 
   private def checkAndCleanExpiredAppDirsOnHDFS(expiredDir: String = ""): Unit = {
@@ -851,55 +940,77 @@ private[celeborn] class Master(
     statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, requestId)
   }
 
-  private def computeUserResourceConsumption(userIdentifier: UserIdentifier)
-      : ResourceConsumption = {
-    val current = System.currentTimeMillis()
-    if (userResourceConsumptions.containsKey(userIdentifier)) {
-      val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
-      if (current - resourceConsumptionAndUpdateTime._2 > masterResourceConsumptionInterval) {
-        val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
-          workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-        }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
-        userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))
-        newResourceConsumption
-      } else {
-        resourceConsumptionAndUpdateTime._1
+  private def handleResourceConsumption(userIdentifier: UserIdentifier): ResourceConsumption = {
+    val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
+    gaugeResourceConsumption(userIdentifier)
+    val subResourceConsumptions = userResourceConsumption.subResourceConsumptions
+    if (CollectionUtils.isNotEmpty(subResourceConsumptions)) {
+      subResourceConsumptions.asScala.keys.foreach { gaugeResourceConsumption(userIdentifier, _) }
+    }
+    userResourceConsumption
+  }
+
+  private def gaugeResourceConsumption(
+      userIdentifier: UserIdentifier,
+      applicationId: String = null): Unit = {
+    val resourceConsumptionLabel =
+      if (applicationId == null) userIdentifier.toMap
+      else userIdentifier.toMap + (resourceConsumptionSource.applicationLabel -> applicationId)
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_FILE_COUNT,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier).diskFileCount
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier).diskBytesWritten
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_FILE_COUNT,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier).hdfsFileCount
+    }
+    resourceConsumptionSource.addGauge(
+      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+      resourceConsumptionLabel) { () =>
+      computeResourceConsumption(userIdentifier).hdfsBytesWritten
+    }
+  }
+
+  private def computeResourceConsumption(
+      userIdentifier: UserIdentifier,
+      applicationId: String = null): ResourceConsumption = {
+    val newResourceConsumption = computeUserResourceConsumption(userIdentifier)
+    if (applicationId == null) {
+      val current = System.currentTimeMillis()
+      if (userResourceConsumptions.containsKey(userIdentifier)) {
+        val resourceConsumptionAndUpdateTime = userResourceConsumptions.get(userIdentifier)
+        if (current - resourceConsumptionAndUpdateTime._2 <= masterResourceConsumptionInterval) {
+          return resourceConsumptionAndUpdateTime._1
+        }
       }
-    } else {
-      val newResourceConsumption = statusSystem.workers.asScala.flatMap { workerInfo =>
-        workerInfo.userResourceConsumption.asScala.get(userIdentifier)
-      }.foldRight(ResourceConsumption(0, 0, 0, 0))(_ add _)
       userResourceConsumptions.put(userIdentifier, (newResourceConsumption, current))
       newResourceConsumption
+    } else {
+      newResourceConsumption.subResourceConsumptions.get(applicationId)
     }
+  }
+
+  private def computeUserResourceConsumption(
+      userIdentifier: UserIdentifier): ResourceConsumption = {
+    val (resourceConsumption, subResourceConsumptions) = statusSystem.workers.asScala.flatMap {
+      workerInfo => workerInfo.userResourceConsumption.asScala.get(userIdentifier)
+    }.foldRight((ResourceConsumption(0, 0, 0, 0), Map.empty[String, ResourceConsumption]))(
+      _ addWithSubResourceConsumptions _)
+    resourceConsumption.subResourceConsumptions = subResourceConsumptions.asJava
+    resourceConsumption
   }
 
   private def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
-
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.DISK_FILE_COUNT,
-      userIdentifier.toMap) { () =>
-      computeUserResourceConsumption(userIdentifier).diskFileCount
-    }
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.DISK_BYTES_WRITTEN,
-      userIdentifier.toMap) { () =>
-      computeUserResourceConsumption(userIdentifier).diskBytesWritten
-    }
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.HDFS_FILE_COUNT,
-      userIdentifier.toMap) { () =>
-      computeUserResourceConsumption(userIdentifier).hdfsFileCount
-    }
-    resourceConsumptionSource.addGauge(
-      ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
-      userIdentifier.toMap) { () =>
-      computeUserResourceConsumption(userIdentifier).hdfsBytesWritten
-    }
-
-    val userResourceConsumption = computeUserResourceConsumption(userIdentifier)
+    val userResourceConsumption = handleResourceConsumption(userIdentifier)
     val quota = quotaManager.getQuota(userIdentifier)
     val (isAvailable, reason) =
       quota.checkQuotaSpaceAvailable(userIdentifier, userResourceConsumption)
@@ -910,11 +1021,19 @@ private[celeborn] class Master(
     context.reply(CheckWorkersAvailableResponse(!workersAvailable().isEmpty))
   }
 
+  private def handleWorkerEvent(
+      requestId: String,
+      workerEventTypeValue: Int,
+      workers: util.List[WorkerInfo],
+      context: RpcCallContext): Unit = {
+    statusSystem.handleWorkerEvent(workerEventTypeValue, workers, requestId)
+    context.reply(PbWorkerEventResponse.newBuilder().setSuccess(true).build())
+  }
+
   private def workersAvailable(
       tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
     workersSnapShot.asScala.filter { w =>
-      !statusSystem.excludedWorkers.contains(w) && !statusSystem.manuallyExcludedWorkers.contains(
-        w) && !statusSystem.shutdownWorkers.contains(w) && !tmpExcludedWorkerList.contains(w)
+      statusSystem.isWorkerAvailable(w) && !tmpExcludedWorkerList.contains(w)
     }.asJava
   }
 
@@ -927,6 +1046,35 @@ private[celeborn] class Master(
 
   private def getWorkers: String = {
     workersSnapShot.asScala.mkString("\n")
+  }
+
+  override def handleWorkerEvent(workerEventType: String, workers: String): String = {
+    val sb = new StringBuilder
+    if (workerEventType.isEmpty || workers.isEmpty) {
+      return sb.append(
+        s"handle eventType failed as eventType: $workerEventType or workers: $workers has empty value").toString()
+    }
+
+    sb.append("============================ Handle Worker Event =============================\n")
+    val workerArray = workers.split(",").filter(_.nonEmpty)
+    try {
+      val workerEventResponse = self.askSync[PbWorkerEventResponse](WorkerEventRequest(
+        workerArray.map(WorkerInfo.fromUniqueId).toList.asJava,
+        workerEventType,
+        MasterClient.genRequestId()))
+      if (workerEventResponse.getSuccess) {
+        sb.append(s"handle $workerEventType for ${workerArray.mkString(",")} successfully")
+      } else {
+        sb.append(s"handle $workerEventType for ${workerArray.mkString(",")} failed")
+      }
+    } catch {
+      case e: Throwable =>
+        val message =
+          s"handle $workerEventType for ${workerArray.mkString(",")} failed, message: ${e.getMessage}"
+        logError(message, e)
+        sb.append(message)
+    }
+    sb.append("\n").toString()
   }
 
   override def getWorkerInfo: String = {
@@ -1078,16 +1226,31 @@ private[celeborn] class Master(
     }
   }
 
+  override def getWorkerEventInfo(): String = {
+    val sb = new StringBuilder
+    sb.append("======================= Workers Event in Master ========================\n")
+    statusSystem.workerEventInfos.asScala.foreach { case (worker, workerEventInfo) =>
+      sb.append(s"${worker.toUniqueId().padTo(50, " ").mkString}$workerEventInfo\n")
+    }
+    sb.toString()
+  }
+
   override def initialize(): Unit = {
     super.initialize()
     logInfo("Master started.")
     rpcEnv.awaitTermination()
+    if (conf.internalPortEnabled) {
+      internalRpcEnvInUse.awaitTermination()
+    }
   }
 
   override def stop(exitKind: Int): Unit = synchronized {
     if (!stopped) {
       logInfo("Stopping Master")
       rpcEnv.stop(self)
+      if (conf.internalPortEnabled) {
+        internalRpcEnvInUse.stop(internalRpcEndpointRef)
+      }
       super.stop(exitKind)
       logInfo("Master stopped.")
       stopped = true

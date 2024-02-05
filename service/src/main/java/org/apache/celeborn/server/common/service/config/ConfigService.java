@@ -17,16 +17,22 @@
 
 package org.apache.celeborn.server.common.service.config;
 
+import java.io.IOException;
+
+import org.apache.celeborn.common.CelebornConf;
+
 public interface ConfigService {
 
-  SystemConfig getSystemConfig();
+  CelebornConf getCelebornConf();
 
-  TenantConfig getRawTenantConfig(String tenantId);
+  SystemConfig getSystemConfigFromCache();
 
-  default DynamicConfig getTenantConfig(String tenantId) {
-    TenantConfig tenantConfig = getRawTenantConfig(tenantId);
+  TenantConfig getRawTenantConfigFromCache(String tenantId);
+
+  default DynamicConfig getTenantConfigFromCache(String tenantId) {
+    TenantConfig tenantConfig = getRawTenantConfigFromCache(tenantId);
     if (tenantConfig == null || tenantConfig.getConfigs().isEmpty()) {
-      return getSystemConfig();
+      return getSystemConfigFromCache();
     } else {
       return tenantConfig;
     }
@@ -48,7 +54,7 @@ public interface ConfigService {
     }
   }
 
-  void refreshAllCache();
+  void refreshAllCache() throws IOException;
 
   void shutdown();
 }

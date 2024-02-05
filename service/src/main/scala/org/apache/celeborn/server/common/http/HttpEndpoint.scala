@@ -230,3 +230,23 @@ case object Exit extends HttpEndpoint {
   override def handle(service: HttpService, parameters: Map[String, String]): String =
     service.exit(parameters.getOrElse("TYPE", ""))
 }
+
+case object SendWorkerEvent extends HttpEndpoint {
+  override def path: String = "/sendWorkerEvent"
+
+  override def description(service: String): String =
+    "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'"
+
+  override def handle(service: HttpService, parameters: Map[String, String]): String =
+    service.handleWorkerEvent(parameters.getOrElse("TYPE", ""), parameters.getOrElse("WORKERS", ""))
+}
+
+case object WorkerEventInfo extends HttpEndpoint {
+  override def path: String = "/workerEventInfo"
+
+  override def description(service: String): String =
+    "List all worker event infos of the master."
+
+  override def handle(service: HttpService, parameters: Map[String, String]): String =
+    service.getWorkerEventInfo()
+}

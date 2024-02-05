@@ -19,16 +19,12 @@ package org.apache.celeborn.server.common.service.config;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
-import scala.concurrent.duration.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +34,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.util.ThreadUtils;
 
-public class FsConfigServiceImpl implements ConfigService {
+public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
   private final CelebornConf celebornConf;
   private final AtomicReference<SystemConfig> systemConfigAtomicReference = new AtomicReference<>();
@@ -51,19 +47,12 @@ public class FsConfigServiceImpl implements ConfigService {
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
 
-  private final ScheduledExecutorService configRefreshService =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-config-refresher");
-
-  public FsConfigServiceImpl(CelebornConf celebornConf) {
-    this.celebornConf = celebornConf;
-    this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
-    this.refresh();
-    long dynamicConfigRefreshTime = celebornConf.dynamicConfigRefreshInterval();
-    this.configRefreshService.scheduleWithFixedDelay(
-        this::refresh, dynamicConfigRefreshTime, dynamicConfigRefreshTime, TimeUnit.MILLISECONDS);
+  public FsConfigServiceImpl(CelebornConf celebornConf) throws IOException {
+    super(celebornConf);
   }
 
-  private synchronized void refresh() {
+  @Override
+  public synchronized void refreshAllCache() {
     File configurationFile = getConfigurationFile(System.getenv());
     if (!configurationFile.exists()) {
       return;
@@ -88,7 +77,7 @@ public class FsConfigServiceImpl implements ConfigService {
           userConfs.put(new UserIdentifier(tenantId, userName), userConfig);
         } else {
           if (ConfigLevel.TENANT.name().equals(level)) {
-            TenantConfig tenantConfig = new TenantConfig(this, tenantId, config);
+            TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
             tenantConfs.put(tenantId, tenantConfig);
           } else {
             systemConfig = new SystemConfig(celebornConf, config);

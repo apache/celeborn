@@ -349,7 +349,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 1
+        "y": 19
       },
       "id": 119,
       "panels": [
@@ -1096,7 +1096,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 2
+        "y": 52
       },
       "id": 28,
       "panels": [
@@ -1160,7 +1160,7 @@
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 3
+            "y": 53
           },
           "id": 84,
           "options": {
@@ -1250,7 +1250,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 13
+            "y": 63
           },
           "id": 60,
           "options": {
@@ -1340,7 +1340,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 13
+            "y": 63
           },
           "id": 62,
           "options": {
@@ -1429,7 +1429,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 22
+            "y": 72
           },
           "id": 90,
           "options": {
@@ -1519,7 +1519,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 22
+            "y": 72
           },
           "id": 92,
           "options": {
@@ -1610,7 +1610,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 30
+            "y": 80
           },
           "id": 182,
           "options": {
@@ -1701,7 +1701,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 30
+            "y": 80
           },
           "id": 184,
           "options": {
@@ -1793,7 +1793,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 88
           },
           "id": 181,
           "options": {
@@ -1886,7 +1886,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 88
           },
           "id": 183,
           "options": {
@@ -1978,7 +1978,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 96
           },
           "id": 179,
           "options": {
@@ -2018,7 +2018,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 104
       },
       "id": 134,
       "panels": [
@@ -2083,7 +2083,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 105
           },
           "id": 68,
           "options": {
@@ -2173,7 +2173,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 105
           },
           "id": 70,
           "options": {
@@ -2263,7 +2263,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 13
+            "y": 114
           },
           "id": 72,
           "options": {
@@ -2353,7 +2353,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 13
+            "y": 114
           },
           "id": 74,
           "options": {
@@ -2442,9 +2442,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 22
+            "y": 123
           },
-          "id": 79,
+          "id": 83,
           "options": {
             "legend": {
               "calcs": [],
@@ -2464,13 +2464,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_WriteDataHardSplitCount_Count",
+              "expr": "metrics_WriteDataSuccessCount_Count",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_WriteDataHardSplitCount_Count",
+          "title": "metrics_WriteDataSuccessCount_Count",
           "type": "timeseries"
         },
         {
@@ -2533,7 +2533,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 22
+            "y": 123
           },
           "id": 76,
           "options": {
@@ -2624,7 +2624,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 30
+            "y": 131
           },
           "id": 128,
           "options": {
@@ -2715,7 +2715,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 30
+            "y": 131
           },
           "id": 129,
           "options": {
@@ -2806,7 +2806,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 139
           },
           "id": 130,
           "options": {
@@ -2897,7 +2897,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 139
           },
           "id": 132,
           "options": {
@@ -2988,7 +2988,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 147
           },
           "id": 131,
           "options": {
@@ -3018,6 +3018,97 @@
           ],
           "title": "metrics_ReplicateDataTimeoutCount_Count",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 147
+          },
+          "id": 79,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "metrics_WriteDataHardSplitCount_Count",
+              "legendFormat": "${baseLegend}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_WriteDataHardSplitCount_Count",
+          "type": "timeseries"
         }
       ],
       "title": "PushRelatives",
@@ -3029,7 +3120,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 55
+        "y": 155
       },
       "id": 12,
       "panels": [
@@ -3094,7 +3185,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 90
+            "y": 156
           },
           "id": 66,
           "options": {
@@ -3184,7 +3275,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 156
           },
           "id": 96,
           "options": {
@@ -3274,7 +3365,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 98
+            "y": 164
           },
           "id": 17,
           "options": {
@@ -3364,7 +3455,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 98
+            "y": 164
           },
           "id": 18,
           "options": {
@@ -3453,9 +3544,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 106
+            "y": 172
           },
-          "id": 73,
+          "id": 81,
           "options": {
             "legend": {
               "calcs": [],
@@ -3475,13 +3566,13 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ActiveChunkStreamCount_Value",
+              "expr": "metrics_OpenStreamSuccessCount_Count",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "metrics_ActiveChunkStreamCount_Value",
+          "title": "metrics_OpenStreamSuccessCount_Count",
           "type": "timeseries"
         },
         {
@@ -3544,7 +3635,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 106
+            "y": 172
           },
           "id": 77,
           "options": {
@@ -3635,7 +3726,98 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 114
+            "y": 180
+          },
+          "id": 82,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "metrics_FetchChunkSuccessCount_Count",
+              "legendFormat": "${baseLegend}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_FetchChunkSuccessCount_Count",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 180
           },
           "id": 75,
           "options": {
@@ -3665,6 +3847,97 @@
           ],
           "title": "metrics_FetchChunkFailCount_Count",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 188
+          },
+          "id": 73,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "metrics_ActiveChunkStreamCount_Value",
+              "legendFormat": "${baseLegend}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_ActiveChunkStreamCount_Value",
+          "type": "timeseries"
         }
       ],
       "title": "FetchRelatives",
@@ -3676,7 +3949,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 56
+        "y": 196
       },
       "id": 10,
       "panels": [
@@ -4230,7 +4503,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 57
+        "y": 197
       },
       "id": 8,
       "panels": [
@@ -5252,7 +5525,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 198
       },
       "id": 50,
       "panels": [
@@ -5808,7 +6081,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 59
+        "y": 199
       },
       "id": 157,
       "panels": [
@@ -6101,7 +6374,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 200
       },
       "id": 137,
       "panels": [
@@ -7492,7 +7765,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 201
       },
       "id": 110,
       "panels": [
@@ -7688,7 +7961,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 202
       },
       "id": 123,
       "panels": [
@@ -8166,7 +8439,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 203
       },
       "id": 172,
       "panels": [

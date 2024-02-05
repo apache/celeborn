@@ -121,11 +121,25 @@ These metrics are exposed by Celeborn master.
 
   - namespace=ResourceConsumption
     - **notes:**
-        - This metrics data is generated for each user and they are identified using a metric tag. 
+        - This metrics data is generated for each user and they are identified using a metric tag.
+        - This metrics also include subResourceConsumptions generated for each application of user and they are identified using `applicationId` tag.
     - diskFileCount
     - diskBytesWritten
     - hdfsFileCount
     - hdfsBytesWritten
+
+  - namespace=ThreadPool
+    - **notes:**
+        - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
+    - active_thread_count
+    - pending_task_count
+    - pool_size
+    - core_pool_size
+    - maximum_pool_size
+    - largest_pool_size
+    - is_terminating
+    - is_terminated
+    - is_shutdown
 
 #### Worker
 These metrics are exposed by Celeborn worker.
@@ -283,10 +297,24 @@ These metrics are exposed by Celeborn worker.
   - namespace=ResourceConsumption
     - **notes:**
         - This metrics data is generated for each user and they are identified using a metric tag.
+        - This metrics also include subResourceConsumptions generated for each application of user and they are identified using `applicationId` tag.
     - diskFileCount
     - diskBytesWritten
     - hdfsFileCount
     - hdfsBytesWritten
+
+  - namespace=ThreadPool
+    - **notes:**
+        - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
+    - active_thread_count
+    - pending_task_count
+    - pool_size
+    - core_pool_size
+    - maximum_pool_size
+    - largest_pool_size
+    - is_terminating
+    - is_terminated
+    - is_shutdown
 
 **Note:**
 
@@ -318,22 +346,24 @@ API path listed as below:
 
 #### Master
 
-| Path                                                 | Meaning                                                                                                                                                                                            |
-|------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus                                  | List the metrics data in prometheus format of the master.(The url path is defined by configure `celeborn.metrics.prometheus.path`.)                                                                |
-| /conf                                                | List the conf setting of the master.                                                                                                                                                               |
-| /masterGroupInfo                                     | List master group information of the service. It will list all master's LEADER, FOLLOWER information.                                                                                              |
-| /workerInfo                                          | List worker information of the service. It will list all registered workers 's information.                                                                                                        |
-| /lostWorkers                                         | List all lost workers of the master.                                                                                                                                                               |
-| /excludedWorkers                                     | List all excluded workers of the master.                                                                                                                                                           |
-| /shutdownWorkers                                     | List all shutdown workers of the master.                                                                                                                                                           |
-| /threadDump                                          | List the current thread dump of the master.                                                                                                                                                        |
-| /hostnames                                           | List all running application's LifecycleManager's hostnames of the cluster.                                                                                                                        |
-| /applications                                        | List all running application's ids of the cluster.                                                                                                                                                 |
-| /shuffles                                            | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.                                                                                             |
-| /listTopDiskUsedApps                                 | List the top disk usage application ids. It will return the top disk usage application ids for the cluster.                                                                                        |
-| /exclude?add=${ADD_WORKERS}&remove=${REMOVE_WORKERS} | Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas. |
-| /help                                                | List the available API providers of the master.                                                                                                                                                    |
+| Path                                                        | Meaning                                                                                                                                                                                                                                 |
+|-------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| /metrics/prometheus                                         | List the metrics data in prometheus format of the master.(The url path is defined by configure `celeborn.metrics.prometheus.path`.)                                                                                                     |
+| /conf                                                       | List the conf setting of the master.                                                                                                                                                                                                    |
+| /masterGroupInfo                                            | List master group information of the service. It will list all master's LEADER, FOLLOWER information.                                                                                                                                   |
+| /workerInfo                                                 | List worker information of the service. It will list all registered workers 's information.                                                                                                                                             |
+| /lostWorkers                                                | List all lost workers of the master.                                                                                                                                                                                                    |
+| /excludedWorkers                                            | List all excluded workers of the master.                                                                                                                                                                                                |
+| /shutdownWorkers                                            | List all shutdown workers of the master.                                                                                                                                                                                                |
+| /threadDump                                                 | List the current thread dump of the master.                                                                                                                                                                                             |
+| /hostnames                                                  | List all running application's LifecycleManager's hostnames of the cluster.                                                                                                                                                             |
+| /applications                                               | List all running application's ids of the cluster.                                                                                                                                                                                      |
+| /shuffles                                                   | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.                                                                                                                                  |
+| /listTopDiskUsedApps                                        | List the top disk usage application ids. It will return the top disk usage application ids for the cluster.                                                                                                                             |
+| /exclude?add=${ADD_WORKERS}&remove=${REMOVE_WORKERS}        | Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove, which value is separated by commas.                                      |
+| /sendWorkerEvent?type=${WorkerEventType}&workers=${WORKERS} | For Master(Leader) can send worker event to manager workers. Legal `WorkerEventType` are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission', and the parameter workers is separated by commas.   |
+| /workerEventInfo                                            | List all worker event infos of the master.                                                                                                                                                                                              |
+| /help                                                       | List the available API providers of the master.                                                                                                                                                                                         |
 
 #### Worker
 

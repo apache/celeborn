@@ -37,6 +37,17 @@ enum Type {
   WorkerRemove = 22;
   RemoveWorkersUnavailableInfo = 23;
   WorkerExclude = 24;
+  WorkerEvent = 25;
+}
+
+enum WorkerEventType {
+  // refer to TransportMessages.proto.PbWorkerEvent.EventType
+  None = 0;
+  Immediately = 1; // Immediately exit
+  Decommission = 2; // from normal to decommission, then exit
+  DecommissionThenIdle = 3; // from normal to decommission and keep alive
+  Graceful = 4; // from normal to graceful, then exit
+  Recommission = 5; // -> from InDecommissionThenIdle/Idle state to Normal
 }
 
 message ResourceRequest {
@@ -57,6 +68,7 @@ message ResourceRequest {
   optional WorkerRemoveRequest workerRemoveRequest = 19;
   optional RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest = 20;
   optional WorkerExcludeRequest workerExcludeRequest = 21;
+  optional WorkerEventRequest workerEventRequest = 22;
 }
 
 message DiskInfo {
@@ -132,6 +144,22 @@ message WorkerHeartbeatRequest {
   map<string, ResourceConsumption> userResourceConsumption = 8;
   map<string, int64> estimatedAppDiskUsage = 9;
   required bool highWorkload = 10;
+  optional WorkerStatus workerStatus = 11;
+}
+
+message WorkerStatus {
+  enum State {
+    Normal = 0;
+    Idle = 1;
+    Exit = 2;
+    InDecommissionThenIdle = 3;   // -> Idle
+    InDecommission = 4;       // -> Exit
+    InGraceFul = 5;   // -> Exit
+    InExit = 6;
+  }
+
+  required State state = 1;
+  required int64 stateStartTime = 2;
 }
 
 message RegisterWorkerRequest {
@@ -152,6 +180,11 @@ message RemoveWorkersUnavailableInfoRequest {
   repeated WorkerAddress unavailable = 1;
 }
 
+message WorkerEventRequest {
+  repeated WorkerAddress workerAddress = 1;
+  required WorkerEventType workerEventType = 2;
+}
+
 message WorkerAddress {
   required string host = 1;
   required int32 rpcPort = 2;
@@ -170,6 +203,7 @@ message ResourceConsumption {
   required int64 diskFileCount = 2;
   required int64 hdfsBytesWritten = 3;
   required int64 hdfsFileCount = 4;
+  map<string, ResourceConsumption> subResourceConsumption = 5;
 }
 
 enum Status {

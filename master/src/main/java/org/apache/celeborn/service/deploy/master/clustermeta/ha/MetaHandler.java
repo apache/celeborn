@@ -29,6 +29,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -98,6 +99,7 @@ public class MetaHandler {
       Map<String, DiskInfo> diskInfos;
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       Map<String, Long> estimatedAppDiskUsage = new HashMap<>();
+      WorkerStatus workerStatus;
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
@@ -175,6 +177,13 @@ public class MetaHandler {
               request.getWorkerHeartbeatRequest().getEstimatedAppDiskUsageMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
+          if (request.getWorkerHeartbeatRequest().hasWorkerStatus()) {
+            workerStatus =
+                MetaUtil.fromPbWorkerStatus(request.getWorkerHeartbeatRequest().getWorkerStatus());
+          } else {
+            workerStatus = WorkerStatus.normalWorkerStatus();
+          }
+
           LOG.debug(
               "Handle worker heartbeat for {} {} {} {} {} {} {}",
               host,
@@ -194,6 +203,7 @@ public class MetaHandler {
               userResourceConsumption,
               estimatedAppDiskUsage,
               request.getWorkerHeartbeatRequest().getTime(),
+              workerStatus,
               highWorkload);
           break;
 
@@ -245,6 +255,14 @@ public class MetaHandler {
               unavailableList.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
           metaSystem.removeWorkersUnavailableInfoMeta(unavailableWorkers);
           break;
+
+        case WorkerEvent:
+          List<ResourceProtos.WorkerAddress> workerAddresses =
+              request.getRemoveWorkersUnavailableInfoRequest().getUnavailableList();
+          List<WorkerInfo> workerInfoList =
+              workerAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
+          metaSystem.updateWorkerEventMeta(
+              request.getWorkerEventRequest().getWorkerEventType().getNumber(), workerInfoList);
 
         default:
           throw new IOException("Can not parse this command!" + request);

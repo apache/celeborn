@@ -18,10 +18,12 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.internal.config.ConfigEntry;
+import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
 
 public class SystemConfig extends DynamicConfig {
   private final CelebornConf celebornConf;
@@ -34,6 +36,11 @@ public class SystemConfig extends DynamicConfig {
   public SystemConfig(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;
     this.configs = new HashMap<>();
+  }
+
+  public SystemConfig(CelebornConf celebornConf, List<ClusterSystemConfig> systemConfigs) {
+    this.celebornConf = celebornConf;
+    systemConfigs.forEach(t -> configs.put(t.getConfigKey(), t.getConfigValue()));
   }
 
   @Override

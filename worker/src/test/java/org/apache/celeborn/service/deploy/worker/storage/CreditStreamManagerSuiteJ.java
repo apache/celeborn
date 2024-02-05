@@ -53,7 +53,7 @@ public class CreditStreamManagerSuiteJ {
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE().key(), "0.9");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_RESUME().key(), "0.5");
-    conf.set(CelebornConf.PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD().key(), "0.6");
+    conf.set(CelebornConf.WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD().key(), "0.6");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER().key(), "0.1");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE().key(), "0.1");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL().key(), "10");
@@ -82,18 +82,23 @@ public class CreditStreamManagerSuiteJ {
     diskFileInfo.replaceFileMeta(mapFileMeta);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);
 
+    String shuffleKey = "application_1694674023293_0003-0";
     long registerStream1 =
-        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
+        creditStreamManager.registerStream(
+            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
     Assert.assertTrue(registerStream1 > 0);
     Assert.assertEquals(1, creditStreamManager.getStreamsCount());
 
     long registerStream2 =
-        creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
+        creditStreamManager.registerStream(
+            streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
     Assert.assertNotEquals(registerStream1, registerStream2);
     Assert.assertEquals(2, creditStreamManager.getStreamsCount());
 
-    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
-    creditStreamManager.registerStream(streamIdConsumer, channel, 0, 1, 1, diskFileInfo);
+    creditStreamManager.registerStream(
+        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
+    creditStreamManager.registerStream(
+        streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
 
     MapPartitionData mapPartitionData1 =
         creditStreamManager.getStreams().get(registerStream1).getMapDataPartition();

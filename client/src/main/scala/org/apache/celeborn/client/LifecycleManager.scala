@@ -153,7 +153,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     RpcNameConstants.LIFECYCLE_MANAGER_SYS,
     lifecycleHost,
     conf.shuffleManagerPort,
-    conf)
+    conf,
+    None)
   rpcEnv.setupEndpoint(RpcNameConstants.LIFECYCLE_MANAGER_EP, this)
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
@@ -201,7 +202,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     import scala.concurrent.duration._
 
     checkForShuffleRemoval.cancel(true)
-    ThreadUtils.shutdown(forwardMessageThread, 800.millis)
+    ThreadUtils.shutdown(forwardMessageThread)
 
     commitManager.stop()
     changePartitionManager.stop()

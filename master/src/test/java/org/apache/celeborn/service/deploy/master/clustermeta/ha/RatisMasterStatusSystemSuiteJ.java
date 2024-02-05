@@ -34,12 +34,14 @@ import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.util.Utils$;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 
 public class RatisMasterStatusSystemSuiteJ {
@@ -62,95 +64,114 @@ public class RatisMasterStatusSystemSuiteJ {
     resetRaftServer();
   }
 
+  private static void stopAllRaftServers() {
+    if (RATISSERVER1 != null) {
+      RATISSERVER1.stop();
+    }
+    if (RATISSERVER2 != null) {
+      RATISSERVER2.stop();
+    }
+    if (RATISSERVER3 != null) {
+      RATISSERVER3.stop();
+    }
+  }
+
   public static void resetRaftServer() throws IOException, InterruptedException {
     Mockito.when(mockRpcEnv.setupEndpointRef(Mockito.any(), Mockito.any()))
         .thenReturn(mockRpcEndpoint);
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
 
-    if (RATISSERVER1 != null) {
-      RATISSERVER1.stop();
+    stopAllRaftServers();
+
+    int retryCount = 0;
+    boolean serversStarted = false;
+
+    while (!serversStarted) {
+      try {
+        STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+        STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+        STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+
+        MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
+        MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);
+        MetaHandler handler3 = new MetaHandler(STATUSSYSTEM3);
+
+        CelebornConf conf1 = new CelebornConf();
+        File tmpDir1 = File.createTempFile("celeborn-ratis1", "for-test-only");
+        tmpDir1.delete();
+        tmpDir1.mkdirs();
+        conf1.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir1.getAbsolutePath());
+
+        CelebornConf conf2 = new CelebornConf();
+        File tmpDir2 = File.createTempFile("celeborn-ratis2", "for-test-only");
+        tmpDir2.delete();
+        tmpDir2.mkdirs();
+        conf2.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir2.getAbsolutePath());
+
+        CelebornConf conf3 = new CelebornConf();
+        File tmpDir3 = File.createTempFile("celeborn-ratis3", "for-test-only");
+        tmpDir3.delete();
+        tmpDir3.mkdirs();
+        conf3.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir3.getAbsolutePath());
+
+        String id1 = UUID.randomUUID().toString();
+        String id2 = UUID.randomUUID().toString();
+        String id3 = UUID.randomUUID().toString();
+
+        int ratisPort1 = Utils$.MODULE$.selectRandomPort(1024, 65535);
+        int ratisPort2 = ratisPort1 + 1;
+        int ratisPort3 = ratisPort2 + 1;
+
+        MasterNode masterNode1 =
+            new MasterNode.Builder()
+                .setHost(Utils.localHostName(conf1))
+                .setRatisPort(ratisPort1)
+                .setRpcPort(ratisPort1)
+                .setNodeId(id1)
+                .build();
+        MasterNode masterNode2 =
+            new MasterNode.Builder()
+                .setHost(Utils.localHostName(conf2))
+                .setRatisPort(ratisPort2)
+                .setRpcPort(ratisPort2)
+                .setNodeId(id2)
+                .build();
+        MasterNode masterNode3 =
+            new MasterNode.Builder()
+                .setHost(Utils.localHostName(conf3))
+                .setRatisPort(ratisPort3)
+                .setRpcPort(ratisPort3)
+                .setNodeId(id3)
+                .build();
+
+        List<MasterNode> peersForNode1 = Arrays.asList(masterNode2, masterNode3);
+        List<MasterNode> peersForNode2 = Arrays.asList(masterNode1, masterNode3);
+        List<MasterNode> peersForNode3 = Arrays.asList(masterNode1, masterNode2);
+
+        RATISSERVER1 =
+            HARaftServer.newMasterRatisServer(handler1, conf1, masterNode1, peersForNode1);
+        RATISSERVER2 =
+            HARaftServer.newMasterRatisServer(handler2, conf2, masterNode2, peersForNode2);
+        RATISSERVER3 =
+            HARaftServer.newMasterRatisServer(handler3, conf3, masterNode3, peersForNode3);
+
+        STATUSSYSTEM1.setRatisServer(RATISSERVER1);
+        STATUSSYSTEM2.setRatisServer(RATISSERVER2);
+        STATUSSYSTEM3.setRatisServer(RATISSERVER3);
+
+        RATISSERVER1.start();
+        RATISSERVER2.start();
+        RATISSERVER3.start();
+        Thread.sleep(15 * 1000);
+        serversStarted = true;
+      } catch (Exception e) {
+        stopAllRaftServers();
+        retryCount += 1;
+        if (retryCount == 3) {
+          throw e;
+        }
+      }
     }
-
-    if (RATISSERVER2 != null) {
-      RATISSERVER2.stop();
-    }
-
-    if (RATISSERVER3 != null) {
-      RATISSERVER3.stop();
-    }
-
-    STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
-    STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
-    STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
-
-    MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
-    MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);
-    MetaHandler handler3 = new MetaHandler(STATUSSYSTEM3);
-
-    CelebornConf conf1 = new CelebornConf();
-    File tmpDir1 = File.createTempFile("celeborn-ratis1", "for-test-only");
-    tmpDir1.delete();
-    tmpDir1.mkdirs();
-    conf1.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir1.getAbsolutePath());
-
-    CelebornConf conf2 = new CelebornConf();
-    File tmpDir2 = File.createTempFile("celeborn-ratis2", "for-test-only");
-    tmpDir2.delete();
-    tmpDir2.mkdirs();
-    conf2.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir2.getAbsolutePath());
-
-    CelebornConf conf3 = new CelebornConf();
-    File tmpDir3 = File.createTempFile("celeborn-ratis3", "for-test-only");
-    tmpDir3.delete();
-    tmpDir3.mkdirs();
-    conf3.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR().key(), tmpDir3.getAbsolutePath());
-
-    String id1 = UUID.randomUUID().toString();
-    String id2 = UUID.randomUUID().toString();
-    String id3 = UUID.randomUUID().toString();
-    int ratisPort1 = 9872;
-    int ratisPort2 = 9873;
-    int ratisPort3 = 9874;
-
-    MasterNode masterNode1 =
-        new MasterNode.Builder()
-            .setHost(Utils.localHostName(conf1))
-            .setRatisPort(ratisPort1)
-            .setRpcPort(9872)
-            .setNodeId(id1)
-            .build();
-    MasterNode masterNode2 =
-        new MasterNode.Builder()
-            .setHost(Utils.localHostName(conf2))
-            .setRatisPort(ratisPort2)
-            .setRpcPort(9873)
-            .setNodeId(id2)
-            .build();
-    MasterNode masterNode3 =
-        new MasterNode.Builder()
-            .setHost(Utils.localHostName(conf3))
-            .setRatisPort(ratisPort3)
-            .setRpcPort(9874)
-            .setNodeId(id3)
-            .build();
-
-    List<MasterNode> peersForNode1 = Arrays.asList(masterNode2, masterNode3);
-    List<MasterNode> peersForNode2 = Arrays.asList(masterNode1, masterNode3);
-    List<MasterNode> peersForNode3 = Arrays.asList(masterNode1, masterNode2);
-
-    RATISSERVER1 = HARaftServer.newMasterRatisServer(handler1, conf1, masterNode1, peersForNode1);
-    RATISSERVER2 = HARaftServer.newMasterRatisServer(handler2, conf2, masterNode2, peersForNode2);
-    RATISSERVER3 = HARaftServer.newMasterRatisServer(handler3, conf3, masterNode3, peersForNode3);
-
-    STATUSSYSTEM1.setRatisServer(RATISSERVER1);
-    STATUSSYSTEM2.setRatisServer(RATISSERVER2);
-    STATUSSYSTEM3.setRatisServer(RATISSERVER3);
-
-    RATISSERVER1.start();
-    RATISSERVER2.start();
-    RATISSERVER3.start();
-
-    Thread.sleep(15 * 1000);
   }
 
   @Test
@@ -191,6 +212,7 @@ public class RatisMasterStatusSystemSuiteJ {
   private static final String APPID1 = "appId1";
   private static final int SHUFFLEID1 = 1;
   private static final String SHUFFLEKEY1 = APPID1 + "-" + SHUFFLEID1;
+  private static final WorkerStatus workerStatus = WorkerStatus.normalWorkerStatus();
 
   private String getNewReqeustId() {
     return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
@@ -780,6 +802,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -798,6 +821,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -817,6 +841,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         1,
         false,
+        workerStatus,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -836,6 +861,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         1,
         true,
+        workerStatus,
         getNewReqeustId());
     Thread.sleep(3000L);
     Assert.assertEquals(2, statusSystem.excludedWorkers.size());

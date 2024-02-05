@@ -86,6 +86,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final AtomicLong sortedFilesSize = new AtomicLong();
   protected final long sortTimeout;
   protected final long shuffleChunkSize;
+  protected final boolean reservedMemoryEnabled;
   protected final long reservedMemoryPerPartition;
   private final boolean gracefulShutdown;
   private final long partitionSorterShutdownAwaitTime;
@@ -99,12 +100,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
-    this.sortTimeout = conf.partitionSorterSortPartitionTimeout();
+    this.sortTimeout = conf.workerPartitionSorterSortPartitionTimeout();
     this.shuffleChunkSize = conf.shuffleChunkSize();
-    this.reservedMemoryPerPartition = conf.partitionSorterReservedMemoryPerPartition();
+    this.reservedMemoryEnabled = conf.workerPartitionSorterReservedMemoryEnabled();
+    this.reservedMemoryPerPartition = conf.workerPartitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
-    this.indexCacheMaxWeight = conf.partitionSorterIndexCacheMaxWeight();
+    this.indexCacheMaxWeight = conf.workerPartitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
     this.gracefulShutdown = conf.workerGracefulShutdown();
@@ -129,12 +131,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
-            "worker-file-sorter-execute", conf.partitionSorterThreads(), 120);
+            "worker-file-sorter-executor", conf.workerPartitionSorterThreads(), 120);
 
     indexCache =
         CacheBuilder.newBuilder()
-            .concurrencyLevel(conf.partitionSorterThreads())
-            .expireAfterAccess(conf.partitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
+            .concurrencyLevel(conf.workerPartitionSorterThreads())
+            .expireAfterAccess(conf.workerPartitionSorterIndexExpire(), TimeUnit.MILLISECONDS)
             .maximumWeight(indexCacheMaxWeight)
             .weigher(
                 (key, cache) ->
@@ -149,9 +151,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           try {
             while (!shutdown) {
               FileSorter task = shuffleSortTaskDeque.take();
-              memoryManager.reserveSortMemory(reservedMemoryPerPartition);
-              while (!memoryManager.sortMemoryReady()) {
-                Thread.sleep(20);
+              if (task.isWarmUp) {
+                memoryManager.reserveSortMemory(reservedMemoryPerPartition);
+                while (!memoryManager.sortMemoryReady()) {
+                  Thread.sleep(20);
+                }
               }
               fileSorterExecutors.submit(
                   () -> {
@@ -160,7 +164,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                     } catch (InterruptedException e) {
                       logger.warn("File sorter thread was interrupted.");
                     } finally {
-                      memoryManager.releaseSortMemory(reservedMemoryPerPartition);
+                      if (task.isWarmUp) {
+                        memoryManager.releaseSortMemory(reservedMemoryPerPartition);
+                      }
                     }
                   });
             }
@@ -545,6 +551,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final String fileId;
     private final String shuffleKey;
     private final boolean isHdfs;
+    private final boolean isWarmUp;
     private final FileInfo originFileInfo;
 
     private FSDataInputStream hdfsOriginInput = null;
@@ -557,6 +564,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
       this.isHdfs = fileInfo.isHdfs();
+      this.isWarmUp = !isHdfs && reservedMemoryEnabled;
       this.originFileLen = fileInfo.getFileLength();
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
@@ -590,9 +598,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         Map<Integer, List<ShuffleBlockInfo>> sortedBlockInfoMap = new HashMap<>();
 
         int batchHeaderLen = 16;
-        int reserveMemory = (int) reservedMemoryPerPartition;
         ByteBuffer headerBuf = ByteBuffer.allocate(batchHeaderLen);
-        ByteBuffer paddingBuf = ByteBuffer.allocateDirect(reserveMemory);
+        ByteBuffer paddingBuf =
+            isWarmUp ? ByteBuffer.allocateDirect((int) reservedMemoryPerPartition) : null;
 
         long index = 0;
         while (index != originFileLen) {
@@ -612,7 +620,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           singleMapIdShuffleBlockList.add(blockInfo);
 
           index += batchHeaderLen + compressedSize;
-          paddingBuf.clear();
           readBufferBySize(paddingBuf, compressedSize);
         }
 
@@ -736,10 +743,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private void readBufferBySize(ByteBuffer buffer, int toRead) throws IOException {
       if (isHdfs) {
-        // HDFS don't need warmup
+        // HDFS does not need to warm up.
         hdfsOriginInput.seek(toRead + hdfsOriginInput.getPos());
-      } else {
+      } else if (reservedMemoryEnabled) {
+        buffer.clear();
         readChannelBySize(originFileChannel, buffer, originFilePath, toRead);
+      } else {
+        originFileChannel.position(toRead + originFileChannel.position());
       }
     }
   }
