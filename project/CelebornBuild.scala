@@ -63,6 +63,9 @@ object Dependencies {
   val slf4jVersion = "1.7.36"
   val snakeyamlVersion = "2.2"
   val snappyVersion = "1.1.10.5"
+  val mybatisVersion = "3.5.15"
+  val hikaricpVersion = "4.0.3"
+  val h2Version = "2.2.224"
 
   // Versions for proto
   val protocVersion = "3.21.7"
@@ -123,6 +126,8 @@ object Dependencies {
   val snakeyaml = "org.yaml" % "snakeyaml" % snakeyamlVersion
   val snappyJava = "org.xerial.snappy" % "snappy-java" % snappyVersion
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
+  val mybatis = "org.mybatis" % "mybatis" % mybatisVersion
+  val hikaricp = "com.zaxxer" % "HikariCP" % hikaricpVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -132,6 +137,7 @@ object Dependencies {
   val mockitoInline = "org.mockito" % "mockito-inline" % mockitoVersion
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
+  val h2 = "com.h2database" % "h2" % h2Version
 }
 
 object CelebornCommonSettings {
@@ -443,8 +449,11 @@ object CelebornService {
         Dependencies.javaxServletApi,
         Dependencies.commonsCrypto,
         Dependencies.slf4jApi,
+        Dependencies.mybatis,
+        Dependencies.hikaricp,
         Dependencies.log4jSlf4jImpl % "test",
-        Dependencies.log4j12Api % "test"
+        Dependencies.log4j12Api % "test",
+        Dependencies.h2 % "test"
       ) ++ commonUnitTestDependencies
     )
 }

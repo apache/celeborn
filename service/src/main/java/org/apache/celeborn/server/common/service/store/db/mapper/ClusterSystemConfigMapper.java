@@ -15,23 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.server.common.service.config;
+package org.apache.celeborn.server.common.service.store.db.mapper;
 
-import java.io.IOException;
+import java.util.List;
 
-import org.apache.celeborn.common.CelebornConf;
+import org.apache.ibatis.annotations.Select;
 
-public class DynamicConfigServiceFactory {
+import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
 
-  public static ConfigService getConfigService(CelebornConf celebornConf) throws IOException {
-    String configStoreBackend = celebornConf.dynamicConfigStoreBackend();
-    if ("FS".equals(configStoreBackend)) {
-      return new FsConfigServiceImpl(celebornConf);
-    } else if ("DB".equals(configStoreBackend)) {
-      return new DbConfigServiceImpl(celebornConf);
-    }
+public interface ClusterSystemConfigMapper {
 
-    throw new UnsupportedOperationException(
-        "Unsupported dynamic config store backend:" + configStoreBackend);
-  }
+  @Select(
+      "SELECT id, cluster_id, config_key, config_value, type, gmt_create, gmt_modify "
+          + "FROM celeborn_cluster_system_config WHERE cluster_id = #{clusterId}")
+  List<ClusterSystemConfig> getClusterSystemConfig(int clusterId);
 }

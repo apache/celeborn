@@ -100,6 +100,11 @@
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
 
+    <!-- Db dependencies -->
+    <mybatis.version>3.5.15</mybatis.version>
+    <hikaricp.version>4.0.3</hikaricp.version>
+    <h2.version>2.2.224</h2.version>
+
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
@@ -424,6 +429,24 @@
             <artifactId>jackson-annotations</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <!-- Db dependencies -->
+      <dependency>
+        <groupId>org.mybatis</groupId>
+        <artifactId>mybatis</artifactId>
+        <version>${mybatis.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.zaxxer</groupId>
+        <artifactId>HikariCP</artifactId>
+        <version>${hikaricp.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.h2database</groupId>
+        <artifactId>h2</artifactId>
+        <version>${h2.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>
