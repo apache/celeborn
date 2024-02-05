@@ -36,12 +36,6 @@ import org.apache.celeborn.common.util.ThreadUtils;
 
 public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
-  private final CelebornConf celebornConf;
-  private final AtomicReference<SystemConfig> systemConfigAtomicReference = new AtomicReference<>();
-  private final AtomicReference<Map<String, TenantConfig>> tenantConfigAtomicReference =
-      new AtomicReference<>(new HashMap<>());
-  private final AtomicReference<Map<UserIdentifier, UserConfig>> userConfigAtomicReference =
-      new AtomicReference<>(new HashMap<>());
   private static final String CONF_TENANT_ID = "tenantId";
   private static final String CONF_TENANT_USER_ID = "name";
   private static final String CONF_LEVEL = "level";
@@ -88,37 +82,6 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
       LOG.warn("Refresh dynamic config error: {}", e.getMessage(), e);
       return;
     }
-
-    userConfigAtomicReference.set(userConfs);
-    tenantConfigAtomicReference.set(tenantConfs);
-    if (systemConfig != null) {
-      systemConfigAtomicReference.set(systemConfig);
-    }
-  }
-
-  @Override
-  public SystemConfig getSystemConfig() {
-    return systemConfigAtomicReference.get();
-  }
-
-  @Override
-  public TenantConfig getRawTenantConfig(String tenantId) {
-    return tenantConfigAtomicReference.get().get(tenantId);
-  }
-
-  @Override
-  public UserConfig getRawUserConfig(String tenantId, String userId) {
-    return userConfigAtomicReference.get().get(new UserIdentifier(tenantId, userId));
-  }
-
-  @Override
-  public void refreshAllCache() {
-    this.refresh();
-  }
-
-  @Override
-  public void shutdown() {
-    ThreadUtils.shutdown(configRefreshService, Duration.apply("800ms"));
   }
 
   private File getConfigurationFile(Map<String, String> env) {

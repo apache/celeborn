@@ -23,8 +23,6 @@ import org.apache.celeborn.common.CelebornConf;
 
 public interface ConfigService {
 
-  CelebornConf getCelebornConf();
-
   SystemConfig getSystemConfigFromCache();
 
   TenantConfig getRawTenantConfigFromCache(String tenantId);
@@ -38,19 +36,14 @@ public interface ConfigService {
     }
   }
 
-  UserConfig getRawUserConfig(String tenantId, String userId);
+  TenantConfig getRawTenantUserConfig(String tenantId, String userId);
 
-  default DynamicConfig getUserConfig(String tenantId, String userId) {
-    UserConfig userConfig = getRawUserConfig(tenantId, userId);
-    if (userConfig == null || userConfig.getConfigs().isEmpty()) {
-      TenantConfig tenantConfig = getRawTenantConfig(tenantId);
-      if (tenantConfig == null || tenantConfig.getConfigs().isEmpty()) {
-        return getSystemConfig();
-      } else {
-        return tenantConfig;
-      }
+  default DynamicConfig getTenantUserConfig(String tenantId, String userId) {
+    TenantConfig tenantConfig = getRawTenantUserConfig(tenantId, userId);
+    if (tenantConfig == null) {
+      return getTenantConfigFromCache(tenantId);
     } else {
-      return userConfig;
+      return tenantConfig;
     }
   }
 
