@@ -44,7 +44,8 @@ public class ConfigServiceSuiteJ {
         CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME(), "org.h2.Driver");
     celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE(), "1");
     configService = new DbConfigServiceImpl(celebornConf);
-    verifyConfig(configService);
+    verifySystemConfig(configService);
+    verifyTenantConfig(configService);
 
     SqlSessionFactory sqlSessionFactory = DBSessionFactory.get(celebornConf);
     try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
@@ -68,7 +69,9 @@ public class ConfigServiceSuiteJ {
     celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
     celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 5L);
     configService = new FsConfigServiceImpl(celebornConf);
-    verifyConfig(configService);
+    verifySystemConfig(configService);
+    verifyTenantConfig(configService);
+    verifyTenantUserConfig(configService);
     // change -> refresh config
     file = getClass().getResource("/dynamicConfig_2.yaml").getFile();
     celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
@@ -82,12 +85,6 @@ public class ConfigServiceSuiteJ {
     if (configService != null) {
       configService.shutdown();
     }
-  }
-
-  public void verifyConfig(ConfigService configService) {
-    verifySystemConfig(configService);
-    verifyTenantConfig(configService);
-    verifyTenantUserConfig(configService);
   }
 
   public void verifySystemConfig(ConfigService configService) {
