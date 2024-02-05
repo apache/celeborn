@@ -63,9 +63,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
             ((Map<String, Object>) settings.get(CONF_CONFIG))
                 .entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
-        System.out.println(level + "  " + tenantId + " " + userId);
         if (ConfigLevel.TENANT_USER.name().equals(level)) {
-          System.out.println(tenantId + "." + userId);
           TenantConfig tenantConfig = new TenantConfig(this, tenantId, userId, config);
           tenantConfs.put(tenantId + "." + userId, tenantConfig);
         } else {

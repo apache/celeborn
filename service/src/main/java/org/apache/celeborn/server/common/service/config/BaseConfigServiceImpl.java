@@ -83,7 +83,6 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
 
   @Override
   public TenantConfig getRawTenantUserConfig(String tenantId, String userId) {
-    System.out.println(tenantId + "." + userId);
     return tenantConfigAtomicReference.get().get(tenantId + "." + userId);
   }
 
