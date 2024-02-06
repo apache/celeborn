@@ -45,6 +45,7 @@ license: |
 | celeborn.master.internal.port | 8097 | Internal port on the master where both workers and other master nodes connect. | 0.5.0 |  | 
 | celeborn.master.port | 9097 | Port for master to bind. | 0.2.0 |  | 
 | celeborn.master.rackResolver.refresh.interval | 30s | Interval for refreshing the node rack information periodically. | 0.5.0 |  | 
+| celeborn.master.secured.port | 19097 | Secured port on the master where clients connect. | 0.5.0 |  | 
 | celeborn.master.slot.assign.extraSlots | 2 | Extra slots number when master assign slots. | 0.3.0 | celeborn.slots.assign.extraSlots | 
 | celeborn.master.slot.assign.loadAware.diskGroupGradient | 0.1 | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.3.0 | celeborn.slots.assign.loadAware.diskGroupGradient | 
 | celeborn.master.slot.assign.loadAware.fetchTimeWeight | 1.0 | Weight of average fetch time when calculating ordering in load-aware assignment strategy | 0.3.0 | celeborn.slots.assign.loadAware.fetchTimeWeight | 
