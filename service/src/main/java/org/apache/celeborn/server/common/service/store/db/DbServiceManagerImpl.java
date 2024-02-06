@@ -107,11 +107,15 @@ public class DbServiceManagerImpl implements IServiceManager {
       Map<UserIdentifier, List<ClusterTenantConfig>> tenantConfigMaps =
           clusterAllTenantConfigs.stream()
               .collect(
-                  Collectors.groupingBy(clusterTenantConfig ->
-                      new UserIdentifier(
-                      clusterTenantConfig.getTenantId(), clusterTenantConfig.getUser())));
+                  Collectors.groupingBy(
+                      clusterTenantConfig ->
+                          new UserIdentifier(
+                              clusterTenantConfig.getTenantId(), clusterTenantConfig.getUser())));
       return tenantConfigMaps.entrySet().stream()
-          .map(t -> new TenantConfig(configService, t.getKey().tenantId(), t.getKey().name(), t.getValue()))
+          .map(
+              t ->
+                  new TenantConfig(
+                      configService, t.getKey().tenantId(), t.getKey().name(), t.getValue()))
           .collect(Collectors.toList());
     }
   }
