@@ -24,6 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +38,9 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   protected final AtomicReference<SystemConfig> systemConfigAtomicReference =
       new AtomicReference<>();
   protected final AtomicReference<Map<String, TenantConfig>> tenantConfigAtomicReference =
+      new AtomicReference<>(new HashMap<>());
+
+  protected final AtomicReference<Map<UserIdentifier, TenantConfig>> tenantUserConfigAtomicReference =
       new AtomicReference<>(new HashMap<>());
 
   private final ScheduledExecutorService configRefreshService =
@@ -83,7 +87,7 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
 
   @Override
   public TenantConfig getRawTenantUserConfig(String tenantId, String userId) {
-    return tenantConfigAtomicReference.get().get(tenantId + "." + userId);
+    return tenantUserConfigAtomicReference.get().get(new UserIdentifier(tenantId, userId));
   }
 
   @Override

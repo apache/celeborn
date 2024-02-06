@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -52,6 +53,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
 
     SystemConfig systemConfig = null;
     Map<String, TenantConfig> tenantConfs = new HashMap<>();
+    Map<UserIdentifier, TenantConfig> tenantUserConfs = new HashMap<>();
     try (FileInputStream fileInputStream = new FileInputStream(configurationFile)) {
       Yaml yaml = new Yaml();
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
@@ -65,7 +67,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
                     .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
         if (ConfigLevel.TENANT_USER.name().equals(level)) {
           TenantConfig tenantConfig = new TenantConfig(this, tenantId, userId, config);
-          tenantConfs.put(tenantId + "." + userId, tenantConfig);
+          tenantUserConfs.put(new UserIdentifier(tenantId, userId), tenantConfig);
         } else {
           if (ConfigLevel.TENANT.name().equals(level)) {
             TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
@@ -80,6 +82,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
       return;
     }
 
+    tenantUserConfigAtomicReference.set(tenantUserConfs);
     tenantConfigAtomicReference.set(tenantConfs);
     if (systemConfig != null) {
       systemConfigAtomicReference.set(systemConfig);
