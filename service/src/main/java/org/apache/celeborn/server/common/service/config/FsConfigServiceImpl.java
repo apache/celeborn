@@ -36,7 +36,8 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
   private static final String CONF_TENANT_ID = "tenantId";
-  private static final String CONF_TENANT_USER_ID = "user";
+  private static final String CONF_TENANT_USERS_ID = "users";
+  private static final String CONF_TENANT_NAME_ID = "name";
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
 
@@ -59,22 +60,28 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
       for (Map<String, Object> settings : dynamicConfigs) {
         String tenantId = (String) settings.get(CONF_TENANT_ID);
-        String userId = (String) settings.get(CONF_TENANT_USER_ID);
         String level = (String) settings.get(CONF_LEVEL);
         Map<String, String> config =
             ((Map<String, Object>) settings.get(CONF_CONFIG))
                 .entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
-        if (ConfigLevel.TENANT_USER.name().equals(level)) {
-          TenantConfig tenantConfig = new TenantConfig(this, tenantId, userId, config);
-          tenantUserConfs.put(new UserIdentifier(tenantId, userId), tenantConfig);
-        } else {
-          if (ConfigLevel.TENANT.name().equals(level)) {
-            TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
-            tenantConfs.put(tenantId, tenantConfig);
-          } else {
-            systemConfig = new SystemConfig(celebornConf, config);
+
+        if (ConfigLevel.TENANT.name().equals(level)) {
+          TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
+          tenantConfs.put(tenantId, tenantConfig);
+          List<Map<String, Object>> users =
+              (List<Map<String, Object>>) settings.get(CONF_TENANT_USERS_ID);
+          for (Map<String, Object> userSetting : users) {
+            String name = (String) userSetting.get(CONF_TENANT_NAME_ID);
+            Map<String, String> userConfig =
+                ((Map<String, Object>) userSetting.get(CONF_CONFIG))
+                    .entrySet().stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+            TenantConfig tenantUserConfig = new TenantConfig(this, tenantId, name, userConfig);
+            tenantUserConfs.put(new UserIdentifier(tenantId, name), tenantUserConfig);
           }
+        } else {
+          systemConfig = new SystemConfig(celebornConf, config);
         }
       }
     } catch (Exception e) {
