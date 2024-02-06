@@ -36,5 +36,5 @@ VALUES
     ( 5, 1, 'tenant_id', 'TENANT', '', 'celeborn.test.tenant.enabled.only', 'false', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
     ( 6, 1, 'tenant_id', 'TENANT', '', 'celeborn.test.tenant.int.only', '100s', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
     ( 7, 1, 'tenant_id', 'TENANT', '', 'celeborn.client.push.queue.capacity', '1024', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 8, 1, 'tenant_id', 'TENANT_USER', 'Jerry', 'celeborn.client.push.buffer.initial.size', '1k', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 9, 1, 'tenant_id', 'TENANT_USER', 'Jerry', 'celeborn.client.push.buffer.initial.size.user.only', '512k', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );
+    ( 8, 1, 'tenant_id', 'TENANT', 'Jerry', 'celeborn.client.push.buffer.initial.size', '1k', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 9, 1, 'tenant_id', 'TENANT', 'Jerry', 'celeborn.client.push.buffer.initial.size.user.only', '512k', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );
