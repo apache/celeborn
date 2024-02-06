@@ -110,7 +110,7 @@ public class DbServiceManagerImpl implements IServiceManager {
                   Collectors.groupingBy(
                       clusterTenantConfig ->
                           new UserIdentifier(
-                              clusterTenantConfig.getTenantId(), clusterTenantConfig.getUser())));
+                              clusterTenantConfig.getTenantId(), clusterTenantConfig.getName())));
       return tenantConfigMaps.entrySet().stream()
           .map(
               t ->
