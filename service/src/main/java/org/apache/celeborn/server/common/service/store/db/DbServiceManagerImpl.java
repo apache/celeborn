@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.server.common.service.config.ConfigLevel;
 import org.apache.celeborn.server.common.service.config.ConfigService;
 import org.apache.celeborn.server.common.service.config.SystemConfig;
@@ -109,6 +110,42 @@ public class DbServiceManagerImpl implements IServiceManager {
                   Collectors.groupingBy(clusterTenantConfig -> clusterTenantConfig.getTenantId()));
       return tenantConfigMaps.entrySet().stream()
           .map(t -> new TenantConfig(configService, t.getKey(), null, t.getValue()))
+          .collect(Collectors.toList());
+    }
+  }
+
+  @Override
+  public List<TenantConfig> getAllTenantUserConfigs() {
+    try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
+      ClusterTenantConfigMapper mapper = sqlSession.getMapper(ClusterTenantConfigMapper.class);
+      int totalNum = mapper.getClusterTenantConfigsNum(clusterId, ConfigLevel.TENANT_USER.name());
+      System.out.println(totalNum);
+      int offset = 0;
+      List<ClusterTenantConfig> clusterAllTenantConfigs = new ArrayList<>();
+      while (offset < totalNum) {
+        List<ClusterTenantConfig> clusterTenantConfigs =
+            mapper.getClusterTenantConfigs(
+                clusterId, ConfigLevel.TENANT_USER.name(), offset, pageSize);
+        clusterTenantConfigs.forEach(x -> System.out.println(x));
+        clusterAllTenantConfigs.addAll(clusterTenantConfigs);
+        offset = offset + pageSize;
+      }
+
+      Map<UserIdentifier, List<ClusterTenantConfig>> tenantConfigMaps =
+          clusterAllTenantConfigs.stream()
+              .collect(
+                  Collectors.groupingBy(
+                      clusterTenantConfig -> {
+                        System.out.println(clusterTenantConfig.getTenantId());
+                        System.out.println(clusterTenantConfig.getUser());
+                        return new UserIdentifier(
+                            clusterTenantConfig.getTenantId(), clusterTenantConfig.getUser());
+                      }));
+      return tenantConfigMaps.entrySet().stream()
+          .map(
+              t ->
+                  new TenantConfig(
+                      configService, t.getKey().tenantId(), t.getKey().name(), t.getValue()))
           .collect(Collectors.toList());
     }
   }

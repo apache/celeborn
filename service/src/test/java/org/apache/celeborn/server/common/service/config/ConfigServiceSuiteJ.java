@@ -46,6 +46,7 @@ public class ConfigServiceSuiteJ {
     configService = new DbConfigServiceImpl(celebornConf);
     verifySystemConfig(configService);
     verifyTenantConfig(configService);
+    verifyTenantUserConfig(configService);
 
     SqlSessionFactory sqlSessionFactory = DBSessionFactory.get(celebornConf);
     try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {

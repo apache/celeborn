@@ -24,11 +24,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.celeborn.common.identity.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.util.ThreadUtils;
 
 public abstract class BaseConfigServiceImpl implements ConfigService {
@@ -40,8 +40,8 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   protected final AtomicReference<Map<String, TenantConfig>> tenantConfigAtomicReference =
       new AtomicReference<>(new HashMap<>());
 
-  protected final AtomicReference<Map<UserIdentifier, TenantConfig>> tenantUserConfigAtomicReference =
-      new AtomicReference<>(new HashMap<>());
+  protected final AtomicReference<Map<UserIdentifier, TenantConfig>>
+      tenantUserConfigAtomicReference = new AtomicReference<>(new HashMap<>());
 
   private final ScheduledExecutorService configRefreshService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-config-refresher");
