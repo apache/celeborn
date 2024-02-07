@@ -80,6 +80,10 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return if celeborn cluster has available workers.
    */
   def checkWorkersAvailable(lifecycleManager: LifecycleManager): Boolean = {
+    if (!conf.checkWorkerEnabled) {
+      return true
+    }
+
     val resp = lifecycleManager.checkWorkersAvailable()
     if (!resp.getAvailable) {
       logWarning(s"No workers available for current user ${lifecycleManager.getUserIdentifier}.")
