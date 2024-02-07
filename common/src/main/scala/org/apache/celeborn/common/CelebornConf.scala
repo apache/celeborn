@@ -884,6 +884,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
+  def checkWorkerEnabled: Boolean = get(CHECK_WORKER_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long =
     get(SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
@@ -4002,6 +4003,16 @@ object CelebornConf extends Logging {
       .doc("Whether force fallback shuffle to Spark's default.")
       .booleanConf
       .createWithDefault(false)
+
+  val CHECK_WORKER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffle.checkWorker.enabled")
+      .categories("client")
+      .doc("When true, before registering shuffle, LifecycleManager should check " +
+        "if current cluster have available workers, if cluster don't have available " +
+        "workers, fallback to Spark's default shuffle")
+      .version("0.5.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold")
