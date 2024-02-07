@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -54,7 +55,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
 
     SystemConfig systemConfig = null;
     Map<String, TenantConfig> tenantConfs = new HashMap<>();
-    Map<UserIdentifier, TenantConfig> tenantUserConfs = new HashMap<>();
+    Map<Pair<String , String>, TenantConfig> tenantUserConfs = new HashMap<>();
     try (FileInputStream fileInputStream = new FileInputStream(configurationFile)) {
       Yaml yaml = new Yaml();
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
@@ -78,7 +79,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
                     .entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
             TenantConfig tenantUserConfig = new TenantConfig(this, tenantId, name, userConfig);
-            tenantUserConfs.put(new UserIdentifier(tenantId, name), tenantUserConfig);
+            tenantUserConfs.put(Pair.of(tenantId, name), tenantUserConfig);
           }
         } else {
           systemConfig = new SystemConfig(celebornConf, config);

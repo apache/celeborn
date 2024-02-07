@@ -24,13 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.server.common.service.config.ConfigLevel;
 import org.apache.celeborn.server.common.service.config.ConfigService;
 import org.apache.celeborn.server.common.service.config.SystemConfig;
@@ -104,18 +104,13 @@ public class DbServiceManagerImpl implements IServiceManager {
         offset = offset + pageSize;
       }
 
-      Map<UserIdentifier, List<ClusterTenantConfig>> tenantConfigMaps =
-          clusterAllTenantConfigs.stream()
-              .collect(
-                  Collectors.groupingBy(
-                      clusterTenantConfig ->
-                          new UserIdentifier(
-                              clusterTenantConfig.getTenantId(), clusterTenantConfig.getName())));
+      Map<Pair<String, String>, List<ClusterTenantConfig>> tenantConfigMaps =
+          clusterAllTenantConfigs.stream().collect(Collectors.groupingBy(ClusterTenantConfig::getTenantInfo));
       return tenantConfigMaps.entrySet().stream()
           .map(
               t ->
                   new TenantConfig(
-                      configService, t.getKey().tenantId(), t.getKey().name(), t.getValue()))
+                      configService, t.getKey().getKey(), t.getKey().getValue(), t.getValue()))
           .collect(Collectors.toList());
     }
   }

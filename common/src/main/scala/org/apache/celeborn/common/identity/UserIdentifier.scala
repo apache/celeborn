@@ -28,7 +28,7 @@ case class UserIdentifier(tenantId: String, name: String) {
   assert(
     tenantId != null && tenantId.nonEmpty,
     "UserIdentifier's tenantId should not be null or empty.")
-//  assert(name != null && name.nonEmpty, "UserIdentifier's name should not be null or empty.")
+  assert(name != null && name.nonEmpty, "UserIdentifier's name should not be null or empty.")
 
   def toMap: Map[String, String] = {
     Map("tenantId" -> tenantId, "name" -> name)

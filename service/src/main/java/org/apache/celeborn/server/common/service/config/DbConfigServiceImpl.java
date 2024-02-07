@@ -27,6 +27,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.server.common.service.store.IServiceManager;
 import org.apache.celeborn.server.common.service.store.db.DbServiceManagerImpl;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class DbConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
   private volatile IServiceManager iServiceManager;
@@ -52,13 +53,13 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
             .filter(tenantConfig -> tenantConfig.getName() == null)
             .collect(Collectors.toMap(TenantConfig::getTenantId, Function.identity()));
     tenantConfigAtomicReference.set(tenantConfigMap);
-    Map<UserIdentifier, TenantConfig> tenantUserConfigMap =
+    Map<Pair<String, String>, TenantConfig> tenantUserConfigMap =
         allTenantConfigs.stream()
             .filter(tenantConfig -> tenantConfig.getName() != null)
             .collect(
                 Collectors.toMap(
                     tenantConfig ->
-                        new UserIdentifier(tenantConfig.getTenantId(), tenantConfig.getName()),
+                        Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
                     Function.identity()));
     tenantUserConfigAtomicReference.set(tenantUserConfigMap);
   }
