@@ -32,13 +32,4 @@ object GlutenShuffleDependencyHelper {
     // scalastyle:on
     "org.apache.spark.shuffle.ColumnarShuffleDependency".equals(depName)
   }
-
-  def withUpdatedRecordsRead(
-      input: Iterator[(Any, Any)],
-      metrics: ShuffleReadMetricsReporter): Iterator[(Any, Any)] = {
-    input.map { record =>
-      metrics.incRecordsRead(record._2.asInstanceOf[ColumnarBatch].numRows())
-      record
-    }
-  }
 }
