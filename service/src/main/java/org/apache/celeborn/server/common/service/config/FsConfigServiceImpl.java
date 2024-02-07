@@ -54,7 +54,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
 
     SystemConfig systemConfig = null;
     Map<String, TenantConfig> tenantConfs = new HashMap<>();
-    Map<Pair<String , String>, TenantConfig> tenantUserConfs = new HashMap<>();
+    Map<Pair<String, String>, TenantConfig> tenantUserConfs = new HashMap<>();
     try (FileInputStream fileInputStream = new FileInputStream(configurationFile)) {
       Yaml yaml = new Yaml();
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);

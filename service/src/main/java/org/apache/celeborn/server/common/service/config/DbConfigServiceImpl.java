@@ -23,10 +23,11 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.server.common.service.store.IServiceManager;
 import org.apache.celeborn.server.common.service.store.db.DbServiceManagerImpl;
-import org.apache.commons.lang3.tuple.Pair;
 
 public class DbConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
   private volatile IServiceManager iServiceManager;
@@ -57,8 +58,7 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
             .filter(tenantConfig -> tenantConfig.getName() != null)
             .collect(
                 Collectors.toMap(
-                    tenantConfig ->
-                        Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
+                    tenantConfig -> Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
                     Function.identity()));
     tenantUserConfigAtomicReference.set(tenantUserConfigMap);
   }
