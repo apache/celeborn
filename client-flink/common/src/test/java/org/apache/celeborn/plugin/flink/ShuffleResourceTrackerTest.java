@@ -46,7 +46,7 @@ public class ShuffleResourceTrackerTest {
     ScheduledThreadPoolExecutor executor = Mockito.mock(ScheduledThreadPoolExecutor.class);
 
     ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map = new ConcurrentHashMap<>();
-    WorkerInfo workerInfo = new WorkerInfo("mock", -1, -1, -1, -1);
+    WorkerInfo workerInfo = new WorkerInfo("mock", -1, -1, -1, -1, -1, -1);
     map.put(workerInfo, mockShufflePartitionLocationInfo());
 
     ConcurrentHashMap<WorkerInfo, ShufflePartitionLocationInfo> map2 = new ConcurrentHashMap<>();
@@ -131,6 +131,6 @@ public class ShuffleResourceTrackerTest {
 
   private PartitionLocation mockShufflePartitionLocationInfo(int partitionId) {
     return new PartitionLocation(
-        partitionId, -1, "mock", -1, -1, -1, -1, PartitionLocation.Mode.PRIMARY);
+        partitionId, -1, "mock", -1, -1, -1, -1, -1, -1, PartitionLocation.Mode.PRIMARY);
   }
 }
