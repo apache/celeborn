@@ -126,8 +126,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateWorkerLostMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      int internalPort,
+      int securedPort) {
+    WorkerInfo worker =
+        new WorkerInfo(
+            host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort);
     workerLostEvents.add(worker);
     // remove worker from workers
     synchronized (workers) {
@@ -139,8 +147,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateWorkerRemoveMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      int internalPort,
+      int securedPort) {
+    WorkerInfo worker =
+        new WorkerInfo(
+            host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort);
     // remove worker from workers
     synchronized (workers) {
       workers.remove(worker);
@@ -167,6 +183,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      int internalPort,
+      int securedPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
@@ -175,7 +193,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       boolean highWorkload) {
     WorkerInfo worker =
         new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            internalPort,
+            securedPort,
+            disks,
+            userResourceConsumption);
     AtomicLong availableSlots = new AtomicLong();
     LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
     synchronized (workers) {
@@ -219,11 +245,21 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      int internalPort,
+      int securedPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
     WorkerInfo workerInfo =
         new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            internalPort,
+            securedPort,
+            disks,
+            userResourceConsumption);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     workerInfo.networkLocation_$eq(rackResolver.resolve(host).getNetworkLocation());
     workerInfo.updateDiskMaxSlots(estimatedPartitionSize);

@@ -1155,17 +1155,19 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       }
     }
 
-  // //////////////////////////////////////////////////////
-  //                     Rack Resolver                   //
-  // //////////////////////////////////////////////////////
-  def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
-
   def haMasterNodeInternalPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)
     getInt(key, HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get)
   }
 
   def masterInternalPort: Int = get(MASTER_INTERNAL_PORT)
+
+  def workerInternalPort: Int = get(WORKER_INTERNAL_PORT)
+
+  // //////////////////////////////////////////////////////
+  //                     Rack Resolver                   //
+  // //////////////////////////////////////////////////////
+  def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
 }
 
 object CelebornConf extends Logging {
@@ -4607,5 +4609,39 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the node rack information periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val MASTER_SECURED_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.secured.port")
+      .categories("master", "auth")
+      .version("0.5.0")
+      .doc(
+        "Secured port on the master where clients connect.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(19097)
+
+  val HA_MASTER_NODE_SECURED_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.ha.node.<id>.secured.port")
+      .categories("ha", "auth")
+      .doc(
+        "Secured port for the clients to bind to a master node <id> in HA mode.")
+      .version("0.5.0")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(19097)
+
+  val MASTER_SECURED_ENDPOINTS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.secured.endpoints")
+      .categories("client", "auth")
+      .doc("Endpoints of master nodes for celeborn client to connect for secured communication, allowed pattern " +
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:19097,clb2:19097,clb3:19097`. " +
+        "If the port is omitted, 19097 will be used.")
+      .version("0.5.0")
+      .stringConf
+      .toSequence
+      .checkValue(
+        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
+      .createWithDefaultString(s"<localhost>:19097")
 
 }

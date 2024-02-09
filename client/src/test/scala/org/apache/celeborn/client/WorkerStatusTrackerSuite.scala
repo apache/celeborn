@@ -105,6 +105,6 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
   }
 
   private def mock(host: String): WorkerInfo = {
-    new WorkerInfo(host, -1, -1, -1, -1)
+    new WorkerInfo(host, -1, -1, -1, -1, -1, -1)
   }
 }

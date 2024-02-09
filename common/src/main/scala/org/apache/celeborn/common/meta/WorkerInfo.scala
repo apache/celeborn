@@ -36,6 +36,8 @@ class WorkerInfo(
     val pushPort: Int,
     val fetchPort: Int,
     val replicatePort: Int,
+    val internalPort: Int,
+    val securedPort: Int,
     _diskInfos: util.Map[String, DiskInfo],
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
@@ -50,13 +52,22 @@ class WorkerInfo(
     else null
   var endpoint: RpcEndpointRef = null
 
-  def this(host: String, rpcPort: Int, pushPort: Int, fetchPort: Int, replicatePort: Int) {
+  def this(
+      host: String,
+      rpcPort: Int,
+      pushPort: Int,
+      fetchPort: Int,
+      replicatePort: Int,
+      internalPort: Int,
+      securedPort: Int) {
     this(
       host,
       rpcPort,
       pushPort,
       fetchPort,
       replicatePort,
+      internalPort,
+      securedPort,
       new util.HashMap[String, DiskInfo](),
       new util.HashMap[UserIdentifier, ResourceConsumption]())
   }
@@ -117,7 +128,9 @@ class WorkerInfo(
     pushPort == other.pushPort &&
     host == other.host &&
     fetchPort == other.fetchPort &&
-    replicatePort == other.replicatePort
+    replicatePort == other.replicatePort &&
+    internalPort == other.internalPort &&
+    securedPort == other.securedPort
   }
 
   def setupEndpoint(endpointRef: RpcEndpointRef): Unit = {
@@ -128,11 +141,11 @@ class WorkerInfo(
 
   def readableAddress(): String = {
     s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
-      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort"
+      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:InternalPort:$internalPort:SecuredPort:$securedPort"
   }
 
   def toUniqueId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
+    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedPort"
   }
 
   def slotAvailable(): Boolean = this.synchronized {
@@ -232,6 +245,8 @@ class WorkerInfo(
        |PushPort: $pushPort
        |FetchPort: $fetchPort
        |ReplicatePort: $replicatePort
+       |InternalPort: $internalPort
+       |SecuredPort: $securedPort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
        |HeartbeatElapsedSeconds: ${TimeUnit.MILLISECONDS.toSeconds(
@@ -249,7 +264,9 @@ class WorkerInfo(
         rpcPort == that.rpcPort &&
         pushPort == that.pushPort &&
         fetchPort == that.fetchPort &&
-        replicatePort == that.replicatePort
+        replicatePort == that.replicatePort &&
+        internalPort == that.internalPort &&
+        securedPort == that.securedPort
     case _ => false
   }
 
@@ -259,6 +276,8 @@ class WorkerInfo(
     result = 31 * result + pushPort.hashCode()
     result = 31 * result + fetchPort.hashCode()
     result = 31 * result + replicatePort.hashCode()
+    result = 31 * result + internalPort.hashCode()
+    result = 31 * result + securedPort.hashCode()
     result
   }
 
@@ -271,8 +290,10 @@ class WorkerInfo(
 object WorkerInfo {
 
   def fromUniqueId(id: String): WorkerInfo = {
-    val Array(host, rpcPort, pushPort, fetchPort, replicatePort) =
-      Utils.parseColonSeparatedHostPorts(id, portsNum = 4)
-    new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
+    val Array(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedRpcPort, securedPushPort,
+      securedFetchPort) =
+      Utils.parseColonSeparatedHostPorts(id, portsNum = 8)
+    new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt, internalPort.toInt,
+      securedRpcPort.toInt, securedPushPort.toInt, securedFetchPort.toInt)
   }
 }

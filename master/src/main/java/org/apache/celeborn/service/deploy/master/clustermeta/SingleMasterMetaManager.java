@@ -83,14 +83,30 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleWorkerLost(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
-    updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      int internalPort,
+      int securedPort,
+      String requestId) {
+    updateWorkerLostMeta(
+        host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort);
   }
 
   @Override
   public void handleWorkerRemove(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
-    updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      int internalPort,
+      int securedPort,
+      String requestId) {
+    updateWorkerRemoveMeta(
+        host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort);
   }
 
   @Override
@@ -106,6 +122,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      int internalPort,
+      int securedPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
@@ -119,6 +137,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         pushPort,
         fetchPort,
         replicatePort,
+        internalPort,
+        securedPort,
         disks,
         userResourceConsumption,
         estimatedAppDiskUsage,
@@ -134,11 +154,21 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      int internalPort,
+      int securedPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
     updateRegisterWorkerMeta(
-        host, rpcPort, pushPort, fetchPort, replicatePort, disks, userResourceConsumption);
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        internalPort,
+        securedPort,
+        disks,
+        userResourceConsumption);
   }
 
   @Override

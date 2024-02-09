@@ -59,6 +59,8 @@ public class PartitionLocation implements Serializable {
   private int pushPort;
   private int fetchPort;
   private int replicatePort;
+  private int internalPort;
+  private int securedPort;
   private Mode mode;
   private PartitionLocation peer;
   private StorageInfo storageInfo;
@@ -74,6 +76,8 @@ public class PartitionLocation implements Serializable {
     this.pushPort = loc.pushPort;
     this.fetchPort = loc.fetchPort;
     this.replicatePort = loc.replicatePort;
+    this.internalPort = loc.internalPort;
+    this.securedPort = loc.securedPort;
     this.mode = loc.mode;
     this.peer = loc.peer;
     this.storageInfo = loc.storageInfo;
@@ -90,6 +94,8 @@ public class PartitionLocation implements Serializable {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      int internalPort,
+      int securedPort,
       Mode mode) {
     this(
         id,
@@ -99,6 +105,8 @@ public class PartitionLocation implements Serializable {
         pushPort,
         fetchPort,
         replicatePort,
+        internalPort,
+        securedPort,
         mode,
         null,
         new StorageInfo(),
@@ -113,6 +121,8 @@ public class PartitionLocation implements Serializable {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      int internalPort,
+      int securedPort,
       Mode mode,
       PartitionLocation peer) {
     this(
@@ -123,6 +133,8 @@ public class PartitionLocation implements Serializable {
         pushPort,
         fetchPort,
         replicatePort,
+        internalPort,
+        securedPort,
         mode,
         peer,
         new StorageInfo(),
@@ -137,6 +149,8 @@ public class PartitionLocation implements Serializable {
       int pushPort,
       int fetchPort,
       int replicatePort,
+      int internalPort,
+      int securedPort,
       Mode mode,
       PartitionLocation peer,
       StorageInfo hint,
@@ -148,6 +162,8 @@ public class PartitionLocation implements Serializable {
     this.pushPort = pushPort;
     this.fetchPort = fetchPort;
     this.replicatePort = replicatePort;
+    this.internalPort = internalPort;
+    this.securedPort = securedPort;
     this.mode = mode;
     this.peer = peer;
     this.storageInfo = hint;
@@ -197,7 +213,7 @@ public class PartitionLocation implements Serializable {
   }
 
   public String hostAndPorts() {
-    return "host-rpcPort-pushPort-fetchPort-replicatePort:"
+    return "host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedPort:"
         + host
         + "-"
         + rpcPort
@@ -206,7 +222,11 @@ public class PartitionLocation implements Serializable {
         + "-"
         + fetchPort
         + "-"
-        + replicatePort;
+        + replicatePort
+        + "-"
+        + internalPort
+        + "-"
+        + securedPort;
   }
 
   public String hostAndFetchPort() {
@@ -262,6 +282,22 @@ public class PartitionLocation implements Serializable {
     this.replicatePort = replicatePort;
   }
 
+  public int getInternalPort() {
+    return internalPort;
+  }
+
+  public void setInternalPort(int internalPort) {
+    this.internalPort = internalPort;
+  }
+
+  public int getSecuredPort() {
+    return securedPort;
+  }
+
+  public void setSecuredPort(int securedPort) {
+    this.securedPort = securedPort;
+  }
+
   public StorageInfo getStorageInfo() {
     return storageInfo;
   }
@@ -281,12 +317,15 @@ public class PartitionLocation implements Serializable {
         && host.equals(o.host)
         && rpcPort == o.rpcPort
         && pushPort == o.pushPort
-        && fetchPort == o.fetchPort;
+        && fetchPort == o.fetchPort
+        && internalPort == o.internalPort
+        && securedPort == o.securedPort;
   }
 
   @Override
   public int hashCode() {
-    return (id + epoch + host + rpcPort + pushPort + fetchPort).hashCode();
+    return (id + epoch + host + rpcPort + pushPort + fetchPort + internalPort + securedPort)
+        .hashCode();
   }
 
   @Override
@@ -300,7 +339,7 @@ public class PartitionLocation implements Serializable {
         + id
         + "-"
         + epoch
-        + "\n  host-rpcPort-pushPort-fetchPort-replicatePort:"
+        + "\n  host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedPort:"
         + host
         + "-"
         + rpcPort
@@ -310,6 +349,10 @@ public class PartitionLocation implements Serializable {
         + fetchPort
         + "-"
         + replicatePort
+        + "-"
+        + internalPort
+        + "-"
+        + securedPort
         + "\n  mode:"
         + mode
         + "\n  peer:("
@@ -322,7 +365,8 @@ public class PartitionLocation implements Serializable {
   }
 
   public WorkerInfo getWorker() {
-    return new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
+    return new WorkerInfo(
+        host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort);
   }
 
   public RoaringBitmap getMapIdBitMap() {

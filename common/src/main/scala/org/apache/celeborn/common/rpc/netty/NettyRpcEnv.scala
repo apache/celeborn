@@ -143,7 +143,8 @@ class NettyRpcEnv(
   }
 
   override def setupEndpoint(name: String, endpoint: RpcEndpoint): RpcEndpointRef = {
-    if (name == RpcNameConstants.WORKER_EP) {
+    if (name == RpcNameConstants.WORKER_EP || name == RpcNameConstants.WORKER_INTERNAL_EP ||
+      name == RpcNameConstants.WORKER_SECURED_EP) {
       worker = endpoint
     }
     dispatcher.registerRpcEndpoint(name, endpoint)

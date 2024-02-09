@@ -230,6 +230,8 @@ object PbSerDeUtils {
       pbWorkerInfo.getPushPort,
       pbWorkerInfo.getFetchPort,
       pbWorkerInfo.getReplicatePort,
+      pbWorkerInfo.getInternalPort,
+      pbWorkerInfo.getSecuredPort,
       disks,
       userResourceConsumption)
   }
@@ -246,6 +248,8 @@ object PbSerDeUtils {
       .setFetchPort(workerInfo.fetchPort)
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
+      .setInternalPort(workerInfo.internalPort)
+      .setSecuredPort(workerInfo.securedPort)
       .addAllDisks(pbDiskInfos)
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(
@@ -267,6 +271,8 @@ object PbSerDeUtils {
       pbLoc.getPushPort,
       pbLoc.getFetchPort,
       pbLoc.getReplicatePort,
+      pbLoc.getInternalPort,
+      pbLoc.getSecuredPort,
       mode,
       null,
       StorageInfo.fromPb(pbLoc.getStorageInfo),
@@ -283,6 +289,8 @@ object PbSerDeUtils {
         peerPb.getPushPort,
         peerPb.getFetchPort,
         peerPb.getReplicatePort,
+        peerPb.getInternalPort,
+        peerPb.getSecuredPort,
         peerMode,
         partitionLocation,
         StorageInfo.fromPb(peerPb.getStorageInfo),
@@ -307,6 +315,8 @@ object PbSerDeUtils {
       .setPushPort(location.getPushPort)
       .setFetchPort(location.getFetchPort)
       .setReplicatePort(location.getReplicatePort)
+      .setInternalPort(location.getInternalPort)
+      .setSecuredPort(location.getSecuredPort)
       .setStorageInfo(StorageInfo.toPb(location.getStorageInfo))
       .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
     if (location.hasPeer) {
@@ -324,6 +334,8 @@ object PbSerDeUtils {
         .setPushPort(location.getPeer.getPushPort)
         .setFetchPort(location.getPeer.getFetchPort)
         .setReplicatePort(location.getPeer.getReplicatePort)
+        .setInternalPort(location.getPeer.getInternalPort)
+        .setSecuredPort(location.getPeer.getSecuredPort)
         .setStorageInfo(StorageInfo.toPb(location.getPeer.getStorageInfo))
         .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
       builder.setPeer(peerBuilder.build)

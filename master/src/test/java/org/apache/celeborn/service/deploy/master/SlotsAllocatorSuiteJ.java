@@ -133,9 +133,9 @@ public class SlotsAllocatorSuiteJ {
     }
 
     ArrayList<WorkerInfo> workers = new ArrayList<>(3);
-    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, disks1, null));
-    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, disks2, null));
-    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, disks3, null));
+    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, 116, 117, disks1, null));
+    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, 118, 119, disks2, null));
+    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, 120, 121, disks3, null));
     return workers;
   }
 

@@ -26,6 +26,8 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
 
   private var _host: Option[String] = None
   private var _port: Option[Int] = None
+  private var _internalPort: Option[Int] = None
+  private var _securedPort: Option[Int] = None
   // for local testing.
   private var _master: Option[String] = None
   private var _propertiesFile: Option[String] = None
@@ -36,10 +38,16 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
   _propertiesFile = Some(Utils.loadDefaultCelebornProperties(conf, _propertiesFile.orNull))
   _host = _host.orElse(Some(Utils.localHostName(conf)))
   _port = _port.orElse(Some(conf.workerRpcPort))
+  _internalPort = _internalPort.orElse(Some(conf.workerInternalPort))
+  _securedPort = _securedPort.orElse(Some(conf.workerSecuredPort))
 
   def host: String = _host.get
 
   def port: Int = _port.get
+
+  def internalPort: Int = _internalPort.get
+
+  def securedPort: Int = _securedPort.get
 
   def master: Option[String] = _master
 
@@ -52,6 +60,14 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
 
     case ("--port" | "-p") :: IntParam(value) :: tail =>
       _port = Some(value)
+      parse(tail)
+
+    case ("--internal-port") :: IntParam(value) :: tail =>
+      _internalPort = Some(value)
+      parse(tail)
+
+    case ("--secured-port") :: IntParam(value) :: tail =>
+      _securedPort = Some(value)
       parse(tail)
 
     case "--properties-file" :: value :: tail =>
@@ -83,6 +99,8 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
         |Options:
         |  -h HOST, --host HOST     Hostname to listen on
         |  -p PORT, --port PORT     Port to listen on (default: random)
+        |  --internal-port PORT     Port for internal communication (default: random)
+        |  --secured-port  PORT     Port for secured communication (default: random)
         |  --properties-file FILE   Path to a custom Celeborn properties file.
         |                           Default is conf/celeborn-defaults.conf.
         |""".stripMargin)

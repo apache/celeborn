@@ -1328,6 +1328,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       candidates(primaryIndex).pushPort,
       candidates(primaryIndex).fetchPort,
       candidates(primaryIndex).replicatePort,
+      candidates(primaryIndex).internalPort,
+      candidates(primaryIndex).securedPort,
       PartitionLocation.Mode.PRIMARY)
 
     if (pushReplicateEnabled) {
@@ -1348,6 +1350,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         candidates(replicaIndex).pushPort,
         candidates(replicaIndex).fetchPort,
         candidates(replicaIndex).replicatePort,
+        candidates(replicaIndex).internalPort,
+        candidates(replicaIndex).securedPort,
         PartitionLocation.Mode.REPLICA,
         primaryLocation)
       primaryLocation.setPeer(replicaLocation)

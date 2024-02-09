@@ -138,6 +138,8 @@ message PbPartitionLocation {
   PbPartitionLocation peer = 9;
   PbStorageInfo storageInfo = 10;
   bytes mapIdBitmap = 11;
+  int32 internalPort = 12;
+  int32 securedPort = 13;
 }
 
 message PbWorkerResource {
@@ -164,6 +166,8 @@ message PbWorkerInfo {
   int32 replicatePort = 5;
   repeated PbDiskInfo disks = 6;
   map<string, PbResourceConsumption> userResourceConsumption = 7;
+  int32 internalPort = 8;
+  int32 securedPort = 9;
 }
 
 message PbFileGroup {
@@ -179,6 +183,8 @@ message PbRegisterWorker {
   repeated PbDiskInfo disks = 6;
   string requestId = 9;
   map<string, PbResourceConsumption> userResourceConsumption = 8;
+  int32 internalPort = 10;
+  int32 securedPort = 11;
 }
 
 message PbHeartbeatFromWorker {
@@ -194,6 +200,8 @@ message PbHeartbeatFromWorker {
   map<string, int64> estimatedAppDiskUsage = 10;
   bool highWorkload = 11;
   PbWorkerStatus workerStatus = 12;
+  int32 internalPort = 13;
+  int32 securedPort = 14;
 }
 
 message PbWorkerStatus {
@@ -512,6 +520,8 @@ message PbWorkerLost {
   int32 fetchPort = 4;
   int32 replicatePort = 5;
   string requestId = 6;
+  int32 internalPort = 7;
+  int32 securedPort = 8;
 }
 
 message PbWorkerLostResponse {

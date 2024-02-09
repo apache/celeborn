@@ -88,6 +88,8 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
       -1,
       -1,
       -1,
+      -1,
+      -1,
       PartitionLocation.Mode.PRIMARY)
   }
 

@@ -622,6 +622,8 @@ public class SlotsAllocator {
         workerInfo.pushPort(),
         workerInfo.fetchPort(),
         workerInfo.replicatePort(),
+        workerInfo.internalPort(),
+        workerInfo.securedPort(),
         isPrimary ? PartitionLocation.Mode.PRIMARY : PartitionLocation.Mode.REPLICA,
         peer,
         storageInfo,
