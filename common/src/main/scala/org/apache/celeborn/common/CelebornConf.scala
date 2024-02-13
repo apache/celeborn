@@ -4647,8 +4647,7 @@ object CelebornConf extends Logging {
   val WORKER_INTERNAL_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.internal.port")
       .categories("worker")
-      .doc(
-        "Internal server port on the Worker where the master nodes connect.")
+      .doc("Internal server port on the Worker where the master nodes connect.")
       .version("0.5.0")
       .intConf
       .createWithDefault(0)
@@ -4656,8 +4655,7 @@ object CelebornConf extends Logging {
   val WORKER_SECURED_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.secured.port")
       .categories("worker", "auth")
-      .doc(
-        "Secured port on the Worker where the clients connect.")
+      .doc("Secured port on the Worker where the clients connect.")
       .version("0.5.0")
       .intConf
       .createWithDefault(0)

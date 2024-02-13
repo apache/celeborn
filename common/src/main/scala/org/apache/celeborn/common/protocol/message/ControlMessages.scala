@@ -102,13 +102,13 @@ object ControlMessages extends Logging {
         .setPushPort(pushPort)
         .setFetchPort(fetchPort)
         .setReplicatePort(replicatePort)
-        .addAllDisks(pbDisks)
-        .putAllUserResourceConsumption(pbUserResourceConsumption)
-        .setRequestId(requestId)
         .setInternalPort(internalPort)
         .setSecuredRpcPort(securedRpcPort)
         .setSecuredPushPort(securedPushPort)
         .setSecuredFetchPort(securedFetchPort)
+        .addAllDisks(pbDisks)
+        .putAllUserResourceConsumption(pbUserResourceConsumption)
+        .setRequestId(requestId)
         .build()
     }
   }
@@ -329,11 +329,11 @@ object ControlMessages extends Logging {
       .setPushPort(pushPort)
       .setFetchPort(fetchPort)
       .setReplicatePort(replicatePort)
-      .setRequestId(requestId)
       .setInternalPort(internalPort)
       .setSecuredRpcPort(securedRpcPort)
       .setSecuredPushPort(securedPushPort)
       .setSecuredFetchPort(securedFetchPort)
+      .setRequestId(requestId)
       .build()
   }
 
