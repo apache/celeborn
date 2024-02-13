@@ -4644,4 +4644,22 @@ object CelebornConf extends Logging {
         "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
       .createWithDefaultString(s"<localhost>:19097")
 
+  val WORKER_INTERNAL_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.internal.port")
+      .categories("worker")
+      .doc(
+        "Internal server port on the Worker where the master nodes connect.")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(0)
+
+  val WORKER_SECURED_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.worker.secured.port")
+      .categories("worker", "auth")
+      .doc(
+        "Secured port on the Worker where the clients connect.")
+      .version("0.5.0")
+      .intConf
+      .createWithDefault(0)
+
 }

@@ -87,7 +87,9 @@ object ControlMessages extends Logging {
         fetchPort: Int,
         replicatePort: Int,
         internalPort: Int,
-        securedPort: Int,
+        securedRpcPort: Int,
+        securedPushPort: Int,
+        securedFetchPort: Int,
         disks: Map[String, DiskInfo],
         userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
         requestId: String): PbRegisterWorker = {
@@ -104,7 +106,9 @@ object ControlMessages extends Logging {
         .putAllUserResourceConsumption(pbUserResourceConsumption)
         .setRequestId(requestId)
         .setInternalPort(internalPort)
-        .setSecuredPort(securedPort)
+        .setSecuredRpcPort(securedRpcPort)
+        .setSecuredPushPort(securedPushPort)
+        .setSecuredFetchPort(securedFetchPort)
         .build()
     }
   }
@@ -116,7 +120,9 @@ object ControlMessages extends Logging {
       fetchPort: Int,
       replicatePort: Int,
       internalPort: Int,
-      securedPort: Int,
+      securedRpcPort: Int,
+      securedPushPort: Int,
+      securedFetchPort: Int,
       disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
@@ -314,7 +320,9 @@ object ControlMessages extends Logging {
         fetchPort: Int,
         replicatePort: Int,
         internalPort: Int,
-        securedPort: Int,
+        securedRpcPort: Int,
+        securedPushPort: Int,
+        securedFetchPort: Int,
         requestId: String): PbWorkerLost = PbWorkerLost.newBuilder()
       .setHost(host)
       .setRpcPort(rpcPort)
@@ -323,7 +331,9 @@ object ControlMessages extends Logging {
       .setReplicatePort(replicatePort)
       .setRequestId(requestId)
       .setInternalPort(internalPort)
-      .setSecuredPort(securedPort)
+      .setSecuredRpcPort(securedRpcPort)
+      .setSecuredPushPort(securedPushPort)
+      .setSecuredFetchPort(securedFetchPort)
       .build()
   }
 
@@ -536,7 +546,9 @@ object ControlMessages extends Logging {
           fetchPort,
           replicatePort,
           internalPort,
-          securedPort,
+          securedRpcPort,
+          securedPushPort,
+          securedFetchPort,
           disks,
           userResourceConsumption,
           activeShuffleKeys,
@@ -561,7 +573,7 @@ object ControlMessages extends Logging {
         .setWorkerStatus(PbSerDeUtils.toPbWorkerStatus(workerStatus))
         .setRequestId(requestId)
         .setInternalPort(internalPort)
-        .setSecuredPort(securedPort)
+        .setSecuredRpcPort(securedRpcPort)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER, payload)
 
@@ -960,7 +972,9 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorker.getFetchPort,
           pbHeartbeatFromWorker.getReplicatePort,
           pbHeartbeatFromWorker.getInternalPort,
-          pbHeartbeatFromWorker.getSecuredPort,
+          pbHeartbeatFromWorker.getSecuredRpcPort,
+          pbHeartbeatFromWorker.getSecuredPushPort,
+          pbHeartbeatFromWorker.getSecuredFetchPort,
           pbDisks,
           userResourceConsumption,
           activeShuffleKeys,

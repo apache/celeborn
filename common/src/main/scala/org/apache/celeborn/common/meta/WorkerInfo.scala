@@ -37,7 +37,9 @@ class WorkerInfo(
     val fetchPort: Int,
     val replicatePort: Int,
     val internalPort: Int,
-    val securedPort: Int,
+    val securedRpcPort: Int,
+    val securedPushPort: Int,
+    val securedFetchPort: Int,
     _diskInfos: util.Map[String, DiskInfo],
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
@@ -59,7 +61,9 @@ class WorkerInfo(
       fetchPort: Int,
       replicatePort: Int,
       internalPort: Int,
-      securedPort: Int) {
+      securedRpcPort: Int,
+      securedPushPort: Int,
+      securedFetchPort: Int) = {
     this(
       host,
       rpcPort,
@@ -67,7 +71,9 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       internalPort,
-      securedPort,
+      securedRpcPort,
+      securedPushPort,
+      securedFetchPort,
       new util.HashMap[String, DiskInfo](),
       new util.HashMap[UserIdentifier, ResourceConsumption]())
   }
@@ -130,7 +136,9 @@ class WorkerInfo(
     fetchPort == other.fetchPort &&
     replicatePort == other.replicatePort &&
     internalPort == other.internalPort &&
-    securedPort == other.securedPort
+    securedRpcPort == other.securedRpcPort &&
+    securedPushPort == other.securedPushPort &&
+    securedFetchPort == other.securedFetchPort
   }
 
   def setupEndpoint(endpointRef: RpcEndpointRef): Unit = {
@@ -139,13 +147,19 @@ class WorkerInfo(
     }
   }
 
-  def readableAddress(): String = {
-    s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
-      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:InternalPort:$internalPort:SecuredPort:$securedPort"
+  def readableAddress(authEnabled: Boolean): String = {
+    if (authEnabled) {
+      s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
+        s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:InternalPort:$internalPort" +
+        s":SecuredRpcPort:$securedRpcPort:SecuredPushPort:$securedPushPort:SecuredFetchPort:$securedFetchPort"
+    } else {
+      s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
+        s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:InternalPort:$internalPort"
+    }
   }
 
   def toUniqueId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedPort"
+    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedRpcPort:$securedPushPort:$securedFetchPort"
   }
 
   def slotAvailable(): Boolean = this.synchronized {
@@ -246,7 +260,9 @@ class WorkerInfo(
        |FetchPort: $fetchPort
        |ReplicatePort: $replicatePort
        |InternalPort: $internalPort
-       |SecuredPort: $securedPort
+       |SecuredRpcPort: $securedRpcPort
+       |SecuredPushPort: $securedPushPort
+       |SecuredFetchPort: $securedFetchPort
        |SlotsUsed: $slots
        |LastHeartbeat: $lastHeartbeat
        |HeartbeatElapsedSeconds: ${TimeUnit.MILLISECONDS.toSeconds(
@@ -266,7 +282,9 @@ class WorkerInfo(
         fetchPort == that.fetchPort &&
         replicatePort == that.replicatePort &&
         internalPort == that.internalPort &&
-        securedPort == that.securedPort
+        securedRpcPort == that.securedRpcPort &&
+        securedPushPort == that.securedPushPort &&
+        securedFetchPort == that.securedFetchPort
     case _ => false
   }
 
@@ -277,7 +295,9 @@ class WorkerInfo(
     result = 31 * result + fetchPort.hashCode()
     result = 31 * result + replicatePort.hashCode()
     result = 31 * result + internalPort.hashCode()
-    result = 31 * result + securedPort.hashCode()
+    result = 31 * result + securedRpcPort.hashCode()
+    result = 31 * result + securedPushPort.hashCode()
+    result = 31 * result + securedFetchPort.hashCode()
     result
   }
 

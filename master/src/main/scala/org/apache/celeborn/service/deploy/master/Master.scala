@@ -355,10 +355,13 @@ private[celeborn] class Master(
       val fetchPort = pb.getFetchPort
       val replicatePort = pb.getReplicatePort
       val internalPort = pb.getInternalPort
-      val securedPort = pb.getSecuredPort
+      val securedRpcPort = pb.getSecuredRpcPort
+      val securedPushPort = pb.getSecuredPushPort
+      val securedFetchPort = pb.getSecuredFetchPort
       val requestId = pb.getRequestId
       logDebug(
-        s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedPort.")
+        s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedRpcPort" +
+          s":$securedPushPort:$securedFetchPort.")
       executeWithLeaderChecker(
         null,
         handleWorkerLost(
@@ -369,7 +372,9 @@ private[celeborn] class Master(
           fetchPort,
           replicatePort,
           internalPort,
-          securedPort,
+          securedRpcPort,
+          securedPushPort,
+          securedFetchPort,
           requestId))
     case pb: PbRemoveWorkersUnavailableInfo =>
       val unavailableWorkers = new util.ArrayList[WorkerInfo](pb.getWorkerInfoList
@@ -407,7 +412,9 @@ private[celeborn] class Master(
       val fetchPort = pbRegisterWorker.getFetchPort
       val replicatePort = pbRegisterWorker.getReplicatePort
       val internalPort = pbRegisterWorker.getInternalPort
-      val securedPort = pbRegisterWorker.getSecuredPort
+      val securedRpcPort = pbRegisterWorker.getSecuredRpcPort
+      val securedPushPort = pbRegisterWorker.getSecuredPushPort
+      val securedFetchPort = pbRegisterWorker.getSecuredFetchPort
       val disks = pbRegisterWorker.getDisksList.asScala
         .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
         .toMap.asJava
@@ -425,10 +432,12 @@ private[celeborn] class Master(
           pushPort,
           fetchPort,
           replicatePort,
+          internalPort,
+          securedRpcPort,
+          securedPushPort,
+          securedFetchPort,
           disks,
           userResourceConsumption,
-          internalPort,
-          securedPort,
           requestId))
 
     case ReleaseSlots(_, _, _, _, _) =>
@@ -460,7 +469,9 @@ private[celeborn] class Master(
           fetchPort,
           replicatePort,
           internalPort,
-          securedPort,
+          securedRpcPort,
+          securedPushPort,
+          securedFetchPort,
           disks,
           userResourceConsumption,
           activeShuffleKey,
@@ -469,7 +480,7 @@ private[celeborn] class Master(
           workerStatus,
           requestId) =>
       logDebug(s"Received heartbeat from" +
-        s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
+        s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedRpcPort:$securedPushPort:$securedFetchPort with $disks.")
       executeWithLeaderChecker(
         context,
         handleHeartbeatFromWorker(
@@ -479,14 +490,16 @@ private[celeborn] class Master(
           pushPort,
           fetchPort,
           replicatePort,
+          internalPort,
+          securedRpcPort,
+          securedPushPort,
+          securedFetchPort,
           disks,
           userResourceConsumption,
           activeShuffleKey,
           estimatedAppDiskUsage,
           highWorkload,
           workerStatus,
-          internalPort,
-          securedPort,
           requestId))
 
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
@@ -514,10 +527,13 @@ private[celeborn] class Master(
       val fetchPort = pb.getFetchPort
       val replicatePort = pb.getReplicatePort
       val internalPort = pb.getInternalPort
-      val securedPort = pb.getSecuredPort
+      val securedRpcPort = pb.getSecuredRpcPort
+      val securedPushPort = pb.getSecuredPushPort
+      val securedFetchPort = pb.getSecuredFetchPort
       val requestId = pb.getRequestId
       logInfo(
-        s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedPort.")
+        s"Received worker lost $host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedRpcPort" +
+          s":$securedPushPort:$securedFetchPort.")
       executeWithLeaderChecker(
         context,
         handleWorkerLost(
@@ -528,7 +544,9 @@ private[celeborn] class Master(
           fetchPort,
           replicatePort,
           internalPort,
-          securedPort,
+          securedRpcPort,
+          securedPushPort,
+          securedFetchPort,
           requestId))
 
     case CheckQuota(userIdentifier) =>
@@ -559,7 +577,8 @@ private[celeborn] class Master(
     workersSnapShot.asScala.foreach { worker =>
       if (worker.lastHeartbeat < currentTime - workerHeartbeatTimeoutMs
         && !statusSystem.workerLostEvents.contains(worker)) {
-        logWarning(s"Worker ${worker.readableAddress()} timeout! Trigger WorkerLost event.")
+        logWarning(
+          s"Worker ${worker.readableAddress(authEnabled)} timeout! Trigger WorkerLost event.")
         // trigger WorkerLost event
         self.send(WorkerLost(
           worker.host,
@@ -568,7 +587,9 @@ private[celeborn] class Master(
           worker.fetchPort,
           worker.replicatePort,
           worker.internalPort,
-          worker.securedPort,
+          worker.securedRpcPort,
+          worker.securedPushPort,
+          worker.securedFetchPort,
           MasterClient.genRequestId()))
       }
     }
@@ -623,21 +644,32 @@ private[celeborn] class Master(
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
+      internalPort: Int,
+      securedRpcPort: Int,
+      securedPushPort: Int,
+      securedFetchPort: Int,
       disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
       estimatedAppDiskUsage: util.HashMap[String, java.lang.Long],
       highWorkload: Boolean,
       workerStatus: WorkerStatus,
-      internalPort: Int,
-      securedPort: Int,
       requestId: String): Unit = {
     val targetWorker =
-      new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort)
+      new WorkerInfo(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        internalPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort)
     val registered = workersSnapShot.asScala.contains(targetWorker)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
-        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedPort.")
+        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedRpcPort:$securedPushPort:$securedFetchPort.")
     } else {
       statusSystem.handleWorkerHeartbeat(
         host,
@@ -646,7 +678,9 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         internalPort,
-        securedPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort,
         disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
         userResourceConsumption,
         estimatedAppDiskUsage,
@@ -700,7 +734,9 @@ private[celeborn] class Master(
       fetchPort: Int,
       replicatePort: Int,
       internalPort: Int,
-      securedPort: Int,
+      securedRpcPort: Int,
+      securedPushPort: Int,
+      securedFetchPort: Int,
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(
       host,
@@ -709,7 +745,9 @@ private[celeborn] class Master(
       fetchPort,
       replicatePort,
       internalPort,
-      securedPort,
+      securedRpcPort,
+      securedPushPort,
+      securedFetchPort,
       new util.HashMap[String, DiskInfo](),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]())
     val worker: WorkerInfo = workersSnapShot
@@ -717,8 +755,8 @@ private[celeborn] class Master(
       .find(_ == targetWorker)
       .orNull
     if (worker == null) {
-      logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedPort" +
-        s" for WorkerLost handler!")
+      logWarning(s"Unknown worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort:$internalPort:$securedRpcPort" +
+        s":$securedPushPort:$securedFetchPort for WorkerLost handler!")
     } else {
       statusSystem.handleWorkerLost(
         host,
@@ -727,7 +765,9 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         internalPort,
-        securedPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort,
         requestId)
     }
     if (context != null) {
@@ -742,10 +782,12 @@ private[celeborn] class Master(
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
+      internalPort: Int,
+      securedRpcPort: Int,
+      securedPushPort: Int,
+      securedFetchPort: Int,
       disks: util.Map[String, DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
-      internalPort: Int,
-      securedPort: Int,
       requestId: String): Unit = {
     val workerToRegister =
       new WorkerInfo(
@@ -755,7 +797,9 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         internalPort,
-        securedPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort,
         disks,
         userResourceConsumption)
     if (workersSnapShot.contains(workerToRegister)) {
@@ -769,7 +813,9 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         internalPort,
-        securedPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort,
         requestId)
       val newRequestId = MasterClient.genRequestId()
       statusSystem.handleRegisterWorker(
@@ -779,7 +825,9 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         internalPort,
-        securedPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort,
         disks,
         userResourceConsumption,
         newRequestId)
@@ -795,7 +843,9 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         internalPort,
-        securedPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort,
         disks,
         userResourceConsumption,
         requestId)
@@ -808,7 +858,9 @@ private[celeborn] class Master(
         fetchPort,
         replicatePort,
         internalPort,
-        securedPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort,
         disks,
         userResourceConsumption,
         requestId)

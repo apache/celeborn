@@ -231,7 +231,9 @@ object PbSerDeUtils {
       pbWorkerInfo.getFetchPort,
       pbWorkerInfo.getReplicatePort,
       pbWorkerInfo.getInternalPort,
-      pbWorkerInfo.getSecuredPort,
+      pbWorkerInfo.getSecuredRpcPort,
+      pbWorkerInfo.getSecuredPushPort,
+      pbWorkerInfo.getSecuredFetchPort,
       disks,
       userResourceConsumption)
   }
@@ -249,7 +251,9 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
-      .setSecuredPort(workerInfo.securedPort)
+      .setSecuredRpcPort(workerInfo.securedRpcPort)
+      .setSecuredPushPort(workerInfo.securedPushPort)
+      .setSecuredFetchPort(workerInfo.securedFetchPort)
       .addAllDisks(pbDiskInfos)
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(
@@ -272,7 +276,9 @@ object PbSerDeUtils {
       pbLoc.getFetchPort,
       pbLoc.getReplicatePort,
       pbLoc.getInternalPort,
-      pbLoc.getSecuredPort,
+      pbLoc.getSecuredRpcPort,
+      pbLoc.getSecuredPushPort,
+      pbLoc.getSecuredFetchPort,
       mode,
       null,
       StorageInfo.fromPb(pbLoc.getStorageInfo),
@@ -290,7 +296,9 @@ object PbSerDeUtils {
         peerPb.getFetchPort,
         peerPb.getReplicatePort,
         peerPb.getInternalPort,
-        peerPb.getSecuredPort,
+        peerPb.getSecuredRpcPort,
+        peerPb.getSecuredPushPort,
+        peerPb.getSecuredFetchPort,
         peerMode,
         partitionLocation,
         StorageInfo.fromPb(peerPb.getStorageInfo),
@@ -316,7 +324,9 @@ object PbSerDeUtils {
       .setFetchPort(location.getFetchPort)
       .setReplicatePort(location.getReplicatePort)
       .setInternalPort(location.getInternalPort)
-      .setSecuredPort(location.getSecuredPort)
+      .setSecuredRpcPort(location.getSecuredRpcPort)
+      .setSecuredPushPort(location.getSecuredPushPort)
+      .setSecuredFetchPort(location.getSecuredFetchPort)
       .setStorageInfo(StorageInfo.toPb(location.getStorageInfo))
       .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
     if (location.hasPeer) {
@@ -335,7 +345,9 @@ object PbSerDeUtils {
         .setFetchPort(location.getPeer.getFetchPort)
         .setReplicatePort(location.getPeer.getReplicatePort)
         .setInternalPort(location.getPeer.getInternalPort)
-        .setSecuredPort(location.getPeer.getSecuredPort)
+        .setSecuredRpcPort(location.getPeer.getSecuredRpcPort)
+        .setSecuredPushPort(location.getPeer.getSecuredPushPort)
+        .setSecuredFetchPort(location.getPeer.getSecuredFetchPort)
         .setStorageInfo(StorageInfo.toPb(location.getPeer.getStorageInfo))
         .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
       builder.setPeer(peerBuilder.build)

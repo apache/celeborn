@@ -132,10 +132,20 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       int internalPort,
-      int securedPort) {
+      int securedRpcPort,
+      int securedPushPort,
+      int securedFetchPort) {
     WorkerInfo worker =
         new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort);
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            internalPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort);
     workerLostEvents.add(worker);
     // remove worker from workers
     synchronized (workers) {
@@ -153,10 +163,20 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       int internalPort,
-      int securedPort) {
+      int securedRpcPort,
+      int securedPushPort,
+      int securedFetchPort) {
     WorkerInfo worker =
         new WorkerInfo(
-            host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort);
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            internalPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort);
     // remove worker from workers
     synchronized (workers) {
       workers.remove(worker);
@@ -184,7 +204,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       int internalPort,
-      int securedPort,
+      int securedRpcPort,
+      int securedPushPort,
+      int securedFetchPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       Map<String, Long> estimatedAppDiskUsage,
@@ -199,7 +221,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             disks,
             userResourceConsumption);
     AtomicLong availableSlots = new AtomicLong();
@@ -246,7 +270,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       int internalPort,
-      int securedPort,
+      int securedRpcPort,
+      int securedPushPort,
+      int securedFetchPort,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption) {
     WorkerInfo workerInfo =
@@ -257,7 +283,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             disks,
             userResourceConsumption);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());

@@ -67,6 +67,7 @@ abstract class CommitHandler(
     workerStatusTracker: WorkerStatusTracker,
     val sharedRpcPool: ThreadPoolExecutor) extends Logging {
 
+  private val authEnabled = conf.authEnabled
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
 
   private val commitEpoch = new AtomicLong()
@@ -504,7 +505,7 @@ abstract class CommitHandler(
       val msg =
         failedPrimaries.asScala.map {
           case (partitionUniqueId, workerInfo) =>
-            s"Lost partition $partitionUniqueId in worker [${workerInfo.readableAddress()}]"
+            s"Lost partition $partitionUniqueId in worker [${workerInfo.readableAddress(authEnabled)}]"
         }.mkString("\n")
       logError(
         s"""
@@ -525,7 +526,7 @@ abstract class CommitHandler(
         val msg = failedBothPartitionIdsToWorker.map {
           case (partitionUniqueId, (primaryWorker, replicaWorker)) =>
             s"Lost partition $partitionUniqueId " +
-              s"in primary worker [${primaryWorker.readableAddress()}] and replica worker [$replicaWorker]"
+              s"in primary worker [${primaryWorker.readableAddress(authEnabled)}] and replica worker [$replicaWorker]"
         }.mkString("\n")
         logError(
           s"""

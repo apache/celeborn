@@ -62,13 +62,18 @@ public class ShuffleClientSuiteJ {
   private static final int PRIMARY_FETCH_PORT = 1236;
   private static final int PRIMARY_REPLICATE_PORT = 1237;
   private static final int PRIMARY_INTERNAL_PORT = 1238;
-  private static final int PRIMARY_SECURED_PORT = 1239;
+  private static final int PRIMARY_SECURED_RPC_PORT = 1239;
+  private static final int PRIMARY_SECURED_PUSH_PORT = 1240;
+  private static final int PRIMARY_SECURED_FETCH_PORT = 1241;
   private static final int REPLICA_RPC_PORT = 4321;
   private static final int REPLICA_PUSH_PORT = 4322;
   private static final int REPLICA_FETCH_PORT = 4323;
   private static final int REPLICA_REPLICATE_PORT = 4324;
   private static final int REPLICA_INTERNAL_PORT = 4325;
-  private static final int REPLICA_SECURED_PORT = 4326;
+  private static final int REPLICA_SECURED_RPC_PORT = 4326;
+  private static final int REPLICA_SECURED_PUSH_PORT = 4327;
+  private static final int REPLICA_SECURED_FETCH_PORT = 4328;
+
   private static final PartitionLocation primaryLocation =
       new PartitionLocation(
           0,
@@ -79,7 +84,9 @@ public class ShuffleClientSuiteJ {
           PRIMARY_FETCH_PORT,
           PRIMARY_REPLICATE_PORT,
           PRIMARY_INTERNAL_PORT,
-          PRIMARY_SECURED_PORT,
+          PRIMARY_SECURED_RPC_PORT,
+          PRIMARY_SECURED_PUSH_PORT,
+          PRIMARY_SECURED_FETCH_PORT,
           PartitionLocation.Mode.PRIMARY);
   private static final PartitionLocation replicaLocation =
       new PartitionLocation(
@@ -91,7 +98,9 @@ public class ShuffleClientSuiteJ {
           REPLICA_FETCH_PORT,
           REPLICA_REPLICATE_PORT,
           REPLICA_INTERNAL_PORT,
-          REPLICA_SECURED_PORT,
+          REPLICA_SECURED_RPC_PORT,
+          REPLICA_SECURED_PUSH_PORT,
+          REPLICA_SECURED_FETCH_PORT,
           PartitionLocation.Mode.REPLICA);
 
   private static final byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);

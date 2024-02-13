@@ -27,7 +27,7 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
   private var _host: Option[String] = None
   private var _port: Option[Int] = None
   private var _internalPort: Option[Int] = None
-  private var _securedPort: Option[Int] = None
+  private var _securedRpcPort: Option[Int] = None
   // for local testing.
   private var _master: Option[String] = None
   private var _propertiesFile: Option[String] = None
@@ -39,7 +39,7 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
   _host = _host.orElse(Some(Utils.localHostName(conf)))
   _port = _port.orElse(Some(conf.workerRpcPort))
   _internalPort = _internalPort.orElse(Some(conf.workerInternalPort))
-  _securedPort = _securedPort.orElse(Some(conf.workerSecuredPort))
+  _securedRpcPort = _securedRpcPort.orElse(Some(conf.workerSecuredRpcPort))
 
   def host: String = _host.get
 
@@ -47,7 +47,7 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
 
   def internalPort: Int = _internalPort.get
 
-  def securedPort: Int = _securedPort.get
+  def securedPort: Int = _securedRpcPort.get
 
   def master: Option[String] = _master
 
@@ -66,8 +66,8 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
       _internalPort = Some(value)
       parse(tail)
 
-    case ("--secured-port") :: IntParam(value) :: tail =>
-      _securedPort = Some(value)
+    case ("--secured-rpc-port") :: IntParam(value) :: tail =>
+      _securedRpcPort = Some(value)
       parse(tail)
 
     case "--properties-file" :: value :: tail =>
@@ -100,7 +100,7 @@ class WorkerArguments(args: Array[String], conf: CelebornConf) {
         |  -h HOST, --host HOST     Hostname to listen on
         |  -p PORT, --port PORT     Port to listen on (default: random)
         |  --internal-port PORT     Port for internal communication (default: random)
-        |  --secured-port  PORT     Port for secured communication (default: random)
+        |  --secured-rpc-port  PORT Port for secured RPC communication (default: random)
         |  --properties-file FILE   Path to a custom Celeborn properties file.
         |                           Default is conf/celeborn-defaults.conf.
         |""".stripMargin)

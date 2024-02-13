@@ -1041,17 +1041,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               if (res.status.equals(StatusCode.SUCCESS)) {
                 logDebug(s"Successfully allocated " +
                   s"partitions buffer for shuffleId $shuffleId" +
-                  s" from worker ${workerInfo.readableAddress()}.")
+                  s" from worker ${workerInfo.readableAddress(authEnabled)}.")
               } else {
                 failureInfos.add(s"[reserveSlots] Failed to" +
                   s" reserve buffers for shuffleId $shuffleId" +
-                  s" from worker ${workerInfo.readableAddress()}. Reason: ${res.reason}")
+                  s" from worker ${workerInfo.readableAddress(authEnabled)}. Reason: ${res.reason}")
                 reserveSlotFailedWorkers.put(workerInfo, (res.status, System.currentTimeMillis()))
               }
             case scala.util.Failure(e) =>
               failureInfos.add(s"[reserveSlots] Failed to" +
                 s" reserve buffers for shuffleId $shuffleId" +
-                s" from worker ${workerInfo.readableAddress()}. Reason: $e")
+                s" from worker ${workerInfo.readableAddress(authEnabled)}. Reason: $e")
               reserveSlotFailedWorkers.put(
                 workerInfo,
                 (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
@@ -1072,7 +1072,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val workerInfo = futureStatus._2
       failureInfos.add(s"[reserveSlots] Failed to" +
         s" reserve buffers for shuffleId $shuffleId" +
-        s" from worker ${workerInfo.readableAddress()}. Reason: Timeout")
+        s" from worker ${workerInfo.readableAddress(authEnabled)}. Reason: Timeout")
       reserveSlotFailedWorkers.put(
         workerInfo,
         (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
@@ -1082,7 +1082,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     locsWithNullEndpoint.foreach { case (workerInfo, (_, _)) =>
       failureInfos.add(s"[reserveSlots] Failed to" +
         s" reserve buffers for shuffleId $shuffleId" +
-        s" from worker ${workerInfo.readableAddress()}. Reason: null endpoint")
+        s" from worker ${workerInfo.readableAddress(authEnabled)}. Reason: null endpoint")
       reserveSlotFailedWorkers.put(
         workerInfo,
         (StatusCode.REQUEST_FAILED, System.currentTimeMillis()))
@@ -1122,7 +1122,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         val workerInfoWithRpcRef = slots.keySet().asScala.find(_.equals(destroyWorkerInfo))
           .getOrElse {
             logWarning(s"Cannot find workInfo for $shuffleId from previous success workResource:" +
-              s" ${destroyWorkerInfo.readableAddress()}, init according to partition info")
+              s" ${destroyWorkerInfo.readableAddress(authEnabled)}, init according to partition info")
             try {
               if (!workerStatusTracker.workerExcluded(destroyWorkerInfo)) {
                 destroyWorkerInfo.endpoint = workerRpcEnvInUse.setupEndpointRef(
@@ -1136,7 +1136,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             } catch {
               case t: Throwable =>
                 logError(
-                  s"Init rpc client failed for $shuffleId on ${destroyWorkerInfo.readableAddress()} during release peer partition.",
+                  s"Init rpc client failed for $shuffleId on ${destroyWorkerInfo.readableAddress(authEnabled)} during release peer partition.",
                   t)
                 destroyWorkerInfo = null
             }
@@ -1329,7 +1329,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       candidates(primaryIndex).fetchPort,
       candidates(primaryIndex).replicatePort,
       candidates(primaryIndex).internalPort,
-      candidates(primaryIndex).securedPort,
+      candidates(primaryIndex).securedRpcPort,
+      candidates(primaryIndex).securedPushPort,
+      candidates(primaryIndex).securedFetchPort,
       PartitionLocation.Mode.PRIMARY)
 
     if (pushReplicateEnabled) {
@@ -1351,7 +1353,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         candidates(replicaIndex).fetchPort,
         candidates(replicaIndex).replicatePort,
         candidates(replicaIndex).internalPort,
-        candidates(replicaIndex).securedPort,
+        candidates(replicaIndex).securedRpcPort,
+        candidates(replicaIndex).securedPushPort,
+        candidates(replicaIndex).securedFetchPort,
         PartitionLocation.Mode.REPLICA,
         primaryLocation)
       primaryLocation.setPeer(replicaLocation)

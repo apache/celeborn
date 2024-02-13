@@ -35,10 +35,11 @@ public class WorkingPartitionSuiteJ {
     List<WorkingPartition> list = new ArrayList<>();
 
     PartitionLocation p1 =
-        new PartitionLocation(0, 0, "host1", 10, 9, 8, 14, 16, 17, PartitionLocation.Mode.REPLICA);
+        new PartitionLocation(
+            0, 0, "host1", 10, 9, 8, 14, 16, 17, 20, 21, PartitionLocation.Mode.REPLICA);
     PartitionLocation p2 =
         new PartitionLocation(
-            1, 1, "host1", 11, 12, 13, 15, 18, 19, PartitionLocation.Mode.REPLICA);
+            1, 1, "host1", 11, 12, 13, 15, 18, 19, 22, 23, PartitionLocation.Mode.REPLICA);
 
     WorkingPartition pd1 = new WorkingPartition(p1, null);
     WorkingPartition pd2 = new WorkingPartition(p2, null);
@@ -55,7 +56,8 @@ public class WorkingPartitionSuiteJ {
     map.put(pd2, pd2);
 
     PartitionLocation p =
-        new PartitionLocation(0, 0, "host1", 10, 9, 8, 11, 16, 17, PartitionLocation.Mode.REPLICA);
+        new PartitionLocation(
+            0, 0, "host1", 10, 9, 8, 11, 16, 17, 20, 21, PartitionLocation.Mode.REPLICA);
     assertTrue(map.containsKey(p));
 
     map.remove(p1);
@@ -76,6 +78,8 @@ public class WorkingPartitionSuiteJ {
                 9099,
                 9100,
                 9101,
+                9102,
+                9103,
                 PartitionLocation.Mode.PRIMARY),
             null);
     map2.put(p3, p3);
@@ -90,6 +94,8 @@ public class WorkingPartitionSuiteJ {
             9099,
             9100,
             9101,
+            9102,
+            9103,
             PartitionLocation.Mode.REPLICA);
     assertTrue(map2.containsKey(p4));
   }

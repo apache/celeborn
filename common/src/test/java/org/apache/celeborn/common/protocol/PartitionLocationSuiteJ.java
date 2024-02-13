@@ -32,7 +32,10 @@ public class PartitionLocationSuiteJ {
   private final int fetchPort = 2;
   private final int replicatePort = 4;
   private final int internalPort = 5;
-  private final int securedPort = 6;
+  private final int securedRpcPort = 6;
+  private final int securedPushPort = 7;
+  private final int securedFetchPort = 8;
+
   private final PartitionLocation.Mode mode = PartitionLocation.Mode.PRIMARY;
   private final PartitionLocation peer =
       new PartitionLocation(
@@ -44,7 +47,9 @@ public class PartitionLocationSuiteJ {
           fetchPort,
           replicatePort,
           internalPort,
-          securedPort,
+          securedRpcPort,
+          securedPushPort,
+          securedFetchPort,
           PartitionLocation.Mode.REPLICA);
 
   @Test
@@ -74,7 +79,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     PartitionLocation location2 =
@@ -87,7 +94,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     checkEqual(location1, location2, false);
@@ -105,7 +114,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     PartitionLocation location2 =
@@ -118,7 +129,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     checkEqual(location1, location2, false);
@@ -136,7 +149,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     PartitionLocation location2 =
@@ -149,7 +164,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     checkEqual(location1, location2, false);
@@ -167,7 +184,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     PartitionLocation location2 =
@@ -180,7 +199,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     checkEqual(location1, location2, false);
@@ -198,7 +219,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     PartitionLocation location2 =
@@ -211,7 +234,9 @@ public class PartitionLocationSuiteJ {
             fetchPort + 1,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     checkEqual(location1, location2, false);
@@ -229,7 +254,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     PartitionLocation location2 =
@@ -242,7 +269,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             PartitionLocation.Mode.REPLICA,
             peer);
     PartitionLocation location3 =
@@ -255,7 +284,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     checkEqual(location1, location2, true);
@@ -275,7 +306,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     PartitionLocation location2 =
@@ -288,7 +321,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             location1);
     PartitionLocation location3 =
@@ -301,7 +336,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     checkEqual(location1, location2, true);
@@ -321,7 +358,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     PartitionLocation location2 =
@@ -334,7 +373,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     checkEqual(location1, location2, true);
@@ -352,7 +393,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode);
     PartitionLocation location2 =
         new PartitionLocation(
@@ -364,7 +407,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer);
     StorageInfo storageInfo =
@@ -386,7 +431,9 @@ public class PartitionLocationSuiteJ {
             fetchPort,
             replicatePort,
             internalPort,
-            securedPort,
+            securedRpcPort,
+            securedPushPort,
+            securedFetchPort,
             mode,
             peer,
             storageInfo,
@@ -395,7 +442,7 @@ public class PartitionLocationSuiteJ {
     String exp1 =
         "PartitionLocation[\n"
             + "  id-epoch:0-0\n"
-            + "  host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedPort:localhost-3-1-2-4-5-6\n"
+            + "  host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedRpcPort-securedPushPort-securedFetchPort:localhost-3-1-2-4-5-6-7-8\n"
             + "  mode:PRIMARY\n"
             + "  peer:(empty)\n"
             + "  storage hint:StorageInfo{type=MEMORY, mountPoint='', finalResult=false, filePath=null}\n"
@@ -403,17 +450,17 @@ public class PartitionLocationSuiteJ {
     String exp2 =
         "PartitionLocation[\n"
             + "  id-epoch:0-0\n"
-            + "  host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedPort:localhost-3-1-2-4-5-6\n"
+            + "  host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedRpcPort-securedPushPort-securedFetchPort:localhost-3-1-2-4-5-6-7-8\n"
             + "  mode:PRIMARY\n"
-            + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedPort:localhost-3-1-2-4-5-6)\n"
+            + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedRpcPort-securedPushPort-securedFetchPort:localhost-3-1-2-4-5-6-7-8)\n"
             + "  storage hint:StorageInfo{type=MEMORY, mountPoint='', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{}]";
     String exp3 =
         "PartitionLocation[\n"
             + "  id-epoch:1000-0\n"
-            + "  host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedPort:localhost-3-1-2-4-5-6\n"
+            + "  host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedRpcPort-securedPushPort-securedFetchPort:localhost-3-1-2-4-5-6-7-8\n"
             + "  mode:PRIMARY\n"
-            + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedPort:localhost-3-1-2-4-5-6)\n"
+            + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort-internalPort-securedRpcPort-securedPushPort-securedFetchPort:localhost-3-1-2-4-5-6-7-8)\n"
             + "  storage hint:StorageInfo{type=MEMORY, mountPoint='/mnt/disk/0', finalResult=false, filePath=null}\n"
             + "  mapIdBitMap:{1,2,3}]";
     assertEquals(exp1, location1.toString());

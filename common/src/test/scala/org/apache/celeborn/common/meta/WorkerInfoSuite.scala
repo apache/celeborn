@@ -54,11 +54,22 @@ class WorkerInfoSuite extends CelebornFunSuite {
       fetchPort: Int,
       replicatePort: Int,
       internalPort: Int,
-      securedPort: Int,
+      securedRpcPort: Int,
+      securedPushPort: Int,
+      securedFetchPort: Int,
       workerInfos: jMap[WorkerInfo, util.Map[String, Integer]],
       allocationMap: util.Map[String, Integer]): Unit = {
     val worker =
-      new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort)
+      new WorkerInfo(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        internalPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort)
     val realWorker = workerInfos.get(worker)
     assertNotNull(s"Worker $worker didn't exist.", realWorker)
   }
@@ -81,6 +92,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
         10003,
         10004,
         10005,
+        10006,
+        10007,
         disks,
         userResourceConsumption)
 
@@ -148,32 +161,42 @@ class WorkerInfoSuite extends CelebornFunSuite {
   }
 
   test("WorkerInfo not equals when host different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
-    val worker2 = new WorkerInfo("h2", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
+    val worker1 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
+    val worker2 =
+      new WorkerInfo("h2", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when rpc port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
-    val worker2 = new WorkerInfo("h1", 20001, 10002, 10003, 1000, 10004, 10005, null, null)
+    val worker1 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
+    val worker2 =
+      new WorkerInfo("h1", 20001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when push port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 20002, 10003, 1000, 10004, 10005, null, null)
+    val worker1 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
+    val worker2 =
+      new WorkerInfo("h1", 10001, 20002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when fetch port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 20003, 1000, 10004, 10005, null, null)
+    val worker1 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
+    val worker2 =
+      new WorkerInfo("h1", 10001, 10002, 20003, 1000, 10004, 10005, 10006, 10007, null, null)
     assertNotEquals(worker1, worker2)
   }
 
   test("WorkerInfo not equals when replicate port different.") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 2000, 10004, 10005, null, null)
+    val worker1 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
+    val worker2 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 2000, 10004, 10005, 10006, 10007, null, null)
     assertNotEquals(worker1, worker2)
   }
 
@@ -186,9 +209,12 @@ class WorkerInfoSuite extends CelebornFunSuite {
       1000,
       10004,
       10005,
+      10006,
+      10007,
       new util.HashMap[String, DiskInfo](),
       null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
+    val worker2 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
     assertEquals(worker1, worker2)
   }
 
@@ -201,21 +227,27 @@ class WorkerInfoSuite extends CelebornFunSuite {
       1000,
       10004,
       10005,
+      10006,
+      10007,
       null,
       new util.HashMap[UserIdentifier, ResourceConsumption]())
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
+    val worker2 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
     assertEquals(worker1, worker2)
   }
 
   test("WorkerInfo equals when endpoint different") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
-    val worker2 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, null, null)
+    val worker1 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
+    val worker2 =
+      new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007, null, null)
     assertEquals(worker1, worker2)
   }
 
   test("WorkerInfo toString output") {
-    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005)
-    val worker2 = new WorkerInfo("h2", 20001, 20002, 20003, 2000, 20004, 20005, null, null)
+    val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004, 10005, 10006, 10007)
+    val worker2 =
+      new WorkerInfo("h2", 20001, 20002, 20003, 2000, 20004, 20005, 20006, 20007, null, null)
 
     val worker3 = new WorkerInfo(
       "h3",
@@ -225,6 +257,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
       3000,
       30004,
       30005,
+      30006,
+      30007,
       new util.HashMap[String, DiskInfo](),
       null)
 
@@ -260,6 +294,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
         4000,
         40004,
         40005,
+        40006,
+        40007,
         disks,
         userResourceConsumption)
 
@@ -272,7 +308,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |FetchPort: 10003
            |ReplicatePort: 1000
            |InternalPort: 10004
-           |SecuredPort: 10005
+           |SecuredRpcPort: 10005
+           |SecuredPushPort: 10006
+           |SecuredFetchPort: 10007
            |SlotsUsed: 0
            |LastHeartbeat: 0
            |Disks: empty
@@ -288,7 +326,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
           |FetchPort: 20003
           |ReplicatePort: 2000
           |InternalPort: 20004
-          |SecuredPort: 20005
+          |SecuredRpcPort: 20005
+          |SecuredPushPort: 20006
+          |SecuredFetchPort: 20007
           |SlotsUsed: 0
           |LastHeartbeat: 0
           |Disks: empty
@@ -303,7 +343,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |FetchPort: 30003
            |ReplicatePort: 3000
            |InternalPort: 30004
-           |SecuredPort: 30005
+           |SecuredRpcPort: 30005
+           |SecuredPushPort: 30006
+           |SecuredFetchPort: 30007
            |SlotsUsed: 0
            |LastHeartbeat: 0
            |Disks: empty
@@ -318,7 +360,9 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |FetchPort: 40003
            |ReplicatePort: 4000
            |InternalPort: 40004
-           |SecuredPort: 40005
+           |SecuredRpcPort: 40005
+           |SecuredPushPort: 40006
+           |SecuredFetchPort: 40007
            |SlotsUsed: 60
            |LastHeartbeat: 0
            |Disks: $placeholder
@@ -365,12 +409,32 @@ class WorkerInfoSuite extends CelebornFunSuite {
     val fetchPort = Random.nextInt(65536)
     val replicatePort = Random.nextInt(65536)
     val internalPort = Random.nextInt(65536)
-    val securedPort = Random.nextInt(65536)
+    val securedRpcPort = Random.nextInt(65536)
+    val securedPushPort = Random.nextInt(65536)
+    val securedFetchPort = Random.nextInt(65536)
     val workerInfo =
-      new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort)
+      new WorkerInfo(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        internalPort,
+        securedRpcPort,
+        securedPushPort,
+        securedFetchPort)
 
     // origin hashCode() logic
-    val state = Seq(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedPort)
+    val state = Seq(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      internalPort,
+      securedRpcPort,
+      securedPushPort,
+      securedFetchPort)
     val originHash = state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
 
     val hashCode1 = workerInfo.hashCode()

@@ -94,6 +94,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       1004,
       1005,
       1006,
+      1007,
+      1008,
       diskInfos,
       userResourceConsumption)
   val workerInfo2 =
@@ -105,16 +107,54 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       2004,
       2005,
       2006,
+      2007,
+      2008,
       diskInfos,
       userResourceConsumption)
 
   val partitionLocation1 =
-    new PartitionLocation(0, 0, "host1", 10, 9, 8, 14, 15, 16, PartitionLocation.Mode.REPLICA)
+    new PartitionLocation(
+      0,
+      0,
+      "host1",
+      10,
+      9,
+      8,
+      14,
+      15,
+      16,
+      17,
+      18,
+      PartitionLocation.Mode.REPLICA)
   val partitionLocation2 =
-    new PartitionLocation(1, 1, "host2", 20, 19, 18, 24, 25, 26, PartitionLocation.Mode.REPLICA)
+    new PartitionLocation(
+      1,
+      1,
+      "host2",
+      20,
+      19,
+      18,
+      24,
+      25,
+      26,
+      27,
+      28,
+      PartitionLocation.Mode.REPLICA)
 
   val partitionLocation3 =
-    new PartitionLocation(2, 2, "host3", 30, 29, 28, 27, 31, 32, PartitionLocation.Mode.PRIMARY)
+    new PartitionLocation(
+      2,
+      2,
+      "host3",
+      30,
+      29,
+      28,
+      27,
+      31,
+      32,
+      33,
+      34,
+      PartitionLocation.Mode.PRIMARY)
   val partitionLocation4 =
     new PartitionLocation(
       3,
@@ -126,6 +166,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       37,
       41,
       42,
+      43,
+      44,
       PartitionLocation.Mode.REPLICA,
       partitionLocation3,
       new StorageInfo(
