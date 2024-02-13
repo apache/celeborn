@@ -148,14 +148,12 @@ class WorkerInfo(
   }
 
   def readableAddress(authEnabled: Boolean): String = {
+    var addressStr = s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
+      s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:InternalPort:$internalPort"
     if (authEnabled) {
-      s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
-        s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:InternalPort:$internalPort" +
-        s":SecuredRpcPort:$securedRpcPort:SecuredPushPort:$securedPushPort:SecuredFetchPort:$securedFetchPort"
-    } else {
-      s"Host:$host:RpcPort:$rpcPort:PushPort:$pushPort:" +
-        s"FetchPort:$fetchPort:ReplicatePort:$replicatePort:InternalPort:$internalPort"
+      addressStr += s":SecuredRpcPort:$securedRpcPort:SecuredPushPort:$securedPushPort:SecuredFetchPort:$securedFetchPort"
     }
+    addressStr
   }
 
   def toUniqueId(): String = {

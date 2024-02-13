@@ -567,13 +567,15 @@ object ControlMessages extends Logging {
         .addAllDisks(pbDisks)
         .putAllUserResourceConsumption(pbUserResourceConsumption)
         .setReplicatePort(replicatePort)
+        .setInternalPort(internalPort)
+        .setSecuredRpcPort(securedRpcPort)
+        .setSecuredPushPort(securedPushPort)
+        .setSecuredFetchPort(securedFetchPort)
         .addAllActiveShuffleKeys(activeShuffleKeys)
         .putAllEstimatedAppDiskUsage(estimatedAppDiskUsage)
         .setHighWorkload(highWorkload)
         .setWorkerStatus(PbSerDeUtils.toPbWorkerStatus(workerStatus))
         .setRequestId(requestId)
-        .setInternalPort(internalPort)
-        .setSecuredRpcPort(securedRpcPort)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER, payload)
 
