@@ -42,7 +42,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
 
   override def beforeEach(): Unit = {
     assert(null == worker)
-    conf.set("celeborn.worker.monitor.disk.checklist", "readwrite")
+    conf.set(s"${CelebornConf.WORKER_DISK_MONITOR_CHECKLIST}", "readwrite")
   }
 
   override def afterEach(): Unit = {
