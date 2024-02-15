@@ -158,7 +158,7 @@ class LocalDeviceMonitor(
           }
         }
       },
-      diskCheckInterval,
+      0,
       diskCheckInterval,
       TimeUnit.MILLISECONDS)
   }
