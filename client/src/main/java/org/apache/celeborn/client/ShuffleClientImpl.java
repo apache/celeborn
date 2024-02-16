@@ -1278,9 +1278,9 @@ public class ShuffleClientImpl extends ShuffleClient {
       PushState pushState,
       int remainReviveTimes) {
     String hostPort = addressPair.getLeft();
-    final String[] splits = hostPort.split(":");
-    final String host = splits[0];
-    final int port = Integer.parseInt(splits[1]);
+    String[] hostPortArr = Utils.parseColonSeparatedHostPorts(hostPort, 1);
+    final String host = hostPortArr[0];
+    final int port = Integer.parseInt(hostPortArr[1]);
 
     int groupedBatchId = pushState.nextBatchId();
     pushState.addBatch(groupedBatchId, hostPort);

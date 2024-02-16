@@ -1101,4 +1101,11 @@ object Utils extends Logging {
   private val dateFmt: FastDateFormat =
     FastDateFormat.getInstance("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.ROOT)
   def formatTimestamp(timestamp: Long): String = dateFmt.format(timestamp)
+
+  def parseColonSeparatedHostPorts(id: String, portsNum: Int): Array[String] = {
+    val components = id.split(":")
+    val portsArr = components.takeRight(portsNum)
+    val host = components.dropRight(portsNum).mkString(":")
+    Array(host) ++ portsArr
+  }
 }
