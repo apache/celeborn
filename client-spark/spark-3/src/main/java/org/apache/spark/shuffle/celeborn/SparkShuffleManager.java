@@ -280,6 +280,7 @@ public class SparkShuffleManager implements ShuffleManager {
           SendBufferPool pool =
               SendBufferPool.get(cores, sendBufferPoolCheckInterval, sendBufferPoolExpireTimeout);
           if (COLUMNAR_SHUFFLE_CLASSES_PRESENT && celebornConf.columnarShuffleEnabled()) {
+            logger.info("Creating columnar hash shuffle writer for shuffle {}", shuffleId);
             return SparkUtils.createColumnarHashBasedShuffleWriter(
                 shuffleId, h, context, celebornConf, shuffleClient, metrics, pool);
           } else {
