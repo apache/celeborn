@@ -178,6 +178,19 @@ class UtilsSuite extends CelebornFunSuite {
     assert(transportConf.clientThreads() == 100)
   }
 
+  test("parse colon separated host ports") {
+    val ipV4Host = "192.168.0.1"
+    val ipV6Host = "2600:1f13:9f:2d00:4a70:cc69:737d:7cb0"
+    assert(Utils.parseColonSeparatedHostPorts(s"$ipV4Host:1000", 1).sameElements(
+      Array[Object](ipV4Host, "1000")))
+    assert(Utils.parseColonSeparatedHostPorts(s"$ipV4Host:1:2:3:4", 4).sameElements(
+      Array[Object](ipV4Host, "1", "2", "3", "4")))
+    assert(Utils.parseColonSeparatedHostPorts(s"$ipV6Host:1000", 1).sameElements(
+      Array[Object](ipV6Host, "1000")))
+    assert(Utils.parseColonSeparatedHostPorts(s"$ipV6Host:1:2:3:4", 4).sameElements(
+      Array[Object](ipV6Host, "1", "2", "3", "4")))
+  }
+
   def partitionLocation(partitionId: Int): util.HashSet[PartitionLocation] = {
     val partitionSet = new util.HashSet[PartitionLocation]
     for (i <- 0 until 3) {
