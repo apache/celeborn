@@ -52,7 +52,8 @@ private[celeborn] class SecuredRpcEndpoint(
           fileCount,
           needCheckedWorkerList,
           requestId,
-          shouldResponse) =>
+          shouldResponse,
+          userIdentifier) =>
       logDebug(s"Received heartbeat from app $appId")
       master.executeWithLeaderChecker(
         context,
@@ -63,7 +64,8 @@ private[celeborn] class SecuredRpcEndpoint(
           fileCount,
           needCheckedWorkerList,
           requestId,
-          shouldResponse))
+          shouldResponse,
+          userIdentifier))
 
     case requestSlots @ RequestSlots(_, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")

@@ -396,6 +396,7 @@ message PbHeartbeatFromApplication {
   string requestId = 4;
   repeated PbWorkerInfo needCheckedWorkerList = 5;
   bool shouldResponse = 6;
+  PbUserIdentifier userIdentifier = 7;
 }
 
 message PbHeartbeatFromApplicationResponse {

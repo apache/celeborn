@@ -360,7 +360,8 @@ object ControlMessages extends Logging {
       fileCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID,
-      shouldResponse: Boolean = false) extends MasterRequestMessage
+      shouldResponse: Boolean = false,
+      userIdentifier: UserIdentifier = UserIdentifier("", "")) extends MasterRequestMessage
 
   case class HeartbeatFromApplicationResponse(
       statusCode: StatusCode,
@@ -713,7 +714,8 @@ object ControlMessages extends Logging {
           fileCount,
           needCheckedWorkerList,
           requestId,
-          shouldResponse) =>
+          shouldResponse,
+          userIdentifier) =>
       val payload = PbHeartbeatFromApplication.newBuilder()
         .setAppId(appId)
         .setRequestId(requestId)
@@ -722,6 +724,7 @@ object ControlMessages extends Logging {
         .addAllNeedCheckedWorkerList(needCheckedWorkerList.asScala.map(
           PbSerDeUtils.toPbWorkerInfo(_, true)).toList.asJava)
         .setShouldResponse(shouldResponse)
+        .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
 
@@ -1079,7 +1082,8 @@ object ControlMessages extends Logging {
             pbHeartbeatFromApplication.getNeedCheckedWorkerListList.asScala
               .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbHeartbeatFromApplication.getRequestId,
-          pbHeartbeatFromApplication.getShouldResponse)
+          pbHeartbeatFromApplication.getShouldResponse,
+          PbSerDeUtils.fromPbUserIdentifier(pbHeartbeatFromApplication.getUserIdentifier))
 
       case HEARTBEAT_FROM_APPLICATION_RESPONSE_VALUE =>
         val pbHeartbeatFromApplicationResponse =

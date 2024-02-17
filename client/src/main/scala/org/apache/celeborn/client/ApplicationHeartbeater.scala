@@ -18,11 +18,10 @@
 package org.apache.celeborn.client
 
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
-
 import scala.collection.JavaConverters._
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse, ZERO_UUID}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -30,6 +29,7 @@ import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 
 class ApplicationHeartbeater(
     appId: String,
+    userIdentifier: UserIdentifier,
     conf: CelebornConf,
     masterClient: MasterClient,
     shuffleMetrics: () => (Long, Long),
@@ -61,7 +61,8 @@ class ApplicationHeartbeater(
                 tmpTotalFileCount,
                 workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
                 ZERO_UUID,
-                true)
+                true,
+                userIdentifier)
             val response = requestHeartbeat(appHeartbeat)
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")

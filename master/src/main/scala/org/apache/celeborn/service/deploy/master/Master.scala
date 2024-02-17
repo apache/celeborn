@@ -384,7 +384,8 @@ private[celeborn] class Master(
           fileCount,
           needCheckedWorkerList,
           requestId,
-          shouldResponse) =>
+          shouldResponse,
+          userIdentifier) =>
       logDebug(s"Received heartbeat from app $appId")
       if (checkAuthStatus(appId, context)) {
         // TODO: [CELEBORN-1261] For the workers to be able to check whether an auth-enabled app is talking to it on
@@ -400,7 +401,8 @@ private[celeborn] class Master(
             fileCount,
             needCheckedWorkerList,
             requestId,
-            shouldResponse))
+            shouldResponse,
+            userIdentifier))
       }
 
     case pbRegisterWorker: PbRegisterWorker =>
@@ -966,13 +968,15 @@ private[celeborn] class Master(
       fileCount: Long,
       needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String,
-      shouldResponse: Boolean): Unit = {
+      shouldResponse: Boolean,
+      userIdentifier: UserIdentifier): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
       fileCount,
       System.currentTimeMillis(),
-      requestId)
+      requestId,
+      userIdentifier)
     // unknown workers will retain in needCheckedWorkerList
     needCheckedWorkerList.removeAll(workersSnapShot)
     if (shouldResponse) {

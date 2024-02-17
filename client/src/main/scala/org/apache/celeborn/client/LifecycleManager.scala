@@ -195,6 +195,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val heartbeater =
     new ApplicationHeartbeater(
       appUniqueId,
+      userIdentifier,
       conf,
       masterClient,
       () => commitManager.commitMetrics(),

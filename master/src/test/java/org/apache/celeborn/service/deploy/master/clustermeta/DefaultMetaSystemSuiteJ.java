@@ -495,12 +495,13 @@ public class DefaultMetaSystemSuiteJ {
 
   @Test
   public void testHandleAppHeartbeat() {
+    UserIdentifier userIdentifier = new UserIdentifier("aa", "bb");
     Long dummy = 1235L;
-    statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId(), userIdentifier);
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId());
+    statusSystem.handleAppHeartbeat(appId2,1, 1, dummy, getNewReqeustId(), userIdentifier);
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(appId2));
 
     assertEquals(2, statusSystem.appHeartbeatTime.size());
