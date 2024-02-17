@@ -495,16 +495,20 @@ public class DefaultMetaSystemSuiteJ {
 
   @Test
   public void testHandleAppHeartbeat() {
-    UserIdentifier userIdentifier = new UserIdentifier("aa", "bb");
+    UserIdentifier userIdentifier = new UserIdentifier("a", "celeborn");
     Long dummy = 1235L;
     statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId(), userIdentifier);
-    assertEquals(dummy, statusSystem.appHeartbeatTime.get(APPID1));
+    assertEquals(dummy, statusSystem.applications.get(APPID1).getHeartbeatTime());
+    assertEquals(
+        userIdentifier.toString(), statusSystem.applications.get(APPID1).getUserIdentifier());
 
     String appId2 = "app02";
-    statusSystem.handleAppHeartbeat(appId2,1, 1, dummy, getNewReqeustId(), userIdentifier);
-    assertEquals(dummy, statusSystem.appHeartbeatTime.get(appId2));
+    statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId(), userIdentifier);
+    assertEquals(dummy, statusSystem.applications.get(appId2).getHeartbeatTime());
+    assertEquals(
+        userIdentifier.toString(), statusSystem.applications.get(appId2).getUserIdentifier());
 
-    assertEquals(2, statusSystem.appHeartbeatTime.size());
+    assertEquals(2, statusSystem.applications.size());
   }
 
   @Test

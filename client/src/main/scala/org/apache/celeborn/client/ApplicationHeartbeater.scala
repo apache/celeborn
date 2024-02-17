@@ -18,7 +18,9 @@
 package org.apache.celeborn.client
 
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
+
 import scala.collection.JavaConverters._
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier

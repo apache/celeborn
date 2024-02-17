@@ -361,7 +361,8 @@ object ControlMessages extends Logging {
       needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID,
       shouldResponse: Boolean = false,
-      userIdentifier: UserIdentifier = UserIdentifier("", "")) extends MasterRequestMessage
+      userIdentifier: UserIdentifier = UserIdentifier.UNKNOWN_USER_IDENTIFIER)
+    extends MasterRequestMessage
 
   case class HeartbeatFromApplicationResponse(
       statusCode: StatusCode,

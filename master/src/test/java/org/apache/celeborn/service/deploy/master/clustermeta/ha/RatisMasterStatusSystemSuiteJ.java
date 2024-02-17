@@ -735,28 +735,41 @@ public class RatisMasterStatusSystemSuiteJ {
 
   @Test
   public void testHandleAppHeartbeat() throws InterruptedException {
-    UserIdentifier userIdentifier = new UserIdentifier("aa", "bb");
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
     Assert.assertNotNull(statusSystem);
+
+    UserIdentifier userIdentifier = new UserIdentifier("a", "celeborn");
 
     long dummy = 1235L;
     statusSystem.handleAppHeartbeat(APPID1, 1, 1, dummy, getNewReqeustId(), userIdentifier);
     Thread.sleep(3000L);
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM1.applications.get(APPID1).getHeartbeatTime());
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM2.applications.get(APPID1).getHeartbeatTime());
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM3.applications.get(APPID1).getHeartbeatTime());
+    Assert.assertEquals(
+        userIdentifier.toString(), STATUSSYSTEM1.applications.get(APPID1).getUserIdentifier());
+    Assert.assertEquals(
+        userIdentifier.toString(), STATUSSYSTEM3.applications.get(APPID1).getUserIdentifier());
+    Assert.assertEquals(
+        userIdentifier.toString(), STATUSSYSTEM3.applications.get(APPID1).getUserIdentifier());
 
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(appId2, 1, 1, dummy, getNewReqeustId(), userIdentifier);
     Thread.sleep(3000L);
 
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(appId2));
-    Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(appId2));
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM1.applications.get(appId2).getHeartbeatTime());
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM2.applications.get(appId2).getHeartbeatTime());
+    Assert.assertEquals(
+        Long.valueOf(dummy), STATUSSYSTEM3.applications.get(appId2).getHeartbeatTime());
 
-    Assert.assertEquals(2, STATUSSYSTEM1.appHeartbeatTime.size());
-    Assert.assertEquals(2, STATUSSYSTEM2.appHeartbeatTime.size());
-    Assert.assertEquals(2, STATUSSYSTEM3.appHeartbeatTime.size());
+    Assert.assertEquals(2, STATUSSYSTEM1.applications.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.applications.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.applications.size());
   }
 
   @Test
@@ -876,21 +889,21 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM1.registeredShuffle.clear();
     STATUSSYSTEM1.hostnameSet.clear();
     STATUSSYSTEM1.workers.clear();
-    STATUSSYSTEM1.appHeartbeatTime.clear();
+    STATUSSYSTEM1.applications.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
     STATUSSYSTEM1.workerLostEvents.clear();
 
     STATUSSYSTEM2.registeredShuffle.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.workers.clear();
-    STATUSSYSTEM2.appHeartbeatTime.clear();
+    STATUSSYSTEM2.applications.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
     STATUSSYSTEM2.workerLostEvents.clear();
 
     STATUSSYSTEM3.registeredShuffle.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.workers.clear();
-    STATUSSYSTEM3.appHeartbeatTime.clear();
+    STATUSSYSTEM3.applications.clear();
     STATUSSYSTEM3.excludedWorkers.clear();
     STATUSSYSTEM3.workerLostEvents.clear();
 

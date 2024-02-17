@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,7 +110,12 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleAppHeartbeat(
-      String appId, long totalWritten, long fileCount, long time, String requestId, UserIdentifier userIdentifier) {
+      String appId,
+      long totalWritten,
+      long fileCount,
+      long time,
+      String requestId,
+      UserIdentifier userIdentifier) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -123,7 +127,11 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setTime(time)
                       .setTotalWritten(totalWritten)
                       .setFileCount(fileCount)
-                      .setUserIdentifier(ResourceProtos.UserIdentifier.newBuilder().setTenantId(userIdentifier.tenantId()).setName(userIdentifier.name()).build())
+                      .setUserIdentifier(
+                          ResourceProtos.UserIdentifier.newBuilder()
+                              .setTenantId(userIdentifier.tenantId())
+                              .setName(userIdentifier.name())
+                              .build())
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {

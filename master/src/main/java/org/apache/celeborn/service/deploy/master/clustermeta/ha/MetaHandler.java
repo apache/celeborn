@@ -120,13 +120,14 @@ public class MetaHandler {
         case AppHeartbeat:
           appId = request.getAppHeartbeatRequest().getAppId();
           LOG.debug("Handle app heartbeat for {}", appId);
-          UserIdentifier userIdentifier = new UserIdentifier(
+          UserIdentifier userIdentifier =
+              new UserIdentifier(
                   request.getAppHeartbeatRequest().getUserIdentifier().getTenantId(),
-                    request.getAppHeartbeatRequest().getUserIdentifier().getName());
+                  request.getAppHeartbeatRequest().getUserIdentifier().getName());
           long time = request.getAppHeartbeatRequest().getTime();
           long totalWritten = request.getAppHeartbeatRequest().getTotalWritten();
           long fileCount = request.getAppHeartbeatRequest().getFileCount();
-          metaSystem.updateAppHeartbeatMeta(appId, userIdentifier, time, totalWritten, fileCount);
+          metaSystem.updateAppHeartbeatMeta(appId, time, totalWritten, fileCount, userIdentifier);
           break;
 
         case AppLost:
