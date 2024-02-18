@@ -59,31 +59,47 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
       Yaml yaml = new Yaml();
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
       for (Map<String, Object> settings : dynamicConfigs) {
-        String tenantId = (String) settings.get(CONF_TENANT_ID);
         String level = (String) settings.get(CONF_LEVEL);
-        Map<String, String> config =
-            ((Map<String, Object>) settings.get(CONF_CONFIG))
-                .entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
         if (ConfigLevel.TENANT.name().equals(level)) {
-          TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
-          tenantConfs.put(tenantId, tenantConfig);
-          if (settings.containsKey(CONF_TENANT_USERS)) {
-            List<Map<String, Object>> users =
-                (List<Map<String, Object>>) settings.get(CONF_TENANT_USERS);
-            for (Map<String, Object> userSetting : users) {
-              String name = (String) userSetting.get(CONF_TENANT_NAME);
-              Map<String, String> userConfig =
-                  ((Map<String, Object>) userSetting.get(CONF_CONFIG))
+          if (settings.containsKey(CONF_TENANT_ID)) {
+            String tenantId = (String) settings.get(CONF_TENANT_ID);
+            if (settings.containsKey(CONF_CONFIG)) {
+              Map<String, String> config =
+                  ((Map<String, Object>) settings.get(CONF_CONFIG))
                       .entrySet().stream()
                           .collect(
                               Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
-              TenantConfig tenantUserConfig = new TenantConfig(this, tenantId, name, userConfig);
-              tenantUserConfs.put(Pair.of(tenantId, name), tenantUserConfig);
+              TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
+              tenantConfs.put(tenantId, tenantConfig);
+            }
+            if (settings.containsKey(CONF_TENANT_USERS)) {
+              List<Map<String, Object>> users =
+                  (List<Map<String, Object>>) settings.get(CONF_TENANT_USERS);
+              for (Map<String, Object> userSetting : users) {
+                if (userSetting.containsKey(CONF_TENANT_NAME)
+                    && userSetting.containsKey(CONF_CONFIG)) {
+                  String name = (String) userSetting.get(CONF_TENANT_NAME);
+                  Map<String, String> userConfig =
+                      ((Map<String, Object>) userSetting.get(CONF_CONFIG))
+                          .entrySet().stream()
+                              .collect(
+                                  Collectors.toMap(
+                                      Map.Entry::getKey, a -> a.getValue().toString()));
+                  TenantConfig tenantUserConfig =
+                      new TenantConfig(this, tenantId, name, userConfig);
+                  tenantUserConfs.put(Pair.of(tenantId, name), tenantUserConfig);
+                }
+              }
             }
           }
         } else {
-          systemConfig = new SystemConfig(celebornConf, config);
+          if (settings.containsKey(CONF_CONFIG)) {
+            Map<String, String> config =
+                ((Map<String, Object>) settings.get(CONF_CONFIG))
+                    .entrySet().stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+            systemConfig = new SystemConfig(celebornConf, config);
+          }
         }
       }
     } catch (Exception e) {
