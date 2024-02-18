@@ -978,7 +978,8 @@ private[celeborn] class Master(
     if (shouldResponse) {
       context.reply(HeartbeatFromApplicationResponse(
         StatusCode.SUCCESS,
-        new util.ArrayList(statusSystem.excludedWorkers),
+        new util.ArrayList(
+          (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
         needCheckedWorkerList,
         shutdownWorkerSnapshot))
     } else {
