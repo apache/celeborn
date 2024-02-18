@@ -37,7 +37,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
   private static final String CONF_TENANT_ID = "tenantId";
   private static final String CONF_TENANT_USERS_ID = "users";
-  private static final String CONF_TENANT_NAME_ID = "name";
+  private static final String CONF_TENANT_NAME = "name";
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
 
@@ -72,7 +72,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
           List<Map<String, Object>> users =
               (List<Map<String, Object>>) settings.get(CONF_TENANT_USERS_ID);
           for (Map<String, Object> userSetting : users) {
-            String name = (String) userSetting.get(CONF_TENANT_NAME_ID);
+            String name = (String) userSetting.get(CONF_TENANT_NAME);
             Map<String, String> userConfig =
                 ((Map<String, Object>) userSetting.get(CONF_CONFIG))
                     .entrySet().stream()

@@ -104,6 +104,30 @@ public class DbServiceManagerImpl implements IServiceManager {
         offset = offset + pageSize;
       }
 
+      Map<String, List<ClusterTenantConfig>> tenantConfigMaps =
+          clusterAllTenantConfigs.stream()
+              .collect(
+                  Collectors.groupingBy(clusterTenantConfig -> clusterTenantConfig.getTenantId()));
+      return tenantConfigMaps.entrySet().stream()
+          .map(t -> new TenantConfig(configService, t.getKey(), null, t.getValue()))
+          .collect(Collectors.toList());
+    }
+  }
+
+  @Override
+  public List<TenantConfig> getAllTenantUserConfigs() {
+    try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
+      ClusterTenantConfigMapper mapper = sqlSession.getMapper(ClusterTenantConfigMapper.class);
+      int totalNum = mapper.getClusterTenantConfigsNum(clusterId, ConfigLevel.TENANT_USER.name());
+      int offset = 0;
+      List<ClusterTenantConfig> clusterAllTenantConfigs = new ArrayList<>();
+      while (offset < totalNum) {
+        List<ClusterTenantConfig> clusterTenantConfigs =
+            mapper.getClusterTenantConfigs(clusterId, ConfigLevel.TENANT_USER.name(), offset, pageSize);
+        clusterAllTenantConfigs.addAll(clusterTenantConfigs);
+        offset = offset + pageSize;
+      }
+
       Map<Pair<String, String>, List<ClusterTenantConfig>> tenantConfigMaps =
           clusterAllTenantConfigs.stream()
               .collect(Collectors.groupingBy(ClusterTenantConfig::getTenantInfo));

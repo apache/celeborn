@@ -20,4 +20,5 @@ package org.apache.celeborn.server.common.service.config;
 public enum ConfigLevel {
   SYSTEM,
   TENANT,
+  TENANT_USER
 }

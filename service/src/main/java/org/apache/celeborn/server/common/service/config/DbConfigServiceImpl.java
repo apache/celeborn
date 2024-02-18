@@ -50,12 +50,11 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
     List<TenantConfig> allTenantConfigs = iServiceManager.getAllTenantConfigs();
     Map<String, TenantConfig> tenantConfigMap =
         allTenantConfigs.stream()
-            .filter(tenantConfig -> tenantConfig.getName().isEmpty())
             .collect(Collectors.toMap(TenantConfig::getTenantId, Function.identity()));
     tenantConfigAtomicReference.set(tenantConfigMap);
+    List<TenantConfig> allTenantUserConfigs = iServiceManager.getAllTenantUserConfigs();
     Map<Pair<String, String>, TenantConfig> tenantUserConfigMap =
-        allTenantConfigs.stream()
-            .filter(tenantConfig -> !tenantConfig.getName().isEmpty())
+        allTenantUserConfigs.stream()
             .collect(
                 Collectors.toMap(
                     tenantConfig -> Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
