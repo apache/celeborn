@@ -28,7 +28,7 @@ import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
 class WorkerInfo(
     val host: String,
@@ -271,7 +271,8 @@ class WorkerInfo(
 object WorkerInfo {
 
   def fromUniqueId(id: String): WorkerInfo = {
-    val Array(host, rpcPort, pushPort, fetchPort, replicatePort) = id.split(":")
+    val Array(host, rpcPort, pushPort, fetchPort, replicatePort) =
+      Utils.parseColonSeparatedHostPorts(id, portsNum = 4)
     new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt)
   }
 }

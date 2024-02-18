@@ -26,6 +26,7 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
 
+import org.apache.celeborn.common.CelebornConf.MASTER_INTERNAL_ENDPOINTS
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -883,6 +884,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionType: PartitionType = PartitionType.valueOf(get(SHUFFLE_PARTITION_TYPE))
   def shuffleRangeReadFilterEnabled: Boolean = get(SHUFFLE_RANGE_READ_FILTER_ENABLED)
   def shuffleForceFallbackEnabled: Boolean = get(SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED)
+  def checkWorkerEnabled: Boolean = get(CHECK_WORKER_ENABLED)
   def shuffleForceFallbackPartitionThreshold: Long =
     get(SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
@@ -1133,12 +1135,43 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //               Authentication                        //
   // //////////////////////////////////////////////////////
-  def authEnabled: Boolean = get(AUTH_ENABLED)
+  def authEnabled: Boolean = {
+    val authEnabled = get(AUTH_ENABLED)
+    val internalPortEnabled = get(INTERNAL_PORT_ENABLED)
+    if (authEnabled && !internalPortEnabled) {
+      throw new IllegalArgumentException(
+        s"${AUTH_ENABLED.key} is true, but ${INTERNAL_PORT_ENABLED.key} is false")
+    }
+    return authEnabled && internalPortEnabled
+  }
+
+  def haMasterNodeSecuredPort(nodeId: String): Int = {
+    val key = HA_MASTER_NODE_SECURED_PORT.key.replace("<id>", nodeId)
+    getInt(key, HA_MASTER_NODE_SECURED_PORT.defaultValue.get)
+  }
+
+  def masterSecuredPort: Int = get(MASTER_SECURED_PORT)
+
+  def masterSecuredEndpoints: Array[String] =
+    get(MASTER_SECURED_ENDPOINTS).toArray.map { endpoint =>
+      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
+        case (host, 0) => s"$host:${HA_MASTER_NODE_SECURED_PORT.defaultValue.get}"
+        case (host, port) => s"$host:$port"
+      }
+    }
 
   // //////////////////////////////////////////////////////
   //                     Internal Port                   //
   // //////////////////////////////////////////////////////
   def internalPortEnabled: Boolean = get(INTERNAL_PORT_ENABLED)
+
+  def masterInternalEndpoints: Array[String] =
+    get(MASTER_INTERNAL_ENDPOINTS).toArray.map { endpoint =>
+      Utils.parseHostPort(endpoint.replace("<localhost>", Utils.localHostName(this))) match {
+        case (host, 0) => s"$host:${HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get}"
+        case (host, port) => s"$host:$port"
+      }
+    }
 
   // //////////////////////////////////////////////////////
   //                     Rack Resolver                   //
@@ -1147,8 +1180,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def haMasterNodeInternalPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_INTERNAL_PORT.key.replace("<id>", nodeId)
-    val legacyKey = HA_MASTER_NODE_INTERNAL_PORT.alternatives.head._1.replace("<id>", nodeId)
-    getInt(key, getInt(legacyKey, HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get))
+    getInt(key, HA_MASTER_NODE_INTERNAL_PORT.defaultValue.get)
   }
 
   def masterInternalPort: Int = get(MASTER_INTERNAL_PORT)
@@ -3972,6 +4004,16 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val CHECK_WORKER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffle.checkWorker.enabled")
+      .categories("client")
+      .doc("When true, before registering shuffle, LifecycleManager should check " +
+        "if current cluster have available workers, if cluster don't have available " +
+        "workers, fallback to Spark's default shuffle")
+      .version("0.5.0")
+      .booleanConf
+      .createWithDefault(true)
+
   val SPARK_SHUFFLE_FORCE_FALLBACK_PARTITION_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.client.spark.shuffle.forceFallback.numPartitionsThreshold")
       .withAlternative("celeborn.shuffle.forceFallback.numPartitionsThreshold")
@@ -4497,14 +4539,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
-  val AUTH_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.auth.enabled")
-      .categories("auth")
-      .version("0.5.0")
-      .doc("Whether to enable authentication.")
-      .booleanConf
-      .createWithDefault(false)
-
   val INTERNAL_PORT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.internal.port.enabled")
       .categories("master", "worker")
@@ -4513,6 +4547,15 @@ object CelebornConf extends Logging {
         "inter-Masters/Workers communication. This is beneficial when SASL authentication " +
         "is enforced for all interactions between clients and Celeborn Services, but the services " +
         "can exchange messages without being subject to SASL authentication.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val AUTH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.auth.enabled")
+      .categories("auth")
+      .version("0.5.0")
+      .doc("Whether to enable authentication. Authentication will be enabled only when " +
+        s"${INTERNAL_PORT_ENABLED.key} is enabled as well.")
       .booleanConf
       .createWithDefault(false)
 
@@ -4536,6 +4579,20 @@ object CelebornConf extends Logging {
       .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
       .createWithDefault(8097)
 
+  val MASTER_INTERNAL_ENDPOINTS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.internal.endpoints")
+      .categories("worker")
+      .doc("Endpoints of master nodes just for celeborn workers to connect, allowed pattern " +
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:8097,clb2:8097,clb3:8097`. " +
+        "If the port is omitted, 8097 will be used.")
+      .version("0.5.0")
+      .stringConf
+      .toSequence
+      .checkValue(
+        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
+      .createWithDefaultString(s"<localhost>:8097")
+
   val RACKRESOLVER_REFRESH_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.master.rackResolver.refresh.interval")
       .categories("master")
@@ -4543,4 +4600,39 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the node rack information periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val MASTER_SECURED_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.secured.port")
+      .categories("master", "auth")
+      .version("0.5.0")
+      .doc(
+        "Secured port on the master where clients connect.")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(19097)
+
+  val HA_MASTER_NODE_SECURED_PORT: ConfigEntry[Int] =
+    buildConf("celeborn.master.ha.node.<id>.secured.port")
+      .categories("ha", "auth")
+      .doc(
+        "Secured port for the clients to bind to a master node <id> in HA mode.")
+      .version("0.5.0")
+      .intConf
+      .checkValue(p => p >= 1024 && p < 65535, "Invalid port")
+      .createWithDefault(19097)
+
+  val MASTER_SECURED_ENDPOINTS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.master.secured.endpoints")
+      .categories("client", "auth")
+      .doc("Endpoints of master nodes for celeborn client to connect for secured communication, allowed pattern " +
+        "is: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:19097,clb2:19097,clb3:19097`. " +
+        "If the port is omitted, 19097 will be used.")
+      .version("0.5.0")
+      .stringConf
+      .toSequence
+      .checkValue(
+        endpoints => endpoints.map(_ => Try(Utils.parseHostPort(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<host1>:<port1>[,<host2>:<port2>]*`")
+      .createWithDefaultString(s"<localhost>:19097")
+
 }

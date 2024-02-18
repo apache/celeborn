@@ -17,7 +17,9 @@
 
 package org.apache.celeborn.client
 
+import java.lang.{Byte => JByte}
 import java.nio.ByteBuffer
+import java.security.SecureRandom
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
@@ -41,12 +43,14 @@ import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
+import org.apache.celeborn.common.security.{ClientSaslContextBuilder, RpcSecurityContext, RpcSecurityContextBuilder}
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -108,6 +112,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
   private val mockDestroyFailure = conf.testMockDestroySlotsFailure
+  private val authEnabled = conf.authEnabled
 
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[WorkerInfo, ShufflePartitionLocationInfo] =
@@ -159,7 +164,32 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
-  private val masterClient = new MasterClient(rpcEnv, conf)
+  private var masterRpcEnvInUse = rpcEnv
+  private var workerRpcEnvInUse = rpcEnv
+  if (authEnabled) {
+    logInfo(s"Authentication is enabled; setting up master and worker RPC environments")
+    val appSecret = createSecret()
+    val registrationInfo = new RegistrationInfo()
+    masterRpcEnvInUse =
+      RpcEnv.create(
+        RpcNameConstants.LIFECYCLE_MANAGER_MASTER_SYS,
+        lifecycleHost,
+        0,
+        conf,
+        createRpcSecurityContext(
+          appSecret,
+          addClientRegistrationBootstrap = true,
+          Some(registrationInfo)))
+    workerRpcEnvInUse =
+      RpcEnv.create(
+        RpcNameConstants.LIFECYCLE_MANAGER_WORKER_SYS,
+        lifecycleHost,
+        0,
+        conf,
+        createRpcSecurityContext(appSecret))
+  }
+
+  private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
   private val heartbeater =
@@ -214,6 +244,36 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       rpcEnv.shutdown()
       rpcEnv.awaitTermination()
     }
+    if (authEnabled) {
+      if (masterRpcEnvInUse != null) {
+        masterRpcEnvInUse.shutdown()
+        masterRpcEnvInUse.awaitTermination()
+      }
+      if (workerRpcEnvInUse != null) {
+        workerRpcEnvInUse.shutdown()
+        workerRpcEnvInUse.awaitTermination()
+      }
+    }
+  }
+
+  /**
+   * Creates security context for external RPC endpoint.
+   */
+  def createRpcSecurityContext(
+      appSecret: String,
+      addClientRegistrationBootstrap: Boolean = false,
+      registrationInfo: Option[RegistrationInfo] = None): Option[RpcSecurityContext] = {
+    val clientSaslContextBuilder = new ClientSaslContextBuilder()
+      .withAddRegistrationBootstrap(addClientRegistrationBootstrap)
+      .withAppId(appUniqueId)
+      .withSaslUser(appUniqueId)
+      .withSaslPassword(appSecret)
+    if (registrationInfo.isDefined) {
+      clientSaslContextBuilder.withRegistrationInfo(registrationInfo.get)
+    }
+    val rpcSecurityContext = new RpcSecurityContextBuilder()
+      .withClientSaslContext(clientSaslContextBuilder.build()).build()
+    Some(rpcSecurityContext)
   }
 
   def getUserIdentifier: UserIdentifier = {
@@ -356,7 +416,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       connectFailedWorkers: ShuffleFailedWorkers): Unit = {
     val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
     slots.asScala foreach { case (workerInfo, _) =>
-      val future = rpcEnv.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
+      val future = workerRpcEnvInUse.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
         RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
         WORKER_EP))
       futures.add((future, workerInfo))
@@ -1065,7 +1125,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
               s" ${destroyWorkerInfo.readableAddress()}, init according to partition info")
             try {
               if (!workerStatusTracker.workerExcluded(destroyWorkerInfo)) {
-                destroyWorkerInfo.endpoint = rpcEnv.setupEndpointRef(
+                destroyWorkerInfo.endpoint = workerRpcEnvInUse.setupEndpointRef(
                   RpcAddress.apply(destroyWorkerInfo.host, destroyWorkerInfo.rpcPort),
                   WORKER_EP)
               } else {
@@ -1572,5 +1632,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   override def stop(): Unit = {
     heartbeater.stop()
     super.stop()
+  }
+
+  private def createSecret(): String = {
+    val bits = 256
+    val rnd = new SecureRandom()
+    val secretBytes = new Array[Byte](bits / JByte.SIZE)
+    rnd.nextBytes(secretBytes)
+    JavaUtils.bytesToString(ByteBuffer.wrap(secretBytes))
   }
 }

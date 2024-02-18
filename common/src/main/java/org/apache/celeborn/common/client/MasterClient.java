@@ -58,10 +58,15 @@ public class MasterClient {
 
   private final AtomicReference<RpcEndpointRef> rpcEndpointRef;
   private final ExecutorService oneWayMessageSender;
+  private final CelebornConf conf;
+  private final boolean isWorker;
+  private String masterEndpointName;
 
-  public MasterClient(RpcEnv rpcEnv, CelebornConf conf) {
+  public MasterClient(RpcEnv rpcEnv, CelebornConf conf, boolean isWorker) {
     this.rpcEnv = rpcEnv;
-    this.masterEndpoints = Arrays.asList(conf.masterEndpoints());
+    this.conf = conf;
+    this.isWorker = isWorker;
+    this.masterEndpoints = resolveMasterEndpoints();
     Collections.shuffle(this.masterEndpoints);
     this.maxRetries = Math.max(masterEndpoints.size(), conf.masterClientMaxRetries());
     this.rpcTimeout = conf.masterClientRpcAskTimeout();
@@ -250,7 +255,7 @@ public class MasterClient {
     RpcEndpointRef endpointRef = null;
     try {
       endpointRef =
-          rpcEnv.setupEndpointRef(RpcAddress.fromHostAndPort(endpoint), RpcNameConstants.MASTER_EP);
+          rpcEnv.setupEndpointRef(RpcAddress.fromHostAndPort(endpoint), masterEndpointName);
     } catch (Exception e) {
       // Catch all exceptions. Because we don't care whether this exception is IOException or
       // TimeoutException or other exceptions, so we just try to connect to host:port, if fail,
@@ -258,5 +263,27 @@ public class MasterClient {
       LOG.warn("Connect to {} failed.", endpoint, e);
     }
     return endpointRef;
+  }
+
+  private List<String> resolveMasterEndpoints() {
+    if (isWorker) {
+      // For worker, we should use the internal endpoints if internal port is enabled.
+      if (conf.internalPortEnabled()) {
+        masterEndpointName = RpcNameConstants.MASTER_INTERNAL_EP;
+        return Arrays.asList(conf.masterInternalEndpoints());
+      } else {
+        masterEndpointName = RpcNameConstants.MASTER_EP;
+        return Arrays.asList(conf.masterEndpoints());
+      }
+    } else {
+      // This is for client, so we should use the secured endpoints if auth is enabled.
+      if (conf.authEnabled()) {
+        masterEndpointName = RpcNameConstants.MASTER_SECURED_EP;
+        return Arrays.asList(conf.masterSecuredEndpoints());
+      } else {
+        masterEndpointName = RpcNameConstants.MASTER_EP;
+        return Arrays.asList(conf.masterEndpoints());
+      }
+    }
   }
 }

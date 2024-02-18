@@ -21,9 +21,11 @@ public class RpcNameConstants {
   // For Master
   public static String MASTER_SYS = "Master";
   public static String MASTER_INTERNAL_SYS = "MasterInternal";
+  public static String MASTER_SECURED_SYS = "MasterSecured";
   // Master Endpoint Name
   public static String MASTER_EP = "MasterEndpoint";
   public static String MASTER_INTERNAL_EP = "MasterInternalEndpoint";
+  public static String MASTER_SECURED_EP = "MasterSecuredEndpoint";
 
   // For Worker
   public static String WORKER_SYS = "Worker";
@@ -32,6 +34,8 @@ public class RpcNameConstants {
 
   // For LifecycleManager
   public static String LIFECYCLE_MANAGER_SYS = "LifecycleManager";
+  public static String LIFECYCLE_MANAGER_MASTER_SYS = "LifecycleManagerMasterSys";
+  public static String LIFECYCLE_MANAGER_WORKER_SYS = "LifecycleManagerWorkerSys";
   public static String LIFECYCLE_MANAGER_EP = "LifecycleManagerEndpoint";
 
   // For Shuffle Client
