@@ -64,11 +64,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
           if (settings.containsKey(CONF_TENANT_ID)) {
             String tenantId = (String) settings.get(CONF_TENANT_ID);
             if (settings.containsKey(CONF_CONFIG)) {
-              Map<String, String> config =
-                  ((Map<String, Object>) settings.get(CONF_CONFIG))
-                      .entrySet().stream()
-                          .collect(
-                              Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+              Map<String, String> config = extractConfig(settings);
               TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
               tenantConfs.put(tenantId, tenantConfig);
             }
@@ -79,12 +75,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
                 if (userSetting.containsKey(CONF_TENANT_NAME)
                     && userSetting.containsKey(CONF_CONFIG)) {
                   String name = (String) userSetting.get(CONF_TENANT_NAME);
-                  Map<String, String> userConfig =
-                      ((Map<String, Object>) userSetting.get(CONF_CONFIG))
-                          .entrySet().stream()
-                              .collect(
-                                  Collectors.toMap(
-                                      Map.Entry::getKey, a -> a.getValue().toString()));
+                  Map<String, String> userConfig = extractConfig(userSetting);
                   TenantConfig tenantUserConfig =
                       new TenantConfig(this, tenantId, name, userConfig);
                   tenantUserConfs.put(Pair.of(tenantId, name), tenantUserConfig);
@@ -94,10 +85,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
           }
         } else {
           if (settings.containsKey(CONF_CONFIG)) {
-            Map<String, String> config =
-                ((Map<String, Object>) settings.get(CONF_CONFIG))
-                    .entrySet().stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+            Map<String, String> config = extractConfig(settings);
             systemConfig = new SystemConfig(celebornConf, config);
           }
         }
@@ -112,6 +100,14 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
     if (systemConfig != null) {
       systemConfigAtomicReference.set(systemConfig);
     }
+  }
+
+  private Map<String, String> extractConfig(Map<String, Object> setting) {
+    Map<String, String> config =
+        ((Map<String, Object>) setting.get(CONF_CONFIG))
+            .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+    return config;
   }
 
   private File getConfigurationFile(Map<String, String> env) {
