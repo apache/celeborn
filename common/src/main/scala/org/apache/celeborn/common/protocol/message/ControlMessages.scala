@@ -1084,7 +1084,9 @@ object ControlMessages extends Logging {
               .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbHeartbeatFromApplication.getRequestId,
           pbHeartbeatFromApplication.getShouldResponse,
-          PbSerDeUtils.fromPbUserIdentifier(pbHeartbeatFromApplication.getUserIdentifier))
+          Option(pbHeartbeatFromApplication.getUserIdentifier)
+            .map(PbSerDeUtils.fromPbUserIdentifier)
+            .getOrElse(UserIdentifier.UNKNOWN_USER_IDENTIFIER))
 
       case HEARTBEAT_FROM_APPLICATION_RESPONSE_VALUE =>
         val pbHeartbeatFromApplicationResponse =

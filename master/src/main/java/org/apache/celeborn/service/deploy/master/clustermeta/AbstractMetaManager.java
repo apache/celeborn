@@ -87,10 +87,14 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     applications.compute(
         appId,
         (applicationId, applicationInfo) -> {
-          ApplicationInfo appInfo =
-              applicationInfo == null ? new ApplicationInfo() : applicationInfo;
-          appInfo.setHeartbeatTime(
-              Math.max(System.currentTimeMillis(), appInfo.getHeartbeatTime()));
+          ApplicationInfo appInfo;
+          if (applicationInfo == null) {
+            appInfo = new ApplicationInfo();
+          } else {
+            appInfo = applicationInfo;
+            appInfo.setHeartbeatTime(
+                Math.max(System.currentTimeMillis(), appInfo.getHeartbeatTime()));
+          }
           return appInfo;
         });
 
