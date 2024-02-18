@@ -24,7 +24,7 @@ import org.apache.celeborn.server.common.service.config.FsConfigServiceImpl
 
 class FsConfigServiceQuotaManager(celebornConf: CelebornConf)
   extends FsConfigServiceImpl(celebornConf)
-    with ConfigServiceQuotaManager {
+  with ConfigServiceQuotaManager {
 
   /**
    * Initialize user quota settings.

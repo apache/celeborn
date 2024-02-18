@@ -20,12 +20,12 @@ package org.apache.celeborn.service.deploy.master.quota
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.Quota
-import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
 import org.apache.celeborn.server.common.service.config.{DbConfigServiceImpl, FsConfigServiceImpl}
+import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
 
 class DbConfigServiceQuotaManager(celebornConf: CelebornConf)
   extends DbConfigServiceImpl(celebornConf)
-    with ConfigServiceQuotaManager {
+  with ConfigServiceQuotaManager {
 
   /**
    * Initialize user quota settings.

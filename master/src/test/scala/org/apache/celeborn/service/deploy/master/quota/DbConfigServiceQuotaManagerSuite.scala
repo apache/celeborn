@@ -17,11 +17,12 @@
 
 package org.apache.celeborn.service.deploy.master.quota
 
+import org.junit.Assert.assertEquals
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.Quota
 import org.apache.celeborn.common.util.Utils
-import org.junit.Assert.assertEquals
 
 class DbConfigServiceQuotaManagerSuite extends BaseQuotaManagerSuite {
 
@@ -33,7 +34,8 @@ class DbConfigServiceQuotaManagerSuite extends BaseQuotaManagerSuite {
     conf.set(
       CelebornConf.QUOTA_MANAGER.key,
       classOf[DbConfigServiceQuotaManager].getName)
-    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL,
+    conf.set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL,
       "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2-quota.sql'\\;" + "RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2-quota-ut-data.sql';DB_CLOSE_DELAY=-1;")
     conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME, "org.h2.Driver")
     conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE, 1)
