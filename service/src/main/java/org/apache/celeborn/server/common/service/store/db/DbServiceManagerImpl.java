@@ -123,7 +123,8 @@ public class DbServiceManagerImpl implements IServiceManager {
       List<ClusterTenantConfig> clusterAllTenantConfigs = new ArrayList<>();
       while (offset < totalNum) {
         List<ClusterTenantConfig> clusterTenantConfigs =
-            mapper.getClusterTenantConfigs(clusterId, ConfigLevel.TENANT_USER.name(), offset, pageSize);
+            mapper.getClusterTenantConfigs(
+                clusterId, ConfigLevel.TENANT_USER.name(), offset, pageSize);
         clusterAllTenantConfigs.addAll(clusterTenantConfigs);
         offset = offset + pageSize;
       }
