@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.quota
+package org.apache.celeborn.service.deploy.master.quota
 
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.quota.{Quota, ResourceConsumption}
 
 class QuotaSuite extends BaseQuotaManagerSuite {
 

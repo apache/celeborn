@@ -15,34 +15,45 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.quota
+package org.apache.celeborn.service.deploy.master.quota
+
+import java.io.File
 
 import org.junit.Assert.assertEquals
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.quota.Quota
 import org.apache.celeborn.common.util.Utils
 
-class DefaultQuotaManagerSuite extends BaseQuotaManagerSuite {
+class FsConfigServiceQuotaManagerSuite extends BaseQuotaManagerSuite {
 
   override def beforeAll(): Unit = {
     val conf = new CelebornConf()
     conf.set(
       CelebornConf.QUOTA_CONFIGURATION_PATH.key,
-      getTestResourceFile("test-quota.yaml").getPath)
+      getTestResourceFile("dynamicConfig-quota.yaml").getPath)
+    conf.set(
+      CelebornConf.QUOTA_MANAGER.key,
+      "org.apache.celeborn.service.deploy.master.quota.FsConfigServiceQuotaManager")
     quotaManager = QuotaManager.instantiate(conf)
   }
 
   test("initialize QuotaManager") {
-    assert(quotaManager.isInstanceOf[DefaultQuotaManager])
+    assert(quotaManager.isInstanceOf[FsConfigServiceQuotaManager])
   }
 
   test("test celeborn quota conf") {
     assertEquals(
-      quotaManager.getQuota(UserIdentifier("AAA", "Tom")),
-      Quota(Utils.byteStringAsBytes("100m"), 200, -1, -1))
+      quotaManager.getQuota(UserIdentifier("tenant_01", "Jerry")),
+      Quota(Utils.byteStringAsBytes("100G"), 10000, Utils.byteStringAsBytes("10G"), 1000))
+    // Fallback to tenant level
     assertEquals(
-      quotaManager.getQuota(UserIdentifier("BBB", "Jerry")),
-      Quota(-1, -1, Utils.byteStringAsBytes("200m"), 200))
+      quotaManager.getQuota(UserIdentifier("tenant_01", "name_not_exist")),
+      Quota(Utils.byteStringAsBytes("10G"), 1000, Utils.byteStringAsBytes("10G"), 1000))
+    // Fallback to system level
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("tenant_not_exist", "Tom")),
+      Quota(Utils.byteStringAsBytes("1G"), 100, Utils.byteStringAsBytes("1G"), 100))
   }
 }

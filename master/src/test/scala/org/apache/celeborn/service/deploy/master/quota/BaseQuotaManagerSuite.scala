@@ -15,10 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.quota
+package org.apache.celeborn.service.deploy.master.quota
 
-import org.apache.celeborn.CelebornFunSuite
+import java.io.File
 
-abstract class BaseQuotaManagerSuite extends CelebornFunSuite {
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.funsuite.AnyFunSuite
+
+import org.apache.celeborn.common.internal.Logging
+
+abstract class BaseQuotaManagerSuite extends AnyFunSuite
+  with BeforeAndAfterAll
+  with BeforeAndAfterEach
+  with Logging {
   protected var quotaManager: QuotaManager = _
+
+  // helper function
+  final protected def getTestResourceFile(file: String): File = {
+    new File(getClass.getClassLoader.getResource(file).getFile)
+  }
+
 }

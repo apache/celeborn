@@ -14,33 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.celeborn.common.quota
-
-import java.util.concurrent.ConcurrentHashMap
+package org.apache.celeborn.service.deploy.master.quota
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.quota.Quota
 
-abstract class QuotaManager(conf: CelebornConf) extends Logging {
-
-  val userQuotas: ConcurrentHashMap[UserIdentifier, Quota] =
-    JavaUtils.newConcurrentHashMap[UserIdentifier, Quota]()
+trait QuotaManager extends Logging {
 
   /**
    * Initialize user quota settings.
    */
   def initialize(): Unit
 
-  /**
-   * Method to refresh current user quota setting.
-   */
-  def refresh(): Unit
-
-  def getQuota(userIdentifier: UserIdentifier): Quota = {
-    userQuotas.getOrDefault(userIdentifier, Quota())
-  }
+  def getQuota(userIdentifier: UserIdentifier): Quota
 }
 
 object QuotaManager extends Logging {

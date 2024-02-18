@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.quota
+package org.apache.celeborn.service.deploy.master.quota
 
 import java.io.{File, FileInputStream}
+import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
@@ -25,11 +26,15 @@ import org.yaml.snakeyaml.Yaml
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.quota.Quota
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
-class DefaultQuotaManager(conf: CelebornConf) extends QuotaManager(conf) {
+class DefaultQuotaManager(conf: CelebornConf) extends QuotaManager {
 
-  override def refresh(): Unit = {
+  val userQuotas: ConcurrentHashMap[UserIdentifier, Quota] =
+    JavaUtils.newConcurrentHashMap[UserIdentifier, Quota]()
+
+  def refresh(): Unit = {
     // Not support refresh
   }
 
@@ -59,5 +64,9 @@ class DefaultQuotaManager(conf: CelebornConf) extends QuotaManager(conf) {
           userQuotas.put(userIdentifier, quota)
         }
       }
+  }
+
+  override def getQuota(userIdentifier: UserIdentifier): Quota = {
+    userQuotas.getOrDefault(userIdentifier, Quota())
   }
 }
