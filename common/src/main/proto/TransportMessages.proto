@@ -726,7 +726,7 @@ message PbRegisterApplicationResponse {
 }
 
 message PbApplicationInfo {
-  string userIdentifier = 1;
+  PbUserIdentifier userIdentifier = 1;
   int64 totalWritten = 2;
   int64 fileCount = 3;
   int64 lastHeartbeatTime = 4;

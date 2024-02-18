@@ -19,13 +19,15 @@ package org.apache.celeborn.common.meta
 
 import java.util.concurrent.atomic.LongAdder
 
+import org.apache.celeborn.common.identity.UserIdentifier
+
 class ApplicationInfo {
-  private var userIdentifier: String = _
+  private var userIdentifier: UserIdentifier = _
   private val totalWritten = new LongAdder()
   private val fileCount = new LongAdder()
   @volatile private var lastHeartbeatTime: Long = System.currentTimeMillis()
 
-  def updateUserIdentifier(userIdentifier: String): Unit = {
+  def setUserIdentifier(userIdentifier: UserIdentifier): Unit = {
     if (this.userIdentifier == null) {
       this.userIdentifier = userIdentifier
     }
@@ -43,7 +45,7 @@ class ApplicationInfo {
     lastHeartbeatTime = time
   }
 
-  def getUserIdentifier: String = userIdentifier
+  def getUserIdentifier: UserIdentifier = userIdentifier
   def getTotalWritten: java.lang.Long = totalWritten.sum()
   def getFileCount: java.lang.Long = fileCount.sum()
   def getHeartbeatTime: java.lang.Long = lastHeartbeatTime

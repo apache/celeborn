@@ -483,7 +483,7 @@ object PbSerDeUtils {
 
   def toPbApplicationInfo(applicationInfo: ApplicationInfo): PbApplicationInfo = {
     PbApplicationInfo.newBuilder()
-      .setUserIdentifier(applicationInfo.getUserIdentifier)
+      .setUserIdentifier(toPbUserIdentifier(applicationInfo.getUserIdentifier))
       .setTotalWritten(applicationInfo.getTotalWritten)
       .setFileCount(applicationInfo.getFileCount)
       .setLastHeartbeatTime(applicationInfo.getHeartbeatTime)

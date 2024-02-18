@@ -113,7 +113,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           appInfo.setHeartbeatTime(time);
           appInfo.updateTotalWritten(totalWritten);
           appInfo.updateFileCount(fileCount);
-          appInfo.updateUserIdentifier(userIdentifier.toString());
+          appInfo.setUserIdentifier(userIdentifier);
           return appInfo;
         });
 
