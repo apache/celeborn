@@ -127,8 +127,7 @@ class WorkerStatusTracker(
       logWarning(
         s"""
            |Reporting failed workers:
-           |$failedWorkersMsg
-           |$currentFailedWorkers""".stripMargin)
+           |$failedWorkersMsg$currentFailedWorkers""".stripMargin)
       failedWorkers.asScala.foreach {
         case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
           shuttingWorkers.add(worker)
@@ -207,9 +206,7 @@ class WorkerStatusTracker(
       }
       if (statusChanged) {
         logWarning(
-          s"""
-             |Worker status changed from application heartbeat response.
-             |$currentFailedWorkers""".stripMargin)
+          s"Worker status changed from application heartbeat response.$currentFailedWorkers")
       }
     }
   }
