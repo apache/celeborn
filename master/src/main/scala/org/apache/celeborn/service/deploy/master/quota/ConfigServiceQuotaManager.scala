@@ -31,6 +31,7 @@ trait ConfigServiceQuotaManager
   override def initialize(): Unit = {}
 
   def getQuota(config: DynamicConfig): Quota = {
+    // TODO: Default value should be -1, to implement an ConfigEntry?
     Quota(
       config.getValue("diskBytesWritten", null, classOf[Long], ConfigType.BYTES),
       config.getValue("diskFileCount", null, classOf[Long], ConfigType.STRING),
