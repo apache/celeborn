@@ -20,10 +20,11 @@ package org.apache.celeborn.service.deploy.master.quota
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.Quota
-import org.apache.celeborn.server.common.service.config.FsConfigServiceImpl
+import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
+import org.apache.celeborn.server.common.service.config.{DbConfigServiceImpl, FsConfigServiceImpl}
 
-class FsConfigServiceQuotaManager(celebornConf: CelebornConf)
-  extends FsConfigServiceImpl(celebornConf)
+class DbConfigServiceQuotaManager(celebornConf: CelebornConf)
+  extends DbConfigServiceImpl(celebornConf)
     with ConfigServiceQuotaManager {
 
   /**

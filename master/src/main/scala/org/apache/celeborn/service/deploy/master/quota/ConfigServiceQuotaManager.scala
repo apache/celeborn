@@ -17,22 +17,24 @@
 
 package org.apache.celeborn.service.deploy.master.quota
 
-import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.Quota
-import org.apache.celeborn.server.common.service.config.FsConfigServiceImpl
+import org.apache.celeborn.server.common.service.config.DynamicConfig
+import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
 
-class FsConfigServiceQuotaManager(celebornConf: CelebornConf)
-  extends FsConfigServiceImpl(celebornConf)
-    with ConfigServiceQuotaManager {
+trait ConfigServiceQuotaManager
+  extends QuotaManager {
 
   /**
    * Initialize user quota settings.
    */
   override def initialize(): Unit = {}
 
-  override def getQuota(userIdentifier: UserIdentifier): Quota = {
-    val config = getTenantUserConfig(userIdentifier.tenantId, userIdentifier.name)
-    getQuota(config)
+  def getQuota(config: DynamicConfig): Quota = {
+    Quota(
+      config.getValue("diskBytesWritten", null, classOf[Long], ConfigType.BYTES),
+      config.getValue("diskFileCount", null, classOf[Long], ConfigType.STRING),
+      config.getValue("hdfsBytesWritten", null, classOf[Long], ConfigType.BYTES),
+      config.getValue("hdfsFileCount", null, classOf[Long], ConfigType.STRING))
   }
 }
