@@ -71,14 +71,16 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
           tenantConfs.put(tenantId, tenantConfig);
           List<Map<String, Object>> users =
               (List<Map<String, Object>>) settings.get(CONF_TENANT_USERS);
-          for (Map<String, Object> userSetting : users) {
-            String name = (String) userSetting.get(CONF_TENANT_NAME);
-            Map<String, String> userConfig =
-                ((Map<String, Object>) userSetting.get(CONF_CONFIG))
-                    .entrySet().stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
-            TenantConfig tenantUserConfig = new TenantConfig(this, tenantId, name, userConfig);
-            tenantUserConfs.put(Pair.of(tenantId, name), tenantUserConfig);
+          if(users != null) {
+            for (Map<String, Object> userSetting : users) {
+              String name = (String) userSetting.get(CONF_TENANT_NAME);
+              Map<String, String> userConfig =
+                  ((Map<String, Object>) userSetting.get(CONF_CONFIG))
+                      .entrySet().stream()
+                      .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+              TenantConfig tenantUserConfig = new TenantConfig(this, tenantId, name, userConfig);
+              tenantUserConfs.put(Pair.of(tenantId, name), tenantUserConfig);
+            }
           }
         } else {
           systemConfig = new SystemConfig(celebornConf, config);
