@@ -209,7 +209,7 @@ public class ConfigServiceSuiteJ {
 
   public void verifyTenantUserConfig(ConfigService configService) {
     // ------------- Verify UserConfig ----------------- //
-    DynamicConfig userConfig = configService.getTenantUserConfig("tenant_id", "Jerry");
+    DynamicConfig userConfig = configService.getTenantUserConfig("tenant_id1", "Jerry");
     // verify userConfig's bytesConf -- use userConf
     Long value =
         userConfig.getValue(
