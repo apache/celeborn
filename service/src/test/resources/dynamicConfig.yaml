@@ -34,3 +34,20 @@
      celeborn.test.tenant.enabled.only: false
      celeborn.test.tenant.int.only: 10
 
+-  tenantId: tenant_id1
+   level: TENANT
+   config:
+     celeborn.client.push.buffer.initial.size: 10k
+     celeborn.client.push.buffer.initial.size.only: 100k
+     celeborn.worker.fetch.heartbeat.enabled: false
+     celeborn.test.tenant.timeoutMs.only: 100s
+     celeborn.test.tenant.enabled.only: false
+     celeborn.test.tenant.int.only: 10
+     celeborn.client.push.queue.capacity: 1024
+   users:
+     - name: Jerry
+       config:
+         celeborn.client.push.buffer.initial.size: 1k
+         celeborn.client.push.buffer.initial.size.user.only: 512k
+
+

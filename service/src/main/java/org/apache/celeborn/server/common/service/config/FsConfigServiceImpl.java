@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -35,6 +36,8 @@ import org.apache.celeborn.common.CelebornConf;
 public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
   private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
   private static final String CONF_TENANT_ID = "tenantId";
+  private static final String CONF_TENANT_USERS = "users";
+  private static final String CONF_TENANT_NAME = "name";
   private static final String CONF_LEVEL = "level";
   private static final String CONF_CONFIG = "config";
 
@@ -51,21 +54,40 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
 
     SystemConfig systemConfig = null;
     Map<String, TenantConfig> tenantConfs = new HashMap<>();
+    Map<Pair<String, String>, TenantConfig> tenantUserConfs = new HashMap<>();
     try (FileInputStream fileInputStream = new FileInputStream(configurationFile)) {
       Yaml yaml = new Yaml();
       List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
       for (Map<String, Object> settings : dynamicConfigs) {
-        String tenantId = (String) settings.get(CONF_TENANT_ID);
         String level = (String) settings.get(CONF_LEVEL);
-        Map<String, String> config =
-            ((Map<String, Object>) settings.get(CONF_CONFIG))
-                .entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
         if (ConfigLevel.TENANT.name().equals(level)) {
-          TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
-          tenantConfs.put(tenantId, tenantConfig);
+          if (settings.containsKey(CONF_TENANT_ID)) {
+            String tenantId = (String) settings.get(CONF_TENANT_ID);
+            if (settings.containsKey(CONF_CONFIG)) {
+              Map<String, String> config = extractConfig(settings);
+              TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
+              tenantConfs.put(tenantId, tenantConfig);
+            }
+            if (settings.containsKey(CONF_TENANT_USERS)) {
+              List<Map<String, Object>> users =
+                  (List<Map<String, Object>>) settings.get(CONF_TENANT_USERS);
+              for (Map<String, Object> userSetting : users) {
+                if (userSetting.containsKey(CONF_TENANT_NAME)
+                    && userSetting.containsKey(CONF_CONFIG)) {
+                  String name = (String) userSetting.get(CONF_TENANT_NAME);
+                  Map<String, String> userConfig = extractConfig(userSetting);
+                  TenantConfig tenantUserConfig =
+                      new TenantConfig(this, tenantId, name, userConfig);
+                  tenantUserConfs.put(Pair.of(tenantId, name), tenantUserConfig);
+                }
+              }
+            }
+          }
         } else {
-          systemConfig = new SystemConfig(celebornConf, config);
+          if (settings.containsKey(CONF_CONFIG)) {
+            Map<String, String> config = extractConfig(settings);
+            systemConfig = new SystemConfig(celebornConf, config);
+          }
         }
       }
     } catch (Exception e) {
@@ -73,10 +95,19 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
       return;
     }
 
+    tenantUserConfigAtomicReference.set(tenantUserConfs);
     tenantConfigAtomicReference.set(tenantConfs);
     if (systemConfig != null) {
       systemConfigAtomicReference.set(systemConfig);
     }
+  }
+
+  private Map<String, String> extractConfig(Map<String, Object> setting) {
+    Map<String, String> config =
+        ((Map<String, Object>) setting.get(CONF_CONFIG))
+            .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
+    return config;
   }
 
   private File getConfigurationFile(Map<String, String> env) {

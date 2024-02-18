@@ -27,7 +27,7 @@ import org.apache.celeborn.server.common.service.model.ClusterTenantConfig;
 public interface ClusterTenantConfigMapper {
 
   @Select(
-      "SELECT id, cluster_id, tenant_id, level, user, config_key, config_value, type, gmt_create, gmt_modify "
+      "SELECT id, cluster_id, tenant_id, level, name, config_key, config_value, type, gmt_create, gmt_modify "
           + "FROM celeborn_cluster_tenant_config WHERE cluster_id = #{clusterId} AND level=#{level} LIMIT #{offset}, #{pageSize}")
   List<ClusterTenantConfig> getClusterTenantConfigs(
       @Param("clusterId") int clusterId,

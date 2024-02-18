@@ -53,12 +53,12 @@ CREATE TABLE IF NOT EXISTS celeborn_cluster_tenant_config
     cluster_id   int          NOT NULL,
     tenant_id    varchar(255) NOT NULL,
     level        varchar(255) NOT NULL COMMENT 'config level, valid level is TENANT,USER',
-    `user`       varchar(255) DEFAULT NULL COMMENT 'tenant sub user',
+    name         varchar(255) NOT NULL COMMENT 'tenant sub user',
     config_key   varchar(255) NOT NULL,
     config_value varchar(255) NOT NULL,
     type         varchar(255) DEFAULT NULL COMMENT 'conf categories, such as quota',
     gmt_create   timestamp NOT NULL,
     gmt_modify   timestamp NOT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY `index_unique_tenant_config_key` (`cluster_id`, `tenant_id`, `user`, `config_key`)
+    UNIQUE KEY `index_unique_tenant_config_key` (`cluster_id`, `tenant_id`, `name`, `config_key`)
 );

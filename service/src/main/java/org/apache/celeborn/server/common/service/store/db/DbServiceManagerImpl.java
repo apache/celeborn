@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
@@ -109,6 +110,33 @@ public class DbServiceManagerImpl implements IServiceManager {
                   Collectors.groupingBy(clusterTenantConfig -> clusterTenantConfig.getTenantId()));
       return tenantConfigMaps.entrySet().stream()
           .map(t -> new TenantConfig(configService, t.getKey(), null, t.getValue()))
+          .collect(Collectors.toList());
+    }
+  }
+
+  @Override
+  public List<TenantConfig> getAllTenantUserConfigs() {
+    try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
+      ClusterTenantConfigMapper mapper = sqlSession.getMapper(ClusterTenantConfigMapper.class);
+      int totalNum = mapper.getClusterTenantConfigsNum(clusterId, ConfigLevel.TENANT_USER.name());
+      int offset = 0;
+      List<ClusterTenantConfig> clusterAllTenantConfigs = new ArrayList<>();
+      while (offset < totalNum) {
+        List<ClusterTenantConfig> clusterTenantConfigs =
+            mapper.getClusterTenantConfigs(
+                clusterId, ConfigLevel.TENANT_USER.name(), offset, pageSize);
+        clusterAllTenantConfigs.addAll(clusterTenantConfigs);
+        offset = offset + pageSize;
+      }
+
+      Map<Pair<String, String>, List<ClusterTenantConfig>> tenantConfigMaps =
+          clusterAllTenantConfigs.stream()
+              .collect(Collectors.groupingBy(ClusterTenantConfig::getTenantInfo));
+      return tenantConfigMaps.entrySet().stream()
+          .map(
+              t ->
+                  new TenantConfig(
+                      configService, t.getKey().getKey(), t.getKey().getValue(), t.getValue()))
           .collect(Collectors.toList());
     }
   }

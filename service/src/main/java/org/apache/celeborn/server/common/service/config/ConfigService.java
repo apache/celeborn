@@ -38,6 +38,17 @@ public interface ConfigService {
     }
   }
 
+  TenantConfig getRawTenantUserConfig(String tenantId, String userId);
+
+  default DynamicConfig getTenantUserConfig(String tenantId, String userId) {
+    TenantConfig tenantConfig = getRawTenantUserConfig(tenantId, userId);
+    if (tenantConfig == null) {
+      return getTenantConfigFromCache(tenantId);
+    } else {
+      return tenantConfig;
+    }
+  }
+
   void refreshAllCache() throws IOException;
 
   void shutdown();

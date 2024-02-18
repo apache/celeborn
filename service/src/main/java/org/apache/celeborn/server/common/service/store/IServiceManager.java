@@ -31,5 +31,7 @@ public interface IServiceManager {
 
   List<TenantConfig> getAllTenantConfigs();
 
+  List<TenantConfig> getAllTenantUserConfigs();
+
   SystemConfig getSystemConfig();
 }

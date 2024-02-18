@@ -44,7 +44,9 @@ public class ConfigServiceSuiteJ {
         CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME(), "org.h2.Driver");
     celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE(), "1");
     configService = new DbConfigServiceImpl(celebornConf);
-    verifyConfig(configService);
+    verifySystemConfig(configService);
+    verifyTenantConfig(configService);
+    verifyTenantUserConfig(configService);
 
     SqlSessionFactory sqlSessionFactory = DBSessionFactory.get(celebornConf);
     try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
@@ -68,7 +70,9 @@ public class ConfigServiceSuiteJ {
     celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
     celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 5L);
     configService = new FsConfigServiceImpl(celebornConf);
-    verifyConfig(configService);
+    verifySystemConfig(configService);
+    verifyTenantConfig(configService);
+    verifyTenantUserConfig(configService);
     // change -> refresh config
     file = getClass().getResource("/dynamicConfig_2.yaml").getFile();
     celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
@@ -84,7 +88,7 @@ public class ConfigServiceSuiteJ {
     }
   }
 
-  public void verifyConfig(ConfigService configService) {
+  public void verifySystemConfig(ConfigService configService) {
     // ------------- Verify SystemConfig ----------------- //
     SystemConfig systemConfig = configService.getSystemConfigFromCache();
     // verify systemConfig's bytesConf -- use systemConfig
@@ -135,11 +139,13 @@ public class ConfigServiceSuiteJ {
     Integer intConfValue =
         systemConfig.getValue("celeborn.test.int.only", null, Integer.TYPE, ConfigType.STRING);
     Assert.assertEquals(intConfValue.intValue(), 10);
+  }
 
+  public void verifyTenantConfig(ConfigService configService) {
     // ------------- Verify TenantConfig ----------------- //
     DynamicConfig tenantConfig = configService.getTenantConfigFromCache("tenant_id");
     // verify tenantConfig's bytesConf -- use tenantConf
-    value =
+    Long value =
         tenantConfig.getValue(
             CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(),
             CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE(),
@@ -198,6 +204,69 @@ public class ConfigServiceSuiteJ {
 
     Long withDefaultValue =
         tenantConfigNone.getWithDefaultValue("none", 10L, Long.TYPE, ConfigType.STRING);
+    Assert.assertEquals(withDefaultValue.longValue(), 10);
+  }
+
+  public void verifyTenantUserConfig(ConfigService configService) {
+    // ------------- Verify UserConfig ----------------- //
+    DynamicConfig userConfig = configService.getTenantUserConfig("tenant_id1", "Jerry");
+    // verify userConfig's bytesConf -- use userConf
+    Long value =
+        userConfig.getValue(
+            CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(),
+            CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE(),
+            Long.TYPE,
+            ConfigType.BYTES);
+    Assert.assertEquals(value.longValue(), 1024);
+
+    // verify userConfig's bytesConf -- defer to tenantConf
+    value =
+        userConfig.getValue(
+            CelebornConf.CLIENT_PUSH_QUEUE_CAPACITY().key(),
+            CelebornConf.CLIENT_PUSH_QUEUE_CAPACITY(),
+            Long.TYPE,
+            ConfigType.BYTES);
+    Assert.assertEquals(value.longValue(), 1024);
+
+    // verify userConfig's bytesConf -- defer to systemConf
+    value =
+        userConfig.getValue(
+            CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(),
+            CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE(),
+            Long.TYPE,
+            ConfigType.BYTES);
+    Assert.assertEquals(value.longValue(), 1024000);
+
+    // verify userConfig's bytesConf -- defer to celebornConf
+    value =
+        userConfig.getValue(
+            CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD().key(),
+            CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD(),
+            Long.TYPE,
+            ConfigType.BYTES);
+    Assert.assertEquals(value.longValue(), 1073741824);
+
+    // verify userConfig's bytesConf with none
+    value =
+        userConfig.getValue(
+            "celeborn.client.push.buffer.initial.size.only.none",
+            null,
+            Long.TYPE,
+            ConfigType.BYTES);
+    Assert.assertNull(value);
+
+    DynamicConfig userConfigNone = configService.getTenantUserConfig("tenant_id", "non_exist");
+    // verify userConfig's bytesConf -- defer to tenantConf
+    value =
+        userConfigNone.getValue(
+            CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(),
+            CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE(),
+            Long.TYPE,
+            ConfigType.BYTES);
+    Assert.assertEquals(value.longValue(), 1024000);
+
+    Long withDefaultValue =
+        userConfigNone.getWithDefaultValue("none", 10L, Long.TYPE, ConfigType.STRING);
     Assert.assertEquals(withDefaultValue.longValue(), 10);
   }
 

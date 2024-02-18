@@ -28,7 +28,7 @@ public class ClusterTenantConfig {
   private Integer clusterId;
   private String tenantId;
   private String level;
-  private String user;
+  private String name;
   private String configKey;
   private String configValue;
   private String type;
@@ -67,12 +67,12 @@ public class ClusterTenantConfig {
     this.level = level;
   }
 
-  public String getUser() {
-    return StringUtils.isBlank(user) ? null : user;
+  public String getName() {
+    return StringUtils.isBlank(name) ? null : name;
   }
 
-  public void setUser(String user) {
-    this.user = user;
+  public void setName(String name) {
+    this.name = name;
   }
 
   public String getConfigKey() {
@@ -116,7 +116,7 @@ public class ClusterTenantConfig {
   }
 
   public Pair getTenantInfo() {
-    return Pair.of(tenantId, user);
+    return Pair.of(tenantId, name);
   }
 
   @Override
@@ -126,7 +126,7 @@ public class ClusterTenantConfig {
     sb.append(", clusterId=").append(clusterId);
     sb.append(", tenantId='").append(tenantId).append('\'');
     sb.append(", level='").append(level).append('\'');
-    sb.append(", user='").append(user).append('\'');
+    sb.append(", user='").append(name).append('\'');
     sb.append(", configKey='").append(configKey).append('\'');
     sb.append(", configValue='").append(configValue).append('\'');
     sb.append(", type='").append(type).append('\'');
