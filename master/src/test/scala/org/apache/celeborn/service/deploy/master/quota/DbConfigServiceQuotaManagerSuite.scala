@@ -29,9 +29,6 @@ class DbConfigServiceQuotaManagerSuite extends BaseQuotaManagerSuite {
   override def beforeAll(): Unit = {
     val conf = new CelebornConf()
     conf.set(
-      CelebornConf.QUOTA_CONFIGURATION_PATH.key,
-      getTestResourceFile("dynamicConfig-quota.yaml").getPath)
-    conf.set(
       CelebornConf.QUOTA_MANAGER.key,
       classOf[DbConfigServiceQuotaManager].getName)
     conf.set(

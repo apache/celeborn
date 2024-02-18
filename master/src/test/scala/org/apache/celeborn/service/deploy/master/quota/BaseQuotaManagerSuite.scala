@@ -34,5 +34,4 @@ abstract class BaseQuotaManagerSuite extends AnyFunSuite
   final protected def getTestResourceFile(file: String): File = {
     new File(getClass.getClassLoader.getResource(file).getFile)
   }
-
 }
