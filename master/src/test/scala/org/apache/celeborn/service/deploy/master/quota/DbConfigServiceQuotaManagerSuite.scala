@@ -36,7 +36,6 @@ class DbConfigServiceQuotaManagerSuite extends BaseQuotaManagerSuite {
       "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2-quota.sql'\\;" + "RUNSCRIPT FROM 'classpath:celeborn-0.5.0-h2-quota-ut-data.sql';DB_CLOSE_DELAY=-1;")
     conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME, "org.h2.Driver")
     conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE, 1)
-
     quotaManager = QuotaManager.instantiate(conf)
   }
 
