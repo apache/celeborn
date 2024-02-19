@@ -59,7 +59,7 @@ public class ConfigServiceSuiteJ {
       throw new RuntimeException(e);
     }
 
-    configService.refreshAllCache();
+    configService.refreshCache();
     verifyConfigChanged(configService);
   }
 
@@ -76,7 +76,7 @@ public class ConfigServiceSuiteJ {
     // change -> refresh config
     file = getClass().getResource("/dynamicConfig_2.yaml").getFile();
     celebornConf.set(CelebornConf.QUOTA_CONFIGURATION_PATH(), file);
-    configService.refreshAllCache();
+    configService.refreshCache();
 
     verifyConfigChanged(configService);
   }

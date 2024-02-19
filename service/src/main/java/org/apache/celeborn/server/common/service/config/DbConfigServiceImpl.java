@@ -18,8 +18,6 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -37,7 +35,7 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
   }
 
   @Override
-  public void refreshAllCache() throws IOException {
+  public void refreshCache() throws IOException {
     if (iServiceManager == null) {
       synchronized (this) {
         if (iServiceManager == null) {
@@ -47,18 +45,14 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
     }
 
     systemConfigAtomicReference.set(iServiceManager.getSystemConfig());
-    List<TenantConfig> allTenantConfigs = iServiceManager.getAllTenantConfigs();
-    Map<String, TenantConfig> tenantConfigMap =
-        allTenantConfigs.stream()
-            .collect(Collectors.toMap(TenantConfig::getTenantId, Function.identity()));
-    tenantConfigAtomicReference.set(tenantConfigMap);
-    List<TenantConfig> allTenantUserConfigs = iServiceManager.getAllTenantUserConfigs();
-    Map<Pair<String, String>, TenantConfig> tenantUserConfigMap =
-        allTenantUserConfigs.stream()
+    tenantConfigAtomicReference.set(
+        iServiceManager.getAllTenantConfigs().stream()
+            .collect(Collectors.toMap(TenantConfig::getTenantId, Function.identity())));
+    tenantUserConfigAtomicReference.set(
+        iServiceManager.getAllTenantUserConfigs().stream()
             .collect(
                 Collectors.toMap(
                     tenantConfig -> Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
-                    Function.identity()));
-    tenantUserConfigAtomicReference.set(tenantUserConfigMap);
+                    Function.identity())));
   }
 }
