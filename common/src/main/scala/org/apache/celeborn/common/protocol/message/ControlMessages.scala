@@ -31,7 +31,7 @@ import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{PbSerDeUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, PbSerDeUtils, Utils}
 
 sealed trait Message extends Serializable
 
@@ -159,8 +159,10 @@ object ControlMessages extends Logging {
         partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse =
       PbRegisterShuffleResponse.newBuilder()
         .setStatus(status.getValue)
-        .addAllPartitionLocations(
-          partitionLocations.map(PbSerDeUtils.toPbPartitionLocation).toSeq.asJava)
+        .setPartitionLocationList(
+          PbPartitionLocationList.newBuilder()
+            .addAllPartitionLocations(
+              partitionLocations.map(PbSerDeUtils.toPbPartitionLocation).toSeq.asJava))
         .build()
   }
 
@@ -658,8 +660,12 @@ object ControlMessages extends Logging {
         fileGroup.asScala.map { case (partitionId, fileGroup) =>
           (
             partitionId,
-            PbFileGroup.newBuilder().addAllLocations(fileGroup.asScala.map(PbSerDeUtils
-              .toPbPartitionLocation).toList.asJava).build())
+            PbFileGroup.newBuilder()
+              .setLocationList(
+                PbPartitionLocationList.newBuilder()
+                  .addAllPartitionLocations(
+                    fileGroup.asScala.map(PbSerDeUtils.toPbPartitionLocation).toList.asJava))
+              .build())
         }.asJava)
       builder.addAllAttempts(attempts.map(Integer.valueOf).toIterable.asJava)
       builder.addAllPartitionIds(partitionIds)
@@ -791,10 +797,16 @@ object ControlMessages extends Logging {
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
-        .addAllPrimaryLocations(primaryLocations.asScala
-          .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava)
-        .addAllReplicaLocations(replicaLocations.asScala
-          .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava)
+        .setPrimaryLocationList(
+          PbPartitionLocationList.newBuilder()
+            .addAllPartitionLocations(
+              primaryLocations.asScala
+                .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava))
+        .setReplicaLocationList(
+          PbPartitionLocationList.newBuilder()
+            .addAllPartitionLocations(
+              replicaLocations.asScala
+                .map(PbSerDeUtils.toPbPartitionLocation).toList.asJava))
         .setSplitThreshold(splitThreshold)
         .setSplitMode(splitMode.getValue)
         .setPartitionType(partType.getValue)
@@ -1029,9 +1041,13 @@ object ControlMessages extends Logging {
           .parseFrom(message.getPayload)
         val fileGroup = pbGetReducerFileGroupResponse.getFileGroupsMap.asScala.map {
           case (partitionId, fileGroup) =>
+            var locationsList = fileGroup.getLocationsList
+            if (CollectionUtils.isEmpty(locationsList)) {
+              locationsList = fileGroup.getLocationList.getPartitionLocationsList
+            }
             (
               partitionId,
-              fileGroup.getLocationsList.asScala.map(
+              locationsList.asScala.map(
                 PbSerDeUtils.fromPbPartitionLocation).toSet.asJava)
         }.asJava
 
@@ -1126,12 +1142,20 @@ object ControlMessages extends Logging {
       case RESERVE_SLOTS_VALUE =>
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
         val userIdentifier = PbSerDeUtils.fromPbUserIdentifier(pbReserveSlots.getUserIdentifier)
+        var primaryLocationsList = pbReserveSlots.getPrimaryLocationsList
+        if (CollectionUtils.isEmpty(primaryLocationsList)) {
+          primaryLocationsList = pbReserveSlots.getPrimaryLocationList.getPartitionLocationsList
+        }
+        var replicaLocationsList = pbReserveSlots.getReplicaLocationsList
+        if (CollectionUtils.isEmpty(replicaLocationsList)) {
+          replicaLocationsList = pbReserveSlots.getReplicaLocationList.getPartitionLocationsList
+        }
         ReserveSlots(
           pbReserveSlots.getApplicationId,
           pbReserveSlots.getShuffleId,
-          new util.ArrayList[PartitionLocation](pbReserveSlots.getPrimaryLocationsList.asScala
+          new util.ArrayList[PartitionLocation](primaryLocationsList.asScala
             .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
-          new util.ArrayList[PartitionLocation](pbReserveSlots.getReplicaLocationsList.asScala
+          new util.ArrayList[PartitionLocation](replicaLocationsList.asScala
             .map(PbSerDeUtils.fromPbPartitionLocation).toList.asJava),
           pbReserveSlots.getSplitThreshold,
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),

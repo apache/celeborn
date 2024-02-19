@@ -577,9 +577,14 @@ public class ShuffleClientImpl extends ShuffleClient {
         StatusCode respStatus = Utils.toStatusCode(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
-          for (int i = 0; i < response.getPartitionLocationsList().size(); i++) {
+          List<PbPartitionLocation> partitionLocationsList = response.getPartitionLocationsList();
+          if (CollectionUtils.isEmpty(partitionLocationsList)) {
+            partitionLocationsList =
+                response.getPartitionLocationList().getPartitionLocationsList();
+          }
+          for (int i = 0; i < partitionLocationsList.size(); i++) {
             PartitionLocation partitionLoc =
-                PbSerDeUtils.fromPbPartitionLocation(response.getPartitionLocationsList().get(i));
+                PbSerDeUtils.fromPbPartitionLocation(partitionLocationsList.get(i));
             pushExcludedWorkers.remove(partitionLoc.hostAndPushPort());
             if (partitionLoc.hasPeer()) {
               pushExcludedWorkers.remove(partitionLoc.getPeer().hostAndPushPort());

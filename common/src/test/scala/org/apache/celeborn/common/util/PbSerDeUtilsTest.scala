@@ -25,8 +25,7 @@ import scala.collection.JavaConverters._
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, FileInfo, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.protocol.{PartitionLocation, StorageInfo}
-import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbWorkerResource, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
 
@@ -235,10 +234,20 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   }
 
   test("fromAndToPbWorkerResource") {
-    val pbWorkerResource = PbSerDeUtils.toPbWorkerResource(workerResource)
-    val restoredWorkerResource = PbSerDeUtils.fromPbWorkerResource(pbWorkerResource)
+    assert(PbSerDeUtils.fromPbWorkerResource(
+      PbSerDeUtils.toPbWorkerResource(workerResource)).equals(workerResource))
 
-    assert(restoredWorkerResource.equals(workerResource))
+    val pbWorkerResource =
+      workerResource.asScala.map { case (workerInfo, (primaryLocations, replicaLocations)) =>
+        workerInfo.toUniqueId() -> PbWorkerResource.newBuilder()
+          .addAllPrimaryPartitions(
+            primaryLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava)
+          .addAllReplicaPartitions(replicaLocations.asScala.map(
+            PbSerDeUtils.toPbPartitionLocation).asJava)
+          .setNetworkLocation(workerInfo.networkLocation)
+          .build()
+      }.asJava
+    assert(PbSerDeUtils.fromPbWorkerResource(pbWorkerResource).equals(workerResource))
   }
 
   test("testPbStorageInfo") {

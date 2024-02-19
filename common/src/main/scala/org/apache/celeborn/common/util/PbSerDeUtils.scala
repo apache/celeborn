@@ -337,10 +337,18 @@ object PbSerDeUtils {
       val networkLocation = pbWorkerResource.getNetworkLocation
       val workerInfo = WorkerInfo.fromUniqueId(uniqueId)
       workerInfo.networkLocation = networkLocation
-      val primaryPartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
-        .getPrimaryPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
-      val replicaPartitionLocation = new util.ArrayList[PartitionLocation](pbWorkerResource
-        .getReplicaPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
+      var primaryPartitionsList = pbWorkerResource.getPrimaryPartitionsList
+      if (CollectionUtils.isEmpty(primaryPartitionsList)) {
+        primaryPartitionsList = pbWorkerResource.getPrimaryPartitionList.getPartitionLocationsList
+      }
+      var replicaPartitionsList = pbWorkerResource.getReplicaPartitionsList
+      if (CollectionUtils.isEmpty(replicaPartitionsList)) {
+        replicaPartitionsList = pbWorkerResource.getReplicaPartitionList.getPartitionLocationsList
+      }
+      val primaryPartitionLocation = new util.ArrayList[PartitionLocation](
+        primaryPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
+      val replicaPartitionLocation = new util.ArrayList[PartitionLocation](
+        replicaPartitionsList.asScala.map(PbSerDeUtils.fromPbPartitionLocation).asJava)
       slots.put(workerInfo, (primaryPartitionLocation, replicaPartitionLocation))
     }
     slots
@@ -348,16 +356,17 @@ object PbSerDeUtils {
 
   def toPbWorkerResource(workerResource: WorkerResource): util.Map[String, PbWorkerResource] = {
     workerResource.asScala.map { case (workerInfo, (primaryLocations, replicaLocations)) =>
-      val primaryPartitions =
-        primaryLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
-      val replicaPartitions =
-        replicaLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava
-      val pbWorkerResource = PbWorkerResource.newBuilder()
-        .addAllPrimaryPartitions(primaryPartitions)
-        .addAllReplicaPartitions(replicaPartitions)
+      workerInfo.toUniqueId() -> PbWorkerResource.newBuilder()
+        .setPrimaryPartitionList(
+          PbPartitionLocationList.newBuilder()
+            .addAllPartitionLocations(
+              primaryLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava))
+        .setReplicaPartitionList(
+          PbPartitionLocationList.newBuilder()
+            .addAllPartitionLocations(
+              replicaLocations.asScala.map(PbSerDeUtils.toPbPartitionLocation).asJava))
         .setNetworkLocation(workerInfo.networkLocation)
         .build()
-      workerInfo.toUniqueId() -> pbWorkerResource
     }.asJava
   }
 

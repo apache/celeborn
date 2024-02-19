@@ -51,7 +51,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.security.{ClientSaslContextBuilder, RpcSecurityContext, RpcSecurityContextBuilder}
-import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
@@ -574,8 +574,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             partitionType match {
               case PartitionType.MAP =>
                 if (response.getStatus == StatusCode.SUCCESS.getValue) {
+                  var partitionLocationsList = response.getPartitionLocationsList
+                  if (CollectionUtils.isEmpty(partitionLocationsList)) {
+                    partitionLocationsList =
+                      response.getPartitionLocationList.getPartitionLocationsList
+                  }
                   val partitionLocations =
-                    response.getPartitionLocationsList.asScala.filter(
+                    partitionLocationsList.asScala.filter(
                       _.getId == context.partitionId).map(r =>
                       PbSerDeUtils.fromPbPartitionLocation(r)).toArray
                   processMapTaskReply(
