@@ -147,7 +147,8 @@ class WordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
             "hadoop-client-api",
             "hadoop-client-runtime",
             "hadoop-client-minicluster",
-            "celeborn-client-mr-shaded")
+            "celeborn-client-mr-shaded",
+            "log4j")
         Files.list(Paths.get(mapreduceLibPath)).iterator().asScala.foreach(path => {
           if (!excludeJarList.exists(path.toFile.getPath.contains(_))) {
             job.addFileToClassPath(new Path(path.toString))
