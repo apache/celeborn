@@ -829,12 +829,6 @@
                 <familyName>Apache License 2.0</familyName>
               </licenseFamily>
             </licenseFamilies>
-            <includes>
-              <include>web/**</include>
-            </includes>
-            <excludes>
-              <exclude>web/node_modules/**</exclude>
-            </excludes>
             <excludesFile>.rat-excludes</excludesFile>
           </configuration>
           <executions>
