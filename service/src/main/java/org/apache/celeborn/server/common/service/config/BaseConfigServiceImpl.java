@@ -49,25 +49,20 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   public BaseConfigServiceImpl(CelebornConf celebornConf) throws IOException {
     this.celebornConf = celebornConf;
     this.systemConfigAtomicReference.set(new SystemConfig(celebornConf));
-    this.refreshAllCache();
-    boolean dynamicConfigEnabled = celebornConf.dynamicConfigEnabled();
-    if (dynamicConfigEnabled) {
-      LOG.info("Celeborn dynamic config is enabled.");
-      long dynamicConfigRefreshInterval = celebornConf.dynamicConfigRefreshInterval();
-      this.configRefreshService.scheduleWithFixedDelay(
-          () -> {
-            try {
-              refreshAllCache();
-            } catch (Throwable e) {
-              LOG.error("Refresh config encounter exception: {}", e.getMessage(), e);
-            }
-          },
-          dynamicConfigRefreshInterval,
-          dynamicConfigRefreshInterval,
-          TimeUnit.MILLISECONDS);
-    } else {
-      LOG.info("Celeborn dynamic config is disabled, config can not be refreshed after updated.");
-    }
+    this.refreshCache();
+    long dynamicConfigRefreshInterval = celebornConf.dynamicConfigRefreshInterval();
+    this.configRefreshService.scheduleWithFixedDelay(
+        () -> {
+          try {
+            refreshCache();
+          } catch (Throwable e) {
+            LOG.error(
+                "Failed to refresh dynamic configs. Encounter exception: {}.", e.getMessage(), e);
+          }
+        },
+        dynamicConfigRefreshInterval,
+        dynamicConfigRefreshInterval,
+        TimeUnit.MILLISECONDS);
   }
 
   @Override

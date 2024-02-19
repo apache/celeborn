@@ -23,18 +23,14 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import org.apache.celeborn.common.CelebornConf;
 
 public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
-  private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
   private static final String CONF_TENANT_ID = "tenantId";
   private static final String CONF_TENANT_USERS = "users";
   private static final String CONF_TENANT_NAME = "name";
@@ -46,78 +42,66 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   }
 
   @Override
-  public synchronized void refreshAllCache() {
-    File configurationFile = getConfigurationFile(System.getenv());
-    if (!configurationFile.exists()) {
-      return;
-    }
-
-    SystemConfig systemConfig = null;
-    Map<String, TenantConfig> tenantConfs = new HashMap<>();
-    Map<Pair<String, String>, TenantConfig> tenantUserConfs = new HashMap<>();
-    try (FileInputStream fileInputStream = new FileInputStream(configurationFile)) {
-      Yaml yaml = new Yaml();
-      List<Map<String, Object>> dynamicConfigs = yaml.load(fileInputStream);
-      for (Map<String, Object> settings : dynamicConfigs) {
-        String level = (String) settings.get(CONF_LEVEL);
-        if (ConfigLevel.TENANT.name().equals(level)) {
-          if (settings.containsKey(CONF_TENANT_ID)) {
-            String tenantId = (String) settings.get(CONF_TENANT_ID);
-            if (settings.containsKey(CONF_CONFIG)) {
-              Map<String, String> config = extractConfig(settings);
-              TenantConfig tenantConfig = new TenantConfig(this, tenantId, null, config);
-              tenantConfs.put(tenantId, tenantConfig);
+  public synchronized void refreshCache() throws IOException {
+    try (FileInputStream fileInputStream = new FileInputStream(getConfigFile(System.getenv()))) {
+      Map<String, TenantConfig> tenantConfigs = new HashMap<>();
+      Map<Pair<String, String>, TenantConfig> tenantUserConfigs = new HashMap<>();
+      List<Map<String, Object>> configs = new Yaml().load(fileInputStream);
+      for (Map<String, Object> configMap : configs) {
+        if (ConfigLevel.SYSTEM.name().equals(configMap.get(CONF_LEVEL))) {
+          if (configMap.containsKey(CONF_CONFIG)) {
+            systemConfigAtomicReference.set(new SystemConfig(celebornConf, getConfigs(configMap)));
+          }
+        } else {
+          if (configMap.containsKey(CONF_TENANT_ID)) {
+            String tenantId = (String) configMap.get(CONF_TENANT_ID);
+            if (configMap.containsKey(CONF_CONFIG)) {
+              tenantConfigs.put(
+                  tenantId, new TenantConfig(this, tenantId, null, getConfigs(configMap)));
             }
-            if (settings.containsKey(CONF_TENANT_USERS)) {
-              List<Map<String, Object>> users =
-                  (List<Map<String, Object>>) settings.get(CONF_TENANT_USERS);
-              for (Map<String, Object> userSetting : users) {
-                if (userSetting.containsKey(CONF_TENANT_NAME)
-                    && userSetting.containsKey(CONF_CONFIG)) {
-                  String name = (String) userSetting.get(CONF_TENANT_NAME);
-                  Map<String, String> userConfig = extractConfig(userSetting);
-                  TenantConfig tenantUserConfig =
-                      new TenantConfig(this, tenantId, name, userConfig);
-                  tenantUserConfs.put(Pair.of(tenantId, name), tenantUserConfig);
+            if (configMap.containsKey(CONF_TENANT_USERS)) {
+              for (Map<String, Object> userConfigMap :
+                  (List<Map<String, Object>>) configMap.get(CONF_TENANT_USERS)) {
+                if (userConfigMap.containsKey(CONF_TENANT_NAME)
+                    && userConfigMap.containsKey(CONF_CONFIG)) {
+                  String name = (String) userConfigMap.get(CONF_TENANT_NAME);
+                  tenantUserConfigs.put(
+                      Pair.of(tenantId, name),
+                      new TenantConfig(this, tenantId, name, getConfigs(userConfigMap)));
                 }
               }
             }
           }
-        } else {
-          if (settings.containsKey(CONF_CONFIG)) {
-            Map<String, String> config = extractConfig(settings);
-            systemConfig = new SystemConfig(celebornConf, config);
-          }
         }
+        tenantConfigAtomicReference.set(tenantConfigs);
+        tenantUserConfigAtomicReference.set(tenantUserConfigs);
       }
-    } catch (Exception e) {
-      LOG.warn("Refresh dynamic config error: {}", e.getMessage(), e);
-      return;
-    }
-
-    tenantUserConfigAtomicReference.set(tenantUserConfs);
-    tenantConfigAtomicReference.set(tenantConfs);
-    if (systemConfig != null) {
-      systemConfigAtomicReference.set(systemConfig);
     }
   }
 
-  private Map<String, String> extractConfig(Map<String, Object> setting) {
-    Map<String, String> config =
-        ((Map<String, Object>) setting.get(CONF_CONFIG))
-            .entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, a -> a.getValue().toString()));
-    return config;
+  private Map<String, String> getConfigs(Map<String, Object> configMap) {
+    return ((Map<String, Object>) configMap.get(CONF_CONFIG))
+        .entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, config -> config.getValue().toString()));
   }
 
-  private File getConfigurationFile(Map<String, String> env) {
-    if (!this.celebornConf.quotaConfigurationPath().isEmpty()) {
-      return new File(this.celebornConf.quotaConfigurationPath().get());
-    } else {
-      String dynamicConfPath =
-          Optional.ofNullable(env.get("CELEBORN_CONF_DIR"))
-              .orElse(env.getOrDefault("CELEBORN_HOME", ".") + File.separator + "conf");
-      return new File(dynamicConfPath + File.separator + "dynamicConfig.yaml");
+  private File getConfigFile(Map<String, String> env) throws IOException {
+    File configFile =
+        celebornConf.quotaConfigurationPath().isEmpty()
+            ? new File(
+                env.getOrDefault(
+                        "CELEBORN_CONF_DIR",
+                        env.getOrDefault("CELEBORN_HOME", ".") + File.separator + "conf")
+                    + File.separator
+                    + "dynamicConfig.yaml")
+            : new File(this.celebornConf.quotaConfigurationPath().get());
+    String configPath = configFile.getPath();
+    if (!configFile.exists()) {
+      throw new IOException(String.format("Dynamic config file %s does not exist", configPath));
+    } else if (!configFile.isFile()) {
+      throw new IOException(
+          String.format("Dynamic config file %s is not a normal file", configPath));
     }
+    return configFile;
   }
 }
