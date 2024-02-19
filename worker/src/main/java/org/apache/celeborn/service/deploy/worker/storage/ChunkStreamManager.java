@@ -28,7 +28,7 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.meta.FileManagedBuffers;
+import org.apache.celeborn.common.meta.ManagedBuffers;
 import org.apache.celeborn.common.meta.TimeWindow;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -47,24 +47,29 @@ public class ChunkStreamManager {
   protected final ConcurrentHashMap<String, Set<Long>> shuffleStreamIds;
 
   /** State of a single stream. */
-  protected static class StreamState {
-    final FileManagedBuffers buffers;
-    final String shuffleKey;
-    final String fileName;
-    final TimeWindow fetchTimeMetric;
-
+  public static class StreamState {
+    public final ManagedBuffers buffers;
+    public final String shuffleKey;
+    public final String fileName;
+    public final TimeWindow fetchTimeMetric;
+    public final int startIndex;
+    public final int endIndex;
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
     StreamState(
         String shuffleKey,
-        FileManagedBuffers buffers,
+        ManagedBuffers buffers,
         String fileName,
-        TimeWindow fetchTimeMetric) {
+        TimeWindow fetchTimeMetric,
+        int startIndex,
+        int endIndex) {
       this.buffers = buffers;
       this.shuffleKey = shuffleKey;
       this.fileName = fileName;
       this.fetchTimeMetric = fetchTimeMetric;
+      this.startIndex = startIndex;
+      this.endIndex = endIndex;
     }
   }
 
@@ -87,7 +92,7 @@ public class ChunkStreamManager {
           String.format("Requested chunk index beyond end %s", chunkIndex));
     }
 
-    FileManagedBuffers buffers = state.buffers;
+    ManagedBuffers buffers = state.buffers;
     return buffers.chunk(chunkIndex, offset, len);
   }
 
@@ -129,8 +134,9 @@ public class ChunkStreamManager {
    * <p>This stream could be reused again when other channel of the client is reconnected. If a
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
-  public long registerStream(long streamId, String shuffleKey, String fileName) {
-    return registerStream(streamId, shuffleKey, null, fileName, null);
+  public long registerStream(
+      long streamId, String shuffleKey, String fileName, int startIndex, int endIndex) {
+    return registerStream(streamId, shuffleKey, null, fileName, null, startIndex, endIndex);
   }
 
   /**
@@ -146,18 +152,23 @@ public class ChunkStreamManager {
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
   public long registerStream(
-      String shuffleKey, FileManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
+      String shuffleKey, ManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
-    return registerStream(myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric);
+    return registerStream(
+        myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric, 0, Integer.MAX_VALUE);
   }
 
   public long registerStream(
       long streamId,
       String shuffleKey,
-      FileManagedBuffers buffers,
+      ManagedBuffers buffers,
       String fileName,
-      TimeWindow fetchTimeMetric) {
-    streams.put(streamId, new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric));
+      TimeWindow fetchTimeMetric,
+      int startIndex,
+      int endIndex) {
+    streams.put(
+        streamId,
+        new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric, startIndex, endIndex));
     shuffleStreamIds.compute(
         shuffleKey,
         (key, value) -> {
@@ -191,6 +202,10 @@ public class ChunkStreamManager {
         "Cleaned up expired shuffle keys. The count of shuffle keys and streams: {}, {}",
         shuffleStreamIds.size(),
         streams.size());
+  }
+
+  public StreamState getStreamState(long streamId) {
+    return streams.get(streamId);
   }
 
   public Tuple2<String, String> getShuffleKeyAndFileName(long streamId) {

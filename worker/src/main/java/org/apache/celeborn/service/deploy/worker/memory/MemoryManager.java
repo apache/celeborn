@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.service.deploy.worker.memory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.LongAdder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,14 +40,16 @@ import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynMethods;
 import org.apache.celeborn.service.deploy.worker.storage.CreditStreamManager;
+import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter;
+import org.apache.celeborn.service.deploy.worker.storage.StorageManager;
 
 public class MemoryManager {
   private static final Logger logger = LoggerFactory.getLogger(MemoryManager.class);
   private static volatile MemoryManager _INSTANCE = null;
-  @VisibleForTesting public long maxDirectorMemory = 0;
+  @VisibleForTesting public long maxDirectorMemory;
   private final long pausePushDataThreshold;
   private final long pauseReplicateThreshold;
-  private final long resumeThreshold;
+  private final double resumeRatio;
   private final long maxSortMemory;
   private final int forceAppendPauseSpentTimeThreshold;
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
@@ -75,8 +78,8 @@ public class MemoryManager {
   private volatile boolean isPaused = false;
   // For credit stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
-  private long readBufferThreshold = 0;
-  private long readBufferTarget = 0;
+  private long readBufferThreshold;
+  private long readBufferTarget;
   private ReadBufferDispatcher readBufferDispatcher;
   private List<ReadBufferTargetChangeListener> readBufferTargetChangeListeners;
   private long lastNotifiedTarget = 0;
@@ -85,11 +88,17 @@ public class MemoryManager {
           "worker-memory-manager-read-buffer-target-updater");
   private CreditStreamManager creditStreamManager = null;
 
-  private long memoryShuffleStorageThreshold = 0;
+  private long memoryFileStorageThreshold;
+  private final AtomicLong memoryFileStorageCounter = new AtomicLong();
+  private final StorageManager storageManager;
 
   public static MemoryManager initialize(CelebornConf conf) {
+    return initialize(conf, null);
+  }
+
+  public static MemoryManager initialize(CelebornConf conf, StorageManager storageManager) {
     if (_INSTANCE == null) {
-      _INSTANCE = new MemoryManager(conf);
+      _INSTANCE = new MemoryManager(conf, storageManager);
     }
     return _INSTANCE;
   }
@@ -104,20 +113,20 @@ public class MemoryManager {
     return _INSTANCE;
   }
 
-  private MemoryManager(CelebornConf conf) {
+  private MemoryManager(CelebornConf conf, StorageManager storageManager) {
     double pausePushDataRatio = conf.workerDirectMemoryRatioToPauseReceive();
     double pauseReplicateRatio = conf.workerDirectMemoryRatioToPauseReplicate();
     double resumeRatio = conf.workerDirectMemoryRatioToResume();
     double maxSortMemRatio = conf.workerPartitionSorterDirectMemoryRatioThreshold();
     double readBufferRatio = conf.workerDirectMemoryRatioForReadBuffer();
-    double shuffleStorageRatio = conf.workerDirectMemoryRatioForShuffleStorage();
+    double memoryFileStorageRatio = conf.workerDirectMemoryRatioForMemoryFilesStorage();
     long checkInterval = conf.workerDirectMemoryPressureCheckIntervalMs();
     long reportInterval = conf.workerDirectMemoryReportIntervalSecond();
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
-
+    this.resumeRatio = resumeRatio;
     maxDirectorMemory =
         DynMethods.builder("maxDirectMemory")
             .impl("jdk.internal.misc.VM") // for Java 10 and above
@@ -135,15 +144,14 @@ public class MemoryManager {
             CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(),
             pausePushDataRatio));
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
-    Preconditions.checkArgument(resumeRatio > (readBufferRatio + shuffleStorageRatio));
+    Preconditions.checkArgument(resumeRatio > (readBufferRatio + memoryFileStorageRatio));
 
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
     pauseReplicateThreshold = (long) (maxDirectorMemory * pauseReplicateRatio);
-    resumeThreshold = (long) (maxDirectorMemory * resumeRatio);
     readBufferThreshold = (long) (maxDirectorMemory * readBufferRatio);
     readBufferTarget = (long) (readBufferThreshold * readBufferTargetRatio);
-    memoryShuffleStorageThreshold = (long) (maxDirectorMemory * shuffleStorageRatio);
+    memoryFileStorageThreshold = (long) (maxDirectorMemory * memoryFileStorageRatio);
 
     checkService.scheduleWithFixedDelay(
         () -> {
@@ -160,12 +168,17 @@ public class MemoryManager {
     reportService.scheduleWithFixedDelay(
         () ->
             logger.info(
-                "Direct memory usage: {}/{}, disk buffer size: {}, sort memory size: {}, read buffer size: {}",
+                "Direct memory usage: {}/{}, "
+                    + "disk buffer size: {}, "
+                    + "sort memory size: {},"
+                    + " read buffer size: {},"
+                    + " memory file storage size : {}",
                 Utils.bytesToString(getNettyUsedDirectMemory()),
                 Utils.bytesToString(maxDirectorMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
                 Utils.bytesToString(sortMemoryCounter.get()),
-                Utils.bytesToString(readBufferCounter.get())),
+                Utils.bytesToString(readBufferCounter.get()),
+                Utils.bytesToString(memoryFileStorageCounter.get())),
         reportInterval,
         reportInterval,
         TimeUnit.SECONDS);
@@ -208,19 +221,68 @@ public class MemoryManager {
           TimeUnit.MILLISECONDS);
     }
 
+    this.storageManager = storageManager;
+    if (memoryFileStorageThreshold > 0
+        && storageManager != null
+        && storageManager.localOrHdfsStorageAvailable()) {
+      ScheduledExecutorService memoryFileStorageService =
+          ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-file-storage-checker");
+      memoryFileStorageService.scheduleWithFixedDelay(
+          () -> {
+            List<PartitionDataWriter> committedWriters = new ArrayList<>();
+            List<PartitionDataWriter> unCommittedWriters = new ArrayList<>();
+            if (memoryFileStorageCounter.get() >= memoryFileStorageThreshold) {
+              for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
+                if (writer.isClosed() && writer.getMemoryFileInfo().isFullyRead()) {
+                  committedWriters.add(writer);
+                } else {
+                  unCommittedWriters.add(writer);
+                }
+              }
+            }
+            committedWriters.sort(
+                (o1, o2) ->
+                    o1.getMemoryFileInfo().getFileLength() > o2.getMemoryFileInfo().getFileLength()
+                        ? 1
+                        : 0);
+            unCommittedWriters.sort(
+                (o1, o2) ->
+                    o1.getMemoryFileInfo().getFileLength() > o2.getMemoryFileInfo().getFileLength()
+                        ? 1
+                        : 0);
+            while (memoryFileStorageCounter.get() >= memoryFileStorageThreshold) {
+              try {
+                if (!committedWriters.isEmpty()) {
+                  committedWriters.remove(0).evict();
+                } else if (!unCommittedWriters.isEmpty()) {
+                  unCommittedWriters.remove(0).evict();
+                } else {
+                  break;
+                }
+              } catch (IOException e) {
+                logger.warn("Partition data writer evict failed", e);
+              }
+            }
+          },
+          checkInterval,
+          checkInterval,
+          TimeUnit.MILLISECONDS);
+    }
+
     logger.info(
         "Memory tracker initialized with: "
             + "max direct memory: {}, pause push memory: {}, "
-            + "pause replication memory: {}, resume memory: {}, "
+            + "pause replication memory: {},  "
             + "read buffer memory limit: {} target: {}, "
-            + "memory shuffle storage limit: {}",
+            + "memory shuffle storage limit: {}，"
+            + "resume memory ratio: {},",
         Utils.bytesToString(maxDirectorMemory),
         Utils.bytesToString(pausePushDataThreshold),
         Utils.bytesToString(pauseReplicateThreshold),
-        Utils.bytesToString(resumeThreshold),
         Utils.bytesToString(readBufferThreshold),
         Utils.bytesToString(readBufferTarget),
-        Utils.bytesToString(memoryShuffleStorageThreshold));
+        Utils.bytesToString(memoryFileStorageThreshold),
+        resumeRatio);
   }
 
   public ServingState currentServingState() {
@@ -237,7 +299,9 @@ public class MemoryManager {
       return ServingState.PUSH_PAUSED;
     }
     // trigger resume
-    if (memoryUsage < resumeThreshold) {
+    if ((memoryUsage - memoryFileStorageCounter.get())
+            / (double) (maxDirectorMemory - memoryFileStorageThreshold)
+        < resumeRatio) {
       isPaused = false;
       return ServingState.NONE_PAUSED;
     }
@@ -449,6 +513,18 @@ public class MemoryManager {
     this.creditStreamManager = creditStreamManager;
   }
 
+  public boolean memoryFileStorageAvailable() {
+    return memoryFileStorageCounter.get() < memoryFileStorageThreshold;
+  }
+
+  public void increaseMemoryFileStorage(int bytes) {
+    memoryFileStorageCounter.addAndGet(bytes);
+  }
+
+  public void releaseMemoryFileStorage(int bytes) {
+    memoryFileStorageCounter.addAndGet(-1 * bytes);
+  }
+
   public void close() {
     checkService.shutdown();
     reportService.shutdown();
@@ -457,6 +533,10 @@ public class MemoryManager {
     actionService.shutdown();
     readBufferTargetChangeListeners.clear();
     readBufferDispatcher.close();
+  }
+
+  public PooledByteBufAllocator getStoragePooledByteBufAllocator() {
+    return storageManager.storageBufferAllocator();
   }
 
   @VisibleForTesting

@@ -46,16 +46,16 @@ public class CreditStreamManagerSuiteJ {
   private static final Logger LOG = LoggerFactory.getLogger(CreditStreamManagerSuiteJ.class);
   private static File tempDir =
       Utils.createTempDir(System.getProperty("java.io.tmpdir"), "celeborn");
+  private static CelebornConf conf = new CelebornConf();
 
   @BeforeClass
   public static void beforeAll() {
-    CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE().key(), "0.9");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_RESUME().key(), "0.5");
     conf.set(CelebornConf.WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD().key(), "0.6");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER().key(), "0.1");
-    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE().key(), "0.1");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE().key(), "0.1");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
@@ -77,7 +77,7 @@ public class CreditStreamManagerSuiteJ {
     Channel channel = Mockito.mock(Channel.class);
     DiskFileInfo diskFileInfo =
         new DiskFileInfo(
-            createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"));
+            createTemporaryFileWithIndexFile(), new UserIdentifier("default", "default"), conf);
     MapFileMeta mapFileMeta = new MapFileMeta(1024, 10);
     diskFileInfo.replaceFileMeta(mapFileMeta);
     Consumer<Long> streamIdConsumer = streamId -> Assert.assertTrue(streamId > 0);

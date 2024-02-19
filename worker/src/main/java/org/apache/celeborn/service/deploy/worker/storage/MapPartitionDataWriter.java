@@ -17,11 +17,14 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
+
+import scala.Tuple4;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -32,9 +35,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
+import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.common.protocol.PartitionSplitMode;
-import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -57,28 +59,14 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
 
   public MapPartitionDataWriter(
       StorageManager storageManager,
-      DiskFileInfo diskFileInfo,
-      Flusher flusher,
       AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
-      long splitThreshold,
-      PartitionSplitMode splitMode,
-      boolean rangeReadFilter,
-      String shuffleKey)
+      PartitionDataWriterContext writerContext)
       throws IOException {
-    super(
-        storageManager,
-        diskFileInfo,
-        flusher,
-        workerSource,
-        conf,
-        deviceMonitor,
-        splitThreshold,
-        splitMode,
-        PartitionType.MAP,
-        rangeReadFilter,
-        shuffleKey);
+    super(storageManager, workerSource, conf, deviceMonitor, writerContext, false);
+
+    assert diskFileInfo != null;
     if (!diskFileInfo.isHdfs()) {
       indexChannel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath());
     } else {
@@ -134,9 +122,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
   @Override
   public synchronized long close() throws IOException {
     return super.close(
-        () -> {
-          flushIndex();
-        },
+        this::flushIndex,
         () -> {
           if (diskFileInfo.isHdfs()) {
             if (StorageManager.hadoopFs().exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
@@ -166,6 +152,13 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
             }
           }
         });
+  }
+
+  // Map partitions don't support memory storage yet, because flink has its own memory tier
+  @Override
+  public Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFile(
+      PartitionDataWriterContext writerContext) {
+    return storageManager.createFile(writerContext, true);
   }
 
   @Override

@@ -77,17 +77,19 @@ abstract private[worker] class Flusher(
                   }
                 } catch {
                   case t: Throwable =>
-                    if (t.isInstanceOf[IOException]) {
-                      task.notifier.setException(t.asInstanceOf[IOException])
-                      processIOException(
-                        t.asInstanceOf[IOException],
-                        DiskStatus.READ_OR_WRITE_FAILURE)
+                    t match {
+                      case exception: IOException =>
+                        task.notifier.setException(exception)
+                        processIOException(
+                          exception,
+                          DiskStatus.READ_OR_WRITE_FAILURE)
+                      case _ =>
                     }
-                    logWarning(s"Flusher-${this}-thread-${index} encounter exception.", t)
+                    logWarning(s"Flusher-$this-thread-$index encounter exception.", t)
                 }
                 lastBeginFlushTime.set(index, -1)
               }
-              Utils.tryLogNonFatalError(returnBuffer(task.buffer))
+              Utils.tryLogNonFatalError(returnBuffer(task))
               task.notifier.numPendingFlushes.decrementAndGet()
             }
           }
@@ -95,11 +97,6 @@ abstract private[worker] class Flusher(
       })
     }
     ThreadPoolSource.registerSource(s"$this", workers)
-  }
-
-  def getWorkerIndex: Int = synchronized {
-    nextWorkerIndex = (nextWorkerIndex + 1) % threadCount
-    nextWorkerIndex
   }
 
   def takeBuffer(): CompositeByteBuf = {
@@ -110,15 +107,23 @@ abstract private[worker] class Flusher(
     buffer
   }
 
-  def returnBuffer(buffer: CompositeByteBuf): Unit = {
-    MemoryManager.instance().releaseDiskBuffer(buffer.readableBytes())
+  def returnBuffer(task: FlushTask): Unit = {
+    MemoryManager.instance().releaseDiskBuffer(task.buffer.readableBytes())
     Option(CongestionController.instance())
       .foreach(
-        _.consumeBytes(buffer.readableBytes()))
+        _.consumeBytes(task.buffer.readableBytes()))
+    returnBuffer(task.buffer)
+
+    if (task.keepBuffer) {
+      bufferQueue.put(task.buffer)
+    } else {
+      task.buffer.release()
+    }
+  }
+
+  def returnBuffer(buffer: CompositeByteBuf): Unit = {
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
-
-    bufferQueue.put(buffer)
   }
 
   def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {

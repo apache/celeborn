@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage;
+package org.apache.celeborn.service.deploy.worker.storage.local;
 
 import static org.mockito.Mockito.when;
 
@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.CelebornExitKind;
@@ -44,18 +45,20 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter;
+import org.apache.celeborn.service.deploy.worker.storage.PartitionFilesSorter;
 
-public class PartitionFilesSorterSuiteJ {
+public class DiskPartitionFilesSorterSuiteJ {
 
-  private static Logger logger = LoggerFactory.getLogger(PartitionFilesSorterSuiteJ.class);
+  private static final Logger logger =
+      LoggerFactory.getLogger(DiskPartitionFilesSorterSuiteJ.class);
 
-  private Random random = new Random();
+  private final Random random = new Random();
   private File shuffleFile;
   private DiskFileInfo fileInfo;
   private String originFileName;
-  private long originFileLen;
   private PartitionDataWriter partitionDataWriter;
-  private UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
+  private final UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
   private static final int MAX_MAP_ID = 50;
 
@@ -65,7 +68,7 @@ public class PartitionFilesSorterSuiteJ {
     shuffleFile = File.createTempFile("Celeborn", "sort-suite");
 
     originFileName = shuffleFile.getAbsolutePath();
-    fileInfo = new DiskFileInfo(shuffleFile, userIdentifier);
+    fileInfo = new DiskFileInfo(shuffleFile, userIdentifier, new CelebornConf());
     FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
     FileChannel channel = fileOutputStream.getChannel();
     Map<Integer, Integer> batchIds = new HashMap<>();
@@ -102,7 +105,7 @@ public class PartitionFilesSorterSuiteJ {
       }
       partitionSize[mapId] = partitionSize[mapId] + batchHeader.length + mockedData.length;
     }
-    originFileLen = channel.size();
+    long originFileLen = channel.size();
     ((ReduceFileMeta) fileInfo.getFileMeta()).getChunkOffsets().add(originFileLen);
     fileInfo.updateBytesFlushed(originFileLen);
     logger.info(shuffleFile.getAbsolutePath() + " filelen: " + Utils.bytesToString(originFileLen));
@@ -113,7 +116,7 @@ public class PartitionFilesSorterSuiteJ {
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_RESUME().key(), "0.5");
     conf.set(CelebornConf.WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD().key(), "0.6");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER().key(), "0.1");
-    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE().key(), "0.1");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE().key(), "0.1");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
@@ -141,7 +144,7 @@ public class PartitionFilesSorterSuiteJ {
       conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
       PartitionFilesSorter partitionFilesSorter =
           new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
-      DiskFileInfo info =
+      FileInfo info =
           partitionFilesSorter.getSortedFileInfo(
               "application-1",
               originFileName,
@@ -159,7 +162,7 @@ public class PartitionFilesSorterSuiteJ {
       long actualTotalChunkSize =
           ((ReduceFileMeta) info.getFileMeta()).getLastChunkOffset()
               - ((ReduceFileMeta) info.getFileMeta()).getChunkOffsets().get(0);
-      Assert.assertTrue(totalSizeToFetch == actualTotalChunkSize);
+      Assert.assertEquals(totalSizeToFetch, actualTotalChunkSize);
     } finally {
       clean();
     }
@@ -207,7 +210,7 @@ public class PartitionFilesSorterSuiteJ {
     Assert.assertEquals(
         partitionFilesSorter2.getSortedShuffleFiles("application-1-1").toString(),
         "[0-0-3, 0-0-2, 0-0-1]");
-    Assert.assertEquals(partitionFilesSorter2.getSortedShuffleFiles("application-2-1"), null);
+    Assert.assertNull(partitionFilesSorter2.getSortedShuffleFiles("application-2-1"));
     Assert.assertEquals(
         partitionFilesSorter2.getSortedShuffleFiles("application-3-1").toString(), "[0-0-1]");
     partitionFilesSorter2.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());

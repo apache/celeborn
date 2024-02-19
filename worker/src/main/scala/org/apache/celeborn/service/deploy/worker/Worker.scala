@@ -160,7 +160,7 @@ private[celeborn] class Worker(
 
   val storageManager = new StorageManager(conf, workerSource)
 
-  val memoryManager: MemoryManager = MemoryManager.initialize(conf)
+  val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager)
   memoryManager.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
@@ -363,10 +363,10 @@ private[celeborn] class Worker(
     memoryManager.getAllocatedReadBuffers
   }
   workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_SIZE) { () =>
-    storageManager.getActiveShuffleSize()
+    storageManager.getActiveShuffleSize
   }
   workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_FILE_COUNT) { () =>
-    storageManager.getActiveShuffleFileCount()
+    storageManager.getActiveShuffleFileCount
   }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_TIME) { () =>
     memoryManager.getPausePushDataTime

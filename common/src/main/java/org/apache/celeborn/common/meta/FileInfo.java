@@ -17,6 +17,11 @@
 
 package org.apache.celeborn.common.meta;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.roaringbitmap.RoaringBitmap;
+
 import org.apache.celeborn.common.identity.UserIdentifier;
 
 public abstract class FileInfo {
@@ -25,6 +30,7 @@ public abstract class FileInfo {
   // now it's just used for mappartition to compatible with old client which can't support split
   private boolean partitionSplitEnabled;
   protected FileMeta fileMeta;
+  protected final Set<Long> streams = ConcurrentHashMap.newKeySet();
 
   public FileInfo(UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
     this.userIdentifier = userIdentifier;
@@ -40,6 +46,10 @@ public abstract class FileInfo {
     return fileMeta;
   }
 
+  public ReduceFileMeta getReduceFileMeta() {
+    return (ReduceFileMeta) fileMeta;
+  }
+
   public abstract long getFileLength();
 
   public UserIdentifier getUserIdentifier() {
@@ -52,5 +62,41 @@ public abstract class FileInfo {
 
   public void setPartitionSplitEnabled(boolean partitionSplitEnabled) {
     this.partitionSplitEnabled = partitionSplitEnabled;
+  }
+
+  public boolean addStream(long streamId) {
+    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
+    synchronized (reduceFileMeta.getSorted()) {
+      if (reduceFileMeta.getSorted().get()) {
+        return false;
+      } else {
+        streams.add(streamId);
+        return true;
+      }
+    }
+  }
+
+  public void closeStream(long streamId) {
+    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
+    synchronized (reduceFileMeta.getSorted()) {
+      streams.remove(streamId);
+    }
+  }
+
+  public boolean isStreamsEmpty() {
+    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
+    synchronized (reduceFileMeta.getSorted()) {
+      return streams.isEmpty();
+    }
+  }
+
+  public boolean isFullyRead() {
+    ReduceFileMeta reduceFileMeta = ((ReduceFileMeta) fileMeta);
+    RoaringBitmap mapIds = reduceFileMeta.getMapIds();
+    if (mapIds == null) {
+      return isStreamsEmpty();
+    } else {
+      return mapIds.isEmpty();
+    }
   }
 }

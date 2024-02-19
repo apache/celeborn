@@ -539,7 +539,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterSlotAssignPolicy: SlotsAssignPolicy =
     SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
   def availableStorageTypes: Int = {
-    val types = get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf(_)).toList
+    val types = get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
     StorageInfo.getAvailableTypes(types.asJava)
   }
   def hasHDFSStorage: Boolean =
@@ -1069,8 +1069,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL)
   def workerDirectMemoryTrimFlushWaitInterval: Long =
     get(WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL)
-  def workerDirectMemoryRatioForShuffleStorage: Double =
-    get(WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE)
+  def workerDirectMemoryRatioForMemoryFilesStorage: Double =
+    get(WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE)
+  def workerMemoryFileStraogeMaxFileSize: Long =
+    get(WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -2262,6 +2264,7 @@ object CelebornConf extends Logging {
       .doc("Max chunk size of reducer's merged shuffle data. For example, if a reducer's " +
         "shuffle data is 128M and the data will need 16 fetch chunk requests to fetch.")
       .bytesConf(ByteUnit.BYTE)
+      .checkValue(v => v < Integer.MAX_VALUE, "Chunk size can not be larger than 2GB")
       .createWithDefaultString("8m")
 
   val CLIENT_FETCH_DFS_READ_CHUNK_SIZE: ConfigEntry[Long] =
@@ -2846,13 +2849,13 @@ object CelebornConf extends Logging {
       .doubleConf
       .createWithDefault(0.1)
 
-  val WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE: ConfigEntry[Double] =
-    buildConf("celeborn.worker.directMemoryRatioForMemoryShuffleStorage")
+  val WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE: ConfigEntry[Double] =
+    buildConf("celeborn.worker.directMemoryRatioForMemoryFileStorage")
       .categories("worker")
-      .doc("Max ratio of direct memory to store shuffle data")
-      .version("0.2.0")
+      .doc("Max ratio of direct memory to store shuffle data.")
+      .version("0.4.1")
       .doubleConf
-      .createWithDefault(0.0)
+      .createWithDefault(0)
 
   val WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioToPauseReceive")
@@ -2874,10 +2877,19 @@ object CelebornConf extends Logging {
   val WORKER_DIRECT_MEMORY_RATIO_RESUME: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioToResume")
       .categories("worker")
-      .doc("If direct memory usage is less than this limit, worker will resume.")
+      .doc("If direct memory usage minus memory storage files usage is less than this limit, worker will resume.")
       .version("0.2.0")
       .doubleConf
       .createWithDefault(0.7)
+
+  val WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.worker.memoryFileStorage.maxFileSize")
+      .categories("worker")
+      .doc("Max size for a memory storage file. It must be lesser than 2GB.")
+      .version("0.4.1")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(v => v < Int.MaxValue, "A single memory storage file can not be larger than 2GB")
+      .createWithDefaultString("8MB")
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
@@ -4380,7 +4392,7 @@ object CelebornConf extends Logging {
         "Enabled storages. Available options: MEMORY,HDD,SSD,HDFS. Note: HDD and SSD would be treated as identical.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValue(p => p.split(",").map(StorageInfo.validate(_)).reduce(_ && _), "")
+      .checkValue(p => p.split(",").map(StorageInfo.validate).reduce(_ && _), "")
       .createWithDefault("HDD")
 
   val READ_LOCAL_SHUFFLE_FILE: ConfigEntry[Boolean] =

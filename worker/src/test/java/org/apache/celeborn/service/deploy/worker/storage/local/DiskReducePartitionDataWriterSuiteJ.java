@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage;
+package org.apache.celeborn.service.deploy.worker.storage.local;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -27,13 +27,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -43,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
-import scala.Tuple4;
 import scala.collection.mutable.ListBuffer;
 
 import io.netty.buffer.ByteBuf;
@@ -57,9 +50,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
@@ -77,10 +70,12 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.FetchHandler;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+import org.apache.celeborn.service.deploy.worker.storage.*;
 
-public class ReducePartitionDataWriterSuiteJ {
+public class DiskReducePartitionDataWriterSuiteJ {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ReducePartitionDataWriterSuiteJ.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(DiskReducePartitionDataWriterSuiteJ.class);
 
   private static final CelebornConf CONF = new CelebornConf();
   public static final Long SPLIT_THRESHOLD = 256 * 1024 * 1024L;
@@ -97,6 +92,7 @@ public class ReducePartitionDataWriterSuiteJ {
   private final UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
   private static final TransportConf transConf = new TransportConf("shuffle", new CelebornConf());
+  private static final CelebornConf celebornConf = new CelebornConf();
 
   @BeforeClass
   public static void beforeAll() {
@@ -131,7 +127,7 @@ public class ReducePartitionDataWriterSuiteJ {
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_RESUME().key(), "0.5");
     conf.set(CelebornConf.WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD().key(), "0.6");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER().key(), "0.1");
-    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_SHUFFLE_STORAGE().key(), "0.1");
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE().key(), "0.1");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL().key(), "10");
     conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
@@ -147,7 +143,7 @@ public class ReducePartitionDataWriterSuiteJ {
           }
 
           @Override
-          public DiskFileInfo getRawDiskFileInfo(String shuffleKey, String fileName) {
+          public FileInfo getRawFileInfo(String shuffleKey, String fileName) {
             return info;
           }
 
@@ -216,7 +212,7 @@ public class ReducePartitionDataWriterSuiteJ {
     return message.toByteBuffer();
   }
 
-  private void setUpConn(TransportClient client) throws IOException, CelebornException {
+  private void setUpConn(TransportClient client) throws IOException {
     ByteBuffer resp = client.sendRpcSync(createOpenMessage(), 10000);
     PbStreamHandler streamHandler = TransportMessage.fromByteBuffer(resp).getParsedPayload();
     streamId = streamHandler.getStreamId();
@@ -263,22 +259,25 @@ public class ReducePartitionDataWriterSuiteJ {
   @Test
   public void testMultiThreadWrite() throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
-    Tuple4<StorageManager, Flusher, DiskFileInfo, File> context =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
 
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
-            context._1(),
-            context._3(),
-            context._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, CONF),
             source,
-            CONF,
+            celebornConf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -312,22 +311,24 @@ public class ReducePartitionDataWriterSuiteJ {
   public void testMultiThreadWriteDuringClose()
       throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = 8;
-    Tuple4<StorageManager, Flusher, DiskFileInfo, File> context =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
-            context._1(),
-            context._3(),
-            context._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, CONF),
             source,
-            CONF,
+            celebornConf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -355,29 +356,31 @@ public class ReducePartitionDataWriterSuiteJ {
 
     assertEquals(length.get(), bytesWritten.get());
     assertEquals(partitionDataWriter.getFile().length(), bytesWritten.get());
-    assertEquals(context._3().getFileLength(), bytesWritten.get());
+    assertEquals(partitionDataWriter.getDiskFileInfo().getFileLength(), bytesWritten.get());
   }
 
   @Test
   public void testAfterStressfulWriteWillReadCorrect()
       throws IOException, ExecutionException, InterruptedException {
     final int threadsNum = Runtime.getRuntime().availableProcessors();
-    Tuple4<StorageManager, Flusher, DiskFileInfo, File> context =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
-            context._1(),
-            context._3(),
-            context._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, CONF),
             source,
-            CONF,
+            celebornConf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -426,23 +429,24 @@ public class ReducePartitionDataWriterSuiteJ {
   @Test
   public void testWriteAndChunkRead() throws Exception {
     final int threadsNum = 16;
-    Tuple4<StorageManager, Flusher, DiskFileInfo, File> context =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-    DiskFileInfo fileInfo = context._3();
-
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
-            context._1(),
-            context._3(),
-            context._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, CONF),
             source,
-            CONF,
+            celebornConf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -471,7 +475,7 @@ public class ReducePartitionDataWriterSuiteJ {
     long bytesWritten = partitionDataWriter.close();
     assertEquals(length.get(), bytesWritten);
 
-    setupChunkServer(fileInfo);
+    setupChunkServer(partitionDataWriter.getDiskFileInfo());
 
     TransportClient client =
         clientFactory.createClient(InetAddress.getLocalHost().getHostAddress(), server.getPort());
@@ -541,24 +545,28 @@ public class ReducePartitionDataWriterSuiteJ {
     conf.set(CelebornConf.WORKER_FLUSHER_BUFFER_SIZE().key(), "128B");
 
     // case 1: write 8MiB
-    Tuple4<StorageManager, Flusher, DiskFileInfo, File> pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     partitionDataWriter.write(generateData(8 * 1024 * 1024));
     partitionDataWriter.close();
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    ReduceFileMeta reduceFileMeta =
+        (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 1);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 8 * 1024 * 1024);
     assertEquals(
@@ -566,214 +574,232 @@ public class ReducePartitionDataWriterSuiteJ {
         8 * 1024 * 1024);
 
     // case 2: write 1024B
-    pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
     partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     for (int i = 0; i < 8; i++) {
       partitionDataWriter.write(generateData(128));
     }
     partitionDataWriter.close();
-    reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 1);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 1024);
     assertEquals(
         reduceFileMeta.getChunkOffsets().get(1) - reduceFileMeta.getChunkOffsets().get(0), 1024);
 
     // case 3: write 1023B
-    pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-
     partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     partitionDataWriter.write(generateData(1020));
     partitionDataWriter.write(generateData(3));
     partitionDataWriter.close();
-    reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 1);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 1023);
     assertEquals(
         reduceFileMeta.getChunkOffsets().get(1) - reduceFileMeta.getChunkOffsets().get(0), 1023);
 
     // case 4: write 1025B
-    pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-
     partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     for (int i = 0; i < 8; i++) {
       partitionDataWriter.write(generateData(128));
     }
     partitionDataWriter.write(generateData(1));
     partitionDataWriter.close();
-    reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 2);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 1025);
     assertEquals(
         reduceFileMeta.getChunkOffsets().get(1) - reduceFileMeta.getChunkOffsets().get(0), 1024);
 
     // case 5: write 2048B
-    pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
     partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateData(128));
     }
     partitionDataWriter.close();
-    reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 2);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 2048);
     assertEquals(
         reduceFileMeta.getChunkOffsets().get(1) - reduceFileMeta.getChunkOffsets().get(0), 1024);
 
     // case 5.1: write 2048B with trim; without PR #1702 this case will fail
-    pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-
     partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateData(128));
     }
     // mock trim
     partitionDataWriter.flush(false);
     partitionDataWriter.close();
-    reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 2);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 2048);
     assertEquals(
         reduceFileMeta.getChunkOffsets().get(1) - reduceFileMeta.getChunkOffsets().get(0), 1024);
 
     // case 6: write 2049B
-    pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-
     partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateData(128));
     }
     partitionDataWriter.write(generateData(1));
     partitionDataWriter.close();
-    reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 3);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 2049);
     assertEquals(
         reduceFileMeta.getChunkOffsets().get(2) - reduceFileMeta.getChunkOffsets().get(1), 1024);
 
     // case 7: write 4097B with 3 chunks
-    pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-
     partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     partitionDataWriter.write(generateData(1024));
     for (int i = 0; i < 9; i++) {
       partitionDataWriter.write(generateData(128));
     }
     partitionDataWriter.write(generateData(1920));
     partitionDataWriter.close();
-    reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 3);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 4096);
     assertEquals(
         reduceFileMeta.getChunkOffsets().get(3) - reduceFileMeta.getChunkOffsets().get(2), 2048);
 
     // case 7.2: write 4097B with 3 chunks with trim; without PR #1702 this case will fail
-    pctx =
-        PartitionDataWriterSuiteUtils.prepareTestFileContext(
-            tempDir, userIdentifier, localFlusher, true);
-
     partitionDataWriter =
         new ReducePartitionDataWriter(
-            pctx._1(),
-            pctx._3(),
-            pctx._2(),
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, true, conf),
             source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            SPLIT_THRESHOLD,
-            splitMode,
-            false,
-            "app1-1");
+            new PartitionDataWriterContext(
+                SPLIT_THRESHOLD,
+                splitMode,
+                false,
+                new PartitionLocation(
+                    1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+                "app1-1",
+                1,
+                userIdentifier,
+                PartitionType.REDUCE,
+                false));
     partitionDataWriter.write(generateData(1024));
     for (int i = 0; i < 9; i++) {
       partitionDataWriter.write(generateData(128));
@@ -783,7 +809,7 @@ public class ReducePartitionDataWriterSuiteJ {
     // mock trim
     partitionDataWriter.flush(false);
     partitionDataWriter.close();
-    reduceFileMeta = (ReduceFileMeta) pctx._3().getFileMeta();
+    reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getDiskFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 3);
     assertEquals(reduceFileMeta.getLastChunkOffset(), 4096);
     assertEquals(
@@ -812,9 +838,7 @@ public class ReducePartitionDataWriterSuiteJ {
 
   private ByteBuf generateData(int len) {
     byte[] data = new byte[len];
-    for (int i = 0; i < len; i++) {
-      data[i] = 'a';
-    }
+    Arrays.fill(data, (byte) 'a');
     return Unpooled.wrappedBuffer(data);
   }
 }

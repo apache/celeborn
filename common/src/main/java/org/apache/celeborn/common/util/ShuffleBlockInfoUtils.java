@@ -23,6 +23,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
+
 public class ShuffleBlockInfoUtils {
 
   public static class ShuffleBlockInfo {
@@ -89,5 +92,24 @@ public class ShuffleBlockInfoUtils {
       indexMap.put(mapId, blockInfos);
     }
     return indexMap;
+  }
+
+  public static void reorganizeBuffer(
+      int startMapIndex,
+      int endMapIndex,
+      Map<Integer, List<ShuffleBlockInfo>> indexMap,
+      CompositeByteBuf sortedByteBuf,
+      CompositeByteBuf targetByteBuf) {
+    for (int i = startMapIndex; i < endMapIndex; i++) {
+      List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
+      if (blockInfos != null) {
+        for (ShuffleBlockInfo blockInfo : blockInfos) {
+          ByteBuf slice = sortedByteBuf.slice((int) blockInfo.offset, (int) blockInfo.length);
+          // Do not retain this buffer because this buffer will be release when the fileinfo is
+          // release
+          targetByteBuf.addComponent(slice);
+        }
+      }
+    }
   }
 }

@@ -17,17 +17,31 @@
 
 package org.apache.celeborn.common.meta;
 
+import java.util.*;
+
 import io.netty.buffer.CompositeByteBuf;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
 
 public class MemoryFileInfo extends FileInfo {
   private CompositeByteBuf buffer;
   private long length;
+  private CompositeByteBuf sortedBuffer;
+  private Map<Integer, List<ShuffleBlockInfo>> sortedIndexes;
 
   public MemoryFileInfo(
       UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
+  }
+
+  public MemoryFileInfo(
+      UserIdentifier userIdentifier,
+      boolean partitionSplitEnabled,
+      FileMeta fileMeta,
+      CompositeByteBuf buffer) {
+    super(userIdentifier, partitionSplitEnabled, fileMeta);
+    this.buffer = buffer;
   }
 
   public CompositeByteBuf getBuffer() {
@@ -45,5 +59,41 @@ public class MemoryFileInfo extends FileInfo {
   @Override
   public long getFileLength() {
     return length;
+  }
+
+  public void addLength(int length) {
+    this.length += length;
+    if (fileMeta instanceof ReduceFileMeta) {
+      ((ReduceFileMeta) fileMeta).updateChunkOffset(this.length, false);
+    }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    MemoryFileInfo that = (MemoryFileInfo) o;
+    return buffer.equals(that.buffer);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(buffer);
+  }
+
+  public CompositeByteBuf getSortedBuffer() {
+    return sortedBuffer;
+  }
+
+  public void setSortedBuffer(CompositeByteBuf sortedBuffer) {
+    this.sortedBuffer = sortedBuffer;
+  }
+
+  public Map<Integer, List<ShuffleBlockInfo>> getSortedIndexes() {
+    return sortedIndexes;
+  }
+
+  public void setSortedIndexes(Map<Integer, List<ShuffleBlockInfo>> sortedIndexes) {
+    this.sortedIndexes = sortedIndexes;
   }
 }

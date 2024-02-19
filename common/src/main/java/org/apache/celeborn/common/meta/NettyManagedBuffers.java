@@ -17,46 +17,44 @@
 
 package org.apache.celeborn.common.meta;
 
-import java.io.File;
 import java.util.List;
 
-import org.apache.celeborn.common.network.buffer.FileSegmentManagedBuffer;
-import org.apache.celeborn.common.network.buffer.ManagedBuffer;
-import org.apache.celeborn.common.network.util.TransportConf;
+import io.netty.buffer.CompositeByteBuf;
 
-public class FileManagedBuffers implements ManagedBuffers {
-  private final File file;
+import org.apache.celeborn.common.network.buffer.ManagedBuffer;
+import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
+
+public class NettyManagedBuffers implements ManagedBuffers {
   private final long[] offsets;
   private final int numChunks;
+  private final CompositeByteBuf buffer;
 
-  private final TransportConf conf;
-
-  public FileManagedBuffers(DiskFileInfo fileInfo, TransportConf conf) {
-    file = fileInfo.getFile();
-    ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileInfo.getFileMeta();
-    numChunks = reduceFileMeta.getNumChunks();
+  public NettyManagedBuffers(MemoryFileInfo memoryFileInfo) {
+    ReduceFileMeta meta = (ReduceFileMeta) memoryFileInfo.getFileMeta();
+    buffer = memoryFileInfo.getBuffer();
+    numChunks = meta.getNumChunks();
     if (numChunks > 0) {
       offsets = new long[numChunks + 1];
-      List<Long> chunkOffsets = reduceFileMeta.getChunkOffsets();
-      for (int i = 0; i <= numChunks; i++) {
+      List<Long> chunkOffsets = meta.getChunkOffsets();
+      for (int i = 0; i < numChunks + 1; i++) {
         offsets[i] = chunkOffsets.get(i);
       }
     } else {
-      offsets = new long[] {0};
+      offsets = new long[0];
     }
-    this.conf = conf;
   }
 
+  @Override
   public int numChunks() {
     return numChunks;
   }
 
+  @Override
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
-    // offset of the beginning of the chunk in the file
     final long chunkOffset = offsets[chunkIndex];
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     assert offset < chunkLength;
-    long length = Math.min(chunkLength - offset, len);
-    return new FileSegmentManagedBuffer(conf, file, chunkOffset + offset, length);
+    int length = (int) Math.min(chunkLength - offset, len);
+    return new NettyManagedBuffer(buffer.slice(offset, length));
   }
 }

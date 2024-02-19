@@ -549,6 +549,7 @@ message PbFileInfo {
   int32 numSubpartitions = 6;
   int64 bytesFlushed = 7;
   bool partitionSplitEnabled = 8;
+  int64 chunkSize = 9;
 }
 
 message PbMapFileMeta {

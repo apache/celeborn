@@ -267,7 +267,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         s"[handlePushData] FileWriter is already closed! File path ${fileWriter.getDiskFileInfo.getFilePath}")
       callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
-      return;
+      return
     }
     val writePromise = Promise[Unit]()
     // for primary, send data to replica
@@ -812,7 +812,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileWriter.getDiskFileInfo.getFilePath}")
       callback.onFailure(new CelebornIOException("File already closed!"))
       fileWriter.decrementPendingWrites()
-      return;
+      return
     }
     val writePromise = Promise[Unit]()
     writeLocalData(Seq(fileWriter), body, shuffleKey, isPrimary, None, writePromise)
@@ -862,7 +862,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   private def mapPartitionRpcRequest(rpcRequest: RpcRequest)
-      : Tuple8[GeneratedMessageV3, Message, Boolean, Type, Mode, String, String, Boolean] = {
+      : (GeneratedMessageV3, Message, Boolean, Type, Mode, String, String, Boolean) = {
     try {
       val msg = TransportMessage.fromByteBuffer(
         rpcRequest.body().nioByteBuffer()).getParsedPayload.asInstanceOf[GeneratedMessageV3]
@@ -1179,7 +1179,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
-    if (fileWriter.flusher.isInstanceOf[HdfsFlusher]) {
+    if (fileWriter.flusher == null || fileWriter.flusher.isInstanceOf[HdfsFlusher]) {
       return false
     }
     val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint
@@ -1200,12 +1200,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |CheckDiskFullAndSplit in
          |diskFull:$diskFull,
          |partitionSplitMinimumSize:$partitionSplitMinimumSize,
-         |splitThreshold:${fileWriter.getSplitThreshold()},
+         |splitThreshold:${fileWriter.getSplitThreshold},
          |fileLength:${fileWriter.getDiskFileInfo.getFileLength}
          |fileName:${fileWriter.getDiskFileInfo.getFilePath}
          |""".stripMargin)
+    if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
+      return true
+    }
     if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getDiskFileInfo.getFileLength > partitionSplitMinimumSize) ||
-        (isPrimary && fileWriter.getDiskFileInfo.getFileLength > fileWriter.getSplitThreshold()))) {
+        (isPrimary && fileWriter.getDiskFileInfo.getFileLength > fileWriter.getSplitThreshold))) {
       if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
         (fileWriter.getDiskFileInfo.getFileLength < partitionSplitMaximumSize)) {
         softSplit.set(true)
@@ -1217,7 +1220,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
              |CheckDiskFullAndSplit hardSplit
              |diskFull:$diskFull,
              |partitionSplitMinimumSize:$partitionSplitMinimumSize,
-             |splitThreshold:${fileWriter.getSplitThreshold()},
+             |splitThreshold:${fileWriter.getSplitThreshold},
              |fileLength:${fileWriter.getDiskFileInfo.getFileLength},
              |fileName:${fileWriter.getDiskFileInfo.getFilePath}
              |""".stripMargin)

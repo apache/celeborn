@@ -21,17 +21,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ReduceFileMeta implements FileMeta {
-  private final List<Long> chunkOffsets;
-  private final AtomicBoolean sorted = new AtomicBoolean(false);
+import org.roaringbitmap.RoaringBitmap;
 
-  public ReduceFileMeta() {
+public class ReduceFileMeta implements FileMeta {
+  private final AtomicBoolean sorted = new AtomicBoolean(false);
+  private final List<Long> chunkOffsets;
+  private RoaringBitmap mapIds;
+  private long chunkSize;
+  private long nextBoundary;
+
+  public ReduceFileMeta(long chunkSize) {
     this.chunkOffsets = new ArrayList<>();
     chunkOffsets.add(0L);
+    this.chunkSize = chunkSize;
+    nextBoundary = chunkSize;
   }
 
-  public ReduceFileMeta(List<Long> chunkOffsets) {
+  public ReduceFileMeta(List<Long> chunkOffsets, long chunkSize) {
     this.chunkOffsets = chunkOffsets;
+    this.chunkSize = chunkSize;
+    nextBoundary = chunkSize;
   }
 
   public synchronized List<Long> getChunkOffsets() {
@@ -39,7 +48,15 @@ public class ReduceFileMeta implements FileMeta {
   }
 
   public synchronized void addChunkOffset(long offset) {
+    nextBoundary = offset + chunkSize;
     chunkOffsets.add(offset);
+  }
+
+  public void updateChunkOffset(long bytesFlushed, boolean force) {
+    if (bytesFlushed >= nextBoundary || force) {
+      addChunkOffset(bytesFlushed);
+      nextBoundary = bytesFlushed + chunkSize;
+    }
   }
 
   public synchronized long getLastChunkOffset() {
@@ -62,5 +79,23 @@ public class ReduceFileMeta implements FileMeta {
 
   public AtomicBoolean getSorted() {
     return sorted;
+  }
+
+  public void setMapIds(RoaringBitmap mapIds) {
+    this.mapIds = mapIds;
+  }
+
+  public void removeMapIds(int startIndex, int endIndex) {
+    for (int i = startIndex; i < endIndex; i++) {
+      mapIds.remove(i);
+    }
+  }
+
+  public RoaringBitmap getMapIds() {
+    return mapIds;
+  }
+
+  public long getChunkSize() {
+    return chunkSize;
   }
 }
