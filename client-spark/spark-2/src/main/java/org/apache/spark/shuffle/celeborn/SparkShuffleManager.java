@@ -136,17 +136,25 @@ public class SparkShuffleManager implements ShuffleManager {
   }
 
   @Override
-  public boolean unregisterShuffle(int appShuffleId) {
-    if (sortShuffleIds.contains(appShuffleId)) {
-      return sortShuffleManager().unregisterShuffle(appShuffleId);
+  public boolean unregisterShuffle(int shuffleId) {
+    if (sortShuffleIds.contains(shuffleId)) {
+      return sortShuffleManager().unregisterShuffle(shuffleId);
     }
     // For Spark driver side trigger unregister shuffle.
     if (lifecycleManager != null) {
-      lifecycleManager.unregisterAppShuffle(appShuffleId);
+      if (celebornConf.clientFetchThrowsFetchFailure()) {
+        lifecycleManager.unregisterAppShuffle(shuffleId);
+      } else {
+        lifecycleManager.unregisterShuffle(shuffleId);
+      }
     }
     // For Spark executor side cleanup shuffle related info.
     if (shuffleClient != null) {
-      shuffleIdTracker.unregisterAppShuffleId(shuffleClient, appShuffleId);
+      if (celebornConf.clientFetchThrowsFetchFailure()) {
+        shuffleIdTracker.unregisterAppShuffleId(shuffleClient, shuffleId);
+      } else {
+        shuffleClient.cleanupShuffle(shuffleId);
+      }
     }
     return true;
   }
