@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.service.deploy.master.quota
 
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf._
+import org.apache.celeborn.common.internal.config.ConfigEntry
 import org.apache.celeborn.common.quota.Quota
 import org.apache.celeborn.server.common.service.config.DynamicConfig
 import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
@@ -25,9 +28,25 @@ trait ConfigServiceQuotaManager extends QuotaManager {
   def getQuota(config: DynamicConfig): Quota = {
     // TODO: Default value should be -1, to implement an ConfigEntry?
     Quota(
-      config.getValue("diskBytesWritten", null, classOf[Long], ConfigType.BYTES),
-      config.getValue("diskFileCount", null, classOf[Long], ConfigType.STRING),
-      config.getValue("hdfsBytesWritten", null, classOf[Long], ConfigType.BYTES),
-      config.getValue("hdfsFileCount", null, classOf[Long], ConfigType.STRING))
+      config.getValue(
+        QUOTA_DISK_BYTES_WRITTEN.key,
+        QUOTA_DISK_BYTES_WRITTEN.asInstanceOf[ConfigEntry[AnyRef]],
+        classOf[Long],
+        ConfigType.BYTES),
+      config.getValue(
+        QUOTA_DISK_FILE_COUNT.key,
+        QUOTA_DISK_FILE_COUNT.asInstanceOf[ConfigEntry[AnyRef]],
+        classOf[Long],
+        ConfigType.STRING),
+      config.getValue(
+        QUOTA_HDFS_BYTES_WRITTEN.key,
+        QUOTA_HDFS_BYTES_WRITTEN.asInstanceOf[ConfigEntry[AnyRef]],
+        classOf[Long],
+        ConfigType.BYTES),
+      config.getValue(
+        QUOTA_HDFS_FILE_COUNT.key,
+        QUOTA_HDFS_FILE_COUNT.asInstanceOf[ConfigEntry[AnyRef]],
+        classOf[Long],
+        ConfigType.STRING))
   }
 }

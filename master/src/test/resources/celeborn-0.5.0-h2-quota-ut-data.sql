@@ -20,15 +20,13 @@ VALUES
     ( 1, 'default', 'celeborn-1', 'celeborn-namespace.endpoint.com', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );
 INSERT INTO `celeborn_cluster_system_config` ( `id`, `cluster_id`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
 VALUES
-    ( 1, 1, 'diskBytesWritten', '1073741824', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 2, 1, 'diskFileCount', '100', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 3, 1, 'hdfsBytesWritten', '1073741824', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 4, 1, 'hdfsFileCount', '100', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );
+    ( 1, 1, 'celeborn.quota.diskBytesWritten', '1073741824', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 2, 1, 'celeborn.quota.diskFileCount', '100', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 3, 1, 'celeborn.quota.hdfsBytesWritten', '1073741824', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
 INSERT INTO `celeborn_cluster_tenant_config` ( `id`, `cluster_id`, `tenant_id`, `level`, `name`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
 VALUES
-    ( 1, 1, 'tenant_01', 'TENANT', '', 'diskBytesWritten', '10737418240', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 2, 1, 'tenant_01', 'TENANT', '', 'diskFileCount', '1000', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 3, 1, 'tenant_01', 'TENANT', '', 'hdfsBytesWritten', '10737418240', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 4, 1, 'tenant_01', 'TENANT', '', 'hdfsFileCount', '1000', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 5, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'diskBytesWritten', '107374182400', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 6, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'diskFileCount', '10000', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );
+    ( 1, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.diskBytesWritten', '10737418240', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 2, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.diskFileCount', '1000', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 3, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.hdfsBytesWritten', '10737418240', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 4, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.diskBytesWritten', '107374182400', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 5, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.diskFileCount', '10000', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );

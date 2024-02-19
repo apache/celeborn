@@ -47,14 +47,14 @@ class FsConfigServiceQuotaManagerSuite extends BaseQuotaManagerSuite {
   test("test celeborn quota conf") {
     assertEquals(
       quotaManager.getQuota(UserIdentifier("tenant_01", "Jerry")),
-      Quota(Utils.byteStringAsBytes("100G"), 10000, Utils.byteStringAsBytes("10G"), 1000))
+      Quota(Utils.byteStringAsBytes("100G"), 10000, Utils.byteStringAsBytes("10G"), -1))
     // Fallback to tenant level
     assertEquals(
       quotaManager.getQuota(UserIdentifier("tenant_01", "name_not_exist")),
-      Quota(Utils.byteStringAsBytes("10G"), 1000, Utils.byteStringAsBytes("10G"), 1000))
+      Quota(Utils.byteStringAsBytes("10G"), 1000, Utils.byteStringAsBytes("10G"), -1))
     // Fallback to system level
     assertEquals(
       quotaManager.getQuota(UserIdentifier("tenant_not_exist", "Tom")),
-      Quota(Utils.byteStringAsBytes("1G"), 100, Utils.byteStringAsBytes("1G"), 100))
+      Quota(Utils.byteStringAsBytes("1G"), 100, Utils.byteStringAsBytes("1G"), -1))
   }
 }
