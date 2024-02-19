@@ -22,12 +22,6 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.quota.Quota
 
 trait QuotaManager extends Logging {
-
-  /**
-   * Initialize user quota settings.
-   */
-  def initialize(): Unit
-
   def getQuota(userIdentifier: UserIdentifier): Quota
 }
 
@@ -42,7 +36,6 @@ object QuotaManager extends Logging {
     try {
       val ctor = clazz.getDeclaredConstructor(classOf[CelebornConf])
       val quotaManager = ctor.newInstance(conf)
-      quotaManager.initialize()
       quotaManager
     } catch {
       case e: NoSuchMethodException =>

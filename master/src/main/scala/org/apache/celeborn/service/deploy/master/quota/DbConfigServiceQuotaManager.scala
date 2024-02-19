@@ -26,12 +26,6 @@ import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
 class DbConfigServiceQuotaManager(celebornConf: CelebornConf)
   extends DbConfigServiceImpl(celebornConf)
   with ConfigServiceQuotaManager {
-
-  /**
-   * Initialize user quota settings.
-   */
-  override def initialize(): Unit = {}
-
   override def getQuota(userIdentifier: UserIdentifier): Quota = {
     val config = getTenantUserConfig(userIdentifier.tenantId, userIdentifier.name)
     getQuota(config)

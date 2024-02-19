@@ -17,19 +17,11 @@
 
 package org.apache.celeborn.service.deploy.master.quota
 
-import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.quota.Quota
 import org.apache.celeborn.server.common.service.config.DynamicConfig
 import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
 
-trait ConfigServiceQuotaManager
-  extends QuotaManager {
-
-  /**
-   * Initialize user quota settings.
-   */
-  override def initialize(): Unit = {}
-
+trait ConfigServiceQuotaManager extends QuotaManager {
   def getQuota(config: DynamicConfig): Quota = {
     // TODO: Default value should be -1, to implement an ConfigEntry?
     Quota(

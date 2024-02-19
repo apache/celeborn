@@ -4202,10 +4202,10 @@ object CelebornConf extends Logging {
   val QUOTA_MANAGER: ConfigEntry[String] =
     buildConf("celeborn.quota.manager")
       .categories("quota")
-      .doc(s"QuotaManger class name. Default class is `org.apache.celeborn.service.deploy.master.quota.DefaultQuotaManager`.")
+      .doc(s"QuotaManger class name. Default class is `org.apache.celeborn.service.deploy.master.quota.FsConfigServiceQuotaManager`.")
       .version("0.2.0")
       .stringConf
-      .createWithDefault("org.apache.celeborn.service.deploy.master.quota.DefaultQuotaManager")
+      .createWithDefault("org.apache.celeborn.service.deploy.master.quota.FsConfigServiceQuotaManager")
 
   val QUOTA_CONFIGURATION_PATH: OptionalConfigEntry[String] =
     buildConf("celeborn.quota.configuration.path")
