@@ -308,10 +308,26 @@ class WorkerInfo(
 object WorkerInfo {
 
   def fromUniqueId(id: String): WorkerInfo = {
-    val Array(host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, securedRpcPort, securedPushPort,
+    val Array(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      internalPort,
+      securedRpcPort,
+      securedPushPort,
       securedFetchPort) =
       Utils.parseColonSeparatedHostPorts(id, portsNum = 8)
-    new WorkerInfo(host, rpcPort.toInt, pushPort.toInt, fetchPort.toInt, replicatePort.toInt, internalPort.toInt,
-      securedRpcPort.toInt, securedPushPort.toInt, securedFetchPort.toInt)
+    new WorkerInfo(
+      host,
+      rpcPort.toInt,
+      pushPort.toInt,
+      fetchPort.toInt,
+      replicatePort.toInt,
+      internalPort.toInt,
+      securedRpcPort.toInt,
+      securedPushPort.toInt,
+      securedFetchPort.toInt)
   }
 }

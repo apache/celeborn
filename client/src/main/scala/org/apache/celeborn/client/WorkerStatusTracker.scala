@@ -221,7 +221,8 @@ class WorkerStatusTracker(
             s"${worker.readableAddress(authEnabled)}   ${Utils.formatTimestamp(time)}"
           }.mkString("\n"))
       }
-    val shutdownWorkersMsg = shuttingWorkers.asScala.map(_.readableAddress(authEnabled)).mkString("\n")
+    val shutdownWorkersMsg =
+      shuttingWorkers.asScala.map(_.readableAddress(authEnabled)).mkString("\n")
     var failedWorkersMsg = ""
     if (excludedWorkersMsg.contains(StatusCode.WORKER_EXCLUDED)) {
       failedWorkersMsg +=
