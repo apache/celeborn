@@ -207,4 +207,4 @@ jobs:
         with:
           name: mr-unit-test-log
           path: |
-            **/target/unit-tests.log
+            **/target/test/
