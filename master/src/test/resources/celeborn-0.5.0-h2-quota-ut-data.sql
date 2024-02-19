@@ -22,7 +22,7 @@ INSERT INTO `celeborn_cluster_system_config` ( `id`, `cluster_id`, `config_key`,
 VALUES
     ( 1, 1, 'celeborn.quota.diskBytesWritten', '1073741824', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
     ( 2, 1, 'celeborn.quota.diskFileCount', '100', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 3, 1, 'celeborn.quota.hdfsBytesWritten', '1073741824', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 3, 1, 'celeborn.quota.hdfsBytesWritten', '1073741824', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );
 INSERT INTO `celeborn_cluster_tenant_config` ( `id`, `cluster_id`, `tenant_id`, `level`, `name`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
 VALUES
     ( 1, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.diskBytesWritten', '10737418240', 'QUOTA', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
