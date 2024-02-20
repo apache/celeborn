@@ -62,6 +62,7 @@ class MasterSuite extends AnyFunSuite
     Thread.sleep(5000L)
     master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     master.rpcEnv.shutdown()
+    master.appRegistrationRpcEnv.shutdown()
   }
 
   test("test dedicated internal port receives") {
@@ -96,6 +97,7 @@ class MasterSuite extends AnyFunSuite
     master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     master.rpcEnv.shutdown()
     master.internalRpcEnvInUse.shutdown()
+    master.appRegistrationRpcEnv.shutdown()
   }
 
   test("test secured port receives") {

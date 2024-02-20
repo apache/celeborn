@@ -100,7 +100,7 @@ private[celeborn] class Master(
 
   private val rackResolver = new CelebornRackResolver(conf)
   private val authEnabled = conf.authEnabled
-  private val appRegistry = new ApplicationRegistryImpl()
+  private[master] val appRegistry = new ApplicationRegistryImpl()
   // Visible for testing
   private[master] val appRegistrationRpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_APP_REGISTRY_SYS,
