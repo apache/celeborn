@@ -81,7 +81,7 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   }
 
   @Override
-  public TenantConfig getRawTenantUserConfig(String tenantId, String userId) {
+  public TenantConfig getRawTenantUserConfigFromCache(String tenantId, String userId) {
     return tenantUserConfigAtomicReference.get().get(Pair.of(tenantId, userId));
   }
 

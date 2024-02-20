@@ -28,8 +28,8 @@ import org.apache.celeborn.common.util.Utils;
 
 /**
  * Dynamic configuration is a type of configuration that can be changed at runtime as needed. It can
- * be used at system level/tenant level. When applying dynamic configuration, the priority order is
- * as follows: tenant level overrides system level, which in turn overrides static
+ * be used at system level/tenant level/tenant user level. When applying dynamic configuration, the
+ * priority order is as follows: tenant level overrides system level, which in turn overrides static
  * configuration(CelebornConf). This means that if a configuration is defined at the tenant level,
  * it will be used instead of the system level or static configuration(CelebornConf). If the
  * tenant-level configuration is missing, the system-level configuration will be used. If the
