@@ -86,9 +86,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
   /** Class which provides secret keys which are shared by server and client on a per-app basis. */
   private final SecretRegistry secretRegistry;
 
-  private boolean authEnabled() {
-    return secretRegistry != null;
-  }
+  private final Boolean authEnabled;
 
   private SaslRpcHandler saslHandler;
 
@@ -99,12 +97,14 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
       TransportConf conf,
       Channel channel,
       BaseMessageHandler delegate,
-      SecretRegistry secretRegistry) {
+      SecretRegistry secretRegistry,
+      Boolean authEnabled) {
     this.conf = conf;
     this.channel = channel;
     this.secretRegistry = secretRegistry;
     this.delegate = delegate;
     this.saslHandler = new SaslRpcHandler(conf, channel, delegate, secretRegistry);
+    this.authEnabled = authEnabled;
   }
 
   @Override
@@ -123,7 +123,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
     } else {
       RpcRequest rpcRequest = (RpcRequest) message;
       try {
-        if (secretRegistry != null) {
+        if (authEnabled) {
           processSaslRpcMessage(client, rpcRequest, callback);
         } else {
           processNonSaslRpcMessage(rpcRequest, callback);
@@ -151,25 +151,28 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
     }
   }
 
-  private void processNonSaslRpcMessage(RpcRequest message, RpcResponseCallback callback) throws IOException {
+  private void processNonSaslRpcMessage(RpcRequest message, RpcResponseCallback callback)
+      throws IOException {
     TransportMessage pbMsg = TransportMessage.fromByteBuffer(message.body().nioByteBuffer());
     switch (pbMsg.getMessageTypeValue()) {
       case REGISTER_APPLICATION_REQUEST_VALUE:
         PbRegisterApplicationRequest registerApplicationRequest = pbMsg.getParsedPayload();
         LOG.trace("Application registration started {}", registerApplicationRequest.getId());
         PbRegisterApplicationResponse response =
-                PbRegisterApplicationResponse.newBuilder().setStatus(true).build();
-        callback.onSuccess(new TransportMessage(REGISTER_APPLICATION_RESPONSE, response.toByteArray()).toByteBuffer());
+            PbRegisterApplicationResponse.newBuilder().setStatus(true).build();
+        callback.onSuccess(
+            new TransportMessage(REGISTER_APPLICATION_RESPONSE, response.toByteArray())
+                .toByteBuffer());
         registrationState = RegistrationState.REGISTERED;
         LOG.info(
-                "Application registered: appId {} rpcId {}",
-                registerApplicationRequest.getId(),
-                message.requestId);
+            "Application registered: appId {} rpcId {}",
+            registerApplicationRequest.getId(),
+            message.requestId);
         break;
       default:
         throw new IllegalStateException(
-                "Invalid registration state. Expected: REGISTER_APPLICATION_REQUEST, Actual: "
-                        + pbMsg.getMessageTypeValue());
+            "Invalid registration state. Expected: REGISTER_APPLICATION_REQUEST, Actual: "
+                + pbMsg.getMessageTypeValue());
     }
   }
 

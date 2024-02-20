@@ -31,11 +31,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
-import org.apache.celeborn.common.identity.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornException;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
@@ -108,9 +108,9 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
   @Override
   public void doBootstrap(TransportClient client) throws RuntimeException {
     if (authEnabled) {
-        doSaslRegisterBootstrap(client);
+      doSaslRegisterBootstrap(client);
     } else {
-        doNonSaslRegisterBootstrap(client);
+      doNonSaslRegisterBootstrap(client);
     }
   }
 
@@ -123,11 +123,11 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
       register(client);
       LOG.info("Registration for {}", appId);
       registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.REGISTERED);
-    }  catch (IOException | CelebornException e) {
+    } catch (IOException | CelebornException e) {
       throw new RuntimeException(e);
     } finally {
       if (registrationInfo.getRegistrationState()
-              != RegistrationInfo.RegistrationState.REGISTERED) {
+          != RegistrationInfo.RegistrationState.REGISTERED) {
         registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.FAILED);
       }
     }

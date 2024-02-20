@@ -100,9 +100,9 @@ private[celeborn] class Master(
 
   private val rackResolver = new CelebornRackResolver(conf)
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = if (authEnabled) Some(new SecretRegistryImpl()) else None
+  private val secretRegistry = new SecretRegistryImpl()
   // Visible for testing
-  private[master] val securedRpcEnv: RpcEnv = RpcEnv.create(
+  private[master] val appRegistrationRpcEnv: RpcEnv = RpcEnv.create(
     RpcNameConstants.MASTER_SECURED_SYS,
     masterArgs.host,
     masterArgs.host,
@@ -113,7 +113,8 @@ private[celeborn] class Master(
       .withServerSaslContext(
         new ServerRpcContextBuilder()
           .withAddRegistrationBootstrap(true)
-          .withSecretRegistry(secretRegistry.orNull).build()).build()))
+          .withAuthEnabled(authEnabled)
+          .withSecretRegistry(secretRegistry).build()).build()))
   logInfo(s"Secure port enabled ${masterArgs.securedPort} for secured RPC.")
 
   private val statusSystem =
@@ -251,8 +252,8 @@ private[celeborn] class Master(
   private[master] var securedRpcEndpoint: RpcEndpoint = _
   private var securedRpcEndpointRef: RpcEndpointRef = _
   if (authEnabled) {
-    securedRpcEndpoint = new SecuredRpcEndpoint(this, securedRpcEnv, conf)
-    securedRpcEndpointRef = securedRpcEnv.setupEndpoint(
+    securedRpcEndpoint = new SecuredRpcEndpoint(this, appRegistrationRpcEnv, conf)
+    securedRpcEndpointRef = appRegistrationRpcEnv.setupEndpoint(
       RpcNameConstants.MASTER_SECURED_EP,
       securedRpcEndpoint)
   }
@@ -1084,7 +1085,7 @@ private[celeborn] class Master(
   }
 
   private def checkAuthStatus(appId: String, context: RpcCallContext): Boolean = {
-    if (secretRegistry.forall(_.isRegistered(appId))) {
+    if (conf.authEnabled && secretRegistry.isRegistered(appId)) {
       context.sendFailure(new SecurityException(
         s"Auth enabled application $appId sending messages on unsecured port!"))
       false
@@ -1299,7 +1300,7 @@ private[celeborn] class Master(
       internalRpcEnvInUse.awaitTermination()
     }
     if (authEnabled) {
-      securedRpcEnv.awaitTermination()
+      appRegistrationRpcEnv.awaitTermination()
     }
   }
 
@@ -1311,7 +1312,7 @@ private[celeborn] class Master(
         internalRpcEnvInUse.stop(internalRpcEndpointRef)
       }
       if (authEnabled) {
-        securedRpcEnv.stop(securedRpcEndpointRef)
+        appRegistrationRpcEnv.stop(securedRpcEndpointRef)
       }
       super.stop(exitKind)
       logInfo("Master stopped.")

@@ -32,14 +32,17 @@ public class RegistrationServerBootstrap implements TransportServerBootstrap {
 
   private final TransportConf conf;
   private final SecretRegistry secretRegistry;
+  private final Boolean authEnabled;
 
-  public RegistrationServerBootstrap(TransportConf conf, SecretRegistry secretRegistry) {
+  public RegistrationServerBootstrap(
+      TransportConf conf, SecretRegistry secretRegistry, Boolean authEnabled) {
     this.conf = conf;
     this.secretRegistry = secretRegistry;
+    this.authEnabled = authEnabled;
   }
 
   @Override
   public BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler rpcHandler) {
-    return new RegistrationRpcHandler(conf, channel, rpcHandler, secretRegistry);
+    return new RegistrationRpcHandler(conf, channel, rpcHandler, secretRegistry, authEnabled);
   }
 }

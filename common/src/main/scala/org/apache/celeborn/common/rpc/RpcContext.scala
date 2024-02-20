@@ -50,8 +50,9 @@ private[celeborn] case class ClientRpcContext(
  * @param addRegistrationBootstrap  Whether to add registration bootstrap.
  */
 private[celeborn] case class ServerSaslContext(
-    secretRegistry: Option[SecretRegistry] = None,
-    addRegistrationBootstrap: Boolean = false)
+    secretRegistry: SecretRegistry,
+    addRegistrationBootstrap: Boolean = false,
+    authEnabled: Boolean = false)
 
 /**
  * Builder for [[ClientRpcContext]].
@@ -129,6 +130,7 @@ private[celeborn] class ClientRpcContextBuilder {
 private[celeborn] class ServerRpcContextBuilder {
   private var secretRegistry: SecretRegistry = _
   private var addRegistrationBootstrap: Boolean = false
+  private var authEnabled: Boolean = false
 
   def withSecretRegistry(secretRegistry: SecretRegistry): ServerRpcContextBuilder = {
     this.secretRegistry = secretRegistry
@@ -140,10 +142,19 @@ private[celeborn] class ServerRpcContextBuilder {
     this
   }
 
+  def withAuthEnabled(authEnabled: Boolean): ServerRpcContextBuilder = {
+    this.authEnabled = authEnabled
+    this
+  }
+
   def build(): ServerSaslContext = {
+    if (secretRegistry == null) {
+      throw new IllegalArgumentException("Secret registry is not set.")
+    }
     ServerSaslContext(
-      Option(secretRegistry),
-      addRegistrationBootstrap)
+      secretRegistry,
+      addRegistrationBootstrap,
+      authEnabled)
   }
 }
 

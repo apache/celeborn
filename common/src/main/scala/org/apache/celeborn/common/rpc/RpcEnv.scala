@@ -22,8 +22,8 @@ import java.io.File
 import scala.concurrent.Future
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
 import org.apache.celeborn.common.rpc.RpcContext
+import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
 
 /**
  * A RpcEnv implementation must have a [[RpcEnvFactory]] implementation with an empty constructor

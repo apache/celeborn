@@ -135,6 +135,6 @@ class MasterSuite extends AnyFunSuite
     master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     master.rpcEnv.shutdown()
     master.internalRpcEnvInUse.shutdown()
-    master.securedRpcEnv.shutdown()
+    master.appRegistrationRpcEnv.shutdown()
   }
 }

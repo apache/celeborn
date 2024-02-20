@@ -23,7 +23,7 @@ import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistryImpl}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
-import org.apache.celeborn.common.rpc.{ClientRpcContext, ClientRpcContextBuilder, RpcSecurityContextBuilder, ServerSaslContext, ServerRpcContextBuilder}
+import org.apache.celeborn.common.rpc.{ClientRpcContext, ClientRpcContextBuilder, RpcSecurityContextBuilder, ServerRpcContextBuilder, ServerSaslContext}
 
 class RpcContextSuite extends CelebornFunSuite {
 
