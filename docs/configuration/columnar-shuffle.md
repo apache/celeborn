@@ -17,8 +17,8 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since | Deprecated |
-| --- | ------- | ----------- | ----- | ---------- |
+| Key | Default | isDynamic | Description | Since | Deprecated |
+| --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.columnarShuffle.batch.size | 10000 | false | Vector batch size for columnar shuffle. | 0.3.0 | celeborn.columnar.shuffle.batch.size | 
 | celeborn.columnarShuffle.codegen.enabled | false | false | Whether to use codegen for columnar-based shuffle. | 0.3.0 | celeborn.columnar.shuffle.codegen.enabled | 
 | celeborn.columnarShuffle.enabled | false | false | Whether to enable columnar-based shuffle. | 0.2.0 | celeborn.columnar.shuffle.enabled | 

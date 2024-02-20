@@ -17,8 +17,8 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since | Deprecated |
-| --- | ------- | ----------- | ----- | ---------- |
+| Key | Default | isDynamic | Description | Since | Deprecated |
+| --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.client.application.heartbeatInterval | 10s | false | Interval for client to send heartbeat message to master. | 0.3.0 | celeborn.application.heartbeatInterval | 
 | celeborn.client.application.unregister.enabled | true | false | When true, Celeborn client will inform celeborn master the application is already shutdown during client exit, this allows the cluster to release resources immediately, resulting in resource savings. | 0.3.2 |  | 
 | celeborn.client.closeIdleConnections | true | false | Whether client will close idle connections. | 0.3.0 |  | 

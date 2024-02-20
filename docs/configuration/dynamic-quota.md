@@ -17,6 +17,6 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since | Deprecated |
-| --- | ------- | ----------- | ----- | ---------- |
+| Key | Default | isDynamic | Description | Since | Deprecated |
+| --- | ------- | --------- | ----------- | ----- | ---------- |
 <!--end-include-->

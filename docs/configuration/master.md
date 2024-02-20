@@ -17,8 +17,8 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since | Deprecated |
-| --- | ------- | ----------- | ----- | ---------- |
+| Key | Default | isDynamic | Description | Since | Deprecated |
+| --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.cluster.name | default | false | Celeborn cluster name. | 0.5.0 |  | 
 | celeborn.dynamicConfig.enabled | false | false | Whether to enable dynamic configuration. | 0.5.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | false | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 

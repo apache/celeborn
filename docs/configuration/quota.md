@@ -17,8 +17,8 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since | Deprecated |
-| --- | ------- | ----------- | ----- | ---------- |
+| Key | Default | isDynamic | Description | Since | Deprecated |
+| --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.quota.configuration.path | &lt;undefined&gt; | false | Quota configuration file path. The file format should be yaml. Quota configuration file template can be found under conf directory. | 0.2.0 |  | 
 | celeborn.quota.diskBytesWritten | -1 | true | Quota dynamic configuration for written disk bytes. | 0.5.0 |  | 
 | celeborn.quota.diskFileCount | -1 | true | Quota dynamic configuration for written disk file count. | 0.5.0 |  | 

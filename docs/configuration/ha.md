@@ -17,8 +17,8 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since | Deprecated |
-| --- | ------- | ----------- | ----- | ---------- |
+| Key | Default | isDynamic | Description | Since | Deprecated |
+| --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.master.ha.enabled | false | false | When true, master nodes run as Raft cluster mode. | 0.3.0 | celeborn.ha.enabled | 
 | celeborn.master.ha.node.&lt;id&gt;.host | &lt;required&gt; | false | Host to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.host | 
 | celeborn.master.ha.node.&lt;id&gt;.internal.port | 8097 | false | Internal port for the workers and other masters to bind to a master node <id> in HA mode. | 0.5.0 |  | 

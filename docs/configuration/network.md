@@ -17,8 +17,8 @@ license: |
 ---
 
 <!--begin-include-->
-| Key | Default | Description | Since | Deprecated |
-| --- | ------- | ----------- | ----- | ---------- |
+| Key | Default | isDynamic | Description | Since | Deprecated |
+| --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.&lt;module&gt;.fetch.timeoutCheck.interval | 5s | false | Interval for checking fetch data timeout. It only support setting <module> to `data` since it works for shuffle client fetch data. | 0.3.0 |  | 
 | celeborn.&lt;module&gt;.fetch.timeoutCheck.threads | 4 | false | Threads num for checking fetch data timeout. It only support setting <module> to `data` since it works for shuffle client fetch data. | 0.3.0 |  | 
 | celeborn.&lt;module&gt;.heartbeat.interval | 60s | false | The heartbeat interval between worker and client. If setting <module> to `rpc`, it works for shuffle client. If setting <module> to `data`, it works for shuffle client push and fetch data. If setting <module> to `replicate`, it works for replicate client of worker replicating data to peer worker.If you are using the "celeborn.client.heartbeat.interval", please use the new configs for each module according to your needs or replace it with "celeborn.rpc.heartbeat.interval", "celeborn.data.heartbeat.interval" and"celeborn.replicate.heartbeat.interval".  | 0.3.0 | celeborn.client.heartbeat.interval | 
