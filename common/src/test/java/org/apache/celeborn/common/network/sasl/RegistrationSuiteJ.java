@@ -46,7 +46,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
         new RegistrationServerBootstrap(conf, new TestSecretRegistry());
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
-            conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());
+            conf, TEST_USER, userIdentifier, false, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());
     authHelper(conf, serverBootstrap, clientBootstrap);
   }
 
@@ -59,7 +59,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
         new RegistrationServerBootstrap(conf, secretRegistry);
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
-            conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());
+            conf, TEST_USER, userIdentifier, false, new SaslCredentials(TEST_USER, TEST_SECRET), new RegistrationInfo());
 
     try {
       authHelper(conf, serverBootstrap, clientBootstrap);

@@ -31,6 +31,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +82,10 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
 
   private final TransportConf conf;
   private final String appId;
+
+  private final UserIdentifier userIdentifier;
+
+  private final boolean authEnabled;
   private final SaslCredentials saslCredentials;
 
   private final RegistrationInfo registrationInfo;
@@ -88,19 +93,23 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
   public RegistrationClientBootstrap(
       TransportConf conf,
       String appId,
+      UserIdentifier userIdentifier,
+      boolean authEnabled,
       SaslCredentials saslCredentials,
       RegistrationInfo registrationInfo) {
     this.conf = Preconditions.checkNotNull(conf, "conf");
     this.appId = Preconditions.checkNotNull(appId, "appId");
+    this.userIdentifier = Preconditions.checkNotNull(userIdentifier, "userIdentifier");
+    this.authEnabled = authEnabled;
     this.saslCredentials = Preconditions.checkNotNull(saslCredentials, "saslCredentials");
     this.registrationInfo = Preconditions.checkNotNull(registrationInfo, "registrationInfo");
   }
 
   @Override
   public void doBootstrap(TransportClient client) throws RuntimeException {
-    if (saslCredentials != null) {
+    if (authEnabled) {
         doSaslRegisterBootstrap(client);
-        } else {
+    } else {
         doNonSaslRegisterBootstrap(client);
     }
   }

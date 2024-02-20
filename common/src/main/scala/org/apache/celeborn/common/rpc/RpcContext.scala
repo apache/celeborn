@@ -16,6 +16,7 @@
  */
 package org.apache.celeborn.common.rpc
 
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistry}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
@@ -37,7 +38,9 @@ private[celeborn] case class RpcContext(
  */
 private[celeborn] case class ClientRpcContext(
     appId: String,
-    saslCredentials: Option[SaslCredentials] = None,
+    userIdentifier: UserIdentifier,
+    authEnabled: Boolean,
+    saslCredentials: SaslCredentials,
     addRegistrationBootstrap: Boolean = false,
     registrationInfo: RegistrationInfo = null)
 
@@ -57,7 +60,9 @@ private[celeborn] class ClientRpcContextBuilder {
   private var saslUser: String = _
   private var saslPassword: String = _
   private var appId: String = _
+  private var userIdentifier: UserIdentifier = _
   private var addRegistrationBootstrap: Boolean = false
+  private var authEnabled: Boolean = false
   private var registrationInfo: RegistrationInfo = _
 
   def withSaslUser(user: String): ClientRpcContextBuilder = {
@@ -75,8 +80,18 @@ private[celeborn] class ClientRpcContextBuilder {
     this
   }
 
+  def withUserIdentifier(userIdentifier: UserIdentifier): ClientRpcContextBuilder = {
+    this.userIdentifier = userIdentifier
+    this
+  }
+
   def withAddRegistrationBootstrap(addRegistrationBootstrap: Boolean): ClientRpcContextBuilder = {
     this.addRegistrationBootstrap = addRegistrationBootstrap
+    this
+  }
+
+  def withAuthEnabled(authEnabled: Boolean): ClientRpcContextBuilder = {
+    this.authEnabled = authEnabled
     this
   }
 
@@ -86,19 +101,23 @@ private[celeborn] class ClientRpcContextBuilder {
   }
 
   def build(): ClientRpcContext = {
+    if (saslUser == null || saslPassword == null) {
+      throw new IllegalArgumentException("Sasl user/password is not set.")
+    }
     if (appId == null) {
       throw new IllegalArgumentException("App id is not set.")
+    }
+    if (userIdentifier == null) {
+      throw new IllegalArgumentException("User identifier is not set.")
     }
     if (addRegistrationBootstrap && registrationInfo == null) {
       throw new IllegalArgumentException("Registration info is not set.")
     }
-    var saslCredentials: Option[SaslCredentials] = None
-    if (saslUser != null && saslPassword != null) {
-      saslCredentials = Some(new SaslCredentials(saslUser, saslPassword))
-    }
     ClientRpcContext(
       appId,
-      saslCredentials,
+      userIdentifier,
+      authEnabled,
+      new SaslCredentials(saslUser, saslPassword),
       addRegistrationBootstrap,
       registrationInfo)
   }

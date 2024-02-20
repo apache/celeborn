@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -57,6 +58,8 @@ public class SaslTestBase {
 
   static final String TEST_USER = "appId";
   static final String TEST_SECRET = "secret";
+
+  static final UserIdentifier userIdentifier = new UserIdentifier(TEST_USER, TEST_USER);
 
   void authHelper(
       TransportConf conf,

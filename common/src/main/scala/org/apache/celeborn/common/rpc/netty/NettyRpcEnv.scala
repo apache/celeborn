@@ -69,6 +69,8 @@ class NettyRpcEnv(
         new RegistrationClientBootstrap(
           transportConf,
           clientRpcContext.appId,
+          clientRpcContext.userIdentifier,
+          clientRpcContext.authEnabled,
           clientRpcContext.saslCredentials,
           clientRpcContext.registrationInfo)
       } else {

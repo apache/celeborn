@@ -167,7 +167,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private var masterRpcEnvInUse = rpcEnv
   private var workerRpcEnvInUse = rpcEnv
 
-  private val appSecret = if (authEnabled) Some(createSecret()) else None
+  private val appSecret = createSecret()
   masterRpcEnvInUse =
     RpcEnv.create(
       RpcNameConstants.LIFECYCLE_MANAGER_MASTER_SYS,
@@ -260,14 +260,16 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * Creates security context for external RPC endpoint.
    */
   def createRpcSecurityContext(
-      appSecret: Option[String],
+      appSecret: String,
       addClientRegistrationBootstrap: Boolean = false,
       registrationInfo: Option[RegistrationInfo] = None): Option[RpcContext] = {
     val clientSaslContextBuilder = new ClientRpcContextBuilder()
       .withAddRegistrationBootstrap(addClientRegistrationBootstrap)
       .withAppId(appUniqueId)
+      .withUserIdentifier(userIdentifier)
+      .withAuthEnabled(authEnabled)
       .withSaslUser(appUniqueId)
-      .withSaslPassword(appSecret.orNull)
+      .withSaslPassword(appSecret)
     if (registrationInfo.isDefined) {
       clientSaslContextBuilder.withRegistrationInfo(registrationInfo.get)
     }
