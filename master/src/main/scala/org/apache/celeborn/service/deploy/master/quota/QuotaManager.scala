@@ -33,7 +33,7 @@ class QuotaManager(celebornConf: CelebornConf) extends Logging {
       val config =
         configService.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
       getQuota(config)
-    } else{
+    } else {
       Quota.DEFAULT_QUOTA
     }
   }
