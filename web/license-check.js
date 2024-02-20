@@ -95,7 +95,7 @@ function checkLicense(path) {
   const content = fs.readFileSync(path, 'utf-8')
 
   if (!content.startsWith(license.trim())) {
-    console.log('\x1b[31m license check error\x1b[0m: ' + path)
+    console.error('\x1b[31m license check error\x1b[0m: ' + path)
     process.exit(1)
   } else {
     console.log('\x1b[32m license check success\x1b[0m: ' + path)
