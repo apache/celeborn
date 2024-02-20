@@ -76,6 +76,18 @@
               <workingDirectory>${project.build.directory}</workingDirectory>
             </configuration>
           </execution>
+
+          <execution>
+            <id>pnpm run license-check</id>
+            <goals>
+              <goal>pnpm</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <arguments>run license-check</arguments>
+              <workingDirectory>${project.build.directory}</workingDirectory>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
     </plugins>
