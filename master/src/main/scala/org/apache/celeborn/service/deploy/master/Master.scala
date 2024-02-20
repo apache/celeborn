@@ -44,7 +44,7 @@ import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
+import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerRpcContextBuilder}
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, CollectionUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -106,7 +106,7 @@ private[celeborn] class Master(
   if (authEnabled) {
     val externalSecurityContext = new RpcSecurityContextBuilder()
       .withServerSaslContext(
-        new ServerSaslContextBuilder()
+        new ServerRpcContextBuilder()
           .withAddRegistrationBootstrap(true)
           .withSecretRegistry(secretRegistry).build()).build()
 

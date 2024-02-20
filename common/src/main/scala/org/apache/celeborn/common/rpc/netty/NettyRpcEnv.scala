@@ -63,7 +63,7 @@ class NettyRpcEnv(
     new TransportContext(transportConf, new NettyRpcHandler(dispatcher, this))
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
-    val bootstrapOpt = securityContext.flatMap(_.clientSaslContext.map { clientSaslContext =>
+    val bootstrapOpt = securityContext.flatMap(_.clientRpcContext.map { clientSaslContext =>
       if (clientSaslContext.addRegistrationBootstrap) {
         logInfo("Add registration client bootstrap")
         new RegistrationClientBootstrap(
@@ -114,7 +114,7 @@ class NettyRpcEnv(
   }
 
   private def createServerBootstraps(): java.util.List[TransportServerBootstrap] = {
-    val bootstrapOpt = securityContext.flatMap(_.serverSaslContext.map { serverSaslContext =>
+    val bootstrapOpt = securityContext.flatMap(_.serverRpcContext.map { serverSaslContext =>
       if (serverSaslContext.addRegistrationBootstrap) {
         logInfo("Add registration server bootstrap")
         new RegistrationServerBootstrap(

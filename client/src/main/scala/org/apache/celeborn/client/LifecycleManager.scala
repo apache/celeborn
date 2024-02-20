@@ -50,7 +50,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
-import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcSecurityContext, RpcSecurityContextBuilder}
+import org.apache.celeborn.common.rpc.{ClientRpcContextBuilder, RpcContext, RpcSecurityContextBuilder}
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -262,8 +262,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def createRpcSecurityContext(
       appSecret: Option[String],
       addClientRegistrationBootstrap: Boolean = false,
-      registrationInfo: Option[RegistrationInfo] = None): Option[RpcSecurityContext] = {
-    val clientSaslContextBuilder = new ClientSaslContextBuilder()
+      registrationInfo: Option[RegistrationInfo] = None): Option[RpcContext] = {
+    val clientSaslContextBuilder = new ClientRpcContextBuilder()
       .withAddRegistrationBootstrap(addClientRegistrationBootstrap)
       .withAppId(appUniqueId)
       .withSaslUser(appUniqueId)

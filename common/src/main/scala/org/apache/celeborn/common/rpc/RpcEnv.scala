@@ -23,7 +23,7 @@ import scala.concurrent.Future
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
-import org.apache.celeborn.common.rpc.RpcSecurityContext
+import org.apache.celeborn.common.rpc.RpcContext
 
 /**
  * A RpcEnv implementation must have a [[RpcEnvFactory]] implementation with an empty constructor
@@ -36,7 +36,7 @@ object RpcEnv {
       host: String,
       port: Int,
       conf: CelebornConf,
-      securityContext: Option[RpcSecurityContext]): RpcEnv = {
+      securityContext: Option[RpcContext]): RpcEnv = {
     create(name, host, host, port, conf, 0, securityContext)
   }
 
@@ -47,7 +47,7 @@ object RpcEnv {
       port: Int,
       conf: CelebornConf,
       numUsableCores: Int,
-      securityContext: Option[RpcSecurityContext] = None): RpcEnv = {
+      securityContext: Option[RpcContext] = None): RpcEnv = {
     val config =
       RpcEnvConfig(conf, name, bindAddress, advertiseAddress, port, numUsableCores, securityContext)
     new NettyRpcEnvFactory().create(config)
@@ -181,4 +181,4 @@ private[celeborn] case class RpcEnvConfig(
     advertiseAddress: String,
     port: Int,
     numUsableCores: Int,
-    securityContext: Option[RpcSecurityContext])
+    securityContext: Option[RpcContext])
