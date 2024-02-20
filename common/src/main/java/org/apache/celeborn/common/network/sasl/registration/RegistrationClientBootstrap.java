@@ -93,16 +93,16 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
   public RegistrationClientBootstrap(
       TransportConf conf,
       String appId,
-      UserIdentifier userIdentifier,
-      boolean authEnabled,
       SaslCredentials saslCredentials,
-      RegistrationInfo registrationInfo) {
+      RegistrationInfo registrationInfo,
+      UserIdentifier userIdentifier,
+      boolean authEnabled) {
     this.conf = Preconditions.checkNotNull(conf, "conf");
     this.appId = Preconditions.checkNotNull(appId, "appId");
-    this.userIdentifier = Preconditions.checkNotNull(userIdentifier, "userIdentifier");
-    this.authEnabled = authEnabled;
     this.saslCredentials = Preconditions.checkNotNull(saslCredentials, "saslCredentials");
     this.registrationInfo = Preconditions.checkNotNull(registrationInfo, "registrationInfo");
+    this.userIdentifier = Preconditions.checkNotNull(userIdentifier, "userIdentifier");
+    this.authEnabled = authEnabled;
   }
 
   @Override

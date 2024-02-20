@@ -21,9 +21,9 @@ import org.scalatest.matchers.must.Matchers.be
 import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistryImpl}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
-import org.apache.celeborn.common.rpc.{ClientRpcContext, ClientRpcContextBuilder, RpcSecurityContextBuilder, ServerRpcContextBuilder, ServerSaslContext}
 
 class RpcContextSuite extends CelebornFunSuite {
 
@@ -73,6 +73,7 @@ class RpcContextSuite extends CelebornFunSuite {
       .withAppId("clientAppId")
       .withAddRegistrationBootstrap(true)
       .withRegistrationInfo(new RegistrationInfo())
+      .withUserIdentifier(new UserIdentifier("default", "user"))
       .build()
 
     clientContext.appId shouldBe "clientAppId"

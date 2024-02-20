@@ -38,11 +38,11 @@ private[celeborn] case class RpcContext(
  */
 private[celeborn] case class ClientRpcContext(
     appId: String,
-    userIdentifier: UserIdentifier,
-    authEnabled: Boolean,
     saslCredentials: SaslCredentials,
     addRegistrationBootstrap: Boolean = false,
-    registrationInfo: RegistrationInfo = null)
+    registrationInfo: RegistrationInfo = null,
+    userIdentifier: UserIdentifier = null,
+    authEnabled: Boolean = false)
 
 /**
  * Represents the server RPC context.
@@ -116,11 +116,11 @@ private[celeborn] class ClientRpcContextBuilder {
     }
     ClientRpcContext(
       appId,
-      userIdentifier,
-      authEnabled,
       new SaslCredentials(saslUser, saslPassword),
       addRegistrationBootstrap,
-      registrationInfo)
+      registrationInfo,
+      userIdentifier,
+      authEnabled)
   }
 }
 

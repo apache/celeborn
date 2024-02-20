@@ -158,11 +158,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
       case REGISTER_APPLICATION_REQUEST_VALUE:
         PbRegisterApplicationRequest registerApplicationRequest = pbMsg.getParsedPayload();
         LOG.trace("Application registration started {}", registerApplicationRequest.getId());
-        PbRegisterApplicationResponse response =
-            PbRegisterApplicationResponse.newBuilder().setStatus(true).build();
-        callback.onSuccess(
-            new TransportMessage(REGISTER_APPLICATION_RESPONSE, response.toByteArray())
-                .toByteBuffer());
+        processRegisterApplicationRequest(registerApplicationRequest, callback);
         registrationState = RegistrationState.REGISTERED;
         LOG.info(
             "Application registered: appId {} rpcId {}",
@@ -170,9 +166,8 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
             message.requestId);
         break;
       default:
-        throw new IllegalStateException(
-            "Invalid registration state. Expected: REGISTER_APPLICATION_REQUEST, Actual: "
-                + pbMsg.getMessageTypeValue());
+        throw new SecurityException(
+            "The app is not registered for connection " + message.requestId);
     }
   }
 

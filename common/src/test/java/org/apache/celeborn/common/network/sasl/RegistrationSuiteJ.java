@@ -43,15 +43,15 @@ public class RegistrationSuiteJ extends SaslTestBase {
   public void testRegistration() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, new TestSecretRegistry(), false);
+        new RegistrationServerBootstrap(conf, new TestSecretRegistry(), true);
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
             conf,
             TEST_USER,
-            userIdentifier,
-            false,
             new SaslCredentials(TEST_USER, TEST_SECRET),
-            new RegistrationInfo());
+            new RegistrationInfo(),
+            userIdentifier,
+            true);
     authHelper(conf, serverBootstrap, clientBootstrap);
   }
 
@@ -61,15 +61,15 @@ public class RegistrationSuiteJ extends SaslTestBase {
     // The SecretRegistryImpl already has the entry for TEST_USER so re-registering the app should
     // fail.
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, secretRegistry, false);
+        new RegistrationServerBootstrap(conf, secretRegistry, true);
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
             conf,
             TEST_USER,
-            userIdentifier,
-            false,
             new SaslCredentials(TEST_USER, TEST_SECRET),
-            new RegistrationInfo());
+            new RegistrationInfo(),
+            userIdentifier,
+            true);
 
     try {
       authHelper(conf, serverBootstrap, clientBootstrap);
@@ -83,7 +83,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
   public void testConnectionAuthWithoutRegistrationShouldFail() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, new TestSecretRegistry(), false);
+        new RegistrationServerBootstrap(conf, new TestSecretRegistry(), true);
     SaslClientBootstrap clientBootstrap =
         new SaslClientBootstrap(conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET));
 
