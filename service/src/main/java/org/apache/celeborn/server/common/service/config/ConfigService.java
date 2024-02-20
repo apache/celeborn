@@ -21,14 +21,38 @@ import java.io.IOException;
 
 import org.apache.celeborn.common.CelebornConf;
 
+/**
+ * Config service provides the configuration management service with cache for the static and
+ * dynamic configuration(system level/tenant level/tenant user level).
+ */
 public interface ConfigService {
 
+  /**
+   * Gets the static configuration {@link CelebornConf}.
+   *
+   * @return The static configuration.
+   */
   CelebornConf getCelebornConf();
 
+  /**
+   * Gets the system level dynamic configuration {@link SystemConfig} from cache.
+   *
+   * @return The system level dynamic configuration.
+   */
   SystemConfig getSystemConfigFromCache();
 
+  /**
+   * Gets the raw tenant level dynamic configuration {@link TenantConfig} from cache.
+   *
+   * @return The raw tenant level dynamic configuration.
+   */
   TenantConfig getRawTenantConfigFromCache(String tenantId);
 
+  /**
+   * Gets the tenant level dynamic configuration {@link DynamicConfig} from cache.
+   *
+   * @return The tenant level dynamic configuration.
+   */
   default DynamicConfig getTenantConfigFromCache(String tenantId) {
     TenantConfig tenantConfig = getRawTenantConfigFromCache(tenantId);
     if (tenantConfig == null || tenantConfig.getConfigs().isEmpty()) {
@@ -38,10 +62,20 @@ public interface ConfigService {
     }
   }
 
-  TenantConfig getRawTenantUserConfig(String tenantId, String userId);
+  /**
+   * Gets the raw tenant user level dynamic configuration {@link TenantConfig} from cache.
+   *
+   * @return The raw tenant user level dynamic configuration.
+   */
+  TenantConfig getRawTenantUserConfigFromCache(String tenantId, String userId);
 
-  default DynamicConfig getTenantUserConfig(String tenantId, String userId) {
-    TenantConfig tenantConfig = getRawTenantUserConfig(tenantId, userId);
+  /**
+   * Gets the raw tenant user level dynamic configuration {@link DynamicConfig} from cache.
+   *
+   * @return The tenant user level dynamic configuration.
+   */
+  default DynamicConfig getTenantUserConfigFromCache(String tenantId, String userId) {
+    TenantConfig tenantConfig = getRawTenantUserConfigFromCache(tenantId, userId);
     if (tenantConfig == null) {
       return getTenantConfigFromCache(tenantId);
     } else {
@@ -49,7 +83,13 @@ public interface ConfigService {
     }
   }
 
+  /**
+   * Refreshes cache of the dynamic configuration(system level/tenant level/tenant user level).
+   *
+   * @throws IOException If refresh fails with exception.
+   */
   void refreshCache() throws IOException;
 
+  /** Shutdowns configuration management service. */
   void shutdown();
 }
