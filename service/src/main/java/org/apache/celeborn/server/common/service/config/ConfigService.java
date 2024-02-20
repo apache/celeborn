@@ -49,7 +49,8 @@ public interface ConfigService {
   TenantConfig getRawTenantConfigFromCache(String tenantId);
 
   /**
-   * Gets the tenant level dynamic configuration {@link DynamicConfig} from cache.
+   * Gets the tenant level dynamic configuration {@link DynamicConfig} from cache. When the tenant
+   * level config is null or empty, fallback to the system level config.
    *
    * @return The tenant level dynamic configuration.
    */
@@ -70,7 +71,9 @@ public interface ConfigService {
   TenantConfig getRawTenantUserConfigFromCache(String tenantId, String userId);
 
   /**
-   * Gets the raw tenant user level dynamic configuration {@link DynamicConfig} from cache.
+   * Gets the tenant user level dynamic configuration {@link DynamicConfig} from cache. When the
+   * tenant user level config is null or empty, fallback to the tenant level config. When the tenant
+   * level config is null or empty, fallback to the system level config again.
    *
    * @return The tenant user level dynamic configuration.
    */
