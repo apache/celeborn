@@ -103,6 +103,7 @@ class ConfigurationSuite extends AnyFunSuite {
         val seq = Seq(
           s"${escape(entry.key)}",
           s"${escape(entry.defaultValueString)}",
+          s"${entry.isDynamic}",
           s"${entry.doc}",
           s"${entry.version}",
           s"${escape(entry.alternatives.map(_._1).mkString(","))}")
@@ -139,8 +140,8 @@ class ConfigurationSuite extends AnyFunSuite {
   }
 
   def appendConfigurationTableHeader(output: ArrayBuffer[String]): Unit = {
-    output += "| Key | Default | Description | Since | Deprecated |"
-    output += "| --- | ------- | ----------- | ----- | ---------- |"
+    output += "| Key | Default | isDynamic | Description | Since | Deprecated |"
+    output += "| --- | ------- | --------- | ----------- | ----- | ---------- |"
   }
 
   def appendBeginInclude(output: ArrayBuffer[String]): Unit = {
