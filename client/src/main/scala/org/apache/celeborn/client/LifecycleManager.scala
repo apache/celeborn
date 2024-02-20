@@ -164,11 +164,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
-  private var masterRpcEnvInUse = rpcEnv
-  private var workerRpcEnvInUse = rpcEnv
-
   private val appSecret = createSecret()
-  masterRpcEnvInUse =
+  private val masterAppRegistryRpcEnvInUse =
     RpcEnv.create(
       RpcNameConstants.LIFECYCLE_MANAGER_MASTER_SYS,
       lifecycleHost,
@@ -178,6 +175,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         appSecret,
         addClientRegistrationBootstrap = true,
         Some(new RegistrationInfo())))
+
+  private var workerRpcEnvInUse = rpcEnv
+
   if (authEnabled) {
     logInfo(s"Authentication is enabled; setting up worker RPC environments")
     workerRpcEnvInUse =
@@ -189,7 +189,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         createRpcContext(appSecret))
   }
 
-  private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
+  private val masterClient = new MasterClient(masterAppRegistryRpcEnvInUse, conf, false)
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
   private val heartbeater =
@@ -244,11 +244,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       rpcEnv.shutdown()
       rpcEnv.awaitTermination()
     }
+    if (masterAppRegistryRpcEnvInUse != null) {
+      masterAppRegistryRpcEnvInUse.shutdown()
+      masterAppRegistryRpcEnvInUse.awaitTermination()
+    }
     if (authEnabled) {
-      if (masterRpcEnvInUse != null) {
-        masterRpcEnvInUse.shutdown()
-        masterRpcEnvInUse.awaitTermination()
-      }
       if (workerRpcEnvInUse != null) {
         workerRpcEnvInUse.shutdown()
         workerRpcEnvInUse.awaitTermination()
