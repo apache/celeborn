@@ -36,3 +36,4 @@ build/apache-maven-*/**
 build/scala-*/**
 build/sbt-config/**
 **/benchmarks/**
+**/node_modules/**
