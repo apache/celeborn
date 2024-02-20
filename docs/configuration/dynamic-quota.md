@@ -19,8 +19,4 @@ license: |
 <!--begin-include-->
 | Key | Default | Description | Since | Deprecated |
 | --- | ------- | ----------- | ----- | ---------- |
-| celeborn.quota.diskBytesWritten | -1 | Quota dynamic configuration for written disk bytes. | 0.5.0 |  | 
-| celeborn.quota.diskFileCount | -1 | Quota dynamic configuration for written disk file count. | 0.5.0 |  | 
-| celeborn.quota.hdfsBytesWritten | -1 | Quota dynamic configuration for written hdfs bytes. | 0.5.0 |  | 
-| celeborn.quota.hdfsFileCount | -1 | Quota dynamic configuration for written hdfs file count. | 0.5.0 |  | 
 <!--end-include-->

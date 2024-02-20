@@ -4209,7 +4209,8 @@ object CelebornConf extends Logging {
 
   val QUOTA_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.diskBytesWritten")
-      .categories("dynamic-quota")
+      .categories("quota")
+      .dynamic
       .doc("Quota dynamic configuration for written disk bytes.")
       .version("0.5.0")
       .longConf
@@ -4217,7 +4218,8 @@ object CelebornConf extends Logging {
 
   val QUOTA_DISK_FILE_COUNT: ConfigEntry[Long] =
     buildConf("celeborn.quota.diskFileCount")
-      .categories("dynamic-quota")
+      .categories("quota")
+      .dynamic
       .doc("Quota dynamic configuration for written disk file count.")
       .version("0.5.0")
       .longConf
@@ -4225,7 +4227,8 @@ object CelebornConf extends Logging {
 
   val QUOTA_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.hdfsBytesWritten")
-      .categories("dynamic-quota")
+      .categories("quota")
+      .dynamic
       .doc("Quota dynamic configuration for written hdfs bytes.")
       .version("0.5.0")
       .longConf
@@ -4233,7 +4236,8 @@ object CelebornConf extends Logging {
 
   val QUOTA_HDFS_FILE_COUNT: ConfigEntry[Long] =
     buildConf("celeborn.quota.hdfsFileCount")
-      .categories("dynamic-quota")
+      .categories("quota")
+      .dynamic
       .doc("Quota dynamic configuration for written hdfs file count.")
       .version("0.5.0")
       .longConf
