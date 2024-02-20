@@ -217,7 +217,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           MemoryManager.instance()
               .getStoragePooledByteBufAllocator()
               .compositeBuffer(Integer.MAX_VALUE);
-      ShuffleBlockInfoUtils.reorganizeBuffer(
+      ShuffleBlockInfoUtils.sortBufferByRange(
           startMapIndex, endMapIndex, indexesMap, memoryFileInfo.getSortedBuffer(), targetBuffer);
       return new MemoryFileInfo(
           memoryFileInfo.getUserIdentifier(),
@@ -304,7 +304,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     }
   }
 
-  private void sortMemoryShuffleFile(MemoryFileInfo memoryFileInfo) {
+  public static void sortMemoryShuffleFile(MemoryFileInfo memoryFileInfo) {
     ReduceFileMeta reduceFileMeta = ((ReduceFileMeta) memoryFileInfo.getFileMeta());
     CompositeByteBuf originBuffer = memoryFileInfo.getBuffer();
     Map<Integer, List<ShuffleBlockInfo>> blocksMap = new TreeMap<>();

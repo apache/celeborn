@@ -108,22 +108,22 @@ abstract private[worker] class Flusher(
   }
 
   def returnBuffer(task: FlushTask): Unit = {
-    MemoryManager.instance().releaseDiskBuffer(task.buffer.readableBytes())
+    val bufferSize = task.buffer.readableBytes()
+    MemoryManager.instance().releaseDiskBuffer(bufferSize)
     Option(CongestionController.instance())
       .foreach(
-        _.consumeBytes(task.buffer.readableBytes()))
-    returnBuffer(task.buffer)
-
-    if (task.keepBuffer) {
-      bufferQueue.put(task.buffer)
-    } else {
-      task.buffer.release()
-    }
+        _.consumeBytes(bufferSize))
+    returnBuffer(task.buffer, task.keepBuffer)
   }
 
-  def returnBuffer(buffer: CompositeByteBuf): Unit = {
+  def returnBuffer(buffer: CompositeByteBuf, keepBuffer: Boolean = false): Unit = {
     buffer.removeComponents(0, buffer.numComponents())
     buffer.clear()
+    if (keepBuffer) {
+      bufferQueue.put(buffer)
+    } else {
+      buffer.release()
+    }
   }
 
   def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {

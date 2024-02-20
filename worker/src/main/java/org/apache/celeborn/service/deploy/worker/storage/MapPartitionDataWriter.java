@@ -158,7 +158,7 @@ public final class MapPartitionDataWriter extends PartitionDataWriter {
   @Override
   public Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFile(
       PartitionDataWriterContext writerContext) {
-    return storageManager.createFile(writerContext, true);
+    return storageManager.createFile(writerContext, false);
   }
 
   @Override

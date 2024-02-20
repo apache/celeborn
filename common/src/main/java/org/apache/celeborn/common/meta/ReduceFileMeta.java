@@ -86,6 +86,9 @@ public class ReduceFileMeta implements FileMeta {
   }
 
   public void removeMapIds(int startIndex, int endIndex) {
+    if (mapIds == null) {
+      return;
+    }
     for (int i = startIndex; i < endIndex; i++) {
       mapIds.remove(i);
     }

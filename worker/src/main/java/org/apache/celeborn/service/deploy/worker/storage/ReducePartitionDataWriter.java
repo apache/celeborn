@@ -45,9 +45,9 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
 
   private void updateLastChunkOffset() {
     ReduceFileMeta reduceFileMeta;
-    if (!isMemoryShuffleFile) {
+    if (!isMemoryShuffleFile.get()) {
       reduceFileMeta = diskFileInfo.getReduceFileMeta();
-      reduceFileMeta.updateChunkOffset(diskFileInfo.getBytesFlushed(), true);
+      reduceFileMeta.updateChunkOffset(diskFileInfo.getFileLength(), true);
     } else {
       reduceFileMeta = memoryFileInfo.getReduceFileMeta();
       reduceFileMeta.updateChunkOffset(memoryFileInfo.getFileLength(), true);
@@ -103,6 +103,8 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
             }
           } else {
             synchronized (flushLock) {
+              // merge and free small components
+              flushBuffer.consolidate();
               memoryFileInfo.setBuffer(flushBuffer);
             }
           }

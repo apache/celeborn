@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.function.{BiConsumer, IntUnaryOperator}
 
 import scala.collection.JavaConverters._
@@ -311,6 +311,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     }
   }
 
+  def saveAllMemoryStorageFileInfosToDB(): Unit = {
+    for (writer <- memoryWriters.asScala) {
+      Utils.tryLogNonFatalError(writer._2.saveMemoryShuffleFileOnGracefulShutdown())
+    }
+  }
+
   private def getNextIndex = counter.getAndUpdate(counterOperator)
 
   private val newMapFunc =
@@ -336,6 +342,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       override def apply(t: File): ConcurrentHashMap[String, PartitionDataWriter] =
         JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
     }
+
+  val evictedFileCount = new AtomicLong
 
   @throws[IOException]
   def createPartitionDataWriter(
@@ -417,10 +425,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       fileInfo: MemoryFileInfo,
       shuffleKey: String,
       fileName: String): Unit = {
-    memoryWriters.remove(fileInfo)
-    val map = memoryFileInfos.get(shuffleKey)
-    if (map != null) {
-      map.remove(fileName)
+    memoryFileInfos.synchronized {
+      memoryWriters.remove(fileInfo)
+      val map = memoryFileInfos.get(shuffleKey)
+      if (map != null) {
+        map.remove(fileName)
+      }
     }
   }
 
@@ -441,21 +451,24 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def getFileInfo(
       shuffleKey: String,
       fileName: String): FileInfo = {
-    val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
-    if (memoryShuffleMap != null) {
-      val memoryFileInfo = memoryShuffleMap.get(fileName)
-      if (memoryFileInfo != null) {
-        return memoryFileInfo
-      }
-    } else {
-      val diskShuffleMap = diskFileInfos.get(shuffleKey)
-      if (diskShuffleMap != null) {
-        val diskFileInfo = diskShuffleMap.get(fileName)
-        if (diskFileInfo != null) {
-          return diskFileInfo
+    memoryFileInfos.synchronized {
+      val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
+      if (memoryShuffleMap != null) {
+        val memoryFileInfo = memoryShuffleMap.get(fileName)
+        if (memoryFileInfo != null) {
+          return memoryFileInfo
         }
       }
     }
+
+    val diskShuffleMap = diskFileInfos.get(shuffleKey)
+    if (diskShuffleMap != null) {
+      val diskFileInfo = diskShuffleMap.get(fileName)
+      if (diskFileInfo != null) {
+        return diskFileInfo
+      }
+    }
+
     null
   }
 
@@ -565,6 +578,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             db.delete(dbShuffleKey(shuffleKey))
           }
         }
+      }
+      if (memoryFileInfos.containsKey(shuffleKey)) {
+        val memoryFileMaps = memoryFileInfos.remove(shuffleKey)
+        memoryFileMaps.asScala.foreach(u => {
+          memoryWriters.remove(u._2)
+          MemoryManager.instance().releaseMemoryFileStorage(u._2.expireMemoryBuffers())
+        })
       }
     }
   }
@@ -679,6 +699,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (db != null) {
       if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         try {
+          saveAllMemoryStorageFileInfosToDB()
           saveAllCommittedFileInfosToDB()
           db.close()
         } catch {
@@ -832,7 +853,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def getActiveShuffleSize: Long = {
-    diskFileInfos.values().asScala.map(_.values().asScala.map(_.getBytesFlushed).sum).sum
+    diskFileInfos.values().asScala.map(_.values().asScala.map(_.getFileLength).sum).sum
   }
 
   def getActiveShuffleFileCount: Long = {
@@ -843,7 +864,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionDataWriterContext: PartitionDataWriterContext,
       inMem: Boolean): (MemoryFileInfo, Flusher, DiskFileInfo, File) = {
     val location = partitionDataWriterContext.getPartitionLocation
-    if (location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable() && !inMem) {
+    if (inMem && location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
+      logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey}-${partitionDataWriterContext.getPartitionLocation.getFileName}")
       (
         createMemoryFile(
           partitionDataWriterContext.getAppId,
@@ -856,6 +878,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         null,
         null)
     } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable()) {
+      logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey}-${partitionDataWriterContext.getPartitionLocation.getFileName}")
       val createDiskFileResult = createDiskFile(
         location,
         partitionDataWriterContext.getAppId,
@@ -891,6 +914,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     memoryFileInfos.computeIfAbsent(shuffleKey, memoryFileInfoMapFunc).put(
       fileName,
       memoryFileInfo)
+    memoryFileInfo
   }
 
   /**

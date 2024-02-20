@@ -100,7 +100,7 @@ public class MemoryPartitionFilesSorterSuiteJ {
     }
     long originFileLen = buffer.readableBytes();
     ((ReduceFileMeta) fileInfo.getFileMeta()).addChunkOffset(originFileLen);
-    fileInfo.addLength((int) originFileLen);
+    fileInfo.updateBytesFlushed((int) originFileLen);
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");

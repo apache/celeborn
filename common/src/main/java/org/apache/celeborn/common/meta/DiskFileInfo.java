@@ -37,10 +37,8 @@ import org.apache.celeborn.common.util.Utils;
  * */
 public class DiskFileInfo extends FileInfo {
   private static final Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
-
   private final String filePath;
   private final StorageInfo.Type storageType;
-  private volatile long bytesFlushed;
 
   public DiskFileInfo(
       UserIdentifier userIdentifier,
@@ -80,18 +78,6 @@ public class DiskFileInfo extends FileInfo {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
-  }
-
-  @Override
-  public long getFileLength() {
-    return bytesFlushed;
-  }
-
-  public void updateBytesFlushed(long numBytes) {
-    bytesFlushed += numBytes;
-    if (fileMeta instanceof ReduceFileMeta) {
-      ((ReduceFileMeta) fileMeta).updateChunkOffset(bytesFlushed, false);
-    }
   }
 
   public File getFile() {
@@ -160,10 +146,6 @@ public class DiskFileInfo extends FileInfo {
 
   public void setMountPoint(String mountPoint) {
     ((MapFileMeta) fileMeta).setMountPoint(mountPoint);
-  }
-
-  public long getBytesFlushed() {
-    return bytesFlushed;
   }
 
   public boolean isHdfs() {

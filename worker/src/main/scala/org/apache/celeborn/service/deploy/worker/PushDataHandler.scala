@@ -1207,24 +1207,27 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
       return true
     }
-    if (workerPartitionSplitEnabled && ((diskFull && fileWriter.getDiskFileInfo.getFileLength > partitionSplitMinimumSize) ||
-        (isPrimary && fileWriter.getDiskFileInfo.getFileLength > fileWriter.getSplitThreshold))) {
-      if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
-        (fileWriter.getDiskFileInfo.getFileLength < partitionSplitMaximumSize)) {
-        softSplit.set(true)
-      } else {
-        workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
-        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-        logTrace(
-          s"""
-             |CheckDiskFullAndSplit hardSplit
-             |diskFull:$diskFull,
-             |partitionSplitMinimumSize:$partitionSplitMinimumSize,
-             |splitThreshold:${fileWriter.getSplitThreshold},
-             |fileLength:${fileWriter.getDiskFileInfo.getFileLength},
-             |fileName:${fileWriter.getDiskFileInfo.getFilePath}
-             |""".stripMargin)
-        return true
+    val diskFileInfo = fileWriter.getDiskFileInfo
+    if (diskFileInfo != null) {
+      if (workerPartitionSplitEnabled && ((diskFull && diskFileInfo.getFileLength > partitionSplitMinimumSize) ||
+          (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold))) {
+        if (softSplit != null && fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
+          (fileWriter.getDiskFileInfo.getFileLength < partitionSplitMaximumSize)) {
+          softSplit.set(true)
+        } else {
+          workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
+          callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+          logTrace(
+            s"""
+               |CheckDiskFullAndSplit hardSplit
+               |diskFull:$diskFull,
+               |partitionSplitMinimumSize:$partitionSplitMinimumSize,
+               |splitThreshold:${fileWriter.getSplitThreshold},
+               |fileLength:${fileWriter.getDiskFileInfo.getFileLength},
+               |fileName:${fileWriter.getDiskFileInfo.getFilePath}
+               |""".stripMargin)
+          return true
+        }
       }
     }
     false

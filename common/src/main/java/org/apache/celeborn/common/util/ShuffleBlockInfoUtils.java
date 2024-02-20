@@ -94,7 +94,7 @@ public class ShuffleBlockInfoUtils {
     return indexMap;
   }
 
-  public static void reorganizeBuffer(
+  public static void sortBufferByRange(
       int startMapIndex,
       int endMapIndex,
       Map<Integer, List<ShuffleBlockInfo>> indexMap,

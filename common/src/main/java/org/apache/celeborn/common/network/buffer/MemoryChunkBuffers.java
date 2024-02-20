@@ -15,12 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.meta;
+package org.apache.celeborn.common.network.buffer;
 
-import org.apache.celeborn.common.network.buffer.ManagedBuffer;
+import scala.Tuple2;
 
-public interface ManagedBuffers {
-  int numChunks();
+import io.netty.buffer.CompositeByteBuf;
 
-  ManagedBuffer chunk(int chunkIndex, int offset, int len);
+import org.apache.celeborn.common.meta.MemoryFileInfo;
+import org.apache.celeborn.common.meta.ReduceFileMeta;
+
+public class MemoryChunkBuffers extends ChunkBuffers {
+  private final CompositeByteBuf buffer;
+
+  public MemoryChunkBuffers(MemoryFileInfo memoryFileInfo) {
+    super((ReduceFileMeta) memoryFileInfo.getFileMeta());
+    buffer = memoryFileInfo.getBuffer();
+  }
+
+  @Override
+  public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
+    Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
+    return new NettyManagedBuffer(
+        buffer.retainedSlice(offsetLen._1.intValue() + offset, offsetLen._2.intValue()));
+  }
 }

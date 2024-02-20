@@ -31,8 +31,8 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, FileManagedBuffers, MapFileMeta, MemoryFileInfo, NettyManagedBuffers, ReduceFileMeta}
-import org.apache.celeborn.common.network.buffer.NioManagedBuffer
+import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta}
+import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, MemoryChunkBuffers, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
@@ -262,9 +262,9 @@ class FetchHandler(
               // this means read from worker's file or memory
               val managedBuffer = fileInfo match {
                 case df: DiskFileInfo =>
-                  new FileManagedBuffers(df, transportConf)
+                  new FileChunkBuffers(df, transportConf)
                 case mf: MemoryFileInfo =>
-                  new NettyManagedBuffers(mf)
+                  new MemoryChunkBuffers(mf)
               }
               // fetch time metric make no sense in memory storage
               val fetchTimeMetric =

@@ -24,7 +24,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import org.apache.celeborn.common.meta.FileManagedBuffers;
+import org.apache.celeborn.common.network.buffer.FileChunkBuffers;
 
 public class ChunkStreamManagerSuiteJ {
   @Test
@@ -32,12 +32,12 @@ public class ChunkStreamManagerSuiteJ {
     ChunkStreamManager manager = new ChunkStreamManager();
 
     @SuppressWarnings("unchecked")
-    FileManagedBuffers buffers = Mockito.mock(FileManagedBuffers.class);
+    FileChunkBuffers buffers = Mockito.mock(FileChunkBuffers.class);
 
     @SuppressWarnings("unchecked")
-    FileManagedBuffers buffers2 = Mockito.mock(FileManagedBuffers.class);
-    FileManagedBuffers buffers3 = Mockito.mock(FileManagedBuffers.class);
-    FileManagedBuffers buffers4 = Mockito.mock(FileManagedBuffers.class);
+    FileChunkBuffers buffers2 = Mockito.mock(FileChunkBuffers.class);
+    FileChunkBuffers buffers3 = Mockito.mock(FileChunkBuffers.class);
+    FileChunkBuffers buffers4 = Mockito.mock(FileChunkBuffers.class);
 
     manager.registerStream("shuffleKey1", buffers, "shuffleFile1", null);
     manager.registerStream("shuffleKey1", buffers2, "shuffleFile1", null);

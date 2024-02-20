@@ -144,7 +144,9 @@ public class MemoryManager {
             CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(),
             pausePushDataRatio));
     Preconditions.checkArgument(pausePushDataRatio > resumeRatio);
-    Preconditions.checkArgument(resumeRatio > (readBufferRatio + memoryFileStorageRatio));
+    if (memoryFileStorageRatio == 0) {
+      Preconditions.checkArgument(resumeRatio > (readBufferRatio + memoryFileStorageRatio));
+    }
 
     maxSortMemory = ((long) (maxDirectorMemory * maxSortMemRatio));
     pausePushDataThreshold = (long) (maxDirectorMemory * pausePushDataRatio);
@@ -170,9 +172,9 @@ public class MemoryManager {
             logger.info(
                 "Direct memory usage: {}/{}, "
                     + "disk buffer size: {}, "
-                    + "sort memory size: {},"
-                    + " read buffer size: {},"
-                    + " memory file storage size : {}",
+                    + "sort memory size: {}, "
+                    + "read buffer size: {}, "
+                    + "memory file storage size : {}",
                 Utils.bytesToString(getNettyUsedDirectMemory()),
                 Utils.bytesToString(maxDirectorMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
@@ -229,39 +231,54 @@ public class MemoryManager {
           ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-file-storage-checker");
       memoryFileStorageService.scheduleWithFixedDelay(
           () -> {
-            List<PartitionDataWriter> committedWriters = new ArrayList<>();
-            List<PartitionDataWriter> unCommittedWriters = new ArrayList<>();
-            if (memoryFileStorageCounter.get() >= memoryFileStorageThreshold) {
-              for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
-                if (writer.isClosed() && writer.getMemoryFileInfo().isFullyRead()) {
-                  committedWriters.add(writer);
-                } else {
-                  unCommittedWriters.add(writer);
+            try {
+              if ((memoryFileStorageCounter.get() >= memoryFileStorageThreshold)
+                  || currentServingState() != ServingState.NONE_PAUSED) {
+                List<PartitionDataWriter> committedWriters = new ArrayList<>();
+                List<PartitionDataWriter> unCommittedWriters = new ArrayList<>();
+                for (PartitionDataWriter writer : storageManager.memoryWriters().values()) {
+                  if (writer.isClosed() && writer.getMemoryFileInfo().isFullyRead()) {
+                    committedWriters.add(writer);
+                  } else {
+                    unCommittedWriters.add(writer);
+                  }
+                }
+                if (committedWriters.isEmpty() && unCommittedWriters.isEmpty()) {
+                  return;
+                }
+                logger.info(
+                    "Start evicting memory fileinfo committed {} uncommitted {}",
+                    committedWriters.size(),
+                    unCommittedWriters.size());
+                committedWriters.sort(
+                    (o1, o2) ->
+                        o1.getMemoryFileInfo().getFileLength()
+                                > o2.getMemoryFileInfo().getFileLength()
+                            ? 1
+                            : 0);
+                unCommittedWriters.sort(
+                    (o1, o2) ->
+                        o1.getMemoryFileInfo().getFileLength()
+                                > o2.getMemoryFileInfo().getFileLength()
+                            ? 1
+                            : 0);
+                while ((memoryFileStorageCounter.get() >= memoryFileStorageThreshold)
+                    || currentServingState() != ServingState.NONE_PAUSED) {
+                  try {
+                    if (!committedWriters.isEmpty()) {
+                      committedWriters.remove(0).evict();
+                    } else if (!unCommittedWriters.isEmpty()) {
+                      unCommittedWriters.remove(0).evict();
+                    } else {
+                      break;
+                    }
+                  } catch (IOException e) {
+                    logger.warn("Partition data writer evict failed", e);
+                  }
                 }
               }
-            }
-            committedWriters.sort(
-                (o1, o2) ->
-                    o1.getMemoryFileInfo().getFileLength() > o2.getMemoryFileInfo().getFileLength()
-                        ? 1
-                        : 0);
-            unCommittedWriters.sort(
-                (o1, o2) ->
-                    o1.getMemoryFileInfo().getFileLength() > o2.getMemoryFileInfo().getFileLength()
-                        ? 1
-                        : 0);
-            while (memoryFileStorageCounter.get() >= memoryFileStorageThreshold) {
-              try {
-                if (!committedWriters.isEmpty()) {
-                  committedWriters.remove(0).evict();
-                } else if (!unCommittedWriters.isEmpty()) {
-                  unCommittedWriters.remove(0).evict();
-                } else {
-                  break;
-                }
-              } catch (IOException e) {
-                logger.warn("Partition data writer evict failed", e);
-              }
+            } catch (Exception e) {
+              logger.error("Evict thread encount error", e);
             }
           },
           checkInterval,
@@ -299,9 +316,7 @@ public class MemoryManager {
       return ServingState.PUSH_PAUSED;
     }
     // trigger resume
-    if ((memoryUsage - memoryFileStorageCounter.get())
-            / (double) (maxDirectorMemory - memoryFileStorageThreshold)
-        < resumeRatio) {
+    if (workerMemoryUsageRatio() < resumeRatio) {
       isPaused = false;
       return ServingState.NONE_PAUSED;
     }
@@ -511,6 +526,17 @@ public class MemoryManager {
 
   public void setCreditStreamManager(CreditStreamManager creditStreamManager) {
     this.creditStreamManager = creditStreamManager;
+  }
+
+  public double workerMemoryUsageRatio() {
+    long memoryUsage = getMemoryUsage();
+    long currentMemoryFileStorage = memoryFileStorageCounter.get();
+    return (memoryUsage - currentMemoryFileStorage)
+        / (double) (maxDirectorMemory - currentMemoryFileStorage);
+  }
+
+  public long getMemoryFileStorageCounter() {
+    return memoryFileStorageCounter.get();
   }
 
   public boolean memoryFileStorageAvailable() {

@@ -54,6 +54,7 @@ import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.*;
+import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.FetchHandler;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -78,12 +79,12 @@ public class MemoryReducePartitionDataWriterSuiteJ {
   private final UserIdentifier userIdentifier = new UserIdentifier("mock-tenantId", "mock-name");
 
   private static final TransportConf transConf = new TransportConf("shuffle", new CelebornConf());
-  private static final CelebornConf celebornConf = new CelebornConf();
   private static StorageManager storageManager;
 
   @BeforeClass
   public static void beforeAll() {
     CONF.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "1k");
+    CONF.set(CelebornConf.ACTIVE_STORAGE_TYPES().key(), "MEMORY,HDD");
 
     source = Mockito.mock(WorkerSource.class);
     Mockito.doAnswer(
@@ -107,6 +108,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     PooledByteBufAllocator allocator =
         NettyUtils.getPooledByteBufAllocator(transConf, source, false);
     storageManager = Mockito.mock(StorageManager.class);
+    AtomicLong evictCount = new AtomicLong();
+    Mockito.when(storageManager.evictedFileCount()).thenAnswer(a -> evictCount);
+    Mockito.when(storageManager.localOrHdfsStorageAvailable()).thenAnswer(a -> true);
     Mockito.when(storageManager.storageBufferAllocator()).thenAnswer(a -> allocator);
     MemoryManager.initialize(conf, storageManager);
   }
@@ -206,6 +210,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
           @Override
           public void onFailure(int chunkIndex, Throwable e) {
             res.failedChunks.add(chunkIndex);
+            LOG.error("Fetch chunk failed", e);
             sem.release();
           }
         };
@@ -228,9 +233,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
-                userIdentifier, true, storageManager, celebornConf),
+                userIdentifier, true, storageManager, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,
@@ -252,7 +257,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
       futures.add(
           es.submit(
               () -> {
-                byte[] bytes = generateData();
+                byte[] bytes = generateDataWithHeader();
                 length.addAndGet(bytes.length);
                 ByteBuf buf = Unpooled.wrappedBuffer(bytes);
                 try {
@@ -279,9 +284,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
-                userIdentifier, true, storageManager, celebornConf),
+                userIdentifier, true, storageManager, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,
@@ -304,7 +309,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
       futures.add(
           es.submit(
               () -> {
-                byte[] bytes = generateData();
+                byte[] bytes = generateDataWithHeader();
                 ByteBuf buf = Unpooled.wrappedBuffer(bytes);
                 try {
                   partitionDataWriter.write(buf);
@@ -330,9 +335,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryEvictEnvironment(
-                userIdentifier, true, storageManager, celebornConf),
+                userIdentifier, true, storageManager, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,
@@ -354,7 +359,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
           es.submit(
               () -> {
                 for (int j = 0; j < 100; ++j) {
-                  byte[] bytes = generateData();
+                  byte[] bytes = generateDataWithHeader();
                   length.addAndGet(bytes.length);
                   ByteBuf buf = Unpooled.wrappedBuffer(bytes);
                   try {
@@ -379,9 +384,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryEvictEnvironment(
-                userIdentifier, true, storageManager, celebornConf),
+                userIdentifier, true, storageManager, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,
@@ -402,7 +407,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         es.submit(
             () -> {
               for (int j = 0; j < 10; ++j) {
-                byte[] bytes = generateData();
+                byte[] bytes = generateDataWithHeader();
                 length.addAndGet(bytes.length);
                 ByteBuf buf = Unpooled.wrappedBuffer(bytes);
                 buf.retain();
@@ -454,9 +459,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     PartitionDataWriter partitionDataWriter =
         new ReducePartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryEvictEnvironment(
-                userIdentifier, true, storageManager, celebornConf),
+                userIdentifier, true, storageManager, CONF),
             source,
-            celebornConf,
+            CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             new PartitionDataWriterContext(
                 SPLIT_THRESHOLD,
@@ -477,7 +482,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         es.submit(
             () -> {
               for (int j = 0; j < 1000; ++j) {
-                byte[] bytes = generateData();
+                byte[] bytes = generateDataWithHeader();
                 length.addAndGet(bytes.length);
                 ByteBuf buf = Unpooled.wrappedBuffer(bytes);
                 buf.retain();
@@ -585,7 +590,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 userIdentifier,
                 PartitionType.REDUCE,
                 false));
-    partitionDataWriter.write(generateData(8 * 1024 * 1024));
+    partitionDataWriter.write(generateDataWithHeader(8 * 1024 * 1024));
     partitionDataWriter.close();
     ReduceFileMeta reduceFileMeta =
         (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
@@ -615,7 +620,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 PartitionType.REDUCE,
                 false));
     for (int i = 0; i < 8; i++) {
-      partitionDataWriter.write(generateData(128));
+      partitionDataWriter.write(generateDataWithHeader(128));
     }
     partitionDataWriter.close();
     reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
@@ -643,8 +648,8 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 userIdentifier,
                 PartitionType.REDUCE,
                 false));
-    partitionDataWriter.write(generateData(1020));
-    partitionDataWriter.write(generateData(3));
+    partitionDataWriter.write(generateDataWithHeader(1020));
+    partitionDataWriter.write(generateDataWithHeader(3));
     partitionDataWriter.close();
     reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 1);
@@ -672,9 +677,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 PartitionType.REDUCE,
                 false));
     for (int i = 0; i < 8; i++) {
-      partitionDataWriter.write(generateData(128));
+      partitionDataWriter.write(generateDataWithHeader(128));
     }
-    partitionDataWriter.write(generateData(1));
+    partitionDataWriter.write(generateDataWithHeader(1));
     partitionDataWriter.close();
     reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 2);
@@ -702,7 +707,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 PartitionType.REDUCE,
                 false));
     for (int i = 0; i < 16; i++) {
-      partitionDataWriter.write(generateData(128));
+      partitionDataWriter.write(generateDataWithHeader(128));
     }
     partitionDataWriter.close();
     reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
@@ -731,7 +736,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 PartitionType.REDUCE,
                 false));
     for (int i = 0; i < 16; i++) {
-      partitionDataWriter.write(generateData(128));
+      partitionDataWriter.write(generateDataWithHeader(128));
     }
     // mock trim
     partitionDataWriter.flush(false);
@@ -762,9 +767,9 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 PartitionType.REDUCE,
                 false));
     for (int i = 0; i < 16; i++) {
-      partitionDataWriter.write(generateData(128));
+      partitionDataWriter.write(generateDataWithHeader(128));
     }
-    partitionDataWriter.write(generateData(1));
+    partitionDataWriter.write(generateDataWithHeader(1));
     partitionDataWriter.close();
     reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 3);
@@ -791,11 +796,11 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 userIdentifier,
                 PartitionType.REDUCE,
                 false));
-    partitionDataWriter.write(generateData(1024));
+    partitionDataWriter.write(generateDataWithHeader(1024));
     for (int i = 0; i < 9; i++) {
-      partitionDataWriter.write(generateData(128));
+      partitionDataWriter.write(generateDataWithHeader(128));
     }
-    partitionDataWriter.write(generateData(1920));
+    partitionDataWriter.write(generateDataWithHeader(1920));
     partitionDataWriter.close();
     reduceFileMeta = (ReduceFileMeta) partitionDataWriter.getMemoryFileInfo().getFileMeta();
     assertEquals(reduceFileMeta.getNumChunks(), 3);
@@ -822,12 +827,12 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 userIdentifier,
                 PartitionType.REDUCE,
                 false));
-    partitionDataWriter.write(generateData(1024));
+    partitionDataWriter.write(generateDataWithHeader(1024));
     for (int i = 0; i < 9; i++) {
-      partitionDataWriter.write(generateData(128));
+      partitionDataWriter.write(generateDataWithHeader(128));
       partitionDataWriter.flush(false);
     }
-    partitionDataWriter.write(generateData(1920));
+    partitionDataWriter.write(generateDataWithHeader(1920));
     // mock trim
     partitionDataWriter.flush(false);
     partitionDataWriter.close();
@@ -838,20 +843,26 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         reduceFileMeta.getChunkOffsets().get(3) - reduceFileMeta.getChunkOffsets().get(2), 2048);
   }
 
-  private byte[] generateData() {
+  private byte[] generateDataWithHeader() {
     ThreadLocalRandom rand = ThreadLocalRandom.current();
+    byte[] header = new byte[16];
+    Platform.putInt(header, Platform.BYTE_ARRAY_OFFSET, 1);
+    Platform.putInt(header, Platform.BYTE_ARRAY_OFFSET + 4, 1);
+    Platform.putInt(header, Platform.BYTE_ARRAY_OFFSET + 8, 1);
     byte[] hello = "hello, world".getBytes(StandardCharsets.UTF_8);
     int tempLen = rand.nextInt(256 * 1024) + 128 * 1024;
     int len = (int) (Math.ceil(1.0 * tempLen / hello.length) * hello.length);
+    Platform.putInt(header, Platform.BYTE_ARRAY_OFFSET + 12, len);
 
-    byte[] data = new byte[len];
+    byte[] data = new byte[16 + len];
+    System.arraycopy(header, 0, data, 0, 16);
     for (int i = 0; i < len; i += hello.length) {
-      System.arraycopy(hello, 0, data, i, hello.length);
+      System.arraycopy(hello, 0, data, 16 + i, hello.length);
     }
     return data;
   }
 
-  private ByteBuf generateData(int len) {
+  private ByteBuf generateDataWithHeader(int len) {
     byte[] data = new byte[len];
     Arrays.fill(data, (byte) 'a');
     return Unpooled.wrappedBuffer(data);

@@ -20,13 +20,15 @@ package org.apache.celeborn.common.meta;
 import java.util.*;
 
 import io.netty.buffer.CompositeByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
 
 public class MemoryFileInfo extends FileInfo {
+  Logger logger = LoggerFactory.getLogger(MemoryFileInfo.class);
   private CompositeByteBuf buffer;
-  private long length;
   private CompositeByteBuf sortedBuffer;
   private Map<Integer, List<ShuffleBlockInfo>> sortedIndexes;
 
@@ -53,32 +55,7 @@ public class MemoryFileInfo extends FileInfo {
   }
 
   public void setBufferSize(int bufferSize) {
-    this.length = bufferSize;
-  }
-
-  @Override
-  public long getFileLength() {
-    return length;
-  }
-
-  public void addLength(int length) {
-    this.length += length;
-    if (fileMeta instanceof ReduceFileMeta) {
-      ((ReduceFileMeta) fileMeta).updateChunkOffset(this.length, false);
-    }
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    MemoryFileInfo that = (MemoryFileInfo) o;
-    return buffer.equals(that.buffer);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(buffer);
+    this.bytesFlushed = bufferSize;
   }
 
   public CompositeByteBuf getSortedBuffer() {
@@ -95,5 +72,15 @@ public class MemoryFileInfo extends FileInfo {
 
   public void setSortedIndexes(Map<Integer, List<ShuffleBlockInfo>> sortedIndexes) {
     this.sortedIndexes = sortedIndexes;
+  }
+
+  public int expireMemoryBuffers() {
+    int bufferSize = 0;
+    if (buffer != null) {
+      bufferSize = buffer.writerIndex();
+      buffer.release();
+    }
+    logger.info("Memory File Info {} expire, removed {}", this, bufferSize);
+    return bufferSize;
   }
 }

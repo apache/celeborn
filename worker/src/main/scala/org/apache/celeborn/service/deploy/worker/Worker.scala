@@ -362,6 +362,19 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.READ_BUFFER_ALLOCATED_COUNT) { () =>
     memoryManager.getAllocatedReadBuffers
   }
+  workerSource.addGauge(WorkerSource.MEMORY_FILE_STORAGE_SIZE) { () =>
+    memoryManager.getMemoryFileStorageCounter
+  }
+  workerSource.addGauge(WorkerSource.DIRECT_MEMORY_USAGE_RATIO) { () =>
+    memoryManager.workerMemoryUsageRatio()
+  }
+  workerSource.addGauge(WorkerSource.EVICTED_FILE_COUNT) { () =>
+    storageManager.evictedFileCount.get()
+  }
+  workerSource.addGauge(WorkerSource.MEMORY_STORAGE_FILE_COUNT) { () =>
+    storageManager.memoryWriters.size()
+  }
+
   workerSource.addGauge(WorkerSource.ACTIVE_SHUFFLE_SIZE) { () =>
     storageManager.getActiveShuffleSize
   }

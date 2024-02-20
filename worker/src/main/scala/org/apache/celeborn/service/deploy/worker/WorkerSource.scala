@@ -186,6 +186,11 @@ object WorkerSource {
   val BUFFER_STREAM_READ_BUFFER = "BufferStreamReadBuffer"
   val READ_BUFFER_DISPATCHER_REQUESTS_LENGTH = "ReadBufferDispatcherRequestsLength"
   val READ_BUFFER_ALLOCATED_COUNT = "ReadBufferAllocatedCount"
+  val MEMORY_FILE_STORAGE_SIZE = "MemoryFileStorageSize"
+  val DIRECT_MEMORY_USAGE_RATIO = "DirectMemoryUsageRatio"
+  val EVICTED_FILE_COUNT = "EvictedFileCount"
+
+  val MEMORY_STORAGE_FILE_COUNT = "MemoryStorageFileCount"
 
   // credit
   val ACTIVE_CREDIT_STREAM_COUNT = "ActiveCreditStreamCount"

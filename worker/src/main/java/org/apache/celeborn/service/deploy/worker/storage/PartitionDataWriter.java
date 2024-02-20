@@ -19,9 +19,11 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -82,7 +84,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   protected final DeviceMonitor deviceMonitor;
   protected final AbstractSource source; // metrics
 
-  private long splitThreshold;
+  private final long splitThreshold;
   private final PartitionSplitMode splitMode;
   private final boolean rangeReadFilter;
   protected boolean deleted = false;
@@ -93,13 +95,14 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   protected final StorageManager storageManager;
   private final boolean workerGracefulShutdown;
   protected final long memoryFileStorageMaxFileSize;
-  protected boolean isMemoryShuffleFile;
+  protected AtomicBoolean isMemoryShuffleFile = new AtomicBoolean();
   protected final String filename;
   protected PooledByteBufAllocator pooledByteBufAllocator;
   private final int workerPushMaxComponents;
   private final PartitionDataWriterContext writerContext;
   private final long localFlusherBufferSize;
   private final long hdfsFlusherBufferSize;
+  private Exception exception = null;
 
   public PartitionDataWriter(
       StorageManager storageManager,
@@ -131,15 +134,18 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     if (supportInMemory && createFileResult._1() != null) {
       this.memoryFileInfo = createFileResult._1();
       this.pooledByteBufAllocator = storageManager.storageBufferAllocator();
-      this.isMemoryShuffleFile = true;
+      this.isMemoryShuffleFile.set(true);
       storageManager.registerMemoryPartitionWriter(this, createFileResult._1());
-    } else {
+    } else if (createFileResult._2() != null) {
       this.diskFileInfo = createFileResult._3();
       this.flusher = createFileResult._2();
       File workingDir = createFileResult._4();
-      this.isMemoryShuffleFile = false;
+      this.isMemoryShuffleFile.set(false);
       initFileChannelsForDiskFile();
       storageManager.registerDiskFilePartitionWriter(this, workingDir, diskFileInfo);
+    } else {
+      throw new CelebornIOException(
+          "Create file failed for location:" + writerContext.getPartitionLocation().toString());
     }
 
     source = workerSource;
@@ -205,9 +211,26 @@ public abstract class PartitionDataWriter implements DeviceObserver {
             } else if (diskFileInfo.isHdfs()) {
               task = new HdfsFlushTask(flushBuffer, diskFileInfo.getHdfsPath(), notifier, false);
             }
-            MemoryManager.instance().releaseMemoryFileStorage(flushBuffer.readableBytes());
+            MemoryManager.instance().releaseMemoryFileStorage(numBytes);
+            MemoryManager.instance().incrementDiskBuffer(numBytes);
+            // read flush buffer to generate correct chunk offsets
+            ByteBuf dupBuf = null;
+            if (memoryFileInfo.getSortedBuffer() != null) {
+              dupBuf = memoryFileInfo.getSortedBuffer();
+            } else {
+              dupBuf = flushBuffer.duplicate();
+            }
+            ByteBuffer headerBuf = ByteBuffer.allocate(16);
+            while (dupBuf.isReadable()) {
+              headerBuf.rewind();
+              dupBuf.readBytes(headerBuf);
+              byte[] batchHeader = headerBuf.array();
+              int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
+              dupBuf.skipBytes(compressedSize);
+              diskFileInfo.updateBytesFlushed(compressedSize + 16);
+            }
           } else {
-            if (!isMemoryShuffleFile) {
+            if (!isMemoryShuffleFile.get()) {
               notifier.numPendingFlushes.incrementAndGet();
               if (channel != null) {
                 task = new LocalFlushTask(flushBuffer, channel, notifier, true);
@@ -219,7 +242,9 @@ public abstract class PartitionDataWriter implements DeviceObserver {
           if (task != null) {
             addTask(task);
             flushBuffer = null;
-            diskFileInfo.updateBytesFlushed(numBytes);
+            if (!evict) {
+              diskFileInfo.updateBytesFlushed(numBytes);
+            }
             if (!finalFlush) {
               takeBuffer();
             }
@@ -235,7 +260,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   }
 
   public boolean needHardSplitForMemoryShuffleStorage() {
-    if (!isMemoryShuffleFile) {
+    if (!isMemoryShuffleFile.get()) {
       return false;
     } else {
       return !StorageInfo.localDiskAvailable(storageManager.activeTypes())
@@ -249,7 +274,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   public void write(ByteBuf data) throws IOException {
     if (closed) {
       String msg = "PartitionDataWriter has already closed! Filename: ";
-      if (isMemoryShuffleFile) {
+      if (isMemoryShuffleFile.get()) {
         msg += filename;
       } else {
         msg += diskFileInfo.getFilePath();
@@ -272,21 +297,20 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     }
 
     final int numBytes = data.readableBytes();
-    if (isMemoryShuffleFile) {
+    if (isMemoryShuffleFile.get()) {
       MemoryManager.instance().increaseMemoryFileStorage(numBytes);
     } else {
       MemoryManager.instance().incrementDiskBuffer(numBytes);
+      Optional.ofNullable(CongestionController.instance())
+          .ifPresent(
+              congestionController ->
+                  congestionController.produceBytes(diskFileInfo.getUserIdentifier(), numBytes));
     }
-
-    Optional.ofNullable(CongestionController.instance())
-        .ifPresent(
-            congestionController ->
-                congestionController.produceBytes(diskFileInfo.getUserIdentifier(), numBytes));
 
     synchronized (flushLock) {
       if (closed) {
         String msg = "PartitionDataWriter has already closed! Filename: ";
-        if (isMemoryShuffleFile) {
+        if (isMemoryShuffleFile.get()) {
           msg += filename;
         } else {
           msg += diskFileInfo.getFilePath();
@@ -297,22 +321,27 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       if (rangeReadFilter) {
         mapIdBitMap.add(mapId);
       }
-      if (!isMemoryShuffleFile) {
-        if (flushBuffer.readableBytes() != 0
-            && flushBuffer.readableBytes() + numBytes >= flusherBufferSize) {
+      int flushBufferReadableBytes = flushBuffer.readableBytes();
+      if (!isMemoryShuffleFile.get()) {
+        if (flushBufferReadableBytes != 0
+            && flushBufferReadableBytes + numBytes >= flusherBufferSize) {
           flush(false);
         }
       } else {
-        if (flushBuffer.readableBytes() > memoryFileStorageMaxFileSize
-            || storageManager.localOrHdfsStorageAvailable()) {
+        if (flushBufferReadableBytes > memoryFileStorageMaxFileSize
+            && storageManager.localOrHdfsStorageAvailable()) {
+          logger.debug(
+              "{} Evict, memory buffer is  {}",
+              writerContext.getPartitionLocation().getFileName(),
+              flushBufferReadableBytes);
           evict();
         }
       }
 
       data.retain();
       flushBuffer.addComponent(true, data);
-      if (isMemoryShuffleFile) {
-        memoryFileInfo.addLength(numBytes);
+      if (isMemoryShuffleFile.get()) {
+        memoryFileInfo.updateBytesFlushed(numBytes);
       }
     }
 
@@ -321,22 +350,27 @@ public abstract class PartitionDataWriter implements DeviceObserver {
 
   public void evict() throws IOException {
     synchronized (flushLock) {
+      if (exception != null) {
+        return;
+      }
       Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
           storageManager.createFile(writerContext, false);
       if (createFileResult._4() != null) {
         this.diskFileInfo = createFileResult._3();
         this.flusher = createFileResult._2();
 
-        isMemoryShuffleFile = false;
+        isMemoryShuffleFile.set(false);
+        initFileChannelsForDiskFile();
+        flushInternal(closed, true);
+
         storageManager.unregisterMemoryPartitionWriterAndFileInfo(
             memoryFileInfo, writerContext.getShuffleKey(), filename);
-        memoryFileInfo = null;
-        initFileChannelsForDiskFile();
 
-        flushInternal(false, true);
-        takeBuffer();
+        storageManager.evictedFileCount().incrementAndGet();
+        memoryFileInfo = null;
       } else {
-        throw new CelebornIOException("PartitionDataWriter create disk-related file failed");
+        exception = new CelebornIOException("PartitionDataWriter create disk-related file failed");
+        throw (CelebornIOException) exception;
       }
     }
   }
@@ -385,7 +419,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       throws IOException {
     if (closed) {
       String msg = "PartitionDataWriter has already closed! Filename: ";
-      if (isMemoryShuffleFile) {
+      if (isMemoryShuffleFile.get()) {
         msg += filename;
       } else {
         msg += diskFileInfo.getFilePath();
@@ -399,7 +433,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       closed = true;
 
       synchronized (flushLock) {
-        if (!isMemoryShuffleFile) {
+        if (!isMemoryShuffleFile.get()) {
           if (flushBuffer.readableBytes() > 0) {
             // memory shuffle file don't need final flush
             flush(true);
@@ -429,12 +463,23 @@ public abstract class PartitionDataWriter implements DeviceObserver {
       }
     }
     if (workerGracefulShutdown) {
-      storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
+      if (diskFileInfo != null) {
+        storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
+      }
     }
     if (diskFileInfo != null) {
       return diskFileInfo.getFileLength();
     } else {
       return memoryFileInfo.getFileLength();
+    }
+  }
+
+  public synchronized void saveMemoryShuffleFileOnGracefulShutdown() throws IOException {
+    if (memoryFileInfo != null) {
+      PartitionFilesSorter.sortMemoryShuffleFile(memoryFileInfo);
+      evict();
+      storageManager.notifyFileInfoCommitted(shuffleKey, getFile().getName(), diskFileInfo);
+      waitOnNoPending(notifier.numPendingFlushes);
     }
   }
 
@@ -511,7 +556,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
         flushBuffer = flusher.takeBuffer();
       } else {
         if (flushBuffer == null) {
-          flushBuffer = pooledByteBufAllocator.compositeBuffer(workerPushMaxComponents);
+          flushBuffer = pooledByteBufAllocator.compositeBuffer(Integer.MAX_VALUE);
         }
       }
     }
@@ -532,7 +577,7 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   protected void returnBuffer() {
     synchronized (flushLock) {
       if (flushBuffer != null && flusher != null) {
-        flusher.returnBuffer(flushBuffer);
+        flusher.returnBuffer(flushBuffer, true);
         flushBuffer = null;
       }
     }

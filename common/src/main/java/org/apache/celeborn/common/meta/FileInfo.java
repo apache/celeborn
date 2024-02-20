@@ -31,6 +31,7 @@ public abstract class FileInfo {
   private boolean partitionSplitEnabled;
   protected FileMeta fileMeta;
   protected final Set<Long> streams = ConcurrentHashMap.newKeySet();
+  protected volatile long bytesFlushed;
 
   public FileInfo(UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
     this.userIdentifier = userIdentifier;
@@ -50,7 +51,16 @@ public abstract class FileInfo {
     return (ReduceFileMeta) fileMeta;
   }
 
-  public abstract long getFileLength();
+  public long getFileLength() {
+    return bytesFlushed;
+  }
+
+  public void updateBytesFlushed(long bytes) {
+    bytesFlushed += bytes;
+    if (fileMeta instanceof ReduceFileMeta) {
+      ((ReduceFileMeta) fileMeta).updateChunkOffset(bytesFlushed, false);
+    }
+  }
 
   public UserIdentifier getUserIdentifier() {
     return userIdentifier;
@@ -64,7 +74,14 @@ public abstract class FileInfo {
     this.partitionSplitEnabled = partitionSplitEnabled;
   }
 
+  private boolean isReduceFileMeta() {
+    return fileMeta instanceof ReduceFileMeta;
+  }
+
   public boolean addStream(long streamId) {
+    if (!isReduceFileMeta()) {
+      throw new IllegalStateException("In addStream, filemeta cannot be MapFileMeta");
+    }
     ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
     synchronized (reduceFileMeta.getSorted()) {
       if (reduceFileMeta.getSorted().get()) {
@@ -77,6 +94,9 @@ public abstract class FileInfo {
   }
 
   public void closeStream(long streamId) {
+    if (!isReduceFileMeta()) {
+      throw new IllegalStateException("In closeStream, filemeta cannot be MapFileMeta");
+    }
     ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
     synchronized (reduceFileMeta.getSorted()) {
       streams.remove(streamId);
@@ -84,6 +104,9 @@ public abstract class FileInfo {
   }
 
   public boolean isStreamsEmpty() {
+    if (!isReduceFileMeta()) {
+      throw new IllegalStateException("In isStreamsEmpty, filemeta cannot be MapFileMeta");
+    }
     ReduceFileMeta reduceFileMeta = (ReduceFileMeta) fileMeta;
     synchronized (reduceFileMeta.getSorted()) {
       return streams.isEmpty();
@@ -91,6 +114,9 @@ public abstract class FileInfo {
   }
 
   public boolean isFullyRead() {
+    if (!isReduceFileMeta()) {
+      throw new IllegalStateException("In isFullyRead, filemeta cannot be MapFileMeta");
+    }
     ReduceFileMeta reduceFileMeta = ((ReduceFileMeta) fileMeta);
     RoaringBitmap mapIds = reduceFileMeta.getMapIds();
     if (mapIds == null) {

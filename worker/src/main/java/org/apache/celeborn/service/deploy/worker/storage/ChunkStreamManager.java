@@ -28,8 +28,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.meta.ManagedBuffers;
 import org.apache.celeborn.common.meta.TimeWindow;
+import org.apache.celeborn.common.network.buffer.ChunkBuffers;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.util.JavaUtils;
 
@@ -48,7 +48,7 @@ public class ChunkStreamManager {
 
   /** State of a single stream. */
   public static class StreamState {
-    public final ManagedBuffers buffers;
+    public final ChunkBuffers buffers;
     public final String shuffleKey;
     public final String fileName;
     public final TimeWindow fetchTimeMetric;
@@ -59,7 +59,7 @@ public class ChunkStreamManager {
 
     StreamState(
         String shuffleKey,
-        ManagedBuffers buffers,
+        ChunkBuffers buffers,
         String fileName,
         TimeWindow fetchTimeMetric,
         int startIndex,
@@ -92,7 +92,7 @@ public class ChunkStreamManager {
           String.format("Requested chunk index beyond end %s", chunkIndex));
     }
 
-    ManagedBuffers buffers = state.buffers;
+    ChunkBuffers buffers = state.buffers;
     return buffers.chunk(chunkIndex, offset, len);
   }
 
@@ -152,7 +152,7 @@ public class ChunkStreamManager {
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
   public long registerStream(
-      String shuffleKey, ManagedBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
+      String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
     return registerStream(
         myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric, 0, Integer.MAX_VALUE);
@@ -161,7 +161,7 @@ public class ChunkStreamManager {
   public long registerStream(
       long streamId,
       String shuffleKey,
-      ManagedBuffers buffers,
+      ChunkBuffers buffers,
       String fileName,
       TimeWindow fetchTimeMetric,
       int startIndex,

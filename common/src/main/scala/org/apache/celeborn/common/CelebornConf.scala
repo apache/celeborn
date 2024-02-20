@@ -2852,8 +2852,9 @@ object CelebornConf extends Logging {
   val WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioForMemoryFileStorage")
       .categories("worker")
-      .doc("Max ratio of direct memory to store shuffle data.")
-      .version("0.4.1")
+      .doc("Max ratio of direct memory to store shuffle data. " +
+        "Default value is zero means that this feature is disabled.")
+      .version("0.5.0")
       .doubleConf
       .createWithDefault(0)
 

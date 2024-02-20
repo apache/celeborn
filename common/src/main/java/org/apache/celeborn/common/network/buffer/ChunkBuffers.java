@@ -15,46 +15,42 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.meta;
+package org.apache.celeborn.common.network.buffer;
 
 import java.util.List;
 
-import io.netty.buffer.CompositeByteBuf;
+import scala.Tuple2;
 
-import org.apache.celeborn.common.network.buffer.ManagedBuffer;
-import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
+import org.apache.celeborn.common.meta.ReduceFileMeta;
 
-public class NettyManagedBuffers implements ManagedBuffers {
-  private final long[] offsets;
-  private final int numChunks;
-  private final CompositeByteBuf buffer;
+public abstract class ChunkBuffers {
+  protected long[] offsets;
+  protected int numChunks;
 
-  public NettyManagedBuffers(MemoryFileInfo memoryFileInfo) {
-    ReduceFileMeta meta = (ReduceFileMeta) memoryFileInfo.getFileMeta();
-    buffer = memoryFileInfo.getBuffer();
-    numChunks = meta.getNumChunks();
-    if (numChunks > 0) {
-      offsets = new long[numChunks + 1];
-      List<Long> chunkOffsets = meta.getChunkOffsets();
-      for (int i = 0; i < numChunks + 1; i++) {
-        offsets[i] = chunkOffsets.get(i);
-      }
-    } else {
-      offsets = new long[0];
-    }
-  }
-
-  @Override
   public int numChunks() {
     return numChunks;
   }
 
-  @Override
-  public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
+  public ChunkBuffers(ReduceFileMeta reduceFileMeta) {
+    numChunks = reduceFileMeta.getNumChunks();
+    if (numChunks > 0) {
+      offsets = new long[numChunks + 1];
+      List<Long> chunkOffsets = reduceFileMeta.getChunkOffsets();
+      for (int i = 0; i <= numChunks; i++) {
+        offsets[i] = chunkOffsets.get(i);
+      }
+    } else {
+      offsets = new long[] {0};
+    }
+  }
+
+  public Tuple2<Long, Long> getChunkOffsetLength(int chunkIndex, int offset, int len) {
     final long chunkOffset = offsets[chunkIndex];
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     assert offset < chunkLength;
-    int length = (int) Math.min(chunkLength - offset, len);
-    return new NettyManagedBuffer(buffer.slice(offset, length));
+    long length = Math.min(chunkLength - offset, len);
+    return new Tuple2<>(chunkOffset, length);
   }
+
+  public abstract ManagedBuffer chunk(int chunkIndex, int offset, int len);
 }
