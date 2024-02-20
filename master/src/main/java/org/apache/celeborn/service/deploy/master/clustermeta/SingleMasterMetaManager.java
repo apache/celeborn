@@ -29,7 +29,8 @@ import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
@@ -37,22 +38,23 @@ import org.apache.celeborn.service.deploy.master.network.CelebornRackResolver;
 public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
 
-  public SingleMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf, SecretRegistry secretRegistry) {
-    this(rpcEnv, conf, new CelebornRackResolver(conf), secretRegistry);
+  public SingleMasterMetaManager(
+      RpcEnv rpcEnv, CelebornConf conf, ApplicationRegistry applicationRegistry) {
+    this(rpcEnv, conf, new CelebornRackResolver(conf), applicationRegistry);
   }
 
   public SingleMasterMetaManager(
       RpcEnv rpcEnv,
       CelebornConf conf,
       CelebornRackResolver rackResolver,
-      SecretRegistry secretRegistry) {
+      ApplicationRegistry applicationRegistry) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
     this.rackResolver = rackResolver;
-    this.secretRegistry = secretRegistry;
+    this.applicationRegistry = (ApplicationRegistryImpl) applicationRegistry;
   }
 
   @Override

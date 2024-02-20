@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.*;
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -79,7 +79,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public AppDiskUsageMetric appDiskUsageMetric = null;
-  public SecretRegistry secretRegistry = null;
+  public ApplicationRegistryImpl applicationRegistry = null;
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
@@ -91,7 +91,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         (applicationId, applicationInfo) -> {
           ApplicationInfo appInfo;
           if (applicationInfo == null) {
-            UserIdentifier userIdentifier = secretRegistry.getUserIdentifier(appId);
+            UserIdentifier userIdentifier = applicationRegistry.getUserIdentifier(appId);
             appInfo =
                 new ApplicationInfo(
                     userIdentifier != null
@@ -120,7 +120,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         (applicationId, applicationInfo) -> {
           ApplicationInfo appInfo = applicationInfo;
           if (appInfo == null) {
-            UserIdentifier userIdentifier = secretRegistry.getUserIdentifier(appId);
+            UserIdentifier userIdentifier = applicationRegistry.getUserIdentifier(appId);
             appInfo =
                 new ApplicationInfo(
                     userIdentifier != null
@@ -284,7 +284,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 appDiskUsageMetric.currentSnapShot().get(),
                 lostWorkers,
                 shutdownWorkers,
-                workerEventInfos)
+                workerEventInfos,
+                applicationRegistry.getAppRegistrations())
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -333,7 +334,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                   (applicationId, applicationInfo) -> {
                     ApplicationInfo appInfo = applicationInfo;
                     if (appInfo == null) {
-                      UserIdentifier userIdentifier = secretRegistry.getUserIdentifier(appId);
+                      UserIdentifier userIdentifier = applicationRegistry.getUserIdentifier(appId);
                       appInfo =
                           new ApplicationInfo(
                               userIdentifier != null
@@ -392,6 +393,18 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           new AtomicReference<AppDiskUsageSnapShot>(
               PbSerDeUtils.fromPbAppDiskUsageSnapshot(
                   snapshotMetaInfo.getCurrentAppDiskUsageMetricsSnapshot())));
+      snapshotMetaInfo
+          .getApplicationRegistrationsMap()
+          .entrySet()
+          .forEach(
+              entry -> {
+                ApplicationRegistration applicationRegistration =
+                    PbSerDeUtils.fromPbApplicationRegistration(entry.getValue());
+                applicationRegistry.register(
+                    entry.getKey(),
+                    applicationRegistration.userIdentifier(),
+                    applicationRegistration.secret());
+              });
     } catch (Exception e) {
       throw new IOException(e);
     }

@@ -19,8 +19,8 @@ package org.apache.celeborn.common.network.sasl;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 
-/** Interface for getting a secret key associated with some application. */
-public interface SecretRegistry {
+/** Interface for application registration. */
+public interface ApplicationRegistry {
 
   /** Gets an appropriate SASL secret key for the given appId. */
   String getSecretKey(String appId);

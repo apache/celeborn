@@ -35,8 +35,8 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -90,10 +90,13 @@ public class RatisMasterStatusSystemSuiteJ {
 
     while (!serversStarted) {
       try {
-        SecretRegistry secretRegistry = new SecretRegistryImpl();
-        STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), secretRegistry);
-        STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), secretRegistry);
-        STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), secretRegistry);
+        ApplicationRegistry applicationRegistry = new ApplicationRegistryImpl();
+        STATUSSYSTEM1 =
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
+        STATUSSYSTEM2 =
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
+        STATUSSYSTEM3 =
+            new HAMasterMetaManager(mockRpcEnv, new CelebornConf(), applicationRegistry);
 
         MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
         MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);

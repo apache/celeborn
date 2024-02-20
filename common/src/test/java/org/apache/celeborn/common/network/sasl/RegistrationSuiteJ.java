@@ -44,7 +44,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
   public void testRegistration() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, new TestSecretRegistry(), true);
+        new RegistrationServerBootstrap(conf, new TestApplicationRegistry(), true);
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
             conf,
@@ -84,7 +84,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
   public void testConnectionAuthWithoutRegistrationShouldFail() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, new TestSecretRegistry(), true);
+        new RegistrationServerBootstrap(conf, new TestApplicationRegistry(), true);
     SaslClientBootstrap clientBootstrap =
         new SaslClientBootstrap(conf, TEST_USER, new SaslCredentials(TEST_USER, TEST_SECRET));
 
@@ -97,7 +97,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
     }
   }
 
-  static class TestSecretRegistry implements SecretRegistry {
+  static class TestApplicationRegistry implements ApplicationRegistry {
 
     private final Map<String, String> secrets = new HashMap<>();
     private final Map<String, UserIdentifier> userIdentifiers = new HashMap<>();

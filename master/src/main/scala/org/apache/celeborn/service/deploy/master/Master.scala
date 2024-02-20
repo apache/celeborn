@@ -38,13 +38,13 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.quota.{QuotaManager, ResourceConsumption}
 import org.apache.celeborn.common.rpc._
-import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerRpcContextBuilder}
+import org.apache.celeborn.common.rpc.{RpcContextBuilder, ServerRpcContextBuilder}
 import org.apache.celeborn.common.util.{CelebornHadoopUtils, CollectionUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -100,17 +100,17 @@ private[celeborn] class Master(
 
   private val rackResolver = new CelebornRackResolver(conf)
   private val authEnabled = conf.authEnabled
-  private val appRegistry = new SecretRegistryImpl()
+  private val appRegistry = new ApplicationRegistryImpl()
   // Visible for testing
   private[master] val appRegistrationRpcEnv: RpcEnv = RpcEnv.create(
-    RpcNameConstants.MASTER_SECURED_SYS,
+    RpcNameConstants.MASTER_APP_REGISTRY_SYS,
     masterArgs.host,
     masterArgs.host,
     masterArgs.securedPort,
     conf,
     Math.max(64, Runtime.getRuntime.availableProcessors()),
-    Some(new RpcSecurityContextBuilder()
-      .withServerSaslContext(
+    Some(new RpcContextBuilder()
+      .withServerRpcContext(
         new ServerRpcContextBuilder()
           .withAddRegistrationBootstrap(true)
           .withAuthEnabled(authEnabled)
@@ -137,7 +137,11 @@ private[celeborn] class Master(
       }
       sys
     } else {
-      new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver, new SecretRegistryImpl())
+      new SingleMasterMetaManager(
+        internalRpcEnvInUse,
+        conf,
+        rackResolver,
+        new ApplicationRegistryImpl())
     }
 
   // Threads

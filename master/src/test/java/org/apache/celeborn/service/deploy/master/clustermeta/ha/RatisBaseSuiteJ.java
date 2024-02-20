@@ -25,7 +25,7 @@ import org.junit.After;
 import org.junit.Before;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 
 public class RatisBaseSuiteJ {
   HARaftServer ratisServer;
@@ -33,7 +33,8 @@ public class RatisBaseSuiteJ {
   @Before
   public void init() throws Exception {
     CelebornConf conf = new CelebornConf();
-    HAMasterMetaManager metaSystem = new HAMasterMetaManager(null, conf, new SecretRegistryImpl());
+    HAMasterMetaManager metaSystem =
+        new HAMasterMetaManager(null, conf, new ApplicationRegistryImpl());
     MetaHandler handler = new MetaHandler(metaSystem);
     File tmpDir1 = File.createTempFile("celeborn-ratis-tmp", "for-test-only");
     tmpDir1.delete();

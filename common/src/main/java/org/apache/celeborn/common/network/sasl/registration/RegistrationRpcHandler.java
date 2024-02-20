@@ -37,9 +37,9 @@ import org.apache.celeborn.common.network.protocol.RequestMessage;
 import org.apache.celeborn.common.network.protocol.RpcFailure;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
 import org.apache.celeborn.common.network.sasl.CelebornSaslServer;
 import org.apache.celeborn.common.network.sasl.SaslRpcHandler;
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PbAuthType;
@@ -86,7 +86,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
   private RegistrationState registrationState = RegistrationState.NONE;
 
   /** Class which provides secret keys which are shared by server and client on a per-app basis. */
-  private final SecretRegistry secretRegistry;
+  private final ApplicationRegistry applicationRegistry;
 
   private final Boolean authEnabled;
 
@@ -99,13 +99,13 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
       TransportConf conf,
       Channel channel,
       BaseMessageHandler delegate,
-      SecretRegistry secretRegistry,
+      ApplicationRegistry applicationRegistry,
       Boolean authEnabled) {
     this.conf = conf;
     this.channel = channel;
-    this.secretRegistry = secretRegistry;
+    this.applicationRegistry = applicationRegistry;
     this.delegate = delegate;
-    this.saslHandler = new SaslRpcHandler(conf, channel, delegate, secretRegistry);
+    this.saslHandler = new SaslRpcHandler(conf, channel, delegate, applicationRegistry);
     this.authEnabled = authEnabled;
   }
 
@@ -261,7 +261,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
 
   private void processRegisterApplicationRequest(
       PbRegisterApplicationRequest registerApplicationRequest, RpcResponseCallback callback) {
-    if (secretRegistry.isRegistered(registerApplicationRequest.getId())) {
+    if (applicationRegistry.isRegistered(registerApplicationRequest.getId())) {
       // Re-registration is not allowed.
       throw new IllegalStateException(
           "Application is already registered " + registerApplicationRequest.getId());
@@ -270,7 +270,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         registerApplicationRequest.getUserIdentifier() != null
             ? PbSerDeUtils.fromPbUserIdentifier(registerApplicationRequest.getUserIdentifier())
             : UserIdentifier.UNKNOWN_USER_IDENTIFIER();
-    secretRegistry.register(
+    applicationRegistry.register(
         registerApplicationRequest.getId(), userIdentifier, registerApplicationRequest.getSecret());
     PbRegisterApplicationResponse response =
         PbRegisterApplicationResponse.newBuilder().setStatus(true).build();

@@ -33,7 +33,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -109,7 +109,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
   public void testObjSerde() throws IOException, InterruptedException {
     CelebornConf conf = new CelebornConf();
     HAMasterMetaManager masterStatusSystem =
-        new HAMasterMetaManager(null, conf, new SecretRegistryImpl());
+        new HAMasterMetaManager(null, conf, new ApplicationRegistryImpl());
     File tmpFile = File.createTempFile("tef", "test" + System.currentTimeMillis());
 
     Map<String, DiskInfo> disks1 = new HashMap<>();

@@ -32,7 +32,8 @@ import org.apache.celeborn.common.meta.AppDiskUsageMetric;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
@@ -47,22 +48,23 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   protected HARaftServer ratisServer;
 
-  public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf, SecretRegistry secretRegistry) {
-    this(rpcEnv, conf, new CelebornRackResolver(conf), secretRegistry);
+  public HAMasterMetaManager(
+      RpcEnv rpcEnv, CelebornConf conf, ApplicationRegistry applicationRegistry) {
+    this(rpcEnv, conf, new CelebornRackResolver(conf), applicationRegistry);
   }
 
   public HAMasterMetaManager(
       RpcEnv rpcEnv,
       CelebornConf conf,
       CelebornRackResolver rackResolver,
-      SecretRegistry secretRegistry) {
+      ApplicationRegistry applicationRegistry) {
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.appDiskUsageMetric = new AppDiskUsageMetric(conf);
     this.rackResolver = rackResolver;
-    this.secretRegistry = secretRegistry;
+    this.applicationRegistry = (ApplicationRegistryImpl) applicationRegistry;
   }
 
   public HARaftServer getRatisServer() {

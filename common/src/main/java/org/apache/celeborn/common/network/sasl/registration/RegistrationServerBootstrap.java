@@ -19,7 +19,7 @@ package org.apache.celeborn.common.network.sasl.registration;
 
 import io.netty.channel.Channel;
 
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistry;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServerBootstrap;
 import org.apache.celeborn.common.network.util.TransportConf;
@@ -31,18 +31,18 @@ import org.apache.celeborn.common.network.util.TransportConf;
 public class RegistrationServerBootstrap implements TransportServerBootstrap {
 
   private final TransportConf conf;
-  private final SecretRegistry secretRegistry;
+  private final ApplicationRegistry applicationRegistry;
   private final Boolean authEnabled;
 
   public RegistrationServerBootstrap(
-      TransportConf conf, SecretRegistry secretRegistry, Boolean authEnabled) {
+      TransportConf conf, ApplicationRegistry applicationRegistry, Boolean authEnabled) {
     this.conf = conf;
-    this.secretRegistry = secretRegistry;
+    this.applicationRegistry = applicationRegistry;
     this.authEnabled = authEnabled;
   }
 
   @Override
   public BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler rpcHandler) {
-    return new RegistrationRpcHandler(conf, channel, rpcHandler, secretRegistry, authEnabled);
+    return new RegistrationRpcHandler(conf, channel, rpcHandler, applicationRegistry, authEnabled);
   }
 }

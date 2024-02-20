@@ -19,49 +19,52 @@ package org.apache.celeborn.common.network.sasl;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.ApplicationRegistration;
 
-/** A simple implementation of {@link SecretRegistry} that stores secrets in memory. */
-public class SecretRegistryImpl implements SecretRegistry {
+/** A simple implementation of {@link ApplicationRegistry} that stores secrets in memory. */
+public class ApplicationRegistryImpl implements ApplicationRegistry {
 
-  private final ConcurrentHashMap<String, Pair<UserIdentifier, String>> secrets =
+  private final ConcurrentHashMap<String, ApplicationRegistration> appRegistrations =
       new ConcurrentHashMap<>();
+
+  public ConcurrentHashMap<String, ApplicationRegistration> getAppRegistrations() {
+    return appRegistrations;
+  }
 
   @Override
   public void register(String appId, UserIdentifier userIdentifier, String secret) {
     // TODO: Persist the secret in ratis. See https://issues.apache.org/jira/browse/CELEBORN-1234
-    secrets.compute(
+    appRegistrations.compute(
         appId,
         (id, oldVal) -> {
           if (oldVal != null) {
             throw new IllegalArgumentException("AppId " + appId + " is already registered.");
           }
-          return Pair.of(userIdentifier, secret);
+          return new ApplicationRegistration(userIdentifier, secret);
         });
   }
 
   @Override
   public void unregister(String appId) {
-    secrets.remove(appId);
+    appRegistrations.remove(appId);
   }
 
   @Override
   public boolean isRegistered(String appId) {
-    return secrets.containsKey(appId);
+    return appRegistrations.containsKey(appId);
   }
 
   /** Gets an appropriate SASL secret key for the given appId. */
   @Override
   public String getSecretKey(String appId) {
-    Pair<UserIdentifier, String> value = secrets.get(appId);
-    return value == null ? null : value.getRight();
+    ApplicationRegistration registration = appRegistrations.get(appId);
+    return registration == null ? null : registration.secret();
   }
 
   @Override
   public UserIdentifier getUserIdentifier(String appId) {
-    Pair<UserIdentifier, String> value = secrets.get(appId);
-    return value == null ? null : value.getLeft();
+    ApplicationRegistration registration = appRegistrations.get(appId);
+    return registration == null ? null : registration.userIdentifier();
   }
 }

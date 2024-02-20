@@ -44,7 +44,7 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 public class SaslTestBase {
 
-  protected static final SecretRegistry APP_REGISTRY = new SecretRegistryImpl();
+  protected static final ApplicationRegistry APP_REGISTRY = new ApplicationRegistryImpl();
 
   @BeforeClass
   public static void setup() {

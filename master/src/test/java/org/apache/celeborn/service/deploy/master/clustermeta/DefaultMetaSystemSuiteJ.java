@@ -36,7 +36,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
-import org.apache.celeborn.common.network.sasl.SecretRegistryImpl;
+import org.apache.celeborn.common.network.sasl.ApplicationRegistryImpl;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -85,7 +85,7 @@ public class DefaultMetaSystemSuiteJ {
   @Before
   public void setUp() {
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
-    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf, new SecretRegistryImpl());
+    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf, new ApplicationRegistryImpl());
 
     disks1.clear();
     disks1.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0));

@@ -17,7 +17,7 @@
 package org.apache.celeborn.common.rpc
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistry}
+import org.apache.celeborn.common.network.sasl.{ApplicationRegistry, SaslCredentials}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
 
 /**
@@ -28,7 +28,7 @@ import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
  */
 private[celeborn] case class RpcContext(
     clientRpcContext: Option[ClientRpcContext] = None,
-    serverRpcContext: Option[ServerSaslContext] = None)
+    serverRpcContext: Option[ServerRpcContext] = None)
 
 /**
  * Represents the client RPC context.
@@ -49,8 +49,8 @@ private[celeborn] case class ClientRpcContext(
  * @param secretRegistry  The secret registry.
  * @param addRegistrationBootstrap  Whether to add registration bootstrap.
  */
-private[celeborn] case class ServerSaslContext(
-    secretRegistry: SecretRegistry,
+private[celeborn] case class ServerRpcContext(
+    secretRegistry: ApplicationRegistry,
     addRegistrationBootstrap: Boolean = false,
     authEnabled: Boolean = false)
 
@@ -125,14 +125,14 @@ private[celeborn] class ClientRpcContextBuilder {
 }
 
 /**
- * Builder for [[ServerSaslContext]].
+ * Builder for [[ServerRpcContext]].
  */
 private[celeborn] class ServerRpcContextBuilder {
-  private var secretRegistry: SecretRegistry = _
+  private var secretRegistry: ApplicationRegistry = _
   private var addRegistrationBootstrap: Boolean = false
   private var authEnabled: Boolean = false
 
-  def withSecretRegistry(secretRegistry: SecretRegistry): ServerRpcContextBuilder = {
+  def withSecretRegistry(secretRegistry: ApplicationRegistry): ServerRpcContextBuilder = {
     this.secretRegistry = secretRegistry
     this
   }
@@ -147,11 +147,11 @@ private[celeborn] class ServerRpcContextBuilder {
     this
   }
 
-  def build(): ServerSaslContext = {
+  def build(): ServerRpcContext = {
     if (secretRegistry == null) {
       throw new IllegalArgumentException("Secret registry is not set.")
     }
-    ServerSaslContext(
+    ServerRpcContext(
       secretRegistry,
       addRegistrationBootstrap,
       authEnabled)
@@ -161,24 +161,24 @@ private[celeborn] class ServerRpcContextBuilder {
 /**
  * Builder for [[RpcContext]].
  */
-private[celeborn] class RpcSecurityContextBuilder {
-  private var clientSaslContext: Option[ClientRpcContext] = None
-  private var serverSaslContext: Option[ServerSaslContext] = None
+private[celeborn] class RpcContextBuilder {
+  private var clientRpcContext: Option[ClientRpcContext] = None
+  private var serverRpcContext: Option[ServerRpcContext] = None
 
-  def withClientSaslContext(context: ClientRpcContext): RpcSecurityContextBuilder = {
-    this.clientSaslContext = Some(context)
+  def withClientSaslContext(context: ClientRpcContext): RpcContextBuilder = {
+    this.clientRpcContext = Some(context)
     this
   }
 
-  def withServerSaslContext(context: ServerSaslContext): RpcSecurityContextBuilder = {
-    this.serverSaslContext = Some(context)
+  def withServerRpcContext(context: ServerRpcContext): RpcContextBuilder = {
+    this.serverRpcContext = Some(context)
     this
   }
 
   def build(): RpcContext = {
-    if (clientSaslContext.nonEmpty && serverSaslContext.nonEmpty) {
+    if (clientRpcContext.nonEmpty && serverRpcContext.nonEmpty) {
       throw new IllegalArgumentException("Both client and server sasl context cannot be set.")
     }
-    RpcContext(clientSaslContext, serverSaslContext)
+    RpcContext(clientRpcContext, serverRpcContext)
   }
 }
