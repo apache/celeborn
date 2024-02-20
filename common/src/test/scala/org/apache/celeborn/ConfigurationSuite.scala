@@ -86,10 +86,6 @@ class ConfigurationSuite extends AnyFunSuite {
     generateConfigurationMarkdown("ha")
   }
 
-  test("docs - configuration/dynamic-quota.md") {
-    generateConfigurationMarkdown("dynamic-quota")
-  }
-
   def generateConfigurationMarkdown(category: String): Unit = {
     val markdown = confMarkdownDir.resolve(s"$category.md")
 
