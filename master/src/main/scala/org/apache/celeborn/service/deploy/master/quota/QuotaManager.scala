@@ -32,7 +32,8 @@ class QuotaManager(celebornConf: CelebornConf) extends Logging {
   }
   val configService = DynamicConfigServiceFactory.getConfigService(conf)
   def getQuota(userIdentifier: UserIdentifier): Quota = {
-    val config = configService.getTenantUserConfig(userIdentifier.tenantId, userIdentifier.name)
+    val config =
+      configService.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
     getQuota(config)
   }
 
