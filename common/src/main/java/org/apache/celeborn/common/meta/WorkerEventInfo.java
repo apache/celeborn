@@ -17,10 +17,10 @@
 
 package org.apache.celeborn.common.meta;
 
-import org.apache.celeborn.common.protocol.WorkerEventType;
-
 import java.io.Serializable;
 import java.util.Objects;
+
+import org.apache.celeborn.common.protocol.WorkerEventType;
 
 public class WorkerEventInfo implements Serializable {
   private static final long serialVersionUID = 5681914909039445235L;

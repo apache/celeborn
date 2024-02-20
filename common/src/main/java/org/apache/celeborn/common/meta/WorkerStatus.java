@@ -17,9 +17,9 @@
 
 package org.apache.celeborn.common.meta;
 
-import org.apache.celeborn.common.protocol.PbWorkerStatus;
-
 import java.util.Objects;
+
+import org.apache.celeborn.common.protocol.PbWorkerStatus;
 
 public class WorkerStatus {
   private int stateValue;
@@ -55,7 +55,8 @@ public class WorkerStatus {
       return false;
     }
     WorkerStatus that = (WorkerStatus) o;
-    return getStateValue() == that.getStateValue() && getStateStartTime() == that.getStateStartTime();
+    return getStateValue() == that.getStateValue()
+        && getStateStartTime() == that.getStateStartTime();
   }
 
   @Override
