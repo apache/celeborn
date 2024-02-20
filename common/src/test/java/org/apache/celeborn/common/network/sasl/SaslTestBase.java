@@ -44,16 +44,16 @@ import org.apache.celeborn.common.util.JavaUtils;
 
 public class SaslTestBase {
 
-  protected static final SecretRegistry secretRegistry = new SecretRegistryImpl();
+  protected static final SecretRegistry APP_REGISTRY = new SecretRegistryImpl();
 
   @BeforeClass
   public static void setup() {
-    secretRegistry.register(TEST_USER, TEST_SECRET);
+    APP_REGISTRY.register(TEST_USER, new UserIdentifier("default", TEST_USER), TEST_SECRET);
   }
 
   @AfterClass
   public static void teardown() {
-    secretRegistry.unregister(TEST_USER);
+    APP_REGISTRY.unregister(TEST_USER);
   }
 
   static final String TEST_USER = "appId";

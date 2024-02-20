@@ -19,13 +19,18 @@ package org.apache.celeborn.common.network.sasl;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang3.tuple.Pair;
+
+import org.apache.celeborn.common.identity.UserIdentifier;
+
 /** A simple implementation of {@link SecretRegistry} that stores secrets in memory. */
 public class SecretRegistryImpl implements SecretRegistry {
 
-  private final ConcurrentHashMap<String, String> secrets = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Pair<UserIdentifier, String>> secrets =
+      new ConcurrentHashMap<>();
 
   @Override
-  public void register(String appId, String secret) {
+  public void register(String appId, UserIdentifier userIdentifier, String secret) {
     // TODO: Persist the secret in ratis. See https://issues.apache.org/jira/browse/CELEBORN-1234
     secrets.compute(
         appId,
@@ -33,7 +38,7 @@ public class SecretRegistryImpl implements SecretRegistry {
           if (oldVal != null) {
             throw new IllegalArgumentException("AppId " + appId + " is already registered.");
           }
-          return secret;
+          return Pair.of(userIdentifier, secret);
         });
   }
 
@@ -50,6 +55,13 @@ public class SecretRegistryImpl implements SecretRegistry {
   /** Gets an appropriate SASL secret key for the given appId. */
   @Override
   public String getSecretKey(String appId) {
-    return secrets.get(appId);
+    Pair<UserIdentifier, String> value = secrets.get(appId);
+    return value == null ? null : value.getRight();
+  }
+
+  @Override
+  public UserIdentifier getUserIdentifier(String appId) {
+    Pair<UserIdentifier, String> value = secrets.get(appId);
+    return value == null ? null : value.getLeft();
   }
 }

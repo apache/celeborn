@@ -30,6 +30,7 @@ import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
@@ -48,6 +49,7 @@ import org.apache.celeborn.common.protocol.PbRegisterApplicationRequest;
 import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
 import org.apache.celeborn.common.protocol.PbSaslMechanism;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
+import org.apache.celeborn.common.util.PbSerDeUtils;
 
 /**
  * RPC Handler which registers an application. If an application is registered or the connection is
@@ -205,7 +207,9 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         break;
       case REGISTER_APPLICATION_REQUEST_VALUE:
         PbRegisterApplicationRequest registerApplicationRequest = pbMsg.getParsedPayload();
-        checkRequestAllowed(RegistrationState.AUTHENTICATED);
+        if (registerApplicationRequest.getAuthEnabled()) {
+          checkRequestAllowed(RegistrationState.AUTHENTICATED);
+        }
         LOG.trace("Application registration started {}", registerApplicationRequest.getId());
         processRegisterApplicationRequest(registerApplicationRequest, callback);
         registrationState = RegistrationState.REGISTERED;
@@ -262,8 +266,12 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
       throw new IllegalStateException(
           "Application is already registered " + registerApplicationRequest.getId());
     }
+    UserIdentifier userIdentifier =
+        registerApplicationRequest.getUserIdentifier() != null
+            ? PbSerDeUtils.fromPbUserIdentifier(registerApplicationRequest.getUserIdentifier())
+            : UserIdentifier.UNKNOWN_USER_IDENTIFIER();
     secretRegistry.register(
-        registerApplicationRequest.getId(), registerApplicationRequest.getSecret());
+        registerApplicationRequest.getId(), userIdentifier, registerApplicationRequest.getSecret());
     PbRegisterApplicationResponse response =
         PbRegisterApplicationResponse.newBuilder().setStatus(true).build();
     TransportMessage message =

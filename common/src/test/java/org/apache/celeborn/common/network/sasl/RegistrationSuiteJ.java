@@ -27,6 +27,7 @@ import com.google.common.base.Throwables;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationRpcHandler;
@@ -61,7 +62,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
     // The SecretRegistryImpl already has the entry for TEST_USER so re-registering the app should
     // fail.
     RegistrationServerBootstrap serverBootstrap =
-        new RegistrationServerBootstrap(conf, secretRegistry, true);
+        new RegistrationServerBootstrap(conf, APP_REGISTRY, true);
     RegistrationClientBootstrap clientBootstrap =
         new RegistrationClientBootstrap(
             conf,
@@ -99,10 +100,12 @@ public class RegistrationSuiteJ extends SaslTestBase {
   static class TestSecretRegistry implements SecretRegistry {
 
     private final Map<String, String> secrets = new HashMap<>();
+    private final Map<String, UserIdentifier> userIdentifiers = new HashMap<>();
 
     @Override
-    public void register(String appId, String secret) {
+    public void register(String appId, UserIdentifier userIdentifier, String secret) {
       secrets.put(appId, secret);
+      userIdentifiers.put(appId, userIdentifier);
     }
 
     @Override
@@ -118,6 +121,11 @@ public class RegistrationSuiteJ extends SaslTestBase {
     @Override
     public String getSecretKey(String appId) {
       return secrets.get(appId);
+    }
+
+    @Override
+    public UserIdentifier getUserIdentifier(String appId) {
+      return userIdentifiers.get(appId);
     }
   }
 }

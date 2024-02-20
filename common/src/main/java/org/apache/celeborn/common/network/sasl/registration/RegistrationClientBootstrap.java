@@ -53,6 +53,7 @@ import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
 import org.apache.celeborn.common.protocol.PbSaslMechanism;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.PbSerDeUtils;
 
 /**
  * Bootstraps a {@link TransportClient} by registering application (if the application is not
@@ -238,6 +239,8 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
             PbRegisterApplicationRequest.newBuilder()
                 .setId(appId)
                 .setSecret(saslCredentials.getPassword())
+                .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
+                .setAuthEnabled(authEnabled)
                 .build()
                 .toByteArray());
     ByteBuffer response;

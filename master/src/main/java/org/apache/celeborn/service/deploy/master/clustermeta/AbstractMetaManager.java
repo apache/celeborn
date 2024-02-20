@@ -41,13 +41,8 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
-import org.apache.celeborn.common.meta.AppDiskUsageMetric;
-import org.apache.celeborn.common.meta.AppDiskUsageSnapShot;
-import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.DiskStatus;
-import org.apache.celeborn.common.meta.WorkerEventInfo;
-import org.apache.celeborn.common.meta.WorkerInfo;
-import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.meta.*;
+import org.apache.celeborn.common.network.sasl.SecretRegistry;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -68,7 +63,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<WorkerInfo, WorkerEventInfo> workerEventInfos =
       JavaUtils.newConcurrentHashMap();
-  public final ConcurrentHashMap<String, Long> appHeartbeatTime = JavaUtils.newConcurrentHashMap();
+  public final ConcurrentHashMap<String, ApplicationInfo> applications =
+      JavaUtils.newConcurrentHashMap();
   public final Set<WorkerInfo> excludedWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> manuallyExcludedWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> shutdownWorkers = ConcurrentHashMap.newKeySet();
@@ -83,20 +79,30 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public AppDiskUsageMetric appDiskUsageMetric = null;
+  public SecretRegistry secretRegistry = null;
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
     registeredShuffle.add(shuffleKey);
 
     String appId = Utils.splitShuffleKey(shuffleKey)._1;
-    appHeartbeatTime.compute(
+    applications.compute(
         appId,
-        (applicationId, oldTimestamp) -> {
-          long oldTime = System.currentTimeMillis();
-          if (oldTimestamp != null) {
-            oldTime = oldTimestamp;
+        (applicationId, applicationInfo) -> {
+          ApplicationInfo appInfo;
+          if (applicationInfo == null) {
+            UserIdentifier userIdentifier = secretRegistry.getUserIdentifier(appId);
+            appInfo =
+                new ApplicationInfo(
+                    userIdentifier != null
+                        ? userIdentifier
+                        : UserIdentifier.UNKNOWN_USER_IDENTIFIER());
+          } else {
+            appInfo = applicationInfo;
+            appInfo.setHeartbeatTime(
+                Math.max(System.currentTimeMillis(), appInfo.getHeartbeatTime()));
           }
-          return Math.max(System.currentTimeMillis(), oldTime);
+          return appInfo;
         });
 
     if (hostName != null) {
@@ -109,14 +115,31 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void updateAppHeartbeatMeta(String appId, long time, long totalWritten, long fileCount) {
-    appHeartbeatTime.put(appId, time);
+    applications.compute(
+        appId,
+        (applicationId, applicationInfo) -> {
+          ApplicationInfo appInfo = applicationInfo;
+          if (appInfo == null) {
+            UserIdentifier userIdentifier = secretRegistry.getUserIdentifier(appId);
+            appInfo =
+                new ApplicationInfo(
+                    userIdentifier != null
+                        ? userIdentifier
+                        : UserIdentifier.UNKNOWN_USER_IDENTIFIER());
+          }
+          appInfo.setHeartbeatTime(time);
+          appInfo.updateTotalWritten(totalWritten);
+          appInfo.updateFileCount(fileCount);
+          return appInfo;
+        });
+
     partitionTotalWritten.add(totalWritten);
     partitionTotalFileCount.add(fileCount);
   }
 
   public void updateAppLostMeta(String appId) {
     registeredShuffle.removeIf(shuffleKey -> shuffleKey.startsWith(appId));
-    appHeartbeatTime.remove(appId);
+    applications.remove(appId);
   }
 
   public void updateWorkerExcludeMeta(
@@ -253,7 +276,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 excludedWorkers,
                 manuallyExcludedWorkers,
                 workerLostEvents,
-                appHeartbeatTime,
+                applications,
                 workers,
                 partitionTotalWritten.sum(),
                 partitionTotalFileCount.sum(),
@@ -293,13 +316,33 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           snapshotMetaInfo.getWorkerLostEventsList().stream()
               .map(PbSerDeUtils::fromPbWorkerInfo)
               .collect(Collectors.toSet()));
-      appHeartbeatTime.putAll(snapshotMetaInfo.getAppHeartbeatTimeMap());
+      snapshotMetaInfo
+          .getApplicationsMap()
+          .entrySet()
+          .forEach(
+              entry ->
+                  applications.put(
+                      entry.getKey(), PbSerDeUtils.fromPbApplicationInfo(entry.getValue())));
 
       registeredShuffle.forEach(
           shuffleKey -> {
             String appId = shuffleKey.split("-")[0];
-            if (!appHeartbeatTime.containsKey(appId)) {
-              appHeartbeatTime.put(appId, System.currentTimeMillis());
+            if (!applications.containsKey(appId)) {
+              applications.compute(
+                  appId,
+                  (applicationId, applicationInfo) -> {
+                    ApplicationInfo appInfo = applicationInfo;
+                    if (appInfo == null) {
+                      UserIdentifier userIdentifier = secretRegistry.getUserIdentifier(appId);
+                      appInfo =
+                          new ApplicationInfo(
+                              userIdentifier != null
+                                  ? userIdentifier
+                                  : UserIdentifier.UNKNOWN_USER_IDENTIFIER());
+                    }
+                    appInfo.setHeartbeatTime(System.currentTimeMillis());
+                    return appInfo;
+                  });
             }
           });
 
@@ -368,7 +411,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     hostnameSet.clear();
     workers.clear();
     lostWorkers.clear();
-    appHeartbeatTime.clear();
+    applications.clear();
     excludedWorkers.clear();
     shutdownWorkers.clear();
     manuallyExcludedWorkers.clear();
