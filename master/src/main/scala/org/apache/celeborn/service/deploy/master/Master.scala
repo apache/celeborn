@@ -115,7 +115,8 @@ private[celeborn] class Master(
           .withAddRegistrationBootstrap(true)
           .withAuthEnabled(authEnabled)
           .withSecretRegistry(appRegistry).build()).build()))
-  logInfo(s"Secure port enabled ${masterArgs.securedPort} for secured RPC.")
+  logInfo(s"Application registration port enabled ${masterArgs.securedPort}" +
+    s" for secured ? $authEnabled RPC.")
 
   private val statusSystem =
     if (conf.haEnabled) {
@@ -1311,9 +1312,7 @@ private[celeborn] class Master(
     if (conf.internalPortEnabled) {
       internalRpcEnvInUse.awaitTermination()
     }
-    if (authEnabled) {
-      appRegistrationRpcEnv.awaitTermination()
-    }
+    appRegistrationRpcEnv.awaitTermination()
   }
 
   override def stop(exitKind: Int): Unit = synchronized {
@@ -1323,9 +1322,7 @@ private[celeborn] class Master(
       if (conf.internalPortEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)
       }
-      if (authEnabled) {
-        appRegistrationRpcEnv.stop(securedRpcEndpointRef)
-      }
+      appRegistrationRpcEnv.stop(securedRpcEndpointRef)
       super.stop(exitKind)
       logInfo("Master stopped.")
       stopped = true
