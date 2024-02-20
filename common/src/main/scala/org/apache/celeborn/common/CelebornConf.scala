@@ -366,8 +366,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
   }
 
-  def dynamicConfigStoreBackend: String = get(DYNAMIC_CONFIG_STORE_BACKEND)
-  def dynamicConfigEnabled: Boolean = get(DYNAMIC_CONFIG_ENABLED)
+  def dynamicConfigStoreBackend: Option[String] = get(DYNAMIC_CONFIG_STORE_BACKEND)
   def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
   def dynamicConfigStoreDbFetchPageSize: Int = get(DYNAMIC_CONFIG_STORE_DB_FETCH_PAGE_SIZE)
   def dynamicConfigStoreDbHikariDriverClassName: String =
@@ -4451,23 +4450,16 @@ object CelebornConf extends Logging {
       .stringConf
       .createOptional
 
-  val DYNAMIC_CONFIG_STORE_BACKEND: ConfigEntry[String] =
+  val DYNAMIC_CONFIG_STORE_BACKEND: OptionalConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")
       .categories("master", "worker")
-      .doc("Store backend for dynamic config service. Available options: FS, DB.")
+      .doc("Store backend for dynamic config service. Available options: FS, DB. " +
+        "If not provided, it means that dynamic configuration is disabled.")
       .version("0.4.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set("FS", "DB"))
-      .createWithDefault("FS")
-
-  val DYNAMIC_CONFIG_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.dynamicConfig.enabled")
-      .categories("master", "worker")
-      .version("0.5.0")
-      .doc("Whether to enable dynamic configuration.")
-      .booleanConf
-      .createWithDefault(false)
+      .createOptional
 
   val DYNAMIC_CONFIG_REFRESH_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.dynamicConfig.refresh.interval")

@@ -49,7 +49,7 @@ public interface ConfigService {
     }
   }
 
-  void refreshAllCache() throws IOException;
+  void refreshCache() throws IOException;
 
   void shutdown();
 }
