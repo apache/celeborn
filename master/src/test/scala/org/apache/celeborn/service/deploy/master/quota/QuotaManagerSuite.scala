@@ -42,6 +42,7 @@ class QuotaManagerSuite extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     val conf = new CelebornConf()
+    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
     conf.set(
       CelebornConf.QUOTA_CONFIGURATION_PATH.key,
       getTestResourceFile("dynamicConfig-quota.yaml").getPath)

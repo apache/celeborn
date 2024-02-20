@@ -27,14 +27,15 @@ import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
 
 class QuotaManager(celebornConf: CelebornConf) extends Logging {
   private val conf = celebornConf.clone
-  if (conf.dynamicConfigStoreBackend.isEmpty) {
-    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
-  }
   val configService = DynamicConfigServiceFactory.getConfigService(conf)
   def getQuota(userIdentifier: UserIdentifier): Quota = {
-    val config =
-      configService.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
-    getQuota(config)
+    if (configService != null) {
+      val config =
+        configService.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
+      getQuota(config)
+    } else{
+      Quota.DEFAULT_QUOTA
+    }
   }
 
   def getQuota(config: DynamicConfig): Quota = {

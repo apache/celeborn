@@ -105,3 +105,7 @@ case class Quota(
       s"]"
   }
 }
+
+object Quota {
+  val DEFAULT_QUOTA = new Quota()
+}
