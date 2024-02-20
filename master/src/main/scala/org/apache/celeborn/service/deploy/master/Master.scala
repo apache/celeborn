@@ -114,9 +114,9 @@ private[celeborn] class Master(
         new ServerRpcContextBuilder()
           .withAddRegistrationBootstrap(true)
           .withAuthEnabled(authEnabled)
-          .withSecretRegistry(appRegistry).build()).build()))
-  logInfo(s"Application registration port enabled ${masterArgs.securedPort}" +
-    s" for secured ? $authEnabled RPC.")
+          .withApplicationRegistry(appRegistry).build()).build()))
+  logInfo(s"Application registration port enabled ${masterArgs.securedPort}," +
+    s" authEnabled ? $authEnabled")
 
   private val statusSystem =
     if (conf.haEnabled) {
@@ -254,14 +254,11 @@ private[celeborn] class Master(
   }
 
   // Visible for testing
-  private[master] var securedRpcEndpoint: RpcEndpoint = _
-  private var securedRpcEndpointRef: RpcEndpointRef = _
-  if (authEnabled) {
-    securedRpcEndpoint = new SecuredRpcEndpoint(this, appRegistrationRpcEnv, conf)
-    securedRpcEndpointRef = appRegistrationRpcEnv.setupEndpoint(
-      RpcNameConstants.MASTER_SECURED_EP,
-      securedRpcEndpoint)
-  }
+  private[master] val appRegistrationRpcEndpoint: RpcEndpoint =
+    new SecuredRpcEndpoint(this, appRegistrationRpcEnv, conf)
+  private val appRegistrationRpcEndpointRef: RpcEndpointRef = appRegistrationRpcEnv.setupEndpoint(
+    RpcNameConstants.MASTER_SECURED_EP,
+    appRegistrationRpcEndpoint)
 
   // start threads to check timeout for workers and applications
   override def onStart(): Unit = {
@@ -1322,7 +1319,7 @@ private[celeborn] class Master(
       if (conf.internalPortEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)
       }
-      appRegistrationRpcEnv.stop(securedRpcEndpointRef)
+      appRegistrationRpcEnv.stop(appRegistrationRpcEndpointRef)
       super.stop(exitKind)
       logInfo("Master stopped.")
       stopped = true

@@ -59,7 +59,8 @@ public class RegistrationSuiteJ extends SaslTestBase {
   @Test(expected = IOException.class)
   public void testReRegisterationFails() throws Throwable {
     TransportConf conf = new TransportConf("shuffle", new CelebornConf());
-    // The SecretRegistryImpl already has the entry for TEST_USER so re-registering the app should
+    // The ApplicationRegistryImpl already has the entry for TEST_USER so re-registering the app
+    // should
     // fail.
     RegistrationServerBootstrap serverBootstrap =
         new RegistrationServerBootstrap(conf, APP_REGISTRY, true);

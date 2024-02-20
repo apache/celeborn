@@ -117,11 +117,11 @@ class RpcContextSuite extends CelebornFunSuite {
 
   test("ServerRpcContext build should build ServerSaslContext with valid parameters") {
     val serverContext = new ServerRpcContextBuilder()
-      .withSecretRegistry(new ApplicationRegistryImpl())
+      .withApplicationRegistry(new ApplicationRegistryImpl())
       .withAddRegistrationBootstrap(true)
       .build()
 
-    serverContext.secretRegistry shouldNot be(null)
+    serverContext.applicationRegistry shouldNot be(null)
     serverContext.addRegistrationBootstrap shouldBe true
   }
 

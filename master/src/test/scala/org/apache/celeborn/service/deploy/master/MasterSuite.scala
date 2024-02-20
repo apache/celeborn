@@ -118,17 +118,17 @@ class MasterSuite extends AnyFunSuite
       }
     }.start()
     Thread.sleep(5000L)
-    master.securedRpcEndpoint.receiveAndReply(
+    master.appRegistrationRpcEndpoint.receiveAndReply(
       mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext]))
       .applyOrElse(
         HeartbeatFromApplication("appId", 0L, 0L, null),
         (_: Any) => fail("Unexpected message"))
-    master.securedRpcEndpoint.receiveAndReply(
+    master.appRegistrationRpcEndpoint.receiveAndReply(
       mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext]))
       .applyOrElse(ApplicationLost("appId"), (_: Any) => fail("Unexpected message"))
 
     assertThrows[scala.MatchError] {
-      master.securedRpcEndpoint.receiveAndReply(
+      master.appRegistrationRpcEndpoint.receiveAndReply(
         mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext]))(
         PbRegisterWorker.newBuilder().build())
     }
