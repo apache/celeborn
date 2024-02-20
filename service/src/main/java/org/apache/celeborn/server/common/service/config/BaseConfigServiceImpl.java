@@ -18,7 +18,9 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -76,8 +78,18 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
   }
 
   @Override
+  public List<TenantConfig> listRawTenantConfigsFromCache() {
+    return new ArrayList<>(tenantConfigAtomicReference.get().values());
+  }
+
+  @Override
   public TenantConfig getRawTenantConfigFromCache(String tenantId) {
     return tenantConfigAtomicReference.get().get(tenantId);
+  }
+
+  @Override
+  public List<TenantConfig> listRawTenantUserConfigsFromCache() {
+    return new ArrayList<>(tenantUserConfigAtomicReference.get().values());
   }
 
   @Override
