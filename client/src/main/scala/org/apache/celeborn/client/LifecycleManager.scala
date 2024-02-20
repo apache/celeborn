@@ -50,7 +50,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
-import org.apache.celeborn.common.security.{ClientSaslContextBuilder, RpcSecurityContext, RpcSecurityContextBuilder}
+import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcSecurityContext, RpcSecurityContextBuilder}
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
@@ -166,20 +166,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private var masterRpcEnvInUse = rpcEnv
   private var workerRpcEnvInUse = rpcEnv
+
+  private val appSecret = if (authEnabled) Some(createSecret()) else None
+  masterRpcEnvInUse =
+    RpcEnv.create(
+      RpcNameConstants.LIFECYCLE_MANAGER_MASTER_SYS,
+      lifecycleHost,
+      0,
+      conf,
+      createRpcSecurityContext(
+        appSecret,
+        addClientRegistrationBootstrap = true,
+        Some(new RegistrationInfo())))
   if (authEnabled) {
-    logInfo(s"Authentication is enabled; setting up master and worker RPC environments")
-    val appSecret = createSecret()
-    val registrationInfo = new RegistrationInfo()
-    masterRpcEnvInUse =
-      RpcEnv.create(
-        RpcNameConstants.LIFECYCLE_MANAGER_MASTER_SYS,
-        lifecycleHost,
-        0,
-        conf,
-        createRpcSecurityContext(
-          appSecret,
-          addClientRegistrationBootstrap = true,
-          Some(registrationInfo)))
+    logInfo(s"Authentication is enabled; setting up worker RPC environments")
     workerRpcEnvInUse =
       RpcEnv.create(
         RpcNameConstants.LIFECYCLE_MANAGER_WORKER_SYS,
@@ -260,14 +260,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * Creates security context for external RPC endpoint.
    */
   def createRpcSecurityContext(
-      appSecret: String,
+      appSecret: Option[String],
       addClientRegistrationBootstrap: Boolean = false,
       registrationInfo: Option[RegistrationInfo] = None): Option[RpcSecurityContext] = {
     val clientSaslContextBuilder = new ClientSaslContextBuilder()
       .withAddRegistrationBootstrap(addClientRegistrationBootstrap)
       .withAppId(appUniqueId)
       .withSaslUser(appUniqueId)
-      .withSaslPassword(appSecret)
+      .withSaslPassword(appSecret.orNull)
     if (registrationInfo.isDefined) {
       clientSaslContextBuilder.withRegistrationInfo(registrationInfo.get)
     }

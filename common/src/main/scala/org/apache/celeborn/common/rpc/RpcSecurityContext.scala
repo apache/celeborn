@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.celeborn.common.security
+package org.apache.celeborn.common.rpc
 
 import org.apache.celeborn.common.network.sasl.{SaslCredentials, SecretRegistry}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
