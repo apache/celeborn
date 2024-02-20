@@ -100,27 +100,21 @@ private[celeborn] class Master(
 
   private val rackResolver = new CelebornRackResolver(conf)
   private val authEnabled = conf.authEnabled
-  private val secretRegistry = new SecretRegistryImpl()
+  private val secretRegistry = if (authEnabled) Some(new SecretRegistryImpl()) else None
   // Visible for testing
-  private[master] var securedRpcEnv: RpcEnv = _
-  if (authEnabled) {
-    val externalSecurityContext = new RpcSecurityContextBuilder()
+  private[master] val securedRpcEnv: RpcEnv = RpcEnv.create(
+    RpcNameConstants.MASTER_SECURED_SYS,
+    masterArgs.host,
+    masterArgs.host,
+    masterArgs.securedPort,
+    conf,
+    Math.max(64, Runtime.getRuntime.availableProcessors()),
+    Some(new RpcSecurityContextBuilder()
       .withServerSaslContext(
         new ServerRpcContextBuilder()
           .withAddRegistrationBootstrap(true)
-          .withSecretRegistry(secretRegistry).build()).build()
-
-    securedRpcEnv = RpcEnv.create(
-      RpcNameConstants.MASTER_SECURED_SYS,
-      masterArgs.host,
-      masterArgs.host,
-      masterArgs.securedPort,
-      conf,
-      Math.max(64, Runtime.getRuntime.availableProcessors()),
-      Some(externalSecurityContext))
-    logInfo(
-      s"Secure port enabled ${masterArgs.securedPort} for secured RPC.")
-  }
+          .withSecretRegistry(secretRegistry.orNull).build()).build()))
+  logInfo(s"Secure port enabled ${masterArgs.securedPort} for secured RPC.")
 
   private val statusSystem =
     if (conf.haEnabled) {
@@ -1090,7 +1084,7 @@ private[celeborn] class Master(
   }
 
   private def checkAuthStatus(appId: String, context: RpcCallContext): Boolean = {
-    if (conf.authEnabled && secretRegistry.isRegistered(appId)) {
+    if (secretRegistry.forall(_.isRegistered(appId))) {
       context.sendFailure(new SecurityException(
         s"Auth enabled application $appId sending messages on unsecured port!"))
       false

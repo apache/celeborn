@@ -717,6 +717,8 @@ message PbAuthenticationInitiationResponse {
 message PbRegisterApplicationRequest {
   string id = 1;
   string secret = 2;
+  bool authEnabled = 3;
+  PbUserIdentifier userIdentifier = 4;
 }
 
 message PbRegisterApplicationResponse {

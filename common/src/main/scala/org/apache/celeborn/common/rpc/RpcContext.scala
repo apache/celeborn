@@ -37,7 +37,7 @@ private[celeborn] case class RpcContext(
  */
 private[celeborn] case class ClientRpcContext(
     appId: String,
-    saslCredentials: SaslCredentials,
+    saslCredentials: Option[SaslCredentials] = None,
     addRegistrationBootstrap: Boolean = false,
     registrationInfo: RegistrationInfo = null)
 
@@ -47,7 +47,7 @@ private[celeborn] case class ClientRpcContext(
  * @param addRegistrationBootstrap  Whether to add registration bootstrap.
  */
 private[celeborn] case class ServerSaslContext(
-    secretRegistry: SecretRegistry,
+    secretRegistry: Option[SecretRegistry] = None,
     addRegistrationBootstrap: Boolean = false)
 
 /**
@@ -86,18 +86,19 @@ private[celeborn] class ClientRpcContextBuilder {
   }
 
   def build(): ClientRpcContext = {
-    if (saslUser == null || saslPassword == null) {
-      throw new IllegalArgumentException("Sasl user/password is not set.")
-    }
     if (appId == null) {
       throw new IllegalArgumentException("App id is not set.")
     }
     if (addRegistrationBootstrap && registrationInfo == null) {
       throw new IllegalArgumentException("Registration info is not set.")
     }
+    var saslCredentials: Option[SaslCredentials] = None
+    if (saslUser != null && saslPassword != null) {
+      saslCredentials = Some(new SaslCredentials(saslUser, saslPassword))
+    }
     ClientRpcContext(
       appId,
-      new SaslCredentials(saslUser, saslPassword),
+      saslCredentials,
       addRegistrationBootstrap,
       registrationInfo)
   }
@@ -121,11 +122,8 @@ private[celeborn] class ServerRpcContextBuilder {
   }
 
   def build(): ServerSaslContext = {
-    if (secretRegistry == null) {
-      throw new IllegalArgumentException("Secret registry is not set.")
-    }
     ServerSaslContext(
-      secretRegistry,
+      Option(secretRegistry),
       addRegistrationBootstrap)
   }
 }

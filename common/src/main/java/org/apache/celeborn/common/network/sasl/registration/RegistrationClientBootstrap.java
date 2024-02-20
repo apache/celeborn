@@ -98,6 +98,33 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
 
   @Override
   public void doBootstrap(TransportClient client) throws RuntimeException {
+    if (saslCredentials != null) {
+        doSaslRegisterBootstrap(client);
+        } else {
+        doNonSaslRegisterBootstrap(client);
+    }
+  }
+
+  public void doNonSaslRegisterBootstrap(TransportClient client) {
+    if (registrationInfo.getRegistrationState() == RegistrationInfo.RegistrationState.REGISTERED) {
+      LOG.info("client has already registered, skip register.");
+      return;
+    }
+    try {
+      register(client);
+      LOG.info("Registration for {}", appId);
+      registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.REGISTERED);
+    }  catch (IOException | CelebornException e) {
+      throw new RuntimeException(e);
+    } finally {
+      if (registrationInfo.getRegistrationState()
+              != RegistrationInfo.RegistrationState.REGISTERED) {
+        registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.FAILED);
+      }
+    }
+  }
+
+  public void doSaslRegisterBootstrap(TransportClient client) throws RuntimeException {
     if (registrationInfo.getRegistrationState() == RegistrationInfo.RegistrationState.REGISTERED) {
       LOG.info("client has already registered, skip register.");
       doSaslBootstrap(client);
