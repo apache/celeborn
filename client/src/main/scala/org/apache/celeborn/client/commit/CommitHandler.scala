@@ -213,7 +213,7 @@ abstract class CommitHandler(
       status.startTime = currentTime
       val mockFailure = status.message.mockFailure && (status.retriedTimes < maxRetries)
       val msg =
-        status.message.copy(epoch = commitEpoch.incrementAndGet(), mockFailure = mockFailure)
+        status.message.copy(mockFailure = mockFailure)
       status.future = commitFiles(
         status.workerInfo,
         msg)
