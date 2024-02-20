@@ -26,6 +26,9 @@ import org.apache.celeborn.server.common.service.config.{DynamicConfig, DynamicC
 import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
 
 class QuotaManager(celebornConf: CelebornConf) extends Logging {
+  if (celebornConf.dynamicConfigStoreBackend.isEmpty) {
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
+  }
   val configService = DynamicConfigServiceFactory.getConfigService(celebornConf)
   def getQuota(userIdentifier: UserIdentifier): Quota = {
     val config = configService.getTenantUserConfig(userIdentifier.tenantId, userIdentifier.name)
