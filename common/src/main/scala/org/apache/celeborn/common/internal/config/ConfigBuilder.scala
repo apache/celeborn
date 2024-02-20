@@ -142,6 +142,7 @@ class TypedConfigBuilder[T](
       parent._doc,
       parent._public,
       parent._categories,
+      parent._isDynamic,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -166,6 +167,7 @@ class TypedConfigBuilder[T](
           parent._doc,
           parent._public,
           parent._categories,
+          parent._isDynamic,
           parent._version)
         parent._onCreate.foreach(_(entry))
         entry
@@ -185,6 +187,7 @@ class TypedConfigBuilder[T](
       parent._doc,
       parent._public,
       parent._categories,
+      parent._isDynamic,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -206,6 +209,7 @@ class TypedConfigBuilder[T](
       parent._doc,
       parent._public,
       parent._categories,
+      parent._isDynamic,
       parent._version)
     parent._onCreate.foreach(_(entry))
     entry
@@ -227,6 +231,7 @@ case class ConfigBuilder(key: String) {
   private[config] var _public = true
   private[config] var _doc = ""
   private[config] var _categories = Seq.empty[String]
+  private[config] var _isDynamic = false
   private[config] var _version = ""
   private[config] var _onCreate: Option[ConfigEntry[_] => Unit] = None
   private[config] var _alternatives = List.empty[AlternativesTransfer]
@@ -238,6 +243,11 @@ case class ConfigBuilder(key: String) {
 
   def categories(categories: String*): ConfigBuilder = {
     _categories = categories
+    this
+  }
+
+  def dynamic: ConfigBuilder = {
+    _isDynamic = true
     this
   }
 
@@ -314,6 +324,7 @@ case class ConfigBuilder(key: String) {
       _doc,
       _public,
       _categories,
+      _isDynamic,
       _version,
       fallback)
     _onCreate.foreach(_(entry))

@@ -83,6 +83,7 @@ abstract class ConfigEntry[T](
     val doc: String,
     val isPublic: Boolean,
     val categories: Seq[String],
+    val isDynamic: Boolean,
     val version: String) {
 
   import ConfigEntry._
@@ -124,6 +125,7 @@ private class ConfigEntryWithDefault[T](
     doc: String,
     isPublic: Boolean,
     categories: Seq[String],
+    isDynamic: Boolean,
     version: String)
   extends ConfigEntry(
     key,
@@ -135,6 +137,7 @@ private class ConfigEntryWithDefault[T](
     doc,
     isPublic,
     categories,
+    isDynamic,
     version) {
 
   override def defaultValue: Option[T] = Some(_defaultValue)
@@ -157,6 +160,7 @@ private class ConfigEntryWithDefaultFunction[T](
     doc: String,
     isPublic: Boolean,
     categories: Seq[String],
+    isDynamic: Boolean,
     version: String)
   extends ConfigEntry(
     key,
@@ -168,6 +172,7 @@ private class ConfigEntryWithDefaultFunction[T](
     doc,
     isPublic,
     categories,
+    isDynamic,
     version) {
 
   override def defaultValue: Option[T] = Some(_defaultFunction())
@@ -190,6 +195,7 @@ private class ConfigEntryWithDefaultString[T](
     doc: String,
     isPublic: Boolean,
     categories: Seq[String],
+    isDynamic: Boolean,
     version: String)
   extends ConfigEntry(
     key,
@@ -201,6 +207,7 @@ private class ConfigEntryWithDefaultString[T](
     doc,
     isPublic,
     categories,
+    isDynamic,
     version) {
 
   override def defaultValue: Option[T] = Some(valueConverter(_defaultValue))
@@ -226,6 +233,7 @@ class OptionalConfigEntry[T](
     doc: String,
     isPublic: Boolean,
     categories: Seq[String],
+    isDynamic: Boolean,
     version: String)
   extends ConfigEntry[Option[T]](
     key,
@@ -237,6 +245,7 @@ class OptionalConfigEntry[T](
     doc,
     isPublic,
     categories,
+    isDynamic,
     version) {
 
   override def defaultValueString: String = ConfigEntry.UNDEFINED
@@ -257,6 +266,7 @@ class FallbackConfigEntry[T](
     doc: String,
     isPublic: Boolean,
     categories: Seq[String],
+    isDynamic: Boolean,
     version: String,
     val fallback: ConfigEntry[T])
   extends ConfigEntry[T](
@@ -269,6 +279,7 @@ class FallbackConfigEntry[T](
     doc,
     isPublic,
     categories,
+    isDynamic,
     version) {
 
   override def defaultValueString: String = s"<value of ${fallback.key}>"
