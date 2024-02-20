@@ -754,7 +754,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def quotaEnabled: Boolean = get(QUOTA_ENABLED)
   def quotaIdentityProviderClass: String = get(QUOTA_IDENTITY_PROVIDER)
-  def quotaManagerClass: String = get(QUOTA_MANAGER)
   def quotaConfigurationPath: Option[String] = get(QUOTA_CONFIGURATION_PATH)
   def quotaUserSpecificTenant: String = get(QUOTA_USER_SPECIFIC_TENANT)
   def quotaUserSpecificUserName: String = get(QUOTA_USER_SPECIFIC_USERNAME)
@@ -4198,15 +4197,6 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .stringConf
       .createWithDefault(IdentityProvider.DEFAULT_USERNAME)
-
-  val QUOTA_MANAGER: ConfigEntry[String] =
-    buildConf("celeborn.quota.manager")
-      .categories("quota")
-      .doc(s"QuotaManger class name. Default class is `org.apache.celeborn.service.deploy.master.quota.FsConfigServiceQuotaManager`.")
-      .version("0.2.0")
-      .stringConf
-      .createWithDefault(
-        "org.apache.celeborn.service.deploy.master.quota.FsConfigServiceQuotaManager")
 
   val QUOTA_CONFIGURATION_PATH: OptionalConfigEntry[String] =
     buildConf("celeborn.quota.configuration.path")

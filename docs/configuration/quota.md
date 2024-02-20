@@ -24,5 +24,4 @@ license: |
 | celeborn.quota.identity.provider | org.apache.celeborn.common.identity.DefaultIdentityProvider | IdentityProvider class name. Default class is `org.apache.celeborn.common.identity.DefaultIdentityProvider`. Optional values: org.apache.celeborn.common.identity.HadoopBasedIdentityProvider user name will be obtained by UserGroupInformation.getUserName; org.apache.celeborn.common.identity.DefaultIdentityProvider user name and tenant id are default values or user-specific values. | 0.2.0 |  | 
 | celeborn.quota.identity.user-specific.tenant | default | Tenant id if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider. | 0.3.0 |  | 
 | celeborn.quota.identity.user-specific.userName | default | User name if celeborn.quota.identity.provider is org.apache.celeborn.common.identity.DefaultIdentityProvider. | 0.3.0 |  | 
-| celeborn.quota.manager | org.apache.celeborn.service.deploy.master.quota.FsConfigServiceQuotaManager | QuotaManger class name. Default class is `org.apache.celeborn.service.deploy.master.quota.FsConfigServiceQuotaManager`. | 0.2.0 |  | 
 <!--end-include-->

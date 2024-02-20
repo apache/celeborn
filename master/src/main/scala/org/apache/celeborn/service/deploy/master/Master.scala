@@ -163,7 +163,7 @@ private[celeborn] class Master(
   private val hdfsExpireDirsTimeoutMS = conf.hdfsExpireDirsTimeoutMS
   private val hasHDFSStorage = conf.hasHDFSStorage
 
-  private val quotaManager = QuotaManager.instantiate(conf)
+  private val quotaManager = new QuotaManager(conf)
   private val masterResourceConsumptionInterval = conf.masterResourceConsumptionInterval
   private val userResourceConsumptions =
     JavaUtils.newConcurrentHashMap[UserIdentifier, (ResourceConsumption, Long)]()

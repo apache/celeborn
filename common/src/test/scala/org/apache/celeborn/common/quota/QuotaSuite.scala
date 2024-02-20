@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.quota
+package org.apache.celeborn.common.quota
 
+import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.quota.{Quota, ResourceConsumption}
 
-class QuotaSuite extends BaseQuotaManagerSuite {
+class QuotaSuite extends CelebornFunSuite {
 
   val quota1 = Quota(-1, -1, 300, 400)
   val quota2 = Quota(100, 200, 300, 400)

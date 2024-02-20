@@ -19,12 +19,18 @@ package org.apache.celeborn.service.deploy.master.quota
 
 import java.io.File
 
+import org.junit.Assert.assertEquals
+
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.quota.Quota
+import org.apache.celeborn.common.util.Utils
+
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.celeborn.common.internal.Logging
 
-abstract class BaseQuotaManagerSuite extends AnyFunSuite
+class QuotaManagerSuite extends AnyFunSuite
   with BeforeAndAfterAll
   with BeforeAndAfterEach
   with Logging {
@@ -33,5 +39,27 @@ abstract class BaseQuotaManagerSuite extends AnyFunSuite
   // helper function
   final protected def getTestResourceFile(file: String): File = {
     new File(getClass.getClassLoader.getResource(file).getFile)
+  }
+
+  override def beforeAll(): Unit = {
+    val conf = new CelebornConf()
+    conf.set(
+      CelebornConf.QUOTA_CONFIGURATION_PATH.key,
+      getTestResourceFile("dynamicConfig-quota.yaml").getPath)
+    quotaManager = new QuotaManager(conf)
+  }
+
+  test("test celeborn quota conf") {
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("tenant_01", "Jerry")),
+      Quota(Utils.byteStringAsBytes("100G"), 10000, Utils.byteStringAsBytes("10G"), -1))
+    // Fallback to tenant level
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("tenant_01", "name_not_exist")),
+      Quota(Utils.byteStringAsBytes("10G"), 1000, Utils.byteStringAsBytes("10G"), -1))
+    // Fallback to system level
+    assertEquals(
+      quotaManager.getQuota(UserIdentifier("tenant_not_exist", "Tom")),
+      Quota(Utils.byteStringAsBytes("1G"), 100, Utils.byteStringAsBytes("1G"), -1))
   }
 }

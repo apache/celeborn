@@ -17,30 +17,42 @@
 package org.apache.celeborn.service.deploy.master.quota
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.{QUOTA_DISK_BYTES_WRITTEN, QUOTA_DISK_FILE_COUNT, QUOTA_HDFS_BYTES_WRITTEN, QUOTA_HDFS_FILE_COUNT}
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.internal.config.ConfigEntry
 import org.apache.celeborn.common.quota.Quota
+import org.apache.celeborn.server.common.service.config.DynamicConfig.ConfigType
+import org.apache.celeborn.server.common.service.config.{DynamicConfig, DynamicConfigServiceFactory}
 
-trait QuotaManager extends Logging {
-  def getQuota(userIdentifier: UserIdentifier): Quota
-}
+class QuotaManager(celebornConf: CelebornConf) extends Logging {
+  val configService = DynamicConfigServiceFactory.getConfigService(celebornConf)
+  def getQuota(userIdentifier: UserIdentifier): Quota = {
+    val config = configService.getTenantUserConfig(userIdentifier.tenantId, userIdentifier.name)
+    getQuota(config)
+  }
 
-object QuotaManager extends Logging {
-  def instantiate(conf: CelebornConf): QuotaManager = {
-    val className = conf.quotaManagerClass
-    logDebug(s"Creating quota manager $className")
-    val clazz = Class.forName(
-      className,
-      true,
-      Thread.currentThread().getContextClassLoader).asInstanceOf[Class[QuotaManager]]
-    try {
-      val ctor = clazz.getDeclaredConstructor(classOf[CelebornConf])
-      val quotaManager = ctor.newInstance(conf)
-      quotaManager
-    } catch {
-      case e: NoSuchMethodException =>
-        logError(s"Falling to instantiate quota manager $className", e)
-        throw e
-    }
+  def getQuota(config: DynamicConfig): Quota = {
+    Quota(
+      config.getValue(
+        QUOTA_DISK_BYTES_WRITTEN.key,
+        QUOTA_DISK_BYTES_WRITTEN.asInstanceOf[ConfigEntry[AnyRef]],
+        classOf[Long],
+        ConfigType.BYTES),
+      config.getValue(
+        QUOTA_DISK_FILE_COUNT.key,
+        QUOTA_DISK_FILE_COUNT.asInstanceOf[ConfigEntry[AnyRef]],
+        classOf[Long],
+        ConfigType.STRING),
+      config.getValue(
+        QUOTA_HDFS_BYTES_WRITTEN.key,
+        QUOTA_HDFS_BYTES_WRITTEN.asInstanceOf[ConfigEntry[AnyRef]],
+        classOf[Long],
+        ConfigType.BYTES),
+      config.getValue(
+        QUOTA_HDFS_FILE_COUNT.key,
+        QUOTA_HDFS_FILE_COUNT.asInstanceOf[ConfigEntry[AnyRef]],
+        classOf[Long],
+        ConfigType.STRING))
   }
 }
